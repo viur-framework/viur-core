@@ -111,7 +111,7 @@ class UserSkel(skeleton.Skeleton):
 
     roles = SelectBone(
         descr=i18n.translate("viur.user.bone.roles", defaultText="Roles"),
-        values=conf["viur.user.roles"],
+        values=conf.viur.user_roles,
         required=True,
         multiple=True,
         # fixme: This is generally broken in VIUR! See #776 for details.
@@ -120,14 +120,14 @@ class UserSkel(skeleton.Skeleton):
         #         "user.bone.roles.invalid",
         #         defaultText="Invalid role setting: 'custom' can only be set alone.")
         #     if "custom" in values and len(values) > 1 else None,
-        defaultValue=list(conf["viur.user.roles"].keys())[:1],
+        defaultValue=list(conf.viur.user_roles.keys())[:1],
     )
 
     access = SelectBone(
         descr=i18n.translate("viur.user.bone.access", defaultText="Access rights"),
         values=lambda: {
             right: i18n.translate("server.modules.user.accessright.%s" % right, defaultText=right)
-            for right in sorted(conf["viur.accessRights"])
+            for right in sorted(conf.viur.accessRights)
         },
         multiple=True,
         params={
@@ -177,14 +177,14 @@ class UserSkel(skeleton.Skeleton):
 
             for role in skel["roles"]:
                 # Get default access for this role
-                access |= conf["viur.mainApp"].vi.user.get_role_defaults(role)
+                access |= conf.viur.mainApp.vi.user.get_role_defaults(role)
 
                 # Go through all modules and evaluate available role-settings
-                for name in dir(conf["viur.mainApp"].vi):
+                for name in dir(conf.viur.mainApp.vi):
                     if name.startswith("_"):
                         continue
 
-                    module = getattr(conf["viur.mainApp"].vi, name)
+                    module = getattr(conf.viur.mainApp.vi, name)
                     if not isinstance(module, Module):
                         continue
 
@@ -553,17 +553,17 @@ class GoogleAccount:
                 # We have to allow popups here
                 request.response.headers["cross-origin-opener-policy"] = "same-origin-allow-popups"
             # Fixme: Render with Jinja2?
-            with (conf["viur.instance.core_base_path"]
+            with (conf.viur.instance_core_base_path
                   .joinpath("viur/core/template/vi_user_google_login.html")
                   .open() as tpl_file):
                 tplStr = tpl_file.read()
-            tplStr = tplStr.replace("{{ clientID }}", conf["viur.user.google.clientID"])
+            tplStr = tplStr.replace("{{ clientID }}", conf.viur.user_google_clientID)
             extendCsp({"script-src": ["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
                        "style-src": ["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]})
             return tplStr
         if not securitykey.validate(skey):
             raise errors.PreconditionFailed()
-        userInfo = id_token.verify_oauth2_token(token, requests.Request(), conf["viur.user.google.clientID"])
+        userInfo = id_token.verify_oauth2_token(token, requests.Request(), conf.viur.user_google_clientID)
         if userInfo['iss'] not in {'accounts.google.com', 'https://accounts.google.com'}:
             raise ValueError('Wrong issuer.')
         # Token looks valid :)
@@ -579,7 +579,7 @@ class GoogleAccount:
             if not (userSkel := addSkel().all().filter("name.idx =", email.lower()).getSkel()):
                 # Still no luck - it's a completely new user
                 if not self.registrationEnabled:
-                    if userInfo.get("hd") and userInfo["hd"] in conf["viur.user.google.gsuiteDomains"]:
+                    if userInfo.get("hd") and userInfo["hd"] in conf.viur.user_google_gsuiteDomains:
                         print("User is from domain - adding account")
                     else:
                         logging.warning("Denying registration of %s", email)
@@ -715,7 +715,7 @@ class TimeBasedOTP:
             # Verify the otptoken. If valid, this returns the current timedrift index for this hardware OTP.
             res = self.verify(
                 otp=skel["otptoken"],
-                secret=otp_user_conf["secret"],
+                secret=otp_user_conf.secret,
                 algorithm=otp_user_conf.get("algorithm") or "sha1",
                 interval=otp_user_conf.get("interval") or 60,
                 timedrift=otp_user_conf.get("timedrift") or 0.0,
@@ -726,7 +726,7 @@ class TimeBasedOTP:
 
         # Check if Token is invalid. Caution: 'if not verifyIndex' gets false positive for verifyIndex === 0!
         if res is None:
-            otp_user_conf["attempts"] = attempts + 1
+            otp_user_conf.attempts = attempts + 1
             session.markChanged()
 
             return self.userModule.render.edit(
@@ -734,13 +734,13 @@ class TimeBasedOTP:
             )
 
         # Remove otp user config from session
-        user_key = db.keyHelper(otp_user_conf["key"], self.userModule._resolveSkelCls().kindName)
+        user_key = db.keyHelper(otp_user_conf.key, self.userModule._resolveSkelCls().kindName)
         del session["_otp_user"]
         session.markChanged()
 
         # Check if the OTP device has a time drift
 
-        timedriftchange = float(res) - otp_user_conf["timedrift"]
+        timedriftchange = float(res) - otp_user_conf.timedrift
         if abs(timedriftchange) > 2:
             # The time-drift change accumulates to more than 2 minutes (for interval==60):
             # update clock-drift value accordingly
@@ -1020,7 +1020,7 @@ class User(List):
             Performs Log-In for the current session and the given user key.
 
             This resets the current session: All fields not explicitly marked as persistent
-            by conf["viur.session.persistentFieldsOnLogin"] are gone afterwards.
+            by conf.viur.session_persistentFieldsOnLogin are gone afterwards.
 
             :param key: The (DB-)Key of the user we shall authenticate
         """
@@ -1035,7 +1035,7 @@ class User(List):
         # Update session for user
         session = current.session.get()
         # Remember persistent fields...
-        take_over = {k: v for k, v in session.items() if k in conf["viur.session.persistentFieldsOnLogin"]}
+        take_over = {k: v for k, v in session.items() if k in conf.viur.session_persistentFieldsOnLogin}
         session.reset()
         # and copy them over to the new session
         session |= take_over
@@ -1054,7 +1054,7 @@ class User(List):
     def logout(self, skey="", *args, **kwargs):
         """
             Implements the logout action. It also terminates the current session (all keys not listed
-            in viur.session.persistentFieldsOnLogout will be lost).
+            in viur.session_persistentFieldsOnLogout will be lost).
         """
         if not (user := current.user.get()):
             raise errors.Unauthorized()
@@ -1064,7 +1064,7 @@ class User(List):
         self.onLogout(user)
 
         session = current.session.get()
-        take_over = {k: v for k, v in session.items() if k in conf["viur.session.persistentFieldsOnLogout"]}
+        take_over = {k: v for k, v in session.items() if k in conf.viur.session_persistentFieldsOnLogout}
         session.reset()
         session |= take_over
         current.user.set(None)  # set user to none in context var
@@ -1186,7 +1186,7 @@ def createNewUserIfNotExists():
     """
         Create a new Admin user, if the userDB is empty
     """
-    userMod = getattr(conf["viur.mainApp"], "user", None)
+    userMod = getattr(conf.viur.mainApp, "user", None)
     if (userMod  # We have a user module
         and isinstance(userMod, User)
         and "addSkel" in dir(userMod)
@@ -1195,7 +1195,7 @@ def createNewUserIfNotExists():
                  userMod.validAuthenticationMethods])):  # It uses UserPassword login
         if not db.Query(userMod.addSkel().kindName).getEntry():  # There's currently no user in the database
             addSkel = skeleton.skeletonByKind(userMod.addSkel().kindName)()  # Ensure we have the full skeleton
-            uname = f"""admin@{conf["viur.instance.project_id"]}.appspot.com"""
+            uname = f"""admin@{conf.viur.instance_project_id}.appspot.com"""
             pw = utils.generateRandomString(13)
             addSkel["name"] = uname
             addSkel["status"] = Status.ACTIVE  # Ensure it's enabled right away

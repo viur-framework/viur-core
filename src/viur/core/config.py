@@ -1,250 +1,424 @@
-import os
 import datetime
 import hashlib
 import logging
+import os
 import warnings
-import google.auth
 from pathlib import Path
+from typing import Any, Iterator, Union
+
+import google.auth
+
 from viur.core.version import __version__
 
 
-class Conf(dict):
-    """
-    Conf class wraps the conf dict and allows to handle deprecated keys or other special operations.
-    """
+class ViurDeprecationsWarning(UserWarning):
+    """Class for warnings about deprecated viur-core features."""
+    pass
 
-    def __getitem__(self, key):
+class ConfigType:
+    _mapping = {}
+    _parent = None
+
+    def __init__(self, parent: Union["ConfigType", None] = None):
+        super().__init__()
+        self._parent = parent
+
+    @property
+    def _path(self):
+        if self._parent is None:
+            return ""
+        return f"{self._parent._path}{self.__class__.__name__.lower()}."
+
+    def _resolve_mapping(self, key):
+        if key in self._mapping:
+            old, key = key, self._mapping[key]
+            warnings.warn(f"Conf member {old} is now {key}!",
+                          ViurDeprecationsWarning, stacklevel=3)
+        return key
+
+    def items(self,
+              full_path: bool = False,
+              recursive: bool = True,
+              ) -> Iterator[tuple[str, Any]]:
+        """Get all members.
+
+        :param full_path: Show prefix oder only the key.
+        :param recursive: Call .items() on ConfigType members?
+        :return:
+        """
+        # print(self, self.__dict__, vars(self), dir(self))
+        for key in dir(self):
+            value = getattr(self, key)
+            # print(f"{key = }, {value = }")
+            if key == "_parent":
+                continue
+            elif recursive and isinstance(value, ConfigType):
+                yield from value.items(full_path)
+            elif key not in dir(ConfigType):
+                if full_path:
+                    yield f"{self._path}{key}", value
+                else:
+                    yield key, value
+            # else:
+            #     print(f">>> Skip {key}")
+            pass  # keep this indent
+
+    def get(self, key, default: Any = None) -> Any:
+        """Return an item from the config, if it doesn't exist `default` is returned."""
+        try:
+            return self[key]
+        except (KeyError, AttributeError):
+            return default
+
+    def __getitem__(self, key: str) -> Any:
+        """Support the old dict Syntax (getter)."""
+        # print(f"CALLING __getitem__({self.__class__}, {key})")
+        warnings.warn(f"conf uses now attributes! "
+                      f"Use conf.{self._path}{key} to access your option",
+                      ViurDeprecationsWarning)
+
         # VIUR3.3: Handle deprecations...
         match key:
             case "viur.downloadUrlFor.expiration":
                 msg = f"{key!r} was substituted by `viur.render.html.downloadUrlExpiration`"
-                warnings.warn(msg, DeprecationWarning, stacklevel=3)
-                logging.warning(msg, stacklevel=3)
-
+                warnings.warn(msg, ViurDeprecationsWarning, stacklevel=3)
                 key = "viur.render.html.downloadUrlExpiration"
 
-        return super().__getitem__(key)
+        # print(f"PASS to getattr({key!r})")
+        return getattr(self, key)
 
-    def __setitem__(self, key, value):
+    def __getattr__(self, key: str) -> Any:
+        # print(f"CALLING __getattr__({self.__class__}, {key})")
+
+        key = self._resolve_mapping(key)
+
+        # Got an old dict-key and resolve the segment to the first dot (.) as attribute.
+        if "." in key:
+            # print(f"FOUND . in {key = }")
+            first, remaining = key.split(".", 1)
+            return getattr(getattr(self, first), remaining)
+
+        return super().__getattribute__(key)
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        """Support the old dict Syntax (setter)."""
+        # print(f"CALLING __setitem__({self.__class__}, {key}, {value})")
+
         # VIUR3.3: Handle deprecations...
         match key:
             case "viur.downloadUrlFor.expiration":
                 raise ValueError(f"{key!r} was replaced by `viur.render.html.downloadUrlExpiration`, please fix!")
 
+        # TODO: re-enable?!
         # Avoid to set conf values to something which is already the default
-        if key in self and self[key] == value:
-            msg = f"Setting conf[\"{key}\"] to {value!r} has no effect, as this value has already been set"
-            warnings.warn(msg, stacklevel=3)
-            logging.warning(msg, stacklevel=3)
+        # if key in self and self[key] == value:
+        #     msg = f"Setting conf[\"{key}\"] to {value!r} has no effect, as this value has already been set"
+        #     warnings.warn(msg, stacklevel=3)
+        #     logging.warning(msg, stacklevel=3)
+        #     return
+
+        key = self._resolve_mapping(key)
+
+        # Got an old dict-key and resolve the segment to the first dot (.) as attribute.
+        if "." in key:
+            # print(f"FOUND . in {key = }")
+            first, remaining = key.split(".", 1)
+            if not hasattr(self, first):
+                # TODO: Compatibility, remove it in a future major release!
+                #       This segment doesn't exist. Create it
+                logging.warning(f"Creating new type for {first}")
+                setattr(self, first, type(first.capitalize(), (ConfigType,), {})())
+            getattr(self, first)[remaining] = value
             return
 
-        super().__setitem__(key, value)
+        return setattr(self, key, value)
+
+    def __setattr__(self, key: str, value: Any) -> None:
+        # print(f"CALLING __setattr__({self.__class__}, {key}, {value})")
+
+        key = self._resolve_mapping(key)
+
+        # Got an old dict-key and resolve the segment to the first dot (.) as attribute.
+        if "." in key:
+            # print(f"FOUND . in {key = }")
+            first, remaining = key.split(".", 1)
+            return setattr(getattr(self, first), remaining, value)
+
+        return super().__setattr__(key, value)
+
+    def __repr__(self):
+        return f"{self.__class__.__qualname__}({dict(self.items(False, False))})"
 
 
 # Some values used more than once below
-__project_id = google.auth.default()[1]
-__app_version = os.getenv("GAE_VERSION")
+_project_id = google.auth.default()[1]
+_app_version = os.getenv("GAE_VERSION")
 
 # Determine our basePath (as os.getCWD is broken on appengine)
-__project_base_path = Path().absolute()
-__core_base_path = Path(__file__).parent.parent.parent  # fixme: this points to site-packages!!!
+_project_base_path = Path().absolute()
+_core_base_path = Path(__file__).parent.parent.parent  # fixme: this points to site-packages!!!
+
 
 # Conf is a static, local dictionary.
 # Changes here apply locally to the current instance only.
 
-conf = Conf({
-    # Administration tool configuration
-    "admin.name": "ViUR",
 
-    # URL for the Logo in the Topbar of the VI
-    "admin.logo": "",
+class Admin(ConfigType):
+    """Administration tool configuration"""
 
-    # URL for the big Image in the background of the VI Login screen
-    "admin.login.background": "",
+    name = "ViUR"
+    """Administration tool configuration"""
 
-    # URL for the Logo over the VI Login screen
-    "admin.login.logo": "",
+    logo = ""
+    """URL for the Logo in the Topbar of the VI"""
 
-    # primary color for the  VI
-    "admin.color.primary": "#d00f1c",
+    login_background = ""
+    """URL for the big Image in the background of the VI Login screen"""
 
-    # secondary color for the  VI
-    "admin.color.secondary": "#333333",
+    login_logo = ""
+    """URL for the Logo over the VI Login screen"""
 
-    # Additional access rights available on this project
-    "viur.accessRights": ["root", "admin"],
+    color_primary = "#d00f1c"
+    """primary color for the  VI"""
 
-    # List of language-codes, which are valid for this application
-    "viur.availableLanguages": ["en"],
+    color_secondary = "#333333s"
+    """secondary color for the  VI"""
 
-    # Allowed values that define a str to evaluate to true
-    "viur.bone.boolean.str2true": ("true", "yes", "1"),
+    _mapping = {
+        "login.background": "login_background",
+        "login.logo": "login_logo",
+        "color.primary": "color_primary",
+        "color.secondary": "color_secondary",
+    }
 
-    # If set, this function will be called for each cache-attempt and the result will be included in
-    # the computed cache-key
-    "viur.cacheEnvironmentKey": None,
 
-    # Backward compatibility flags; Remove to enforce new layout.
-    "viur.compatibility": [
+class Viur(ConfigType):
+    accessRights = ["root", "admin"]
+    """Additional access rights available on this project"""
+
+    availableLanguages = ["en"]
+    """List of language-codes, which are valid for this application"""
+
+    bone_boolean_str2true = ("true", "yes", "1")
+    """Allowed values that define a str to evaluate to true"""
+
+    cacheEnvironmentKey = None
+    """If set, this function will be called for each cache-attempt
+    and the result will be included in the computed cache-key"""
+
+    compatibility = [
         "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
-        "json.bone.structure.keytuples",  # use classic structure notation: `"structure": [["key", {...}], ...]` (#649)
+        "bone.structure.keytuples",  # use classic structure notation: `"structure = [["key", {...}] ...]` (#649)
         "json.bone.structure.inlists",  # dump skeleton structure with every JSON list response (#774 for details)
-    ],
+    ]
+    """Backward compatibility flags; Remove to enforce new layout."""
 
-    # If set, viur will emit a CSP http-header with each request. Use the csp module to set this property
-    "viur.contentSecurityPolicy": None,
+    contentSecurityPolicy = None
+    """If set, viur will emit a CSP http-header with each request. Use the csp module to set this property"""
 
-    # Database engine module
-    "viur.db.engine": "viur.datastore",
+    db_engine = "viur.datastore"
+    """Database engine module"""
 
-    # If enabled, user-generated exceptions from the viur.core.errors module won't be caught and handled
-    "viur.debug.traceExceptions": False,
-    # If enabled, ViUR will log which (exposed) function are called from outside with what arguments
-    "viur.debug.traceExternalCallRouting": False,
-    # If enabled, ViUR will log which (internal-exposed) function are called from templates with what arguments
-    "viur.debug.traceInternalCallRouting": False,
-    # If enabled, log errors raises from skeleton.fromClient()
-    "viur.debug.skeleton.fromClient": False,
+    defaultLanguage = "en"
+    """Unless overridden by the Project: Use english as default language"""
 
-    # Unless overridden by the Project: Use english as default language
-    "viur.defaultLanguage": "en",
+    domainLanguageMapping = {}
+    """Maps Domains to alternative default languages"""
 
-    # If disabled the local logging will not send with requestLogger to the cloud
-    "viur.dev_server_cloud_logging": False,
+    email_logRetention = datetime.timedelta(days=30)
+    """For how long we'll keep successfully send emails in the viur-emails table"""
 
-    # If set to true, the decorator @enableCache from viur.core.cache has no effect
-    "viur.disableCache": False,
+    email_transportClass = None
+    """Class that actually delivers the email using the service provider of choice. See email.py for more details"""
 
-    # Maps Domains to alternative default languages
-    "viur.domainLanguageMapping": {},
+    email_sendFromLocalDevelopmentServer = False
+    """If set, we'll enable sending emails from the local development server. Otherwise, they'll just be logged."""
 
-    # For how long we'll keep successfully send emails in the viur-emails table
-    "viur.email.logRetention": datetime.timedelta(days=30),
+    email_recipientOverride = None
+    """If set, all outgoing emails will be sent to this address (overriding the 'dests'-parameter in email.sendEmail)"""
 
-    # Class that actually delivers the email using the service provider of choice. See email.py for more details
-    "viur.email.transportClass": None,
+    email_senderOverride = None
+    """If set, this sender will be used, regardless of what the templates advertise as sender"""
 
-    # If set, we'll enable sending emails from the local development server. Otherwise, they'll just be logged.
-    "viur.email.sendFromLocalDevelopmentServer": False,
+    email_admin_recipients = None
+    """Sets recipients for mails send with email.sendEMailToAdmins. If not set, all root users will be used."""
 
-    # If set, all outgoing emails will be sent to this address (overriding the 'dests'-parameter in email.sendEmail)
-    "viur.email.recipientOverride": None,
+    errorHandler = None
+    """If set, ViUR calls this function instead of rendering the viur.errorTemplate if an exception occurs"""
 
-    # If set, this sender will be used, regardless of what the templates advertise as sender
-    "viur.email.senderOverride": None,
+    static_embedSvg_path = "/static/svgs/"
+    """Path to the static SVGs folder. Will be used by the jinja-renderer-method: embedSvg"""
 
-    # Sets recipients for mails send with email.sendEMailToAdmins. If not set, all root users will be used.
-    "viur.email.admin_recipients": None,
+    forceSSL = True
+    """If true, all requests must be encrypted (ignored on development server)"""
 
-    # If set, ViUR calls this function instead of rendering the viur.errorTemplate if an exception occurs
-    "viur.errorHandler": None,
+    file_hmacKey = None
+    """Hmac-Key used to sign download urls - set automatically"""
 
-    # Path to the static SVGs folder. Will be used by the jinja-renderer-method: embedSvg
-    "viur.static.embedSvg.path": "/static/svgs/",
+    file_derivers = {}
+    """Call-Map for file pre-processors"""
 
-    # If true, all requests must be encrypted (ignored on development server)
-    "viur.forceSSL": True,
+    instance_app_version = _app_version
+    """Name of this version as deployed to the appengine"""
 
-    # Hmac-Key used to sign download urls - set automatically
-    "viur.file.hmacKey": None,
+    instance_core_base_path = _core_base_path
+    """The base path of the core, can be used to find file in the core folder"""
 
-    # Call-Map for file pre-processors
-    "viur.file.derivers": {},
+    instance_is_dev_server = os.getenv("GAE_ENV") == "localdev"
+    """Determine whether instance is running on a local development server"""
 
-    # Name of this version as deployed to the appengine
-    "viur.instance.app_version": __app_version,
+    instance_project_base_path = _project_base_path
+    """The base path of the project, can be used to find file in the project folder"""
 
-    # The base path of the core, can be used to find file in the core folder
-    "viur.instance.core_base_path": __core_base_path,
+    instance_project_id = _project_id
+    """The instance's project ID"""
 
-    # Determine whether instance is running on a local development server
-    "viur.instance.is_dev_server": os.getenv("GAE_ENV") == "localdev",
+    instance_version_hash = hashlib.sha256((_app_version + _project_id).encode("UTF-8")).hexdigest()[:10]
+    """Version hash that does not reveal the actual version name, can be used for cache-busting static resources"""
 
-    # The base path of the project, can be used to find file in the project folder
-    "viur.instance.project_base_path": __project_base_path,
+    languageAliasMap = {}
+    """Allows mapping of certain languages to one translation (ie. us->en)"""
 
-    # The instance's project ID
-    "viur.instance.project_id": __project_id,
+    languageMethod = "session"
+    """Defines how translations are applied:
+        - session: Per Session
+        - url: inject language prefix in url
+        - domain: one domain per language
+    """
 
-    # Version hash that does not reveal the actual version name, can be used for cache-busting static resources
-    "viur.instance.version_hash": hashlib.sha256((__app_version + __project_id).encode("UTF-8")).hexdigest()[:10],
+    languageModuleMap = {}
+    """Maps modules to their translation (if set)"""
 
-    # Allows mapping of certain languages to one translation (ie. us->en)
-    "viur.languageAliasMap": {},
+    logMissingTranslations = False  # TODO: move to debug
+    """If true, ViUR will log missing translations in the datastore"""
 
-    # Defines how translations are applied:
-    # - session: Per Session
-    # - url: inject language prefix in url
-    # - domain: one domain per language
-    "viur.languageMethod": "session",
+    mainApp = None
+    """Reference to our pre-build Application-Instance"""
 
-    # Maps modules to their translation (if set)
-    "viur.languageModuleMap": {},
+    mainResolver = None
+    """Dictionary for Resolving functions for URLs"""
 
-    # If true, ViUR will log missing translations in the datastore
-    "viur.logMissingTranslations": False,
+    maxPasswordLength = 512
+    """Prevent Denial of Service attacks using large inputs for pbkdf2"""
 
-    # Reference to our pre-build Application-Instance
-    "viur.mainApp": None,
+    maxPostParamsCount = 250
+    """Upper limit of the amount of parameters we accept per request. Prevents Hash-Collision-Attacks"""
 
-    # Dictionary for Resolving functions for URLs
-    "viur.mainResolver": None,
-
-    # Prevent Denial of Service attacks using large inputs for pbkdf2
-    "viur.maxPasswordLength": 512,
-
-    # Upper limit of the amount of parameters we accept per request. Prevents Hash-Collision-Attacks
-    "viur.maxPostParamsCount": 250,
-
-    # Describing the internal ModuleConfig-module
-    "viur.moduleconf.admin_info": {
+    moduleconf_admin_info = {
         "icon": "icon-settings",
         "display": "hidden",
-    },
+    }
+    """Describing the internal ModuleConfig-module"""
 
-    "viur.script.admin_info": {
+    script_admin_info = {
         "icon": "icon-hashtag",
         "display": "hidden",
-    },
+    }
 
-    # List of URLs for which viur.forceSSL is ignored.
-    # Add an asterisk to mark that entry as a prefix (exact match otherwise)
-    "viur.noSSLCheckUrls": ["/_tasks*", "/ah/*"],
+    noSSLCheckUrls = ["/_tasks*", "/ah/*"]
+    """List of URLs for which viur.forceSSL is ignored.
+    Add an asterisk to mark that entry as a prefix (exact match otherwise)"""
 
-    # The default duration, for which downloadURLs generated by the html renderer will stay valid
-    "viur.render.html.downloadUrlExpiration": None,
+    render_html_downloadUrlExpiration = None
+    """The default duration, for which downloadURLs generated by the html renderer will stay valid"""
 
-    # The default duration, for which downloadURLs generated by the json renderer will stay valid
-    "viur.render.json.downloadUrlExpiration": None,
+    render_json_downloadUrlExpiration = None
+    """The default duration, for which downloadURLs generated by the json renderer will stay valid"""
 
-    # Allows the application to register a function that's called before the request gets routed
-    "viur.requestPreprocessor": None,
+    requestPreprocessor = None
+    """Allows the application to register a function that's called before the request gets routed"""
 
-    # Characters valid for the internal search functionality (all other chars are ignored)
-    "viur.searchValidChars": "abcdefghijklmnopqrstuvwxyzäöüß0123456789",
+    searchValidChars = "abcdefghijklmnopqrstuvwxyzäöüß0123456789"
+    """Characters valid for the internal search functionality (all other chars are ignored)"""
 
-    # If set, viur will emit a CSP http-header with each request. Use security.addCspRule to set this property
-    "viur.security.contentSecurityPolicy": {
+    session_lifeTime = 60 * 60
+    """Default is 60 minutes lifetime for ViUR sessions"""
+
+    session_persistentFieldsOnLogin = ["language"]
+    """If set, these Fields will survive the session.reset() called on user/login"""
+
+    session_persistentFieldsOnLogout = ["language"]
+    """If set, these Fields will survive the session.reset() called on user/logout"""
+
+    skeleton_search_path = [
+        "/skeletons/",  # skeletons of the project
+        "/viur/core/",  # system-defined skeletons of viur-core
+        "/viur-core/core/"  # system-defined skeletons of viur-core, only used by editable installation
+    ]
+    """Priority, in which skeletons are loaded"""
+
+    tasks_customEnvironmentHandler = None
+    """If set, must be a tuple of two functions serializing/restoring additional environmental data in deferred requests"""
+
+    user_roles = {
+        "custom": "Custom",
+        "user": "User",
+        "viewer": "Viewer",
+        "editor": "Editor",
+        "admin": "Administrator",
+    }
+    """User roles available on this project"""
+
+    validApplicationIDs = []
+    """Which application-ids we're supposed to run on"""
+
+    version = tuple(int(part) if part.isdigit() else part for part in __version__.split(".", 3))
+    """Semantic version number of viur-core as a tuple of 3 (major, minor, patch-level)"""
+
+    _mapping = {
+        "bone.boolean.str2true": "bone_boolean_str2true",
+        "db.engine": "db_engine",
+        "email.logRetention": "email_logRetention",
+        "email.transportClass": "email_transportClass",
+        "email.sendFromLocalDevelopmentServer": "email_sendFromLocalDevelopmentServer",
+        "email.recipientOverride": "email_recipientOverride",
+        "email.senderOverride": "email_senderOverride",
+        "email.admin_recipients": "email_admin_recipients",
+        "static.embedSvg.path": "static_embedSvg_path",
+        "file.hmacKey": "file_hmacKey",
+        "file.derivers": "file_derivers",
+        "instance.app_version": "instance_app_version",
+        "instance.core_base_path": "instance_core_base_path",
+        "instance.is_dev_server": "instance_is_dev_server",
+        "instance.project_base_path": "instance_project_base_path",
+        "instance.project_id": "instance_project_id",
+        "instance.version_hash": "instance_version_hash",
+        "moduleconf.admin_info": "moduleconf_admin_info",
+        "script.admin_info": "script._admin_info",
+        "render.html.downloadUrlExpiration": "render_html_downloadUrlExpiration",
+        "render.json.downloadUrlExpiration": "render_json_downloadUrlExpiration",
+        "session.lifeTime": "session_lifeTime",
+        "session.persistentFieldsOnLogin": "session_persistentFieldsOnLogin",
+        "session.persistentFieldsOnLogout": "session_persistentFieldsOnLogout",
+        "skeleton.searchPath": "skeleton_search_path",
+        "tasks.customEnvironmentHandler": "tasks_customEnvironmentHandler",
+        "user.roles": "user_roles",
+        "user.google.clientID": "user_google_clientID",
+        "user.google.gsuiteDomains": "user_google_gsuiteDomains",
+    }
+
+
+class Security(ConfigType):
+    contentSecurityPolicy = {
         "enforce": {
             "style-src": ["self", "https://accounts.google.com/gsi/style"],
             "default-src": ["self"],
             "img-src": ["self", "storage.googleapis.com"],  # Serving-URLs of file-Bones will point here
             "script-src": ["self", "https://accounts.google.com/gsi/client"],
-            # Required for login with Google
+            """Required for login with Google"""
             "frame-src": ["self", "www.google.com", "drive.google.com", "accounts.google.com"],
             "form-action": ["self"],
             "connect-src": ["self", "accounts.google.com"],
             "upgrade-insecure-requests": [],
             "object-src": ["none"],
         }
-    },
+    }
+    """If set, viur will emit a CSP http-header with each request. Use security.addCspRule to set this property"""
 
-    # Per default, we'll emit Referrer-Policy: strict-origin so no referrers leak to external services
-    "viur.security.referrerPolicy": "strict-origin",
+    referrerPolicy = "strict-origin"
+    """Per default, we'll emit Referrer-Policy: strict-origin so no referrers leak to external services"""
 
-    # Include a default permissions-policy. To use the camera or microphone, you'll have to call
-    # :meth: securityheaders.setPermissionPolicyDirective to include at least "self"
-    "viur.security.permissionsPolicy": {
+    permissionsPolicy = {
         "autoplay": ["self"],
         "camera": [],
         "display-capture": [],
@@ -255,69 +429,100 @@ conf = Conf({
         "microphone": [],
         "publickey-credentials-get": [],
         "usb": [],
-    },
+    }
+    """Include a default permissions-policy.
+    To use the camera or microphone, you'll have to call :meth: securityheaders.setPermissionPolicyDirective to include at least "self"
+    """
 
-    # Shall we emit Cross-Origin-Embedder-Policy: require-corp?
-    "viur.security.enableCOEP": False,
+    enableCOEP = False
+    """Shall we emit Cross-Origin-Embedder-Policy: require-corp?"""
 
-    # Emit a Cross-Origin-Opener-Policy Header?
-    # Valid values are same-origin|same-origin-allow-popups|unsafe-none
-    "viur.security.enableCOOP": "same-origin",
+    enableCOOP = "same-origin"
+    """Emit a Cross-Origin-Opener-Policy Header?
+    Valid values are same-origin|same-origin-allow-popups|unsafe-none"""
 
-    # Emit a Cross-Origin-Resource-Policy Header?
-    # Valid values are same-site|same-origin|cross-origin
-    "viur.security.enableCORP": "same-origin",
+    enableCORP = "same-origin"
+    """Emit a Cross-Origin-Resource-Policy Header?
+    Valid values are same-site|same-origin|cross-origin"""
 
-    # If set, ViUR will emit a HSTS HTTP-header with each request.
-    # Use security.enableStrictTransportSecurity to set this property
-    "viur.security.strictTransportSecurity": "max-age=22118400",
+    strictTransportSecurity = "max-age=22118400"
+    """If set, ViUR will emit a HSTS HTTP-header with each request.
+    Use security.enableStrictTransportSecurity to set this property"""
 
-    # If set, ViUR will emit an X-Frame-Options header,
-    "viur.security.xFrameOptions": ("sameorigin", None),
+    xFrameOptions = ("sameorigin", None)
+    """If set, ViUR will emit an X-Frame-Options header,"""
 
-    # ViUR will emit an X-XSS-Protection header if set (the default),
-    "viur.security.xXssProtection": True,
+    xXssProtection = True
+    """ViUR will emit an X-XSS-Protection header if set (the default),"""
 
-    # ViUR will emit X-Content-Type-Options: nosniff Header unless set to False
-    "viur.security.xContentTypeOptions": True,
+    xContentTypeOptions = True
+    """ViUR will emit X-Content-Type-Options: nosniff Header unless set to False"""
 
-    # Unless set to logical none; ViUR will emit a X-Permitted-Cross-Domain-Policies with each request
-    "viur.security.xPermittedCrossDomainPolicies": "none",
+    xPermittedCrossDomainPolicies = "none"
+    """Unless set to logical none; ViUR will emit a X-Permitted-Cross-Domain-Policies with each request"""
 
-    # The default sitekey and secret to use for the captcha-bone. If set, must be a dictionary of "sitekey" and "secret"
-    "viur.security.captcha.defaultCredentials": None,
+    captcha_defaultCredentials = None
+    """The default sitekey and secret to use for the captcha-bone. If set, must be a dictionary of "sitekey" and "secret"."""
 
-    # Default is 60 minutes lifetime for ViUR sessions
-    "viur.session.lifeTime": 60 * 60,
+    _mapping = {
+        "captcha.defaultCredentials": "captcha_defaultCredentials",
+    }
 
-    # If set, these Fields will survive the session.reset() called on user/login
-    "viur.session.persistentFieldsOnLogin": ["language"],
 
-    # If set, these Fields will survive the session.reset() called on user/logout
-    "viur.session.persistentFieldsOnLogout": ["language"],
+class Debug(ConfigType):
+    traceExceptions = False
+    """If enabled, user-generated exceptions from the viur.core.errors module won't be caught and handled"""
+    traceExternalCallRouting = False
+    """If enabled, ViUR will log which (exposed) function are called from outside with what arguments"""
+    traceInternalCallRouting = False
+    """If enabled, ViUR will log which (internal-exposed) function are called from templates with what arguments"""
+    skeleton_fromClient = False
+    """If enabled, log errors raises from skeleton.fromClient()"""
 
-    # Priority, in which skeletons are loaded
-    "viur.skeleton.searchPath": [
-        "/skeletons/",  # skeletons of the project
-        "/viur/core/",  # system-defined skeletons of viur-core
-        "/viur-core/core/"  # system-defined skeletons of viur-core, only used by editable installation
-    ],
+    dev_server_cloud_logging = False
+    """If disabled the local logging will not send with requestLogger to the cloud"""
 
-    # If set, must be a tuple of two functions serializing/restoring additional environmental data in deferred requests
-    "viur.tasks.customEnvironmentHandler": None,
+    disableCache = False
+    """If set to true, the decorator @enableCache from viur.core.cache has no effect"""
 
-    # User roles available on this project
-    "viur.user.roles": {
-        "custom": "Custom",
-        "user": "User",
-        "viewer": "Viewer",
-        "editor": "Editor",
-        "admin": "Administrator",
-    },
+    _mapping = {
+        "skeleton.fromClient": "skeleton_fromClient",
+    }
 
-    # Which application-ids we're supposed to run on
-    "viur.validApplicationIDs": [],
 
-    # Semantic version number of viur-core as a tuple of 3 (major, minor, patch-level)
-    "viur.version": tuple(int(part) if part.isdigit() else part for part in __version__.split(".", 3)),
-})
+class Conf(ConfigType):
+    """
+    Conf class wraps the conf dict and allows to handle deprecated keys or other special operations.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.admin = Admin(self)
+        self.viur = Viur(self)
+        self.security = Security(self)
+        self.debug = Debug(self)
+
+    _mapping = {
+        "viur.dev_server_cloud_logging": "debug.dev_server_cloud_logging",
+        "viur.disableCache": "debug.disableCache",
+    }
+
+    def _resolve_mapping(self, key):
+        if key.startswith("viur.security"):
+            key = key.replace("viur.security.", "security.")
+        if key.startswith("viur.debug"):
+            key = key.replace("viur.debug.", "debug.")
+        return super()._resolve_mapping(key)
+
+
+conf = Conf()
+
+# pprint(conf)
+# for k,v in conf.items():
+#     print(f"{k} = {v}")
+# print("# DUMP IT!")
+# pprint(dict(conf.items(True)))
+# print("## REPRESENT YOURSELF!")
+# print(repr(conf))
+# print("# PPRINT")
+# print(pprint(conf))

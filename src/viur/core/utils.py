@@ -92,10 +92,10 @@ def escapeString(val: str, maxLength: int = 254) -> str:
 
 
 def hmacSign(data: Any) -> str:
-    assert conf["viur.file.hmacKey"] is not None, "No hmac-key set!"
+    assert conf.viur.file_hmacKey is not None, "No hmac-key set!"
     if not isinstance(data, bytes):
         data = str(data).encode("UTF-8")
-    return hmac.new(conf["viur.file.hmacKey"], msg=data, digestmod=hashlib.sha3_384).hexdigest()
+    return hmac.new(conf.viur.file_hmacKey, msg=data, digestmod=hashlib.sha3_384).hexdigest()
 
 
 def hmacVerify(data: Any, signature: str) -> bool:
@@ -203,10 +203,10 @@ def seoUrlToEntry(module: str,
     pathComponents = [""]
     if language is None:
         language = current.language.get()
-    if conf["viur.languageMethod"] == "url":
+    if conf.viur.languageMethod == "url":
         pathComponents.append(language)
-    if module in conf["viur.languageModuleMap"] and language in conf["viur.languageModuleMap"][module]:
-        module = conf["viur.languageModuleMap"][module][language]
+    if module in conf.viur.languageModuleMap and language in conf.viur.languageModuleMap[module]:
+        module = conf.viur.languageModuleMap[module][language]
     pathComponents.append(module)
     if not entry:
         return "/".join(pathComponents)
@@ -233,13 +233,13 @@ def seoUrlToEntry(module: str,
 def seoUrlToFunction(module: str, function: str, render: Optional[str] = None) -> str:
     from viur.core import conf
     lang = current.language.get()
-    if module in conf["viur.languageModuleMap"] and lang in conf["viur.languageModuleMap"][module]:
-        module = conf["viur.languageModuleMap"][module][lang]
-    if conf["viur.languageMethod"] == "url":
+    if module in conf.viur.languageModuleMap and lang in conf.viur.languageModuleMap[module]:
+        module = conf.viur.languageModuleMap[module][lang]
+    if conf.viur.languageMethod == "url":
         pathComponents = ["", lang]
     else:
         pathComponents = [""]
-    targetObject = conf["viur.mainResolver"]
+    targetObject = conf.viur.mainResolver
     if module in targetObject:
         pathComponents.append(module)
         targetObject = targetObject[module]

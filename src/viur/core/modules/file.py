@@ -27,7 +27,7 @@ from viur.core.utils import sanitizeFileName
 
 credentials, project = google.auth.default()
 client = storage.Client(project, credentials)
-bucket = client.lookup_bucket(f"""{conf["viur.instance.project_id"]}.appspot.com""")
+bucket = client.lookup_bucket(f"""{conf.viur.instance_project_id}.appspot.com""")
 iamClient = iam_credentials_v1.IAMCredentialsClient()
 
 
@@ -39,9 +39,9 @@ def importBlobFromViur2(dlKey, fileName):
         if existingImport["success"]:
             return existingImport["dlurl"]
         return False
-    if conf["viur.viur2import.blobsource"]["infoURL"]:
+    if conf.viur.viur2import.blobsource["infoURL"]:
         try:
-            importDataReq = urlopen(conf["viur.viur2import.blobsource"]["infoURL"] + dlKey)
+            importDataReq = urlopen(conf.viur.viur2import.blobsource["infoURL"] + dlKey)
         except:
             marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
             marker["success"] = False
@@ -55,12 +55,12 @@ def importBlobFromViur2(dlKey, fileName):
             db.Put(marker)
             return False
         importData = json.loads(importDataReq.read())
-        oldBlobName = conf["viur.viur2import.blobsource"]["gsdir"] + "/" + importData["key"]
+        oldBlobName = conf.viur.viur2import.blobsource["gsdir"] + "/" + importData["key"]
         srcBlob = storage.Blob(bucket=bucket,
-                               name=conf["viur.viur2import.blobsource"]["gsdir"] + "/" + importData["key"])
+                               name=conf.viur.viur2import.blobsource["gsdir"] + "/" + importData["key"])
     else:
-        oldBlobName = conf["viur.viur2import.blobsource"]["gsdir"] + "/" + dlKey
-        srcBlob = storage.Blob(bucket=bucket, name=conf["viur.viur2import.blobsource"]["gsdir"] + "/" + dlKey)
+        oldBlobName = conf.viur.viur2import.blobsource["gsdir"] + "/" + dlKey
+        srcBlob = storage.Blob(bucket=bucket, name=conf.viur.viur2import.blobsource["gsdir"] + "/" + dlKey)
     if not srcBlob.exists():
         marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
         marker["success"] = False
@@ -83,7 +83,7 @@ class InjectStoreURLBone(BaseBone):
     def unserialize(self, skel, name):
         if "dlkey" in skel.dbEntity and "name" in skel.dbEntity:
             skel.accessedValues[name] = utils.downloadUrlFor(
-                skel["dlkey"], skel["name"], derived=False, expires=conf["viur.render.json.downloadUrlExpiration"]
+                skel["dlkey"], skel["name"], derived=False, expires=conf.viur.render_json_downloadUrlExpiration
             )
             return True
         return False
@@ -153,22 +153,22 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
 
        from viur.core.modules.file import cloudfunction_thumbnailer
 
-       conf["viur.file.thumbnailerURL"]="https://xxxxx.cloudfunctions.net/imagerenderer"
-       conf["viur.file.derivers"] = {"thumbnail": cloudfunction_thumbnailer}
+       conf.viur.file.thumbnailerURL="https://xxxxx.cloudfunctions.net/imagerenderer"
+       conf.viur.file_derivers = {"thumbnail": cloudfunction_thumbnailer}
 
-       conf["derives_pdf"] = {
+       conf.derives_pdf = {
        "thumbnail": [{"width": 1920,"sites":"1,2"}]
        }
        skeletons/xxx.py:
 
-       test = FileBone(derive=conf["derives_pdf"])
+       test = FileBone(derive=conf.derives_pdf)
        """
 
     if not conf.get("viur.file.thumbnailerURL", False):
         raise ValueError("viur.file.thumbnailerURL is not set")
 
     def getsignedurl():
-        if conf["viur.instance.is_dev_server"]:
+        if conf.viur.instance_is_dev_server:
             signedUrl = utils.downloadUrlFor(fileSkel["dlkey"], fileSkel["name"])
         else:
             path = f"""{fileSkel["dlkey"]}/source/{file_name}"""
@@ -192,7 +192,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
         data_str = base64.b64encode(json.dumps(dataDict).encode("UTF-8"))
         sig = utils.hmacSign(data_str)
         datadump = json.dumps({"dataStr": data_str.decode('ASCII'), "sign": sig})
-        resp = _requests.post(conf["viur.file.thumbnailerURL"], data=datadump, headers=headers, allow_redirects=False)
+        resp = _requests.post(conf.viur.file.thumbnailerURL, data=datadump, headers=headers, allow_redirects=False)
         if resp.status_code != 200:  # Error Handling
             match resp.status_code:
                 case 302:
@@ -644,7 +644,7 @@ class File(Tree):
             expiresAt = datetime.now() + timedelta(seconds=60)
             signedUrl = blob.generate_signed_url(expiresAt, response_disposition=contentDisposition, version="v4")
             raise errors.Redirect(signedUrl)
-        elif conf["viur.instance.is_dev_server"]:  # No Service-Account to sign with - Serve everything directly
+        elif conf.viur.instance_is_dev_server:  # No Service-Account to sign with - Serve everything directly
             response = current.request.get().response
             response.headers["Content-Type"] = blob.content_type
             if contentDisposition:

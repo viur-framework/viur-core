@@ -809,8 +809,8 @@ class BaseBone(object):
             res = []
             if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
                 # Pick one language we'll use
-                if conf["viur.defaultLanguage"] in loadVal:
-                    loadVal = loadVal[conf["viur.defaultLanguage"]]
+                if conf.viur.defaultLanguage in loadVal:
+                    loadVal = loadVal[conf.viur.defaultLanguage]
                 else:
                     loadVal = [x for x in loadVal.values() if x is not True]
             if loadVal and not isinstance(loadVal, list):
@@ -822,8 +822,8 @@ class BaseBone(object):
             res = None
             if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
                 # Pick one language we'll use
-                if conf["viur.defaultLanguage"] in loadVal:
-                    loadVal = loadVal[conf["viur.defaultLanguage"]]
+                if conf.viur.defaultLanguage in loadVal:
+                    loadVal = loadVal[conf.viur.defaultLanguage]
                 else:
                     loadVal = [x for x in loadVal.values() if x is not True]
             if loadVal and isinstance(loadVal, list):

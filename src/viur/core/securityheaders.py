@@ -85,34 +85,34 @@ def addCspRule(objectType: str, srcOrDirective: str, enforceMode: str = "monitor
     assert objectType in {"default-src", "script-src", "object-src", "style-src", "img-src", "media-src",
                           "frame-src", "font-src", "connect-src", "report-uri", "frame-ancestors", "child-src",
                           "form-action", "require-trusted-types-for"}
-    assert conf["viur.mainApp"] is None, "You cannot modify CSP rules after server.buildApp() has been run!"
+    assert conf.viur.mainApp is None, "You cannot modify CSP rules after server.buildApp() has been run!"
     assert not any(
         [x in srcOrDirective for x in [";", "'", "\"", "\n", ","]]), "Invalid character in srcOrDirective!"
-    if conf["viur.security.contentSecurityPolicy"] is None:
-        conf["viur.security.contentSecurityPolicy"] = {"_headerCache": {}}
-    if not enforceMode in conf["viur.security.contentSecurityPolicy"]:
-        conf["viur.security.contentSecurityPolicy"][enforceMode] = {}
+    if conf.security.contentSecurityPolicy is None:
+        conf.security.contentSecurityPolicy = {"_headerCache": {}}
+    if not enforceMode in conf.security.contentSecurityPolicy:
+        conf.security.contentSecurityPolicy[enforceMode] = {}
     if objectType == "report-uri":
-        conf["viur.security.contentSecurityPolicy"][enforceMode]["report-uri"] = [srcOrDirective]
+        conf.security.contentSecurityPolicy[enforceMode]["report-uri"] = [srcOrDirective]
     else:
-        if not objectType in conf["viur.security.contentSecurityPolicy"][enforceMode]:
-            conf["viur.security.contentSecurityPolicy"][enforceMode][objectType] = []
-        if not srcOrDirective in conf["viur.security.contentSecurityPolicy"][enforceMode][objectType]:
-            conf["viur.security.contentSecurityPolicy"][enforceMode][objectType].append(srcOrDirective)
+        if not objectType in conf.security.contentSecurityPolicy[enforceMode]:
+            conf.security.contentSecurityPolicy[enforceMode][objectType] = []
+        if not srcOrDirective in conf.security.contentSecurityPolicy[enforceMode][objectType]:
+            conf.security.contentSecurityPolicy[enforceMode][objectType].append(srcOrDirective)
 
 
 def _rebuildCspHeaderCache():
     """
-        Rebuilds the internal conf["viur.security.contentSecurityPolicy"]["_headerCache"] dictionary, ie. it constructs
+        Rebuilds the internal conf.security.contentSecurityPolicy["_headerCache"] dictionary, ie. it constructs
         the Content-Security-Policy-Report-Only and Content-Security-Policy headers based on what has been passed
         to 'addRule' earlier on. Should not be called directly.
     """
-    conf["viur.security.contentSecurityPolicy"]["_headerCache"] = {}
+    conf.security.contentSecurityPolicy["_headerCache"] = {}
     for enforceMode in ["monitor", "enforce"]:
         resStr = ""
-        if not enforceMode in conf["viur.security.contentSecurityPolicy"]:
+        if not enforceMode in conf.security.contentSecurityPolicy:
             continue
-        for key, values in conf["viur.security.contentSecurityPolicy"][enforceMode].items():
+        for key, values in conf.security.contentSecurityPolicy[enforceMode].items():
             resStr += key
             for value in values:
                 resStr += " "
@@ -124,10 +124,10 @@ def _rebuildCspHeaderCache():
                     resStr += value
             resStr += "; "
         if enforceMode == "monitor":
-            conf["viur.security.contentSecurityPolicy"]["_headerCache"][
+            conf.security.contentSecurityPolicy["_headerCache"][
                 "Content-Security-Policy-Report-Only"] = resStr
         else:
-            conf["viur.security.contentSecurityPolicy"]["_headerCache"]["Content-Security-Policy"] = resStr
+            conf.security.contentSecurityPolicy["_headerCache"]["Content-Security-Policy"] = resStr
 
 
 def extendCsp(additionalRules: dict = None, overrideRules: dict = None) -> None:
@@ -135,7 +135,7 @@ def extendCsp(additionalRules: dict = None, overrideRules: dict = None) -> None:
         Adds additional csp rules to the current request. ViUR will emit a default csp-header based on the
         project-wide config. For some requests, it's needed to extend or override these rules without having to include
         them in the project config. Each dictionary must be in the same format as the
-        conf["viur.security.contentSecurityPolicy"]. Values in additionalRules will extend the project-specific
+        conf.security.contentSecurityPolicy. Values in additionalRules will extend the project-specific
         configuration, while overrideRules will replace them.
 
         ..Note: This function will only work on CSP-Rules in "enforce" mode, "monitor" is not suppored
@@ -145,8 +145,8 @@ def extendCsp(additionalRules: dict = None, overrideRules: dict = None) -> None:
     """
     assert additionalRules or overrideRules, "Either additionalRules or overrideRules must be given!"
     tmpDict = {}  # Copy the project-wide config in
-    if conf["viur.security.contentSecurityPolicy"].get("enforce"):
-        tmpDict.update({k: v[:] for k, v in conf["viur.security.contentSecurityPolicy"]["enforce"].items()})
+    if conf.security.contentSecurityPolicy.get("enforce"):
+        tmpDict.update({k: v[:] for k, v in conf.security.contentSecurityPolicy["enforce"].items()})
     if overrideRules:  # Merge overrideRules
         for k, v in overrideRules.items():
             if v is None and k in tmpDict:
@@ -182,11 +182,11 @@ def enableStrictTransportSecurity(maxAge: int = 365 * 24 * 60 * 60,
         :param includeSubDomains: If this parameter is set, this rule applies to all of the site's subdomains as well.
         :param preload: If set, we'll issue a hint that preloading would be appreciated.
     """
-    conf["viur.security.strictTransportSecurity"] = "max-age=%s" % maxAge
+    conf.security.strictTransportSecurity = "max-age=%s" % maxAge
     if includeSubDomains:
-        conf["viur.security.strictTransportSecurity"] += "; includeSubDomains"
+        conf.security.strictTransportSecurity += "; includeSubDomains"
     if preload:
-        conf["viur.security.strictTransportSecurity"] += "; preload"
+        conf.security.strictTransportSecurity += "; preload"
 
 
 def setXFrameOptions(action: str, uri: Optional[str] = None) -> None:
@@ -196,13 +196,13 @@ def setXFrameOptions(action: str, uri: Optional[str] = None) -> None:
         :param uri: URL to whitelist
     """
     if action == "off":
-        conf["viur.security.xFrameOptions"] = None
+        conf.security.xFrameOptions = None
     elif action in ["deny", "sameorigin"]:
-        conf["viur.security.xFrameOptions"] = (action, None)
+        conf.security.xFrameOptions = (action, None)
     elif action == "allow-from":
         if uri is None or not (uri.lower().startswith("https://") or uri.lower().startswith("http://")):
             raise ValueError("If action is allow-from, an uri MUST be given and start with http(s)://")
-        conf["viur.security.xFrameOptions"] = (action, uri)
+        conf.security.xFrameOptions = (action, uri)
 
 
 def setXXssProtection(enable: Optional[bool]) -> None:
@@ -211,7 +211,7 @@ def setXXssProtection(enable: Optional[bool]) -> None:
         :param enable: Enable the protection or not. Set to None to drop this header
     """
     if enable is True or enable is False or enable is None:
-        conf["viur.security.xXssProtection"] = enable
+        conf.security.xXssProtection = enable
     else:
         raise ValueError("enable must be exactly one of None | True | False")
 
@@ -222,7 +222,7 @@ def setXContentTypeNoSniff(enable: bool) -> None:
         :param enable: Enable emitting this header or not
     """
     if enable is True or enable is False:
-        conf["viur.security.xContentTypeOptions"] = enable
+        conf.security.xContentTypeOptions = enable
     else:
         raise ValueError("enable must be one of True | False")
 
@@ -230,7 +230,7 @@ def setXContentTypeNoSniff(enable: bool) -> None:
 def setXPermittedCrossDomainPolicies(value: str) -> None:
     if value not in [None, "none", "master-only", "by-content-type", "all"]:
         raise ValueError("value [None, \"none\", \"master-only\", \"by-content-type\", \"all\"]")
-    conf["viur.security.xPermittedCrossDomainPolicies"] = value
+    conf.security.xPermittedCrossDomainPolicies = value
 
 
 # Valid values for the referrer-header as per https://www.w3.org/TR/referrer-policy/#referrer-policies
@@ -251,17 +251,17 @@ def setReferrerPolicy(policy: str):  # fixme: replace str with literal[validrefe
         :param policy: The referrer policy to send
     """
     assert policy in validReferrerPolicies, "Policy must be one of %s" % validReferrerPolicies
-    conf["viur.security.referrerPolicy"] = policy
+    conf.security.referrerPolicy = policy
 
 
 def _rebuildPermissionHeaderCache() -> None:
     """
-        Rebuilds the internal conf["viur.security.permissionsPolicy"]["_headerCache"] string, ie. it constructs
+        Rebuilds the internal conf.security.permissionsPolicy["_headerCache"] string, ie. it constructs
         the actual header string that's being emitted to the clients.
     """
-    conf["viur.security.permissionsPolicy"]["_headerCache"] = ", ".join([
+    conf.security.permissionsPolicy["_headerCache"] = ", ".join([
         "%s=(%s)" % (k, " ".join([("\"%s\"" % x if x != "self" else x) for x in v]))
-        for k, v in conf["viur.security.permissionsPolicy"].items() if k != "_headerCache"
+        for k, v in conf.security.permissionsPolicy.items() if k != "_headerCache"
     ])
 
 
@@ -274,7 +274,7 @@ def setPermissionPolicyDirective(directive: str, allowList: Optional[List[str]])
                 The list of allowed origins. Use "self" to allow the current domain.
                 Empty list means the feature will be disabled by the browser (it's not accessible by javascript)
     """
-    conf["viur.security.permissionsPolicy"][directive] = allowList
+    conf.security.permissionsPolicy[directive] = allowList
 
 
 def setCrossOriginIsolation(coep: bool, coop: str, corp: str) -> None:
@@ -295,6 +295,6 @@ def setCrossOriginIsolation(coep: bool, coop: str, corp: str) -> None:
     """
     assert coop in ["same-origin", "same-origin-allow-popups", "unsafe-none"], "Invalid value for the COOP Header"
     assert corp in ["same-site", "same-origin", "cross-origin"], "Invalid value for the CORP Header"
-    conf["viur.security.enableCOEP"] = bool(coep)
-    conf["viur.security.enableCOOP"] = coop
-    conf["viur.security.enableCORP"] = corp
+    conf.security.enableCOEP = bool(coep)
+    conf.security.enableCOOP = coop
+    conf.security.enableCORP = corp

@@ -45,7 +45,7 @@ def load_indexes_from_file() -> Dict[str, List]:
     """
     indexes_dict = {}
     try:
-        with open(os.path.join(conf["viur.instance.project_base_path"], "index.yaml"), "r") as file:
+        with open(os.path.join(conf.viur.instance_project_base_path, "index.yaml"), "r") as file:
             indexes = yaml.safe_load(file)
             indexes = indexes.get("indexes", [])
             for index in indexes:
@@ -65,12 +65,12 @@ def setDefaultLanguage(lang: str):
 
         :param lang: Name of the language module to use by default.
     """
-    conf["viur.defaultLanguage"] = lang.lower()
+    conf.viur.defaultLanguage = lang.lower()
 
 
 def setDefaultDomainLanguage(domain: str, lang: str):
     """
-        If conf["viur.languageMethod"] is set to "domain", this function allows setting the map of which domain
+        If conf.viur.languageMethod is set to "domain", this function allows setting the map of which domain
         should use which language.
         :param domain: The domain for which the language should be set
         :param lang: The language to use (in ISO2 format, e.g. "DE")
@@ -78,12 +78,12 @@ def setDefaultDomainLanguage(domain: str, lang: str):
     host = domain.lower().strip(" /")
     if host.startswith("www."):
         host = host[4:]
-    conf["viur.domainLanguageMapping"][host] = lang.lower()
+    conf.viur.domainLanguageMapping[host] = lang.lower()
 
 
 def mapModule(moduleObj: object, moduleName: str, targetResolverRender: dict):
     """
-        Maps each function that's exposed of moduleObj into the branch of `prop:viur.core.conf["viur.mainResolver"]`
+        Maps each function that's exposed of moduleObj into the branch of `prop:viur.core.conf.viur.mainResolver`
         that's referenced by `prop:targetResolverRender`. Will also walk `prop:_viurMapSubmodules` if set
         and map these sub-modules also.
     """
@@ -92,7 +92,7 @@ def mapModule(moduleObj: object, moduleName: str, targetResolverRender: dict):
         prop = getattr(moduleObj, key)
         if key == "canAccess" or getattr(prop, "exposed", None):
             moduleFunctions[key] = prop
-    for lang in conf["viur.availableLanguages"] or [conf["viur.defaultLanguage"]]:
+    for lang in conf.viur.availableLanguages or [conf.viur.defaultLanguage]:
         # Map the module under each translation
         if "seoLanguageMap" in dir(moduleObj) and lang in moduleObj.seoLanguageMap:
             translatedModuleName = moduleObj.seoLanguageMap[lang]
@@ -137,13 +137,13 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
         Creates the application-context for the current instance.
 
         This function converts the classes found in the *modules*-module,
-        and the given renders into the object found at ``conf["viur.mainApp"]``.
+        and the given renders into the object found at ``conf.viur.mainApp``.
 
         Every class found in *modules* becomes
 
         - instanced
         - get the corresponding renderer attached
-        - will be attached to ``conf["viur.mainApp"]``
+        - will be attached to ``conf.viur.mainApp``
 
         :param modules: Usually the module provided as *modules* directory within the application.
         :param renderers: Usually the module *viur.core.renders*, or a dictionary renderName => renderClass.
@@ -211,10 +211,10 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
                 if "_postProcessAppObj" in render:
                     render["_postProcessAppObj"](targetResolverRender)
         if hasattr(moduleClass, "seoLanguageMap"):
-            conf["viur.languageModuleMap"][moduleName] = moduleClass.seoLanguageMap
-    conf["viur.mainResolver"] = resolverDict
+            conf.viur.languageModuleMap[moduleName] = moduleClass.seoLanguageMap
+    conf.viur.mainResolver = resolverDict
 
-    if conf["viur.debug.traceExternalCallRouting"] or conf["viur.debug.traceInternalCallRouting"]:
+    if conf.debug.traceExternalCallRouting or conf.debug.traceInternalCallRouting:
         from viur.core import email
         try:
             email.sendEMailToAdmins("Debug mode enabled",
@@ -222,9 +222,9 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
         except:  # OverQuota, whatever
             pass  # Dont render this instance unusable
     if default in renderers and hasattr(renderers[default]["default"], "renderEmail"):
-        conf["viur.emailRenderer"] = renderers[default]["default"]().renderEmail
+        conf.viur.emailRenderer = renderers[default]["default"]().renderEmail
     elif "html" in renderers:
-        conf["viur.emailRenderer"] = renderers["html"]["default"]().renderEmail
+        conf.viur.emailRenderer = renderers["html"]["default"]().renderEmail
 
     return root
 
@@ -243,40 +243,40 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
     # noinspection PyUnresolvedReferences
     import skeletons  # This import is not used here but _must_ remain to ensure that the
     # application's data models are explicitly imported at some place!
-    if conf["viur.instance.project_id"] not in conf["viur.validApplicationIDs"]:
+    if conf.viur.instance_project_id not in conf.viur.validApplicationIDs:
         raise RuntimeError(
-            f"""Refusing to start, {conf["viur.instance.project_id"]=} is not in {conf["viur.validApplicationIDs"]=}""")
+            f"""Refusing to start, {conf.viur.instance_project_id=} is not in {conf.viur.validApplicationIDs=}""")
     if not render:
         import viur.core.render
         render = viur.core.render
-    conf["viur.mainApp"] = buildApp(modules, render, default)
-    # conf["viur.wsgiApp"] = webapp.WSGIApplication([(r'/(.*)', BrowseHandler)])
+    conf.viur.mainApp = buildApp(modules, render, default)
+    # conf.viur.wsgiApp = webapp.WSGIApplication([(r'/(.*)', BrowseHandler)])
     # Ensure that our Content Security Policy Header Cache gets build
     from viur.core import securityheaders
     securityheaders._rebuildCspHeaderCache()
     securityheaders._rebuildPermissionHeaderCache()
     setSystemInitialized()
     # Assert that all security related headers are in a sane state
-    if conf["viur.security.contentSecurityPolicy"] and conf["viur.security.contentSecurityPolicy"]["_headerCache"]:
-        for k in conf["viur.security.contentSecurityPolicy"]["_headerCache"]:
+    if conf.security.contentSecurityPolicy and conf.security.contentSecurityPolicy["_headerCache"]:
+        for k in conf.security.contentSecurityPolicy["_headerCache"]:
             if not k.startswith("Content-Security-Policy"):
                 raise AssertionError("Got unexpected header in "
                                      "conf['viur.security.contentSecurityPolicy']['_headerCache']")
-    if conf["viur.security.strictTransportSecurity"]:
-        if not conf["viur.security.strictTransportSecurity"].startswith("max-age"):
+    if conf.security.strictTransportSecurity:
+        if not conf.security.strictTransportSecurity.startswith("max-age"):
             raise AssertionError("Got unexpected header in conf['viur.security.strictTransportSecurity']")
     crossDomainPolicies = {None, "none", "master-only", "by-content-type", "all"}
-    if conf["viur.security.xPermittedCrossDomainPolicies"] not in crossDomainPolicies:
+    if conf.security.xPermittedCrossDomainPolicies not in crossDomainPolicies:
         raise AssertionError("conf[\"viur.security.xPermittedCrossDomainPolicies\"] "
                              f"must be one of {crossDomainPolicies!r}")
-    if conf["viur.security.xFrameOptions"] is not None and isinstance(conf["viur.security.xFrameOptions"], tuple):
-        mode, uri = conf["viur.security.xFrameOptions"]
+    if conf.security.xFrameOptions is not None and isinstance(conf.security.xFrameOptions, tuple):
+        mode, uri = conf.security.xFrameOptions
         assert mode in ["deny", "sameorigin", "allow-from"]
         if mode == "allow-from":
             assert uri is not None and (uri.lower().startswith("https://") or uri.lower().startswith("http://"))
     runStartupTasks()  # Add a deferred call to run all queued startup tasks
     i18n.initializeTranslations()
-    if conf["viur.file.hmacKey"] is None:
+    if conf.viur.file_hmacKey is None:
         from viur.core import db
         key = db.Key("viur-conf", "viur-conf")
         if not (obj := db.Get(key)):  # create a new "viur-conf"?
@@ -288,7 +288,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
             obj["hmacKey"] = utils.generateRandomString(length=20)
             db.Put(obj)
 
-        conf["viur.file.hmacKey"] = bytes(obj["hmacKey"], "utf-8")
+        conf.viur.file_hmacKey = bytes(obj["hmacKey"], "utf-8")
     return app
 
 
@@ -298,7 +298,7 @@ def app(environ: dict, start_response: Callable):
     handler = request.BrowseHandler(req, resp)
 
     # Set context variables
-    current.language.set(conf["viur.defaultLanguage"])
+    current.language.set(conf.viur.defaultLanguage)
     current.request.set(handler)
     current.session.set(session.Session())
     current.request_data.set({})

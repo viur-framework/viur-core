@@ -45,7 +45,7 @@ def create(duration: typing.Union[None, int] = None, session_bound: bool = True,
         raise ValueError("custom_data keys with a 'viur_'-prefix are reserved.")
 
     if not duration:
-        duration = conf["viur.session.lifeTime"] if session_bound else SECURITYKEY_DURATION
+        duration = conf.viur.session_lifeTime if session_bound else SECURITYKEY_DURATION
 
     key = utils.generateRandomString()
 

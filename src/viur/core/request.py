@@ -116,45 +116,45 @@ class BrowseHandler():  # webapp.RequestHandler
         msg = "Use of `isDevServer` is deprecated; Use `conf[\"viur.instance.is_dev_server\"]` instead!"
         warnings.warn(msg, DeprecationWarning, stacklevel=2)
         logging.warning(msg)
-        return conf["viur.instance.is_dev_server"]
+        return conf.viur.instance_is_dev_server
 
     def selectLanguage(self, path: str) -> str:
         """
             Tries to select the best language for the current request. Depending on the value of
-            conf["viur.languageMethod"], we'll either try to load it from the session, determine it by the domain
+            conf.viur.languageMethod, we'll either try to load it from the session, determine it by the domain
             or extract it from the URL.
         """
         sessionReference = current.session.get()
-        if not conf["viur.availableLanguages"]:
+        if not conf.viur.availableLanguages:
             # This project doesn't use the multi-language feature, nothing to do here
             return path
-        if conf["viur.languageMethod"] == "session":
+        if conf.viur.languageMethod == "session":
             # We store the language inside the session, try to load it from there
             if "lang" not in sessionReference:
                 if "X-Appengine-Country" in self.request.headers:
                     lng = self.request.headers["X-Appengine-Country"].lower()
-                    if lng in conf["viur.availableLanguages"] + list(conf["viur.languageAliasMap"].keys()):
+                    if lng in conf.viur.availableLanguages + list(conf.viur.languageAliasMap.keys()):
                         sessionReference["lang"] = lng
                         current.language.set(lng)
                     else:
-                        sessionReference["lang"] = conf["viur.defaultLanguage"]
+                        sessionReference["lang"] = conf.viur.defaultLanguage
             else:
                 current.language.set(sessionReference["lang"])
-        elif conf["viur.languageMethod"] == "domain":
+        elif conf.viur.languageMethod == "domain":
             host = self.request.host_url.lower()
             host = host[host.find("://") + 3:].strip(" /")  # strip http(s)://
             if host.startswith("www."):
                 host = host[4:]
-            if host in conf["viur.domainLanguageMapping"]:
-                current.language.set(conf["viur.domainLanguageMapping"][host])
+            if host in conf.viur.domainLanguageMapping:
+                current.language.set(conf.viur.domainLanguageMapping[host])
             else:  # We have no language configured for this domain, try to read it from session
                 if "lang" in sessionReference:
                     current.language.set(sessionReference["lang"])
-        elif conf["viur.languageMethod"] == "url":
+        elif conf.viur.languageMethod == "url":
             tmppath = urlparse(path).path
             tmppath = [unquote(x) for x in tmppath.lower().strip("/").split("/")]
-            if len(tmppath) > 0 and tmppath[0] in conf["viur.availableLanguages"] + list(
-                conf["viur.languageAliasMap"].keys()):
+            if len(tmppath) > 0 and tmppath[0] in conf.viur.availableLanguages + list(
+                conf.viur.languageAliasMap.keys()):
                 current.language.set(tmppath[0])
                 return path[len(tmppath[0]) + 1:]  # Return the path stripped by its language segment
             else:  # This URL doesnt contain an language prefix, try to read it from session
@@ -162,7 +162,7 @@ class BrowseHandler():  # webapp.RequestHandler
                     current.language.set(sessionReference["lang"])
                 elif "X-Appengine-Country" in self.request.headers.keys():
                     lng = self.request.headers["X-Appengine-Country"].lower()
-                    if lng in conf["viur.availableLanguages"] or lng in conf["viur.languageAliasMap"]:
+                    if lng in conf.viur.availableLanguages or lng in conf.viur.languageAliasMap:
                         current.language.set(lng)
         return path
 
@@ -185,7 +185,7 @@ class BrowseHandler():  # webapp.RequestHandler
                 self.is_deferred = True
             elif os.getenv("TASKS_EMULATOR") is not None:
                 self.is_deferred = True
-        current.language.set(conf["viur.defaultLanguage"])
+        current.language.set(conf.viur.defaultLanguage)
         self.disableCache = False  # Shall this request bypass the caches?
         self.args = []
         self.kwargs = {}
@@ -198,50 +198,50 @@ class BrowseHandler():  # webapp.RequestHandler
                 self.response.write(statusDescr)
                 return
         path = self.request.path
-        if conf["viur.instance.is_dev_server"]:
+        if conf.viur.instance_is_dev_server:
             # We'll have to emulate the task-queue locally as far as possible until supported by dev_appserver again
             self.pendingTasks = []
 
         # Add CSP headers early (if any)
-        if conf["viur.security.contentSecurityPolicy"] and conf["viur.security.contentSecurityPolicy"]["_headerCache"]:
-            for k, v in conf["viur.security.contentSecurityPolicy"]["_headerCache"].items():
+        if conf.security.contentSecurityPolicy and conf.security.contentSecurityPolicy["_headerCache"]:
+            for k, v in conf.security.contentSecurityPolicy["_headerCache"].items():
                 self.response.headers[k] = v
         if self.isSSLConnection:  # Check for HTST and PKP headers only if we have a secure channel.
-            if conf["viur.security.strictTransportSecurity"]:
-                self.response.headers["Strict-Transport-Security"] = conf["viur.security.strictTransportSecurity"]
+            if conf.security.strictTransportSecurity:
+                self.response.headers["Strict-Transport-Security"] = conf.security.strictTransportSecurity
         # Check for X-Security-Headers we shall emit
-        if conf["viur.security.xContentTypeOptions"]:
+        if conf.security.xContentTypeOptions:
             self.response.headers["X-Content-Type-Options"] = "nosniff"
-        if conf["viur.security.xXssProtection"] is not None:
-            if conf["viur.security.xXssProtection"]:
+        if conf.security.xXssProtection is not None:
+            if conf.security.xXssProtection:
                 self.response.headers["X-XSS-Protection"] = "1; mode=block"
-            elif conf["viur.security.xXssProtection"] is False:
+            elif conf.security.xXssProtection is False:
                 self.response.headers["X-XSS-Protection"] = "0"
-        if conf["viur.security.xFrameOptions"] is not None and isinstance(conf["viur.security.xFrameOptions"], tuple):
-            mode, uri = conf["viur.security.xFrameOptions"]
+        if conf.security.xFrameOptions is not None and isinstance(conf.security.xFrameOptions, tuple):
+            mode, uri = conf.security.xFrameOptions
             if mode in ["deny", "sameorigin"]:
                 self.response.headers["X-Frame-Options"] = mode
             elif mode == "allow-from":
                 self.response.headers["X-Frame-Options"] = "allow-from %s" % uri
-        if conf["viur.security.xPermittedCrossDomainPolicies"] is not None:
+        if conf.security.xPermittedCrossDomainPolicies is not None:
             self.response.headers["X-Permitted-Cross-Domain-Policies"] = conf[
                 "viur.security.xPermittedCrossDomainPolicies"]
-        if conf["viur.security.referrerPolicy"]:
-            self.response.headers["Referrer-Policy"] = conf["viur.security.referrerPolicy"]
-        if conf["viur.security.permissionsPolicy"].get("_headerCache"):
-            self.response.headers["Permissions-Policy"] = conf["viur.security.permissionsPolicy"]["_headerCache"]
-        if conf["viur.security.enableCOEP"]:
+        if conf.security.referrerPolicy:
+            self.response.headers["Referrer-Policy"] = conf.security.referrerPolicy
+        if conf.security.permissionsPolicy.get("_headerCache"):
+            self.response.headers["Permissions-Policy"] = conf.security.permissionsPolicy["_headerCache"]
+        if conf.security.enableCOEP:
             self.response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
-        if conf["viur.security.enableCOOP"]:
-            self.response.headers["Cross-Origin-Opener-Policy"] = conf["viur.security.enableCOOP"]
-        if conf["viur.security.enableCORP"]:
-            self.response.headers["Cross-Origin-Resource-Policy"] = conf["viur.security.enableCORP"]
+        if conf.security.enableCOOP:
+            self.response.headers["Cross-Origin-Opener-Policy"] = conf.security.enableCOOP
+        if conf.security.enableCORP:
+            self.response.headers["Cross-Origin-Resource-Policy"] = conf.security.enableCORP
 
         # Ensure that TLS is used if required
-        if conf["viur.forceSSL"] and not self.isSSLConnection and not conf["viur.instance.is_dev_server"]:
+        if conf.viur.forceSSL and not self.isSSLConnection and not conf.viur.instance_is_dev_server:
             isWhitelisted = False
             reqPath = self.request.path
-            for testUrl in conf["viur.noSSLCheckUrls"]:
+            for testUrl in conf.viur.noSSLCheckUrls:
                 if testUrl.endswith("*"):
                     if reqPath.startswith(testUrl[:-1]):
                         isWhitelisted = True
@@ -265,18 +265,18 @@ class BrowseHandler():  # webapp.RequestHandler
             current.session.get().load(self)
 
             # Load current user into context variable if user module is there.
-            if user_mod := getattr(conf["viur.mainApp"], "user", None):
+            if user_mod := getattr(conf.viur.mainApp, "user", None):
                 current.user.set(user_mod.getCurrentUser())
 
             path = self.selectLanguage(path)[1:]
-            if conf["viur.requestPreprocessor"]:
-                path = conf["viur.requestPreprocessor"](path)
+            if conf.viur.requestPreprocessor:
+                path = conf.viur.requestPreprocessor(path)
 
             self.findAndCall(path)
 
         except errors.Redirect as e:
-            if conf["viur.debug.traceExceptions"]:
-                logging.warning("""conf["viur.debug.traceExceptions"] is set, won't handle this exception""")
+            if conf.debug.traceExceptions:
+                logging.warning("""conf.debug.traceExceptions is set, won't handle this exception""")
                 raise
             self.response.status = '%d %s' % (e.status, e.name)
             url = e.url
@@ -285,8 +285,8 @@ class BrowseHandler():  # webapp.RequestHandler
             self.response.headers['Location'] = url
 
         except Exception as e:
-            if conf["viur.debug.traceExceptions"]:
-                logging.warning("""conf["viur.debug.traceExceptions"] is set, won't handle this exception""")
+            if conf.debug.traceExceptions:
+                logging.warning("""conf.debug.traceExceptions is set, won't handle this exception""")
                 raise
             self.response.body = b""
             if isinstance(e, errors.HTTPException):
@@ -300,9 +300,9 @@ class BrowseHandler():  # webapp.RequestHandler
                 logging.exception(e)
 
             res = None
-            if conf["viur.errorHandler"]:
+            if conf.viur.errorHandler:
                 try:
-                    res = conf["viur.errorHandler"](e)
+                    res = conf.viur.errorHandler(e)
                 except Exception as newE:
                     logging.error("viur.errorHandler failed!")
                     logging.exception(newE)
@@ -325,7 +325,7 @@ class BrowseHandler():  # webapp.RequestHandler
                         "descr": descr
                     }
 
-                if conf["viur.instance.is_dev_server"]:
+                if conf.viur.instance_is_dev_server:
                     error_info["traceback"] = traceback.format_exc()
 
                 if (len(self.path_list) > 0 and self.path_list[0] in ("vi", "json")) or \
@@ -334,9 +334,9 @@ class BrowseHandler():  # webapp.RequestHandler
                     res = json.dumps(error_info)
                 else:  # We render the error in html
                     # Try to get the template from html/error/
-                    if filename := conf["viur.mainApp"].render.getTemplateFileName((f"{error_info['status']}", "error"),
+                    if filename := conf.viur.mainApp.render.getTemplateFileName((f"{error_info['status']}", "error"),
                                                                                    raise_exception=False):
-                        template = conf["viur.mainApp"].render.getEnv().get_template(filename)
+                        template = conf.viur.mainApp.render.getEnv().get_template(filename)
                         res = template.render(error_info)
 
                         # fixme: this might be the viur/core/template/error.html ...
@@ -348,7 +348,7 @@ class BrowseHandler():  # webapp.RequestHandler
 
         finally:
             self.saveSession()
-            if conf["viur.instance.is_dev_server"] and conf["viur.dev_server_cloud_logging"]:
+            if conf.viur.instance_is_dev_server and conf.debug.dev_server_cloud_logging:
                 # Emit the outer log only on dev_appserver (we'll use the existing request log when live)
                 SEVERITY = "DEBUG"
                 if self.maxLogLevel >= 50:
@@ -385,7 +385,7 @@ class BrowseHandler():  # webapp.RequestHandler
                     }
                 )
 
-        if conf["viur.instance.is_dev_server"]:
+        if conf.viur.instance_is_dev_server:
             self.is_deferred = True
 
             while self.pendingTasks:
@@ -474,7 +474,7 @@ class BrowseHandler():  # webapp.RequestHandler
             if not isinstance(inValue, str):
                 raise TypeError(f"Input argument to boolean typehint is not a str, but f{type(inValue)}")
 
-            if inValue.strip().lower() in conf["viur.bone.boolean.str2true"]:
+            if inValue.strip().lower() in conf.viur.bone_boolean_str2true:
                 return "True", True
 
             return "False", False
@@ -503,7 +503,7 @@ class BrowseHandler():  # webapp.RequestHandler
         # Prevent Hash-collision attacks
         kwargs = {}
 
-        if len(self.request.params) > conf["viur.maxPostParamsCount"]:
+        if len(self.request.params) > conf.viur.maxPostParamsCount:
             raise errors.BadRequest(
                 f"Too many arguments supplied, exceeding maximum"
                 f" of {conf['viur.maxPostParamsCount']} allowed arguments per request"
@@ -532,7 +532,7 @@ class BrowseHandler():  # webapp.RequestHandler
         if "self" in kwargs or "return" in kwargs:  # self or return is reserved for bound methods
             raise errors.BadRequest()
 
-        caller = conf["viur.mainResolver"]
+        caller = conf.viur.mainResolver
         idx = 0  # Count how may items from *args we'd have consumed (so the rest can go into *args of the called func
         path_found = True
         for part in self.path_list:
@@ -583,7 +583,7 @@ class BrowseHandler():  # webapp.RequestHandler
                 and "forceSSL" in dir(caller) \
                 and caller.forceSSL \
                 and not self.request.host_url.lower().startswith("https://") \
-                and not conf["viur.instance.is_dev_server"]:
+                and not conf.viur.instance_is_dev_server:
             raise (errors.PreconditionFailed("You must use SSL to access this ressource!"))
         # Check for forcePost flag
         if "forcePost" in dir(caller) and caller.forcePost and not self.isPostRequest:
@@ -629,7 +629,7 @@ class BrowseHandler():  # webapp.RequestHandler
             else:
                 newArgs = self.args
                 newKwargs = self.kwargs
-            if (conf["viur.debug.traceExternalCallRouting"] and not self.internalRequest) or conf[
+            if (conf.debug.traceExternalCallRouting and not self.internalRequest) or conf[
                 "viur.debug.traceInternalCallRouting"]:
                 logging.debug("Calling %s with args=%s and kwargs=%s" % (str(caller), str(newArgs), str(newKwargs)))
             res = caller(*newArgs, **newKwargs)

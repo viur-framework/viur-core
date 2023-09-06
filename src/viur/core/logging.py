@@ -31,11 +31,11 @@ class ViURDefaultLogger(CloudLoggingHandler):
             message,
             resource=self.resource,
             labels={
-                "project_id": conf["viur.instance.project_id"],
+                "project_id": conf.viur.instance_project_id,
                 "module_id": "default",
                 "version_id":
-                    conf["viur.instance.app_version"]
-                    if not conf["viur.instance.is_dev_server"]
+                    conf.viur.instance_app_version
+                    if not conf.viur.instance_is_dev_server
                     else "dev_appserver",
             },
             trace=TRACE,
@@ -130,9 +130,9 @@ requestLogger = client.logger("ViUR")
 requestLoggingRessource = Resource(
     type="gae_app",
     labels={
-       "project_id": conf["viur.instance.project_id"],
+       "project_id": conf.viur.instance_project_id,
        "module_id": "default",
-       "version_id": conf["viur.instance.app_version"] if not conf[
+       "version_id": conf.viur.instance_app_version if not conf[
            "viur.instance.is_dev_server"] else "dev_appserver",
     }
 )
@@ -160,7 +160,7 @@ for logger_name in EXCLUDED_LOGGER_DEFAULTS:
     excluded_logger.propagate = False
     excluded_logger.addHandler(logging.NullHandler())
 
-if not conf["viur.instance.is_dev_server"]:
+if not conf.viur.instance_is_dev_server:
     # Plug-in ViURDefaultLogger
     handler = ViURDefaultLogger(client, name="ViUR-Messages", resource=Resource(type="gae_app", labels={}))
     logger.addHandler(handler)

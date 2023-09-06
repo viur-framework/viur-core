@@ -45,7 +45,7 @@ class BooleanBone(BaseBone):
             raise ValueError("BooleanBone cannot be multiple")
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
-        return str(value).strip().lower() in conf["viur.bone.boolean.str2true"], None
+        return str(value).strip().lower() in conf.viur.bone_boolean_str2true, None
 
     def getEmptyValue(self):
         """
@@ -78,7 +78,7 @@ class BooleanBone(BaseBone):
             :param name: The property-name this bone has in its Skeleton (not the description!)
         """
         if not isinstance(skel[boneName], bool):
-            skel[boneName] = str(skel[boneName]).strip().lower() in conf["viur.bone.boolean.str2true"]
+            skel[boneName] = str(skel[boneName]).strip().lower() in conf.viur.bone_boolean_str2true
 
     def buildDBFilter(
         self,
@@ -100,7 +100,7 @@ class BooleanBone(BaseBone):
         :rtype: google.cloud.ndb.query.Query
         """
         if name in rawFilter:
-            val = str(rawFilter[name]).strip().lower() in conf["viur.bone.boolean.str2true"]
+            val = str(rawFilter[name]).strip().lower() in conf.viur.bone_boolean_str2true
             return super().buildDBFilter(name, skel, dbFilter, {name: val}, prefix=prefix)
 
         return dbFilter
