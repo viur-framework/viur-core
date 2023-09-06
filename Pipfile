@@ -27,6 +27,7 @@ tzlocal = "~=5.0"
 user-agents = "~=2.0"
 viur-datastore = "~=1.0"
 webob = "~=1.0"
+appengine-python-standard = "~=1.0"
 
 [dev-packages]
 build="*"
