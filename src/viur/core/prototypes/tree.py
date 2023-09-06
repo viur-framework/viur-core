@@ -431,8 +431,6 @@ class Tree(SkelModule):
         :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
-        skey = kwargs.get("skey", "")
-
         if not (skelType := self._checkSkelType(skelType)):
             raise errors.NotAcceptable(f"Invalid skelType provided.")
 
@@ -474,7 +472,6 @@ class Tree(SkelModule):
         :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
-        skey = kwargs.get("skey", "")
         if not (skelType := self._checkSkelType(skelType)):
             raise errors.NotAcceptable(f"Invalid skelType provided.")
         skel = self.skel(skelType, "edit")
