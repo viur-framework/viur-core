@@ -118,7 +118,7 @@ class Singleton(SkelModule):
 
     @exposed
     @force_ssl
-    @skey(allow_empty=SKEY_ALLOW_EMPTY_FOR_KEY)
+    @skey(allow_empty=True)
     def edit(self, *args, **kwargs) -> Any:
         """
         Modify the existing entry, and render the entry, eventually with error notes on incorrect data.
@@ -134,9 +134,6 @@ class Singleton(SkelModule):
         :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
-
-        skey = kwargs.get("skey", "")
-
         skel = self.editSkel()
 
         if not self.canEdit():
