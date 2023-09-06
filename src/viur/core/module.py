@@ -79,7 +79,8 @@ class Method:
 
             if required:
                 security_key = kwargs.pop(self.skey["name"], "")
-                logging.debug(f"@skey wanted, validating {security_key!r}")
+                if trace:
+                    logging.debug(f"@skey wanted, validating {security_key!r}")
 
                 from viur.core import securitykey
                 payload = securitykey.validate(security_key, **self.skey["extra_kwargs"])
