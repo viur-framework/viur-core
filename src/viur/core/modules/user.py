@@ -512,14 +512,15 @@ class UserPassword(UserAuthentication):
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
             :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
-        skey = kwargs.get("skey", "")
         if not self.canAdd():
             raise errors.Unauthorized()
         skel = self.addSkel()
-        if (not kwargs  # no data supplied
+        if (
+            not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # bail out if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or parse_bool(kwargs.get("bounce"))):  # review before adding
+            or parse_bool(kwargs.get("bounce"))  # review before adding
+        ):
             # render the skeleton in the version it could as far as it could be read.
             return self._user_module.render.add(skel)
         skel.toDB()
