@@ -27,7 +27,8 @@ def monkey_patch():
                     "google.cloud.tasks_v2",
                     "google.cloud.tasks_v2.services",
                     "google.cloud.tasks_v2.services.cloud_tasks.transports",
-                    "google.cloud.exceptions"]
+                    "google.cloud.exceptions",
+                    "google.appengine.api"]
 
     for mod_name in MOCK_MODULES:
         sys.modules[mod_name] = mock.Mock()
