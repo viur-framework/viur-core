@@ -294,11 +294,11 @@ def getList(render: Render, module: str, skel: str = "viewSkel",
     :returns: Returns a dict that contains the "skellist" and "cursor" information,
         or None on error case.
     """
-    if not module in dir(conf.viur.mainApp):
+    if module not in dir(conf.viur.mainApp):
         logging.error("Jinja2-Render can't fetch a list from an unknown module %s!" % module)
         return False
     caller = getattr(conf.viur.mainApp, module)
-    if not "viewSkel" in dir(caller):
+    if "viewSkel" not in dir(caller):
         logging.error("Jinja2-Render cannot fetch a list from %s due to missing viewSkel function" % module)
         return False
     if _noEmptyFilter:  # Test if any value of kwargs is an empty list
@@ -338,7 +338,7 @@ def getStructure(render: Render,
     :param skel: Name of the skeleton.
     :param subSkel: If set, return just that subskel instead of the whole skeleton
     """
-    if not module in dir(conf.viur.mainApp):
+    if module not in dir(conf.viur.mainApp):
         return False
 
     obj = getattr(conf.viur.mainApp, module)

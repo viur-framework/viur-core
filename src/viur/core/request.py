@@ -153,8 +153,10 @@ class BrowseHandler():  # webapp.RequestHandler
         elif conf.viur.languageMethod == "url":
             tmppath = urlparse(path).path
             tmppath = [unquote(x) for x in tmppath.lower().strip("/").split("/")]
-            if len(tmppath) > 0 and tmppath[0] in conf.viur.availableLanguages + list(
-                conf.viur.languageAliasMap.keys()):
+            if (
+                len(tmppath) > 0
+                and tmppath[0] in conf.viur.availableLanguages + list(conf.viur.languageAliasMap.keys())
+            ):
                 current.language.set(tmppath[0])
                 return path[len(tmppath[0]) + 1:]  # Return the path stripped by its language segment
             else:  # This URL doesnt contain an language prefix, try to read it from session

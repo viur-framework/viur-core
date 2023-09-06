@@ -15,6 +15,7 @@ class ViurDeprecationsWarning(UserWarning):
     """Class for warnings about deprecated viur-core features."""
     pass
 
+
 class ConfigType:
     _mapping = {}
     _parent = None
@@ -229,13 +230,19 @@ class Viur(ConfigType):
     """For how long we'll keep successfully send emails in the viur-emails table"""
 
     email_transportClass = None
-    """Class that actually delivers the email using the service provider of choice. See email.py for more details"""
+    """Class that actually delivers the email using the service provider
+    of choice. See email.py for more details
+    """
 
     email_sendFromLocalDevelopmentServer = False
-    """If set, we'll enable sending emails from the local development server. Otherwise, they'll just be logged."""
+    """If set, we'll enable sending emails from the local development server.
+    Otherwise, they'll just be logged.
+    """
 
     email_recipientOverride = None
-    """If set, all outgoing emails will be sent to this address (overriding the 'dests'-parameter in email.sendEmail)"""
+    """If set, all outgoing emails will be sent to this address
+    (overriding the 'dests'-parameter in email.sendEmail)
+    """
 
     email_senderOverride = None
     """If set, this sender will be used, regardless of what the templates advertise as sender"""
@@ -348,7 +355,9 @@ class Viur(ConfigType):
     """Priority, in which skeletons are loaded"""
 
     tasks_customEnvironmentHandler = None
-    """If set, must be a tuple of two functions serializing/restoring additional environmental data in deferred requests"""
+    """If set, must be a tuple of two functions serializing/restoring
+    additional environmental data in deferred requests
+    """
 
     user_roles = {
         "custom": "Custom",
@@ -431,7 +440,8 @@ class Security(ConfigType):
         "usb": [],
     }
     """Include a default permissions-policy.
-    To use the camera or microphone, you'll have to call :meth: securityheaders.setPermissionPolicyDirective to include at least "self"
+    To use the camera or microphone, you'll have to call
+    :meth: securityheaders.setPermissionPolicyDirective to include at least "self"
     """
 
     enableCOEP = False
@@ -462,7 +472,9 @@ class Security(ConfigType):
     """Unless set to logical none; ViUR will emit a X-Permitted-Cross-Domain-Policies with each request"""
 
     captcha_defaultCredentials = None
-    """The default sitekey and secret to use for the captcha-bone. If set, must be a dictionary of "sitekey" and "secret"."""
+    """The default sitekey and secret to use for the captcha-bone.
+    If set, must be a dictionary of "sitekey" and "secret".
+    """
 
     _mapping = {
         "captcha.defaultCredentials": "captcha_defaultCredentials",

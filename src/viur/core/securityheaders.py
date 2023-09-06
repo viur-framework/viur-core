@@ -90,14 +90,14 @@ def addCspRule(objectType: str, srcOrDirective: str, enforceMode: str = "monitor
         [x in srcOrDirective for x in [";", "'", "\"", "\n", ","]]), "Invalid character in srcOrDirective!"
     if conf.security.contentSecurityPolicy is None:
         conf.security.contentSecurityPolicy = {"_headerCache": {}}
-    if not enforceMode in conf.security.contentSecurityPolicy:
+    if enforceMode not in conf.security.contentSecurityPolicy:
         conf.security.contentSecurityPolicy[enforceMode] = {}
     if objectType == "report-uri":
         conf.security.contentSecurityPolicy[enforceMode]["report-uri"] = [srcOrDirective]
     else:
-        if not objectType in conf.security.contentSecurityPolicy[enforceMode]:
+        if objectType not in conf.security.contentSecurityPolicy[enforceMode]:
             conf.security.contentSecurityPolicy[enforceMode][objectType] = []
-        if not srcOrDirective in conf.security.contentSecurityPolicy[enforceMode][objectType]:
+        if srcOrDirective not in conf.security.contentSecurityPolicy[enforceMode][objectType]:
             conf.security.contentSecurityPolicy[enforceMode][objectType].append(srcOrDirective)
 
 
@@ -110,7 +110,7 @@ def _rebuildCspHeaderCache():
     conf.security.contentSecurityPolicy["_headerCache"] = {}
     for enforceMode in ["monitor", "enforce"]:
         resStr = ""
-        if not enforceMode in conf.security.contentSecurityPolicy:
+        if enforceMode not in conf.security.contentSecurityPolicy:
             continue
         for key, values in conf.security.contentSecurityPolicy[enforceMode].items():
             resStr += key
