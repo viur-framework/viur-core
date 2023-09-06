@@ -118,7 +118,7 @@ class Singleton(SkelModule):
 
     @exposed
     @force_ssl
-    @skey(allow_empty=SKEY_ALLOW_EMPTY_FOR_KEY)
+    @skey(allow_empty=True)
     def edit(self, *args, **kwargs) -> Any:
         """
         Modify the existing entry, and render the entry, eventually with error notes on incorrect data.
