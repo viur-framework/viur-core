@@ -1,3 +1,4 @@
+import abc
 import datetime
 import enum
 import functools
@@ -367,7 +368,7 @@ class UserPassword(UserAuthentication):
             skel = self.LostPasswordStep1Skel()
 
             if not current_request.isPostRequest or not skel.fromClient(kwargs):
-                return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep1Template)
+                return self._user_module.render.edit(skel, tpl=self.passwordRecoveryStep1Template)
 
             # validate security key
             if not securitykey.validate(skey):
@@ -387,7 +388,7 @@ class UserPassword(UserAuthentication):
                 skel["name"], recovery_key, current_request.request.headers["User-Agent"]
             )
 
-            return self.userModule.render.view(None, tpl=self.passwordRecoveryInstructionsSentTemplate)
+            return self._user_module.render.view(None, tpl=self.passwordRecoveryInstructionsSentTemplate)
 
         # in step 2
         skel = self.LostPasswordStep2Skel()
@@ -395,7 +396,7 @@ class UserPassword(UserAuthentication):
         # check for any input; Render input-form when incomplete.
         skel["recovery_key"] = recovery_key
         if not skel.fromClient(kwargs) or not current_request.isPostRequest:
-            return self.userModule.render.edit(
+            return self._user_module.render.edit(
                 skel=skel,
                 tpl=self.passwordRecoveryStep2Template,
                 recovery_key=recovery_key
@@ -406,7 +407,7 @@ class UserPassword(UserAuthentication):
             raise errors.PreconditionFailed()
 
         if not (recovery_request := securitykey.validate(recovery_key, session_bound=False)):
-            return self.userModule.render.view(
+            return self._user_module.render.view(
                 skel=None,
                 tpl=self.passwordRecoveryFailedTemplate,
                 reason=self.passwordRecoveryKeyExpired)
@@ -414,17 +415,17 @@ class UserPassword(UserAuthentication):
         self.passwordRecoveryRateLimit.decrementQuota()
 
         # If we made it here, the key was correct, so we'd hopefully have a valid user for this
-        user_skel = self.userModule.viewSkel().all().filter("name.idx =", recovery_request["user_name"]).getSkel()
+        user_skel = self._user_module.viewSkel().all().filter("name.idx =", recovery_request["user_name"]).getSkel()
 
         if not user_skel:
             # This *should* never happen - if we don't have a matching account we'll not send the key.
-            return self.userModule.render.view(
+            return self._user_module.render.view(
                 skel=None,
                 tpl=self.passwordRecoveryFailedTemplate,
                 reason=self.passwordRecoveryUserNotFound)
 
         if user_skel["status"] != Status.ACTIVE:  # The account is locked or not yet validated. Abort the process.
-            return self.userModule.render.view(
+            return self._user_module.render.view(
                 skel=None,
                 tpl=self.passwordRecoveryFailedTemplate,
                 reason=self.passwordRecoveryAccountLocked
@@ -434,7 +435,7 @@ class UserPassword(UserAuthentication):
         user_skel["password"] = skel["password"]
         user_skel.toDB(update_relations=False)
 
-        return self.userModule.render.view(None, tpl=self.passwordRecoverySuccessTemplate)
+        return self._user_module.render.view(None, tpl=self.passwordRecoverySuccessTemplate)
 
     @tasks.CallDeferred
     def sendUserPasswordRecoveryCode(self, user_name: str, recovery_key: str, user_agent: str) -> None:
@@ -445,7 +446,7 @@ class UserPassword(UserAuthentication):
             by SMS or other means. We'll also update the changedate for this user, so no more than one code
             can be send to any given user in four hours.
         """
-        if user_skel := self.userModule.viewSkel().all().filter("name.idx =", user_name).getSkel():
+        if user_skel := self._user_module.viewSkel().all().filter("name.idx =", user_name).getSkel():
             user_agent = user_agents.parse(user_agent)
             email.sendEMail(
                 tpl=self.passwordRecoveryMail,
@@ -623,11 +624,26 @@ class GoogleAccount(UserAuthentication):
         return self._user_module.continueAuthenticationFlow(self, userSkel["key"])
 
 
-class TimeBasedOTP(UserAuthentication):
+class UserSecondFactorAuthentication(UserAuthentication, abc.ABC):
+    second_factor_login_template = "user_login_secondfactor"
+    """Template to enter the TOPT on login"""
+
+    NAME = ""
+    ACTION_NAME = ""
+
+    def __init__(self, moduleName, modulePath, _user_module):
+        super().__init__(moduleName, modulePath, _user_module)
+        self.action_url = f"{self.modulePath}/{self.ACTION_NAME}"
+        self.start_url = f"{self.modulePath}/start"
+
+
+class TimeBasedOTP(UserSecondFactorAuthentication):
     WINDOW_SIZE = 5
     MAX_RETRY = 3
     otpTemplate = "user_login_timebasedotp"
     ACTION_NAME = "otp"
+    NAME = "Time based Otp"
+
     @dataclasses.dataclass
     class OtpConfig:
         """
@@ -651,9 +667,7 @@ class TimeBasedOTP(UserAuthentication):
             min=0,
         )
 
-    def __init__(self, moduleName, modulePath, userModule):
-        super().__init__(moduleName, modulePath, userModule)
-        self.action_url = f"{self.modulePath}/{self.ACTION_NAME}"
+
 
     @classmethod
     def get2FactorMethodName(*args, **kwargs):  # fixme: What is the purpose of this function? Why not just a member?
@@ -676,12 +690,15 @@ class TimeBasedOTP(UserAuthentication):
         """
         return bool(self.get_config(user_key))
 
-    def startProcessing(self, user_key):
+    @exposed
+    def start(self):
         """
         Configures OTP login for the current session.
 
         A special otp_user_conf has to be specified as a dict, which is stored into the session.
         """
+        session = current.session.get()
+        user_key = db.Key(self._user_module.kindName, session["possible_user_key"])
         if not (otp_user_conf := self.get_config(user_key)):
             return None
 
@@ -693,10 +710,10 @@ class TimeBasedOTP(UserAuthentication):
         session["_otp_user"] = otp_user_conf
         session.markChanged()
 
-        return self.userModule.render.edit(self.OtpSkel(),
-                                           action_name=self.ACTION_NAME,
-                                           action_url=f"{self.modulePath}/{self.ACTION_NAME}",
-                                           tpl=self.otpTemplate)
+        return self._user_module.render.edit(self.OtpSkel(),
+                                             action_name=self.ACTION_NAME,
+                                             action_url=f"{self.modulePath}/{self.ACTION_NAME}",
+                                             tpl=self.second_factor_login_template)
 
     @exposed
     @force_ssl
@@ -733,13 +750,13 @@ class TimeBasedOTP(UserAuthentication):
             otp_user_conf["attempts"] = attempts + 1
             session.markChanged()
 
-            return self.userModule.render.edit(self.OtpSkel(),
+            return self._user_module.render.edit(self.OtpSkel(),
                                                action_name=self.ACTION_NAME,
                                                action_url=f"{self.modulePath}/{self.ACTION_NAME}",
-                                               tpl=self.otpTemplate, secondFactorFailed=True)
+                                               tpl=self.second_factor_login_template, secondFactorFailed=True)
 
         # Remove otp user config from session
-        user_key = db.keyHelper(otp_user_conf["key"], self.userModule._resolveSkelCls().kindName)
+        user_key = db.keyHelper(otp_user_conf["key"], self._user_module._resolveSkelCls().kindName)
         del session["_otp_user"]
         session.markChanged()
 
@@ -752,7 +769,7 @@ class TimeBasedOTP(UserAuthentication):
             self.updateTimeDrift(user_key, timedriftchange)
 
         # Continue with authentication
-        return self.userModule.secondFactorSucceeded(self, user_key)
+        return self._user_module.secondFactorSucceeded(self, user_key)
 
     @staticmethod
     def verify(
@@ -832,20 +849,17 @@ class TimeBasedOTP(UserAuthentication):
         db.RunInTransaction(transaction, user_key, idx)
 
 
-class AuthenticatorOTP(UserAuthentication):
+class AuthenticatorOTP(UserSecondFactorAuthentication):
     """
     This class handles the second factor for apps like authy and so on
     """
     otp_add_template = "user_secondfactor_add"
     """Template to configure (add) a new TOPT"""
-    otp_login_template = "user_login_secondfactor"
-    """Template to enter the TOPT on login"""
-    ACTION_NAME = "otp"
+    ACTION_NAME = "authenticator_otp"
     """Action name provided for *otp_template* on login"""
+    NAME = "Authenticator App"
 
-    def __init__(self, moduleName, modulePath, userModule):
-        super().__init__(moduleName, modulePath, userModule)
-        self.action_url = f"{self.modulePath}/{self.ACTION_NAME}"
+
     @exposed
     @force_ssl
     @skey(allow_empty=True)
@@ -936,21 +950,22 @@ class AuthenticatorOTP(UserAuthentication):
     def verify_otp(cls, otp: str | int, secret: str) -> bool:
         return pyotp.TOTP(secret).verify(otp)
 
-    def startProcessing(self, user_key: str | db.Key):
+    @exposed
+    def start(self):
         return self._user_module.render.edit(TimeBasedOTP.OtpSkel(),
-                                             action_name= self.ACTION_NAME,
+                                             action_name=self.ACTION_NAME,
                                              action_url=self.action_url,
-                                             tpl=self.otp_login_template)
+                                             tpl=self.second_factor_login_template)
 
     @exposed
     @force_ssl
-    def otp(self, skey=None, **kwargs):
+    @skey
+    def authenticator_otp(self, **kwargs):
         """
         We verify the otp here with the secret we stored before.
         """
-        if not securitykey.validate(skey):
-            raise errors.PreconditionFailed()
-        user_key = db.Key("user", current.session.get()["_mayBeUserKey"])
+
+        user_key = db.Key("user", current.session.get()["possible_user_key"])
 
         if not (user := db.Get(user_key)):
             raise errors.NotFound()
@@ -968,7 +983,7 @@ class AuthenticatorOTP(UserAuthentication):
             return self._user_module.render.edit(skel,
                                                  action_name=self.ACTION_NAME,
                                                  action_url=self.action_url,
-                                                 tpl=self.otp_login_template)
+                                                 tpl=self.second_factor_login_template)
 
 
 class User(List):
@@ -1122,7 +1137,7 @@ class User(List):
 
     def continueAuthenticationFlow(self, caller, userKey):
         session = current.session.get()
-        session["_mayBeUserKey"] = userKey.id_or_name
+        session["possible_user_key"] = userKey.id_or_name
         session["_secondFactorStart"] = utils.utcNow()
         session.markChanged()
 
@@ -1147,27 +1162,14 @@ class User(List):
                 return self.authenticateUser(userKey)
             else:
                 # We have only one second factor we don't need the choice template
-                return second_factor_providers[0].startProcessing(userKey)
+                return second_factor_providers[0].start(userKey)
         else:
             # We have more than one second factor we need the choice template
             return self.render.second_factor_choice(tpl="second_factor_choice", second_factors=second_factor_providers)
 
-        for authProvider, secondFactor in self.validAuthenticationMethods:
-            if isinstance(caller, authProvider):
-                if secondFactor is None:
-                    # We allow sign-in without a second factor
-                    return self.authenticateUser(userKey)
-                # This Auth-Request was issued from this authenticationProvider
-                secondFactorProvider = self.secondFactorProviderByClass(secondFactor)
-                if secondFactorProvider.canHandle(userKey):
-                    # We choose the first second factor provider which claims it can verify that user
-                    return secondFactorProvider.startProcessing(userKey)
-        # Whoops.. This user logged in successfully - but we have no second factor provider willing to confirm it
-        raise errors.NotAcceptable("There are no more authentication methods to try")  # Sorry...
-
     def secondFactorSucceeded(self, secondFactor, userKey):
         session = current.session.get()
-        if session["_mayBeUserKey"] != userKey.id_or_name:
+        if session["possible_user_key"] != userKey.id_or_name:
             raise errors.Forbidden()
         # Assert that the second factor verification finished in time
         if utils.utcNow() - session["_secondFactorStart"] > self.secondFactorTimeWindow:
