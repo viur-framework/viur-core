@@ -636,6 +636,9 @@ class UserSecondFactorAuthentication(UserAuthentication, abc.ABC):
         self.action_url = f"{self.modulePath}/{self.ACTION_NAME}"
         self.start_url = f"{self.modulePath}/start"
 
+    def can_handle(self, possible_user: db.Entity):
+        pass
+
 
 class TimeBasedOTP(UserSecondFactorAuthentication):
     WINDOW_SIZE = 5
@@ -673,22 +676,22 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
     def get2FactorMethodName(*args, **kwargs):  # fixme: What is the purpose of this function? Why not just a member?
         return "X-VIUR-2FACTOR-TimeBasedOTP"
 
-    def get_config(self, user_key) -> OtpConfig | None:
+    def get_config(self, possible_user: db.Entity) -> OtpConfig | None:
         """
         Returns an instance of self.OtpConfig with a provided token configuration,
         or None when there is no appropriate configuration of this second factor handler available.
         """
-        user = db.Get(user_key)
-        if user and user.get("otp_secret"):
-            return self.OtpConfig(secret=user["otp_secret"], timedrift=user.get("otp_timedrift") or 0)
+
+        if possible_user.get("otp_secret"):
+            return self.OtpConfig(secret=possible_user["otp_secret"], timedrift=possible_user.get("otp_timedrift") or 0)
 
         return None
 
-    def canHandle(self, user_key) -> bool:
+    def can_handle(self, possible_user: db.Entity) -> bool:
         """
         Specified whether the second factor authentication can be handled by the given user or not.
         """
-        return bool(self.get_config(user_key))
+        return bool(self.get_config(possible_user))
 
     @exposed
     def start(self):
@@ -698,8 +701,9 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         A special otp_user_conf has to be specified as a dict, which is stored into the session.
         """
         session = current.session.get()
+
         user_key = db.Key(self._user_module.kindName, session["possible_user_key"])
-        if not (otp_user_conf := self.get_config(user_key)):
+        if not (otp_user_conf := self.get_config(db.Get(user_key))):
             return None
 
         otp_user_conf = {
@@ -751,9 +755,9 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             session.markChanged()
 
             return self._user_module.render.edit(self.OtpSkel(),
-                                               action_name=self.ACTION_NAME,
-                                               action_url=f"{self.modulePath}/{self.ACTION_NAME}",
-                                               tpl=self.second_factor_login_template, secondFactorFailed=True)
+                                                 action_name=self.ACTION_NAME,
+                                                 action_url=f"{self.modulePath}/{self.ACTION_NAME}",
+                                                 tpl=self.second_factor_login_template, secondFactorFailed=True)
 
         # Remove otp user config from session
         user_key = db.keyHelper(otp_user_conf["key"], self._user_module._resolveSkelCls().kindName)
@@ -892,14 +896,11 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             AuthenticatorOTP.set_otp_app_secret(otp_app_secret)
             return self._user_module.render.second_factor_add_success()
 
-    def canHandle(self, user_key: str | db.Key) -> bool:
+    def can_handle(self,possible_user: db.Entity) -> bool:
         """
         We can only handle the second factor if we have stored an otp_app_secret before.
         """
-        if not (user := db.Get(user_key)):
-            return False
-
-        return bool(user.get("otp_app_secret", ""))
+        return bool(possible_user.get("otp_app_secret", ""))
 
     @classmethod
     def get2FactorMethodName(*args, **kwargs) -> str:
@@ -965,7 +966,8 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         We verify the otp here with the secret we stored before.
         """
 
-        user_key = db.Key("user", current.session.get()["possible_user_key"])
+        session = current.session.get()
+        user_key = db.Key(self._user_module.kindName, session["possible_user_key"])
 
         if not (user := db.Get(user_key)):
             raise errors.NotFound()
@@ -1120,7 +1122,7 @@ class User(List):
 
         return skel
 
-    def secondFactorProviderByClass(self, cls):
+    def secondFactorProviderByClass(self, cls) -> UserSecondFactorAuthentication:
         return getattr(self, "f2_%s" % cls.__name__.lower())
 
     def getCurrentUser(self):
@@ -1142,11 +1144,14 @@ class User(List):
         session.markChanged()
 
         second_factor_providers = []
+
+        if not(possible_user := db.Get(userKey)):
+            raise errors.NotFound()
         for auth_provider, second_factor in self.validAuthenticationMethods:
             if isinstance(caller, auth_provider):
                 if second_factor is not None:
                     second_factor_provider_instance = self.secondFactorProviderByClass(second_factor)
-                    if second_factor_provider_instance.canHandle(userKey):
+                    if second_factor_provider_instance.can_handle(possible_user):
                         second_factor_providers.append(second_factor_provider_instance)
                 else:
                     second_factor_providers.append(None)
