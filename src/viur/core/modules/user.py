@@ -896,7 +896,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             AuthenticatorOTP.set_otp_app_secret(otp_app_secret)
             return self._user_module.render.second_factor_add_success()
 
-    def can_handle(self,possible_user: db.Entity) -> bool:
+    def can_handle(self, possible_user: db.Entity) -> bool:
         """
         We can only handle the second factor if we have stored an otp_app_secret before.
         """
@@ -1145,7 +1145,7 @@ class User(List):
 
         second_factor_providers = []
 
-        if not(possible_user := db.Get(userKey)):
+        if not (possible_user := db.Get(userKey)):
             raise errors.NotFound()
         for auth_provider, second_factor in self.validAuthenticationMethods:
             if isinstance(caller, auth_provider):
