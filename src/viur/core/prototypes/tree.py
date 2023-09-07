@@ -7,7 +7,7 @@ from viur.core.cache import flushCache
 from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.tasks import CallDeferred
 from .skelmodule import SkelModule
-
+from ..utils import parse_bool
 
 SkelType = Literal["node", "leaf"]
 
@@ -366,7 +366,7 @@ class Tree(SkelModule):
             not kwargs  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or not current.request.get().isPostRequest
-            or kwargs.get("bounce") == "1"  # review before adding
+            or parse_bool(kwargs.get("bounce"))  # review before adding
         ):
             return self.render.add(skel)
 
@@ -412,7 +412,7 @@ class Tree(SkelModule):
             not kwargs  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or not current.request.get().isPostRequest
-            or kwargs.get("bounce") == "1"  # review before adding
+            or parse_bool(kwargs.get("bounce"))  # review before adding
         ):
             return self.render.edit(skel)
 
