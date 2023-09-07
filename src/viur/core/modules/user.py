@@ -863,7 +863,6 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
     """Action name provided for *otp_template* on login"""
     NAME = "Authenticator App"
 
-
     @exposed
     @force_ssl
     @skey(allow_empty=True)
