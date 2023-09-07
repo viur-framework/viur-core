@@ -76,7 +76,7 @@ class Render(DefaultRender):  # Render user-data to xml
         template = self.getEnv().get_template(self.getTemplateFileName(tpl))
         return template.render()
 
-    def second_factor_choice(self, tpl: str | None = None, second_factors: List[object] = None):
+    def second_factor_choice(self, tpl: str | None = None, second_factors: List = []):
         tpl = self._choose_template(tpl, "second_factor_choice")
         template = self.getEnv().get_template(self.getTemplateFileName(tpl))
         return template.render(second_factors=second_factors)

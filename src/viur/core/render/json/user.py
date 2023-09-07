@@ -1,4 +1,7 @@
 import json
+from typing import List
+
+from viur.core.modules.user import UserSecondFactorAuthentication
 from . import default as DefaultRender
 
 
@@ -38,3 +41,9 @@ class UserRender(DefaultRender):  # Render user-data to json
 
     def second_factor_add_success(self, *args, **kwargs):
         return json.dumps("OKAY")
+
+    def second_factor_choice(self, second_factors: List[UserSecondFactorAuthentication] = None, *args, **kwargs):
+
+        second_factors = [{"name": second_factor.NAME, "start_url": second_factor.start_url}
+                          for second_factor in second_factors]
+        return json.dumps(second_factors)
