@@ -114,7 +114,7 @@ class List(SkelModule):
         return self.render.view(skel)
 
     @exposed
-    def view(self, key: db.Key | str | int | None = None, *args, **kwargs) -> Any:
+    def view(self, key: db.Key | str | int, *args, **kwargs) -> Any:
         """
             Prepares and renders a single entry for viewing.
 
