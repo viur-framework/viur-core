@@ -1150,8 +1150,8 @@ class User(List):
                         second_factor_providers.append(second_factor_provider_instance)
                 else:
                     second_factor_providers.append(None)
-        if len(second_factor_providers)>1 and None in second_factor_providers:
-            # We have a second factor so we can get rid of the None
+        if len(second_factor_providers) > 1 and None in second_factor_providers:
+            # We have a second factor. So we can get rid of the None
             second_factor_providers.pop(second_factor_providers.index(None))
 
         if len(second_factor_providers) == 0:
