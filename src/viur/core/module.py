@@ -1,5 +1,6 @@
 import copy
 import inspect
+import types
 import typing
 import logging
 from viur.core import errors, current
@@ -24,20 +25,23 @@ class Method:
         return cls(func)
 
     def __init__(self, func: typing.Callable):
+        # Content
+        self._func = func
+        self.__name__ = func.__name__
+        self._instance = None
+
         # Attributes
         self.exposed = None  # None = unexposed, True = exposed, False = internal exposed
         self.ssl = False
         self.methods = ("GET", "POST", "HEAD")
         self.seo_language_map = None
 
+        # Inspection
+        self.signature = inspect.signature(self._func)
+
         # Guards
         self.skey = None
         self.access = None
-
-        # Content
-        self.__name__ = func.__name__
-        self._func = func
-        self._instance = None
 
     def __get__(self, obj, objtype=None):
         """
@@ -54,11 +58,139 @@ class Method:
 
     def __call__(self, *args, **kwargs):
         """
-        Wrapper to call the Method directly.
+        Calls the method with given args and kwargs.
+
+        Prepares and filters argument values from args and kwargs regarding self._func's signature and type annotations,
+        if present.
+
+        Method objects normally wrap functions which are externally exposed. Therefore, any arguments passed from the
+        client are str-values, and are automatically parsed when equipped with type-annotations.
+
+        This preparation of arguments therefore inspects the target function as follows
+        - incoming values are parsed to their particular type, if type annotations are present
+        - parameters in *args and **kwargs are being checked against their signature; only relevant values are being
+            passed, anything else is thrown away.
+        - execution of guard configurations from @skey and @access, if present
         """
 
         if trace := conf["viur.debug.trace"]:
-            logging.debug(f"calling {self._func=} with {args=}, {kwargs=}")
+            logging.debug(f"calling {self._func=} with raw {args=}, {kwargs=}")
+
+        def parse_value_by_annotation(annotation: type, name: str, value: str | list | tuple) -> typing.Any:
+            """
+            Tries to parse a value according to a given type.
+            May be called recursively to handle unions, lists and tuples as well.
+            """
+            # simple types
+            if annotation is str:
+                return str(value)
+            elif annotation is int:
+                return int(value)
+            elif annotation is float:
+                return float(value)
+            elif annotation is bool:
+                return str(value).strip().lower() in ("true", "yes", "1")  # TODO: use parse_bool() here!
+            elif annotation is types.NoneType:
+                return None
+
+            # complex types
+            origin_type = typing.get_origin(annotation)
+
+            if origin_type is list and len(annotation.__args__) == 1:
+                if not isinstance(value, list):
+                    value = [value]
+
+                return [parse_value_by_annotation(annotation.__args__[0], name, item) for item in value]
+
+            elif origin_type is tuple and len(annotation.__args__) == 1:
+                if not isinstance(value, tuple):
+                    value = (value, )
+
+                return tuple(parse_value_by_annotation(annotation.__args__[0], name, item) for item in value)
+
+            elif origin_type is typing.Literal:
+                if not any(value == str(literal) for literal in annotation.__args__):
+                    raise TypeError(f"Expecting any of {annotation.__args__} for {name}")
+
+                return value
+
+            elif origin_type is typing.Union or isinstance(annotation, types.UnionType):
+                for i, sub_annotation in enumerate(annotation.__args__):
+                    try:
+                        return parse_value_by_annotation(sub_annotation, name, value)
+                    except ValueError:
+                        if i == len(annotation.__args__) - 1:
+                            raise
+
+            raise ValueError(f"Unhandled type {annotation=} for {name}={value!r}")
+
+        # examine parameters
+        args_iter = iter(args)
+
+        parsed_args = []
+        parsed_kwargs = {}
+        varargs = []
+        varkwargs = False
+
+        for i, (param_name, param) in enumerate(self.signature.parameters.items()):
+            if self._instance and i == 0 and param_name == "self":
+                continue
+
+            param_type = param.annotation if param.annotation is not param.empty else None
+            param_required = param.default is param.empty
+
+            # take positional parameters first
+            if param.kind in (
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    inspect.Parameter.POSITIONAL_ONLY
+            ):
+                try:
+                    value = next(args_iter)
+
+                    if param_type:
+                        value = parse_value_by_annotation(param_type, param_name, value)
+
+                    parsed_args.append(value)
+                    continue
+                except StopIteration:
+                    pass
+
+            # otherwise take kwargs or variadics
+            if (
+                param.kind in (
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    inspect.Parameter.KEYWORD_ONLY
+                )
+                and param_name in kwargs
+            ):
+                value = kwargs[param_name]
+
+                if param_type:
+                    value = parse_value_by_annotation(param_type, param_name, value)
+
+                parsed_kwargs[param_name] = value
+
+            elif param.kind == inspect.Parameter.VAR_POSITIONAL:
+                varargs = list(args_iter)
+            elif param.kind == inspect.Parameter.VAR_KEYWORD:
+                varkwargs = True
+            elif param_required:
+                raise ValueError(f"Missing required parameter {param_name!r}")
+
+        # Extend args to any varargs
+        parsed_args += varargs
+
+        # extend all kwargs if varkwargs is present
+        if varkwargs:
+            for name, value in kwargs.items():
+                if name not in self.signature.parameters:
+                    parsed_kwargs[name] = value
+
+        args = tuple(parsed_args)
+        kwargs = parsed_kwargs
+
+        if trace := conf["viur.debug.trace"]:
+            logging.debug(f"calling {self._func=} with cleaned {args=}, {kwargs=}")
 
         # evaluate skey guard setting?
         if self.skey:
@@ -152,7 +284,7 @@ class Method:
                     "type": str(param.annotation) if param.annotation is not inspect.Parameter.empty else None,
                     "default": str(param.default) if param.default is not inspect.Parameter.empty else None,
                 }
-                for param in inspect.signature(self._func).parameters.values()
+                for param in self.signature.parameters.values()
             },
             "returns": str(return_doc).strip() if return_doc else None,
             "accepts": self.methods,
