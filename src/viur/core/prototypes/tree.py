@@ -328,7 +328,7 @@ class Tree(SkelModule):
 
     @exposed
     @force_ssl
-    @skey(allow_empty=SKEY_ALLOW_EMPTY_FOR_KEY)
+    @skey(allow_empty=True)
     def add(self, skelType: SkelType, node: db.Key | int | str, *args, **kwargs) -> Any:
         """
         Add a new entry with the given parent *node*, and render the entry, eventually with error notes
@@ -378,7 +378,7 @@ class Tree(SkelModule):
 
     @exposed
     @force_ssl
-    @skey(allow_empty=SKEY_ALLOW_EMPTY_FOR_KEY)
+    @skey(allow_empty=True)
     def edit(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> Any:
         """
         Modify an existing entry, and render the entry, eventually with error notes on incorrect data.

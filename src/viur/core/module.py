@@ -191,6 +191,11 @@ class Method:
             for name, value in kwargs.items():
                 if name not in self.signature.parameters:
                     parsed_kwargs[name] = value
+            varkwargs = bool(kwargs)
+        # always take "skey" when configured into kwargs, if varkwargs is unset
+        elif self.skey and self.skey["name"] in kwargs:
+            parsed_kwargs[self.skey["name"]] = kwargs[self.skey["name"]]
+            varkwargs = True
 
         args = tuple(parsed_args)
         kwargs = parsed_kwargs
@@ -213,7 +218,7 @@ class Method:
                     required = any(k for k in kwargs.keys() if k not in allow_empty)
                 # otherwise, kwargs may not be empty.
                 else:
-                    required = bool(kwargs)
+                    required = varargs or varkwargs
 
             if required:
                 security_key = kwargs.pop(self.skey["name"], "")
