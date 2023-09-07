@@ -3,7 +3,7 @@ import inspect
 import types
 import typing
 import logging
-from viur.core import errors, current
+from viur.core import db, errors, current
 from viur.core.config import conf
 
 
@@ -110,7 +110,7 @@ class Method:
 
             elif origin_type is typing.Literal:
                 if not any(value == str(literal) for literal in annotation.__args__):
-                    raise TypeError(f"Expecting any of {annotation.__args__} for {name}")
+                    raise errors.NotAcceptable(f"Expecting any of {annotation.__args__} for {name}")
 
                 return value
 
@@ -122,7 +122,13 @@ class Method:
                         if i == len(annotation.__args__) - 1:
                             raise
 
-            raise ValueError(f"Unhandled type {annotation=} for {name}={value!r}")
+            elif annotation is db.Key:
+                if isinstance(value, db.Key):
+                    return value
+
+                return parse_value_by_annotation(int | str, name, value)
+
+            raise errors.NotAcceptable(f"Unhandled type {annotation=} for {name}={value!r}")
 
         # examine parameters
         args_iter = iter(args)
@@ -175,7 +181,7 @@ class Method:
             elif param.kind == inspect.Parameter.VAR_KEYWORD:
                 varkwargs = True
             elif param_required:
-                raise ValueError(f"Missing required parameter {param_name!r}")
+                raise errors.NotAcceptable(f"Missing required parameter {param_name!r}")
 
         # Extend args to any varargs
         parsed_args += varargs
