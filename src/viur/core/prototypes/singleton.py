@@ -5,6 +5,7 @@ from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
 from .skelmodule import SkelModule
+from ..utils import parse_bool
 
 
 class Singleton(SkelModule):
@@ -145,7 +146,7 @@ class Singleton(SkelModule):
         if (
             not kwargs  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or kwargs.get("bounce") == "1"  # review before changing
+            or parse_bool(kwargs.get("bounce"))  # review before changing
         ):
             return self.render.edit(skel)
 
