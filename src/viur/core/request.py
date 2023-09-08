@@ -521,8 +521,15 @@ class Request:
                 logging.debug("Caching disabled by X-Viur-Disable-Cache header")
                 self.disableCache = True
 
+        # Copy contexts into self.contexts if available
+        if contexts := {k: v for k, v in self.kwargs.items() if k.startswith("@")}:
+            kwargs = {k: v for k, v in self.kwargs.items() if k not in contexts}
+            self.contexts |= contexts
+        else:
+            kwargs = self.kwargs
+
         # Now call the routed method!
-        res = caller(*self.args, **self.kwargs)
+        res = caller(*self.args, **kwargs)
 
         if not isinstance(res, bytes):  # Convert the result to bytes if it is not already!
             res = str(res).encode("UTF-8")
