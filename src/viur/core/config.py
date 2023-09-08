@@ -182,7 +182,7 @@ class Admin(ConfigType):
     color_primary = "#d00f1c"
     """primary color for the  VI"""
 
-    color_secondary = "#333333s"
+    color_secondary = "#333333"
     """secondary color for the  VI"""
 
     _mapping = {
