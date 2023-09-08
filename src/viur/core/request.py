@@ -1,3 +1,11 @@
+"""
+    This module implements the WSGI (Web Server Gateway Interface) layer for ViUR. This is the main entry
+    point for incomming http requests. The main class is the :class:BrowserHandler. Each request will get it's
+    own instance of that class which then holds the reference to the request and response object.
+    Additionally, this module defines the RequestValidator interface which provides a very early hook into the
+    request processing (useful for global ratelimiting, DDoS prevention or access control).
+"""
+
 import json
 import logging
 import os
@@ -6,27 +14,17 @@ import traceback
 import typing
 import inspect
 import unicodedata
+import webob
 from abc import ABC, abstractmethod
 from urllib import parse
 from urllib.parse import unquote, urljoin, urlparse
-
-import webob
-
-from viur.core import current, db, errors, utils
+from viur.core import current, db, errors, session, utils
 from viur.core.module import Method
 from viur.core.config import conf
 from viur.core.logging import client as loggingClient, requestLogger, requestLoggingRessource
 from viur.core.securityheaders import extendCsp
 from viur.core.tasks import _appengineServiceIPs
-from .utils import parse_bool
 
-"""
-    This module implements the WSGI (Web Server Gateway Interface) layer for ViUR. This is the main entry
-    point for incomming http requests. The main class is the :class:BrowserHandler. Each request will get it's
-    own instance of that class which then holds the reference to the request and response object.
-    Additionally, this module defines the RequestValidator interface which provides a very early hook into the
-    request processing (useful for global ratelimiting, DDoS prevention or access control).
-"""
 
 class RequestValidator(ABC):
     """
@@ -76,7 +74,7 @@ class FetchMetaDataValidator(RequestValidator):
         return 403, "Forbidden", "Request rejected due to fetch metadata"
 
 
-class BrowseHandler():  # webapp.RequestHandler
+class Request:
     """
         This class accepts the requests, collect its parameters and routes the request
         to its destination function.
@@ -100,16 +98,49 @@ class BrowseHandler():  # webapp.RequestHandler
     # List of requestValidators used to preflight-check an request before it's being dispatched within ViUR
     requestValidators = [FetchMetaDataValidator]
 
-    def __init__(self, request: webob.Request, response: webob.Response):
-        super()
+    def __init__(self, environ: dict):
+        super().__init__()
         self.startTime = time.time()
-        self.request = request
-        self.response = response
+
+        self.request = webob.Request(environ)
+        self.response = webob.Response()
+
         self.maxLogLevel = logging.DEBUG
-        self._traceID = request.headers.get('X-Cloud-Trace-Context', "").split("/")[0] or utils.generateRandomString()
+        self._traceID = \
+            self.request.headers.get("X-Cloud-Trace-Context", "").split("/")[0] or utils.generateRandomString()
         self.is_deferred = False
         self.path_list = ()
+
+        self.skey_checked = False  # indicates whether @skey-decorator-check has already performed within a request
+        self.internalRequest = False
+        self.disableCache = False  # Shall this request bypass the caches?
+        self.pendingTasks = []
+        self.args = ()
+        self.kwargs = {}
+        self.contexts = {}
+
+        # Check if it's a HTTP-Method we support
+        self.method = self.request.method.lower()
+        self.isPostRequest = self.method == "post"
+        self.isSSLConnection = self.request.host_url.lower().startswith("https://")  # We have an encrypted channel
+
         db.currentDbAccessLog.set(set())
+
+        # Set context variables
+        current.language.set(conf["viur.defaultLanguage"])
+        current.request.set(self)
+        current.session.set(session.Session())
+        current.request_data.set({})
+
+        # Process actual request
+        self._process()
+
+        # Unset context variables
+        current.language.set(None)
+        current.request_data.set(None)
+        current.session.set(None)
+        current.request.set(None)
+        current.user.set(None)
 
     @property
     def isDevServer(self) -> bool:
@@ -119,7 +150,7 @@ class BrowseHandler():  # webapp.RequestHandler
         logging.warning(msg)
         return conf["viur.instance.is_dev_server"]
 
-    def selectLanguage(self, path: str) -> str:
+    def _select_language(self, path: str) -> str:
         """
             Tries to select the best language for the current request. Depending on the value of
             conf["viur.languageMethod"], we'll either try to load it from the session, determine it by the domain
@@ -167,29 +198,19 @@ class BrowseHandler():  # webapp.RequestHandler
                         current.language.set(lng)
         return path
 
-    def processRequest(self) -> None:
-        """
-            Bring up the enviroment for this request, start processing and handle errors
-        """
-        # Check if it's a HTTP-Method we support
-        reqestMethod = self.request.method.lower()
-        if reqestMethod not in ["get", "post", "head"]:
-            logging.error("Not supported")
+    def _process(self):
+        if self.method not in ("get", "post", "head"):
+            logging.error(f"{self.method=} not supported")
             return
-        self.isPostRequest = reqestMethod == "post"
 
-        # Configure some basic parameters for this request
-        self.internalRequest = False
-        self.isSSLConnection = self.request.host_url.lower().startswith("https://")  # We have an encrypted channel
         if self.request.headers.get("X-AppEngine-TaskName", None) is not None:  # Check if we run in the appengine
             if self.request.environ.get("HTTP_X_APPENGINE_USER_IP") in _appengineServiceIPs:
                 self.is_deferred = True
             elif os.getenv("TASKS_EMULATOR") is not None:
                 self.is_deferred = True
+
         current.language.set(conf["viur.defaultLanguage"])
-        self.disableCache = False  # Shall this request bypass the caches?
-        self.args = []
-        self.kwargs = {}
+
         # Check if we should process or abort the request
         for validator, reqValidatorResult in [(x, x.validate(self)) for x in self.requestValidators]:
             if reqValidatorResult is not None:
@@ -198,10 +219,8 @@ class BrowseHandler():  # webapp.RequestHandler
                 self.response.status = '%d %s' % (statusCode, statusStr)
                 self.response.write(statusDescr)
                 return
+
         path = self.request.path
-        if conf["viur.instance.is_dev_server"]:
-            # We'll have to emulate the task-queue locally as far as possible until supported by dev_appserver again
-            self.pendingTasks = []
 
         # Add CSP headers early (if any)
         if conf["viur.security.contentSecurityPolicy"] and conf["viur.security.contentSecurityPolicy"]["_headerCache"]:
@@ -269,11 +288,11 @@ class BrowseHandler():  # webapp.RequestHandler
             if user_mod := getattr(conf["viur.mainApp"], "user", None):
                 current.user.set(user_mod.getCurrentUser())
 
-            path = self.selectLanguage(path)[1:]
+            path = self._select_language(path)[1:]
             if conf["viur.requestPreprocessor"]:
                 path = conf["viur.requestPreprocessor"](path)
 
-            self.findAndCall(path)
+            self._route(path)
 
         except errors.Redirect as e:
             if conf["viur.debug.traceExceptions"]:
@@ -394,7 +413,7 @@ class BrowseHandler():  # webapp.RequestHandler
                 logging.info("Running task directly after request: %s" % str(task))
                 task()
 
-    def findAndCall(self, path: str, *args, **kwargs) -> None:
+    def _route(self, path: str) -> None:
         """
             Does the actual work of sanitizing the parameter, determine which exposed-function to call
             (and with which parameters)
@@ -406,8 +425,6 @@ class BrowseHandler():  # webapp.RequestHandler
                                    for part in path.strip("/").split("/"))
 
         # Prevent Hash-collision attacks
-        kwargs = {}
-
         if len(self.request.params) > conf["viur.maxPostParamsCount"]:
             raise errors.BadRequest(
                 f"Too many arguments supplied, exceeding maximum"
@@ -426,15 +443,15 @@ class BrowseHandler():  # webapp.RequestHandler
             if key.startswith("_"):  # Ignore keys starting with _ (like VI's _unused_time_stamp)
                 continue
 
-            if key in kwargs:
+            if key in self.kwargs:
                 if isinstance(kwargs[key], list):
-                    kwargs[key].append(value)
+                    self.kwargs[key].append(value)
                 else:  # Convert that key to a list
-                    kwargs[key] = [kwargs[key], value]
+                    self.kwargs[key] = [kwargs[key], value]
             else:
-                kwargs[key] = value
+                self.kwargs[key] = value
 
-        if "self" in kwargs or "return" in kwargs:  # self or return is reserved for bound methods
+        if "self" in self.kwargs or "return" in self.kwargs:  # self or return is reserved for bound methods
             raise errors.BadRequest()
 
         caller = conf["viur.mainResolver"]
@@ -442,6 +459,7 @@ class BrowseHandler():  # webapp.RequestHandler
         path_found = True
 
         for part in self.path_list:
+            # TODO: Remove canAccess guards... solve differently.
             if "canAccess" in caller and not caller["canAccess"]():
                 # We have a canAccess function guarding that object,
                 # and it returns False...
@@ -459,7 +477,7 @@ class BrowseHandler():  # webapp.RequestHandler
                     if part == "index":
                         idx -= 1
 
-                    args = self.path_list[idx:] + args  # Prepend the rest of Path to args
+                    self.args = tuple(self.path_list[idx:])
                     break
 
                 elif part == "index":
@@ -471,7 +489,6 @@ class BrowseHandler():  # webapp.RequestHandler
                 break
 
         if not path_found:
-            from viur.core import utils
             raise errors.NotFound(
                 f"""The path {utils.escapeString("/".join(self.path_list[:idx]))} could not be found""")
 
@@ -497,18 +514,15 @@ class BrowseHandler():  # webapp.RequestHandler
         if not self.isPostRequest and caller.methods == ("POST", ):
             raise errors.MethodNotAllowed("You must use POST to access this resource!")
 
-        self.args = args
-        self.kwargs = kwargs
-
         # Check if this request should bypass the caches
         if self.request.headers.get("X-Viur-Disable-Cache"):
-            from viur.core import utils
             # No cache requested, check if the current user is allowed to do so
             if (user := current.user.get()) and "root" in user["access"]:
                 logging.debug("Caching disabled by X-Viur-Disable-Cache header")
                 self.disableCache = True
 
-        res = caller(*args, **kwargs)
+        # Now call the routed method!
+        res = caller(*self.args, **self.kwargs)
 
         if not isinstance(res, bytes):  # Convert the result to bytes if it is not already!
             res = str(res).encode("UTF-8")
