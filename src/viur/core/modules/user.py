@@ -1,3 +1,4 @@
+import abc
 import datetime
 import enum
 import functools
@@ -11,10 +12,8 @@ import user_agents
 
 import pyotp
 import base64
-import collections
 import dataclasses
 import typing
-import time
 from google.auth.transport import requests
 from google.oauth2 import id_token
 
@@ -25,6 +24,7 @@ from viur.core import (
 from viur.core.decorators import *
 from viur.core.bones import *
 from viur.core.bones.password import PBKDF2_DEFAULT_ITERATIONS, encode_password
+from viur.core.i18n import translate
 from viur.core.prototypes.list import List
 from viur.core.ratelimit import RateLimit
 from viur.core.securityheaders import extendCsp
@@ -164,6 +164,11 @@ class UserSkel(skeleton.Skeleton):
         descr="OTP time drift",
         readOnly=True,
         defaultValue=0,
+    )
+    # Authenticator OTP Apps (like Authy)
+    otp_app_secret = CredentialBone(
+        descr="OTP Secret (App-Key)",
+
     )
 
     admin_config = JsonBone(  # This bone stores settings from the vi
@@ -364,7 +369,7 @@ class UserPassword(UserAuthentication):
             skel = self.LostPasswordStep1Skel()
 
             if not current_request.isPostRequest or not skel.fromClient(kwargs):
-                return self.userModule.render.edit(skel, tpl=self.passwordRecoveryStep1Template)
+                return self._user_module.render.edit(skel, tpl=self.passwordRecoveryStep1Template)
 
             # validate security key
             if not securitykey.validate(skey):
@@ -384,7 +389,7 @@ class UserPassword(UserAuthentication):
                 skel["name"], recovery_key, current_request.request.headers["User-Agent"]
             )
 
-            return self.userModule.render.view(None, tpl=self.passwordRecoveryInstructionsSentTemplate)
+            return self._user_module.render.view(None, tpl=self.passwordRecoveryInstructionsSentTemplate)
 
         # in step 2
         skel = self.LostPasswordStep2Skel()
@@ -392,7 +397,7 @@ class UserPassword(UserAuthentication):
         # check for any input; Render input-form when incomplete.
         skel["recovery_key"] = recovery_key
         if not skel.fromClient(kwargs) or not current_request.isPostRequest:
-            return self.userModule.render.edit(
+            return self._user_module.render.edit(
                 skel=skel,
                 tpl=self.passwordRecoveryStep2Template,
                 recovery_key=recovery_key
@@ -403,7 +408,7 @@ class UserPassword(UserAuthentication):
             raise errors.PreconditionFailed()
 
         if not (recovery_request := securitykey.validate(recovery_key, session_bound=False)):
-            return self.userModule.render.view(
+            return self._user_module.render.view(
                 skel=None,
                 tpl=self.passwordRecoveryFailedTemplate,
                 reason=self.passwordRecoveryKeyExpired)
@@ -411,17 +416,17 @@ class UserPassword(UserAuthentication):
         self.passwordRecoveryRateLimit.decrementQuota()
 
         # If we made it here, the key was correct, so we'd hopefully have a valid user for this
-        user_skel = self.userModule.viewSkel().all().filter("name.idx =", recovery_request["user_name"]).getSkel()
+        user_skel = self._user_module.viewSkel().all().filter("name.idx =", recovery_request["user_name"]).getSkel()
 
         if not user_skel:
             # This *should* never happen - if we don't have a matching account we'll not send the key.
-            return self.userModule.render.view(
+            return self._user_module.render.view(
                 skel=None,
                 tpl=self.passwordRecoveryFailedTemplate,
                 reason=self.passwordRecoveryUserNotFound)
 
         if user_skel["status"] != Status.ACTIVE:  # The account is locked or not yet validated. Abort the process.
-            return self.userModule.render.view(
+            return self._user_module.render.view(
                 skel=None,
                 tpl=self.passwordRecoveryFailedTemplate,
                 reason=self.passwordRecoveryAccountLocked
@@ -431,7 +436,7 @@ class UserPassword(UserAuthentication):
         user_skel["password"] = skel["password"]
         user_skel.toDB(update_relations=False)
 
-        return self.userModule.render.view(None, tpl=self.passwordRecoverySuccessTemplate)
+        return self._user_module.render.view(None, tpl=self.passwordRecoverySuccessTemplate)
 
     @tasks.CallDeferred
     def sendUserPasswordRecoveryCode(self, user_name: str, recovery_key: str, user_agent: str) -> None:
@@ -442,7 +447,7 @@ class UserPassword(UserAuthentication):
             by SMS or other means. We'll also update the changedate for this user, so no more than one code
             can be send to any given user in four hours.
         """
-        if user_skel := self.userModule.viewSkel().all().filter("name.idx =", user_name).getSkel():
+        if user_skel := self._user_module.viewSkel().all().filter("name.idx =", user_name).getSkel():
             user_agent = user_agents.parse(user_agent)
             email.sendEMail(
                 tpl=self.passwordRecoveryMail,
@@ -621,10 +626,40 @@ class GoogleAccount(UserAuthentication):
         return self._user_module.continueAuthenticationFlow(self, userSkel["key"])
 
 
-class TimeBasedOTP(UserAuthentication):
+class UserSecondFactorAuthentication(UserAuthentication, abc.ABC):
+    """Abstract class for all second factors."""
+
+    second_factor_login_template = "user_login_secondfactor"
+    """Template to enter the TOPT on login"""
+
+    @property
+    @abc.abstractmethod
+    def NAME(self) -> str:
+        """Name for this factor for templates."""
+        ...
+
+    @property
+    @abc.abstractmethod
+    def ACTION_NAME(self) -> str:
+        """The action name for this factor, used as path-segment."""
+        ...
+
+    def __init__(self, moduleName, modulePath, _user_module):
+        super().__init__(moduleName, modulePath, _user_module)
+        self.action_url = f"{self.modulePath}/{self.ACTION_NAME}"
+        self.start_url = f"{self.modulePath}/start"
+
+    @abc.abstractmethod
+    def can_handle(self, possible_user: db.Entity) -> bool:
+        pass
+
+
+class TimeBasedOTP(UserSecondFactorAuthentication):
     WINDOW_SIZE = 5
     MAX_RETRY = 3
     otpTemplate = "user_login_timebasedotp"
+    ACTION_NAME = "otp"
+    NAME = "Time based Otp"
 
     @dataclasses.dataclass
     class OtpConfig:
@@ -649,35 +684,41 @@ class TimeBasedOTP(UserAuthentication):
             min=0,
         )
 
+
+
     @classmethod
     def get2FactorMethodName(*args, **kwargs):  # fixme: What is the purpose of this function? Why not just a member?
         return "X-VIUR-2FACTOR-TimeBasedOTP"
 
-    def get_config(self, user_key) -> OtpConfig | None:
+    def get_config(self, possible_user: db.Entity) -> OtpConfig | None:
         """
         Returns an instance of self.OtpConfig with a provided token configuration,
         or None when there is no appropriate configuration of this second factor handler available.
         """
-        user = db.Get(user_key)
-        if user and user.get("otp_secret"):
-            return self.OtpConfig(secret=user["otp_secret"], timedrift=user.get("otp_timedrift") or 0)
+
+        if possible_user.get("otp_secret"):
+            return self.OtpConfig(secret=possible_user["otp_secret"], timedrift=possible_user.get("otp_timedrift") or 0)
 
         return None
 
-    def canHandle(self, user_key) -> bool:
+    def can_handle(self, possible_user: db.Entity) -> bool:
         """
         Specified whether the second factor authentication can be handled by the given user or not.
         """
-        return bool(self.get_config(user_key))
+        return bool(self.get_config(possible_user))
 
-    def startProcessing(self, user_key):
+    @exposed
+    def start(self):
         """
         Configures OTP login for the current session.
 
         A special otp_user_conf has to be specified as a dict, which is stored into the session.
         """
-        if not (otp_user_conf := self.get_config(user_key)):
-            return None
+        session = current.session.get()
+
+        user_key = db.Key(self._user_module.kindName, session["possible_user_key"])
+        if not (otp_user_conf := self.get_config(db.Get(user_key))):
+            raise errors.PreconditionFailed("This second factor is not available for the user")
 
         otp_user_conf = {
             "key": str(user_key),
@@ -687,7 +728,13 @@ class TimeBasedOTP(UserAuthentication):
         session["_otp_user"] = otp_user_conf
         session.markChanged()
 
-        return self.userModule.render.edit(self.OtpSkel(), action="otp", tpl=self.otpTemplate)
+        return self._user_module.render.edit(
+            self.OtpSkel(),
+            name=translate(self.NAME),
+            action_name=self.ACTION_NAME,
+            action_url=f"{self.modulePath}/{self.ACTION_NAME}",
+            tpl=self.second_factor_login_template
+        )
 
     @exposed
     @force_ssl
@@ -724,12 +771,17 @@ class TimeBasedOTP(UserAuthentication):
             otp_user_conf["attempts"] = attempts + 1
             session.markChanged()
 
-            return self.userModule.render.edit(
-                self.OtpSkel(), action="otp", tpl=self.otpTemplate, secondFactorFailed=True
+            return self._user_module.render.edit(
+                self.OtpSkel(),
+                name=translate(self.NAME),
+                action_name=self.ACTION_NAME,
+                action_url=f"{self.modulePath}/{self.ACTION_NAME}",
+                tpl=self.second_factor_login_template,
+                secondFactorFailed=True,
             )
 
         # Remove otp user config from session
-        user_key = db.keyHelper(otp_user_conf["key"], self.userModule._resolveSkelCls().kindName)
+        user_key = db.keyHelper(otp_user_conf["key"], self._user_module._resolveSkelCls().kindName)
         del session["_otp_user"]
         session.markChanged()
 
@@ -742,7 +794,7 @@ class TimeBasedOTP(UserAuthentication):
             self.updateTimeDrift(user_key, timedriftchange)
 
         # Continue with authentication
-        return self.userModule.secondFactorSucceeded(self, user_key)
+        return self._user_module.secondFactorSucceeded(self, user_key)
 
     @staticmethod
     def verify(
@@ -822,6 +874,144 @@ class TimeBasedOTP(UserAuthentication):
         db.RunInTransaction(transaction, user_key, idx)
 
 
+class AuthenticatorOTP(UserSecondFactorAuthentication):
+    """
+    This class handles the second factor for apps like authy and so on
+    """
+    otp_add_template = "user_secondfactor_add"
+    """Template to configure (add) a new TOPT"""
+    ACTION_NAME = "authenticator_otp"
+    """Action name provided for *otp_template* on login"""
+    NAME = "Authenticator App"
+
+    @exposed
+    @force_ssl
+    @skey(allow_empty=True)
+    def add(self, otp=None):
+        """
+        We try to read the otp_app_secret form the current session. When this fails we generate a new one and store
+        it in the session.
+
+        If an otp and a skey are provided we are validate the skey and the otp. If both is successfully we store
+        the otp_app_secret from the session in the user entry.
+        """
+        current_session = current.session.get()
+
+        if not (otp_app_secret := current_session.get("_maybe_otp_app_secret")):
+            otp_app_secret = AuthenticatorOTP.generate_otp_app_secret()
+            current_session["_maybe_otp_app_secret"] = otp_app_secret
+            current_session.markChanged()
+
+        if otp is None:
+            return self._user_module.render.second_factor_add(
+                tpl=self.otp_add_template,
+                otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))
+        else:
+            if not AuthenticatorOTP.verify_otp(otp, otp_app_secret):
+                return self._user_module.render.second_factor_add(
+                    tpl=self.otp_add_template,
+                    otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))  # to add errors
+
+            # Now we can set the otp_app_secret to the current User and render der Success-template
+            AuthenticatorOTP.set_otp_app_secret(otp_app_secret)
+            return self._user_module.render.second_factor_add_success()
+
+    def can_handle(self, possible_user: db.Entity) -> bool:
+        """
+        We can only handle the second factor if we have stored an otp_app_secret before.
+        """
+        return bool(possible_user.get("otp_app_secret", ""))
+
+    @classmethod
+    def get2FactorMethodName(*args, **kwargs) -> str:
+        return "X-VIUR-2FACTOR-AuthenticatorOTP"
+
+    @classmethod
+    def set_otp_app_secret(cls, otp_app_secret=None):
+        """
+        Write a new OTP Token in the current user entry.
+        """
+        if otp_app_secret is None:
+            logging.error("No 'otp_app_secret' is provided")
+            raise errors.PreconditionFailed("No 'otp_app_secret' is provided")
+        if not (cuser := current.user.get()):
+            raise errors.Unauthorized()
+
+        def transaction(user_key):
+            if not (user := db.Get(user_key)):
+                raise errors.NotFound()
+            user["otp_app_secret"] = otp_app_secret
+            db.Put(user)
+
+        db.RunInTransaction(transaction, cuser["key"])
+
+    @classmethod
+    def generate_otp_app_secret_uri(cls, otp_app_secret) -> str:
+        """
+        :return an otp uri like otpauth://totp/Example:alice@google.com?secret=ABCDEFGH1234&issuer=Example
+        """
+        if not (cuser := current.user.get()):
+            raise errors.Unauthorized()
+        if not (issuer := conf["viur.otp.issuer"]):
+            logging.warning(
+                f"""conf["viur.otp.issuer"] is None we replace the issuer by conf["viur.instance.project_id"]""")
+            issuer = conf["viur.instance.project_id"]
+
+        return pyotp.TOTP(otp_app_secret).provisioning_uri(name=cuser["name"], issuer_name=issuer)
+
+    @classmethod
+    def generate_otp_app_secret(cls) -> str:
+        """
+        Generate a new OTP Secret
+        :return an otp
+        """
+        return pyotp.random_base32()
+
+    @classmethod
+    def verify_otp(cls, otp: str | int, secret: str) -> bool:
+        return pyotp.TOTP(secret).verify(otp)
+
+    @exposed
+    def start(self):
+        return self._user_module.render.edit(
+            TimeBasedOTP.OtpSkel(),
+            name=translate(self.NAME),
+            action_name=self.ACTION_NAME,
+            action_url=self.action_url,
+            tpl=self.second_factor_login_template,
+        )
+
+    @exposed
+    @force_ssl
+    @skey
+    def authenticator_otp(self, **kwargs):
+        """
+        We verify the otp here with the secret we stored before.
+        """
+        session = current.session.get()
+        user_key = db.Key(self._user_module.kindName, session["possible_user_key"])
+
+        if not (user := db.Get(user_key)):
+            raise errors.NotFound()
+
+        skel = TimeBasedOTP.OtpSkel()
+        if not skel.fromClient(kwargs):
+            raise errors.PreconditionFailed()
+        otp_token = str(skel["otptoken"]).zfill(6)
+
+        if AuthenticatorOTP.verify_otp(otp=otp_token, secret=user["otp_app_secret"]):
+            return self._user_module.secondFactorSucceeded(self, user_key)
+
+        skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token")]
+        return self._user_module.render.edit(
+            skel,
+            name=translate(self.NAME),
+            action_name=self.ACTION_NAME,
+            action_url=self.action_url,
+            tpl=self.second_factor_login_template,
+        )
+
+
 class User(List):
     kindName = "user"
     addTemplate = "user_add"
@@ -830,10 +1020,14 @@ class User(List):
     verifyEmailAddressMail = "user_verify_address"
     passwordRecoveryMail = "user_password_recovery"
 
-    authenticationProviders = [UserPassword, GoogleAccount]
-    secondFactorProviders = [TimeBasedOTP]
-
-    validAuthenticationMethods = [(UserPassword, TimeBasedOTP), (UserPassword, None), (GoogleAccount, None)]
+    authenticationProviders: list[UserAuthentication] = [UserPassword, GoogleAccount]
+    secondFactorProviders: list[UserSecondFactorAuthentication] = [TimeBasedOTP, AuthenticatorOTP]
+    validAuthenticationMethods = [
+        (UserPassword, AuthenticatorOTP),
+        (UserPassword, TimeBasedOTP),
+        (UserPassword, None),
+        (GoogleAccount, None),
+    ]
 
     secondFactorTimeWindow = datetime.timedelta(minutes=10)
 
@@ -898,7 +1092,7 @@ class User(List):
             setattr(self, name, provider(name, f"{modulePath}/{name}", self))
 
         for provider in self.secondFactorProviders:
-            assert issubclass(provider, UserAuthentication)
+            assert issubclass(provider, UserSecondFactorAuthentication)
             name = f"f2_{provider.__name__.lower()}"
             setattr(self, name, provider(name, f"{modulePath}/{name}", self))
 
@@ -956,7 +1150,7 @@ class User(List):
 
         return skel
 
-    def secondFactorProviderByClass(self, cls):
+    def secondFactorProviderByClass(self, cls) -> UserSecondFactorAuthentication:
         return getattr(self, "f2_%s" % cls.__name__.lower())
 
     def getCurrentUser(self):
@@ -973,26 +1167,40 @@ class User(List):
 
     def continueAuthenticationFlow(self, caller, userKey):
         session = current.session.get()
-        session["_mayBeUserKey"] = userKey.id_or_name
+        session["possible_user_key"] = userKey.id_or_name
         session["_secondFactorStart"] = utils.utcNow()
         session.markChanged()
 
-        for authProvider, secondFactor in self.validAuthenticationMethods:
-            if isinstance(caller, authProvider):
-                if secondFactor is None:
-                    # We allow sign-in without a second factor
-                    return self.authenticateUser(userKey)
-                # This Auth-Request was issued from this authenticationProvider
-                secondFactorProvider = self.secondFactorProviderByClass(secondFactor)
-                if secondFactorProvider.canHandle(userKey):
-                    # We choose the first second factor provider which claims it can verify that user
-                    return secondFactorProvider.startProcessing(userKey)
-        # Whoops.. This user logged in successfully - but we have no second factor provider willing to confirm it
-        raise errors.NotAcceptable("There are no more authentication methods to try")  # Sorry...
+        second_factor_providers = []
+
+        if not (possible_user := db.Get(userKey)):
+            raise errors.NotFound()
+        for auth_provider, second_factor in self.validAuthenticationMethods:
+            if isinstance(caller, auth_provider):
+                if second_factor is not None:
+                    second_factor_provider_instance = self.secondFactorProviderByClass(second_factor)
+                    if second_factor_provider_instance.can_handle(possible_user):
+                        second_factor_providers.append(second_factor_provider_instance)
+                else:
+                    second_factor_providers.append(None)
+        if len(second_factor_providers) > 1 and None in second_factor_providers:
+            # We have a second factor. So we can get rid of the None
+            second_factor_providers.pop(second_factor_providers.index(None))
+
+        if len(second_factor_providers) == 0:
+            raise errors.NotAcceptable("There are no authentication methods to try")
+        elif len(second_factor_providers) == 1:
+            if second_factor_providers[0] is None:
+                # We allow sign-in without a second factor
+                return self.authenticateUser(userKey)
+            # We have only one second factor we don't need the choice template
+            return second_factor_providers[0].start(userKey)
+        # In case there is more than one second factor, let the user select a method.
+        return self.render.second_factor_choice(tpl="second_factor_choice", second_factors=second_factor_providers)
 
     def secondFactorSucceeded(self, secondFactor, userKey):
         session = current.session.get()
-        if session["_mayBeUserKey"] != userKey.id_or_name:
+        if session["possible_user_key"] != userKey.id_or_name:
             raise errors.Forbidden()
         # Assert that the second factor verification finished in time
         if utils.utcNow() - session["_secondFactorStart"] > self.secondFactorTimeWindow:

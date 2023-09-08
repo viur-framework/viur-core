@@ -18,6 +18,9 @@ from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
 from viur.core.skeleton import RelSkel, SkeletonInstance
 from ..default import Render
 
+import qrcode
+import qrcode.image.svg
+
 
 @jinjaGlobalFunction
 def translate(render: Render, key: str, **kwargs) -> str:
@@ -725,3 +728,15 @@ def seoUrlForEntry(render: Render, *args, **kwargs):
 @jinjaGlobalFunction
 def seoUrlToFunction(render: Render, *args, **kwargs):
     return utils.seoUrlToFunction(*args, **kwargs)
+
+
+@jinjaGlobalFunction
+def qrcode(render: Render, data: str) -> str:
+    """
+    Generates a SVG string for a html template
+
+    :param data: Any string data that should render to a QR Code.
+
+    :return: The SVG string representation.
+    """
+    return qrcode.make(data, image_factory=qrcode.image.svg.SvgPathImage, box_size=30).to_string().decode("utf-8")
