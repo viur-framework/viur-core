@@ -635,7 +635,8 @@ class UserSecondFactorAuthentication(UserAuthentication, abc.ABC):
         self.action_url = f"{self.modulePath}/{self.ACTION_NAME}"
         self.start_url = f"{self.modulePath}/start"
 
-    def can_handle(self, possible_user: db.Entity):
+    @abc.abstractmethod
+    def can_handle(self, possible_user: db.Entity) -> bool:
         pass
 
 
@@ -703,7 +704,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
 
         user_key = db.Key(self._user_module.kindName, session["possible_user_key"])
         if not (otp_user_conf := self.get_config(db.Get(user_key))):
-            return None
+            raise errors.PreconditionFailed("This second factor is not available for the user")
 
         otp_user_conf = {
             "key": str(user_key),
@@ -963,7 +964,6 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         """
         We verify the otp here with the secret we stored before.
         """
-
         session = current.session.get()
         user_key = db.Key(self._user_module.kindName, session["possible_user_key"])
 
