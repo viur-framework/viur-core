@@ -1196,7 +1196,7 @@ class User(List):
             # We have only one second factor we don't need the choice template
             return second_factor_providers[0].start(userKey)
         # In case there is more than one second factor, let the user select a method.
-        return self.render.second_factor_choice(tpl="second_factor_choice", second_factors=second_factor_providers)
+        return self.render.second_factor_choice(second_factors=second_factor_providers)
 
     def secondFactorSucceeded(self, secondFactor, userKey):
         session = current.session.get()

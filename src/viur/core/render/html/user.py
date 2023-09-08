@@ -11,6 +11,7 @@ class Render(DefaultRender):  # Render user-data to xml
     passwdRecoverInfoTemplate = "user_passwdrecover_info"
     otp_add_template = "user_secondfactor_add"
     otp_add_success_template = "user_secondfactor_add_success"
+    second_factor_choice_template = "user_second_factor_choice"
 
     def _choose_template(self, tpl: None | str, fallback_attribute: str) -> str:
         if tpl:
@@ -75,6 +76,6 @@ class Render(DefaultRender):  # Render user-data to xml
         return template.render()
 
     def second_factor_choice(self, tpl: str | None = None, second_factors: list | tuple = ()):
-        tpl = self._choose_template(tpl, "second_factor_choice")
+        tpl = self._choose_template(tpl, "second_factor_choice_template")
         template = self.getEnv().get_template(self.getTemplateFileName(tpl))
         return template.render(second_factors=second_factors)
