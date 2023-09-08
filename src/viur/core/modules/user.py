@@ -1018,8 +1018,8 @@ class User(List):
     verifyEmailAddressMail = "user_verify_address"
     passwordRecoveryMail = "user_password_recovery"
 
-    authenticationProviders: List[UserAuthentication] = [UserPassword, GoogleAccount]
-    secondFactorProviders: List[UserSecondFactorAuthentication] = [TimeBasedOTP, AuthenticatorOTP]
+    authenticationProviders: list[UserAuthentication] = [UserPassword, GoogleAccount]
+    secondFactorProviders: list[UserSecondFactorAuthentication] = [TimeBasedOTP, AuthenticatorOTP]
     validAuthenticationMethods = [
         (UserPassword, AuthenticatorOTP),
         (UserPassword, TimeBasedOTP),
