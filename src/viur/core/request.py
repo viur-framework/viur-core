@@ -109,6 +109,7 @@ class BrowseHandler():  # webapp.RequestHandler
         self._traceID = request.headers.get('X-Cloud-Trace-Context', "").split("/")[0] or utils.generateRandomString()
         self.is_deferred = False
         self.path_list = ()
+        self.skey_checked = False  # indicates whether @skey-decorator-check has already performed within a request
         db.currentDbAccessLog.set(set())
 
     @property

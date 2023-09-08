@@ -204,7 +204,7 @@ class Method:
             logging.debug(f"calling {self._func=} with cleaned {args=}, {kwargs=}")
 
         # evaluate skey guard setting?
-        if self.skey:
+        if self.skey and not current.request.get().skey_checked:
             if trace:
                 logging.debug(f"@skey {self.skey=}")
 
@@ -226,6 +226,7 @@ class Method:
 
                 from viur.core import securitykey
                 payload = securitykey.validate(security_key, **self.skey["extra_kwargs"])
+                current.request.get().skey_checked = True
 
                 if not payload or (self.skey["validate"] and not self.skey["validate"](payload)):
                     raise errors.PreconditionFailed(
