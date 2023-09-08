@@ -3,7 +3,7 @@ import inspect
 import types
 import typing
 import logging
-from viur.core import db, errors, current
+from viur.core import db, errors, current, utils
 from viur.core.config import conf
 
 
@@ -89,7 +89,7 @@ class Method:
             elif annotation is float:
                 return float(value)
             elif annotation is bool:
-                return str(value).strip().lower() in ("true", "yes", "1")  # TODO: use parse_bool() here!
+                return utils.parse_bool(value)
             elif annotation is types.NoneType:
                 return None
 
