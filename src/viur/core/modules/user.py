@@ -165,7 +165,7 @@ class UserSkel(skeleton.Skeleton):
     )
     # Authenticator OTP Apps (like Authy)
     otp_app_secret = CredentialBone(
-        descr="OTP Secret key",
+        descr="OTP Secret (App-Key)",
 
     )
 
@@ -978,13 +978,14 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
 
         if AuthenticatorOTP.verify_otp(otp=otp_token, secret=user["otp_app_secret"]):
             return self._user_module.secondFactorSucceeded(self, user_key)
-        else:
-            skel = TimeBasedOTP.OtpSkel()
-            skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token")]
-            return self._user_module.render.edit(skel,
-                                                 action_name=self.ACTION_NAME,
-                                                 action_url=self.action_url,
-                                                 tpl=self.second_factor_login_template)
+
+        skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token")]
+        return self._user_module.render.edit(
+            skel,
+            action_name=self.ACTION_NAME,
+            action_url=self.action_url,
+            tpl=self.second_factor_login_template
+        )
 
 
 class User(List):
@@ -997,8 +998,12 @@ class User(List):
 
     authenticationProviders = [UserPassword, GoogleAccount]
     secondFactorProviders = [TimeBasedOTP, AuthenticatorOTP]
-    validAuthenticationMethods = [(UserPassword, AuthenticatorOTP), (UserPassword, TimeBasedOTP), (UserPassword, None),
-                                  (GoogleAccount, None)]
+    validAuthenticationMethods = [
+        (UserPassword, AuthenticatorOTP),
+        (UserPassword, TimeBasedOTP),
+        (UserPassword, None),
+        (GoogleAccount, None),
+    ]
 
     secondFactorTimeWindow = datetime.timedelta(minutes=10)
 
@@ -1164,12 +1169,10 @@ class User(List):
             if second_factor_providers[0] is None:
                 # We allow sign-in without a second factor
                 return self.authenticateUser(userKey)
-            else:
-                # We have only one second factor we don't need the choice template
-                return second_factor_providers[0].start(userKey)
-        else:
-            # We have more than one second factor we need the choice template
-            return self.render.second_factor_choice(tpl="second_factor_choice", second_factors=second_factor_providers)
+            # We have only one second factor we don't need the choice template
+            return second_factor_providers[0].start(userKey)
+        # In case there is more than one second factor, let the user select a method.
+        return self.render.second_factor_choice(tpl="second_factor_choice", second_factors=second_factor_providers)
 
     def secondFactorSucceeded(self, secondFactor, userKey):
         session = current.session.get()

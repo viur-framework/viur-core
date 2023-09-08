@@ -731,7 +731,7 @@ def seoUrlToFunction(render: Render, *args, **kwargs):
 
 
 @jinjaGlobalFunction
-def data_to_qrcode(render: Render, data: str, *args, **kwargs) -> str:
+def qrcode(render: Render, data: str) -> str:
     """
        Generates a SVG string for a html template
 
