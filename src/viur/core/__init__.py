@@ -259,7 +259,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
 
 
 def app(environ: dict, start_response: Callable):
-    return request.Request(environ).response(environ, start_response)
+    return request.Router(environ).response(environ, start_response)
 
 
 # DEPRECATED ATTRIBUTES HANDLING

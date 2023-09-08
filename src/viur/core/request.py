@@ -74,7 +74,7 @@ class FetchMetaDataValidator(RequestValidator):
         return 403, "Forbidden", "Request rejected due to fetch metadata"
 
 
-class Request:
+class Router:
     """
         This class accepts the requests, collect its parameters and routes the request
         to its destination function.
