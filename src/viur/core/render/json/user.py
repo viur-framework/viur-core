@@ -41,9 +41,10 @@ class UserRender(DefaultRender):  # Render user-data to json
         return json.dumps("OKAY")
 
     def second_factor_choice(
-        self,
-        second_factors: list[UserSecondFactorAuthentication] | tuple[UserSecondFactorAuthentication] | None = None,
-        *args, **kwargs):
+            self,
+            second_factors: list[UserSecondFactorAuthentication] | tuple[UserSecondFactorAuthentication] | None = None,
+            *args, **kwargs
+    ):
 
         second_factors = [{"name": second_factor.NAME, "start_url": second_factor.start_url}
                           for second_factor in second_factors]
