@@ -248,7 +248,7 @@ class List(SkelModule):
     @force_post
     @exposed
     @skey
-    def delete(self, key: db.Key | str | int, *args, **kwargs) -> Any:
+    def delete(self, key: db.Key | int | str, *args, **kwargs) -> Any:
         """
             Delete an entry.
 
