@@ -546,7 +546,7 @@ class GoogleAccount(UserAuthentication):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def login(self, token, *args, **kwargs):
+    def login(self, token: str | None = None, *args, **kwargs):
         # FIXME: Check if already logged in
         if not conf.get("viur.user.google.clientID"):
             raise errors.PreconditionFailed("Please configure 'viur.user.google.clientID' in your conf!")
