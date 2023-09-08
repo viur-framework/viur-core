@@ -24,6 +24,7 @@ from viur.core import (
 from viur.core.decorators import *
 from viur.core.bones import *
 from viur.core.bones.password import PBKDF2_DEFAULT_ITERATIONS, encode_password
+from viur.core.i18n import translate
 from viur.core.prototypes.list import List
 from viur.core.ratelimit import RateLimit
 from viur.core.securityheaders import extendCsp
@@ -624,18 +625,30 @@ class GoogleAccount(UserAuthentication):
 
 
 class UserSecondFactorAuthentication(UserAuthentication, abc.ABC):
+    """Abstract class for all second factors."""
+
     second_factor_login_template = "user_login_secondfactor"
     """Template to enter the TOPT on login"""
 
-    NAME = ""
-    ACTION_NAME = ""
+    @property
+    @abc.abstractmethod
+    def NAME(self) -> str:
+        """Name for this factor for templates."""
+        ...
+
+    @property
+    @abc.abstractmethod
+    def ACTION_NAME(self) -> str:
+        """The action name for this factor, used as path-segment."""
+        ...
 
     def __init__(self, moduleName, modulePath, _user_module):
         super().__init__(moduleName, modulePath, _user_module)
         self.action_url = f"{self.modulePath}/{self.ACTION_NAME}"
         self.start_url = f"{self.modulePath}/start"
 
-    def can_handle(self, possible_user: db.Entity):
+    @abc.abstractmethod
+    def can_handle(self, possible_user: db.Entity) -> bool:
         pass
 
 
@@ -703,7 +716,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
 
         user_key = db.Key(self._user_module.kindName, session["possible_user_key"])
         if not (otp_user_conf := self.get_config(db.Get(user_key))):
-            return None
+            raise errors.PreconditionFailed("This second factor is not available for the user")
 
         otp_user_conf = {
             "key": str(user_key),
@@ -713,10 +726,13 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         session["_otp_user"] = otp_user_conf
         session.markChanged()
 
-        return self._user_module.render.edit(self.OtpSkel(),
-                                             action_name=self.ACTION_NAME,
-                                             action_url=f"{self.modulePath}/{self.ACTION_NAME}",
-                                             tpl=self.second_factor_login_template)
+        return self._user_module.render.edit(
+            self.OtpSkel(),
+            name=translate(self.NAME),
+            action_name=self.ACTION_NAME,
+            action_url=f"{self.modulePath}/{self.ACTION_NAME}",
+            tpl=self.second_factor_login_template
+        )
 
     @exposed
     @force_ssl
@@ -753,10 +769,14 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             otp_user_conf["attempts"] = attempts + 1
             session.markChanged()
 
-            return self._user_module.render.edit(self.OtpSkel(),
-                                                 action_name=self.ACTION_NAME,
-                                                 action_url=f"{self.modulePath}/{self.ACTION_NAME}",
-                                                 tpl=self.second_factor_login_template, secondFactorFailed=True)
+            return self._user_module.render.edit(
+                self.OtpSkel(),
+                name=translate(self.NAME),
+                action_name=self.ACTION_NAME,
+                action_url=f"{self.modulePath}/{self.ACTION_NAME}",
+                tpl=self.second_factor_login_template,
+                secondFactorFailed=True,
+            )
 
         # Remove otp user config from session
         user_key = db.keyHelper(otp_user_conf["key"], self._user_module._resolveSkelCls().kindName)
@@ -951,10 +971,13 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
 
     @exposed
     def start(self):
-        return self._user_module.render.edit(TimeBasedOTP.OtpSkel(),
-                                             action_name=self.ACTION_NAME,
-                                             action_url=self.action_url,
-                                             tpl=self.second_factor_login_template)
+        return self._user_module.render.edit(
+            TimeBasedOTP.OtpSkel(),
+            name=translate(self.NAME),
+            action_name=self.ACTION_NAME,
+            action_url=self.action_url,
+            tpl=self.second_factor_login_template,
+        )
 
     @exposed
     @force_ssl
@@ -981,9 +1004,10 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token")]
         return self._user_module.render.edit(
             skel,
+            name=translate(self.NAME),
             action_name=self.ACTION_NAME,
             action_url=self.action_url,
-            tpl=self.second_factor_login_template
+            tpl=self.second_factor_login_template,
         )
 
 
@@ -995,8 +1019,8 @@ class User(List):
     verifyEmailAddressMail = "user_verify_address"
     passwordRecoveryMail = "user_password_recovery"
 
-    authenticationProviders = [UserPassword, GoogleAccount]
-    secondFactorProviders = [TimeBasedOTP, AuthenticatorOTP]
+    authenticationProviders: UserAuthentication = [UserPassword, GoogleAccount]
+    secondFactorProviders: UserSecondFactorAuthentication = [TimeBasedOTP, AuthenticatorOTP]
     validAuthenticationMethods = [
         (UserPassword, AuthenticatorOTP),
         (UserPassword, TimeBasedOTP),
@@ -1067,7 +1091,7 @@ class User(List):
             setattr(self, name, provider(name, f"{modulePath}/{name}", self))
 
         for provider in self.secondFactorProviders:
-            assert issubclass(provider, UserAuthentication)
+            assert issubclass(provider, UserSecondFactorAuthentication)
             name = f"f2_{provider.__name__.lower()}"
             setattr(self, name, provider(name, f"{modulePath}/{name}", self))
 
