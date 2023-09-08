@@ -295,7 +295,7 @@ class Tree(SkelModule):
         return self.render.view(skel)
 
     @exposed
-    def view(self, skelType: SkelType, key: db.Key | str | int, *args, **kwargs) -> Any:
+    def view(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> Any:
         """
         Prepares and renders a single entry for viewing.
 
@@ -328,8 +328,8 @@ class Tree(SkelModule):
 
     @exposed
     @force_ssl
-    @skey(allow_empty=SKEY_ALLOW_EMPTY_FOR_KEY)
-    def add(self, skelType: SkelType, node: db.Key | str | int, *args, **kwargs) -> Any:
+    @skey(allow_empty=True)
+    def add(self, skelType: SkelType, node: db.Key | int | str, *args, **kwargs) -> Any:
         """
         Add a new entry with the given parent *node*, and render the entry, eventually with error notes
         on incorrect data. Data is taken by any other arguments in *kwargs*.
@@ -378,8 +378,8 @@ class Tree(SkelModule):
 
     @exposed
     @force_ssl
-    @skey(allow_empty=SKEY_ALLOW_EMPTY_FOR_KEY)
-    def edit(self, skelType: SkelType, key: db.Key | str | int, *args, **kwargs) -> Any:
+    @skey(allow_empty=True)
+    def edit(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> Any:
         """
         Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
         Data is taken by any other arguments in *kwargs*.
@@ -489,7 +489,7 @@ class Tree(SkelModule):
     @force_ssl
     @force_post
     @skey
-    def move(self, skelType: SkelType, key: db.Key | str | int, parentNode: str, *args, **kwargs) -> str:
+    def move(self, skelType: SkelType, key: db.Key | int | str, parentNode: str, *args, **kwargs) -> str:
         """
         Move a node (including its contents) or a leaf to another node.
 

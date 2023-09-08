@@ -393,102 +393,6 @@ class BrowseHandler():  # webapp.RequestHandler
                 logging.info("Running task directly after request: %s" % str(task))
                 task()
 
-    def processTypeHint(self, typeHint: typing.ClassVar, inValue: typing.Union[str, typing.List[str]],
-                        parsingOnly: bool) -> typing.Tuple[typing.Union[str, typing.List[str]], typing.Any]:
-        """
-            Helper function to enforce/convert the incoming :param: inValue to the type defined in :param: typeHint.
-            Returns a string 2-tuple of the new value we'll store in self.kwargs as well as the parsed value that's
-            passed to the caller. The first value is always the unmodified string, the unmodified list of strings or
-            (in case typeHint is List[T] and the provided inValue is a simple string) a List containing only inValue.
-            The second returned value is inValue converted to whatever type is suggested by typeHint.
-
-            .. Warning: ViUR traditionally supports two ways to supply data to exposed functions: As *args (via
-                Path components in the URL) and **kwargs (using POST or appending ?name=value parameters to the URL).
-                When using a typeHint List[T], that parameter can only be submitted as a keyword argument. Trying to
-                fill that parameter using a *args parameter will raise TypeError.
-
-            ..  code-block:: python
-
-                # Example:
-                # Giving the following function, it's possible to fill *a* either by /test/aaa or by /test?a=aaa
-                @exposed
-                def test(a: str)
-
-                # In case of
-                @exposed
-                def test(a: List[str])
-                # only /test?a=aaa is valid. Invocations like /test/aaa will be rejected
-
-            :param typeHint: Type to which inValue should be converted to
-            :param inValue: The value that should be converted to the given type
-            :param parsingOnly: If true, the parameter is a keyword argument which we can convert to List
-            :return: 2-tuple of the original string-value and the converted value
-        """
-        try:
-            typeOrigin = typeHint.__origin__  # Was: typing.get_origin(typeHint) (not supported in python 3.7)
-        except:
-            typeOrigin = None
-        if typeOrigin is typing.Union:
-            typeArgs = typeHint.__args__  # Was: typing.get_args(typeHint) (not supported in python 3.7)
-            if len(typeArgs) == 2 and isinstance(None, typeArgs[1]):  # is None:
-                return self.processTypeHint(typeArgs[0], inValue, parsingOnly)
-        elif typeOrigin is list:
-            if parsingOnly:
-                raise TypeError("Cannot convert *args argument to list")
-            typeArgs = typeHint.__args__  # Was: typing.get_args(typeHint) (not supported in python 3.7)
-            if len(typeArgs) != 1:
-                raise TypeError("Invalid List subtype")
-            typeArgs = typeArgs[0]
-            if not isinstance(inValue, list):
-                inValue = [inValue]  # Force to List
-            strRes = []
-            parsedRes = []
-            for elem in inValue:
-                a, b = self.processTypeHint(typeArgs, elem, parsingOnly)
-                strRes.append(a)
-                parsedRes.append(b)
-            if len(strRes) == 1:
-                strRes = strRes[0]
-            return strRes, parsedRes
-        elif typeHint is str:
-            if not isinstance(inValue, str):
-                raise TypeError("Input argument to str typehint is not a string (probably a list)")
-            return inValue, inValue
-        elif typeHint is int:
-            if not isinstance(inValue, str):
-                raise TypeError("Input argument to int typehint is not a string (probably a list)")
-            if not inValue.replace("-", "", 1).isdigit():
-                raise TypeError("Failed to parse an integer typehint")
-            i = int(inValue)
-            return str(i), i
-        elif typeHint is float:
-            if not isinstance(inValue, str):
-                raise TypeError("Input argument to float typehint is not a string (probably a list)")
-            if not inValue.replace("-", "", 1).replace(",", ".", 1).replace(".", "", 1).isdigit():
-                raise TypeError("Failed to parse an float typehint")
-            f = float(inValue)
-            if f != f:
-                raise TypeError("Parsed float is a NaN-Value")
-            return str(f), f
-        elif typeHint is bool:
-            if not isinstance(inValue, str):
-                raise TypeError(f"Input argument to boolean typehint is not a str, but f{type(inValue)}")
-
-            if inValue.strip().lower() in conf["viur.bone.boolean.str2true"]:
-                return "True", True
-
-            return "False", False
-
-        elif typeOrigin is typing.Literal:
-            inValueStr = str(inValue)
-            for literal in typeHint.__args__:
-                if inValueStr == str(literal):
-                    return inValue, literal
-            raise TypeError("Input argument must be one of these Literals: "
-                            + ", ".join(map(repr, typeHint.__args__)))
-
-        raise ValueError("TypeHint %s not supported" % typeHint)
-
     def findAndCall(self, path: str, *args, **kwargs) -> None:
         """
             Does the actual work of sanitizing the parameter, determine which exposed-function to call
@@ -603,62 +507,12 @@ class BrowseHandler():  # webapp.RequestHandler
                 logging.debug("Caching disabled by X-Viur-Disable-Cache header")
                 self.disableCache = True
 
-        try:
-            # fixme: this must be refactored and integrated into Method class!!
-            annotations = typing.get_type_hints(caller._func)
-            if annotations and not self.internalRequest:
-                caller_kwargs = {}  # The dict of new **kwargs we'll pass to the caller
-                caller_args = []  # List of new *args we'll pass to the caller
+        res = caller(*args, **kwargs)
 
-                # FIXME: Use inspect.signature() for all this stuff...
-                argsOrder = caller._func.__code__.co_varnames[:caller._func.__code__.co_argcount]
-                # In case of a method, ignore the 'self' parameter
-                if inspect.ismethod(caller._func):
-                    argsOrder = argsOrder[1:]
+        if not isinstance(res, bytes):  # Convert the result to bytes if it is not already!
+            res = str(res).encode("UTF-8")
 
-                # Map args in
-                for idx in range(0, min(len(self.args), len(argsOrder))):
-                    paramKey = argsOrder[idx]
-                    if paramKey in annotations:  # We have to enforce a type-annotation for this *args parameter
-                        _, newTypeValue = self.processTypeHint(annotations[paramKey], self.args[idx], True)
-                        caller_args.append(newTypeValue)
-                    else:
-                        caller_args.append(self.args[idx])
-                caller_args.extend(self.args[min(len(self.args), len(argsOrder)):])
-                # Last, we map the kwargs in
-                for k, v in kwargs.items():
-                    if k in annotations:
-                        newStrValue, newTypeValue = self.processTypeHint(annotations[k], v, False)
-                        self.kwargs[k] = newStrValue
-                        caller_kwargs[k] = newTypeValue
-                    else:
-                        caller_kwargs[k] = v
-            else:
-                caller_args = self.args
-                caller_kwargs = self.kwargs
-
-            if (conf["viur.debug.traceExternalCallRouting"] and not self.internalRequest
-                    or conf["viur.debug.traceInternalCallRouting"]):
-                logging.debug(f"Calling {caller=} with {args=}, {kwargs=}")
-
-            res = caller(*caller_args, **caller_kwargs)
-
-            if not isinstance(res, bytes):  # Convert the result to bytes if it is not already!
-                res = str(res).encode("UTF-8")
-
-            self.response.write(res)
-
-        except TypeError as e:
-            if self.internalRequest:  # We provide that "service" only for requests originating from outside
-                raise
-            if "viur/core/request.py\", line 5" in traceback.format_exc().splitlines()[-3]:
-                # Don't raise NotAcceptable for type-errors raised deep somewhere inside caller.
-                # We check if the last line in traceback originates from viur/core/request.py and a line starting with
-                # 5 and only raise NotAcceptable then. Otherwise a "normal" 500 Server error will be raised.
-                # This is kinda hackish, however this is much faster than reevaluating the args and kwargs passed
-                # to caller as we did in ViUR2.
-                raise errors.NotAcceptable()
-            raise
+        self.response.write(res)
 
     def saveSession(self) -> None:
         current.session.get().save(self)
