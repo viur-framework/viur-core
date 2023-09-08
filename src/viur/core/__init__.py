@@ -25,20 +25,18 @@
 """
 
 import os
-import webob
 import yaml
 import warnings
 import inspect
 from types import ModuleType
 from typing import Callable, Dict, Union, List
-from viur.core import session, errors, i18n, request, utils, current
+from viur.core import errors, i18n, request, utils, current
 from viur.core.config import conf
 from viur.core.tasks import TaskHandler, runStartupTasks
 from viur.core.module import Module, Method
 # noinspection PyUnresolvedReferences
 from viur.core import logging as viurLogging  # unused import, must exist, initializes request logging
 from viur.core.decorators import force_post, force_ssl, internal_exposed, exposed as _exposed  # backward-compatibility
-
 import logging  # this import has to stay here, see #571
 
 
@@ -261,26 +259,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
 
 
 def app(environ: dict, start_response: Callable):
-    req = webob.Request(environ)
-    resp = webob.Response()
-    handler = request.BrowseHandler(req, resp)
-
-    # Set context variables
-    current.language.set(conf["viur.defaultLanguage"])
-    current.request.set(handler)
-    current.session.set(session.Session())
-    current.request_data.set({})
-    # Handle request
-    handler.processRequest()
-
-    # Unset context variables
-    current.language.set(None)
-    current.request_data.set(None)
-    current.session.set(None)
-    current.request.set(None)
-    current.user.set(None)
-
-    return resp(environ, start_response)
+    return request.Router(environ).response(environ, start_response)
 
 
 # DEPRECATED ATTRIBUTES HANDLING
