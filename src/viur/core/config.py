@@ -414,7 +414,7 @@ class Security(ConfigType):
             "default-src": ["self"],
             "img-src": ["self", "storage.googleapis.com"],  # Serving-URLs of file-Bones will point here
             "script-src": ["self", "https://accounts.google.com/gsi/client"],
-            """Required for login with Google"""
+            # Required for login with Google
             "frame-src": ["self", "www.google.com", "drive.google.com", "accounts.google.com"],
             "form-action": ["self"],
             "connect-src": ["self", "accounts.google.com"],
