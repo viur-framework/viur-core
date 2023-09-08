@@ -3,7 +3,7 @@ import inspect
 import types
 import typing
 import logging
-from viur.core import db, errors, current
+from viur.core import db, errors, current, utils
 from viur.core.config import conf
 
 
@@ -89,7 +89,7 @@ class Method:
             elif annotation is float:
                 return float(value)
             elif annotation is bool:
-                return str(value).strip().lower() in ("true", "yes", "1")  # TODO: use parse_bool() here!
+                return utils.parse_bool(value)
             elif annotation is types.NoneType:
                 return None
 
@@ -204,7 +204,7 @@ class Method:
             logging.debug(f"calling {self._func=} with cleaned {args=}, {kwargs=}")
 
         # evaluate skey guard setting?
-        if self.skey:
+        if self.skey and not current.request.get().skey_checked:
             if trace:
                 logging.debug(f"@skey {self.skey=}")
 
@@ -226,6 +226,7 @@ class Method:
 
                 from viur.core import securitykey
                 payload = securitykey.validate(security_key, **self.skey["extra_kwargs"])
+                current.request.get().skey_checked = True
 
                 if not payload or (self.skey["validate"] and not self.skey["validate"](payload)):
                     raise errors.PreconditionFailed(
