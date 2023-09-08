@@ -2,8 +2,20 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.5.0.beta4]
+## [3.5.0.rc1]
 
+- refactor: Refactor `Router` & collect context-variables to `current.request.get().context` (#842)
+- feat: Second factor OTP login using Authenticator App (#578)
+- fix: Add default value for `token`-parameter in `GoogleAccount.login()` (#843)
+- feat: Avoid multiple CSRF-security-key validation (#841)
+- refactor: Use `parse_bool()` for bool Method type annotations (#840)
+- feat: Implement `utils.parse_bool` (#838)
+- feat: Extend `Method` to examine function signature and parse type annotations (#837)
+- refactor: Prototype action functions (#831)
+- refactor: Some clean-up on #800 (#828)
+- feat: Add `secret` module to access values from GC secret manager (#815)
+- fix: `Method.__name__` improves #800 (#827)
+- fix: Add missing import on #800 (#826)
 - feat: Implement a new `Module`/`Method` concept with new decorators (#800)
 - feat: Implement `retry_n_times` decorator (#655)
 - refactor: Refactor password recovery process in stock `User`-module (#682)
