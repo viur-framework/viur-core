@@ -647,6 +647,7 @@ class UserSecondFactorAuthentication(UserAuthentication, abc.ABC):
     def __init__(self, moduleName, modulePath, _user_module):
         super().__init__(moduleName, modulePath, _user_module)
         self.action_url = f"{self.modulePath}/{self.ACTION_NAME}"
+        self.add_url = f"{self.modulePath}/add"
         self.start_url = f"{self.modulePath}/start"
 
     @abc.abstractmethod
@@ -907,6 +908,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
                 tpl=self.second_factor_add_template,
                 action_name=self.ACTION_NAME,
                 name=translate(self.NAME),
+                add_url=self.add_url,
                 otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))
         else:
             if not AuthenticatorOTP.verify_otp(otp, otp_app_secret):
@@ -914,6 +916,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
                     tpl=self.second_factor_add_template,
                     action_name=self.ACTION_NAME,
                     name=translate(self.NAME),
+                    add_url=self.add_url,
                     otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))  # to add errors
 
             # Now we can set the otp_app_secret to the current User and render der Success-template
