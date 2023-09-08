@@ -18,8 +18,6 @@ from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
 from viur.core.skeleton import RelSkel, SkeletonInstance
 from ..default import Render
 
-import qrcode
-import qrcode.image.svg
 
 
 @jinjaGlobalFunction

@@ -878,7 +878,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
     """
     This class handles the second factor for apps like authy and so on
     """
-    otp_add_template = "user_secondfactor_add"
+    second_factor_add_template = "user_secondfactor_add"
     """Template to configure (add) a new TOPT"""
     ACTION_NAME = "authenticator_otp"
     """Action name provided for *otp_template* on login"""
@@ -904,17 +904,24 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
 
         if otp is None:
             return self._user_module.render.second_factor_add(
-                tpl=self.otp_add_template,
+                tpl=self.second_factor_add_template,
+                action_name=self.ACTION_NAME,
+                name=translate(self.NAME),
                 otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))
         else:
             if not AuthenticatorOTP.verify_otp(otp, otp_app_secret):
                 return self._user_module.render.second_factor_add(
-                    tpl=self.otp_add_template,
+                    tpl=self.second_factor_add_template,
+                    action_name=self.ACTION_NAME,
+                    name=translate(self.NAME),
                     otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))  # to add errors
 
             # Now we can set the otp_app_secret to the current User and render der Success-template
             AuthenticatorOTP.set_otp_app_secret(otp_app_secret)
-            return self._user_module.render.second_factor_add_success()
+            return self._user_module.render.second_factor_add_success(
+                action_name=self.ACTION_NAME,
+                name=translate(self.NAME),
+            )
 
     def can_handle(self, possible_user: db.Entity) -> bool:
         """
