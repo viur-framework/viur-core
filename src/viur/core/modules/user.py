@@ -462,9 +462,9 @@ class UserPassword(UserAuthentication):
             )
 
     @exposed
-    @skey(allow_empty=True, forward_argument="skey", session_bound=False)
+    @skey(allow_empty=True, forward_payload="skey", session_bound=False)
     def verify(self, *args, **kwargs):
-        data = skey
+        data = kwargs["skey"]
         skel = self._user_module.editSkel()
         if not data or not isinstance(data, dict) or "userKey" not in data or not skel.fromDB(
             data["userKey"].id_or_name):
