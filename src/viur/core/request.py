@@ -444,10 +444,10 @@ class Router:
                 continue
 
             if key in self.kwargs:
-                if isinstance(kwargs[key], list):
+                if isinstance(self.kwargs[key], list):
                     self.kwargs[key].append(value)
                 else:  # Convert that key to a list
-                    self.kwargs[key] = [kwargs[key], value]
+                    self.kwargs[key] = [self.kwargs[key], value]
             else:
                 self.kwargs[key] = value
 
