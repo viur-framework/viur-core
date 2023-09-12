@@ -475,7 +475,7 @@ class UserPassword(UserAuthentication):
             skel.toDB(update_relations=False)
             return True
 
-        if not isinstance(data, dict) or not (skel := db.RunInTransaction(transact(data.get("userKey")))):
+        if not isinstance(data, dict) or not (skel := db.RunInTransaction(transact, data.get("userKey"))):
             return self._user_module.render.view(None, tpl=self.verifyFailedTemplate)
 
         return self._user_module.render.view(skel, tpl=self.verifySuccessTemplate)
