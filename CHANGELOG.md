@@ -4,6 +4,14 @@ This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
 ## [3.5.0.rc1]
 
+- fix: Updating admin info stuff (#852)
+- fix: @skey-requirement determination and `/user/verify` (#850)
+- fix: Customizable template name for `second_factor_choice` (#845)
+- fix: Clean-up user/view and user/edit with "self" (#848)
+- fix: For #842, use `self.kwargs` for list parsing (#849)
+- fix: mixed up and blurred methods and concepts in User.otp (#846)
+- fix: Replace call to `utils.getCurrentUser()` (#847)
+- fix: import qrcode's element with an alias (#844)
 - refactor: Refactor `Router` & collect context-variables to `current.request.get().context` (#842)
 - feat: Second factor OTP login using Authenticator App (#578)
 - fix: Add default value for `token`-parameter in `GoogleAccount.login()` (#843)
