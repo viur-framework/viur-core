@@ -1299,26 +1299,23 @@ class User(List):
         logging.info(f"""User {skel["name"]} logged out""")
 
     @exposed
-    def edit(self, *args, **kwargs):
-        user = current.user.get()
-
-        # fixme: This assumes that the user can edit itself when no parameters are provided...
-        if len(args) == 0 and "key" not in kwargs and user:
-            # it is not a security issue as super().edit() checks the access rights.
-            kwargs["key"] = user["key"]
-
-        return super().edit(*args, **kwargs)
-
-    @exposed
-    def view(self, key, *args, **kwargs):
+    def view(self, key: db.Key | int | str = "self", *args, **kwargs):
         """
-            Allow a special key "self" to reference always the current user
+            Allow a special key "self" to reference the current user.
+
+            By default, any authenticated user can view its own user entry,
+            to obtain access rights and any specific user information.
+            This behavior is defined in the customized `canView` function,
+            which is overwritten by the User-module.
+
+            The rendered skeleton can be modified or restriced by specifying
+            a customized view-skeleton.
         """
         if key == "self":
-            if not (user := current.user.get()):
-                raise errors.Unauthorized()
-
-            return super().view(str(user["key"].id_or_name), *args, **kwargs)
+            if user := current.user.get():
+                key = user["key"]
+            else:
+                raise errors.Unauthorized("Cannot view 'self' with unknown user")
 
         return super().view(key, *args, **kwargs)
 
@@ -1331,6 +1328,27 @@ class User(List):
                 return True
 
         return False
+
+    @exposed
+    @skey(allow_empty=True)
+    def edit(self, key: db.Key | int | str = "self", *args, **kwargs):
+        """
+            Allow a special key "self" to reference the current user.
+
+            This modification will only allow to use "self" as a key;
+            The specific access right to let the user edit itself must
+            still be customized.
+
+            The rendered and editable skeleton can be modified or restriced
+            by specifying a customized edit-skeleton.
+        """
+        if key == "self":
+            if user := current.user.get():
+                key = user["key"]
+            else:
+                raise errors.Unauthorized("Cannot edit 'self' with unknown user")
+
+        return super().edit(key, *args, **kwargs)
 
     @exposed
     def getAuthMethods(self, *args, **kwargs):
