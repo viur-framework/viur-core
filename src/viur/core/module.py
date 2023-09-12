@@ -35,6 +35,7 @@ class Method:
         self.ssl = False
         self.methods = ("GET", "POST", "HEAD")
         self.seo_language_map = None
+        self.run_in_transaction = False
 
         # Inspection
         self.signature = inspect.signature(self._func)
@@ -282,6 +283,8 @@ class Method:
                 raise errors.Forbidden(self.access["message"]) if self.access["message"] else errors.Forbidden()
 
         # call with instance when provided
+        if self.run_in_transaction:
+            return db.RunInTransaction(self._func, *args, **kwargs)
         if self._instance:
             return self._func(self._instance, *args, **kwargs)
 

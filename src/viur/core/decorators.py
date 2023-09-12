@@ -133,3 +133,20 @@ def skey(
         return decorator
 
     return decorator(func)
+
+
+def run_in_transaction(func: Callable) -> Method:
+    """
+    Decorator, which enforces the Method to run in a transaction.
+    .. code-block:: python
+        from viur.core.decorators import run_in_transaction
+        def outer_method(key)
+            @run_in_transaction
+            def transaction_method(key):
+                db.Get(key)
+            return transaction_method(key)
+    """
+
+    func = Method.ensure(func)
+    func.run_in_transaction = True
+    return func
