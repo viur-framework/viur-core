@@ -13,6 +13,7 @@ class Render(DefaultRender):  # Render user-data to xml
     passwdRecoverInfoTemplate = "user_passwdrecover_info"
     second_factor_add_template = "user_secondfactor_add"
     second_factor_add_success_template = "user_secondfactor_add_success"
+    second_factor_choice_template = "user_second_factor_choice"
 
     def _choose_template(self, tpl: None | str, fallback_attribute: str) -> str:
         if tpl:
@@ -80,6 +81,6 @@ class Render(DefaultRender):  # Render user-data to xml
     def second_factor_choice(self,
                              second_factors: Iterable[UserSecondFactorAuthentication],
                              tpl: str | None = None):
-        tpl = self._choose_template(tpl, "second_factor_choice")
+        tpl = self._choose_template(tpl, "second_factor_choice_template")
         template = self.getEnv().get_template(self.getTemplateFileName(tpl))
         return template.render(second_factors=second_factors)
