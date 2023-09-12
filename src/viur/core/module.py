@@ -181,6 +181,9 @@ class Method:
             elif param.kind == inspect.Parameter.VAR_KEYWORD:
                 varkwargs = True
             elif param_required:
+                if self.skey and param_name == self.skey["forward_payload"]:
+                    continue
+
                 raise errors.NotAcceptable(f"Missing required parameter {param_name!r}")
 
         # Extend args to any varargs
@@ -209,18 +212,20 @@ class Method:
                 logging.debug(f"@skey {self.skey=}")
 
             # validation is necessary?
-            if required := (allow_empty := self.skey["allow_empty"]):
+            if allow_empty := self.skey["allow_empty"]:
                 # allow_empty can be callable, to detect programmatically
                 if callable(allow_empty):
                     required = not allow_empty(args, kwargs)
-                # or allow_empty itself can be a sequence of allowed keys
+                # or allow_empty can be a sequence of allowed keys
                 elif isinstance(allow_empty, (list, tuple)):
                     required = any(k for k in kwargs.keys() if k not in allow_empty)
-                # otherwise, varargs and varkwargs may not be empty.
+                # otherwise, varargs or varkwargs may not be empty.
                 else:
                     required = varargs or varkwargs
                     if trace:
                         logging.debug(f"@skey {required=} because either {varargs=} or {varkwargs=}")
+            else:
+                required = True
 
             if required:
                 security_key = kwargs.pop(self.skey["name"], "")

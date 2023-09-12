@@ -462,18 +462,22 @@ class UserPassword(UserAuthentication):
             )
 
     @exposed
-    @skey(allow_empty=True, forward_argument="skey", session_bound=False)
-    def verify(self, *args, **kwargs):
-        data = skey
-        skel = self._user_module.editSkel()
-        if not data or not isinstance(data, dict) or "userKey" not in data or not skel.fromDB(
-            data["userKey"].id_or_name):
+    @skey(forward_payload="data", session_bound=False)
+    def verify(self, data):
+        def transact(key):
+            skel = self._user_module.editSkel()
+            if not key or not skel.fromDB(key):
+                return None
+
+            skel["status"] = Status.WAITING_FOR_ADMIN_VERIFICATION \
+                if self.registrationAdminVerificationRequired else Status.ACTIVE
+
+            skel.toDB(update_relations=False)
+            return True
+
+        if not isinstance(data, dict) or not (skel := db.RunInTransaction(transact, data.get("userKey"))):
             return self._user_module.render.view(None, tpl=self.verifyFailedTemplate)
-        if self.registrationAdminVerificationRequired:
-            skel["status"] = Status.WAITING_FOR_ADMIN_VERIFICATION
-        else:
-            skel["status"] = Status.ACTIVE
-        skel.toDB()
+
         return self._user_module.render.view(skel, tpl=self.verifySuccessTemplate)
 
     def canAdd(self) -> bool:
