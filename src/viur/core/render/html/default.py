@@ -110,7 +110,7 @@ class Render(object):
 
             if lang:
                 filenames += [
-                    os.path.join(lang, tpl)
+                    os.path.join(lang, _tpl)
                     for _tpl in filenames
                 ]
 
