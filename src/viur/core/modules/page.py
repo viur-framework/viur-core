@@ -5,17 +5,27 @@ from viur.core.bones import *
 class PageSkel(TreeSkel):
     kindName = "page"
     searchindex = "page"
-    name = StringBone(descr=u"Name", indexed=True, searchable=True, required=True)
-    descr = TextBone(descr=u"Content", required=True, searchable=True)
+
+    name = StringBone(
+        descr="Name",
+        searchable=True,
+        required=True
+    )
+
+    descr = TextBone(
+        descr="Content",
+        required=True,
+        searchable=True
+    )
 
 
 class Page(Tree):
     adminInfo = {
-        "name": u"Pages",  # Name of this module, as shown in ViUR Admin (will be translated at runtime)
-        "handler": "tree.nodeonly.page",  # Which handler to invoke
-        "icon": "icon-cloud",  # Icon for this module
+        "name": "Pages",
+        "handler": "tree.nodeonly.page",
+        "icon": "cloud",
         "columns": ["name", "language", "isactive"],
-        "previewurls": {
+        "preview": {
             "Web": "/{{module}}/view/{{key}}"
         }
     }
@@ -25,7 +35,7 @@ class Page(Tree):
     def getAvailableRootNodes(self, *args, **kwargs):
         repo = self.ensureOwnModuleRootNode()
         return [{
-            "name": u"pages",
+            "name": "pages",
             "key": repo.key
         }]
 

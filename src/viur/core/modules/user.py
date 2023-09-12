@@ -134,7 +134,7 @@ class UserSkel(skeleton.Skeleton):
         },
         multiple=True,
         params={
-            "readonlyIf": "'custom' not in role"  # if role is not "custom", access is managed by the role system
+            "readonlyIf": "'custom' not in roles"  # if "custom" is not in roles, "access" is managed by the role system
         }
     )
 
@@ -689,8 +689,6 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             min=0,
         )
 
-
-
     @classmethod
     def get2FactorMethodName(*args, **kwargs):  # fixme: What is the purpose of this function? Why not just a member?
         return "X-VIUR-2FACTOR-TimeBasedOTP"
@@ -1046,7 +1044,7 @@ class User(List):
     secondFactorTimeWindow = datetime.timedelta(minutes=10)
 
     adminInfo = {
-        "icon": "icon-users",
+        "icon": "users",
         "actions": [
             "trigger_kick",
             "trigger_takeover",
@@ -1058,7 +1056,7 @@ class User(List):
                     defaultText="Kick user",
                     hint="Title of the kick user function"
                 ),
-                "icon": "icon-delete",
+                "icon": "trash",
                 "access": ["root"],
                 "action": "fetch",
                 "url": "/vi/{{module}}/trigger/kick/{{key}}",
@@ -1077,7 +1075,7 @@ class User(List):
                     defaultText="Take-over user",
                     hint="Title of the take user over function"
                 ),
-                "icon": "icon-interface",
+                "icon": "interface",
                 "access": ["root"],
                 "action": "fetch",
                 "url": "/vi/{{module}}/trigger/takeover/{{key}}",
