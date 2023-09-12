@@ -181,6 +181,9 @@ class Method:
             elif param.kind == inspect.Parameter.VAR_KEYWORD:
                 varkwargs = True
             elif param_required:
+                if self.skey and param_name == self.skey["forward_payload"]:
+                    continue
+
                 raise errors.NotAcceptable(f"Missing required parameter {param_name!r}")
 
         # Extend args to any varargs
