@@ -399,18 +399,19 @@ class Module:
         This is a ``dict`` holding the information necessary for the Vi/Admin to handle this module.
 
             name: ``str``
-                Human-readable module name that will be shown in Vi/Admin
+                Human-readable module name that will be shown in the admin tool.
 
             handler: ``str`` (``list``, ``tree`` or ``singleton``):
-                Allows to override the handler provided by the module. Set this only when *really* necessary.
+                Allows to override the handler provided by the module. Set this only when *really* necessary,
+                otherwise it can be left out and is automatically injected by the Module's prototype.
 
             icon: ``str``
-                (Optional) The name (eg "icon-add") or a path relative the the project
-                (eg. /static/icons/viur.svg) for the icon used in the UI for that module.
+                (Optional) Either the Shoelace icon library name or a path relative to the project's deploy folder
+                (e.g. /static/icons/viur.svg) for the icon used in the admin tool for this module.
 
             columns: ``List[str]``
-                (Optional) List of columns (bone names) that are displayed by default. Used only
-                for the list handler.
+                (Optional) List of columns (bone names) that are displayed by default.
+                Used only by the List handler.
 
             filter: ``Dict[str, str]``
                 (Optional) Dictionary of additional parameters that will be send along when
@@ -418,7 +419,7 @@ class Module:
                 client-side.
 
             display: ``str`` ("default", "hidden" or "group")
-                (Optional) "hidden" will hide the module in the main bar
+                (Optional) "hidden" will hide the module in the admin tool's main bar.
                 (itwill not be accessible directly, however it's registered with the frontend so it can be used in a
                 relational bone). "group" will show this module in the main bar, but it will not be clickable.
                 Clicking it will just try to expand it (assuming there are additional views defined).
