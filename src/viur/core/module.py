@@ -204,7 +204,7 @@ class Method:
             logging.debug(f"calling {self._func=} with cleaned {args=}, {kwargs=}")
 
         # evaluate skey guard setting?
-        if self.skey and not current.request.get().skey_checked:
+        if self.skey and not current.request.get().skey_checked:  # skey guardiance is only required once per request
             if trace:
                 logging.debug(f"@skey {self.skey=}")
 
@@ -219,12 +219,15 @@ class Method:
                 # otherwise, varargs or varkwargs may not be empty.
                 else:
                     required = varargs or varkwargs
+                    if trace:
+                        logging.debug(f"@skey {required=} because either {varargs=} or {varkwargs=}")
             else:
                 required = True
 
             if required:
                 security_key = kwargs.pop(self.skey["name"], "")
-                logging.debug(f"@skey wanted, validating {security_key!r}")
+                if trace:
+                    logging.debug(f"@skey wanted, validating {security_key!r}")
 
                 from viur.core import securitykey
                 payload = securitykey.validate(security_key, **self.skey["extra_kwargs"])
