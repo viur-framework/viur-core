@@ -468,12 +468,11 @@ class UserPassword(UserAuthentication):
             skel = self._user_module.editSkel()
             if not key or not skel.fromDB(key):
                 return None
-
             skel["status"] = Status.WAITING_FOR_ADMIN_VERIFICATION \
                 if self.registrationAdminVerificationRequired else Status.ACTIVE
 
             skel.toDB(update_relations=False)
-            return True
+            return skel
 
         if not isinstance(data, dict) or not (skel := db.RunInTransaction(transact, data.get("userKey"))):
             return self._user_module.render.view(None, tpl=self.verifyFailedTemplate)
