@@ -24,20 +24,52 @@
  See file LICENSE for more information.
 """
 
-import os
-import yaml
-import warnings
 import inspect
+import os
+import warnings
 from types import ModuleType
-from typing import Callable, Dict, Union, List
-from viur.core import errors, i18n, request, utils, current
+from typing import Callable, Dict, List, Union
+
+import yaml
+from viur.core import i18n, request, utils
 from viur.core.config import conf
-from viur.core.tasks import TaskHandler, runStartupTasks
-from viur.core.module import Module, Method
+from viur.core.decorators import *
+from viur.core.module import Method, Module
+
+from .i18n import translate
+from .tasks import (DeleteEntitiesIter, PeriodicTask, QueryIter, TaskHandler,
+                    callDeferred, retry_n_times, runStartupTasks)
+
 # noinspection PyUnresolvedReferences
 from viur.core import logging as viurLogging  # unused import, must exist, initializes request logging
-from viur.core.decorators import force_post, force_ssl, internal_exposed, exposed as _exposed  # backward-compatibility
+
 import logging  # this import has to stay here, see #571
+
+__all__ = [
+    # basics from this __init__
+    "setDefaultLanguage",
+    "setDefaultDomainLanguage",
+    "setup",
+    # prototypes
+    "Module",
+    "Method",
+    # tasks
+    "DeleteEntitiesIter",
+    "QueryIter",
+    "retry_n_times",
+    "callDeferred",
+    "PeriodicTask",
+    # Decorators
+    "access",
+    "exposed",
+    "force_post",
+    "force_ssl",
+    "internal_exposed",
+    "skey",
+    # others
+    "conf",
+    "translate",
+]
 
 
 def load_indexes_from_file() -> Dict[str, List]:
@@ -275,15 +307,9 @@ __DEPRECATED_DECORATORS = {
 def __getattr__(attr: str) -> object:
     if entry := __DEPRECATED_DECORATORS.get(attr):
         func = entry[1]
-        msg = f"@{attr} was replaced by @{entry[0]} and should be imported from viur.core.decorators"
+        msg = f"@{attr} was replaced by @{entry[0]}"
         warnings.warn(msg, DeprecationWarning, stacklevel=2)
         logging.warning(msg, stacklevel=2)
         return func
-
-    if attr == "exposed":
-        msg = "@exposed should be imported from viur.core.decorators"
-        warnings.warn(msg, DeprecationWarning, stacklevel=2)
-        logging.warning(msg, stacklevel=2)
-        return _exposed
 
     return super(__import__(__name__).__class__).__getattr__(attr)
