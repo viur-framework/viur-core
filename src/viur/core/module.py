@@ -169,7 +169,7 @@ class Method:
                 )
                 and param_name in kwargs
             ):
-                value = kwargs[param_name]
+                value = kwargs.pop(param_name)
 
                 if param_type:
                     value = parse_value_by_annotation(param_type, param_name, value)
@@ -186,23 +186,30 @@ class Method:
 
                 raise errors.NotAcceptable(f"Missing required parameter {param_name!r}")
 
-        # Extend args to any varargs
-        parsed_args += varargs
+        # Here's a short clarification on the variables used here:
+        #
+        # - parsed_args     = tuple of (the type-parsed) arguments that have been assigned based on the signature
+        # - parsed_kwargs   = dict of (the type-parsed) keyword arguments that have been assigned based on the signature
+        # - args            = either parsed_args, or parsed_args + remaining args if the function accepts *args
+        # - kwargs          = either parsed_kwars, or parsed_kwargs | remaining kwargs if the function accepts **kwargs
+        # - varargs         = indicator that the args also contain variable args (*args)
+        # - varkwards       = indicator that variable kwargs (**kwargs) are also contained in the kwargs
+        #
 
-        # extend all kwargs if varkwargs is present
-        if varkwargs:
-            for name, value in kwargs.items():
-                if name not in self.signature.parameters:
-                    parsed_kwargs[name] = value
-            varkwargs = bool(kwargs)
-        # always take "skey" when configured into kwargs, if varkwargs is unset
-        elif self.skey and self.skey["name"] in kwargs:
-            parsed_kwargs[self.skey["name"]] = kwargs[self.skey["name"]]
-            varkwargs = True
+        # Extend args to any varargs, and redefine args
+        args = tuple(parsed_args + varargs)
 
-        args = tuple(parsed_args)
-        kwargs = parsed_kwargs
+        # always take "skey"-parameter name, when configured, as parsed_kwargs
+        if self.skey and self.skey["name"] in kwargs:
+            parsed_kwargs[self.skey["name"]] = kwargs.pop(self.skey["name"])
 
+        # When varkwargs are accepted, merge parsed_kwargs and kwargs, otherwise just use parsed_kwargs
+        if varkwargs := varkwargs and bool(kwargs):
+            kwargs = parsed_kwargs | kwargs
+        else:
+            kwargs = parsed_kwargs
+
+        # Trace message for final call configuration
         if trace := conf["viur.debug.trace"]:
             logging.debug(f"calling {self._func=} with cleaned {args=}, {kwargs=}")
 
@@ -210,6 +217,8 @@ class Method:
         if self.skey and not current.request.get().skey_checked:  # skey guardiance is only required once per request
             if trace:
                 logging.debug(f"@skey {self.skey=}")
+
+            security_key = kwargs.pop(self.skey["name"], "")
 
             # validation is necessary?
             if allow_empty := self.skey["allow_empty"]:
@@ -221,14 +230,13 @@ class Method:
                     required = any(k for k in kwargs.keys() if k not in allow_empty)
                 # otherwise, varargs or varkwargs may not be empty.
                 else:
-                    required = varargs or varkwargs
+                    required = varargs or varkwargs or security_key
                     if trace:
-                        logging.debug(f"@skey {required=} because either {varargs=} or {varkwargs=}")
+                        logging.debug(f"@skey {required=} because either {varargs=} or {varkwargs=} or {security_key=}")
             else:
                 required = True
 
             if required:
-                security_key = kwargs.pop(self.skey["name"], "")
                 if trace:
                     logging.debug(f"@skey wanted, validating {security_key!r}")
 
