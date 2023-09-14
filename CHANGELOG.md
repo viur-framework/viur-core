@@ -2,8 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.5.0.rc3]
+## [3.5.0.rc4]
 
+- fix: Include `requirements.txt` in dist wheel again (#862)
+- fix: Additional fixing for `@skey(allow_empty=True)` (#861)
 - fix: Re-include `templates/` folder as data-files (#858)
 - fix: For #850, return skel in transaction (#857)
 - fix: `html.Render.getTemplateFileName()` should be deterministic (#855)
