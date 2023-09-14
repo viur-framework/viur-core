@@ -1,5 +1,5 @@
 # pipenv install --dev
-# pipenv requirements --hash >requirements.txt
+# pipenv requirements --hash >src/viur/core/requirements.txt
 
 [[source]]
 url = "https://pypi.org/simple"
