@@ -186,6 +186,16 @@ class Method:
 
                 raise errors.NotAcceptable(f"Missing required parameter {param_name!r}")
 
+        # Here's a short clarification on the variables used here:
+        #
+        # - parsed_args     = tuple of (the type-parsed) arguments that have been assigned based on the signature
+        # - parsed_kwargs   = dict of (the type-parsed) keyword arguments that have been assigned based on the signature
+        # - args            = either parsed_args, or parsed_args + remaining args if the function accepts *args
+        # - kwargs          = either parsed_kwars, or parsed_kwargs | remaining kwargs if the function accepts **kwargs
+        # - varargs         = indicator that the args also contain variable args (*args)
+        # - varkwards       = indicator that variable kwargs (**kwargs) are also contained in the kwargs
+        #
+
         # Extend args to any varargs, and redefine args
         args = tuple(parsed_args + varargs)
 
