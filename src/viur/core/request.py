@@ -530,7 +530,9 @@ class Router:
 
         if ((self.internalRequest and conf["viur.debug.traceInternalCallRouting"])
                 or conf["viur.debug.traceExternalCallRouting"]):
-            logging.debug(f"Calling {caller._func!r} with args={self.args!r}, {kwargs=} within context={self.context!r}")
+            logging.debug(
+                f"Calling {caller._func!r} with args={self.args!r}, {kwargs=} within context={self.context!r}"
+            )
 
         # Now call the routed method!
         res = caller(*self.args, **kwargs)
