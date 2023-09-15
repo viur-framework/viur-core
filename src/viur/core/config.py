@@ -141,6 +141,9 @@ conf = Conf({
     # If set, ViUR calls this function instead of rendering the viur.errorTemplate if an exception occurs
     "viur.errorHandler": None,
 
+    # Path to a logo. Will be used for the default error template
+    "viur.error.logo": None,
+
     # Path to the static SVGs folder. Will be used by the jinja-renderer-method: embedSvg
     "viur.static.embedSvg.path": "/static/svgs/",
 

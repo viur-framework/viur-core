@@ -348,6 +348,8 @@ class Router:
                 if conf["viur.instance.is_dev_server"]:
                     error_info["traceback"] = traceback.format_exc()
 
+                error_info["logo"] = conf["viur.error.logo"]
+
                 if (len(self.path_list) > 0 and self.path_list[0] in ("vi", "json")) or \
                         current.request.get().response.headers["Content-Type"] == "application/json":
                     current.request.get().response.headers["Content-Type"] = "application/json"
@@ -357,10 +359,8 @@ class Router:
                     if filename := conf["viur.mainApp"].render.getTemplateFileName((f"{error_info['status']}", "error"),
                                                                                    raise_exception=False):
                         template = conf["viur.mainApp"].render.getEnv().get_template(filename)
-                        res = template.render(error_info)
-
-                        # fixme: this might be the viur/core/template/error.html ...
-                        extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
+                        res = template.render(error_info, nonce=(nonce := utils.generateRandomString(16)))
+                        extendCsp({"style-src": [f"nonce-{nonce}"]})
                     else:
                         res = f"""<html><h1>{error_info["status"]} - {error_info["reason"]}"""
 

@@ -345,6 +345,9 @@ de = {
     "bad gateway": "Falscher Gateway",
     "service unavailable": "Dienst nicht verfügbar",
 
+    # Error Page
+    "core.error.home": "Startseite",
+
     # Moduleconfig
     "modulename": "Modulname",
     "module helptext": "Modul Hilfetext",
