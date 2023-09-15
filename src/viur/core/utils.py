@@ -3,6 +3,7 @@ import hmac
 import logging
 import secrets
 import string
+import typing
 from base64 import urlsafe_b64encode
 from datetime import datetime, timedelta, timezone
 from typing import Any, Union, Optional
@@ -271,6 +272,20 @@ def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
         parent = None
     return db.Key(key.kind, key.id_or_name, parent=parent)
 
+
+def parse_bool(value: Any, truthy_values: typing.Iterable = ("true", "yes", "1")) -> bool:
+    """
+    Parse a value into a boolean based on accepted truthy values.
+
+    This method takes a value, converts it to a lowercase string,
+    removes whitespace, and checks if it matches any of the provided
+    truthy values.
+    :param value: The value to be parsed into a boolean.
+    :param truthy_values: An iterable of strings representing truthy values.
+        Default is ("true", "yes", "1").
+    :returns: True if the value matches any of the truthy values, False otherwise.
+    """
+    return str(value).strip().lower() in truthy_values
 
 # DEPRECATED ATTRIBUTES HANDLING
 __utils_conf_replacement = {

@@ -1,5 +1,5 @@
 # pipenv install --dev
-# pipenv requirements --hash >requirements.txt
+# pipenv requirements --hash >src/viur/core/requirements.txt
 
 [[source]]
 url = "https://pypi.org/simple"
@@ -22,6 +22,7 @@ pillow = "~=10.0"
 pyotp = "~=2.0"
 pytz = "~=2023.0"
 pyyaml = "~=6.0"
+qrcode = "~=7.0"
 requests = "~=2.0"
 tzlocal = "~=5.0"
 user-agents = "~=2.0"

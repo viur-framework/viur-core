@@ -72,17 +72,15 @@ Try to keep external dependencies low.
 In case you have appropriate permissions, a release can be done this way:
 
 - Make sure all hotfixes from `main` are in `develop` as well (`git merge main`)
-- Bump version number in `core/version.py`
+- Bump version number in `src/viur/core/version.py`
 - Update [`CHANGELOG.md`](/CHANGELOG.md) and also check version number there
   - To quickly generate a changelog, run `git log --pretty="- %s" main..develop`
   - todo: Changelog shall be generated automatically later.
 - Build and publish the package (ensure `pipenv install --dev` was run before and is up-to-date)
   - Ensure any old files are deleted by running `pipenv run clean`
   - Build the wheel using `pipenv run build`
-  - Release the package
-    - PyPI: `pipenv run release`
-    - TestPyPI: `pipenv run develop`
-- When all went well, finally commit and create a tag equally to the version number in `core/version.py`
+  - Release the package `pipenv run release`
+- When all went well, finally commit and create a tag equally to the version number in `src/viur/core/version.py`
 
 ## Branches
 

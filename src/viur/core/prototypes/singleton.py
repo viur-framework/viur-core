@@ -1,10 +1,11 @@
 import logging
-from typing import Any, Optional
+from typing import Any
 from viur.core import db, current, errors
 from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
 from .skelmodule import SkelModule
+from ..utils import parse_bool
 
 
 class Singleton(SkelModule):
@@ -118,7 +119,7 @@ class Singleton(SkelModule):
 
     @exposed
     @force_ssl
-    @skey(allow_empty=SKEY_ALLOW_EMPTY_FOR_KEY)
+    @skey(allow_empty=True)
     def edit(self, *args, **kwargs) -> Any:
         """
         Modify the existing entry, and render the entry, eventually with error notes on incorrect data.
@@ -134,21 +135,19 @@ class Singleton(SkelModule):
         :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
-
-        skey = kwargs.get("skey", "")
-
-        skel = self.editSkel()
-
         if not self.canEdit():
             raise errors.Unauthorized()
 
         key = db.Key(self.editSkel().kindName, self.getKey())
-
+        skel = self.editSkel()
         if not skel.fromDB(key):  # Its not there yet; we need to set the key again
             skel["key"] = key
-        if (len(kwargs) == 0  # no data supplied
+
+        if (
+            not kwargs  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or ("bounce" in kwargs and kwargs["bounce"] == "1")):  # review before changing
+            or parse_bool(kwargs.get("bounce"))  # review before changing
+        ):
             return self.render.edit(skel)
 
         self.onEdit(skel)
@@ -156,7 +155,7 @@ class Singleton(SkelModule):
         self.onEdited(skel)
         return self.render.editSuccess(skel)
 
-    def getContents(self) -> Optional[SkeletonInstance]:
+    def getContents(self) -> SkeletonInstance | None:
         """
         Returns the entity of this singleton application as :class:`viur.core.skeleton.Skeleton` object.
 

@@ -1,8 +1,7 @@
-import time, json
-from string import Template
-from . import default as DefaultRender
-from viur.core.skeleton import Skeleton
+from typing import Iterable
 
+from . import default as DefaultRender
+from viur.core.modules.user import UserSecondFactorAuthentication
 
 class Render(DefaultRender):  # Render user-data to xml
     loginTemplate = "user_login"
@@ -12,69 +11,54 @@ class Render(DefaultRender):  # Render user-data to xml
     verifySuccessTemplate = "user_verify_success"
     verifyFailedTemplate = "user_verify_failed"
     passwdRecoverInfoTemplate = "user_passwdrecover_info"
+    second_factor_add_template = "user_secondfactor_add"
+    second_factor_add_success_template = "user_secondfactor_add_success"
+    second_factor_choice_template = "user_second_factor_choice"
 
-    def login_disabled(self, authMethods, tpl=None, **kwargs):
-        if "loginTemplate" in dir(self.parent):
-            tpl = tpl or self.parent.loginTemplate
-        else:
-            tpl = tpl or self.loginTemplate
+    def _choose_template(self, tpl: None | str, fallback_attribute: str) -> str:
+        if tpl:
+            return tpl
+        if hasattr(self.parent, fallback_attribute):
+            return getattr(self.parent, fallback_attribute)
+        return getattr(self, fallback_attribute)
 
+    def login_disabled(self, authMethods, tpl: str | None = None, **kwargs):
+        tpl = self._choose_template(tpl, "loginTemplate")
         template = self.getEnv().get_template(self.getTemplateFileName(tpl))
         return template.render(authMethods=authMethods, **kwargs)
 
-    def login(self, skel, tpl=None, **kwargs):
-        if "loginTemplate" in dir(self.parent):
-            tpl = tpl or self.parent.loginTemplate
-        else:
-            tpl = tpl or self.loginTemplate
+    def login(self, skel, tpl: str | None = None, **kwargs):
+        tpl = self._choose_template(tpl, "loginTemplate")
         return self.add(skel, tpl=tpl, loginFailed=kwargs.get("loginFailed", False),
                         accountStatus=kwargs.get("accountStatus"))
 
-    def loginChoices(self, authMethods, tpl=None, **kwargs):
-        if "loginChoicesTemplate" in dir(self.parent):
-            tpl = tpl or self.parent.loginChoicesTemplate
-        else:
-            tpl = tpl or self.loginChoicesTemplate
+    def loginChoices(self, authMethods, tpl: str | None = None, **kwargs):
+        tpl = self._choose_template(tpl, "loginChoicesTemplate")
         template = self.getEnv().get_template(self.getTemplateFileName(tpl))
         return template.render(authMethods=authMethods, **kwargs)
 
-    def loginSucceeded(self, tpl=None, **kwargs):
-        if "loginSuccessTemplate" in dir(self.parent):
-            tpl = tpl or self.parent.loginSuccessTemplate
-        else:
-            tpl = tpl or self.loginSuccessTemplate
+    def loginSucceeded(self, tpl: str | None = None, **kwargs):
+        tpl = self._choose_template(tpl, "loginSuccessTemplate")
         template = self.getEnv().get_template(self.getTemplateFileName(tpl))
         return template.render(**kwargs)
 
-    def logoutSuccess(self, tpl=None, **kwargs):
-        if "logoutSuccessTemplate" in dir(self.parent):
-            tpl = tpl or self.parent.logoutSuccessTemplate
-        else:
-            tpl = tpl or self.logoutSuccessTemplate
+    def logoutSuccess(self, tpl: str | None = None, **kwargs):
+        tpl = self._choose_template(tpl, "logoutSuccessTemplate")
         template = self.getEnv().get_template(self.getTemplateFileName(tpl))
         return template.render(**kwargs)
 
-    def verifySuccess(self, skel, tpl=None, **kwargs):
-        if "verifySuccessTemplate" in dir(self.parent):
-            tpl = tpl or self.parent.verifySuccessTemplate
-        else:
-            tpl = tpl or self.verifySuccessTemplate
+    def verifySuccess(self, skel, tpl: str | None = None, **kwargs):
+        tpl = self._choose_template(tpl, "verifySuccessTemplate")
         template = self.getEnv().get_template(self.getTemplateFileName(tpl))
         return template.render(**kwargs)
 
-    def verifyFailed(self, tpl=None, **kwargs):
-        if "verifyFailedTemplate" in dir(self.parent):
-            tpl = tpl or self.parent.verifyFailedTemplate
-        else:
-            tpl = tpl or self.verifyFailedTemplate
+    def verifyFailed(self, tpl: str | None = None, **kwargs):
+        tpl = self._choose_template(tpl, "verifyFailedTemplate")
         template = self.getEnv().get_template(self.getTemplateFileName(tpl))
         return template.render(**kwargs)
 
-    def passwdRecoverInfo(self, msg, skel=None, tpl=None, **kwargs):
-        if "passwdRecoverInfoTemplate" in dir(self.parent):
-            tpl = tpl or self.parent.passwdRecoverInfoTemplate
-        else:
-            tpl = tpl or self.passwdRecoverInfoTemplate
+    def passwdRecoverInfo(self, msg, skel=None, tpl: str | None = None, **kwargs):
+        tpl = self._choose_template(tpl, "passwdRecoverInfoTemplate")
         template = self.getEnv().get_template(self.getTemplateFileName(tpl))
         if skel:
             skel.renderPreparation = self.renderBoneValue
@@ -82,3 +66,21 @@ class Render(DefaultRender):  # Render user-data to xml
 
     def passwdRecover(self, *args, **kwargs):
         return self.edit(*args, **kwargs)
+
+    def second_factor_add(self, action_name: str, name: str, add_url: str,
+                          tpl: str | None, otp_uri=None):
+        tpl = self._choose_template(tpl, "second_factor_add_template")
+        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
+        return template.render(action_name=action_name, name=name, add_url=add_url, otp_uri=otp_uri)
+
+    def second_factor_add_success(self, action_name: str, name: str, tpl: str | None = None):
+        tpl = self._choose_template(tpl, "second_factor_add_success_template")
+        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
+        return template.render(action_name=action_name, name=name)
+
+    def second_factor_choice(self,
+                             second_factors: Iterable[UserSecondFactorAuthentication],
+                             tpl: str | None = None):
+        tpl = self._choose_template(tpl, "second_factor_choice_template")
+        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
+        return template.render(second_factors=second_factors)
