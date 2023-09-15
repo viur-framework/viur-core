@@ -468,12 +468,11 @@ class UserPassword(UserAuthentication):
             skel = self._user_module.editSkel()
             if not key or not skel.fromDB(key):
                 return None
-
             skel["status"] = Status.WAITING_FOR_ADMIN_VERIFICATION \
                 if self.registrationAdminVerificationRequired else Status.ACTIVE
 
             skel.toDB(update_relations=False)
-            return True
+            return skel
 
         if not isinstance(data, dict) or not (skel := db.RunInTransaction(transact, data.get("userKey"))):
             return self._user_module.render.view(None, tpl=self.verifyFailedTemplate)
@@ -514,7 +513,7 @@ class UserPassword(UserAuthentication):
         """
             Allows guests to register a new account if self.registrationEnabled is set to true
 
-            .. seealso:: :func:`addSkel`, :func:`onAdded`, :func:`canAdd`
+            .. seealso:: :func:`addSkel`, :func:`onAdded`, :func:`canAdd`, :func:`onAdd`
 
             :returns: The rendered, added object of the entry, eventually with error hints.
 
@@ -532,6 +531,7 @@ class UserPassword(UserAuthentication):
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self._user_module.render.add(skel)
+        self._user_module.onAdd(skel)
         skel.toDB()
         if self.registrationEmailVerificationRequired and skel["status"] == Status.WAITING_FOR_EMAIL_VERIFICATION:
             # The user will have to verify his email-address. Create a skey and send it to his address
