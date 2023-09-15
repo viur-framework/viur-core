@@ -172,7 +172,7 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
 
     conf["viur.mainResolver"] = resolver
 
-    if conf["viur.debug.traceExternalCallRouting"] or conf["viur.debug.traceInternalCallRouting"]:
+    if conf["viur.debug.trace"]:
         from viur.core import email
         try:
             email.sendEMailToAdmins(
