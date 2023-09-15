@@ -36,7 +36,7 @@ from viur.core.tasks import TaskHandler, runStartupTasks
 from viur.core.module import Module, Method
 # noinspection PyUnresolvedReferences
 from viur.core import logging as viurLogging  # unused import, must exist, initializes request logging
-from viur.core.decorators import force_post, force_ssl, internal_exposed, exposed as _exposed  # backward-compatibility
+from viur.core.decorators import access, exposed, force_post, force_ssl, internal_exposed, skey
 import logging  # this import has to stay here, see #571
 
 
@@ -275,15 +275,9 @@ __DEPRECATED_DECORATORS = {
 def __getattr__(attr: str) -> object:
     if entry := __DEPRECATED_DECORATORS.get(attr):
         func = entry[1]
-        msg = f"@{attr} was replaced by @{entry[0]} and should be imported from viur.core.decorators"
+        msg = f"@{attr} was replaced by @{entry[0]}"
         warnings.warn(msg, DeprecationWarning, stacklevel=2)
         logging.warning(msg, stacklevel=2)
         return func
-
-    if attr == "exposed":
-        msg = "@exposed should be imported from viur.core.decorators"
-        warnings.warn(msg, DeprecationWarning, stacklevel=2)
-        logging.warning(msg, stacklevel=2)
-        return _exposed
 
     return super(__import__(__name__).__class__).__getattr__(attr)
