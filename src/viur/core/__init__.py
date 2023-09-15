@@ -37,8 +37,8 @@ from viur.core.decorators import *
 from viur.core.module import Method, Module
 
 from .i18n import translate
-from .tasks import (DeleteEntitiesIter, PeriodicTask, QueryIter, TaskHandler,
-                    callDeferred, retry_n_times, runStartupTasks)
+from .tasks import (DeleteEntitiesIter, PeriodicTask, QueryIter, StartupTask,
+                    TaskHandler, callDeferred, retry_n_times, runStartupTasks)
 
 # noinspection PyUnresolvedReferences
 from viur.core import logging as viurLogging  # unused import, must exist, initializes request logging
@@ -58,6 +58,7 @@ __all__ = [
     "QueryIter",
     "retry_n_times",
     "callDeferred",
+    "StartupTask",
     "PeriodicTask",
     # Decorators
     "access",
