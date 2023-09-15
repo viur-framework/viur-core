@@ -101,6 +101,10 @@ conf = Conf({
     "viur.debug.trace": False,
     # If enabled, user-generated exceptions from the viur.core.errors module won't be caught and handled
     "viur.debug.traceExceptions": False,
+    # If enabled, ViUR will log which (exposed) function are called from outside with what arguments
+    "viur.debug.traceExternalCallRouting": False,
+    # If enabled, ViUR will log which (internal-exposed) function are called from templates with what arguments
+    "viur.debug.traceInternalCallRouting": False,
     # If enabled, log errors raises from skeleton.fromClient()
     "viur.debug.skeleton.fromClient": False,
 
