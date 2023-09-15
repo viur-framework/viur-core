@@ -310,6 +310,7 @@ class Router:
                 raise
             self.response.body = b""
             if isinstance(e, errors.HTTPException):
+                logging.info(f"[{e.status}] {e.name}: {e.descr}", exc_info=conf["viur.debug.trace"])
                 self.response.status = '%d %s' % (e.status, e.name)
                 # Set machine-readable x-viur-error response header in case there is an exception description.
                 if e.descr:
