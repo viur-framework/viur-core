@@ -172,18 +172,6 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
 
     conf["viur.mainResolver"] = resolver
 
-    if (conf["viur.debug.trace"]
-            or conf["viur.debug.traceExternalCallRouting"]
-            or conf["viur.debug.traceInternalCallRouting"]):
-        from viur.core import email
-        try:
-            email.sendEMailToAdmins(
-                "Debug mode enabled",
-                "ViUR just started a new Instance with call tracing enabled! This might log sensitive information!"
-            )
-        except:  # OverQuota, whatever
-            pass  # Dont render this instance unusable
-
     if default in renderers and hasattr(renderers[default]["default"], "renderEmail"):
         conf["viur.emailRenderer"] = renderers[default]["default"]().renderEmail
     elif "html" in renderers:
@@ -219,6 +207,21 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
         render = viur.core.render
     conf["viur.mainApp"] = buildApp(modules, render, default)
     # conf["viur.wsgiApp"] = webapp.WSGIApplication([(r'/(.*)', BrowseHandler)])
+
+    # Send warning email in case trace is activated in a cloud environment
+    if ((conf["viur.debug.trace"]
+            or conf["viur.debug.traceExternalCallRouting"]
+            or conf["viur.debug.traceInternalCallRouting"])
+            and (not conf["viur.instance.is_dev_server"] or conf["viur.dev_server_cloud_logging"])):
+        from viur.core import email
+        try:
+            email.sendEMailToAdmins(
+                "Debug mode enabled",
+                "ViUR just started a new Instance with call tracing enabled! This might log sensitive information!"
+            )
+        except Exception as exc:  # OverQuota, whatever
+            logging.exception(exc)
+
     # Ensure that our Content Security Policy Header Cache gets build
     from viur.core import securityheaders
     securityheaders._rebuildCspHeaderCache()
