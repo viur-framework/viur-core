@@ -466,7 +466,7 @@ class Router:
                 raise errors.Unauthorized()
 
             idx += 1
-            part = part.replace("-", "_").replace(".", "_")
+            part = part.replace("-", "_")
             if part not in caller:
                 part = "index"
 
