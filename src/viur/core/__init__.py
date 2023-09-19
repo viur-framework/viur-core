@@ -247,9 +247,9 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
 
     # Send warning email in case trace is activated in a cloud environment
     if ((conf["viur.debug.trace"]
-         or conf["viur.debug.traceExternalCallRouting"]
-         or conf["viur.debug.traceInternalCallRouting"])
-        and (not conf["viur.instance.is_dev_server"] or conf["viur.dev_server_cloud_logging"])):
+            or conf["viur.debug.traceExternalCallRouting"]
+            or conf["viur.debug.traceInternalCallRouting"])
+            and (not conf["viur.instance.is_dev_server"] or conf["viur.dev_server_cloud_logging"])):
         from viur.core import email
         try:
             email.sendEMailToAdmins(
