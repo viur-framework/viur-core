@@ -1,8 +1,7 @@
-import typing
 from contextvars import ContextVar
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from .request import Router
     from .session import Session
     from .skeleton import SkeletonInstance
