@@ -2,8 +2,13 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.0.0.
 
-## [3.5.0.rc4]
+## [3.5.0]
 
+- fix: Move warning-email "Debug mode enabled" (#869)
+- fix: Add logging for raised `HTTPException` (#864)
+- fix: Remove replace of `.` to `_` (#865)
+- fix: Reactivate old-style `trace*CallRouting` for backward compatibility (#866)
+- fix: Remove `viur.core` decorator import advise (#868)
 - feat: Add `onAdd()`-hook in `User.add()` method (#863)
 - fix: Include `requirements.txt` in dist wheel again (#862)
 - fix: Additional fixing for `@skey(allow_empty=True)` (#861)
