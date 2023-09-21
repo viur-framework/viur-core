@@ -37,7 +37,7 @@ from viur.core.tasks import TaskHandler, runStartupTasks
 from viur.core.module import Module, Method
 # noinspection PyUnresolvedReferences
 from viur.core import logging as viurLogging  # unused import, must exist, initializes request logging
-from viur.core.decorators import force_post, force_ssl, internal_exposed, exposed as _exposed  # backward-compatibility
+from viur.core.decorators import access, exposed, force_post, force_ssl, internal_exposed, skey
 import logging  # this import has to stay here, see #571
 
 
@@ -173,16 +173,6 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
 
     conf["viur.mainResolver"] = resolver
 
-    if conf["viur.debug.traceExternalCallRouting"] or conf["viur.debug.traceInternalCallRouting"]:
-        from viur.core import email
-        try:
-            email.sendEMailToAdmins(
-                "Debug mode enabled",
-                "ViUR just started a new Instance with call tracing enabled! This might log sensitive information!"
-            )
-        except:  # OverQuota, whatever
-            pass  # Dont render this instance unusable
-
     if default in renderers and hasattr(renderers[default]["default"], "renderEmail"):
         conf["viur.emailRenderer"] = renderers[default]["default"]().renderEmail
     elif "html" in renderers:
@@ -218,6 +208,21 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
         render = viur.core.render
     conf["viur.mainApp"] = buildApp(modules, render, default)
     # conf["viur.wsgiApp"] = webapp.WSGIApplication([(r'/(.*)', BrowseHandler)])
+
+    # Send warning email in case trace is activated in a cloud environment
+    if ((conf["viur.debug.trace"]
+            or conf["viur.debug.traceExternalCallRouting"]
+            or conf["viur.debug.traceInternalCallRouting"])
+            and (not conf["viur.instance.is_dev_server"] or conf["viur.dev_server_cloud_logging"])):
+        from viur.core import email
+        try:
+            email.sendEMailToAdmins(
+                "Debug mode enabled",
+                "ViUR just started a new Instance with call tracing enabled! This might log sensitive information!"
+            )
+        except Exception as exc:  # OverQuota, whatever
+            logging.exception(exc)
+
     # Ensure that our Content Security Policy Header Cache gets build
     from viur.core import securityheaders
     securityheaders._rebuildCspHeaderCache()
@@ -276,15 +281,9 @@ __DEPRECATED_DECORATORS = {
 def __getattr__(attr: str) -> object:
     if entry := __DEPRECATED_DECORATORS.get(attr):
         func = entry[1]
-        msg = f"@{attr} was replaced by @{entry[0]} and should be imported from viur.core.decorators"
+        msg = f"@{attr} was replaced by @{entry[0]}"
         warnings.warn(msg, DeprecationWarning, stacklevel=2)
         logging.warning(msg, stacklevel=2)
         return func
-
-    if attr == "exposed":
-        msg = "@exposed should be imported from viur.core.decorators"
-        warnings.warn(msg, DeprecationWarning, stacklevel=2)
-        logging.warning(msg, stacklevel=2)
-        return _exposed
 
     return super(__import__(__name__).__class__).__getattr__(attr)
