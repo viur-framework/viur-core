@@ -24,20 +24,57 @@
  See file LICENSE for more information.
 """
 
-import os
-import yaml
-import warnings
 import inspect
+import os
+import warnings
 from types import ModuleType
 from typing import Callable, Dict, Union, List
-from viur.core import errors, i18n, request, utils, current
+
+import yaml
+
+from viur.core import i18n, request, utils
 from viur.core.config import conf
-from viur.core.tasks import TaskHandler, runStartupTasks
+from viur.core.config import conf
+from viur.core.decorators import *
+from viur.core.decorators import access, exposed, force_post, force_ssl, internal_exposed, skey
+from viur.core.module import Method, Module
 from viur.core.module import Module, Method
+from viur.core.tasks import TaskHandler, runStartupTasks
+from .i18n import translate
+from .tasks import (DeleteEntitiesIter, PeriodicTask, QueryIter, StartupTask,
+                    TaskHandler, callDeferred, retry_n_times, runStartupTasks)
+
 # noinspection PyUnresolvedReferences
 from viur.core import logging as viurLogging  # unused import, must exist, initializes request logging
-from viur.core.decorators import access, exposed, force_post, force_ssl, internal_exposed, skey
+
 import logging  # this import has to stay here, see #571
+
+__all__ = [
+    # basics from this __init__
+    "setDefaultLanguage",
+    "setDefaultDomainLanguage",
+    "setup",
+    # prototypes
+    "Module",
+    "Method",
+    # tasks
+    "DeleteEntitiesIter",
+    "QueryIter",
+    "retry_n_times",
+    "callDeferred",
+    "StartupTask",
+    "PeriodicTask",
+    # Decorators
+    "access",
+    "exposed",
+    "force_post",
+    "force_ssl",
+    "internal_exposed",
+    "skey",
+    # others
+    "conf",
+    "translate",
+]
 
 
 def load_indexes_from_file() -> Dict[str, List]:
