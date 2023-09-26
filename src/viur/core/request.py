@@ -25,6 +25,8 @@ from viur.core.logging import client as loggingClient, requestLogger, requestLog
 from viur.core.securityheaders import extendCsp
 from viur.core.tasks import _appengineServiceIPs
 
+TEMPLATE_STYLE_KEY = "style"
+
 
 class RequestValidator(ABC):
     """
@@ -118,6 +120,7 @@ class Router:
         self.args = ()
         self.kwargs = {}
         self.context = {}
+        self.template_style: str | None = None
 
         # Check if it's a HTTP-Method we support
         self.method = self.request.method.lower()
@@ -442,6 +445,10 @@ class Router:
                 raise errors.BadRequest()
 
             if key.startswith("_"):  # Ignore keys starting with _ (like VI's _unused_time_stamp)
+                continue
+
+            if key == TEMPLATE_STYLE_KEY:
+                self.template_style = value
                 continue
 
             if key in self.kwargs:
