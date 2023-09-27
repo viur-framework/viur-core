@@ -1,6 +1,15 @@
 # Changelog
 
-This file documents any relevant changes done to ViUR-core since version 3.0.0.
+This file documents any relevant changes done to ViUR-core since version 3.
+
+## [3.5.1]
+
+- fix: Accept `staticSecurityKey` from sessions created by viur-core < 3.5 (#877)
+- fix: Replace unused `otpTemplate` by new `second_factor_login_template` (#876)
+- fix(docs): Add and lock all docs dependencies (#875)
+- fix: Remove the `style` which is reserved for template completely from the request kwargs (#870)
+- fix: Re-add missing `skel.fromDB()` in `Tree.move` (#874)
+- ci: Fixed codecov path
 
 ## [3.5.0]
 
