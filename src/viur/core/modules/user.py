@@ -662,9 +662,9 @@ class UserSecondFactorAuthentication(UserAuthentication, abc.ABC):
 class TimeBasedOTP(UserSecondFactorAuthentication):
     WINDOW_SIZE = 5
     MAX_RETRY = 3
-    otpTemplate = "user_login_timebasedotp"
     ACTION_NAME = "otp"
     NAME = "Time based Otp"
+    second_factor_login_template = "user_login_secondfactor"
 
     @dataclasses.dataclass
     class OtpConfig:
