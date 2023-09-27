@@ -221,8 +221,15 @@ class UserAuthentication(Module):
         super().__init__(moduleName, modulePath)
         self._user_module = userModule
 
+    def can_handle(self, user: db.Entity) -> bool:
+        return True
 
-class UserPassword(UserAuthentication):
+
+class UserPrimaryAuthentication(UserAuthentication, abc.ABC):
+    """Abstract class for all primary authentication methods."""
+
+
+class UserPassword(UserPrimaryAuthentication):
     registrationEnabled = False
     registrationEmailVerificationRequired = True
     registrationAdminVerificationRequired = True
@@ -474,7 +481,7 @@ class UserPassword(UserAuthentication):
             skel.toDB(update_relations=False)
             return skel
 
-        if not isinstance(data, dict) or not (skel := db.RunInTransaction(transact, data.get("userKey"))):
+        if not isinstance(data, dict) or not (skel := db.RunInTransaction(transact, data.get("user_key"))):
             return self._user_module.render.view(None, tpl=self.verifyFailedTemplate)
 
         return self._user_module.render.view(skel, tpl=self.verifySuccessTemplate)
@@ -536,7 +543,7 @@ class UserPassword(UserAuthentication):
         if self.registrationEmailVerificationRequired and skel["status"] == Status.WAITING_FOR_EMAIL_VERIFICATION:
             # The user will have to verify his email-address. Create a skey and send it to his address
             skey = securitykey.create(duration=60 * 60 * 24 * 7, session_bound=False,
-                                      userKey=utils.normalizeKey(skel["key"]),
+                                      user_key=utils.normalizeKey(skel["key"]),
                                       name=skel["name"])
             skel.skey = BaseBone(descr="Skey")
             skel["skey"] = skey
@@ -545,7 +552,7 @@ class UserPassword(UserAuthentication):
         return self._user_module.render.addSuccess(skel)
 
 
-class GoogleAccount(UserAuthentication):
+class GoogleAccount(UserPrimaryAuthentication):
     registrationEnabled = False
 
     @classmethod
@@ -654,10 +661,6 @@ class UserSecondFactorAuthentication(UserAuthentication, abc.ABC):
         self.add_url = f"{self.modulePath}/add"
         self.start_url = f"{self.modulePath}/start"
 
-    @abc.abstractmethod
-    def can_handle(self, possible_user: db.Entity) -> bool:
-        pass
-
 
 class TimeBasedOTP(UserSecondFactorAuthentication):
     WINDOW_SIZE = 5
@@ -693,22 +696,22 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
     def get2FactorMethodName(*args, **kwargs):  # fixme: What is the purpose of this function? Why not just a member?
         return "X-VIUR-2FACTOR-TimeBasedOTP"
 
-    def get_config(self, possible_user: db.Entity) -> OtpConfig | None:
+    def get_config(self, user: db.Entity) -> OtpConfig | None:
         """
         Returns an instance of self.OtpConfig with a provided token configuration,
         or None when there is no appropriate configuration of this second factor handler available.
         """
 
         if possible_user.get("otp_secret"):
-            return self.OtpConfig(secret=possible_user["otp_secret"], timedrift=possible_user.get("otp_timedrift") or 0)
+            return self.OtpConfig(secret=user["otp_secret"], timedrift=user.get("otp_timedrift") or 0)
 
         return None
 
-    def can_handle(self, possible_user: db.Entity) -> bool:
+    def can_handle(self, user: db.Entity) -> bool:
         """
         Specified whether the second factor authentication can be handled by the given user or not.
         """
-        return bool(self.get_config(possible_user))
+        return bool(self.get_config(user))
 
     @exposed
     def start(self):
@@ -928,11 +931,11 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
                 name=translate(self.NAME),
             )
 
-    def can_handle(self, possible_user: db.Entity) -> bool:
+    def can_handle(self, user: db.Entity) -> bool:
         """
         We can only handle the second factor if we have stored an otp_app_secret before.
         """
-        return bool(possible_user.get("otp_app_secret", ""))
+        return bool(user.get("otp_app_secret", ""))
 
     @classmethod
     def get2FactorMethodName(*args, **kwargs) -> str:
@@ -1177,24 +1180,32 @@ class User(List):
 
         return None
 
-    def continueAuthenticationFlow(self, caller, userKey):
+    def continueAuthenticationFlow(self, provider: UserPrimaryAuthentication, user_key: db.Key):
+        """
+        Continue authentication flow when primary authentication succeeded.
+        """
+        if not (possible_user := db.Get(user_key)):
+            raise errors.NotFound("User was not found.")
+
+        if not provider.can_handle(possible_user):
+            raise errors.Forbidden("User is not allowed to use this primary login method.")
+
         session = current.session.get()
-        session["possible_user_key"] = userKey.id_or_name
+        session["possible_user_key"] = user_key.id_or_name
         session["_secondFactorStart"] = utils.utcNow()
         session.markChanged()
 
         second_factor_providers = []
 
-        if not (possible_user := db.Get(userKey)):
-            raise errors.NotFound()
         for auth_provider, second_factor in self.validAuthenticationMethods:
-            if isinstance(caller, auth_provider):
+            if isinstance(provider, auth_provider):
                 if second_factor is not None:
                     second_factor_provider_instance = self.secondFactorProviderByClass(second_factor)
                     if second_factor_provider_instance.can_handle(possible_user):
                         second_factor_providers.append(second_factor_provider_instance)
                 else:
                     second_factor_providers.append(None)
+
         if len(second_factor_providers) > 1 and None in second_factor_providers:
             # We have a second factor. So we can get rid of the None
             second_factor_providers.pop(second_factor_providers.index(None))
@@ -1204,20 +1215,26 @@ class User(List):
         elif len(second_factor_providers) == 1:
             if second_factor_providers[0] is None:
                 # We allow sign-in without a second factor
-                return self.authenticateUser(userKey)
+                return self.authenticateUser(user_key)
             # We have only one second factor we don't need the choice template
-            return second_factor_providers[0].start(userKey)
+            return second_factor_providers[0].start(user_key)
+
         # In case there is more than one second factor, let the user select a method.
         return self.render.second_factor_choice(second_factors=second_factor_providers)
 
-    def secondFactorSucceeded(self, secondFactor, userKey):
+    def secondFactorSucceeded(self, provider: UserSecondFactorAuthentication, user_key: db.Key):
+        """
+        Continue authentication flow when secondary authentication succeeded.
+        """
         session = current.session.get()
-        if session["possible_user_key"] != userKey.id_or_name:
+        if session["possible_user_key"] != user_key.id_or_name:
             raise errors.Forbidden()
+
         # Assert that the second factor verification finished in time
         if utils.utcNow() - session["_secondFactorStart"] > self.secondFactorTimeWindow:
             raise errors.RequestTimeout()
-        return self.authenticateUser(userKey)
+
+        return self.authenticateUser(user_key)
 
     def authenticateUser(self, key: db.Key, **kwargs):
         """
