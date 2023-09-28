@@ -227,10 +227,18 @@ class UserAuthentication(Module):
 
 class UserPrimaryAuthentication(UserAuthentication, abc.ABC):
     """Abstract class for all primary authentication methods."""
+    registrationEnabled = False
+
+    @abc.abstractmethod
+    def login(self, *args, kwargs):
+        ...
+
+    @abc.abstractmethod
+    def getAuthMethodName(self, *args, **kwargs) -> str: pass
 
 
 class UserPassword(UserPrimaryAuthentication):
-    registrationEnabled = False
+
     registrationEmailVerificationRequired = True
     registrationAdminVerificationRequired = True
 
@@ -553,7 +561,6 @@ class UserPassword(UserPrimaryAuthentication):
 
 
 class GoogleAccount(UserPrimaryAuthentication):
-    registrationEnabled = False
 
     @classmethod
     def getAuthMethodName(*args, **kwargs):
