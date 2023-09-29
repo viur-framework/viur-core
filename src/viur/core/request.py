@@ -359,7 +359,8 @@ class Router:
                     if filename := conf["viur.mainApp"].render.getTemplateFileName((f"{error_info['status']}", "error"),
                                                                                    raise_exception=False):
                         template = conf["viur.mainApp"].render.getEnv().get_template(filename)
-                        res = template.render(error_info, nonce=(nonce := utils.generateRandomString(16)))
+                        nonce = utils.generateRandomString(16)
+                        res = template.render(error_info, nonce=nonce)
                         extendCsp({"style-src": [f"nonce-{nonce}"]})
                     else:
                         res = f"""<html><h1>{error_info["status"]} - {error_info["reason"]}"""
