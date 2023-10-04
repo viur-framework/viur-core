@@ -139,7 +139,7 @@ class DefaultRender(object):
                                                       expires=conf["viur.render.json.downloadUrlExpiration"])
         return res
 
-    def renderEntry(self, skel: SkeletonInstance, actionName, params=None):
+    def renderEntry(self, skel: SkeletonInstance, actionName, params=None, **kwargs):
         structure = None
         errors = None
 
@@ -163,7 +163,7 @@ class DefaultRender(object):
             "params": params,
             "structure": structure,
             "values": vals,
-        }
+        } | kwargs
 
         current.request.get().response.headers["Content-Type"] = "application/json"
         return json.dumps(res, cls=CustomJsonEncoder)
@@ -206,16 +206,16 @@ class DefaultRender(object):
         return json.dumps(res, cls=CustomJsonEncoder)
 
     def add(self, skel: SkeletonInstance, action: str = "add", params=None, **kwargs):
-        return self.renderEntry(skel, action, params)
+        return self.renderEntry(skel, action, params, **kwargs)
 
     def edit(self, skel: SkeletonInstance, action: str = "edit", params=None, **kwargs):
-        return self.renderEntry(skel, action, params)
+        return self.renderEntry(skel, action, params, **kwargs)
 
     def editSuccess(self, skel: SkeletonInstance, action: str = "editSuccess", params=None, **kwargs):
-        return self.renderEntry(skel, action, params)
+        return self.renderEntry(skel, action, params, **kwargs)
 
     def addSuccess(self, skel: SkeletonInstance, action: str = "addSuccess", params=None, **kwargs):
-        return self.renderEntry(skel, action, params)
+        return self.renderEntry(skel, action, params, **kwargs)
 
     def deleteSuccess(self, skel: SkeletonInstance, params=None, *args, **kwargs):
         return json.dumps("OKAY")
