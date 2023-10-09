@@ -529,10 +529,12 @@ class Router:
                 logging.debug("Caching disabled by X-Viur-Disable-Cache header")
                 self.disableCache = True
 
-        # Copy context into self.context if available
-        if context := {k: v for k, v in self.kwargs.items() if k.startswith("@")}:
-            kwargs = {k: v for k, v in self.kwargs.items() if k not in context}
-            self.context |= context
+        # Destill context as self.context, if available
+        if context := {k: v for k, v in kwargs.items() if k.startswith("@")}:
+            # Remove context parameters from kwargs
+            kwargs = {k: v for k, v in kwargs.items() if k not in context}
+            # Remove leading "@" from context parameters
+            self.context |= {k[1:]: v for k, v in context.items() if len(k) > 1}
         else:
             kwargs = self.kwargs
 
