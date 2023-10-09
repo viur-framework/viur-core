@@ -414,7 +414,7 @@ class Router:
 
             while self.pendingTasks:
                 task = self.pendingTasks.pop()
-                logging.info("Running task directly after request: %s" % str(task))
+                logging.debug(f"Deferred task emulation, executing {task=}")
                 task()
 
     def _route(self, path: str) -> None:
