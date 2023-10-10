@@ -709,7 +709,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         or None when there is no appropriate configuration of this second factor handler available.
         """
 
-        if possible_user.get("otp_secret"):
+        if user.get("otp_secret"):
             return self.OtpConfig(secret=user["otp_secret"], timedrift=user.get("otp_timedrift") or 0)
 
         return None
