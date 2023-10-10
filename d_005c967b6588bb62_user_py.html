@@ -55,9 +55,9 @@
             </div>
         </aside>
         <h2>
-            <span class="text">681 statements &nbsp;</span>
+            <span class="text">682 statements &nbsp;</span>
             <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">0<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">681<span class="text"> missing</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">682<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
             <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">0<span class="text"> partial</span></button>
         </h2>
@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="d_e295e1cac9db2f73_pagination_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.3.2">coverage.py v7.3.2</a>,
-            created at 2023-10-10 06:57 +0000
+            created at 2023-10-10 07:09 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"/>
@@ -1513,22 +1513,24 @@
     <p class="mis show_mis"><span class="n"><a id="t1429" href="#t1429">1429</a></span><span class="t">                <span class="nam">logging</span><span class="op">.</span><span class="nam">error</span><span class="op">(</span><span class="str">"Something went wrong when trying to add admin user %s with Password %s"</span><span class="op">,</span> <span class="nam">uname</span><span class="op">,</span> <span class="nam">pw</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t1430" href="#t1430">1430</a></span><span class="t">                <span class="nam">logging</span><span class="op">.</span><span class="nam">exception</span><span class="op">(</span><span class="nam">e</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t1431" href="#t1431">1431</a></span><span class="t">                <span class="key">return</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1432" href="#t1432">1432</a></span><span class="t">            <span class="nam">logging</span><span class="op">.</span><span class="nam">warning</span><span class="op">(</span><span class="str">"ViUR created a new admin-user for you! Username: %s, Password: %s"</span><span class="op">,</span> <span class="nam">uname</span><span class="op">,</span> <span class="nam">pw</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1433" href="#t1433">1433</a></span><span class="t">            <span class="nam">email</span><span class="op">.</span><span class="nam">sendEMailToAdmins</span><span class="op">(</span><span class="str">"Your new ViUR password"</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t1434" href="#t1434">1434</a></span><span class="t">                                    <span class="str">"ViUR created a new admin-user for you! Username: %s, Password: %s"</span> <span class="op">%</span> <span class="op">(</span><span class="nam">uname</span><span class="op">,</span> <span class="nam">pw</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t1435" href="#t1435">1435</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t1436" href="#t1436">1436</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t1437" href="#t1437">1437</a></span><span class="t"><span class="com"># DEPRECATED ATTRIBUTES HANDLING</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t1432" href="#t1432">1432</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1433" href="#t1433">1433</a></span><span class="t">            <span class="nam">msg</span> <span class="op">=</span> <span class="str">f"ViUR created a new admin-user for you!\nUsername: {uname}\nPassword: {pw}"</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t1434" href="#t1434">1434</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1435" href="#t1435">1435</a></span><span class="t">            <span class="nam">logging</span><span class="op">.</span><span class="nam">warning</span><span class="op">(</span><span class="nam">msg</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1436" href="#t1436">1436</a></span><span class="t">            <span class="nam">email</span><span class="op">.</span><span class="nam">sendEMailToAdmins</span><span class="op">(</span><span class="str">"New ViUR password"</span><span class="op">,</span> <span class="nam">msg</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t1437" href="#t1437">1437</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1438" href="#t1438">1438</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1439" href="#t1439">1439</a></span><span class="t"><span class="key">def</span> <span class="nam">__getattr__</span><span class="op">(</span><span class="nam">attr</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1440" href="#t1440">1440</a></span><span class="t">    <span class="key">match</span> <span class="nam">attr</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1441" href="#t1441">1441</a></span><span class="t">        <span class="key">case</span> <span class="str">"userSkel"</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1442" href="#t1442">1442</a></span><span class="t">            <span class="nam">msg</span> <span class="op">=</span> <span class="str">f"Use of `userSkel` is deprecated; Please use `UserSkel` instead!"</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1443" href="#t1443">1443</a></span><span class="t">            <span class="nam">warnings</span><span class="op">.</span><span class="nam">warn</span><span class="op">(</span><span class="nam">msg</span><span class="op">,</span> <span class="nam">DeprecationWarning</span><span class="op">,</span> <span class="nam">stacklevel</span><span class="op">=</span><span class="num">2</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1444" href="#t1444">1444</a></span><span class="t">            <span class="nam">logging</span><span class="op">.</span><span class="nam">warning</span><span class="op">(</span><span class="nam">msg</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1445" href="#t1445">1445</a></span><span class="t">            <span class="key">return</span> <span class="nam">UserSkel</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t1446" href="#t1446">1446</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1447" href="#t1447">1447</a></span><span class="t">    <span class="key">return</span> <span class="nam">super</span><span class="op">(</span><span class="nam">__import__</span><span class="op">(</span><span class="nam">__name__</span><span class="op">)</span><span class="op">.</span><span class="nam">__class__</span><span class="op">)</span><span class="op">.</span><span class="nam">__getattr__</span><span class="op">(</span><span class="nam">attr</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t1439" href="#t1439">1439</a></span><span class="t"><span class="com"># DEPRECATED ATTRIBUTES HANDLING</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t1440" href="#t1440">1440</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1441" href="#t1441">1441</a></span><span class="t"><span class="key">def</span> <span class="nam">__getattr__</span><span class="op">(</span><span class="nam">attr</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1442" href="#t1442">1442</a></span><span class="t">    <span class="key">match</span> <span class="nam">attr</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1443" href="#t1443">1443</a></span><span class="t">        <span class="key">case</span> <span class="str">"userSkel"</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1444" href="#t1444">1444</a></span><span class="t">            <span class="nam">msg</span> <span class="op">=</span> <span class="str">f"Use of `userSkel` is deprecated; Please use `UserSkel` instead!"</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1445" href="#t1445">1445</a></span><span class="t">            <span class="nam">warnings</span><span class="op">.</span><span class="nam">warn</span><span class="op">(</span><span class="nam">msg</span><span class="op">,</span> <span class="nam">DeprecationWarning</span><span class="op">,</span> <span class="nam">stacklevel</span><span class="op">=</span><span class="num">2</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1446" href="#t1446">1446</a></span><span class="t">            <span class="nam">logging</span><span class="op">.</span><span class="nam">warning</span><span class="op">(</span><span class="nam">msg</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1447" href="#t1447">1447</a></span><span class="t">            <span class="key">return</span> <span class="nam">UserSkel</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t1448" href="#t1448">1448</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1449" href="#t1449">1449</a></span><span class="t">    <span class="key">return</span> <span class="nam">super</span><span class="op">(</span><span class="nam">__import__</span><span class="op">(</span><span class="nam">__name__</span><span class="op">)</span><span class="op">.</span><span class="nam">__class__</span><span class="op">)</span><span class="op">.</span><span class="nam">__getattr__</span><span class="op">(</span><span class="nam">attr</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -1538,7 +1540,7 @@
             <a id="nextFileLink" class="nav" href="d_e295e1cac9db2f73_pagination_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.3.2">coverage.py v7.3.2</a>,
-            created at 2023-10-10 06:57 +0000
+            created at 2023-10-10 07:09 +0000
         </p>
     </div>
 </footer>
