@@ -530,9 +530,9 @@ class Router:
                 self.disableCache = True
 
         # Destill context as self.context, if available
-        if context := {k: v for k, v in kwargs.items() if k.startswith("@")}:
+        if context := {k: v for k, v in self.kwargs.items() if k.startswith("@")}:
             # Remove context parameters from kwargs
-            kwargs = {k: v for k, v in kwargs.items() if k not in context}
+            kwargs = {k: v for k, v in self.kwargs.items() if k not in context}
             # Remove leading "@" from context parameters
             self.context |= {k[1:]: v for k, v in context.items() if len(k) > 1}
         else:
