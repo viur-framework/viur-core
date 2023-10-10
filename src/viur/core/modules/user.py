@@ -1453,9 +1453,11 @@ def createNewUserIfNotExists():
                 logging.error("Something went wrong when trying to add admin user %s with Password %s", uname, pw)
                 logging.exception(e)
                 return
-            logging.warning("ViUR created a new admin-user for you! Username: %s, Password: %s", uname, pw)
-            email.sendEMailToAdmins("Your new ViUR password",
-                                    "ViUR created a new admin-user for you! Username: %s, Password: %s" % (uname, pw))
+
+            msg = f"ViUR created a new admin-user for you!\nUsername: {uname}\nPassword: {pw}"
+
+            logging.warning(msg)
+            email.sendEMailToAdmins("New ViUR password", msg)
 
 
 # DEPRECATED ATTRIBUTES HANDLING
