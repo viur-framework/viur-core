@@ -1002,7 +1002,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             params={
                 "name": translate(self.NAME),
                 "action_name": self.ACTION_NAME,
-                "action_url": self.add_url,
+                "action_url": self.action_url,
             },
             tpl=self.second_factor_login_template,
         )
