@@ -31,6 +31,7 @@ def create(
         duration: typing.Union[None, int] = None,
         session_bound: bool = True,
         key_length: int = 13,
+        indexed: bool = True,
         **custom_data) -> str:
     """
         Creates a new one-time CSRF-security-key.
@@ -40,6 +41,7 @@ def create(
 
         :param duration: Make this CSRF-token valid for a fixed timeframe of seconds.
         :param session_bound: Bind this CSRF-token to the current session.
+        :param indexed: Indexes all values stored with the security-key (default), set False to not index.
         :param custom_data: Any other data is stored with the CSRF-token, for later re-use.
 
         :returns: The new one-time key, which is a randomized string.
@@ -57,6 +59,10 @@ def create(
 
     entity["viur_session"] = current.session.get().cookie_key if session_bound else None
     entity["viur_until"] = utils.utcNow() + datetime.timedelta(seconds=int(duration))
+
+    if not indexed:
+        entity.exclude_from_indexes = [k for k in entity.keys() if not k.startswith("viur_")]
+
     db.Put(entity)
 
     return key
