@@ -25,6 +25,8 @@ from viur.core.logging import client as loggingClient, requestLogger, requestLog
 from viur.core.securityheaders import extendCsp
 from viur.core.tasks import _appengineServiceIPs
 
+TEMPLATE_STYLE_KEY = "style"
+
 
 class RequestValidator(ABC):
     """
@@ -117,7 +119,8 @@ class Router:
         self.pendingTasks = []
         self.args = ()
         self.kwargs = {}
-        self.contexts = {}
+        self.context = {}
+        self.template_style: str | None = None
 
         # Check if it's a HTTP-Method we support
         self.method = self.request.method.lower()
@@ -310,6 +313,7 @@ class Router:
                 raise
             self.response.body = b""
             if isinstance(e, errors.HTTPException):
+                logging.info(f"[{e.status}] {e.name}: {e.descr}", exc_info=conf["viur.debug.trace"])
                 self.response.status = '%d %s' % (e.status, e.name)
                 # Set machine-readable x-viur-error response header in case there is an exception description.
                 if e.descr:
@@ -411,7 +415,7 @@ class Router:
 
             while self.pendingTasks:
                 task = self.pendingTasks.pop()
-                logging.info("Running task directly after request: %s" % str(task))
+                logging.debug(f"Deferred task emulation, executing {task=}")
                 task()
 
     def _route(self, path: str) -> None:
@@ -444,6 +448,10 @@ class Router:
             if key.startswith("_"):  # Ignore keys starting with _ (like VI's _unused_time_stamp)
                 continue
 
+            if key == TEMPLATE_STYLE_KEY:
+                self.template_style = value
+                continue
+
             if key in self.kwargs:
                 if isinstance(self.kwargs[key], list):
                     self.kwargs[key].append(value)
@@ -467,7 +475,7 @@ class Router:
                 raise errors.Unauthorized()
 
             idx += 1
-            part = part.replace("-", "_").replace(".", "_")
+            part = part.replace("-", "_")
             if part not in caller:
                 part = "index"
 
@@ -522,12 +530,20 @@ class Router:
                 logging.debug("Caching disabled by X-Viur-Disable-Cache header")
                 self.disableCache = True
 
-        # Copy contexts into self.contexts if available
-        if contexts := {k: v for k, v in self.kwargs.items() if k.startswith("@")}:
-            kwargs = {k: v for k, v in self.kwargs.items() if k not in contexts}
-            self.contexts |= contexts
+        # Destill context as self.context, if available
+        if context := {k: v for k, v in self.kwargs.items() if k.startswith("@")}:
+            # Remove context parameters from kwargs
+            kwargs = {k: v for k, v in self.kwargs.items() if k not in context}
+            # Remove leading "@" from context parameters
+            self.context |= {k[1:]: v for k, v in context.items() if len(k) > 1}
         else:
             kwargs = self.kwargs
+
+        if ((self.internalRequest and conf["viur.debug.traceInternalCallRouting"])
+                or conf["viur.debug.traceExternalCallRouting"]):
+            logging.debug(
+                f"Calling {caller._func!r} with args={self.args!r}, {kwargs=} within context={self.context!r}"
+            )
 
         # Now call the routed method!
         res = caller(*self.args, **kwargs)

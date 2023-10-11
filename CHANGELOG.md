@@ -1,9 +1,23 @@
 # Changelog
 
-This file documents any relevant changes done to ViUR-core since version 3.0.0.
+This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.5.0.rc4]
+## [3.5.1]
 
+- fix: Accept `staticSecurityKey` from sessions created by viur-core < 3.5 (#877)
+- fix: Replace unused `otpTemplate` by new `second_factor_login_template` (#876)
+- fix(docs): Add and lock all docs dependencies (#875)
+- fix: Remove the `style` which is reserved for template completely from the request kwargs (#870)
+- fix: Re-add missing `skel.fromDB()` in `Tree.move` (#874)
+- ci: Fixed codecov path
+
+## [3.5.0]
+
+- fix: Move warning-email "Debug mode enabled" (#869)
+- fix: Add logging for raised `HTTPException` (#864)
+- fix: Remove replace of `.` to `_` (#865)
+- fix: Reactivate old-style `trace*CallRouting` for backward compatibility (#866)
+- fix: Remove `viur.core` decorator import advise (#868)
 - feat: Add `onAdd()`-hook in `User.add()` method (#863)
 - fix: Include `requirements.txt` in dist wheel again (#862)
 - fix: Additional fixing for `@skey(allow_empty=True)` (#861)

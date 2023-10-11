@@ -73,7 +73,7 @@ class Session:
 
                 self.cookie_key = cookie_key
                 self.session = data["data"]
-                self.static_security_key = data["static_security_key"]
+                self.static_security_key = data.get("static_security_key") or data.get("staticSecurityKey")
 
                 if data["lastseen"] < time.time() - 5 * 60:  # Refresh every 5 Minutes
                     self.changed = True

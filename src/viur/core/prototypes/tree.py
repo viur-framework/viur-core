@@ -512,6 +512,9 @@ class Tree(SkelModule):
         skel = self.editSkel(skelType)  # srcSkel - the skeleton to be moved
         parentNodeSkel = self.baseSkel("node")  # destSkel - the node it should be moved into
 
+        if not skel.fromDB(key):
+            raise errors.NotFound("Cannot find entity to move")
+
         if not parentNodeSkel.fromDB(parentNode):
             parentNode = utils.normalizeKey(db.Key.from_legacy_urlsafe(parentNode))
 

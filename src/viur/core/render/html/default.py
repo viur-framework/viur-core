@@ -91,8 +91,8 @@ class Render(object):
 
         if (
             not ignoreStyle
-            and (style := current.request.get().kwargs.get("style"))
-            and all([x in validChars for x in style.lower()])
+            and (style := current.request.get().template_style)
+            and all(x in validChars for x in style.lower())
         ):
             style_postfix = f"_{style}"
         else:
