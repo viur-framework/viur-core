@@ -773,14 +773,14 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         if res is None:
             otp_user_conf["attempts"] = attempts + 1
             session.markChanged()
-
+            skel = self.OtpSkel()
+            skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
             return self._user_module.render.edit(
-                self.OtpSkel(),
+                skel,
                 name=translate(self.NAME),
                 action_name=self.ACTION_NAME,
                 action_url=f"{self.modulePath}/{self.ACTION_NAME}",
-                tpl=self.second_factor_login_template,
-                secondFactorFailed=True,
+                tpl=self.second_factor_login_template
             )
 
         # Remove otp user config from session
@@ -1014,7 +1014,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         if AuthenticatorOTP.verify_otp(otp=otp_token, secret=user["otp_app_secret"]):
             return self._user_module.secondFactorSucceeded(self, user_key)
 
-        skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token")]
+        skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
         return self._user_module.render.edit(
             skel,
             name=translate(self.NAME),
