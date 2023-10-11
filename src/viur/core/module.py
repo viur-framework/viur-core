@@ -496,6 +496,7 @@ class Module:
     """
 
     def __init__(self, moduleName: str, modulePath: str, *args, **kwargs):
+        self.log = logging.getLogger(self.__class__.__name__)
         self.render = None  # will be set to the appropriate render instance at runtime
         self._cached_description = None  # caching used by describe()
         self.moduleName = moduleName  # Name of this module (usually it's class name, e.g. "file")

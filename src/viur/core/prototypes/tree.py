@@ -1,4 +1,3 @@
-import logging
 from typing import Any, Dict, List, Literal, Optional, Type
 from viur.core import utils, errors, db, current
 from viur.core.decorators import *
@@ -188,9 +187,9 @@ class Tree(SkelModule):
         :param depth: Safety level depth preventing infinitive loops.
         """
         if depth > 99:
-            logging.critical("Maximum recursion depth reached in %s/updateParentRepo", self.updateParentRepo.__module__)
-            logging.critical("Your data is corrupt!")
-            logging.critical("Params: parentNode: %s, newRepoKey: %s" % (parentNode, newRepoKey))
+            self.log.critical("Maximum recursion depth reached in %s/updateParentRepo", self.updateParentRepo.__module__)
+            self.log.critical("Your data is corrupt!")
+            self.log.critical("Params: parentNode: %s, newRepoKey: %s" % (parentNode, newRepoKey))
             return
 
         def fixTxn(nodeKey, newRepoKey):
@@ -747,10 +746,10 @@ class Tree(SkelModule):
 
         .. seealso:: :func:`add`, :func:`onAdd`
         """
-        logging.info("Entry of kind %r added: %s", skelType, skel["key"])
+        self.log.info(f"Entry {skelType} {skel['key']} added")
         flushCache(kind=skel.kindName)
         if user := current.user.get():
-            logging.info("User: %s (%s)" % (user["name"], user["key"]))
+            self.log.info(f"By user {user['name']!r} ({user['key']})")
 
     def onEdit(self, skelType: SkelType, skel: SkeletonInstance):
         """
@@ -777,10 +776,10 @@ class Tree(SkelModule):
 
         .. seealso:: :func:`edit`, :func:`onEdit`
         """
-        logging.info("Entry of kind %r changed: %s", skelType, skel["key"])
+        self.log.info(f"Entry {skelType} {skel['key']} edited")
         flushCache(key=skel["key"])
         if user := current.user.get():
-            logging.info("User: %s (%s)" % (user["name"], user["key"]))
+            self.log.info(f"By user {user['name']!r} ({user['key']})")
 
     def onView(self, skelType: SkelType, skel: SkeletonInstance):
         """
@@ -824,10 +823,10 @@ class Tree(SkelModule):
 
         .. seealso:: :func:`delete`, :func:`onDelete`
         """
-        logging.info("Entry deleted: %s (%s)" % (skel["key"], type(skel)))
+        self.log.info(f"Entry {skelType} {skel['key']} deleted")
         flushCache(key=skel["key"])
         if user := current.user.get():
-            logging.info("User: %s (%s)" % (user["name"], user["key"]))
+            self.log.info(f"By user {user['name']!r} ({user['key']})")
 
 
 Tree.vi = True

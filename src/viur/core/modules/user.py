@@ -5,7 +5,6 @@ import functools
 import hashlib
 import hmac
 import json
-import logging
 import secrets
 import warnings
 import user_agents
@@ -348,7 +347,7 @@ class UserPassword(UserPrimaryAuthentication):
             return self._user_module.render.login(skel, loginFailed=True, accountStatus=status)
 
         if iterations < PBKDF2_DEFAULT_ITERATIONS:
-            logging.info(f"Update password hash for user {name}.")
+            self.log.info(f"Update password hash for user {name}.")
             # re-hash the password with more iterations
             skel = self._user_module.editSkel()
             skel.setEntity(user_entry)
@@ -607,7 +606,7 @@ class GoogleAccount(UserPrimaryAuthentication):
                     if userInfo.get("hd") and userInfo["hd"] in conf["viur.user.google.gsuiteDomains"]:
                         print("User is from domain - adding account")
                     else:
-                        logging.warning("Denying registration of %s", email)
+                        self.log.warning("Denying registration of %s", email)
                         raise errors.Forbidden("Registration for new users is disabled")
 
                 userSkel = addSkel()  # We'll add a new user
@@ -855,13 +854,13 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         secret = bytes.decode(base64.b32encode(bytes.fromhex(secret)))  # decode secret
         otp = str(otp).zfill(6)  # fill with zeros in front
 
-        # logging.debug(f"TimeBasedOTP:verify: {digest=}, {interval=}, {valid_window=}")
+        # self.log.debug(f"TimeBasedOTP:verify: {digest=}, {interval=}, {valid_window=}")
         totp = pyotp.TOTP(secret, digest=digest, interval=interval)
 
         if valid_window:
             for offset in range(timedrift - valid_window, timedrift + valid_window + 1):
                 token = str(totp.at(for_time, offset))
-                # logging.debug(f"TimeBasedOTP:verify: {offset=}, {otp=}, {token=}")
+                # self.log.debug(f"TimeBasedOTP:verify: {offset=}, {otp=}, {token=}")
                 if hmac.compare_digest(otp, token):
                     return offset
 
@@ -956,7 +955,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         Write a new OTP Token in the current user entry.
         """
         if otp_app_secret is None:
-            logging.error("No 'otp_app_secret' is provided")
+            self.log.error("No 'otp_app_secret' is provided")
             raise errors.PreconditionFailed("No 'otp_app_secret' is provided")
         if not (cuser := current.user.get()):
             raise errors.Unauthorized()
@@ -977,7 +976,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         if not (cuser := current.user.get()):
             raise errors.Unauthorized()
         if not (issuer := conf["viur.otp.issuer"]):
-            logging.warning(
+            self.log.warning(
                 f"""conf["viur.otp.issuer"] is None we replace the issuer by conf["viur.instance.project_id"]""")
             issuer = conf["viur.instance.project_id"]
 
@@ -1320,13 +1319,13 @@ class User(List):
                 skel["lastlogin"] = now
                 skel.toDB(update_relations=False)
 
-        logging.info(f"""User {skel["name"]} logged in""")
+        self.log.info(f"""User {skel["name"]} logged in""")
 
     def onLogout(self, skel: skeleton.SkeletonInstance):
         """
         Hook to be called on user logout.
         """
-        logging.info(f"""User {skel["name"]} logged out""")
+        self.log.info(f"""User {skel["name"]} logged out""")
 
     @exposed
     def view(self, key: db.Key | int | str = "self", *args, **kwargs):
@@ -1454,13 +1453,13 @@ def createNewUserIfNotExists():
             try:
                 addSkel.toDB()
             except Exception as e:
-                logging.error("Something went wrong when trying to add admin user %s with Password %s", uname, pw)
-                logging.exception(e)
+                self.log.error("Something went wrong when trying to add admin user %s with Password %s", uname, pw)
+                self.log.exception(e)
                 return
 
             msg = f"ViUR created a new admin-user for you!\nUsername: {uname}\nPassword: {pw}"
 
-            logging.warning(msg)
+            self.log.warning(msg)
             email.sendEMailToAdmins("New ViUR password", msg)
 
 
@@ -1471,7 +1470,7 @@ def __getattr__(attr):
         case "userSkel":
             msg = f"Use of `userSkel` is deprecated; Please use `UserSkel` instead!"
             warnings.warn(msg, DeprecationWarning, stacklevel=2)
-            logging.warning(msg)
+            self.log.warning(msg)
             return UserSkel
 
     return super(__import__(__name__).__class__).__getattr__(attr)

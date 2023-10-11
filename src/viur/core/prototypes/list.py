@@ -1,4 +1,3 @@
-import logging
 from typing import Any, Optional
 from viur.core import current, db, errors, utils
 from viur.core.decorators import *
@@ -74,7 +73,7 @@ class List(SkelModule):
         """
         return self.baseSkel(*args, **kwargs)
 
-    ## External exposed functions
+    # External exposed functions
 
     @exposed
     @force_post
@@ -307,7 +306,7 @@ class List(SkelModule):
     def getDefaultListParams(self):
         return {}
 
-    ## Default access control functions
+    # Default access control functions
 
     def listFilter(self, query: db.Query) -> Optional[db.Query]:
         """
@@ -471,7 +470,7 @@ class List(SkelModule):
 
         return False
 
-    ## Override-able event-hooks
+    # Override-able event-hooks
 
     def onAdd(self, skel: SkeletonInstance):
         """
@@ -496,10 +495,10 @@ class List(SkelModule):
 
             .. seealso:: :func:`add`, , :func:`onAdd`
         """
-        logging.info("Entry added: %s" % skel["key"])
+        self.log.info(f"Entry {skel['key']} added")
         flushCache(kind=skel.kindName)
         if user := current.user.get():
-            logging.info("User: %s (%s)" % (user["name"], user["key"]))
+            self.log.info(f"By user {user['name']!r} ({user['key']})")
 
     def onEdit(self, skel: SkeletonInstance):
         """
@@ -524,10 +523,10 @@ class List(SkelModule):
 
             .. seealso:: :func:`edit`, :func:`onEdit`
         """
-        logging.info("Entry changed: %s" % skel["key"])
+        self.log.info(f"Entry {skel['key']} edited")
         flushCache(key=skel["key"])
         if user := current.user.get():
-            logging.info("User: %s (%s)" % (user["name"], user["key"]))
+            self.log.info(f"By user {user['name']!r} ({user['key']})")
 
     def onView(self, skel: SkeletonInstance):
         """
@@ -565,10 +564,10 @@ class List(SkelModule):
 
             .. seealso:: :func:`delete`, :func:`onDelete`
         """
-        logging.info("Entry deleted: %s" % skel["key"])
+        self.log.info(f"Entry {skel['key']} deleted")
         flushCache(key=skel["key"])
         if user := current.user.get():
-            logging.info("User: %s (%s)" % (user["name"], user["key"]))
+            self.log.info(f"By user {user['name']!r} ({user['key']})")
 
 
 List.admin = True

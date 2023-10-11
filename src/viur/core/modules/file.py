@@ -94,7 +94,7 @@ def thumbnailer(fileSkel, existingFiles, params):
     file_name = html.unescape(fileSkel["name"])
     blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"], file_name))
     if not blob:
-        logging.warning("Blob %s/source/%s is missing from cloud storage!" % (fileSkel["dlkey"], file_name))
+        self.log.warning("Blob %s/source/%s is missing from cloud storage!" % (fileSkel["dlkey"], file_name))
         return
     fileData = BytesIO()
     blob.download_to_file(fileData)
@@ -119,7 +119,7 @@ def thumbnailer(fileSkel, existingFiles, params):
                                                 outputProfile=dst_profile,
                                                 outputMode="RGB")
             except Exception as e:
-                logging.exception(e)
+                self.log.exception(e)
                 continue
         fileExtension = sizeDict.get("fileExtension", "webp")
         if "width" in sizeDict and "height" in sizeDict:
@@ -174,7 +174,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
         else:
             path = f"""{fileSkel["dlkey"]}/source/{file_name}"""
             if not (blob := bucket.get_blob(path)):
-                logging.warning(f"Blob {path} is missing from cloud storage!")
+                self.log.warning(f"Blob {path} is missing from cloud storage!")
                 return None
             authRequest = requests.Request()
             expiresAt = datetime.now() + timedelta(seconds=60)
@@ -199,23 +199,23 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
                 case 302:
                     # The problem is Google resposen 302 to an auth Site when the cloudfunction was not found
                     # https://cloud.google.com/functions/docs/troubleshooting#login
-                    logging.error("Cloudfunction not found")
+                    self.log.error("Cloudfunction not found")
                 case 404:
-                    logging.error("Cloudfunction not found")
+                    self.log.error("Cloudfunction not found")
                 case 403:
-                    logging.error("No permission for the Cloudfunction")
+                    self.log.error("No permission for the Cloudfunction")
                 case _:
-                    logging.error(
+                    self.log.error(
                         f"cloudfunction_thumbnailer failed with code: {resp.status_code} and data: {resp.content}")
             return
 
         try:
             response_data = resp.json()
         except Exception as e:
-            logging.error(f"response could not be converted in json failed with: {e=}")
+            self.log.error(f"response could not be converted in json failed with: {e=}")
             return
         if "error" in response_data:
-            logging.error(f"cloudfunction_thumbnailer failed with: {response_data.get('error')}")
+            self.log.error(f"cloudfunction_thumbnailer failed with: {response_data.get('error')}")
             return
 
         return response_data
@@ -259,7 +259,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
                 reslist.append((key, value["size"], value["mimetype"], value["customData"]))
 
     except Exception as e:
-        logging.error(f"cloudfunction_thumbnailer failed with: {e=}")
+        self.log.error(f"cloudfunction_thumbnailer failed with: {e=}")
     return reslist
 
 
@@ -699,8 +699,7 @@ class File(Tree):
                 session.markChanged()
             blobs = list(bucket.list_blobs(prefix="%s/" % skel["dlkey"]))
             if len(blobs) != 1:
-                logging.error("Invalid number of blobs in folder")
-                logging.error(targetKey)
+                self.log.error(f"Invalid number of blobs in folder {targetKey}")
                 raise errors.PreconditionFailed()
             blob = blobs[0]
             skel["mimetype"] = utils.escapeString(blob.content_type)
