@@ -383,7 +383,7 @@ class UserPassword(UserPrimaryAuthentication):
             # This is the first step, where we ask for the username of the account we'll going to reset the password on
             skel = self.LostPasswordStep1Skel()
 
-            if not current_request.isPostRequest or not skel.fromClient(kwargs):
+            if "method-post" not in current_request.flags or not skel.fromClient(kwargs):
                 return self._user_module.render.edit(skel, tpl=self.passwordRecoveryStep1Template)
 
             # validate security key
