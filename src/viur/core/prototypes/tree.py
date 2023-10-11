@@ -187,9 +187,9 @@ class Tree(SkelModule):
         :param depth: Safety level depth preventing infinitive loops.
         """
         if depth > 99:
-            self.log.critical("Maximum recursion depth reached in %s/updateParentRepo", self.updateParentRepo.__module__)
-            self.log.critical("Your data is corrupt!")
-            self.log.critical("Params: parentNode: %s, newRepoKey: %s" % (parentNode, newRepoKey))
+            self.log.critical(
+                f"Maximum recursion {depth=} reached, {parentNode=}, {newRepoKey=}, maybe a data corruption"
+            )
             return
 
         def fixTxn(nodeKey, newRepoKey):
