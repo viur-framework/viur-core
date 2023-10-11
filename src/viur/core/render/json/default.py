@@ -1,7 +1,7 @@
 import json
 from enum import Enum
 
-from viur.core import bones, utils, db, current
+from viur.core import bones, utils, db, current, skeleton
 from viur.core.skeleton import SkeletonInstance
 from viur.core.i18n import translate
 from viur.core.config import conf
@@ -85,19 +85,29 @@ class DefaultRender(object):
         :return: A dict containing the rendered attributes.
         """
         if isinstance(bone, bones.RelationalBone):
-            if isinstance(value, dict):
-                return {
-                    "dest": self.renderSkelValues(value["dest"], injectDownloadURL=isinstance(bone, bones.FileBone)),
-                    "rel": (self.renderSkelValues(value["rel"], injectDownloadURL=isinstance(bone, bones.FileBone))
-                            if value["rel"] else None),
-                }
+            if not isinstance(value, dict):
+                return None  # FIXME: Shall I raise?
+
+            dest = value["dest"]
+            rel = value["rel"]
+
+            if bone.expand:
+                skel = skeleton.skeletonByKind(bone.kind)()
+                if not skel.fromDB(dest["key"]):
+                    return None  # FIXME: Shall I raise?
+
+                dest = skel
+
+            return {
+                "dest": self.renderSkelValues(dest, injectDownloadURL=isinstance(bone, bones.FileBone)),
+                "rel": self.renderSkelValues(rel, injectDownloadURL=isinstance(bone, bones.FileBone)) if rel else None,
+            }
         elif isinstance(bone, bones.RecordBone):
             return self.renderSkelValues(value)
         elif isinstance(bone, bones.PasswordBone):
             return ""
-        else:
-            return value
-        return None
+
+        return value
 
     def renderBoneValue(self, bone: bones.BaseBone, skel: SkeletonInstance, key: str) -> Union[List, Dict, None]:
         boneVal = skel[key]

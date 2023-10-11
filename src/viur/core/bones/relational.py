@@ -165,6 +165,7 @@ class RelationalBone(BaseBone):
         self,
         *,
         consistency: RelationalConsistency = RelationalConsistency.Ignore,
+        expand: bool = False,
         format: str = "$(dest.name)",
         kind: str = None,
         module: Optional[str] = None,
@@ -194,7 +195,10 @@ class RelationalBone(BaseBone):
                 Otherwise its n:1, (you can only select exactly one). It's possible to use a unique constraint on this
                 bone, allowing for at-most-1:1 or at-most-1:n relations. Instead of true, it's also possible to use
                 a :class:MultipleConstraints instead.
-
+            :param expand:
+                If True, allows for specific renders to expand the values of this relational bone to its full skeleton,
+                and not only the specified refKeys. This is useful to directly fetch entire data structures with just
+                one request, and is useful for modern single-page-apps.
             :param format: Hint for the frontend how to display such an relation. This is now a python expression
                 evaluated by safeeval on the client side. The following values will be passed to the expression
 
@@ -253,6 +257,7 @@ class RelationalBone(BaseBone):
         """
         super().__init__(**kwargs)
         self.format = format
+        self.expand = expand
 
         if kind:
             self.kind = kind
@@ -291,9 +296,7 @@ class RelationalBone(BaseBone):
         self.consistency = consistency
 
         if getSystemInitialized():
-            from viur.core.skeleton import RefSkel, SkeletonInstance
-            self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
-            self._skeletonInstanceClassRef = SkeletonInstance
+            self.setSystemInitialized()
 
     def setSystemInitialized(self):
         """
@@ -306,13 +309,9 @@ class RelationalBone(BaseBone):
         :rtype: None
         """
         super().setSystemInitialized()
-        from viur.core.skeleton import RefSkel, SkeletonInstance
-        self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
-        self._skeletonInstanceClassRef = SkeletonInstance
-
-    # from viur.core.skeleton import RefSkel, skeletonByKind
-    # self._refSkelCache = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
-    # self._usingSkelCache = self.using() if self.using else None
+        from viur.core import skeleton
+        self._refSkelCache = skeleton.RefSkel.fromSkel(self.kind, *self.refKeys)  # FIXME: Rename this stupid name!
+        self._skeletonInstanceClassRef = skeleton.SkeletonInstance  # FIXME: WTF????????
 
     def _getSkels(self):
         """
@@ -1324,10 +1323,16 @@ class RelationalBone(BaseBone):
             return self._hashValueForUniquePropertyIndex([x["dest"]["key"] for x in value])
 
     def structure(self) -> dict:
+        if self.expand:
+            from viur.core import skeleton
+            dest_skel = skeleton.skeletonByKind(self.kind)()
+        else:
+            dest_skel = self._refSkelCache()
+
         return super().structure() | {
             "type": f"{self.type}.{self.kind}",
             "module": self.module,
             "format": self.format,
-            "using": self.using().structure() if self.using else None,
-            "relskel": self._refSkelCache().structure(),
+            "using": self.using().structure() if self.using else None,  # FIXME: Rename, see #647
+            "relskel": dest_skel.structure(),  # FIXME: Rename, see #647
         }
