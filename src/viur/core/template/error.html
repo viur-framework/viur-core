@@ -8,56 +8,38 @@
         * {
             -webkit-box-sizing: border-box;
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
         body {
-            padding: 0;
-            margin: 0;
-            font-size: 1em;
             line-height: normal;
             background-color: #f1f1f1;
-            font-family: 'Arial', sans-serif;
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 16px;
         }
 
         .wrapper {
-            position: relative;
-            height: 100vh;
-            width: 100%;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            overflow: auto;
-            align-items: center;
+            overflow: hidden;
+            min-height: 100vh;
+            width: 90%;
+            max-width: {% if traceback -%}1200{%- else -%}900{%- endif -%}px;
+            margin: 0 auto;
+            padding-top: 30px;
+            background-color: #fff;
         }
 
         .bind {
-            border-radius: 30px;
-            overflow: hidden;
-            width: 90%;
-            margin: 5% 0;
-            max-width: 900px;
-        }
-
-        header {
             text-align: center;
-            padding-bottom: 25px;
-            background-color: #fff;
-        }
-
-        footer {
-            margin: 0 auto;
-            max-height: 40vh;
-            position: relative;
-            background-color: #fff;
-            min-height: 25vh;
-            padding: 20px
         }
 
         .logo {
-            width: 50%;
+            width: 7em;
             max-width: 200px;
             margin: 0 auto;
-            padding-top: 40px;
         }
 
         .logo img {
@@ -65,66 +47,84 @@
         }
 
         .logo .st0 {
-            fill: #EEEEEE;
+            fill: #eeeeee;
         }
 
         .logo .st1 {
-            fill: #E3E3E3;
+            fill: #e3e3e3;
         }
 
         .error-title {
-            font-size: 3em;
-            color: #ddd;
-            line-height: 1.7;
+            font-size: 2.9em;
+            line-height: 1.2;
             font-weight: 900;
             margin: 0 40px;
-            padding: 30px 0 0;
+            padding: 30px 0 0 0;
         }
 
         .error-descr {
-            border-bottom: 1px solid #ccc;
-            border-top: 1px solid #ccc;
             padding: 15px;
+            margin: 10px 40px 5px 40px;
             line-height: normal;
-            margin: 10px 40px;
+            text-wrap: balance;
             color: #777;
-            text-transform: uppercase;
-            letter-spacing: 1px
         }
 
         .error-traceback {
             overflow: auto;
-            position: absolute;
-            height: calc(100% - 40px);
             max-height: 100%;
-            padding: 20px;
-            border: 1px solid #ddd;
+            padding: 20px 25px;
+            margin: 40px;
+            word-break: break-all;
+            text-align: left;
+            font-size: .95em;
             background-color: #f7f7f7;
-            border-radius: 20px;
+            border: 1px solid #ddd;
         }
 
         a.btn {
             display: inline-block;
+            font-size: 1em;
             font-weight: 700;
             text-decoration: none;
-            border: 2px solid transparent;
-            text-transform: uppercase;
-            padding: 8px 16px;
-            font-size: 1em;
-            border-radius: 40px;
+            letter-spacing: .03em;
+            padding: .6em .9em;
             margin: 10px;
-            letter-spacing: 1px;
-            background-color: #990000;
-            color: #fff
+            background: linear-gradient(to top right, #cc0000 0%, #db6d23 100%);
+            color: #fff;
+            border-radius: 5px;
+            transition: all ease .3s;
         }
 
-        .btn:hover {
+        a.btn:hover {
             opacity: 0.9;
         }
 
-        @media only screen and (max-width: 1023px) {
+        @media (max-width: 700px) {
+            .error-title {
+                font-size: 2.5em;
+            }
+        }
+
+        @media (max-width: 900px) {
             .wrapper {
-                justify-content: flex-start;
+                width: 100%;
+            }
+
+            .error-descr {
+                margin: 20px 20px 30px 20px;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            body {
+                font-size: 14px;
+            }
+        }
+
+        @media (min-width: 1920px) {
+            body {
+                font-size: 18px;
             }
         }
     </style>
@@ -133,28 +133,24 @@
 <body>
 <div class="wrapper">
     <div class="bind">
-        <header>
-            <div class="logo">
-                {% if logo -%}
-                    <img loading="lazy" alt="Logo" src="{{ logo }}">
-                {%- else -%}
-                    <svg xml:space="preserve" viewBox="0 0 300 200">
-                        <path d="m172.172 39.796-43.017 158.38h46.927l37.151-195.53-41.061 37.15z" class="st0"/>
-                        <path d="m147.3 131.1-26.8-60.9-34.3 30.3 43.2 97.1zM176.5 198h.3l-.2-.5z" class="st1"/>
-                    </svg>
-                {%- endif %}
-            </div>
-            <div class="error-title">{{ status }} {{ title }}</div>
-            <div class="error-descr">{{ descr }}</div>
-            <a href="/" class="btn home-btn">{% translate "core.error.home", "Home" %}</a>
-        </header>
+        <div class="logo">
+            {% if logo -%}
+                <img loading="lazy" alt="Logo" src="{{ logo }}">
+            {%- else -%}
+                <svg xml:space="preserve" viewBox="0 0 300 200">
+                    <path d="m172.172 39.796-43.017 158.38h46.927l37.151-195.53-41.061 37.15z" class="st0"></path>
+                    <path d="m147.3 131.1-26.8-60.9-34.3 30.3 43.2 97.1zM176.5 198h.3l-.2-.5z" class="st1"></path>
+                </svg>
+            {%- endif %}
+        </div>
+        <div class="error-title">{{ status }} {{ title }}</div>
+        <div class="error-descr">{{ descr }}</div>
+        <a href="/" class="btn home-btn">{% translate "core.error.home", "Home" %}</a>
 
         {% if traceback -%}
-            <footer>
-                <div class="error-traceback">
-                    <pre>{{ traceback|escape }}</pre>
-                </div>
-            </footer>
+            <div class="error-traceback">
+                <pre>{{ traceback|escape }}</pre>
+            </div>
         {%- endif %}
     </div>
 </div>
