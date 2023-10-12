@@ -632,7 +632,7 @@ class GoogleAccount(UserAuthentication):
 
 class UserSecondFactorAuthentication(UserAuthentication, abc.ABC):
     """Abstract class for all second factors."""
-
+    MAX_RETRY = 3
     second_factor_login_template = "user_login_secondfactor"
     """Template to enter the TOPT on login"""
 
@@ -661,7 +661,6 @@ class UserSecondFactorAuthentication(UserAuthentication, abc.ABC):
 
 class TimeBasedOTP(UserSecondFactorAuthentication):
     WINDOW_SIZE = 5
-    MAX_RETRY = 3
     ACTION_NAME = "otp"
     NAME = "Time based Otp"
     second_factor_login_template = "user_login_secondfactor"
@@ -733,9 +732,11 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
 
         return self._user_module.render.edit(
             self.OtpSkel(),
-            name=translate(self.NAME),
-            action_name=self.ACTION_NAME,
-            action_url=f"{self.modulePath}/{self.ACTION_NAME}",
+            params={
+                "name": translate(self.NAME),
+                "action_name": self.ACTION_NAME,
+                "action_url": f"{self.modulePath}/{self.ACTION_NAME}",
+            },
             tpl=self.second_factor_login_template
         )
 
@@ -773,14 +774,13 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         if res is None:
             otp_user_conf["attempts"] = attempts + 1
             session.markChanged()
-
+            skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
             return self._user_module.render.edit(
-                self.OtpSkel(),
+                skel,
                 name=translate(self.NAME),
                 action_name=self.ACTION_NAME,
                 action_url=f"{self.modulePath}/{self.ACTION_NAME}",
-                tpl=self.second_factor_login_template,
-                secondFactorFailed=True,
+                tpl=self.second_factor_login_template
             )
 
         # Remove otp user config from session
@@ -985,11 +985,17 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
 
     @exposed
     def start(self):
+        otp_user_conf = {"attempts": 0}
+        session = current.session.get()
+        session["_otp_user"] = otp_user_conf
+        session.markChanged()
         return self._user_module.render.edit(
             TimeBasedOTP.OtpSkel(),
-            name=translate(self.NAME),
-            action_name=self.ACTION_NAME,
-            action_url=self.action_url,
+            params={
+                "name": translate(self.NAME),
+                "action_name": self.ACTION_NAME,
+                "action_url": self.action_url,
+            },
             tpl=self.second_factor_login_template,
         )
 
@@ -1003,6 +1009,13 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         session = current.session.get()
         user_key = db.Key(self._user_module.kindName, session["possible_user_key"])
 
+        if not (otp_user_conf := session.get("_otp_user")):
+            raise errors.PreconditionFailed("No OTP process started in this session")
+
+        # Check if maximum second factor verification attempts
+        if (attempts := otp_user_conf.get("attempts") or 0) > self.MAX_RETRY:
+            raise errors.Forbidden("Maximum amount of authentication retries exceeded")
+
         if not (user := db.Get(user_key)):
             raise errors.NotFound()
 
@@ -1013,8 +1026,9 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
 
         if AuthenticatorOTP.verify_otp(otp=otp_token, secret=user["otp_app_secret"]):
             return self._user_module.secondFactorSucceeded(self, user_key)
-
-        skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token")]
+        otp_user_conf["attempts"] = attempts + 1
+        session.markChanged()
+        skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
         return self._user_module.render.edit(
             skel,
             name=translate(self.NAME),
