@@ -566,7 +566,7 @@ class Module:
             ret |= admin_info
 
         # Cache description for later re-use.
-        if conf["viur.cache.module_description"]:
+        if self._cached_description is not False:
             self._cached_description = ret
 
         return ret

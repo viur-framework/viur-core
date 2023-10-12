@@ -84,8 +84,6 @@ conf = Conf({
     # the computed cache-key
     "viur.cacheEnvironmentKey": None,
 
-    "viur.cache.module_description": True,
-
     # Backward compatibility flags; Remove to enforce new layout.
     "viur.compatibility": [
         "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
