@@ -2,6 +2,15 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.5.2]
+
+- fix: Built a standardized way for the return of errors in 2Factor (#900)
+- fix: `Formmailer` expects a `skey` parameter, but it uses the `@skey` decorator (#903)
+- chore: Update dependencies to latest version (#899)
+- fix: Prefix `project_id` to all admin emails (#885)
+- fix: Remove `@`-marker from request context destillation (#884, #888)
+- fix: Downgrade debug level for emulated deferred tasks (#883)
+
 ## [3.5.1]
 
 - fix: Accept `staticSecurityKey` from sessions created by viur-core < 3.5 (#877)
