@@ -1,4 +1,3 @@
-
 -----------------
 Module management
 -----------------
@@ -15,9 +14,8 @@ Creating a module is simple. It just requires to put a class named like the new 
 
 .. code-block:: python
    :caption: modules/person.py
-   :linenos:
+:linenos:
 
-   #-*- coding: utf-8 -*-
    from viur.core.prototypes import List
 
    class Person(List):
@@ -29,7 +27,7 @@ The **class**-statement in line 4 finally introduces the class of the new module
 
 The naming of the class has also two important purposes:
 
-1. The module tries to resolve for a skeleton named after the module in lower-case order with a trailing "Skel" that is used as data model. So in this example, "personSkel" will be the name of the skeleton ViUR will try to resolve. This detection can be completely bypassed, by overriding :meth:`baseSkel<core.prototypes.list.List.baseSkel>` and returning an appropriate skeleton instance.
+1. The module tries to resolve for a skeleton named after the module in lower-case order with a trailing "Skel" that is used as data model. So in this example, "PersonSkel" will be the name of the skeleton ViUR will try to resolve. This detection can be completely bypassed, by overriding :meth:`baseSkel<core.prototypes.list.List.baseSkel>` and returning an appropriate skeleton instance.
 
 2. If the default project setup has been done, the module is automatically imported in lower-case order (person) into the application, so it can be accessed by ``/person`` or ``/renderer/person`` as first part of the URL. This naming convention can be entirely changed by importing the module manually in the file ``modules/__init__.py``.
 

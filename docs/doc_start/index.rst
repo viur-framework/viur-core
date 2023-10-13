@@ -1,7 +1,7 @@
 ================================
 Quickstart (the short version)
 ================================
-    1) Ensure that you have Python3.7+, gcloud sdk and git installed
+    1) Ensure that you have Python3.10+, gcloud sdk and git installed
     2) Register a new application-id on https://console.cloud.google.com/
     3) Enable the Firestore in *datastore* mode in this project
     4) Run the following commands

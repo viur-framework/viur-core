@@ -130,11 +130,11 @@ The skeleton shown in the graphic above is defined in a file ``person.py`` which
 
     class PersonSkel(Skeleton):
         name = StringBone(
-            descr="Name"
+            descr="Name",
         )
 
-        age = numericBone(
-            descr="Age"
+        age = NumericBone(
+            descr="Age",
         )
 
 That's it. When this Skeleton is connected to a module later on, ViUR's admin tools like the Vi automatically provide an auto-generated input mask on it.
