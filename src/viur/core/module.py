@@ -352,8 +352,8 @@ class Module:
     handler: str | typing.Callable = None
     """
     This is the module's handler, respectively its type.
-    It can be provided as a callable() which determines the handler at runtime.
-    A module without a handler setting is invalid.
+    Use the @property-decorator in specific Modules to construct the handler's value dynamically.
+    A module without a handler setting cannot be described, so cannot be handled by admin-tools.
     """
 
     accessRights: tuple[str] = None
@@ -542,7 +542,7 @@ class Module:
             return self._cached_description
 
         # Retrieve handler
-        if not (handler := self.handler() if callable(self.handler) else self.handler):
+        if not (handler := self.handler):
             return None
 
         # Default description
