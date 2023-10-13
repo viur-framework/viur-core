@@ -5,7 +5,7 @@ Module management
 
 In ViUR, any custom modules are established on top of one of the four module prototypes. The modules are the linchpin of every ViUR application. They provide interfaces to securely add, edit, delete or view entries, to perform custom operations and tasks, to prepare output data or validate input data.
 
-The most commonly used module prototype is :class:`List<core.prototypes.list.List>`, which provides a flat list of database entries with the same entity kind. To become more familiar with the management of modules in general, the next sections are mostly using the :class:`~server.prototypes.list.List` module prototype again as its base. Moreover, the other module prototypes and their specialities are discussed later on, when the basics of the :class:`~server.prototypes.list.List` module are understood so far.
+The most commonly used module prototype is :class:`List<core.prototypes.list.List>`, which provides a flat list of database entries with the same entity kind. To become more familiar with the management of modules in general, the next sections are mostly using the :class:`~viur.core.prototypes.list.List` module prototype again as its base. Moreover, the other module prototypes and their specialities are discussed later on, when the basics of the :class:`~viur.core.prototypes.list.List` module are understood so far.
 
 
 Creating modules
@@ -18,7 +18,7 @@ Creating a module is simple. It just requires to put a class named like the new 
    :linenos:
 
    #-*- coding: utf-8 -*-
-   from server.prototypes import List
+   from viur.core.prototypes import List
 
    class Person(List):
       pass
