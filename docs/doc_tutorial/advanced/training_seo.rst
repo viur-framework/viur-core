@@ -14,8 +14,8 @@ It maps a *language* to the according *identifier*.
 
 .. code-block:: python
     :name: module seo-map
-:caption: modules/myorders.py
-:emphasize-lines: 4-7
+    :caption: modules/myorders.py
+    :emphasize-lines: 4-7
 
     from viur.core.prototypes import List
 
@@ -39,8 +39,8 @@ It maps a *language* to the according *identifier*.
 
 .. code-block:: python
     :name: method seo-map
-:caption: modules/myorders.py
-:emphasize-lines: 10-13
+    :caption: modules/myorders.py
+    :emphasize-lines: 10-13
 
     from viur.core.prototypes import List
     from viur.core import exposed
@@ -79,8 +79,8 @@ A timestamp, a bone value, a composition of bones values, ….
 
 .. code-block:: python
     :name: entry seo-map
-:caption: skeletons/myorders.py
-:emphasize-lines: 20-38
+    :caption: skeletons/myorders.py
+    :emphasize-lines: 20-38
 
     from typing import Union, Dict
 
