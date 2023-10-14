@@ -360,7 +360,7 @@ class Router:
                     res = json.dumps(error_info)
                 else:  # We render the error in html
                     # Try to get the template from html/error/
-                    if filename := conf["viur.mainApp"].render.getTemplateFileName((f"{error_info['status']}", "errodr"),
+                    if filename := conf["viur.mainApp"].render.getTemplateFileName((f"{error_info['status']}", "error"),
                                                                                    raise_exception=False):
                         template = conf["viur.mainApp"].render.getEnv().get_template(filename)
                         nonce = utils.generateRandomString(16)
