@@ -360,14 +360,16 @@ class Router:
                     res = json.dumps(error_info)
                 else:  # We render the error in html
                     # Try to get the template from html/error/
-                    if filename := conf["viur.mainApp"].render.getTemplateFileName((f"{error_info['status']}", "error"),
+                    if filename := conf["viur.mainApp"].render.getTemplateFileName((f"{error_info['status']}", "errodr"),
                                                                                    raise_exception=False):
                         template = conf["viur.mainApp"].render.getEnv().get_template(filename)
                         nonce = utils.generateRandomString(16)
                         res = template.render(error_info, nonce=nonce)
                         extendCsp({"style-src": [f"nonce-{nonce}"]})
                     else:
-                        res = f"""<html><h1>{error_info["status"]} - {error_info["reason"]}"""
+                        res = (f'<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'
+                               f'<title>{error_info["status"]} - {error_info["reason"]}</title>'
+                               f'</head><body><h1>{error_info["status"]} - {error_info["reason"]}</h1>')
 
             self.response.write(res.encode("UTF-8"))
 
