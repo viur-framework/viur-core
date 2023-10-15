@@ -15,6 +15,8 @@ google-cloud-secret-manager = "~=2.0"
 google-cloud-storage = "~=2.0"
 google-cloud-tasks = "~=2.0"
 google-resumable-media = "~=2.0"
+googleapis-common-protos = { version = "~=1.0", extras = ["grpc"] }
+google-api-core = { version = "~=2.0", extras = ["grpc"] }
 gunicorn = "~=21.0"
 jinja2 = "~=3.0"
 jsonschema = "~=4.0"
