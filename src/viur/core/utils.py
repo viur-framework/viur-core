@@ -273,7 +273,7 @@ def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
     return db.Key(key.kind, key.id_or_name, parent=parent)
 
 
-def prefixes(name: str, prefix: str, delimiter: str = ".") -> bool:
+def is_prefix(name: str, prefix: str, delimiter: str = ".") -> bool:
     """
     Utility function to check if a given name matches a prefix,
     which defines a specialization, delimited by `delimiter`.
