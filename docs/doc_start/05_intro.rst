@@ -31,7 +31,7 @@ ViUR is made for agile software development. The data model can be entirely chan
 
 The system is not only intended to be used by developers. With the use of `Jinja`_ as its template engine for HTML, ViUR is also interesting for designers. A lot of build-in functions, a clear template implementation concept and a collection of macros for data rendering and dynamic input form creation help to connect their creative visions and ideas with a powerful software development framework.
 
-.. _Jinja: http://jinja.pocoo.org/
+.. _Jinja: https://jinja.palletsprojects.com/
 
 =================
 Who created ViUR?
