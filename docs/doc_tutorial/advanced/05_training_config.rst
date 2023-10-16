@@ -291,6 +291,7 @@ The value must be given in seconds. Defaults to 60 minutes.
 If no request is received within that window, the session is terminated and the user will have to login again.
 
 
+.. _config-viur-session-persistentFieldsOnLogin:
 viur.session.persistentFieldsOnLogin
 ....................................
 Preserve session values on login.
@@ -308,6 +309,7 @@ For security reasons, the session is reset when a user logs in. Only fields spec
     current.session.get().markChanged()
 
 
+.. _config-viur-session-persistentFieldsOnLogout:
 viur.session.persistentFieldsOnLogout
 .....................................
 Preserve session values on logout.
