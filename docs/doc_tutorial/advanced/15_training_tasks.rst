@@ -81,7 +81,7 @@ It would be a waste of resources if we rebuild each index frequently.
 So this task is only called on demand. If the developer has made changes to the data model,
 he calls that task once for each affected kind.
 Creating such a task is also easy, it's a Class derived from :py:class:`core.tasks.CallableTaskBase` and decorated with
-:meth:`core.tasks.CallableTask`. The derived subclass must override the following properties and functions.
+:meth:`core.tasks.CallableTask`. The derived subclass must overwrite the following properties and functions.
 
 +-------------+----------------------------+----------------------------------------------------------------------+
 | Name        | Type                       | Description                                                          |
