@@ -2,6 +2,17 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.5.3]
+
+- docs: Improve basics and getting started tutorials (#916)
+- docs: remove old configs, fix RST-Syntax and adjustments for server->core (#913)
+- docs: Fix SEO training after renaming in #800 (#912)
+- docs: Improve and correct session docs (#914)
+- ci: Add python 3.11 to matrix in test workflow (#917)
+- chore: Downgrade urllib3 to `1.26.17` (#918)
+- fix: Add `google-api-core[grpc]` and `googleapis-common-protos[grpc]` (#911)
+- feat: Add a way to disable `Module.describe()` caching (#906)
+
 ## [3.5.2]
 
 - fix: Built a standardized way for the return of errors in 2Factor (#900)

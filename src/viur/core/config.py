@@ -183,9 +183,6 @@ conf = Conf({
     # Maps modules to their translation (if set)
     "viur.languageModuleMap": {},
 
-    # If true, ViUR will log missing translations in the datastore
-    "viur.logMissingTranslations": False,
-
     # Reference to our pre-build Application-Instance
     "viur.mainApp": None,
 

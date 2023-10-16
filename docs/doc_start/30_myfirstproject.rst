@@ -3,7 +3,7 @@ My first ViUR Project
 #####################
 
 After completing the first steps in the Google Cloud Console you can start programming your first ViUR Application.
-To start, you will need to set up you ViUR system localy.
+To start, you will need to set up you ViUR system locally.
 
 .. warning::
     Before performing the following steps, please make sure to visit `Awesome ViUR <https://awesome.viur.dev>`_
@@ -27,7 +27,7 @@ Start with ViUR
     # The console output should look like this:
     /home/user/.local/bin/viur
 
-3. Create a new local ViUR project for the appengine project you have already created
+3. Create a new local ViUR project for the App Engine project you have already created
 
   .. note::
     If you don't know about this, please revisit "ViUR and the Google Cloud Console"
@@ -37,8 +37,8 @@ Start with ViUR
 
     viur create projectname
 
-  This commmand will prompt you to enter a application name and a develop version name.
-  We recommend naming the application name after your appengine project.
+  This command will prompt you to enter a application name and a develop version name.
+  We recommend naming the application name after your App Engine project.
   The develop version name should be the same, but with a "-dev" postfix.
 
   .. code-block:: bash
@@ -101,7 +101,7 @@ Start with ViUR
 
   .. code-block:: bash
 
-    #This script enables API's and configures some more appengine stuff
+    #This script enables API's and configures some more App Engine stuff
     ./viur-gcloud-setup.sh projectname
 
 8. Try out your installation by running your dev server
@@ -137,11 +137,11 @@ In case you have locked yourself out of your own system. There is a possible way
 all your user data and log ins.
 
 .. warning::
-    All your user data will be deleted in the Appengine and it will not be recoverable.
+    All your user data will be deleted in the App Engine and it will not be recoverable.
     We only recommend this, if you see no other option of logging into your administration system
 
 .. Note::
-    The ViUR-Developers recommmend the usage of a Password Manager
+    The ViUR-Developers recommend the usage of a Password Manager
 
 1. Open https://console.cloud.google.com and navigate to your project
 2. Navigate to the `Datastore Entities Site <https://console.cloud.google.com/datastore/databases/-default-/entities>`_ of your project.

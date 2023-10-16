@@ -1,4 +1,3 @@
-
 SpatialBone
 ^^^^^^^^^^^^
 
@@ -115,7 +114,7 @@ Our algorithm may return points further away, but there might be points in betwe
     :figclass: align-center
 
     Size of the minimum guranteed correctness distance
-    
+
 
 
 

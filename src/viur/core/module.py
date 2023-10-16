@@ -566,7 +566,8 @@ class Module:
             ret |= admin_info
 
         # Cache description for later re-use.
-        self._cached_description = ret
+        if self._cached_description is not False:
+            self._cached_description = ret
 
         return ret
 
