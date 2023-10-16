@@ -9,7 +9,7 @@ For this you can define seo-identifiers for each url component.
 Module
 ------
 The module name is the first part of a URL.
-SEO-identifiers have to be set as class-attribute ``seoLanguageMap`` of type ``dict[str, str]`` in the module.
+SEO-identifiers have to be set as class-attribute ``seo_language_map`` of type ``dict[str, str]`` in the module.
 It maps a *language* to the according *identifier*.
 
 .. code-block:: python
@@ -20,13 +20,13 @@ It maps a *language* to the according *identifier*.
     from viur.core.prototypes import List
 
     class MyOrders(List):
-        seoLanguageMap = {
+        seo_language_map = {
             "de": "bestellungen",
             "en": "orders",
         }
 
 By default the module would be available under */myorders*, the lowercase module name.
-With the defined :attr:`seoLanguageMap`, it will become available as */de/bestellungen* and */en/orders*.
+With the defined :attr:`seo_language_map`, it will become available as */de/bestellungen* and */en/orders*.
 
 Great, this part is now user and robot friendly :)
 
@@ -34,7 +34,7 @@ Great, this part is now user and robot friendly :)
 Method
 ------
 The method name is usually the second part of a URL.
-SEO-Identfiers can be provided to the :meth:`exposed<core.exposed>` decorator of type ``dict[str, str]``.
+SEO-Identifiers can be provided to the :meth:`exposed<core.exposed>` decorator of type ``dict[str, str]``.
 It maps a *language* to the according *identifier*.
 
 .. code-block:: python
@@ -46,7 +46,7 @@ It maps a *language* to the according *identifier*.
     from viur.core import exposed
 
     class MyOrders(List):
-        seoLanguageMap = {
+        seo_language_map = {
             "de": "bestellungen",
             "en": "orders",
         }
@@ -59,17 +59,17 @@ It maps a *language* to the according *identifier*.
             ...
 
 By default the method would be available under */myorders/view_the_cart*.
-With the defined `seoLanguageMap`, it will become available as */de/bestellungen/warenkorb* and */en/orders/cart*.
+With the defined `seo_language_map`, it will become available as */de/bestellungen/warenkorb* and */en/orders/cart*.
 
 Great, this part is now user and robot friendly as well :)
 
 
 Entry
 -----
-The entrykey is usually used as third part of a URL if you use explicit the view method.
+The entry key is usually used as third part of a URL if you use explicit the view method.
 By default the :meth:`index<core.prototypes.list.List.index>` method
 of the :class:`List prototype<core.prototypes.list.List>`
-can handle keys or seo-indentifiers of an entry as well.
+can handle keys or seo-identifiers of an entry as well.
 
 SEO-Identfiers of an entry (a :class:`Skeleton<core.skeleton.Skeleton>` instance) are defined in the
 method :meth:`getCurrentSEOKeys<core.skeleton.Skeleton.getCurrentSEOKeys>` inside your Skeleton.
