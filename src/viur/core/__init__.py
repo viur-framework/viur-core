@@ -132,7 +132,9 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
     resolver = {}
 
     for module_name, module_cls in vars(modules).items():  # iterate over all modules
-        if not inspect.isclass(module_cls) or not issubclass(module_cls, Module):
+        # print((module_name, module_cls))
+        if (not inspect.isclass(module_cls) or not issubclass(module_cls, Module)) and not isinstance(module_cls, Module):
+            # print(("skip", module_name, module_cls))
             continue
 
         if module_name == "index":
@@ -205,6 +207,8 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
     if not render:
         import viur.core.render
         render = viur.core.render
+    # from pprint import pprint
+    # pprint(dir(modules))
     conf["viur.mainApp"] = buildApp(modules, render, default)
     # conf["viur.wsgiApp"] = webapp.WSGIApplication([(r'/(.*)', BrowseHandler)])
 
