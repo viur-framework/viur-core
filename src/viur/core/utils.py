@@ -288,10 +288,10 @@ def is_prefix(name: str, prefix: str, delimiter: str = ".") -> bool:
 
     .. code-block:: python
         handler = "tree.file.special"
-        utils.prefixes(handler, "tree")  # True
-        utils.prefixes(handler, "tree.node")  # False
-        utils.prefixes(handler, "tree.file")  # True
-        utils.prefixes(handler, "tree.file.special")  # True
+        utils.is_prefix(handler, "tree")  # True
+        utils.is_prefix(handler, "tree.node")  # False
+        utils.is_prefix(handler, "tree.file")  # True
+        utils.is_prefix(handler, "tree.file.special")  # True
     """
     return name == prefix or name.startswith(prefix + delimiter)
 
