@@ -273,6 +273,29 @@ def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
     return db.Key(key.kind, key.id_or_name, parent=parent)
 
 
+def is_prefix(name: str, prefix: str, delimiter: str = ".") -> bool:
+    """
+    Utility function to check if a given name matches a prefix,
+    which defines a specialization, delimited by `delimiter`.
+
+    In ViUR, modules, bones, renders, etc. provide a kind or handler
+    to classify or subclassify the specific object. To securitly
+    check for a specific type, it is either required to ask for the
+    exact type or if its prefixed by a path delimited normally by
+    dots.
+
+    Example:
+
+    .. code-block:: python
+        handler = "tree.file.special"
+        utils.is_prefix(handler, "tree")  # True
+        utils.is_prefix(handler, "tree.node")  # False
+        utils.is_prefix(handler, "tree.file")  # True
+        utils.is_prefix(handler, "tree.file.special")  # True
+    """
+    return name == prefix or name.startswith(prefix + delimiter)
+
+
 def parse_bool(value: Any, truthy_values: typing.Iterable = ("true", "yes", "1")) -> bool:
     """
     Parse a value into a boolean based on accepted truthy values.
@@ -286,6 +309,7 @@ def parse_bool(value: Any, truthy_values: typing.Iterable = ("true", "yes", "1")
     :returns: True if the value matches any of the truthy values, False otherwise.
     """
     return str(value).strip().lower() in truthy_values
+
 
 # DEPRECATED ATTRIBUTES HANDLING
 __utils_conf_replacement = {
