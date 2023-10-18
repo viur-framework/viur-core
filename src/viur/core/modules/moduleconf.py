@@ -46,7 +46,7 @@ class ModuleConf(List):
     accessRights = ["edit"]
 
     def adminInfo(self):
-        return conf.viur.get("moduleconf_admin_info") or {}
+        return conf.viur.moduleconf_admin_info or {}
 
     def canAdd(self):
         return False

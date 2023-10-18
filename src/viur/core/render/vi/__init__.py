@@ -155,7 +155,7 @@ def get_settings():
     fields = {key: values for key, values in conf.items()
               if key.startswith("admin.")}
 
-    fields["admin.user.google.clientID"] = conf.get("viur.user.google.clientID", "")
+    fields["admin.user.google.clientID"] = conf.viur.user_google_client_id
 
     current.request.get().response.headers["Content-Type"] = "application/json"
     return json.dumps(fields)

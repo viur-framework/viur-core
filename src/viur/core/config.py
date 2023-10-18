@@ -20,8 +20,11 @@ class ConfigType:
     _mapping = {}
     _parent = None
 
-    def __init__(self, parent: Union["ConfigType", None] = None):
+    def __init__(self,
+                 strict_mode: bool = None,
+                 parent: Union["ConfigType", None] = None):
         super().__init__()
+        self._strict_mode = strict_mode
         self._parent = parent
 
     @property
@@ -29,6 +32,22 @@ class ConfigType:
         if self._parent is None:
             return ""
         return f"{self._parent._path}{self.__class__.__name__.lower()}."
+
+    @property
+    def strict_mode(self):
+        # logging.debug(f"{self.__class__=} // {self._parent=} // {self._strict_mode=}")
+        if self._strict_mode is not None or self._parent is None:
+            # This config has an explicit value set or there's no parent
+            return self._strict_mode
+        else:
+            # no value set: inherit from the parent
+            return self._parent.strict_mode
+
+    @strict_mode.setter
+    def strict_mode(self, value: bool | None):
+        if not isinstance(value, (bool, type(None))):
+            raise TypeError(f"Invalid {value=} for strict mode!")
+        self._strict_mode = value
 
     def _resolve_mapping(self, key):
         if key in self._mapping:
@@ -49,12 +68,16 @@ class ConfigType:
         """
         # print(self, self.__dict__, vars(self), dir(self))
         for key in dir(self):
+            # print(f"{key = }")
+            # FIXME: Why is strict_mode here a problem?
+            if key in {"_parent", "_strict_mode", "strict_mode"}:  # TODO: use .startswith("_") ???
+                continue
             value = getattr(self, key)
             # print(f"{key = }, {value = }")
-            if key == "_parent":
-                continue
-            elif recursive and isinstance(value, ConfigType):
-                yield from value.items(full_path)
+            # if key.startswith("_"):  # TODO: use .startswith("_") ???
+            #     continue
+            if recursive and isinstance(value, ConfigType):
+                yield from value.items(full_path, recursive)
             elif key not in dir(ConfigType):
                 if full_path:
                     yield f"{self._path}{key}", value
@@ -66,6 +89,12 @@ class ConfigType:
 
     def get(self, key, default: Any = None) -> Any:
         """Return an item from the config, if it doesn't exist `default` is returned."""
+        if self.strict_mode:
+            raise SyntaxError(
+                f"In strict mode, the config must not be accessed "
+                f"with .get(). Only attribute access is allowed."
+            )
+
         try:
             return self[key]
         except (KeyError, AttributeError):
@@ -74,9 +103,16 @@ class ConfigType:
     def __getitem__(self, key: str) -> Any:
         """Support the old dict Syntax (getter)."""
         # print(f"CALLING __getitem__({self.__class__}, {key})")
+
         warnings.warn(f"conf uses now attributes! "
                       f"Use conf.{self._path}{key} to access your option",
                       ViurDeprecationsWarning)
+
+        if self.strict_mode:
+            raise SyntaxError(
+                f"In strict mode, the config must not be accessed "
+                f"with dict notation. Only attribute access is allowed."
+            )
 
         # VIUR3.3: Handle deprecations...
         match key:
@@ -104,6 +140,12 @@ class ConfigType:
     def __setitem__(self, key: str, value: Any) -> None:
         """Support the old dict Syntax (setter)."""
         # print(f"CALLING __setitem__({self.__class__}, {key}, {value})")
+
+        if self.strict_mode:
+            raise SyntaxError(
+                f"In strict mode, the config must not be accessed "
+                f"with dict notation. Only attribute access is allowed."
+            )
 
         # VIUR3.3: Handle deprecations...
         match key:
@@ -265,6 +307,9 @@ class Viur(ConfigType):
     file_derivers = {}
     """Call-Map for file pre-processors"""
 
+    file_thumbnailer_url = None
+    # TODO: """docstring"""
+
     instance_app_version = _app_version
     """Name of this version as deployed to the appengine"""
 
@@ -371,6 +416,9 @@ class Viur(ConfigType):
     }
     """User roles available on this project"""
 
+    user_google_client_id = None
+    """OAuth Client ID for Google Login"""
+
     validApplicationIDs = []
     """Which application-ids we're supposed to run on"""
 
@@ -389,6 +437,7 @@ class Viur(ConfigType):
         "static.embedSvg.path": "static_embedSvg_path",
         "file.hmacKey": "file_hmacKey",
         "file.derivers": "file_derivers",
+        "file.thumbnailerURL": "file_thumbnailer_url",
         "instance.app_version": "instance_app_version",
         "instance.core_base_path": "instance_core_base_path",
         "instance.is_dev_server": "instance_is_dev_server",
@@ -405,7 +454,7 @@ class Viur(ConfigType):
         "skeleton.searchPath": "skeleton_search_path",
         "tasks.customEnvironmentHandler": "tasks_customEnvironmentHandler",
         "user.roles": "user_roles",
-        "user.google.clientID": "user_google_clientID",
+        "user.google.clientID": "user_google_client_id",
         "user.google.gsuiteDomains": "user_google_gsuiteDomains",
     }
 
@@ -515,8 +564,9 @@ class Conf(ConfigType):
     Conf class wraps the conf dict and allows to handle deprecated keys or other special operations.
     """
 
-    def __init__(self):
+    def __init__(self, strict_mode: bool = False):
         super().__init__()
+        self._strict_mode = strict_mode
         self.admin = Admin(self)
         self.viur = Viur(self)
         self.security = Security(self)
@@ -535,14 +585,26 @@ class Conf(ConfigType):
         return super()._resolve_mapping(key)
 
 
-conf = Conf()
+# from viur.core import utils
+
+conf = Conf(
+    strict_mode=os.getenv("VIUR_CORE_CONFIG_STRICT_MODE", "").lower() == "true",
+)
+
+print(os.getenv("CONFIG_STRICT_MODE"))
+print(os.environ)
+
+from pprint import pprint  # noqa
 
 # pprint(conf)
 # for k,v in conf.items():
 #     print(f"{k} = {v}")
 # print("# DUMP IT!")
-# pprint(dict(conf.items(True)))
+pprint(dict(conf.items()))
+pprint(dict(conf.items(True)))
 # print("## REPRESENT YOURSELF!")
 # print(repr(conf))
 # print("# PPRINT")
-# print(pprint(conf))
+print(pprint(conf))
+
+# import viur.core.utils

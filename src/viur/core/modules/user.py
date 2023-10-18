@@ -571,8 +571,8 @@ class GoogleAccount(UserPrimaryAuthentication):
     @skey(allow_empty=True)
     def login(self, token: str | None = None, *args, **kwargs):
         # FIXME: Check if already logged in
-        if not conf.get("viur.user.google.clientID"):
-            raise errors.PreconditionFailed("Please configure 'viur.user.google.clientID' in your conf!")
+        if not conf.viur.user_google_client_id:
+            raise errors.PreconditionFailed("Please configure conf.viur.user_google_client_id!")
         if not token:
             request = current.request.get()
             request.response.headers["Content-Type"] = "text/html"
@@ -584,11 +584,11 @@ class GoogleAccount(UserPrimaryAuthentication):
                   .joinpath("viur/core/template/vi_user_google_login.html")
                   .open() as tpl_file):
                 tplStr = tpl_file.read()
-            tplStr = tplStr.replace("{{ clientID }}", conf.viur.user_google_clientID)
+            tplStr = tplStr.replace("{{ clientID }}", conf.viur.user_google_client_id)
             extendCsp({"script-src": ["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
                        "style-src": ["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]})
             return tplStr
-        userInfo = id_token.verify_oauth2_token(token, requests.Request(), conf.viur.user_google_clientID)
+        userInfo = id_token.verify_oauth2_token(token, requests.Request(), conf.viur.user_google_client_id)
         if userInfo['iss'] not in {'accounts.google.com', 'https://accounts.google.com'}:
             raise ValueError('Wrong issuer.')
         # Token looks valid :)

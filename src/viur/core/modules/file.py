@@ -154,7 +154,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
 
        from viur.core.modules.file import cloudfunction_thumbnailer
 
-       conf.viur.file.thumbnailerURL="https://xxxxx.cloudfunctions.net/imagerenderer"
+       conf.viur.file_thumbnailer_url="https://xxxxx.cloudfunctions.net/imagerenderer"
        conf.viur.file_derivers = {"thumbnail": cloudfunction_thumbnailer}
 
        conf.derives_pdf = {
@@ -165,8 +165,8 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
        test = FileBone(derive=conf.derives_pdf)
        """
 
-    if not conf.get("viur.file.thumbnailerURL", False):
-        raise ValueError("viur.file.thumbnailerURL is not set")
+    if not conf.viur.file_thumbnailer_url:
+        raise ValueError("conf.viur.file_thumbnailer_url is not set")
 
     def getsignedurl():
         if conf.viur.instance_is_dev_server:
@@ -193,7 +193,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
         data_str = base64.b64encode(json.dumps(dataDict).encode("UTF-8"))
         sig = utils.hmacSign(data_str)
         datadump = json.dumps({"dataStr": data_str.decode('ASCII'), "sign": sig})
-        resp = _requests.post(conf.viur.file.thumbnailerURL, data=datadump, headers=headers, allow_redirects=False)
+        resp = _requests.post(conf.viur.file_thumbnailer_url, data=datadump, headers=headers, allow_redirects=False)
         if resp.status_code != 200:  # Error Handling
             match resp.status_code:
                 case 302:
