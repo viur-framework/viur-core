@@ -548,9 +548,9 @@ class Router:
         # Now call the routed method!
         res = caller(*self.args, **kwargs)
 
-            if not isinstance(res, bytes):  # Convert the result to bytes if it is not already!
-                res = str(res).encode("UTF-8")
-            self.response.write(res)
+        if not isinstance(res, bytes):  # Convert the result to bytes if it is not already!
+            res = str(res).encode("UTF-8")
+        self.response.write(res)
 
     def saveSession(self) -> None:
         current.session.get().save(self)
