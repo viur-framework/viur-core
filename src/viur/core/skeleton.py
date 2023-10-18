@@ -666,7 +666,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     viurCurrentSeoKeys = seoKeyBone(descr="Seo-Keys",
                                     readOnly=True,
                                     visible=False,
-                                    languages=conf.viur.availableLanguages)
+                                    languages=conf.viur.available_languages)
 
     def __repr__(self):
         return "<skeleton %s with data=%r>" % (self.kindName, {k: self[k] for k in self.keys()})
@@ -913,7 +913,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                         .replace("&", "") \
                         .replace("#", "").strip()
                     currentSeoKeys[lang] = value
-            for language in (conf.viur.availableLanguages or [conf.viur.defaultLanguage]):
+            for language in (conf.viur.available_languages or [conf.viur.defaultLanguage]):
                 if currentSeoKeys and language in currentSeoKeys:
                     currentKey = currentSeoKeys[language]
                     if currentKey != lastRequestedSeoKeys.get(language):  # This one is new or has changed

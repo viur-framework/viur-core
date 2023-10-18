@@ -130,7 +130,7 @@ class UserSkel(skeleton.Skeleton):
         descr=i18n.translate("viur.user.bone.access", defaultText="Access rights"),
         values=lambda: {
             right: i18n.translate("server.modules.user.accessright.%s" % right, defaultText=right)
-            for right in sorted(conf.viur.accessRights)
+            for right in sorted(conf.viur.access_rights)
         },
         multiple=True,
         params={

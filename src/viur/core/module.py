@@ -361,7 +361,7 @@ class Module:
     If set, a tuple of access rights (like add, edit, delete) that this module supports.
 
     These will be prefixed on instance startup with the actual module name (becoming file-add, file-edit etc)
-    and registered in ``conf.viur.accessRights`` so these will be available on the access bone in user/add
+    and registered in ``conf.viur.access_rights`` so these will be available on the access bone in user/add
     or user/edit.
     """
 
@@ -505,9 +505,9 @@ class Module:
             for right in self.accessRights:
                 right = f"{self.moduleName}-{right}"
 
-                # fixme: Turn conf.viur.accessRights into a set.
-                if right not in conf.viur.accessRights:
-                    conf.viur.accessRights.append(right)
+                # fixme: Turn conf.viur.access_rights into a set.
+                if right not in conf.viur.access_rights:
+                    conf.viur.access_rights.append(right)
 
         # Collect methods and (sub)modules
         self._methods = {}
@@ -581,7 +581,7 @@ class Module:
 
         # Map module under SEO-mapped name, if available.
         if self.seo_language_map:
-            for lang in conf.viur.availableLanguages or [conf.viur.defaultLanguage]:
+            for lang in conf.viur.available_languages or [conf.viur.defaultLanguage]:
                 # Map the module under each translation
                 if translated_module_name := self.seo_language_map.get(lang):
                     translated_module = target.setdefault(translated_module_name, {})

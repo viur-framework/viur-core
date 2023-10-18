@@ -160,7 +160,7 @@ class Router:
             or extract it from the URL.
         """
         sessionReference = current.session.get()
-        if not conf.viur.availableLanguages:
+        if not conf.viur.available_languages:
             # This project doesn't use the multi-language feature, nothing to do here
             return path
         if conf.viur.languageMethod == "session":
@@ -168,7 +168,7 @@ class Router:
             if "lang" not in sessionReference:
                 if "X-Appengine-Country" in self.request.headers:
                     lng = self.request.headers["X-Appengine-Country"].lower()
-                    if lng in conf.viur.availableLanguages + list(conf.viur.languageAliasMap.keys()):
+                    if lng in conf.viur.available_languages + list(conf.viur.languageAliasMap.keys()):
                         sessionReference["lang"] = lng
                         current.language.set(lng)
                     else:
@@ -190,7 +190,7 @@ class Router:
             tmppath = [unquote(x) for x in tmppath.lower().strip("/").split("/")]
             if (
                 len(tmppath) > 0
-                and tmppath[0] in conf.viur.availableLanguages + list(conf.viur.languageAliasMap.keys())
+                and tmppath[0] in conf.viur.available_languages + list(conf.viur.languageAliasMap.keys())
             ):
                 current.language.set(tmppath[0])
                 return path[len(tmppath[0]) + 1:]  # Return the path stripped by its language segment
@@ -199,7 +199,7 @@ class Router:
                     current.language.set(sessionReference["lang"])
                 elif "X-Appengine-Country" in self.request.headers.keys():
                     lng = self.request.headers["X-Appengine-Country"].lower()
-                    if lng in conf.viur.availableLanguages or lng in conf.viur.languageAliasMap:
+                    if lng in conf.viur.available_languages or lng in conf.viur.languageAliasMap:
                         current.language.set(lng)
         return path
 

@@ -235,10 +235,10 @@ class Admin(ConfigType):
 
 
 class Viur(ConfigType):
-    accessRights = ["root", "admin"]
+    access_rights = ["root", "admin"]
     """Additional access rights available on this project"""
 
-    availableLanguages = ["en"]
+    available_languages = ["en"]
     """List of language-codes, which are valid for this application"""
 
     bone_boolean_str2true = ("true", "yes", "1")
@@ -361,7 +361,7 @@ class Viur(ConfigType):
     }
     """Describing the internal ModuleConfig-module"""
 
-    script_admin_info = { # TODO: not in use?!
+    script_admin_info = {  # TODO: not in use?!
         "icon": "icon-hashtag",
         "display": "hidden",
     }
@@ -427,6 +427,8 @@ class Viur(ConfigType):
     viur2import_blobsource = None
 
     _mapping = {
+        "accessRights": "access_rights",
+        "availableLanguages": "available_languages",
         "bone.boolean.str2true": "bone_boolean_str2true",
         "db.engine": "db_engine",
         "email.logRetention": "email_logRetention",
