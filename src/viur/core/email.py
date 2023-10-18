@@ -16,9 +16,9 @@ from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
     This module implements an email delivery system for ViUR. Emails will be queued so that we don't overwhelm
     the email service. As the Appengine does not provide an email-api anymore, you'll have to use a 3rd party service
     to actually deliver the email. A sample implementation for Send in Blue (https://sendinblue.com/) is provided.
-    To enable Send in Blue,    set conf.viur.email_transportClass to EmailTransportSendInBlue and add your API-Key to
+    To enable Send in Blue,    set conf.viur.email_transport_class to EmailTransportSendInBlue and add your API-Key to
     conf.viur.email_sendInBlue.apiKey. To send via another service, you'll have to implement a different transport
-    class (and point conf.viur.email_transportClass to that class). This module needs a custom queue
+    class (and point conf.viur.email_transport_class to that class). This module needs a custom queue
     (viur-emails) with a larger backoff value (so that we don't try to deliver the same email multiple times within a
     short timeframe). A suggested configuration would be
 
@@ -35,7 +35,7 @@ from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
 def cleanOldEmailsFromLog(*args, **kwargs):
     """Start the QueryIter DeleteOldEmailsFromLog to remove old, successfully send emails from the queue"""
     qry = db.Query("viur-emails").filter("isSend =", True) \
-        .filter("creationDate <", utils.utcNow() - conf.viur.email_logRetention)
+        .filter("creationDate <", utils.utcNow() - conf.viur.email_log_retention)
     DeleteEntitiesIter.startIterOnQuery(qry)
 
 
@@ -96,7 +96,7 @@ def sendEmailDeferred(emailKey: db.Key):
         return True
     elif queueEntity["errorCount"] > 3:
         raise ChildProcessError("Error-Count exceeded")
-    transportClass = conf.viur.email_transportClass  # First, ensure we're able to send email at all
+    transportClass = conf.viur.email_transport_class  # First, ensure we're able to send email at all
     assert issubclass(transportClass, EmailTransport), "No or invalid email transportclass specified!"
     try:
         resultData = transportClass.deliverEmail(dests=queueEntity["dests"],
@@ -182,7 +182,7 @@ def sendEMail(*,
         (for all text and attachments combined)!
     """
     # First, ensure we're able to send email at all
-    transportClass = conf.viur.email_transportClass  # First, ensure we're able to send email at all
+    transportClass = conf.viur.email_transport_class  # First, ensure we're able to send email at all
     assert issubclass(transportClass, EmailTransport), "No or invalid email transportclass specified!"
     # Ensure that all recipient parameters (dest, cc, bcc) are a list
     dests = normalize_to_list(dests)
@@ -207,11 +207,11 @@ def sendEMail(*,
                 entity.exclude_from_indexes.add(k)
             attachments.append(entity)
         assert all(["filename" in x for x in attachments]), "Attachment is missing the filename key"
-    # If conf.viur.email_recipientOverride is set we'll redirect any email to these address(es)
-    if conf.viur.email_recipientOverride:
-        logging.warning("Overriding destination %s with %s", dests, conf.viur.email_recipientOverride)
+    # If conf.viur.email_recipient_override is set we'll redirect any email to these address(es)
+    if conf.viur.email_recipient_override:
+        logging.warning("Overriding destination %s with %s", dests, conf.viur.email_recipient_override)
         oldDests = dests
-        newDests = normalize_to_list(conf.viur.email_recipientOverride)
+        newDests = normalize_to_list(conf.viur.email_recipient_override)
         dests = []
         for newDest in newDests:
             if newDest.startswith("@"):
@@ -220,11 +220,11 @@ def sendEMail(*,
             else:
                 dests.append(newDest)
         cc = bcc = []
-    elif conf.viur.email_recipientOverride is False:
+    elif conf.viur.email_recipient_override is False:
         logging.warning("Sending emails disabled by config[viur.email.recipientOverride]")
         return False
-    if conf.viur.email_senderOverride:
-        sender = conf.viur.email_senderOverride
+    if conf.viur.email_sender_override:
+        sender = conf.viur.email_sender_override
     elif sender is None:
         sender = f'viur@{conf.viur.instance_project_id}.appspotmail.com'
     subject, body = conf.viur.emailRenderer(dests, tpl, stringTemplate, skel, **kwargs)
@@ -244,7 +244,7 @@ def sendEMail(*,
     queueEntity["context"] = context
     queueEntity.exclude_from_indexes = ["body", "attachments", "context"]
     transportClass.validateQueueEntity(queueEntity)  # Will raise an exception if the entity is not valid
-    if conf.viur.instance_is_dev_server and not conf.viur.email_sendFromLocalDevelopmentServer:
+    if conf.viur.instance_is_dev_server and not conf.viur.email_send_from_local_development_server:
         logging.info("Not sending email from local development server")
         logging.info("Subject: %s", queueEntity["subject"])
         logging.info("Body: %s", queueEntity["body"])
@@ -270,8 +270,8 @@ def sendEMailToAdmins(subject: str, body: str, *args, **kwargs) -> bool:
         users = []
         if conf.viur.email_admin_recipients is not None:
             users = normalize_to_list(conf.viur.email_admin_recipients)
-        elif "user" in dir(conf.viur.mainApp):
-            for user_skel in conf.viur.mainApp.user.viewSkel().all().filter("access =", "root").fetch():
+        elif "user" in dir(conf.viur.main_app):
+            for user_skel in conf.viur.main_app.user.viewSkel().all().filter("access =", "root").fetch():
                 users.append(user_skel["name"])
 
         # Prefix the instance's project_id to subject

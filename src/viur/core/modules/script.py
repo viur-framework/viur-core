@@ -23,7 +23,7 @@ class BaseScriptAbstractSkel(TreeSkel):
         # Set script name when provided, so that the path can be regenerated
         if name := data.get("name"):
             skel["name"] = name
-            conf.viur.mainApp.vi.script.update_path(skel)
+            conf.viur.main_app.vi.script.update_path(skel)
 
         ret = super().fromClient(skel, data, *args, **kwargs)
 

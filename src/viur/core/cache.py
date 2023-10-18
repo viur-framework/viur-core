@@ -86,9 +86,9 @@ def keyFromArgs(f: Callable, userSensitive: int, languageSensitive: bool, evalua
                 res["__user"] = None
     if languageSensitive:
         res["__lang"] = current.language.get()
-    if conf.viur.cacheEnvironmentKey:
+    if conf.viur.cache_environment_key:
         try:
-            res["_cacheEnvironment"] = conf.viur.cacheEnvironmentKey()
+            res["_cacheEnvironment"] = conf.viur.cache_environment_key()
         except RuntimeError:
             return None
     res["__path"] = path  # Different path might have different output (html,xml,..)

@@ -165,12 +165,12 @@ class TaskHandler(Module):
             If it succeeds in finding it, it returns the function and its instance (-> its "self").
             Otherwise, None is returned.
             :param task: A callable decorated with @PeriodicTask
-            :param obj: Object, which will be scanned in the current iteration. None means start at conf.viur.mainApp.
+            :param obj: Object, which will be scanned in the current iteration. None means start at conf.viur.main_app.
             :param depth: Current iteration depth.
         """
         if depth > 3 or not "periodicTaskName" in dir(task):  # Limit the maximum amount of recursions
             return None
-        obj = obj or conf.viur.mainApp
+        obj = obj or conf.viur.main_app
         for attr in dir(obj):
             if attr.startswith("_"):
                 continue
@@ -244,15 +244,15 @@ class TaskHandler(Module):
                     return
                 else:
                     logging.info("Executing task, transaction %s did succeed" % env["transactionMarker"])
-            if "custom" in env and conf.viur.tasks_customEnvironmentHandler:
+            if "custom" in env and conf.viur.tasks_custom_environment_handler:
                 # Check if we need to restore additional environmental data
-                assert isinstance(conf.viur.tasks_customEnvironmentHandler, tuple) \
-                       and len(conf.viur.tasks_customEnvironmentHandler) == 2 \
-                       and callable(conf.viur.tasks_customEnvironmentHandler[1]), \
+                assert isinstance(conf.viur.tasks_custom_environment_handler, tuple) \
+                       and len(conf.viur.tasks_custom_environment_handler) == 2 \
+                       and callable(conf.viur.tasks_custom_environment_handler[1]), \
                     "Your customEnvironmentHandler must be a tuple of two callable if set!"
-                conf.viur.tasks_customEnvironmentHandler[1](env["custom"])
+                conf.viur.tasks_custom_environment_handler[1](env["custom"])
         if cmd == "rel":
-            caller = conf.viur.mainApp
+            caller = conf.viur.main_app
             pathlist = [x for x in funcPath.split("/") if x]
             for currpath in pathlist:
                 if currpath not in dir(caller):
@@ -565,13 +565,13 @@ def CallDeferred(func: Callable) -> Callable:
                 # We move that task at least 90 seconds into the future so the transaction has time to settle
                 taskargs["countdown"] = max(90, taskargs.get("countdown") or 0)  # Countdown can be set to None
 
-            if conf.viur.tasks_customEnvironmentHandler:
+            if conf.viur.tasks_custom_environment_handler:
                 # Check if this project relies on additional environmental variables and serialize them too
-                assert isinstance(conf.viur.tasks_customEnvironmentHandler, tuple) \
-                       and len(conf.viur.tasks_customEnvironmentHandler) == 2 \
-                       and callable(conf.viur.tasks_customEnvironmentHandler[0]), \
+                assert isinstance(conf.viur.tasks_custom_environment_handler, tuple) \
+                       and len(conf.viur.tasks_custom_environment_handler) == 2 \
+                       and callable(conf.viur.tasks_custom_environment_handler[0]), \
                     "Your customEnvironmentHandler must be a tuple of two callable if set!"
-                env["custom"] = conf.viur.tasks_customEnvironmentHandler[0]()
+                env["custom"] = conf.viur.tasks_custom_environment_handler[0]()
 
             # Create task description
             task = tasks_v2.Task(
@@ -786,7 +786,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
                 sleep(5)
                 try:
                     cls.handleEntry(item, qryDict["customData"])
-                except Exception as e:  # Second exception - call errorHandler
+                except Exception as e:  # Second exception - call error_handler
                     try:
                         doCont = cls.handleError(item, qryDict["customData"], e)
                     except Exception as e:

@@ -185,14 +185,14 @@ class UserSkel(skeleton.Skeleton):
 
             for role in skel["roles"]:
                 # Get default access for this role
-                access |= conf.viur.mainApp.vi.user.get_role_defaults(role)
+                access |= conf.viur.main_app.vi.user.get_role_defaults(role)
 
                 # Go through all modules and evaluate available role-settings
-                for name in dir(conf.viur.mainApp.vi):
+                for name in dir(conf.viur.main_app.vi):
                     if name.startswith("_"):
                         continue
 
-                    module = getattr(conf.viur.mainApp.vi, name)
+                    module = getattr(conf.viur.main_app.vi, name)
                     if not isinstance(module, Module):
                         continue
 
@@ -1262,7 +1262,7 @@ class User(List):
             Performs Log-In for the current session and the given user key.
 
             This resets the current session: All fields not explicitly marked as persistent
-            by conf.viur.session_persistentFieldsOnLogin are gone afterwards.
+            by conf.viur.session_persistent_fields_on_login are gone afterwards.
 
             :param key: The (DB-)Key of the user we shall authenticate
         """
@@ -1277,7 +1277,7 @@ class User(List):
         # Update session for user
         session = current.session.get()
         # Remember persistent fields...
-        take_over = {k: v for k, v in session.items() if k in conf.viur.session_persistentFieldsOnLogin}
+        take_over = {k: v for k, v in session.items() if k in conf.viur.session_persistent_fields_on_login}
         session.reset()
         # and copy them over to the new session
         session |= take_over
@@ -1297,7 +1297,7 @@ class User(List):
     def logout(self, *args, **kwargs):
         """
             Implements the logout action. It also terminates the current session (all keys not listed
-            in viur.session_persistentFieldsOnLogout will be lost).
+            in viur.session_persistent_fields_on_logout will be lost).
         """
         if not (user := current.user.get()):
             raise errors.Unauthorized()
@@ -1305,7 +1305,7 @@ class User(List):
         self.onLogout(user)
 
         session = current.session.get()
-        take_over = {k: v for k, v in session.items() if k in conf.viur.session_persistentFieldsOnLogout}
+        take_over = {k: v for k, v in session.items() if k in conf.viur.session_persistent_fields_on_logout}
         session.reset()
         session |= take_over
         current.user.set(None)  # set user to none in context var
@@ -1445,7 +1445,7 @@ def createNewUserIfNotExists():
     """
         Create a new Admin user, if the userDB is empty
     """
-    userMod = getattr(conf.viur.mainApp, "user", None)
+    userMod = getattr(conf.viur.main_app, "user", None)
     if (userMod  # We have a user module
         and isinstance(userMod, User)
         and "addSkel" in dir(userMod)

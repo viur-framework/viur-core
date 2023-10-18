@@ -21,7 +21,7 @@ def encode_password(password: str | bytes, salt: str | bytes,
                     iterations: int = PBKDF2_DEFAULT_ITERATIONS, dklen: int = 42
                     ) -> dict[str, str | bytes]:
     """Decodes a pashword and return the hash and meta information as hash"""
-    password = password[: conf.viur.maxPasswordLength]
+    password = password[: conf.viur.max_password_length]
     if isinstance(password, str):
         password = password.encode()
     if isinstance(salt, str):

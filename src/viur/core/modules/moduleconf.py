@@ -57,7 +57,7 @@ class ModuleConf(List):
     @classmethod
     def get_by_module_name(cls, module_name: str) -> None | SkeletonInstance:
         db_key = db.Key("viur-module-conf", module_name)
-        skel = conf.viur.mainApp._moduleconf.viewSkel()
+        skel = conf.viur.main_app._moduleconf.viewSkel()
         if not skel.fromDB(db_key):
             logging.error(f"module({module_name}) not found in viur-module-conf")
             return None
@@ -68,13 +68,13 @@ class ModuleConf(List):
 @StartupTask
 def read_all_modules():
     db_module_names = [m["name"] for m in db.Query("viur-module-conf").run(999)]
-    module_names = dir(conf.viur.mainApp.vi)
+    module_names = dir(conf.viur.main_app.vi)
 
     for module_name in module_names:
-        module = getattr(conf.viur.mainApp.vi, module_name)
+        module = getattr(conf.viur.main_app.vi, module_name)
         if isinstance(module, Module):
             if module_name not in db_module_names:
-                skel = conf.viur.mainApp._moduleconf.addSkel()
+                skel = conf.viur.main_app._moduleconf.addSkel()
                 skel["key"] = db.Key("viur-module-conf", module_name)
                 skel["name"] = module_name
                 skel.toDB()

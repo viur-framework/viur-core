@@ -46,9 +46,9 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
     if conf.viur.disableCache or request.disableCache:  # Caching disabled by config
         cachetime = 0
     cacheEnvKey = None
-    if conf.viur.cacheEnvironmentKey:
+    if conf.viur.cache_environment_key:
         try:
-            cacheEnvKey = conf.viur.cacheEnvironmentKey()
+            cacheEnvKey = conf.viur.cache_environment_key()
         except RuntimeError:
             cachetime = 0
     if cachetime:
@@ -81,7 +81,7 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
     request.internalRequest = True
     last_template_style = request.template_style
     request.template_style = template_style
-    caller = conf.viur.mainApp
+    caller = conf.viur.main_app
     pathlist = path.split("/")
     for currpath in pathlist:
         if currpath in dir(caller):
@@ -144,11 +144,11 @@ def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel"
 
     :returns: dict on success, False on error.
     """
-    if module not in dir(conf.viur.mainApp):
+    if module not in dir(conf.viur.main_app):
         logging.error("getSkel called with unknown module %s!" % module)
         return False
 
-    obj = getattr(conf.viur.mainApp, module)
+    obj = getattr(conf.viur.main_app, module)
 
     if skel in dir(obj):
         skel = getattr(obj, skel)()
@@ -253,11 +253,11 @@ def getLanguage(render: Render, resolveAlias: bool = False) -> str:
     Jinja2 global: Returns the language used for this request.
 
     :param resolveAlias: If True, the function tries to resolve the current language
-        using conf.viur.languageAliasMap.
+        using conf.viur.language_alias_map.
     """
     lang = current.language.get()
-    if resolveAlias and lang in conf.viur.languageAliasMap:
-        lang = conf.viur.languageAliasMap[lang]
+    if resolveAlias and lang in conf.viur.language_alias_map:
+        lang = conf.viur.language_alias_map[lang]
     return lang
 
 
@@ -300,10 +300,10 @@ def getList(render: Render, module: str, skel: str = "viewSkel",
     :returns: Returns a dict that contains the "skellist" and "cursor" information,
         or None on error case.
     """
-    if module not in dir(conf.viur.mainApp):
+    if module not in dir(conf.viur.main_app):
         logging.error("Jinja2-Render can't fetch a list from an unknown module %s!" % module)
         return False
-    caller = getattr(conf.viur.mainApp, module)
+    caller = getattr(conf.viur.main_app, module)
     if "viewSkel" not in dir(caller):
         logging.error("Jinja2-Render cannot fetch a list from %s due to missing viewSkel function" % module)
         return False
@@ -344,10 +344,10 @@ def getStructure(render: Render,
     :param skel: Name of the skeleton.
     :param subSkel: If set, return just that subskel instead of the whole skeleton
     """
-    if module not in dir(conf.viur.mainApp):
+    if module not in dir(conf.viur.main_app):
         return False
 
-    obj = getattr(conf.viur.mainApp, module)
+    obj = getattr(conf.viur.main_app, module)
 
     if skel in dir(obj):
         skel = getattr(obj, skel)()
@@ -657,7 +657,7 @@ def embedSvg(render: Render, name: str, classes: Union[List[str], None] = None, 
         classes.extend(["js-svg", name.split("-", 1)[0]])
 
     attributes = {
-        "src": os.path.join(conf.viur.static_embedSvg_path, f"{name}.svg"),
+        "src": os.path.join(conf.viur.static_embed_svg_path, f"{name}.svg"),
         "class": " ".join(classes),
         **kwargs
     }

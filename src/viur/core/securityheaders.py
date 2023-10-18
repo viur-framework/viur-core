@@ -85,34 +85,34 @@ def addCspRule(objectType: str, srcOrDirective: str, enforceMode: str = "monitor
     assert objectType in {"default-src", "script-src", "object-src", "style-src", "img-src", "media-src",
                           "frame-src", "font-src", "connect-src", "report-uri", "frame-ancestors", "child-src",
                           "form-action", "require-trusted-types-for"}
-    assert conf.viur.mainApp is None, "You cannot modify CSP rules after server.buildApp() has been run!"
+    assert conf.viur.main_app is None, "You cannot modify CSP rules after server.buildApp() has been run!"
     assert not any(
         [x in srcOrDirective for x in [";", "'", "\"", "\n", ","]]), "Invalid character in srcOrDirective!"
-    if conf.security.contentSecurityPolicy is None:
-        conf.security.contentSecurityPolicy = {"_headerCache": {}}
-    if enforceMode not in conf.security.contentSecurityPolicy:
-        conf.security.contentSecurityPolicy[enforceMode] = {}
+    if conf.security.content_security_policy is None:
+        conf.security.content_security_policy = {"_headerCache": {}}
+    if enforceMode not in conf.security.content_security_policy:
+        conf.security.content_security_policy[enforceMode] = {}
     if objectType == "report-uri":
-        conf.security.contentSecurityPolicy[enforceMode]["report-uri"] = [srcOrDirective]
+        conf.security.content_security_policy[enforceMode]["report-uri"] = [srcOrDirective]
     else:
-        if objectType not in conf.security.contentSecurityPolicy[enforceMode]:
-            conf.security.contentSecurityPolicy[enforceMode][objectType] = []
-        if srcOrDirective not in conf.security.contentSecurityPolicy[enforceMode][objectType]:
-            conf.security.contentSecurityPolicy[enforceMode][objectType].append(srcOrDirective)
+        if objectType not in conf.security.content_security_policy[enforceMode]:
+            conf.security.content_security_policy[enforceMode][objectType] = []
+        if srcOrDirective not in conf.security.content_security_policy[enforceMode][objectType]:
+            conf.security.content_security_policy[enforceMode][objectType].append(srcOrDirective)
 
 
 def _rebuildCspHeaderCache():
     """
-        Rebuilds the internal conf.security.contentSecurityPolicy["_headerCache"] dictionary, ie. it constructs
+        Rebuilds the internal conf.security.content_security_policy["_headerCache"] dictionary, ie. it constructs
         the Content-Security-Policy-Report-Only and Content-Security-Policy headers based on what has been passed
         to 'addRule' earlier on. Should not be called directly.
     """
-    conf.security.contentSecurityPolicy["_headerCache"] = {}
+    conf.security.content_security_policy["_headerCache"] = {}
     for enforceMode in ["monitor", "enforce"]:
         resStr = ""
-        if enforceMode not in conf.security.contentSecurityPolicy:
+        if enforceMode not in conf.security.content_security_policy:
             continue
-        for key, values in conf.security.contentSecurityPolicy[enforceMode].items():
+        for key, values in conf.security.content_security_policy[enforceMode].items():
             resStr += key
             for value in values:
                 resStr += " "
@@ -124,10 +124,10 @@ def _rebuildCspHeaderCache():
                     resStr += value
             resStr += "; "
         if enforceMode == "monitor":
-            conf.security.contentSecurityPolicy["_headerCache"][
+            conf.security.content_security_policy["_headerCache"][
                 "Content-Security-Policy-Report-Only"] = resStr
         else:
-            conf.security.contentSecurityPolicy["_headerCache"]["Content-Security-Policy"] = resStr
+            conf.security.content_security_policy["_headerCache"]["Content-Security-Policy"] = resStr
 
 
 def extendCsp(additionalRules: dict = None, overrideRules: dict = None) -> None:
@@ -135,7 +135,7 @@ def extendCsp(additionalRules: dict = None, overrideRules: dict = None) -> None:
         Adds additional csp rules to the current request. ViUR will emit a default csp-header based on the
         project-wide config. For some requests, it's needed to extend or override these rules without having to include
         them in the project config. Each dictionary must be in the same format as the
-        conf.security.contentSecurityPolicy. Values in additionalRules will extend the project-specific
+        conf.security.content_security_policy. Values in additionalRules will extend the project-specific
         configuration, while overrideRules will replace them.
 
         ..Note: This function will only work on CSP-Rules in "enforce" mode, "monitor" is not suppored
@@ -145,8 +145,8 @@ def extendCsp(additionalRules: dict = None, overrideRules: dict = None) -> None:
     """
     assert additionalRules or overrideRules, "Either additionalRules or overrideRules must be given!"
     tmpDict = {}  # Copy the project-wide config in
-    if conf.security.contentSecurityPolicy.get("enforce"):
-        tmpDict.update({k: v[:] for k, v in conf.security.contentSecurityPolicy["enforce"].items()})
+    if conf.security.content_security_policy.get("enforce"):
+        tmpDict.update({k: v[:] for k, v in conf.security.content_security_policy["enforce"].items()})
     if overrideRules:  # Merge overrideRules
         for k, v in overrideRules.items():
             if v is None and k in tmpDict:

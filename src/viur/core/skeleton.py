@@ -560,7 +560,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
         res = set()
 
         for tag in value.split(" "):
-            tag = "".join([x for x in tag.lower() if x in conf.viur.searchValidChars])
+            tag = "".join([x for x in tag.lower() if x in conf.viur.search_valid_chars])
 
             if len(tag) >= self.min_length:
                 res.add(tag)
@@ -913,7 +913,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                         .replace("&", "") \
                         .replace("#", "").strip()
                     currentSeoKeys[lang] = value
-            for language in (conf.viur.available_languages or [conf.viur.defaultLanguage]):
+            for language in (conf.viur.available_languages or [conf.viur.default_language]):
                 if currentSeoKeys and language in currentSeoKeys:
                     currentKey = currentSeoKeys[language]
                     if currentKey != lastRequestedSeoKeys.get(language):  # This one is new or has changed

@@ -104,12 +104,12 @@ def setDefaultLanguage(lang: str):
 
         :param lang: Name of the language module to use by default.
     """
-    conf.viur.defaultLanguage = lang.lower()
+    conf.viur.default_language = lang.lower()
 
 
 def setDefaultDomainLanguage(domain: str, lang: str):
     """
-        If conf.viur.languageMethod is set to "domain", this function allows setting the map of which domain
+        If conf.viur.language_method is set to "domain", this function allows setting the map of which domain
         should use which language.
         :param domain: The domain for which the language should be set
         :param lang: The language to use (in ISO2 format, e.g. "DE")
@@ -117,7 +117,7 @@ def setDefaultDomainLanguage(domain: str, lang: str):
     host = domain.lower().strip(" /")
     if host.startswith("www."):
         host = host[4:]
-    conf.viur.domainLanguageMapping[host] = lang.lower()
+    conf.viur.domain_language_mapping[host] = lang.lower()
 
 
 def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Dict], default: str = None):
@@ -125,13 +125,13 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
         Creates the application-context for the current instance.
 
         This function converts the classes found in the *modules*-module,
-        and the given renders into the object found at ``conf.viur.mainApp``.
+        and the given renders into the object found at ``conf.viur.main_app``.
 
         Every class found in *modules* becomes
 
         - instanced
         - get the corresponding renderer attached
-        - will be attached to ``conf.viur.mainApp``
+        - will be attached to ``conf.viur.main_app``
 
         :param modules: Usually the module provided as *modules* directory within the application.
         :param renderers: Usually the module *viur.core.renders*, or a dictionary renderName => renderClass.
@@ -207,7 +207,7 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
             if "_postProcessAppObj" in render:  # todo: This is ugly!
                 render["_postProcessAppObj"](target)
 
-    conf.viur.mainResolver = resolver
+    conf.viur.main_resolver = resolver
 
     if default in renderers and hasattr(renderers[default]["default"], "renderEmail"):
         conf.viur.emailRenderer = renderers[default]["default"]().renderEmail
@@ -242,7 +242,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
     if not render:
         import viur.core.render
         render = viur.core.render
-    conf.viur.mainApp = buildApp(modules, render, default)
+    conf.viur.main_app = buildApp(modules, render, default)
     # conf.viur.wsgiApp = webapp.WSGIApplication([(r'/(.*)', BrowseHandler)])
 
     # Send warning email in case trace is activated in a cloud environment
@@ -264,11 +264,11 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
     securityheaders._rebuildPermissionHeaderCache()
     setSystemInitialized()
     # Assert that all security related headers are in a sane state
-    if conf.security.contentSecurityPolicy and conf.security.contentSecurityPolicy["_headerCache"]:
-        for k in conf.security.contentSecurityPolicy["_headerCache"]:
+    if conf.security.content_security_policy and conf.security.content_security_policy["_headerCache"]:
+        for k in conf.security.content_security_policy["_headerCache"]:
             if not k.startswith("Content-Security-Policy"):
                 raise AssertionError("Got unexpected header in "
-                                     "conf.security.contentSecurityPolicy['_headerCache']")
+                                     "conf.security.content_security_policy['_headerCache']")
     if conf.security.strictTransportSecurity:
         if not conf.security.strictTransportSecurity.startswith("max-age"):
             raise AssertionError("Got unexpected header in conf.security.strictTransportSecurity")
@@ -283,7 +283,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
             assert uri is not None and (uri.lower().startswith("https://") or uri.lower().startswith("http://"))
     runStartupTasks()  # Add a deferred call to run all queued startup tasks
     i18n.initializeTranslations()
-    if conf.viur.file_hmacKey is None:
+    if conf.viur.file_hmac_key is None:
         from viur.core import db
         key = db.Key("viur-conf", "viur-conf")
         if not (obj := db.Get(key)):  # create a new "viur-conf"?
@@ -295,7 +295,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
             obj["hmacKey"] = utils.generateRandomString(length=20)
             db.Put(obj)
 
-        conf.viur.file_hmacKey = bytes(obj["hmacKey"], "utf-8")
+        conf.viur.file_hmac_key = bytes(obj["hmacKey"], "utf-8")
     return app
 
 
@@ -308,7 +308,7 @@ def app(environ: dict, start_response: Callable):
 __DEPRECATED_DECORATORS = {
     # stuff prior viur-core < 3.5
     "forcePost": ("force_post", force_post),
-    "forceSSL": ("force_ssl", force_ssl),
+    "force_ssl": ("force_ssl", force_ssl),
     "internalExposed": ("internal_exposed", internal_exposed)
 }
 

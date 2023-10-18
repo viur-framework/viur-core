@@ -29,7 +29,7 @@ def getStructure(module):
     """
     Returns all available skeleton structures for a given module.
     """
-    moduleObj = getattr(conf.viur.mainApp.vi, module, None)
+    moduleObj = getattr(conf.viur.main_app.vi, module, None)
     if not isinstance(moduleObj, Module) or not moduleObj.describe():
         return json.dumps(None)
 
@@ -75,8 +75,8 @@ def setLanguage(lang):
 def dumpConfig():
     res = {}
 
-    for key in dir(conf.viur.mainApp.vi):
-        module = getattr(conf.viur.mainApp.vi, key, None)
+    for key in dir(conf.viur.main_app.vi):
+        module = getattr(conf.viur.main_app.vi, key, None)
         if not isinstance(module, Module):
             continue
 

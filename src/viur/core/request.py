@@ -130,7 +130,7 @@ class Router:
         db.currentDbAccessLog.set(set())
 
         # Set context variables
-        current.language.set(conf.viur.defaultLanguage)
+        current.language.set(conf.viur.default_language)
         current.request.set(self)
         current.session.set(session.Session())
         current.request_data.set({})
@@ -156,41 +156,41 @@ class Router:
     def _select_language(self, path: str) -> str:
         """
             Tries to select the best language for the current request. Depending on the value of
-            conf.viur.languageMethod, we'll either try to load it from the session, determine it by the domain
+            conf.viur.language_method, we'll either try to load it from the session, determine it by the domain
             or extract it from the URL.
         """
         sessionReference = current.session.get()
         if not conf.viur.available_languages:
             # This project doesn't use the multi-language feature, nothing to do here
             return path
-        if conf.viur.languageMethod == "session":
+        if conf.viur.language_method == "session":
             # We store the language inside the session, try to load it from there
             if "lang" not in sessionReference:
                 if "X-Appengine-Country" in self.request.headers:
                     lng = self.request.headers["X-Appengine-Country"].lower()
-                    if lng in conf.viur.available_languages + list(conf.viur.languageAliasMap.keys()):
+                    if lng in conf.viur.available_languages + list(conf.viur.language_alias_map.keys()):
                         sessionReference["lang"] = lng
                         current.language.set(lng)
                     else:
-                        sessionReference["lang"] = conf.viur.defaultLanguage
+                        sessionReference["lang"] = conf.viur.default_language
             else:
                 current.language.set(sessionReference["lang"])
-        elif conf.viur.languageMethod == "domain":
+        elif conf.viur.language_method == "domain":
             host = self.request.host_url.lower()
             host = host[host.find("://") + 3:].strip(" /")  # strip http(s)://
             if host.startswith("www."):
                 host = host[4:]
-            if host in conf.viur.domainLanguageMapping:
-                current.language.set(conf.viur.domainLanguageMapping[host])
+            if host in conf.viur.domain_language_mapping:
+                current.language.set(conf.viur.domain_language_mapping[host])
             else:  # We have no language configured for this domain, try to read it from session
                 if "lang" in sessionReference:
                     current.language.set(sessionReference["lang"])
-        elif conf.viur.languageMethod == "url":
+        elif conf.viur.language_method == "url":
             tmppath = urlparse(path).path
             tmppath = [unquote(x) for x in tmppath.lower().strip("/").split("/")]
             if (
                 len(tmppath) > 0
-                and tmppath[0] in conf.viur.available_languages + list(conf.viur.languageAliasMap.keys())
+                and tmppath[0] in conf.viur.available_languages + list(conf.viur.language_alias_map.keys())
             ):
                 current.language.set(tmppath[0])
                 return path[len(tmppath[0]) + 1:]  # Return the path stripped by its language segment
@@ -199,7 +199,7 @@ class Router:
                     current.language.set(sessionReference["lang"])
                 elif "X-Appengine-Country" in self.request.headers.keys():
                     lng = self.request.headers["X-Appengine-Country"].lower()
-                    if lng in conf.viur.available_languages or lng in conf.viur.languageAliasMap:
+                    if lng in conf.viur.available_languages or lng in conf.viur.language_alias_map:
                         current.language.set(lng)
         return path
 
@@ -214,7 +214,7 @@ class Router:
             elif os.getenv("TASKS_EMULATOR") is not None:
                 self.is_deferred = True
 
-        current.language.set(conf.viur.defaultLanguage)
+        current.language.set(conf.viur.default_language)
         # Check if we should process or abort the request
         for validator, reqValidatorResult in [(x, x.validate(self)) for x in self.requestValidators]:
             if reqValidatorResult is not None:
@@ -227,8 +227,8 @@ class Router:
         path = self.request.path
 
         # Add CSP headers early (if any)
-        if conf.security.contentSecurityPolicy and conf.security.contentSecurityPolicy["_headerCache"]:
-            for k, v in conf.security.contentSecurityPolicy["_headerCache"].items():
+        if conf.security.content_security_policy and conf.security.content_security_policy["_headerCache"]:
+            for k, v in conf.security.content_security_policy["_headerCache"].items():
                 self.response.headers[k] = v
         if self.isSSLConnection:  # Check for HTST and PKP headers only if we have a secure channel.
             if conf.security.strictTransportSecurity:
@@ -261,10 +261,10 @@ class Router:
             self.response.headers["Cross-Origin-Resource-Policy"] = conf.security.enableCORP
 
         # Ensure that TLS is used if required
-        if conf.viur.forceSSL and not self.isSSLConnection and not conf.viur.instance_is_dev_server:
+        if conf.viur.force_ssl and not self.isSSLConnection and not conf.viur.instance_is_dev_server:
             isWhitelisted = False
             reqPath = self.request.path
-            for testUrl in conf.viur.noSSLCheckUrls:
+            for testUrl in conf.viur.no_ssl_check_urls:
                 if testUrl.endswith("*"):
                     if reqPath.startswith(testUrl[:-1]):
                         isWhitelisted = True
@@ -288,12 +288,12 @@ class Router:
             current.session.get().load(self)
 
             # Load current user into context variable if user module is there.
-            if user_mod := getattr(conf.viur.mainApp, "user", None):
+            if user_mod := getattr(conf.viur.main_app, "user", None):
                 current.user.set(user_mod.getCurrentUser())
 
             path = self._select_language(path)[1:]
-            if conf.viur.requestPreprocessor:
-                path = conf.viur.requestPreprocessor(path)
+            if conf.viur.request_preprocessor:
+                path = conf.viur.request_preprocessor(path)
 
             self._route(path)
 
@@ -324,11 +324,11 @@ class Router:
                 logging.exception(e)
 
             res = None
-            if conf.viur.errorHandler:
+            if conf.viur.error_handler:
                 try:
-                    res = conf.viur.errorHandler(e)
+                    res = conf.viur.error_handler(e)
                 except Exception as newE:
-                    logging.error("viur.errorHandler failed!")
+                    logging.error("viur.error_handler failed!")
                     logging.exception(newE)
                     res = None
             if not res:
@@ -358,9 +358,9 @@ class Router:
                     res = json.dumps(error_info)
                 else:  # We render the error in html
                     # Try to get the template from html/error/
-                    if filename := conf.viur.mainApp.render.getTemplateFileName((f"{error_info['status']}", "error"),
-                                                                                   raise_exception=False):
-                        template = conf.viur.mainApp.render.getEnv().get_template(filename)
+                    if filename := conf.viur.main_app.render.getTemplateFileName((f"{error_info['status']}", "error"),
+                                                                                 raise_exception=False):
+                        template = conf.viur.main_app.render.getEnv().get_template(filename)
                         res = template.render(error_info)
 
                         # fixme: this might be the viur/core/template/error.html ...
@@ -429,10 +429,10 @@ class Router:
                                    for part in path.strip("/").split("/"))
 
         # Prevent Hash-collision attacks
-        if len(self.request.params) > conf.viur.maxPostParamsCount:
+        if len(self.request.params) > conf.viur.max_post_params_count:
             raise errors.BadRequest(
                 f"Too many arguments supplied, exceeding maximum"
-                f" of {conf.viur.maxPostParamsCount} allowed arguments per request"
+                f" of {conf.viur.max_post_params_count} allowed arguments per request"
             )
 
         for key, value in self.request.params.items():
@@ -462,7 +462,7 @@ class Router:
         if "self" in self.kwargs or "return" in self.kwargs:  # self or return is reserved for bound methods
             raise errors.BadRequest()
 
-        caller = conf.viur.mainResolver
+        caller = conf.viur.main_resolver
         idx = 0  # Count how may items from *args we'd have consumed (so the rest can go into *args of the called func
         path_found = True
 
