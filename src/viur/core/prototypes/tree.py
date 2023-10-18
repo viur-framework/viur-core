@@ -51,6 +51,7 @@ class Tree(SkelModule):
         assert self.nodeSkelCls, f"Need to specify at least nodeSkelCls for {self.__class__.__name__!r}"
         super().__init__(moduleName, modulePath, *args, **kwargs)
 
+    @property
     def handler(self):
         return "tree" if self.leafSkelCls else "tree.node"  # either a tree or a tree with nodes only (former hierarchy)
 
@@ -511,6 +512,9 @@ class Tree(SkelModule):
 
         skel = self.editSkel(skelType)  # srcSkel - the skeleton to be moved
         parentNodeSkel = self.baseSkel("node")  # destSkel - the node it should be moved into
+
+        if not skel.fromDB(key):
+            raise errors.NotFound("Cannot find entity to move")
 
         if not parentNodeSkel.fromDB(parentNode):
             parentNode = utils.normalizeKey(db.Key.from_legacy_urlsafe(parentNode))

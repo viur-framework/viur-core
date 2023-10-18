@@ -1,6 +1,15 @@
 from typing import Callable
 from viur.core.module import Method
 
+__all__ = [
+    "access",
+    "exposed",
+    "force_post",
+    "force_ssl",
+    "internal_exposed",
+    "skey",
+]
+
 
 def exposed(func: Callable) -> Method:
     """
@@ -51,7 +60,7 @@ def force_post(func: Callable) -> Method:
     Decorator, which enforces usage of a http post request.
     """
     func = Method.ensure(func)
-    func.methods = ("POST", )
+    func.methods = ("POST",)
     return func
 
 

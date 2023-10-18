@@ -25,6 +25,8 @@ from viur.core.logging import client as loggingClient, requestLogger, requestLog
 from viur.core.securityheaders import extendCsp
 from viur.core.tasks import _appengineServiceIPs
 
+TEMPLATE_STYLE_KEY = "style"
+
 
 class RequestValidator(ABC):
     """
@@ -118,6 +120,7 @@ class Router:
         self.args = ()
         self.kwargs = {}
         self.context = {}
+        self.template_style: str | None = None
 
         # Check if it's a HTTP-Method we support
         self.method = self.request.method.lower()
@@ -411,7 +414,7 @@ class Router:
 
             while self.pendingTasks:
                 task = self.pendingTasks.pop()
-                logging.info("Running task directly after request: %s" % str(task))
+                logging.debug(f"Deferred task emulation, executing {task=}")
                 task()
 
     def _route(self, path: str) -> None:
@@ -442,6 +445,10 @@ class Router:
                 raise errors.BadRequest()
 
             if key.startswith("_"):  # Ignore keys starting with _ (like VI's _unused_time_stamp)
+                continue
+
+            if key == TEMPLATE_STYLE_KEY:
+                self.template_style = value
                 continue
 
             if key in self.kwargs:
@@ -522,10 +529,12 @@ class Router:
                 logging.debug("Caching disabled by X-Viur-Disable-Cache header")
                 self.disableCache = True
 
-        # Copy context into self.context if available
+        # Destill context as self.context, if available
         if context := {k: v for k, v in self.kwargs.items() if k.startswith("@")}:
+            # Remove context parameters from kwargs
             kwargs = {k: v for k, v in self.kwargs.items() if k not in context}
-            self.context |= context
+            # Remove leading "@" from context parameters
+            self.context |= {k[1:]: v for k, v in context.items() if len(k) > 1}
         else:
             kwargs = self.kwargs
 
