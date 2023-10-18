@@ -667,7 +667,7 @@ def embedSvg(render: Render, name: str, classes: Union[List[str], None] = None, 
 @jinjaGlobalFunction
 def downloadUrlFor(render: Render,
                    fileObj: dict,
-                   expires: Union[None, int] = conf.viur.render_html_downloadUrlExpiration,
+                   expires: Union[None, int] = conf.viur.render_html_download_url_expiration,
                    derived: Optional[str] = None,
                    downloadFileName: Optional[str] = None) -> Optional[str]:
     """

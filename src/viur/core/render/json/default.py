@@ -136,7 +136,7 @@ class DefaultRender(object):
             res[key] = self.renderBoneValue(bone, skel, key)
         if injectDownloadURL and "dlkey" in skel and "name" in skel:
             res["downloadUrl"] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False,
-                                                      expires=conf.viur.render_json_downloadUrlExpiration)
+                                                      expires=conf.viur.render_json_download_url_expiration)
         return res
 
     def renderEntry(self, skel: SkeletonInstance, actionName, params=None):

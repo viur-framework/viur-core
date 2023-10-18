@@ -236,9 +236,9 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
     # noinspection PyUnresolvedReferences
     import skeletons  # This import is not used here but _must_ remain to ensure that the
     # application's data models are explicitly imported at some place!
-    if conf.viur.instance_project_id not in conf.viur.validApplicationIDs:
+    if conf.viur.instance_project_id not in conf.viur.valid_application_ids:
         raise RuntimeError(
-            f"""Refusing to start, {conf.viur.instance_project_id=} is not in {conf.viur.validApplicationIDs=}""")
+            f"""Refusing to start, {conf.viur.instance_project_id=} is not in {conf.viur.valid_application_ids=}""")
     if not render:
         import viur.core.render
         render = viur.core.render

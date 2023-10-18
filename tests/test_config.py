@@ -75,7 +75,7 @@ OLD_MEMBERS = [
     'viur.skeleton.searchPath',
     'viur.tasks.customEnvironmentHandler',
     'viur.user.roles',
-    'viur.validApplicationIDs',
+    'viur.valid_application_ids',
     'viur.version',
 ]
 """Old config keys

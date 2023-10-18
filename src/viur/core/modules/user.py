@@ -604,7 +604,7 @@ class GoogleAccount(UserPrimaryAuthentication):
             if not (userSkel := addSkel().all().filter("name.idx =", email.lower()).getSkel()):
                 # Still no luck - it's a completely new user
                 if not self.registrationEnabled:
-                    if userInfo.get("hd") and userInfo["hd"] in conf.viur.user_google_gsuiteDomains:
+                    if userInfo.get("hd") and userInfo["hd"] in conf.viur.user_google_gsuite_domains:
                         print("User is from domain - adding account")
                     else:
                         logging.warning("Denying registration of %s", email)
