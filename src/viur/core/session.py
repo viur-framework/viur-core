@@ -2,7 +2,6 @@ import hmac
 import logging
 import time
 from viur.core.tasks import DeleteEntitiesIter
-from viur.core.request import BrowseHandler
 from viur.core.config import conf  # this import has to stay alone due partial import
 from viur.core import db, utils, tasks
 from typing import Any, Optional, Union
@@ -58,7 +57,7 @@ class Session:
         self.static_security_key = None
         self.session = db.Entity()
 
-    def load(self, req: BrowseHandler):
+    def load(self, req):
         """
             Initializes the Session.
 
@@ -74,7 +73,7 @@ class Session:
 
                 self.cookie_key = cookie_key
                 self.session = data["data"]
-                self.static_security_key = data["static_security_key"]
+                self.static_security_key = data.get("static_security_key") or data.get("staticSecurityKey")
 
                 if data["lastseen"] < time.time() - 5 * 60:  # Refresh every 5 Minutes
                     self.changed = True
@@ -83,7 +82,7 @@ class Session:
         else:
             self.reset()
 
-    def save(self, req: BrowseHandler):
+    def save(self, req):
         """
             Writes the session into the database.
 

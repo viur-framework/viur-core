@@ -91,8 +91,8 @@ class Render(object):
 
         if (
             not ignoreStyle
-            and (style := current.request.get().kwargs.get("style"))
-            and all([x in validChars for x in style.lower()])
+            and (style := current.request.get().template_style)
+            and all(x in validChars for x in style.lower())
         ):
             style_postfix = f"_{style}"
         else:
@@ -104,18 +104,17 @@ class Render(object):
             template = (template,)
 
         for tpl in template:
-            filenames = [
-                tpl,
-                tpl + style_postfix,
-            ]
+            filenames = [tpl]
+            if style_postfix:
+                filenames.append(tpl + style_postfix)
 
             if lang:
                 filenames += [
-                    os.path.join(lang, tpl + style_postfix),
-                    os.path.join(lang, tpl),
+                    os.path.join(lang, _tpl)
+                    for _tpl in filenames
                 ]
 
-            for filename in set(reversed(filenames)):
+            for filename in reversed(filenames):
                 filename += ".html"
 
                 if "_" in filename:

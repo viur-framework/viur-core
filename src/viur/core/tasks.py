@@ -18,6 +18,7 @@ from viur.core import current, db, errors, utils
 from viur.core.config import conf
 from viur.core.module import Module
 from viur.core.decorators import exposed, skey
+from viur.core.utils import parse_bool
 
 
 # class JsonKeyEncoder(json.JSONEncoder):
@@ -217,15 +218,16 @@ class TaskHandler(Module):
             if not conf.viur.instance_is_dev_server or os.getenv("TASKS_EMULATOR") is None:
                 logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
             raise errors.Forbidden()
+
         # Check if the retry count exceeds our warning threshold
         retryCount = req.headers.get("X-Appengine-Taskretrycount", None)
-        if retryCount:
-            if int(retryCount) == self.retryCountWarningThreshold:
-                from viur.core import email
-                email.sendEMailToAdmins("Deferred task retry count exceeded warning threshold",
-                                        "Task %s will now be retried for the %sth time." % (
-                                            req.headers.get("X-Appengine-Taskname", ""),
-                                            retryCount))
+        if retryCount and int(retryCount) == self.retryCountWarningThreshold:
+            from viur.core import email
+            email.sendEMailToAdmins(
+                "Deferred task retry counter exceeded warning threshold",
+                f"""Task {req.headers.get("X-Appengine-Taskname", "")} is retried for the {retryCount}th time."""
+            )
+
         cmd, data = json.loads(req.body, object_hook=jsonDecodeObjectHook)
         funcPath, args, kwargs, env = data
         logging.debug(f"Call task {funcPath} with {cmd=} {args=} {kwargs=} {env=}")
@@ -363,8 +365,7 @@ class TaskHandler(Module):
         if not task.canCall():
             raise errors.Unauthorized()
         skel = task.dataSkel()
-        skey = kwargs.get("skey", "")
-        if len(kwargs) == 0 or not skel.fromClient(kwargs) or kwargs.get("bounce") == "1":
+        if not kwargs or not skel.fromClient(kwargs) or parse_bool(kwargs.get("bounce")):
             return self.render.add(skel)
         task.execute(**skel.accessedValues)
         return self.render.addSuccess(skel)

@@ -1,3 +1,11 @@
+"""
+    This module implements the WSGI (Web Server Gateway Interface) layer for ViUR. This is the main entry
+    point for incomming http requests. The main class is the :class:BrowserHandler. Each request will get it's
+    own instance of that class which then holds the reference to the request and response object.
+    Additionally, this module defines the RequestValidator interface which provides a very early hook into the
+    request processing (useful for global ratelimiting, DDoS prevention or access control).
+"""
+
 import json
 import logging
 import os
@@ -6,26 +14,19 @@ import traceback
 import typing
 import inspect
 import unicodedata
+import webob
 from abc import ABC, abstractmethod
 from urllib import parse
 from urllib.parse import unquote, urljoin, urlparse
-
-import webob
-
-from viur.core import current, db, errors, utils
+from viur.core import current, db, errors, session, utils
 from viur.core.module import Method
 from viur.core.config import conf
 from viur.core.logging import client as loggingClient, requestLogger, requestLoggingRessource
 from viur.core.securityheaders import extendCsp
 from viur.core.tasks import _appengineServiceIPs
 
-"""
-    This module implements the WSGI (Web Server Gateway Interface) layer for ViUR. This is the main entry
-    point for incomming http requests. The main class is the :class:BrowserHandler. Each request will get it's
-    own instance of that class which then holds the reference to the request and response object.
-    Additionally, this module defines the RequestValidator interface which provides a very early hook into the
-    request processing (useful for global ratelimiting, DDoS prevention or access control).
-"""
+TEMPLATE_STYLE_KEY = "style"
+
 
 class RequestValidator(ABC):
     """
@@ -75,7 +76,7 @@ class FetchMetaDataValidator(RequestValidator):
         return 403, "Forbidden", "Request rejected due to fetch metadata"
 
 
-class BrowseHandler():  # webapp.RequestHandler
+class Router:
     """
         This class accepts the requests, collect its parameters and routes the request
         to its destination function.
@@ -99,16 +100,50 @@ class BrowseHandler():  # webapp.RequestHandler
     # List of requestValidators used to preflight-check an request before it's being dispatched within ViUR
     requestValidators = [FetchMetaDataValidator]
 
-    def __init__(self, request: webob.Request, response: webob.Response):
-        super()
+    def __init__(self, environ: dict):
+        super().__init__()
         self.startTime = time.time()
-        self.request = request
-        self.response = response
+
+        self.request = webob.Request(environ)
+        self.response = webob.Response()
+
         self.maxLogLevel = logging.DEBUG
-        self._traceID = request.headers.get('X-Cloud-Trace-Context', "").split("/")[0] or utils.generateRandomString()
+        self._traceID = \
+            self.request.headers.get("X-Cloud-Trace-Context", "").split("/")[0] or utils.generateRandomString()
         self.is_deferred = False
         self.path_list = ()
+
+        self.skey_checked = False  # indicates whether @skey-decorator-check has already performed within a request
+        self.internalRequest = False
+        self.disableCache = False  # Shall this request bypass the caches?
+        self.pendingTasks = []
+        self.args = ()
+        self.kwargs = {}
+        self.context = {}
+        self.template_style: str | None = None
+
+        # Check if it's a HTTP-Method we support
+        self.method = self.request.method.lower()
+        self.isPostRequest = self.method == "post"
+        self.isSSLConnection = self.request.host_url.lower().startswith("https://")  # We have an encrypted channel
+
         db.currentDbAccessLog.set(set())
+
+        # Set context variables
+        current.language.set(conf["viur.defaultLanguage"])
+        current.request.set(self)
+        current.session.set(session.Session())
+        current.request_data.set({})
+
+        # Process actual request
+        self._process()
+
+        # Unset context variables
+        current.language.set(None)
+        current.request_data.set(None)
+        current.session.set(None)
+        current.request.set(None)
+        current.user.set(None)
 
     @property
     def isDevServer(self) -> bool:
@@ -118,7 +153,7 @@ class BrowseHandler():  # webapp.RequestHandler
         logging.warning(msg)
         return conf.viur.instance_is_dev_server
 
-    def selectLanguage(self, path: str) -> str:
+    def _select_language(self, path: str) -> str:
         """
             Tries to select the best language for the current request. Depending on the value of
             conf.viur.languageMethod, we'll either try to load it from the session, determine it by the domain
@@ -168,29 +203,18 @@ class BrowseHandler():  # webapp.RequestHandler
                         current.language.set(lng)
         return path
 
-    def processRequest(self) -> None:
-        """
-            Bring up the enviroment for this request, start processing and handle errors
-        """
-        # Check if it's a HTTP-Method we support
-        reqestMethod = self.request.method.lower()
-        if reqestMethod not in ["get", "post", "head"]:
-            logging.error("Not supported")
+    def _process(self):
+        if self.method not in ("get", "post", "head"):
+            logging.error(f"{self.method=} not supported")
             return
-        self.isPostRequest = reqestMethod == "post"
 
-        # Configure some basic parameters for this request
-        self.internalRequest = False
-        self.isSSLConnection = self.request.host_url.lower().startswith("https://")  # We have an encrypted channel
         if self.request.headers.get("X-AppEngine-TaskName", None) is not None:  # Check if we run in the appengine
             if self.request.environ.get("HTTP_X_APPENGINE_USER_IP") in _appengineServiceIPs:
                 self.is_deferred = True
             elif os.getenv("TASKS_EMULATOR") is not None:
                 self.is_deferred = True
+
         current.language.set(conf.viur.defaultLanguage)
-        self.disableCache = False  # Shall this request bypass the caches?
-        self.args = []
-        self.kwargs = {}
         # Check if we should process or abort the request
         for validator, reqValidatorResult in [(x, x.validate(self)) for x in self.requestValidators]:
             if reqValidatorResult is not None:
@@ -199,10 +223,8 @@ class BrowseHandler():  # webapp.RequestHandler
                 self.response.status = '%d %s' % (statusCode, statusStr)
                 self.response.write(statusDescr)
                 return
+
         path = self.request.path
-        if conf.viur.instance_is_dev_server:
-            # We'll have to emulate the task-queue locally as far as possible until supported by dev_appserver again
-            self.pendingTasks = []
 
         # Add CSP headers early (if any)
         if conf.security.contentSecurityPolicy and conf.security.contentSecurityPolicy["_headerCache"]:
@@ -270,11 +292,11 @@ class BrowseHandler():  # webapp.RequestHandler
             if user_mod := getattr(conf.viur.mainApp, "user", None):
                 current.user.set(user_mod.getCurrentUser())
 
-            path = self.selectLanguage(path)[1:]
+            path = self._select_language(path)[1:]
             if conf.viur.requestPreprocessor:
                 path = conf.viur.requestPreprocessor(path)
 
-            self.findAndCall(path)
+            self._route(path)
 
         except errors.Redirect as e:
             if conf.debug.traceExceptions:
@@ -292,6 +314,7 @@ class BrowseHandler():  # webapp.RequestHandler
                 raise
             self.response.body = b""
             if isinstance(e, errors.HTTPException):
+                logging.info(f"[{e.status}] {e.name}: {e.descr}", exc_info=conf["viur.debug.trace"])
                 self.response.status = '%d %s' % (e.status, e.name)
                 # Set machine-readable x-viur-error response header in case there is an exception description.
                 if e.descr:
@@ -392,106 +415,10 @@ class BrowseHandler():  # webapp.RequestHandler
 
             while self.pendingTasks:
                 task = self.pendingTasks.pop()
-                logging.info("Running task directly after request: %s" % str(task))
+                logging.debug(f"Deferred task emulation, executing {task=}")
                 task()
 
-    def processTypeHint(self, typeHint: typing.ClassVar, inValue: typing.Union[str, typing.List[str]],
-                        parsingOnly: bool) -> typing.Tuple[typing.Union[str, typing.List[str]], typing.Any]:
-        """
-            Helper function to enforce/convert the incoming :param: inValue to the type defined in :param: typeHint.
-            Returns a string 2-tuple of the new value we'll store in self.kwargs as well as the parsed value that's
-            passed to the caller. The first value is always the unmodified string, the unmodified list of strings or
-            (in case typeHint is List[T] and the provided inValue is a simple string) a List containing only inValue.
-            The second returned value is inValue converted to whatever type is suggested by typeHint.
-
-            .. Warning: ViUR traditionally supports two ways to supply data to exposed functions: As *args (via
-                Path components in the URL) and **kwargs (using POST or appending ?name=value parameters to the URL).
-                When using a typeHint List[T], that parameter can only be submitted as a keyword argument. Trying to
-                fill that parameter using a *args parameter will raise TypeError.
-
-            ..  code-block:: python
-
-                # Example:
-                # Giving the following function, it's possible to fill *a* either by /test/aaa or by /test?a=aaa
-                @exposed
-                def test(a: str)
-
-                # In case of
-                @exposed
-                def test(a: List[str])
-                # only /test?a=aaa is valid. Invocations like /test/aaa will be rejected
-
-            :param typeHint: Type to which inValue should be converted to
-            :param inValue: The value that should be converted to the given type
-            :param parsingOnly: If true, the parameter is a keyword argument which we can convert to List
-            :return: 2-tuple of the original string-value and the converted value
-        """
-        try:
-            typeOrigin = typeHint.__origin__  # Was: typing.get_origin(typeHint) (not supported in python 3.7)
-        except:
-            typeOrigin = None
-        if typeOrigin is typing.Union:
-            typeArgs = typeHint.__args__  # Was: typing.get_args(typeHint) (not supported in python 3.7)
-            if len(typeArgs) == 2 and isinstance(None, typeArgs[1]):  # is None:
-                return self.processTypeHint(typeArgs[0], inValue, parsingOnly)
-        elif typeOrigin is list:
-            if parsingOnly:
-                raise TypeError("Cannot convert *args argument to list")
-            typeArgs = typeHint.__args__  # Was: typing.get_args(typeHint) (not supported in python 3.7)
-            if len(typeArgs) != 1:
-                raise TypeError("Invalid List subtype")
-            typeArgs = typeArgs[0]
-            if not isinstance(inValue, list):
-                inValue = [inValue]  # Force to List
-            strRes = []
-            parsedRes = []
-            for elem in inValue:
-                a, b = self.processTypeHint(typeArgs, elem, parsingOnly)
-                strRes.append(a)
-                parsedRes.append(b)
-            if len(strRes) == 1:
-                strRes = strRes[0]
-            return strRes, parsedRes
-        elif typeHint is str:
-            if not isinstance(inValue, str):
-                raise TypeError("Input argument to str typehint is not a string (probably a list)")
-            return inValue, inValue
-        elif typeHint is int:
-            if not isinstance(inValue, str):
-                raise TypeError("Input argument to int typehint is not a string (probably a list)")
-            if not inValue.replace("-", "", 1).isdigit():
-                raise TypeError("Failed to parse an integer typehint")
-            i = int(inValue)
-            return str(i), i
-        elif typeHint is float:
-            if not isinstance(inValue, str):
-                raise TypeError("Input argument to float typehint is not a string (probably a list)")
-            if not inValue.replace("-", "", 1).replace(",", ".", 1).replace(".", "", 1).isdigit():
-                raise TypeError("Failed to parse an float typehint")
-            f = float(inValue)
-            if f != f:
-                raise TypeError("Parsed float is a NaN-Value")
-            return str(f), f
-        elif typeHint is bool:
-            if not isinstance(inValue, str):
-                raise TypeError(f"Input argument to boolean typehint is not a str, but f{type(inValue)}")
-
-            if inValue.strip().lower() in conf.viur.bone_boolean_str2true:
-                return "True", True
-
-            return "False", False
-
-        elif typeOrigin is typing.Literal:
-            inValueStr = str(inValue)
-            for literal in typeHint.__args__:
-                if inValueStr == str(literal):
-                    return inValue, literal
-            raise TypeError("Input argument must be one of these Literals: "
-                            + ", ".join(map(repr, typeHint.__args__)))
-
-        raise ValueError("TypeHint %s not supported" % typeHint)
-
-    def findAndCall(self, path: str, *args, **kwargs) -> None:
+    def _route(self, path: str) -> None:
         """
             Does the actual work of sanitizing the parameter, determine which exposed-function to call
             (and with which parameters)
@@ -503,8 +430,6 @@ class BrowseHandler():  # webapp.RequestHandler
                                    for part in path.strip("/").split("/"))
 
         # Prevent Hash-collision attacks
-        kwargs = {}
-
         if len(self.request.params) > conf.viur.maxPostParamsCount:
             raise errors.BadRequest(
                 f"Too many arguments supplied, exceeding maximum"
@@ -523,15 +448,19 @@ class BrowseHandler():  # webapp.RequestHandler
             if key.startswith("_"):  # Ignore keys starting with _ (like VI's _unused_time_stamp)
                 continue
 
-            if key in kwargs:
-                if isinstance(kwargs[key], list):
-                    kwargs[key].append(value)
-                else:  # Convert that key to a list
-                    kwargs[key] = [kwargs[key], value]
-            else:
-                kwargs[key] = value
+            if key == TEMPLATE_STYLE_KEY:
+                self.template_style = value
+                continue
 
-        if "self" in kwargs or "return" in kwargs:  # self or return is reserved for bound methods
+            if key in self.kwargs:
+                if isinstance(self.kwargs[key], list):
+                    self.kwargs[key].append(value)
+                else:  # Convert that key to a list
+                    self.kwargs[key] = [self.kwargs[key], value]
+            else:
+                self.kwargs[key] = value
+
+        if "self" in self.kwargs or "return" in self.kwargs:  # self or return is reserved for bound methods
             raise errors.BadRequest()
 
         caller = conf.viur.mainResolver
@@ -539,13 +468,14 @@ class BrowseHandler():  # webapp.RequestHandler
         path_found = True
 
         for part in self.path_list:
+            # TODO: Remove canAccess guards... solve differently.
             if "canAccess" in caller and not caller["canAccess"]():
                 # We have a canAccess function guarding that object,
                 # and it returns False...
                 raise errors.Unauthorized()
 
             idx += 1
-            part = part.replace("-", "_").replace(".", "_")
+            part = part.replace("-", "_")
             if part not in caller:
                 part = "index"
 
@@ -556,7 +486,7 @@ class BrowseHandler():  # webapp.RequestHandler
                     if part == "index":
                         idx -= 1
 
-                    args = self.path_list[idx:] + args  # Prepend the rest of Path to args
+                    self.args = tuple(self.path_list[idx:])
                     break
 
                 elif part == "index":
@@ -568,7 +498,6 @@ class BrowseHandler():  # webapp.RequestHandler
                 break
 
         if not path_found:
-            from viur.core import utils
             raise errors.NotFound(
                 f"""The path {utils.escapeString("/".join(self.path_list[:idx]))} could not be found""")
 
@@ -593,72 +522,35 @@ class BrowseHandler():  # webapp.RequestHandler
         # Check for @force_post flag
         if not self.isPostRequest and caller.methods == ("POST", ):
             raise errors.MethodNotAllowed("You must use POST to access this resource!")
-        self.args = args
-        self.kwargs = kwargs
 
         # Check if this request should bypass the caches
         if self.request.headers.get("X-Viur-Disable-Cache"):
-            from viur.core import utils
             # No cache requested, check if the current user is allowed to do so
             if (user := current.user.get()) and "root" in user["access"]:
                 logging.debug("Caching disabled by X-Viur-Disable-Cache header")
                 self.disableCache = True
 
-        try:
-            # fixme: this must be refactored and integrated into Method class!!
-            annotations = typing.get_type_hints(caller._func)
-            if annotations and not self.internalRequest:
-                caller_kwargs = {}  # The dict of new **kwargs we'll pass to the caller
-                caller_args = []  # List of new *args we'll pass to the caller
+        # Destill context as self.context, if available
+        if context := {k: v for k, v in self.kwargs.items() if k.startswith("@")}:
+            # Remove context parameters from kwargs
+            kwargs = {k: v for k, v in self.kwargs.items() if k not in context}
+            # Remove leading "@" from context parameters
+            self.context |= {k[1:]: v for k, v in context.items() if len(k) > 1}
+        else:
+            kwargs = self.kwargs
 
-                # FIXME: Use inspect.signature() for all this stuff...
-                argsOrder = caller._func.__code__.co_varnames[:caller._func.__code__.co_argcount]
-                # In case of a method, ignore the 'self' parameter
-                if inspect.ismethod(caller._func):
-                    argsOrder = argsOrder[1:]
+        if ((self.internalRequest and conf.debug.traceInternalCallRouting)
+                or conf.debug.traceExternalCallRouting):
+            logging.debug(
+                f"Calling {caller._func!r} with args={self.args!r}, {kwargs=} within context={self.context!r}"
+            )
 
-                # Map args in
-                for idx in range(0, min(len(self.args), len(argsOrder))):
-                    paramKey = argsOrder[idx]
-                    if paramKey in annotations:  # We have to enforce a type-annotation for this *args parameter
-                        _, newTypeValue = self.processTypeHint(annotations[paramKey], self.args[idx], True)
-                        caller_args.append(newTypeValue)
-                    else:
-                        caller_args.append(self.args[idx])
-                caller_args.extend(self.args[min(len(self.args), len(argsOrder)):])
-                # Last, we map the kwargs in
-                for k, v in kwargs.items():
-                    if k in annotations:
-                        newStrValue, newTypeValue = self.processTypeHint(annotations[k], v, False)
-                        self.kwargs[k] = newStrValue
-                        caller_kwargs[k] = newTypeValue
-                    else:
-                        caller_kwargs[k] = v
-            else:
-                caller_args = self.args
-                caller_kwargs = self.kwargs
-
-            if (conf.debug.traceExternalCallRouting and not self.internalRequest
-                    or conf["viur.debug.traceInternalCallRouting"]):
-                logging.debug(f"Calling {caller=} with {args=}, {kwargs=}")
-
-            res = caller(*caller_args, **caller_kwargs)
+        # Now call the routed method!
+        res = caller(*self.args, **kwargs)
 
             if not isinstance(res, bytes):  # Convert the result to bytes if it is not already!
                 res = str(res).encode("UTF-8")
             self.response.write(res)
-
-        except TypeError as e:
-            if self.internalRequest:  # We provide that "service" only for requests originating from outside
-                raise
-            if "viur/core/request.py\", line 5" in traceback.format_exc().splitlines()[-3]:
-                # Don't raise NotAcceptable for type-errors raised deep somewhere inside caller.
-                # We check if the last line in traceback originates from viur/core/request.py and a line starting with
-                # 5 and only raise NotAcceptable then. Otherwise a "normal" 500 Server error will be raised.
-                # This is kinda hackish, however this is much faster than reevaluating the args and kwargs passed
-                # to caller as we did in ViUR2.
-                raise errors.NotAcceptable()
-            raise
 
     def saveSession(self) -> None:
         current.session.get().save(self)

@@ -274,6 +274,9 @@ def sendEMailToAdmins(subject: str, body: str, *args, **kwargs) -> bool:
             for user_skel in conf.viur.mainApp.user.viewSkel().all().filter("access =", "root").fetch():
                 users.append(user_skel["name"])
 
+        # Prefix the instance's project_id to subject
+        subject = conf["viur.instance.project_id"] + ": " + subject
+
         if users:
             ret = sendEMail(dests=users, stringTemplate=os.linesep.join((subject, body)), *args, **kwargs)
             success = True
@@ -432,9 +435,9 @@ class EmailTransportSendInBlue(EmailTransport):
                 if entity["latest_warning_for"] == limit:
                     logging.info(f"Already send an email for {limit = }.")
                     break
+
                 sendEMailToAdmins(
-                    f"SendInBlue email budget for {conf['viur.instance.project_id']}: "
-                    f"{credits} ({idx}. warning)",
+                    f"SendInBlue email budget {credits} ({idx}. warning)",
                     f"The SendInBlue email budget reached {credits} credits "
                     f"for {data['email']}. Please increase soon.",
                 )

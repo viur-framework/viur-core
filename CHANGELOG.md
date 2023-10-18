@@ -1,9 +1,69 @@
 # Changelog
 
-This file documents any relevant changes done to ViUR-core since version 3.0.0.
+This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.5.0.beta4]
+## [3.5.3]
 
+- docs: Improve basics and getting started tutorials (#916)
+- docs: remove old configs, fix RST-Syntax and adjustments for server->core (#913)
+- docs: Fix SEO training after renaming in #800 (#912)
+- docs: Improve and correct session docs (#914)
+- ci: Add python 3.11 to matrix in test workflow (#917)
+- chore: Downgrade urllib3 to `1.26.17` (#918)
+- fix: Add `google-api-core[grpc]` and `googleapis-common-protos[grpc]` (#911)
+- feat: Add a way to disable `Module.describe()` caching (#906)
+
+## [3.5.2]
+
+- fix: Built a standardized way for the return of errors in 2Factor (#900)
+- fix: `Formmailer` expects a `skey` parameter, but it uses the `@skey` decorator (#903)
+- chore: Update dependencies to latest version (#899)
+- fix: Prefix `project_id` to all admin emails (#885)
+- fix: Remove `@`-marker from request context destillation (#884, #888)
+- fix: Downgrade debug level for emulated deferred tasks (#883)
+
+## [3.5.1]
+
+- fix: Accept `staticSecurityKey` from sessions created by viur-core < 3.5 (#877)
+- fix: Replace unused `otpTemplate` by new `second_factor_login_template` (#876)
+- fix(docs): Add and lock all docs dependencies (#875)
+- fix: Remove the `style` which is reserved for template completely from the request kwargs (#870)
+- fix: Re-add missing `skel.fromDB()` in `Tree.move` (#874)
+- ci: Fixed codecov path
+
+## [3.5.0]
+
+- fix: Move warning-email "Debug mode enabled" (#869)
+- fix: Add logging for raised `HTTPException` (#864)
+- fix: Remove replace of `.` to `_` (#865)
+- fix: Reactivate old-style `trace*CallRouting` for backward compatibility (#866)
+- fix: Remove `viur.core` decorator import advise (#868)
+- feat: Add `onAdd()`-hook in `User.add()` method (#863)
+- fix: Include `requirements.txt` in dist wheel again (#862)
+- fix: Additional fixing for `@skey(allow_empty=True)` (#861)
+- fix: Re-include `templates/` folder as data-files (#858)
+- fix: For #850, return skel in transaction (#857)
+- fix: `html.Render.getTemplateFileName()` should be deterministic (#855)
+- fix: Updating admin info stuff (#852)
+- fix: @skey-requirement determination and `/user/verify` (#850)
+- fix: Customizable template name for `second_factor_choice` (#845)
+- fix: Clean-up user/view and user/edit with "self" (#848)
+- fix: For #842, use `self.kwargs` for list parsing (#849)
+- fix: mixed up and blurred methods and concepts in User.otp (#846)
+- fix: Replace call to `utils.getCurrentUser()` (#847)
+- fix: import qrcode's element with an alias (#844)
+- refactor: Refactor `Router` & collect context-variables to `current.request.get().context` (#842)
+- feat: Second factor OTP login using Authenticator App (#578)
+- fix: Add default value for `token`-parameter in `GoogleAccount.login()` (#843)
+- feat: Avoid multiple CSRF-security-key validation (#841)
+- refactor: Use `parse_bool()` for bool Method type annotations (#840)
+- feat: Implement `utils.parse_bool` (#838)
+- feat: Extend `Method` to examine function signature and parse type annotations (#837)
+- refactor: Prototype action functions (#831)
+- refactor: Some clean-up on #800 (#828)
+- feat: Add `secret` module to access values from GC secret manager (#815)
+- fix: `Method.__name__` improves #800 (#827)
+- fix: Add missing import on #800 (#826)
 - feat: Implement a new `Module`/`Method` concept with new decorators (#800)
 - feat: Implement `retry_n_times` decorator (#655)
 - refactor: Refactor password recovery process in stock `User`-module (#682)

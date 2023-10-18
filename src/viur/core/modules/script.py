@@ -1,6 +1,6 @@
 from viur.core.bones import *
 from viur.core.prototypes.tree import Tree, TreeSkel
-from viur.core import db, utils, conf, skeleton, tasks
+from viur.core import db, conf, current, skeleton, tasks
 from viur.core.prototypes.tree import Tree
 import re
 
@@ -83,7 +83,7 @@ class Script(Tree):
         return conf.viur.get("script_admin_info") or {}
 
     def getAvailableRootNodes(self):
-        if not utils.getCurrentUser():
+        if not current.user.get():
             return []
 
         return [{"name": "Scripts", "key": self.ensureOwnModuleRootNode().key}]

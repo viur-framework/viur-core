@@ -1,20 +1,21 @@
-from collections import OrderedDict
-
 import logging
 import os
 import string
 import urllib
 import urllib.parse
+from collections import OrderedDict
 from datetime import timedelta
 from hashlib import sha512
 from typing import Any, Dict, List, NoReturn, Optional, Union
 
-import viur.core.render.html.default
-from viur.core import Method
-from viur.core import db, current, errors, prototypes, securitykey, utils
+from qrcode import make as qrcode_make
+from qrcode.image import svg as qrcode_svg
+
+from viur.core import Method, current, db, errors, prototypes, securitykey, utils
 from viur.core.config import conf
 from viur.core.i18n import translate as translationClass
 from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
+from viur.core.request import TEMPLATE_STYLE_KEY
 from viur.core.skeleton import RelSkel, SkeletonInstance
 from ..default import Render
 
@@ -71,11 +72,15 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
         res = None  # memcache.get(cacheKey)
         if res:
             return res
+    # Pop this key after building the cache string with it
+    template_style = kwargs.pop(TEMPLATE_STYLE_KEY, None)
     tmp_params = request.kwargs.copy()
     request.kwargs = {"__args": args, "__outer": tmp_params}
     request.kwargs.update(kwargs)
     lastRequestState = request.internalRequest
     request.internalRequest = True
+    last_template_style = request.template_style
+    request.template_style = template_style
     caller = conf.viur.mainApp
     pathlist = path.split("/")
     for currpath in pathlist:
@@ -86,11 +91,13 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
         else:
             request.kwargs = tmp_params  # Reset RequestParams
             request.internalRequest = lastRequestState
+            request.template_style = last_template_style
             return u"Path not found %s (failed Part was %s)" % (path, currpath)
 
     if not (isinstance(caller, Method) and caller.exposed is not None):
         request.kwargs = tmp_params  # Reset RequestParams
         request.internalRequest = lastRequestState
+        request.template_style = last_template_style
         return u"%s not callable or not exposed" % str(caller)
     try:
         resstr = caller(*args, **kwargs)
@@ -100,6 +107,7 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
         raise
     request.kwargs = tmp_params
     request.internalRequest = lastRequestState
+    request.template_style = last_template_style
     if cachetime:
         pass
     # memcache.set(cacheKey, resstr, cachetime)
@@ -725,3 +733,15 @@ def seoUrlForEntry(render: Render, *args, **kwargs):
 @jinjaGlobalFunction
 def seoUrlToFunction(render: Render, *args, **kwargs):
     return utils.seoUrlToFunction(*args, **kwargs)
+
+
+@jinjaGlobalFunction
+def qrcode(render: Render, data: str) -> str:
+    """
+    Generates a SVG string for a html template
+
+    :param data: Any string data that should render to a QR Code.
+
+    :return: The SVG string representation.
+    """
+    return qrcode_make(data, image_factory=qrcode_svg.SvgPathImage, box_size=30).to_string().decode("utf-8")

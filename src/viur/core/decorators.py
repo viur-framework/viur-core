@@ -1,6 +1,15 @@
 from typing import Callable
 from viur.core.module import Method
 
+__all__ = [
+    "access",
+    "exposed",
+    "force_post",
+    "force_ssl",
+    "internal_exposed",
+    "skey",
+]
+
 
 def exposed(func: Callable) -> Method:
     """
@@ -51,7 +60,7 @@ def force_post(func: Callable) -> Method:
     Decorator, which enforces usage of a http post request.
     """
     func = Method.ensure(func)
-    func.methods = ("POST", )
+    func.methods = ("POST",)
     return func
 
 
@@ -133,10 +142,3 @@ def skey(
         return decorator
 
     return decorator(func)
-
-
-def SKEY_ALLOW_EMPTY_FOR_KEY(args: tuple, kwargs: dict) -> bool:
-    """
-    Standard allow_empty-check for several prototype functions
-    """
-    return (len(args) == 1 and not kwargs) or (len(kwargs) == 1 and kwargs.get("key"))

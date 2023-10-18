@@ -7,7 +7,7 @@ from viur.core.cache import flushCache
 from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.tasks import CallDeferred
 from .skelmodule import SkelModule
-
+from ..utils import parse_bool
 
 SkelType = Literal["node", "leaf"]
 
@@ -49,8 +49,9 @@ class Tree(SkelModule):
 
     def __init__(self, moduleName, modulePath, *args, **kwargs):
         assert self.nodeSkelCls, f"Need to specify at least nodeSkelCls for {self.__class__.__name__!r}"
-        super(Tree, self).__init__(moduleName, modulePath, *args, **kwargs)
+        super().__init__(moduleName, modulePath, *args, **kwargs)
 
+    @property
     def handler(self):
         return "tree" if self.leafSkelCls else "tree.node"  # either a tree or a tree with nodes only (former hierarchy)
 
@@ -295,7 +296,7 @@ class Tree(SkelModule):
         return self.render.view(skel)
 
     @exposed
-    def view(self, skelType: SkelType, key: str, *args, **kwargs) -> Any:
+    def view(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> Any:
         """
         Prepares and renders a single entry for viewing.
 
@@ -315,21 +316,21 @@ class Tree(SkelModule):
         """
         if not (skelType := self._checkSkelType(skelType)):
             raise errors.NotAcceptable(f"Invalid skelType provided.")
+
         skel = self.viewSkel(skelType)
-        if not key:
-            raise errors.NotAcceptable()
-        # We return a single entry for viewing
         if not skel.fromDB(key):
             raise errors.NotFound()
+
         if not self.canView(skelType, skel):
             raise errors.Unauthorized()
+
         self.onView(skelType, skel)
         return self.render.view(skel)
 
     @exposed
     @force_ssl
-    @skey(allow_empty=SKEY_ALLOW_EMPTY_FOR_KEY)
-    def add(self, skelType: SkelType, node: str, *args, **kwargs) -> Any:
+    @skey(allow_empty=True)
+    def add(self, skelType: SkelType, node: db.Key | int | str, *args, **kwargs) -> Any:
         """
         Add a new entry with the given parent *node*, and render the entry, eventually with error notes
         on incorrect data. Data is taken by any other arguments in *kwargs*.
@@ -362,22 +363,24 @@ class Tree(SkelModule):
         # parentrepo may not exist in parentNodeSkel as it may be an rootNode
         skel["parentrepo"] = parentNodeSkel["parentrepo"] or parentNodeSkel["key"]
 
-        if (len(kwargs) == 0  # no data supplied
+        if (
+            not kwargs  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or not current.request.get().isPostRequest
-            or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
+            or parse_bool(kwargs.get("bounce"))  # review before adding
         ):
             return self.render.add(skel)
 
         self.onAdd(skelType, skel)
         skel.toDB()
         self.onAdded(skelType, skel)
+
         return self.render.addSuccess(skel)
 
     @exposed
     @force_ssl
-    @skey(allow_empty=SKEY_ALLOW_EMPTY_FOR_KEY)
-    def edit(self, skelType: SkelType, key: str, *args, **kwargs) -> Any:
+    @skey(allow_empty=True)
+    def edit(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> Any:
         """
         Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
         Data is taken by any other arguments in *kwargs*.
@@ -402,17 +405,22 @@ class Tree(SkelModule):
         skel = self.editSkel(skelType)
         if not skel.fromDB(key):
             raise errors.NotFound()
+
         if not self.canEdit(skelType, skel):
             raise errors.Unauthorized()
-        if (len(kwargs) == 0  # no data supplied
+
+        if (
+            not kwargs  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or not current.request.get().isPostRequest
-            or ("bounce" in kwargs and kwargs["bounce"] == "1")  # review before adding
+            or parse_bool(kwargs.get("bounce"))  # review before adding
         ):
             return self.render.edit(skel)
+
         self.onEdit(skelType, skel)
         skel.toDB()
         self.onEdited(skelType, skel)
+
         return self.render.editSuccess(skel)
 
     @exposed
@@ -438,16 +446,21 @@ class Tree(SkelModule):
         """
         if not (skelType := self._checkSkelType(skelType)):
             raise errors.NotAcceptable(f"Invalid skelType provided.")
+
         skel = self.editSkel(skelType)
         if not skel.fromDB(key):
             raise errors.NotFound()
+
         if not self.canDelete(skelType, skel):
             raise errors.Unauthorized()
+
         if skelType == "node":
             self.deleteRecursive(skel["key"])
+
         self.onDelete(skelType, skel)
         skel.delete()
         self.onDeleted(skelType, skel)
+
         return self.render.deleteSuccess(skel, skelType=skelType)
 
     @CallDeferred
@@ -477,7 +490,7 @@ class Tree(SkelModule):
     @force_ssl
     @force_post
     @skey
-    def move(self, skelType: SkelType, key: str, parentNode: str, *args, **kwargs) -> str:
+    def move(self, skelType: SkelType, key: db.Key | int | str, parentNode: str, *args, **kwargs) -> str:
         """
         Move a node (including its contents) or a leaf to another node.
 
@@ -499,6 +512,9 @@ class Tree(SkelModule):
 
         skel = self.editSkel(skelType)  # srcSkel - the skeleton to be moved
         parentNodeSkel = self.baseSkel("node")  # destSkel - the node it should be moved into
+
+        if not skel.fromDB(key):
+            raise errors.NotFound("Cannot find entity to move")
 
         if not parentNodeSkel.fromDB(parentNode):
             parentNode = utils.normalizeKey(db.Key.from_legacy_urlsafe(parentNode))

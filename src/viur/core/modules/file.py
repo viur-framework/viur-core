@@ -398,7 +398,7 @@ class File(Tree):
 
     handler = "tree.simple.file"
     adminInfo = {
-        "icon": "icon-file-system",
+        "icon": "file-system",
         "handler": handler,  # fixme: Use static handler; Remove with VIUR4!
     }
 
@@ -673,7 +673,7 @@ class File(Tree):
     @force_ssl
     @force_post
     @skey(allow_empty=True)
-    def add(self, skelType: SkelType, node=None, *args, **kwargs):
+    def add(self, skelType: SkelType, node: db.Key | int | str | None = None, *args, **kwargs):
         ## We can't add files directly (they need to be uploaded
         # if skelType != "node":
         #    raise errors.NotAcceptable()
@@ -714,7 +714,8 @@ class File(Tree):
             # Add updated download-URL as the auto-generated isn't valid yet
             skel["downloadUrl"] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False)
             return self.render.addSuccess(skel)
-        return super(File, self).add(skelType, node, *args, **kwargs)
+
+        return super().add(skelType, node, *args, **kwargs)
 
     def onEdit(self, skelType: SkelType, skel: SkeletonInstance):
         super().onEdit(skelType, skel)

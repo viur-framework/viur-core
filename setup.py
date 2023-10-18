@@ -1,8 +1,8 @@
 import setuptools
 
-# Read all requirements with versions from requirements.txt
+# Read all dependencies with versions and python-version flag, but without hashes from requirements.txt
 install_requires = {}
-for line in open("requirements.txt").readlines():
+for line in open("src/viur/core/requirements.txt").readlines():
     if "==" not in line or line.strip().startswith("#"):
         continue
     line = line.split("--hash", maxsplit=1)[0].strip(" \t\\\r\n").split("==", 1)

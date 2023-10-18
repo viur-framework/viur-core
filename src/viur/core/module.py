@@ -1,8 +1,9 @@
 import copy
 import inspect
+import types
 import typing
 import logging
-from viur.core import errors, current
+from viur.core import db, errors, current, utils
 from viur.core.config import conf
 
 
@@ -24,20 +25,23 @@ class Method:
         return cls(func)
 
     def __init__(self, func: typing.Callable):
+        # Content
+        self._func = func
+        self.__name__ = func.__name__
+        self._instance = None
+
         # Attributes
         self.exposed = None  # None = unexposed, True = exposed, False = internal exposed
         self.ssl = False
         self.methods = ("GET", "POST", "HEAD")
         self.seo_language_map = None
 
+        # Inspection
+        self.signature = inspect.signature(self._func)
+
         # Guards
         self.skey = None
         self.access = None
-
-        # Content
-        self.__name__ = func.__name__
-        self._func = func
-        self._instance = None
 
     def __get__(self, obj, objtype=None):
         """
@@ -54,35 +58,191 @@ class Method:
 
     def __call__(self, *args, **kwargs):
         """
-        Wrapper to call the Method directly.
+        Calls the method with given args and kwargs.
+
+        Prepares and filters argument values from args and kwargs regarding self._func's signature and type annotations,
+        if present.
+
+        Method objects normally wrap functions which are externally exposed. Therefore, any arguments passed from the
+        client are str-values, and are automatically parsed when equipped with type-annotations.
+
+        This preparation of arguments therefore inspects the target function as follows
+        - incoming values are parsed to their particular type, if type annotations are present
+        - parameters in *args and **kwargs are being checked against their signature; only relevant values are being
+            passed, anything else is thrown away.
+        - execution of guard configurations from @skey and @access, if present
         """
 
         if trace := conf.debug.trace:
-            logging.debug(f"calling {self._func=} with {args=}, {kwargs=}")
+            logging.debug(f"calling {self._func=} with raw {args=}, {kwargs=}")
+
+        def parse_value_by_annotation(annotation: type, name: str, value: str | list | tuple) -> typing.Any:
+            """
+            Tries to parse a value according to a given type.
+            May be called recursively to handle unions, lists and tuples as well.
+            """
+            # simple types
+            if annotation is str:
+                return str(value)
+            elif annotation is int:
+                return int(value)
+            elif annotation is float:
+                return float(value)
+            elif annotation is bool:
+                return utils.parse_bool(value)
+            elif annotation is types.NoneType:
+                return None
+
+            # complex types
+            origin_type = typing.get_origin(annotation)
+
+            if origin_type is list and len(annotation.__args__) == 1:
+                if not isinstance(value, list):
+                    value = [value]
+
+                return [parse_value_by_annotation(annotation.__args__[0], name, item) for item in value]
+
+            elif origin_type is tuple and len(annotation.__args__) == 1:
+                if not isinstance(value, tuple):
+                    value = (value, )
+
+                return tuple(parse_value_by_annotation(annotation.__args__[0], name, item) for item in value)
+
+            elif origin_type is typing.Literal:
+                if not any(value == str(literal) for literal in annotation.__args__):
+                    raise errors.NotAcceptable(f"Expecting any of {annotation.__args__} for {name}")
+
+                return value
+
+            elif origin_type is typing.Union or isinstance(annotation, types.UnionType):
+                for i, sub_annotation in enumerate(annotation.__args__):
+                    try:
+                        return parse_value_by_annotation(sub_annotation, name, value)
+                    except ValueError:
+                        if i == len(annotation.__args__) - 1:
+                            raise
+
+            elif annotation is db.Key:
+                if isinstance(value, db.Key):
+                    return value
+
+                return parse_value_by_annotation(int | str, name, value)
+
+            raise errors.NotAcceptable(f"Unhandled type {annotation=} for {name}={value!r}")
+
+        # examine parameters
+        args_iter = iter(args)
+
+        parsed_args = []
+        parsed_kwargs = {}
+        varargs = []
+        varkwargs = False
+
+        for i, (param_name, param) in enumerate(self.signature.parameters.items()):
+            if self._instance and i == 0 and param_name == "self":
+                continue
+
+            param_type = param.annotation if param.annotation is not param.empty else None
+            param_required = param.default is param.empty
+
+            # take positional parameters first
+            if param.kind in (
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    inspect.Parameter.POSITIONAL_ONLY
+            ):
+                try:
+                    value = next(args_iter)
+
+                    if param_type:
+                        value = parse_value_by_annotation(param_type, param_name, value)
+
+                    parsed_args.append(value)
+                    continue
+                except StopIteration:
+                    pass
+
+            # otherwise take kwargs or variadics
+            if (
+                param.kind in (
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    inspect.Parameter.KEYWORD_ONLY
+                )
+                and param_name in kwargs
+            ):
+                value = kwargs.pop(param_name)
+
+                if param_type:
+                    value = parse_value_by_annotation(param_type, param_name, value)
+
+                parsed_kwargs[param_name] = value
+
+            elif param.kind == inspect.Parameter.VAR_POSITIONAL:
+                varargs = list(args_iter)
+            elif param.kind == inspect.Parameter.VAR_KEYWORD:
+                varkwargs = True
+            elif param_required:
+                if self.skey and param_name == self.skey["forward_payload"]:
+                    continue
+
+                raise errors.NotAcceptable(f"Missing required parameter {param_name!r}")
+
+        # Here's a short clarification on the variables used here:
+        #
+        # - parsed_args     = tuple of (the type-parsed) arguments that have been assigned based on the signature
+        # - parsed_kwargs   = dict of (the type-parsed) keyword arguments that have been assigned based on the signature
+        # - args            = either parsed_args, or parsed_args + remaining args if the function accepts *args
+        # - kwargs          = either parsed_kwars, or parsed_kwargs | remaining kwargs if the function accepts **kwargs
+        # - varargs         = indicator that the args also contain variable args (*args)
+        # - varkwards       = indicator that variable kwargs (**kwargs) are also contained in the kwargs
+        #
+
+        # Extend args to any varargs, and redefine args
+        args = tuple(parsed_args + varargs)
+
+        # always take "skey"-parameter name, when configured, as parsed_kwargs
+        if self.skey and self.skey["name"] in kwargs:
+            parsed_kwargs[self.skey["name"]] = kwargs.pop(self.skey["name"])
+
+        # When varkwargs are accepted, merge parsed_kwargs and kwargs, otherwise just use parsed_kwargs
+        if varkwargs := varkwargs and bool(kwargs):
+            kwargs = parsed_kwargs | kwargs
+        else:
+            kwargs = parsed_kwargs
+
+        # Trace message for final call configuration
+        if trace := conf["viur.debug.trace"]:
+            logging.debug(f"calling {self._func=} with cleaned {args=}, {kwargs=}")
 
         # evaluate skey guard setting?
-        if self.skey:
+        if self.skey and not current.request.get().skey_checked:  # skey guardiance is only required once per request
             if trace:
                 logging.debug(f"@skey {self.skey=}")
 
+            security_key = kwargs.pop(self.skey["name"], "")
+
             # validation is necessary?
-            if required := (allow_empty := self.skey["allow_empty"]):
+            if allow_empty := self.skey["allow_empty"]:
                 # allow_empty can be callable, to detect programmatically
                 if callable(allow_empty):
                     required = not allow_empty(args, kwargs)
-                # or allow_empty itself can be a sequence of allowed keys
+                # or allow_empty can be a sequence of allowed keys
                 elif isinstance(allow_empty, (list, tuple)):
                     required = any(k for k in kwargs.keys() if k not in allow_empty)
-                # otherwise, kwargs may not be empty.
+                # otherwise, varargs or varkwargs may not be empty.
                 else:
-                    required = bool(kwargs)
+                    required = varargs or varkwargs or security_key
+                    if trace:
+                        logging.debug(f"@skey {required=} because either {varargs=} or {varkwargs=} or {security_key=}")
+            else:
+                required = True
 
             if required:
-                security_key = kwargs.pop(self.skey["name"], "")
-                logging.debug(f"@skey wanted, validating {security_key!r}")
+                if trace:
+                    logging.debug(f"@skey wanted, validating {security_key!r}")
 
                 from viur.core import securitykey
                 payload = securitykey.validate(security_key, **self.skey["extra_kwargs"])
+                current.request.get().skey_checked = True
 
                 if not payload or (self.skey["validate"] and not self.skey["validate"](payload)):
                     raise errors.PreconditionFailed(
@@ -152,7 +312,7 @@ class Method:
                     "type": str(param.annotation) if param.annotation is not inspect.Parameter.empty else None,
                     "default": str(param.default) if param.default is not inspect.Parameter.empty else None,
                 }
-                for param in inspect.signature(self._func).parameters.values()
+                for param in self.signature.parameters.values()
             },
             "returns": str(return_doc).strip() if return_doc else None,
             "accepts": self.methods,
@@ -192,8 +352,8 @@ class Module:
     handler: str | typing.Callable = None
     """
     This is the module's handler, respectively its type.
-    It can be provided as a callable() which determines the handler at runtime.
-    A module without a handler setting is invalid.
+    Use the @property-decorator in specific Modules to construct the handler's value dynamically.
+    A module without a handler setting cannot be described, so cannot be handled by admin-tools.
     """
 
     accessRights: tuple[str] = None
@@ -255,18 +415,19 @@ class Module:
         This is a ``dict`` holding the information necessary for the Vi/Admin to handle this module.
 
             name: ``str``
-                Human-readable module name that will be shown in Vi/Admin
+                Human-readable module name that will be shown in the admin tool.
 
             handler: ``str`` (``list``, ``tree`` or ``singleton``):
-                Allows to override the handler provided by the module. Set this only when *really* necessary.
+                Allows to override the handler provided by the module. Set this only when *really* necessary,
+                otherwise it can be left out and is automatically injected by the Module's prototype.
 
             icon: ``str``
-                (Optional) The name (eg "icon-add") or a path relative the the project
-                (eg. /static/icons/viur.svg) for the icon used in the UI for that module.
+                (Optional) Either the Shoelace icon library name or a path relative to the project's deploy folder
+                (e.g. /static/icons/viur.svg) for the icon used in the admin tool for this module.
 
             columns: ``List[str]``
-                (Optional) List of columns (bone names) that are displayed by default. Used only
-                for the list handler.
+                (Optional) List of columns (bone names) that are displayed by default.
+                Used only by the List handler.
 
             filter: ``Dict[str, str]``
                 (Optional) Dictionary of additional parameters that will be send along when
@@ -274,7 +435,7 @@ class Module:
                 client-side.
 
             display: ``str`` ("default", "hidden" or "group")
-                (Optional) "hidden" will hide the module in the main bar
+                (Optional) "hidden" will hide the module in the admin tool's main bar.
                 (itwill not be accessible directly, however it's registered with the frontend so it can be used in a
                 relational bone). "group" will show this module in the main bar, but it will not be clickable.
                 Clicking it will just try to expand it (assuming there are additional views defined).
@@ -381,7 +542,7 @@ class Module:
             return self._cached_description
 
         # Retrieve handler
-        if not (handler := self.handler() if callable(self.handler) else self.handler):
+        if not (handler := self.handler):
             return None
 
         # Default description
@@ -405,7 +566,8 @@ class Module:
             ret |= admin_info
 
         # Cache description for later re-use.
-        self._cached_description = ret
+        if self._cached_description is not False:
+            self._cached_description = ret
 
         return ret
 

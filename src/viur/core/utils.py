@@ -3,6 +3,7 @@ import hmac
 import logging
 import secrets
 import string
+import typing
 from base64 import urlsafe_b64encode
 from datetime import datetime, timedelta, timezone
 from typing import Any, Union, Optional
@@ -270,6 +271,44 @@ def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
     else:
         parent = None
     return db.Key(key.kind, key.id_or_name, parent=parent)
+
+
+def is_prefix(name: str, prefix: str, delimiter: str = ".") -> bool:
+    """
+    Utility function to check if a given name matches a prefix,
+    which defines a specialization, delimited by `delimiter`.
+
+    In ViUR, modules, bones, renders, etc. provide a kind or handler
+    to classify or subclassify the specific object. To securitly
+    check for a specific type, it is either required to ask for the
+    exact type or if its prefixed by a path delimited normally by
+    dots.
+
+    Example:
+
+    .. code-block:: python
+        handler = "tree.file.special"
+        utils.is_prefix(handler, "tree")  # True
+        utils.is_prefix(handler, "tree.node")  # False
+        utils.is_prefix(handler, "tree.file")  # True
+        utils.is_prefix(handler, "tree.file.special")  # True
+    """
+    return name == prefix or name.startswith(prefix + delimiter)
+
+
+def parse_bool(value: Any, truthy_values: typing.Iterable = ("true", "yes", "1")) -> bool:
+    """
+    Parse a value into a boolean based on accepted truthy values.
+
+    This method takes a value, converts it to a lowercase string,
+    removes whitespace, and checks if it matches any of the provided
+    truthy values.
+    :param value: The value to be parsed into a boolean.
+    :param truthy_values: An iterable of strings representing truthy values.
+        Default is ("true", "yes", "1").
+    :returns: True if the value matches any of the truthy values, False otherwise.
+    """
+    return str(value).strip().lower() in truthy_values
 
 
 # DEPRECATED ATTRIBUTES HANDLING
