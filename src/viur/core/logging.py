@@ -1,9 +1,11 @@
-import os
 import logging
+import os
+
 import google.cloud.logging
 from google.cloud.logging import Resource
 from google.cloud.logging.handlers import CloudLoggingHandler
 from google.cloud.logging_v2.handlers.handlers import EXCLUDED_LOGGER_DEFAULTS
+
 from viur.core import current
 from viur.core.config import conf
 
@@ -130,10 +132,11 @@ requestLogger = client.logger("ViUR")
 requestLoggingRessource = Resource(
     type="gae_app",
     labels={
-       "project_id": conf.viur.instance_project_id,
-       "module_id": "default",
-       "version_id": conf.viur.instance_app_version if not conf[
-           "viur.instance.is_dev_server"] else "dev_appserver",
+        "project_id": conf.viur.instance_project_id,
+        "module_id": "default",
+        "version_id": (conf.viur.instance_app_version
+                       if not conf.viur.instance_is_dev_server
+                       else "dev_appserver"),
     }
 )
 
@@ -143,10 +146,10 @@ logger.setLevel(logging.DEBUG)
 # Calling getLogger(name) ensures that any placeholder loggers held by loggerDict are fully initialized
 # (https://stackoverflow.com/a/53250066)
 for name, level in {
-            k: v.getEffectiveLevel()
-            for k, v in logging.root.manager.loggerDict.items()
-            if isinstance(v, logging.Logger)
-        }.items():
+    k: v.getEffectiveLevel()
+    for k, v in logging.root.manager.loggerDict.items()
+    if isinstance(v, logging.Logger)
+}.items():
     logging.getLogger(name).setLevel(level)
 
 # Remove any existing handler from logger

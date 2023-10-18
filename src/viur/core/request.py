@@ -130,7 +130,7 @@ class Router:
         db.currentDbAccessLog.set(set())
 
         # Set context variables
-        current.language.set(conf["viur.defaultLanguage"])
+        current.language.set(conf.viur.defaultLanguage)
         current.request.set(self)
         current.session.set(session.Session())
         current.request_data.set({})
@@ -148,7 +148,7 @@ class Router:
     @property
     def isDevServer(self) -> bool:
         import warnings
-        msg = "Use of `isDevServer` is deprecated; Use `conf[\"viur.instance.is_dev_server\"]` instead!"
+        msg = "Use of `isDevServer` is deprecated; Use `conf.viur.instance_is_dev_server` instead!"
         warnings.warn(msg, DeprecationWarning, stacklevel=2)
         logging.warning(msg)
         return conf.viur.instance_is_dev_server
@@ -248,8 +248,7 @@ class Router:
             elif mode == "allow-from":
                 self.response.headers["X-Frame-Options"] = "allow-from %s" % uri
         if conf.security.xPermittedCrossDomainPolicies is not None:
-            self.response.headers["X-Permitted-Cross-Domain-Policies"] = conf[
-                "viur.security.xPermittedCrossDomainPolicies"]
+            self.response.headers["X-Permitted-Cross-Domain-Policies"] = conf.security.xPermittedCrossDomainPolicies
         if conf.security.referrerPolicy:
             self.response.headers["Referrer-Policy"] = conf.security.referrerPolicy
         if conf.security.permissionsPolicy.get("_headerCache"):
@@ -314,7 +313,7 @@ class Router:
                 raise
             self.response.body = b""
             if isinstance(e, errors.HTTPException):
-                logging.info(f"[{e.status}] {e.name}: {e.descr}", exc_info=conf["viur.debug.trace"])
+                logging.info(f"[{e.status}] {e.name}: {e.descr}", exc_info=conf.debug.trace)
                 self.response.status = '%d %s' % (e.status, e.name)
                 # Set machine-readable x-viur-error response header in case there is an exception description.
                 if e.descr:
@@ -433,7 +432,7 @@ class Router:
         if len(self.request.params) > conf.viur.maxPostParamsCount:
             raise errors.BadRequest(
                 f"Too many arguments supplied, exceeding maximum"
-                f" of {conf['viur.maxPostParamsCount']} allowed arguments per request"
+                f" of {conf.viur.maxPostParamsCount} allowed arguments per request"
             )
 
         for key, value in self.request.params.items():

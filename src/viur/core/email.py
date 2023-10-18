@@ -275,7 +275,7 @@ def sendEMailToAdmins(subject: str, body: str, *args, **kwargs) -> bool:
                 users.append(user_skel["name"])
 
         # Prefix the instance's project_id to subject
-        subject = conf["viur.instance.project_id"] + ": " + subject
+        subject = f"{conf.viur.instance_project_id}: {subject}"
 
         if users:
             ret = sendEMail(dests=users, stringTemplate=os.linesep.join((subject, body)), *args, **kwargs)

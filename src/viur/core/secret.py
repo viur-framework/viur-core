@@ -17,5 +17,5 @@ def get(secret: str, version: int | str = "latest") -> str:
     Add a secret online under https://console.cloud.google.com/security/secret-manager.
     Service accounts requires the role "Secret Manager Secret Accessor" in IAM.
     """
-    name = f"""projects/{conf["viur.instance.project_id"]}/secrets/{secret}/versions/{version}"""
+    name = f"""projects/{conf.viur.instance_project_id}/secrets/{secret}/versions/{version}"""
     return __client.access_secret_version(request={"name": name}).payload.data.decode()

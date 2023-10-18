@@ -207,7 +207,7 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
             if "_postProcessAppObj" in render:  # todo: This is ugly!
                 render["_postProcessAppObj"](target)
 
-    conf["viur.mainResolver"] = resolver
+    conf.viur.mainResolver = resolver
 
     if default in renderers and hasattr(renderers[default]["default"], "renderEmail"):
         conf.viur.emailRenderer = renderers[default]["default"]().renderEmail
@@ -246,10 +246,10 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
     # conf.viur.wsgiApp = webapp.WSGIApplication([(r'/(.*)', BrowseHandler)])
 
     # Send warning email in case trace is activated in a cloud environment
-    if ((conf["viur.debug.trace"]
-            or conf["viur.debug.traceExternalCallRouting"]
-            or conf["viur.debug.traceInternalCallRouting"])
-            and (not conf["viur.instance.is_dev_server"] or conf["viur.dev_server_cloud_logging"])):
+    if ((conf.debug.trace
+            or conf.debug.traceExternalCallRouting
+            or conf.debug.traceInternalCallRouting)
+            and (not conf.viur.instance_is_dev_server or conf.debug.dev_server_cloud_logging)):
         from viur.core import email
         try:
             email.sendEMailToAdmins(
@@ -268,13 +268,13 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
         for k in conf.security.contentSecurityPolicy["_headerCache"]:
             if not k.startswith("Content-Security-Policy"):
                 raise AssertionError("Got unexpected header in "
-                                     "conf['viur.security.contentSecurityPolicy']['_headerCache']")
+                                     "conf.security.contentSecurityPolicy['_headerCache']")
     if conf.security.strictTransportSecurity:
         if not conf.security.strictTransportSecurity.startswith("max-age"):
-            raise AssertionError("Got unexpected header in conf['viur.security.strictTransportSecurity']")
+            raise AssertionError("Got unexpected header in conf.security.strictTransportSecurity")
     crossDomainPolicies = {None, "none", "master-only", "by-content-type", "all"}
     if conf.security.xPermittedCrossDomainPolicies not in crossDomainPolicies:
-        raise AssertionError("conf[\"viur.security.xPermittedCrossDomainPolicies\"] "
+        raise AssertionError("conf.security.xPermittedCrossDomainPolicies "
                              f"must be one of {crossDomainPolicies!r}")
     if conf.security.xFrameOptions is not None and isinstance(conf.security.xFrameOptions, tuple):
         mode, uri = conf.security.xFrameOptions

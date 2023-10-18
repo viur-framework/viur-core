@@ -210,7 +210,7 @@ class Method:
             kwargs = parsed_kwargs
 
         # Trace message for final call configuration
-        if trace := conf["viur.debug.trace"]:
+        if trace := conf.debug.trace:
             logging.debug(f"calling {self._func=} with cleaned {args=}, {kwargs=}")
 
         # evaluate skey guard setting?
@@ -581,7 +581,7 @@ class Module:
 
         # Map module under SEO-mapped name, if available.
         if self.seo_language_map:
-            for lang in conf["viur.availableLanguages"] or [conf["viur.defaultLanguage"]]:
+            for lang in conf.viur.availableLanguages or [conf.viur.defaultLanguage]:
                 # Map the module under each translation
                 if translated_module_name := self.seo_language_map.get(lang):
                     translated_module = target.setdefault(translated_module_name, {})
@@ -590,7 +590,7 @@ class Module:
                     for name, method in self._methods.items():
                         method.register(translated_module, name, lang)
 
-            conf["viur.languageModuleMap"][self.moduleName] = self.seo_language_map
+            conf.viur.languageModuleMap[self.moduleName] = self.seo_language_map
 
         # Map the module also under it's original name
         if self.moduleName != "index":

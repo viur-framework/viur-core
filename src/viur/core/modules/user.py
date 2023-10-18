@@ -974,10 +974,10 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         """
         if not (cuser := current.user.get()):
             raise errors.Unauthorized()
-        if not (issuer := conf["viur.otp.issuer"]):
+        if not (issuer := conf.viur.otp_issuer):
             logging.warning(
-                f"""conf["viur.otp.issuer"] is None we replace the issuer by conf["viur.instance.project_id"]""")
-            issuer = conf["viur.instance.project_id"]
+                f"conf.viur.otp_issuer is None we replace the issuer by {conf.viur.instance_project_id=}")
+            issuer = conf.viur.instance_project_id
 
         return pyotp.TOTP(otp_app_secret).provisioning_uri(name=cuser["name"], issuer_name=issuer)
 
