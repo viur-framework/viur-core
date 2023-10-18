@@ -361,7 +361,7 @@ class Viur(ConfigType):
     }
     """Describing the internal ModuleConfig-module"""
 
-    script_admin_info = {
+    script_admin_info = { # TODO: not in use?!
         "icon": "icon-hashtag",
         "display": "hidden",
     }
@@ -446,7 +446,7 @@ class Viur(ConfigType):
         "instance.project_id": "instance_project_id",
         "instance.version_hash": "instance_version_hash",
         "moduleconf.admin_info": "moduleconf_admin_info",
-        "script.admin_info": "script._admin_info",
+        "script.admin_info": "script_admin_info",
         "render.html.downloadUrlExpiration": "render_html_downloadUrlExpiration",
         "render.json.downloadUrlExpiration": "render_json_downloadUrlExpiration",
         "session.lifeTime": "session_lifeTime",
@@ -458,6 +458,7 @@ class Viur(ConfigType):
         "user.google.clientID": "user_google_client_id",
         "user.google.gsuiteDomains": "user_google_gsuiteDomains",
         "viur2import.blobsource": "viur2import_blobsource",
+        "otp.issuer": "otp_issuer",
     }
 
 
