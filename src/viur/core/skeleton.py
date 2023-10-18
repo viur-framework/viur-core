@@ -974,7 +974,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                             if isinstance(x, dict):
                                 fixDotNames(x)
 
-            if conf.get("viur.viur2import.blobsource"):  # Try to fix these only when converting from ViUR2
+            if conf.viur.viur2import_blobsource:  # Try to fix these only when converting from ViUR2
                 fixDotNames(dbObj)
 
             # Write the core entry back

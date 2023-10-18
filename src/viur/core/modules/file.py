@@ -33,16 +33,16 @@ iamClient = iam_credentials_v1.IAMCredentialsClient()
 
 
 def importBlobFromViur2(dlKey, fileName):
-    if not conf.get("viur.viur2import.blobsource"):
+    if not conf.viur.viur2import_blobsource:
         return False
     existingImport = db.Get(db.Key("viur-viur2-blobimport", dlKey))
     if existingImport:
         if existingImport["success"]:
             return existingImport["dlurl"]
         return False
-    if conf.viur.viur2import.blobsource["infoURL"]:
+    if conf.viur.viur2import_blobsource["infoURL"]:
         try:
-            importDataReq = urlopen(conf.viur.viur2import.blobsource["infoURL"] + dlKey)
+            importDataReq = urlopen(conf.viur.viur2import_blobsource["infoURL"] + dlKey)
         except:
             marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
             marker["success"] = False
@@ -56,12 +56,12 @@ def importBlobFromViur2(dlKey, fileName):
             db.Put(marker)
             return False
         importData = json.loads(importDataReq.read())
-        oldBlobName = conf.viur.viur2import.blobsource["gsdir"] + "/" + importData["key"]
+        oldBlobName = conf.viur.viur2import_blobsource["gsdir"] + "/" + importData["key"]
         srcBlob = storage.Blob(bucket=bucket,
-                               name=conf.viur.viur2import.blobsource["gsdir"] + "/" + importData["key"])
+                               name=conf.viur.viur2import_blobsource["gsdir"] + "/" + importData["key"])
     else:
-        oldBlobName = conf.viur.viur2import.blobsource["gsdir"] + "/" + dlKey
-        srcBlob = storage.Blob(bucket=bucket, name=conf.viur.viur2import.blobsource["gsdir"] + "/" + dlKey)
+        oldBlobName = conf.viur.viur2import_blobsource["gsdir"] + "/" + dlKey
+        srcBlob = storage.Blob(bucket=bucket, name=conf.viur.viur2import_blobsource["gsdir"] + "/" + dlKey)
     if not srcBlob.exists():
         marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
         marker["success"] = False
@@ -343,7 +343,7 @@ class FileBaseSkel(TreeSkel):
     @classmethod
     def refresh(cls, skelValues):
         super().refresh(skelValues)
-        if conf.get("viur.viur2import.blobsource"):
+        if conf.viur.viur2import_blobsource:
             importData = importBlobFromViur2(skelValues["dlkey"], skelValues["name"])
             if importData:
                 if not skelValues["downloadUrl"]:

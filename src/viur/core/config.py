@@ -20,7 +20,7 @@ class ConfigType:
     _mapping = {}
     _parent = None
 
-    def __init__(self,
+    def __init__(self, *,
                  strict_mode: bool = None,
                  parent: Union["ConfigType", None] = None):
         super().__init__()
@@ -69,8 +69,7 @@ class ConfigType:
         # print(self, self.__dict__, vars(self), dir(self))
         for key in dir(self):
             # print(f"{key = }")
-            # FIXME: Why is strict_mode here a problem?
-            if key in {"_parent", "_strict_mode", "strict_mode"}:  # TODO: use .startswith("_") ???
+            if key in {"_parent", "_strict_mode"}:  # TODO: use .startswith("_") ???
                 continue
             value = getattr(self, key)
             # print(f"{key = }, {value = }")
@@ -425,6 +424,8 @@ class Viur(ConfigType):
     version = tuple(int(part) if part.isdigit() else part for part in __version__.split(".", 3))
     """Semantic version number of viur-core as a tuple of 3 (major, minor, patch-level)"""
 
+    viur2import_blobsource = None
+
     _mapping = {
         "bone.boolean.str2true": "bone_boolean_str2true",
         "db.engine": "db_engine",
@@ -456,6 +457,7 @@ class Viur(ConfigType):
         "user.roles": "user_roles",
         "user.google.clientID": "user_google_client_id",
         "user.google.gsuiteDomains": "user_google_gsuiteDomains",
+        "viur2import.blobsource": "viur2import_blobsource",
     }
 
 
@@ -567,10 +569,10 @@ class Conf(ConfigType):
     def __init__(self, strict_mode: bool = False):
         super().__init__()
         self._strict_mode = strict_mode
-        self.admin = Admin(self)
-        self.viur = Viur(self)
-        self.security = Security(self)
-        self.debug = Debug(self)
+        self.admin = Admin(parent=self)
+        self.viur = Viur(parent=self)
+        self.security = Security(parent=self)
+        self.debug = Debug(parent=self)
 
     _mapping = {
         "viur.dev_server_cloud_logging": "debug.dev_server_cloud_logging",

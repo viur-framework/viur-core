@@ -289,7 +289,7 @@ class FileBone(TreeLeafBone):
 
         from viur.core.modules.file import importBlobFromViur2
         super().refresh(skel, boneName)
-        if conf.get("viur.viur2import.blobsource"):
+        if conf.viur.viur2import_blobsource:
             # Just ensure the file get's imported as it may not have an file entry
             val = skel[boneName]
             if isinstance(val, list):
