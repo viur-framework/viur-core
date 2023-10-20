@@ -288,12 +288,12 @@ class Router:
             current.session.get().load(self)
 
             # Load current user into context variable if user module is there.
-            if user_mod := getattr(conf.viur.main_app, "user", None):
+            if user_mod := getattr(conf.main_app, "user", None):
                 current.user.set(user_mod.getCurrentUser())
 
             path = self._select_language(path)[1:]
-            if conf.viur.request_preprocessor:
-                path = conf.viur.request_preprocessor(path)
+            if conf.request_preprocessor:
+                path = conf.request_preprocessor(path)
 
             self._route(path)
 
@@ -324,9 +324,9 @@ class Router:
                 logging.exception(e)
 
             res = None
-            if conf.viur.error_handler:
+            if conf.error_handler:
                 try:
-                    res = conf.viur.error_handler(e)
+                    res = conf.error_handler(e)
                 except Exception as newE:
                     logging.error("viur.error_handler failed!")
                     logging.exception(newE)
@@ -358,9 +358,9 @@ class Router:
                     res = json.dumps(error_info)
                 else:  # We render the error in html
                     # Try to get the template from html/error/
-                    if filename := conf.viur.main_app.render.getTemplateFileName((f"{error_info['status']}", "error"),
+                    if filename := conf.main_app.render.getTemplateFileName((f"{error_info['status']}", "error"),
                                                                                  raise_exception=False):
-                        template = conf.viur.main_app.render.getEnv().get_template(filename)
+                        template = conf.main_app.render.getEnv().get_template(filename)
                         res = template.render(error_info)
 
                         # fixme: this might be the viur/core/template/error.html ...
@@ -429,10 +429,10 @@ class Router:
                                    for part in path.strip("/").split("/"))
 
         # Prevent Hash-collision attacks
-        if len(self.request.params) > conf.viur.max_post_params_count:
+        if len(self.request.params) > conf.max_post_params_count:
             raise errors.BadRequest(
                 f"Too many arguments supplied, exceeding maximum"
-                f" of {conf.viur.max_post_params_count} allowed arguments per request"
+                f" of {conf.max_post_params_count} allowed arguments per request"
             )
 
         for key, value in self.request.params.items():
@@ -462,7 +462,7 @@ class Router:
         if "self" in self.kwargs or "return" in self.kwargs:  # self or return is reserved for bound methods
             raise errors.BadRequest()
 
-        caller = conf.viur.main_resolver
+        caller = conf.main_resolver
         idx = 0  # Count how may items from *args we'd have consumed (so the rest can go into *args of the called func
         path_found = True
 

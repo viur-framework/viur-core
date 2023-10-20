@@ -127,13 +127,13 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
         Creates the application-context for the current instance.
 
         This function converts the classes found in the *modules*-module,
-        and the given renders into the object found at ``conf.viur.main_app``.
+        and the given renders into the object found at ``conf.main_app``.
 
         Every class found in *modules* becomes
 
         - instanced
         - get the corresponding renderer attached
-        - will be attached to ``conf.viur.main_app``
+        - will be attached to ``conf.main_app``
 
         :param modules: Usually the module provided as *modules* directory within the application.
         :param renderers: Usually the module *viur.core.renders*, or a dictionary renderName => renderClass.
@@ -209,12 +209,12 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
             if "_postProcessAppObj" in render:  # todo: This is ugly!
                 render["_postProcessAppObj"](target)
 
-    conf.viur.main_resolver = resolver
+    conf.main_resolver = resolver
 
     if default in renderers and hasattr(renderers[default]["default"], "renderEmail"):
-        conf.viur.emailRenderer = renderers[default]["default"]().renderEmail
+        conf.emailRenderer = renderers[default]["default"]().renderEmail
     elif "html" in renderers:
-        conf.viur.emailRenderer = renderers["html"]["default"]().renderEmail
+        conf.emailRenderer = renderers["html"]["default"]().renderEmail
 
     # This might be useful for debugging, please keep it for now.
     if conf.debug.trace:
@@ -238,14 +238,14 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
     # noinspection PyUnresolvedReferences
     import skeletons  # This import is not used here but _must_ remain to ensure that the
     # application's data models are explicitly imported at some place!
-    if conf.instance.project_id not in conf.viur.valid_application_ids:
+    if conf.instance.project_id not in conf.valid_application_ids:
         raise RuntimeError(
-            f"""Refusing to start, {conf.instance.project_id=} is not in {conf.viur.valid_application_ids=}""")
+            f"""Refusing to start, {conf.instance.project_id=} is not in {conf.valid_application_ids=}""")
     if not render:
         import viur.core.render
         render = viur.core.render
-    conf.viur.main_app = buildApp(modules, render, default)
-    # conf.viur.wsgiApp = webapp.WSGIApplication([(r'/(.*)', BrowseHandler)])
+    conf.main_app = buildApp(modules, render, default)
+    # conf.wsgiApp = webapp.WSGIApplication([(r'/(.*)', BrowseHandler)])
 
     # Send warning email in case trace is activated in a cloud environment
     if ((conf.debug.trace
@@ -285,7 +285,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
             assert uri is not None and (uri.lower().startswith("https://") or uri.lower().startswith("http://"))
     runStartupTasks()  # Add a deferred call to run all queued startup tasks
     i18n.initializeTranslations()
-    if conf.viur.file_hmac_key is None:
+    if conf.file_hmac_key is None:
         from viur.core import db
         key = db.Key("viur-conf", "viur-conf")
         if not (obj := db.Get(key)):  # create a new "viur-conf"?
@@ -297,7 +297,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
             obj["hmacKey"] = utils.generateRandomString(length=20)
             db.Put(obj)
 
-        conf.viur.file_hmac_key = bytes(obj["hmacKey"], "utf-8")
+        conf.file_hmac_key = bytes(obj["hmacKey"], "utf-8")
     return app
 
 

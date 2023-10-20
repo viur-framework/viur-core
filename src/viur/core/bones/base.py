@@ -717,7 +717,7 @@ class BaseBone(object):
         elif (
             # fixme: Remove this piece of sh*t at least with VIUR4
             # We're importing from an old ViUR2 instance - there may only be keys prefixed with our name
-            conf.viur.viur2import_blobsource and any(n.startswith(name + ".") for n in skel.dbEntity)
+            conf.viur2import_blobsource and any(n.startswith(name + ".") for n in skel.dbEntity)
             # ... or computed
             or self.compute
         ):

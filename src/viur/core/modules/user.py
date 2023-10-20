@@ -185,14 +185,14 @@ class UserSkel(skeleton.Skeleton):
 
             for role in skel["roles"]:
                 # Get default access for this role
-                access |= conf.viur.main_app.vi.user.get_role_defaults(role)
+                access |= conf.main_app.vi.user.get_role_defaults(role)
 
                 # Go through all modules and evaluate available role-settings
-                for name in dir(conf.viur.main_app.vi):
+                for name in dir(conf.main_app.vi):
                     if name.startswith("_"):
                         continue
 
-                    module = getattr(conf.viur.main_app.vi, name)
+                    module = getattr(conf.main_app.vi, name)
                     if not isinstance(module, Module):
                         continue
 
@@ -1445,7 +1445,7 @@ def createNewUserIfNotExists():
     """
         Create a new Admin user, if the userDB is empty
     """
-    userMod = getattr(conf.viur.main_app, "user", None)
+    userMod = getattr(conf.main_app, "user", None)
     if (userMod  # We have a user module
         and isinstance(userMod, User)
         and "addSkel" in dir(userMod)

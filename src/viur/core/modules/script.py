@@ -23,7 +23,7 @@ class BaseScriptAbstractSkel(TreeSkel):
         # Set script name when provided, so that the path can be regenerated
         if name := data.get("name"):
             skel["name"] = name
-            conf.viur.main_app.vi.script.update_path(skel)
+            conf.main_app.vi.script.update_path(skel)
 
         ret = super().fromClient(skel, data, *args, **kwargs)
 
@@ -80,7 +80,7 @@ class Script(Tree):
     }
 
     def adminInfo(self):
-        return conf.viur.script_admin_info or {}
+        return conf.script_admin_info or {}
 
     def getAvailableRootNodes(self):
         if not current.user.get():

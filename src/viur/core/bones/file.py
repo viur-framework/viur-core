@@ -36,7 +36,7 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: Dict[str, Any], refreshKey: db
     to ensure proper relations are maintained.
     """
     from viur.core.skeleton import skeletonByKind, updateRelations
-    deriveFuncMap = conf.viur.file_derivations
+    deriveFuncMap = conf.file_derivations
     skel = skeletonByKind("file")()
     if not skel.fromDB(key):
         logging.info("File-Entry went missing in ensureDerived")
@@ -108,7 +108,7 @@ class FileBone(TreeLeafBone):
 
     :param derive: A set of functions used to derive other files from the referenced ones. Used fe.
         to create thumbnails / images for srcmaps from hires uploads. If set, must be a dictionary from string
-        (a key from conf.viur.file_derivations) to the parameters passed to that function. The parameters can be
+        (a key from conf.file_derivations) to the parameters passed to that function. The parameters can be
         any type (including None) that can be json-serialized.
 
         ..  code-block:: python
@@ -152,7 +152,7 @@ class FileBone(TreeLeafBone):
         This will always be checked against the original file uploaded - not any of it's derivatives.
         :param derive: A set of functions used to derive other files from the referenced ones.
         Used to create thumbnails and images for srcmaps from hires uploads.
-        If set, must be a dictionary from string (a key from) conf.viur.file_derivations) to the parameters passed to
+        If set, must be a dictionary from string (a key from) conf.file_derivations) to the parameters passed to
         that function. The parameters can be any type (including None) that can be json-serialized.
 
         ..  code-block:: python
@@ -289,7 +289,7 @@ class FileBone(TreeLeafBone):
 
         from viur.core.modules.file import importBlobFromViur2
         super().refresh(skel, boneName)
-        if conf.viur.viur2import_blobsource:
+        if conf.viur2import_blobsource:
             # Just ensure the file get's imported as it may not have an file entry
             val = skel[boneName]
             if isinstance(val, list):

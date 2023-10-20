@@ -85,7 +85,7 @@ def addCspRule(objectType: str, srcOrDirective: str, enforceMode: str = "monitor
     assert objectType in {"default-src", "script-src", "object-src", "style-src", "img-src", "media-src",
                           "frame-src", "font-src", "connect-src", "report-uri", "frame-ancestors", "child-src",
                           "form-action", "require-trusted-types-for"}
-    assert conf.viur.main_app is None, "You cannot modify CSP rules after server.buildApp() has been run!"
+    assert conf.main_app is None, "You cannot modify CSP rules after server.buildApp() has been run!"
     assert not any(
         [x in srcOrDirective for x in [";", "'", "\"", "\n", ","]]), "Invalid character in srcOrDirective!"
     if conf.security.content_security_policy is None:

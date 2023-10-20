@@ -93,10 +93,10 @@ def escapeString(val: str, maxLength: int = 254) -> str:
 
 
 def hmacSign(data: Any) -> str:
-    assert conf.viur.file_hmac_key is not None, "No hmac-key set!"
+    assert conf.file_hmac_key is not None, "No hmac-key set!"
     if not isinstance(data, bytes):
         data = str(data).encode("UTF-8")
-    return hmac.new(conf.viur.file_hmac_key, msg=data, digestmod=hashlib.sha3_384).hexdigest()
+    return hmac.new(conf.file_hmac_key, msg=data, digestmod=hashlib.sha3_384).hexdigest()
 
 
 def hmacVerify(data: Any, signature: str) -> bool:
@@ -240,7 +240,7 @@ def seoUrlToFunction(module: str, function: str, render: Optional[str] = None) -
         pathComponents = ["", lang]
     else:
         pathComponents = [""]
-    targetObject = conf.viur.main_resolver
+    targetObject = conf.main_resolver
     if module in targetObject:
         pathComponents.append(module)
         targetObject = targetObject[module]

@@ -447,13 +447,13 @@ class MetaSkel(MetaBaseSkel):
                 .replace(str(conf.instance.project_base_path), "") \
                 .replace(str(conf.instance.core_base_path), "")
             idxOld = min(
-                [x for (x, y) in enumerate(conf.viur.skeleton_search_path) if relOldFileName.startswith(y)] + [999])
+                [x for (x, y) in enumerate(conf.skeleton_search_path) if relOldFileName.startswith(y)] + [999])
             idxNew = min(
-                [x for (x, y) in enumerate(conf.viur.skeleton_search_path) if relNewFileName.startswith(y)] + [999])
+                [x for (x, y) in enumerate(conf.skeleton_search_path) if relNewFileName.startswith(y)] + [999])
             if idxNew == 999:
                 # We could not determine a priority for this class as its from a path not listed in the config
                 raise NotImplementedError(
-                    "Skeletons must be defined in a folder listed in conf.viur.skeleton_search_path")
+                    "Skeletons must be defined in a folder listed in conf.skeleton_search_path")
             elif idxOld < idxNew:  # Lower index takes precedence
                 # The currently processed skeleton has a lower priority than the one we already saw - just ignore it
                 return
@@ -463,11 +463,11 @@ class MetaSkel(MetaBaseSkel):
             else:  # They seem to be from the same Package - raise as something is messed up
                 raise ValueError("Duplicate definition for %s in %s and %s" %
                                  (cls.kindName, relNewFileName, relOldFileName))
-        # Ensure that all skeletons are defined in folders listed in conf.viur.skeleton_search_path
-        if (not any([relNewFileName.startswith(x) for x in conf.viur.skeleton_search_path])
+        # Ensure that all skeletons are defined in folders listed in conf.skeleton_search_path
+        if (not any([relNewFileName.startswith(x) for x in conf.skeleton_search_path])
             and not "viur_doc_build" in dir(sys)):  # Do not check while documentation build
             raise NotImplementedError(
-                f"""{relNewFileName} must be defined in a folder listed in {conf.viur.skeleton_search_path}""")
+                f"""{relNewFileName} must be defined in a folder listed in {conf.skeleton_search_path}""")
         if cls.kindName and cls.kindName is not _undefined:
             MetaBaseSkel._skelCache[cls.kindName] = cls
         # Auto-Add ViUR Search Tags Adapter if the skeleton has no adapter attached
@@ -560,7 +560,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
         res = set()
 
         for tag in value.split(" "):
-            tag = "".join([x for x in tag.lower() if x in conf.viur.search_valid_chars])
+            tag = "".join([x for x in tag.lower() if x in conf.search_valid_chars])
 
             if len(tag) >= self.min_length:
                 res.add(tag)
@@ -974,7 +974,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                             if isinstance(x, dict):
                                 fixDotNames(x)
 
-            if conf.viur.viur2import_blobsource:  # Try to fix these only when converting from ViUR2
+            if conf.viur2import_blobsource:  # Try to fix these only when converting from ViUR2
                 fixDotNames(dbObj)
 
             # Write the core entry back

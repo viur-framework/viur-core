@@ -33,16 +33,16 @@ iamClient = iam_credentials_v1.IAMCredentialsClient()
 
 
 def importBlobFromViur2(dlKey, fileName):
-    if not conf.viur.viur2import_blobsource:
+    if not conf.viur2import_blobsource:
         return False
     existingImport = db.Get(db.Key("viur-viur2-blobimport", dlKey))
     if existingImport:
         if existingImport["success"]:
             return existingImport["dlurl"]
         return False
-    if conf.viur.viur2import_blobsource["infoURL"]:
+    if conf.viur2import_blobsource["infoURL"]:
         try:
-            importDataReq = urlopen(conf.viur.viur2import_blobsource["infoURL"] + dlKey)
+            importDataReq = urlopen(conf.viur2import_blobsource["infoURL"] + dlKey)
         except:
             marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
             marker["success"] = False
@@ -56,12 +56,12 @@ def importBlobFromViur2(dlKey, fileName):
             db.Put(marker)
             return False
         importData = json.loads(importDataReq.read())
-        oldBlobName = conf.viur.viur2import_blobsource["gsdir"] + "/" + importData["key"]
+        oldBlobName = conf.viur2import_blobsource["gsdir"] + "/" + importData["key"]
         srcBlob = storage.Blob(bucket=bucket,
-                               name=conf.viur.viur2import_blobsource["gsdir"] + "/" + importData["key"])
+                               name=conf.viur2import_blobsource["gsdir"] + "/" + importData["key"])
     else:
-        oldBlobName = conf.viur.viur2import_blobsource["gsdir"] + "/" + dlKey
-        srcBlob = storage.Blob(bucket=bucket, name=conf.viur.viur2import_blobsource["gsdir"] + "/" + dlKey)
+        oldBlobName = conf.viur2import_blobsource["gsdir"] + "/" + dlKey
+        srcBlob = storage.Blob(bucket=bucket, name=conf.viur2import_blobsource["gsdir"] + "/" + dlKey)
     if not srcBlob.exists():
         marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
         marker["success"] = False
@@ -84,7 +84,7 @@ class InjectStoreURLBone(BaseBone):
     def unserialize(self, skel, name):
         if "dlkey" in skel.dbEntity and "name" in skel.dbEntity:
             skel.accessedValues[name] = utils.downloadUrlFor(
-                skel["dlkey"], skel["name"], derived=False, expires=conf.viur.render_json_download_url_expiration
+                skel["dlkey"], skel["name"], derived=False, expires=conf.render_json_download_url_expiration
             )
             return True
         return False
@@ -156,8 +156,8 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
 
         from viur.core.modules.file import cloudfunction_thumbnailer
 
-        conf.viur.file_thumbnailer_url = "https://xxxxx.cloudfunctions.net/imagerenderer"
-        conf.viur.file_derivations = {"thumbnail": cloudfunction_thumbnailer}
+        conf.file_thumbnailer_url = "https://xxxxx.cloudfunctions.net/imagerenderer"
+        conf.file_derivations = {"thumbnail": cloudfunction_thumbnailer}
 
         conf.derives_pdf = {
             "thumbnail": [{"width": 1920,"sites":"1,2"}]
@@ -169,8 +169,8 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
         test = FileBone(derive=conf.derives_pdf)
    """
 
-    if not conf.viur.file_thumbnailer_url:
-        raise ValueError("conf.viur.file_thumbnailer_url is not set")
+    if not conf.file_thumbnailer_url:
+        raise ValueError("conf.file_thumbnailer_url is not set")
 
     def getsignedurl():
         if conf.instance.is_dev_server:
@@ -197,7 +197,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
         data_str = base64.b64encode(json.dumps(dataDict).encode("UTF-8"))
         sig = utils.hmacSign(data_str)
         datadump = json.dumps({"dataStr": data_str.decode('ASCII'), "sign": sig})
-        resp = _requests.post(conf.viur.file_thumbnailer_url, data=datadump, headers=headers, allow_redirects=False)
+        resp = _requests.post(conf.file_thumbnailer_url, data=datadump, headers=headers, allow_redirects=False)
         if resp.status_code != 200:  # Error Handling
             match resp.status_code:
                 case 302:
@@ -347,7 +347,7 @@ class FileBaseSkel(TreeSkel):
     @classmethod
     def refresh(cls, skelValues):
         super().refresh(skelValues)
-        if conf.viur.viur2import_blobsource:
+        if conf.viur2import_blobsource:
             importData = importBlobFromViur2(skelValues["dlkey"], skelValues["name"])
             if importData:
                 if not skelValues["downloadUrl"]:
