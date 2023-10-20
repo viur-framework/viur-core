@@ -501,10 +501,10 @@ class Security(ConfigType):
     }
     """If set, viur will emit a CSP http-header with each request. Use security.addCspRule to set this property"""
 
-    referrerPolicy = "strict-origin"
+    referrer_policy = "strict-origin"
     """Per default, we'll emit Referrer-Policy: strict-origin so no referrers leak to external services"""
 
-    permissionsPolicy = {
+    permissions_policy = {
         "autoplay": ["self"],
         "camera": [],
         "display-capture": [],
@@ -521,34 +521,34 @@ class Security(ConfigType):
     :meth: securityheaders.setPermissionPolicyDirective to include at least "self"
     """
 
-    enableCOEP = False
+    enable_coep = False
     """Shall we emit Cross-Origin-Embedder-Policy: require-corp?"""
 
-    enableCOOP = "same-origin"
+    enable_coop = "same-origin"
     """Emit a Cross-Origin-Opener-Policy Header?
     Valid values are same-origin|same-origin-allow-popups|unsafe-none"""
 
-    enableCORP = "same-origin"
+    enable_corp = "same-origin"
     """Emit a Cross-Origin-Resource-Policy Header?
     Valid values are same-site|same-origin|cross-origin"""
 
-    strictTransportSecurity = "max-age=22118400"
+    strict_transport_security = "max-age=22118400"
     """If set, ViUR will emit a HSTS HTTP-header with each request.
     Use security.enableStrictTransportSecurity to set this property"""
 
-    xFrameOptions = ("sameorigin", None)
+    x_frame_options = ("sameorigin", None)
     """If set, ViUR will emit an X-Frame-Options header,"""
 
-    xXssProtection = True
+    x_xss_protection = True
     """ViUR will emit an X-XSS-Protection header if set (the default),"""
 
-    xContentTypeOptions = True
+    x_content_type_options = True
     """ViUR will emit X-Content-Type-Options: nosniff Header unless set to False"""
 
-    xPermittedCrossDomainPolicies = "none"
+    x_permitted_cross_domain_policies = "none"
     """Unless set to logical none; ViUR will emit a X-Permitted-Cross-Domain-Policies with each request"""
 
-    captcha_defaultCredentials = None
+    captcha_default_credentials = None
     """The default sitekey and secret to use for the captcha-bone.
     If set, must be a dictionary of "sitekey" and "secret".
     """
@@ -558,30 +558,46 @@ class Security(ConfigType):
 
     _mapping = {
         "contentSecurityPolicy": "content_security_policy",
-        "captcha.defaultCredentials": "captcha_defaultCredentials",
+        "referrerPolicy": "referrer_policy",
+        "permissionsPolicy": "permissions_policy",
+        "enableCOEP": "enable_coep",
+        "enableCOOP": "enable_coop",
+        "enableCORP": "enable_corp",
+        "strictTransportSecurity": "strict_transport_security",
+        "xFrameOptions": "x_frame_options",
+        "xXssProtection": "x_xss_protection",
+        "xContentTypeOptions": "x_content_type_options",
+        "xPermittedCrossDomainPolicies": "x_permitted_cross_domain_policies",
+        "captcha_defaultCredentials": "captcha_default_credentials",
+        "captcha.defaultCredentials": "captcha_default_credentials",
     }
 
 
 class Debug(ConfigType):
     trace = False
     """If enabled, trace any routing, HTTPExceptions and decorations for debugging and insight"""
-    traceExceptions = False
+    trace_exceptions = False
     """If enabled, user-generated exceptions from the viur.core.errors module won't be caught and handled"""
-    traceExternalCallRouting = False
+    trace_external_call_routing = False
     """If enabled, ViUR will log which (exposed) function are called from outside with what arguments"""
-    traceInternalCallRouting = False
+    trace_internal_call_routing = False
     """If enabled, ViUR will log which (internal-exposed) function are called from templates with what arguments"""
-    skeleton_fromClient = False
+    skeleton_from_client = False
     """If enabled, log errors raises from skeleton.fromClient()"""
 
     dev_server_cloud_logging = False
     """If disabled the local logging will not send with requestLogger to the cloud"""
 
-    disableCache = False
+    disable_cache = False
     """If set to true, the decorator @enableCache from viur.core.cache has no effect"""
 
     _mapping = {
-        "skeleton.fromClient": "skeleton_fromClient",
+        "skeleton.fromClient": "skeleton_from_client",
+        "traceExceptions": "trace_exceptions",
+        "traceExternalCallRouting": "trace_external_call_routing",
+        "traceInternalCallRouting": "trace_internal_call_routing",
+        "skeleton_fromClient": "skeleton_from_client",
+        "disableCache": "disable_cache",
     }
 
 
@@ -600,7 +616,7 @@ class Conf(ConfigType):
 
     _mapping = {
         "viur.dev_server_cloud_logging": "debug.dev_server_cloud_logging",
-        "viur.disableCache": "debug.disableCache",
+        "viur.disable_cache": "debug.disable_cache",
     }
 
     def _resolve_mapping(self, key):
@@ -617,7 +633,7 @@ conf = Conf(
     strict_mode=os.getenv("VIUR_CORE_CONFIG_STRICT_MODE", "").lower() == "true",
 )
 
-print(os.getenv("CONFIG_STRICT_MODE"))
+print(os.getenv("VIUR_CORE_CONFIG_STRICT_MODE"))
 print(os.environ)
 
 from pprint import pprint  # noqa

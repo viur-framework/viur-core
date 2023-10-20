@@ -247,8 +247,8 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
 
     # Send warning email in case trace is activated in a cloud environment
     if ((conf.debug.trace
-            or conf.debug.traceExternalCallRouting
-            or conf.debug.traceInternalCallRouting)
+            or conf.debug.trace_external_call_routing
+            or conf.debug.trace_internal_call_routing)
             and (not conf.viur.instance_is_dev_server or conf.debug.dev_server_cloud_logging)):
         from viur.core import email
         try:
@@ -269,15 +269,15 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
             if not k.startswith("Content-Security-Policy"):
                 raise AssertionError("Got unexpected header in "
                                      "conf.security.content_security_policy['_headerCache']")
-    if conf.security.strictTransportSecurity:
-        if not conf.security.strictTransportSecurity.startswith("max-age"):
-            raise AssertionError("Got unexpected header in conf.security.strictTransportSecurity")
+    if conf.security.strict_transport_security:
+        if not conf.security.strict_transport_security.startswith("max-age"):
+            raise AssertionError("Got unexpected header in conf.security.strict_transport_security")
     crossDomainPolicies = {None, "none", "master-only", "by-content-type", "all"}
-    if conf.security.xPermittedCrossDomainPolicies not in crossDomainPolicies:
-        raise AssertionError("conf.security.xPermittedCrossDomainPolicies "
+    if conf.security.x_permitted_cross_domain_policies not in crossDomainPolicies:
+        raise AssertionError("conf.security.x_permitted_cross_domain_policies "
                              f"must be one of {crossDomainPolicies!r}")
-    if conf.security.xFrameOptions is not None and isinstance(conf.security.xFrameOptions, tuple):
-        mode, uri = conf.security.xFrameOptions
+    if conf.security.x_frame_options is not None and isinstance(conf.security.x_frame_options, tuple):
+        mode, uri = conf.security.x_frame_options
         assert mode in ["deny", "sameorigin", "allow-from"]
         if mode == "allow-from":
             assert uri is not None and (uri.lower().startswith("https://") or uri.lower().startswith("http://"))

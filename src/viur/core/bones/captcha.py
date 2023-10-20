@@ -26,9 +26,9 @@ class CaptchaBone(BaseBone):
         self.privateKey = privateKey
         if not self.defaultValue and not self.privateKey:
             # Merge these values from the side-wide configuration if set
-            if conf.security.captcha_defaultCredentials:
-                self.defaultValue = self.publicKey = conf.security.captcha_defaultCredentials["sitekey"]
-                self.privateKey = conf.security.captcha_defaultCredentials["secret"]
+            if conf.security.captcha_default_credentials:
+                self.defaultValue = self.publicKey = conf.security.captcha_default_credentials["sitekey"]
+                self.privateKey = conf.security.captcha_default_credentials["secret"]
         self.required = True
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:

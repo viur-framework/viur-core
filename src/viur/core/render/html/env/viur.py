@@ -43,7 +43,7 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
     """
     request = current.request.get()
     cachetime = kwargs.pop("cachetime", 0)
-    if conf.viur.disableCache or request.disableCache:  # Caching disabled by config
+    if conf.viur.disable_cache or request.disableCache:  # Caching disabled by config
         cachetime = 0
     cacheEnvKey = None
     if conf.viur.cache_environment_key:

@@ -231,34 +231,34 @@ class Router:
             for k, v in conf.security.content_security_policy["_headerCache"].items():
                 self.response.headers[k] = v
         if self.isSSLConnection:  # Check for HTST and PKP headers only if we have a secure channel.
-            if conf.security.strictTransportSecurity:
-                self.response.headers["Strict-Transport-Security"] = conf.security.strictTransportSecurity
+            if conf.security.strict_transport_security:
+                self.response.headers["Strict-Transport-Security"] = conf.security.strict_transport_security
         # Check for X-Security-Headers we shall emit
-        if conf.security.xContentTypeOptions:
+        if conf.security.x_content_type_options:
             self.response.headers["X-Content-Type-Options"] = "nosniff"
-        if conf.security.xXssProtection is not None:
-            if conf.security.xXssProtection:
+        if conf.security.x_xss_protection is not None:
+            if conf.security.x_xss_protection:
                 self.response.headers["X-XSS-Protection"] = "1; mode=block"
-            elif conf.security.xXssProtection is False:
+            elif conf.security.x_xss_protection is False:
                 self.response.headers["X-XSS-Protection"] = "0"
-        if conf.security.xFrameOptions is not None and isinstance(conf.security.xFrameOptions, tuple):
-            mode, uri = conf.security.xFrameOptions
+        if conf.security.x_frame_options is not None and isinstance(conf.security.x_frame_options, tuple):
+            mode, uri = conf.security.x_frame_options
             if mode in ["deny", "sameorigin"]:
                 self.response.headers["X-Frame-Options"] = mode
             elif mode == "allow-from":
                 self.response.headers["X-Frame-Options"] = "allow-from %s" % uri
-        if conf.security.xPermittedCrossDomainPolicies is not None:
-            self.response.headers["X-Permitted-Cross-Domain-Policies"] = conf.security.xPermittedCrossDomainPolicies
-        if conf.security.referrerPolicy:
-            self.response.headers["Referrer-Policy"] = conf.security.referrerPolicy
-        if conf.security.permissionsPolicy.get("_headerCache"):
-            self.response.headers["Permissions-Policy"] = conf.security.permissionsPolicy["_headerCache"]
-        if conf.security.enableCOEP:
+        if conf.security.x_permitted_cross_domain_policies is not None:
+            self.response.headers["X-Permitted-Cross-Domain-Policies"] = conf.security.x_permitted_cross_domain_policies
+        if conf.security.referrer_policy:
+            self.response.headers["Referrer-Policy"] = conf.security.referrer_policy
+        if conf.security.permissions_policy.get("_headerCache"):
+            self.response.headers["Permissions-Policy"] = conf.security.permissions_policy["_headerCache"]
+        if conf.security.enable_coep:
             self.response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
-        if conf.security.enableCOOP:
-            self.response.headers["Cross-Origin-Opener-Policy"] = conf.security.enableCOOP
-        if conf.security.enableCORP:
-            self.response.headers["Cross-Origin-Resource-Policy"] = conf.security.enableCORP
+        if conf.security.enable_coop:
+            self.response.headers["Cross-Origin-Opener-Policy"] = conf.security.enable_coop
+        if conf.security.enable_corp:
+            self.response.headers["Cross-Origin-Resource-Policy"] = conf.security.enable_corp
 
         # Ensure that TLS is used if required
         if conf.viur.force_ssl and not self.isSSLConnection and not conf.viur.instance_is_dev_server:
@@ -298,8 +298,8 @@ class Router:
             self._route(path)
 
         except errors.Redirect as e:
-            if conf.debug.traceExceptions:
-                logging.warning("""conf.debug.traceExceptions is set, won't handle this exception""")
+            if conf.debug.trace_exceptions:
+                logging.warning("""conf.debug.trace_exceptions is set, won't handle this exception""")
                 raise
             self.response.status = '%d %s' % (e.status, e.name)
             url = e.url
@@ -308,8 +308,8 @@ class Router:
             self.response.headers['Location'] = url
 
         except Exception as e:
-            if conf.debug.traceExceptions:
-                logging.warning("""conf.debug.traceExceptions is set, won't handle this exception""")
+            if conf.debug.trace_exceptions:
+                logging.warning("""conf.debug.trace_exceptions is set, won't handle this exception""")
                 raise
             self.response.body = b""
             if isinstance(e, errors.HTTPException):
@@ -538,8 +538,8 @@ class Router:
         else:
             kwargs = self.kwargs
 
-        if ((self.internalRequest and conf.debug.traceInternalCallRouting)
-                or conf.debug.traceExternalCallRouting):
+        if ((self.internalRequest and conf.debug.trace_internal_call_routing)
+                or conf.debug.trace_external_call_routing):
             logging.debug(
                 f"Calling {caller._func!r} with args={self.args!r}, {kwargs=} within context={self.context!r}"
             )

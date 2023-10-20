@@ -388,7 +388,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                         # further down the hierarchy (in an record- or relational-Bone)
                         complete = False
 
-                        if conf.debug.skeleton_fromClient and cls.kindName:
+                        if conf.debug.skeleton_from_client and cls.kindName:
                             logging.debug("%s: %s: %r", cls.kindName, error.fieldPath, error.errorMessage)
 
         if (len(data) == 0
@@ -728,7 +728,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 for error in errors:
                     if error.severity.value > 1:
                         complete = False
-                        if conf.debug.skeleton_fromClient:
+                        if conf.debug.skeleton_from_client:
                             logging.debug("%s: %s: %r", cls.kindName, error.fieldPath, error.errorMessage)
 
                 skelValues.errors.extend(errors)

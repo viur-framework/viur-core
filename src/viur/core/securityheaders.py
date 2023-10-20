@@ -182,11 +182,11 @@ def enableStrictTransportSecurity(maxAge: int = 365 * 24 * 60 * 60,
         :param includeSubDomains: If this parameter is set, this rule applies to all of the site's subdomains as well.
         :param preload: If set, we'll issue a hint that preloading would be appreciated.
     """
-    conf.security.strictTransportSecurity = "max-age=%s" % maxAge
+    conf.security.strict_transport_security = "max-age=%s" % maxAge
     if includeSubDomains:
-        conf.security.strictTransportSecurity += "; includeSubDomains"
+        conf.security.strict_transport_security += "; includeSubDomains"
     if preload:
-        conf.security.strictTransportSecurity += "; preload"
+        conf.security.strict_transport_security += "; preload"
 
 
 def setXFrameOptions(action: str, uri: Optional[str] = None) -> None:
@@ -196,13 +196,13 @@ def setXFrameOptions(action: str, uri: Optional[str] = None) -> None:
         :param uri: URL to whitelist
     """
     if action == "off":
-        conf.security.xFrameOptions = None
+        conf.security.x_frame_options = None
     elif action in ["deny", "sameorigin"]:
-        conf.security.xFrameOptions = (action, None)
+        conf.security.x_frame_options = (action, None)
     elif action == "allow-from":
         if uri is None or not (uri.lower().startswith("https://") or uri.lower().startswith("http://")):
             raise ValueError("If action is allow-from, an uri MUST be given and start with http(s)://")
-        conf.security.xFrameOptions = (action, uri)
+        conf.security.x_frame_options = (action, uri)
 
 
 def setXXssProtection(enable: Optional[bool]) -> None:
@@ -211,7 +211,7 @@ def setXXssProtection(enable: Optional[bool]) -> None:
         :param enable: Enable the protection or not. Set to None to drop this header
     """
     if enable is True or enable is False or enable is None:
-        conf.security.xXssProtection = enable
+        conf.security.x_xss_protection = enable
     else:
         raise ValueError("enable must be exactly one of None | True | False")
 
@@ -222,7 +222,7 @@ def setXContentTypeNoSniff(enable: bool) -> None:
         :param enable: Enable emitting this header or not
     """
     if enable is True or enable is False:
-        conf.security.xContentTypeOptions = enable
+        conf.security.x_content_type_options = enable
     else:
         raise ValueError("enable must be one of True | False")
 
@@ -230,7 +230,7 @@ def setXContentTypeNoSniff(enable: bool) -> None:
 def setXPermittedCrossDomainPolicies(value: str) -> None:
     if value not in [None, "none", "master-only", "by-content-type", "all"]:
         raise ValueError("value [None, \"none\", \"master-only\", \"by-content-type\", \"all\"]")
-    conf.security.xPermittedCrossDomainPolicies = value
+    conf.security.x_permitted_cross_domain_policies = value
 
 
 # Valid values for the referrer-header as per https://www.w3.org/TR/referrer-policy/#referrer-policies
@@ -251,17 +251,17 @@ def setReferrerPolicy(policy: str):  # fixme: replace str with literal[validrefe
         :param policy: The referrer policy to send
     """
     assert policy in validReferrerPolicies, "Policy must be one of %s" % validReferrerPolicies
-    conf.security.referrerPolicy = policy
+    conf.security.referrer_policy = policy
 
 
 def _rebuildPermissionHeaderCache() -> None:
     """
-        Rebuilds the internal conf.security.permissionsPolicy["_headerCache"] string, ie. it constructs
+        Rebuilds the internal conf.security.permissions_policy["_headerCache"] string, ie. it constructs
         the actual header string that's being emitted to the clients.
     """
-    conf.security.permissionsPolicy["_headerCache"] = ", ".join([
+    conf.security.permissions_policy["_headerCache"] = ", ".join([
         "%s=(%s)" % (k, " ".join([("\"%s\"" % x if x != "self" else x) for x in v]))
-        for k, v in conf.security.permissionsPolicy.items() if k != "_headerCache"
+        for k, v in conf.security.permissions_policy.items() if k != "_headerCache"
     ])
 
 
@@ -274,7 +274,7 @@ def setPermissionPolicyDirective(directive: str, allowList: Optional[List[str]])
                 The list of allowed origins. Use "self" to allow the current domain.
                 Empty list means the feature will be disabled by the browser (it's not accessible by javascript)
     """
-    conf.security.permissionsPolicy[directive] = allowList
+    conf.security.permissions_policy[directive] = allowList
 
 
 def setCrossOriginIsolation(coep: bool, coop: str, corp: str) -> None:
@@ -295,6 +295,6 @@ def setCrossOriginIsolation(coep: bool, coop: str, corp: str) -> None:
     """
     assert coop in ["same-origin", "same-origin-allow-popups", "unsafe-none"], "Invalid value for the COOP Header"
     assert corp in ["same-site", "same-origin", "cross-origin"], "Invalid value for the CORP Header"
-    conf.security.enableCOEP = bool(coep)
-    conf.security.enableCOOP = coop
-    conf.security.enableCORP = corp
+    conf.security.enable_coep = bool(coep)
+    conf.security.enable_coop = coop
+    conf.security.enable_corp = corp
