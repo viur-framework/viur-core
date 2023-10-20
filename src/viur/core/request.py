@@ -359,7 +359,7 @@ class Router:
                 else:  # We render the error in html
                     # Try to get the template from html/error/
                     if filename := conf.main_app.render.getTemplateFileName((f"{error_info['status']}", "error"),
-                                                                                 raise_exception=False):
+                                                                            raise_exception=False):
                         template = conf.main_app.render.getEnv().get_template(filename)
                         res = template.render(error_info)
 
