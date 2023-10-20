@@ -120,7 +120,7 @@ def setDefaultDomainLanguage(domain: str, lang: str):
     conf.viur.domain_language_mapping[host] = lang.lower()
 
 
-def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Dict], default: str = None):
+def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Dict], default: str = None) -> Module:
     """
         Creates the application-context for the current instance.
 
