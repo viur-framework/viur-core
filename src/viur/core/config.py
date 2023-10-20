@@ -338,9 +338,6 @@ class Viur(ConfigType):
     language_module_map = {}
     """Maps modules to their translation (if set)"""
 
-    log_missing_translations = False  # TODO: move to debug
-    """If true, ViUR will log missing translations in the datastore"""
-
     main_app = None
     """Reference to our pre-build Application-Instance"""
 
@@ -459,7 +456,6 @@ class Viur(ConfigType):
         "languageAliasMap": "language_alias_map",
         "languageMethod": "language_method",
         "languageModuleMap": "language_module_map",
-        "logMissingTranslations": "log_missing_translations",
         "mainApp": "main_app",
         "mainResolver": "main_resolver",
         "maxPasswordLength": "max_password_length",
