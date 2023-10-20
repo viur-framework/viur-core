@@ -283,6 +283,16 @@ class Viur(ConfigType):
     of choice. See email.py for more details
     """
 
+    email_sendinblue_api_key: Optional[str] = None
+    """API Key for SendInBlue (now Brevo) for the EmailTransportSendInBlue
+    """
+
+    email_sendinblue_thresholds: tuple[int] | list[int] = (1000, 500, 100)
+    """Warning thresholds for remaining email quota
+
+    Used by email.EmailTransportSendInBlue.check_sib_quota
+    """
+
     email_send_from_local_development_server: bool = False
     """If set, we'll enable sending emails from the local development server.
     Otherwise, they'll just be logged.
@@ -462,6 +472,8 @@ class Viur(ConfigType):
         "email.recipientOverride": "email_recipient_override",
         "email.senderOverride": "email_sender_override",
         "email.admin_recipients": "email_admin_recipients",
+        "email.sendInBlue.apiKey": "email_sendinblue_api_key",
+        "email_sendInBlue.thresholds": "email_sendinblue_thresholds",
         "errorHandler": "error_handler",
         "static.embedSvg.path": "static_embed_svg_path",
         "file.hmacKey": "file_hmac_key",

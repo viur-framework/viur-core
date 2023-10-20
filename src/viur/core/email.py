@@ -17,7 +17,7 @@ from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
     the email service. As the Appengine does not provide an email-api anymore, you'll have to use a 3rd party service
     to actually deliver the email. A sample implementation for Send in Blue (https://sendinblue.com/) is provided.
     To enable Send in Blue,    set conf.viur.email_transport_class to EmailTransportSendInBlue and add your API-Key to
-    conf.viur.email_sendInBlue.apiKey. To send via another service, you'll have to implement a different transport
+    conf.viur.email_sendinblue_api_key. To send via another service, you'll have to implement a different transport
     class (and point conf.viur.email_transport_class to that class). This module needs a custom queue
     (viur-emails) with a larger backoff value (so that we don't try to deliver the same email multiple times within a
     short timeframe). A suggested configuration would be
@@ -323,7 +323,7 @@ class EmailTransportSendInBlue(EmailTransport):
                      headers: Dict[str, str], attachments: List[Dict[str, bytes]], **kwargs):
         """
             Internal function for delivering Emails using Send in Blue. This function requires the
-            conf.viur.email_sendInBlue.apiKey to be set.
+            conf.viur.email_sendinblue_api_key to be set.
             This function is supposed to return on success and throw an exception otherwise.
             If no exception is thrown, the email is considered send and will not be retried.
         """
@@ -359,7 +359,7 @@ class EmailTransportSendInBlue(EmailTransport):
                 })
         payload = json.dumps(dataDict).encode("UTF-8")
         headers = {
-            "api-key": conf.viur.email_sendInBlue.apiKey,
+            "api-key": conf.viur.email_sendinblue_api_key,
             "Content-Type": "application/json; charset=utf-8"
         }
         reqObj = request.Request(url="https://api.sendinblue.com/v3/smtp/email",
@@ -393,15 +393,15 @@ class EmailTransportSendInBlue(EmailTransport):
         It automatically checks if the apiKey is configured.
 
         There are three default thresholds: 1000, 500, 100
-        Others can be set via conf.viur.email_sendInBlue.thresholds.
+        Others can be set via conf.viur.email_sendinblue_thresholds.
         An email will be sent for the lowest threshold that has been undercut.
         """
-        if conf.get("viur.email.sendInBlue.apiKey") is None:
+        if conf.viur.email_sendinblue_api_key is None:
             return  # no SIB key, we cannot check
 
         req = requests.get(
             "https://api.sendinblue.com/v3/account",
-            headers={"api-key": conf.viur.email_sendInBlue.apiKey},
+            headers={"api-key": conf.viur.email_sendinblue_api_key},
         )
         if not req.ok:
             logging.error("Failed to fetch SIB account information")
@@ -429,7 +429,7 @@ class EmailTransportSendInBlue(EmailTransport):
         entity["credits"] = credits
         entity["email"] = data["email"]
 
-        thresholds = conf.get("viur.email.sendInBlue.thresholds", (1000, 500, 100))
+        thresholds = sorted(conf.email_sendinblue_thresholds, reverse=True)
         for idx, limit in list(enumerate(thresholds, 1))[::-1]:
             if credits < limit:
                 if entity["latest_warning_for"] == limit:
