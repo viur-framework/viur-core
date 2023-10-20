@@ -33,12 +33,12 @@ class Session:
             we set
         - :prop:use_session_cookie is set to True by default, causing the cookie to be treated as a session cookie
             (it will be deleted on browser close). If set to False, it will be emitted with the life-time in
-            conf.viur.session_life_time.
-        - The config variable conf.viur.session_life_time: Determines, how long (in seconds) a session is valid.
+            conf.user.session_life_time.
+        - The config variable conf.user.session_life_time: Determines, how long (in seconds) a session is valid.
             Even if :prop:use_session_cookie is set to True, the session is voided server-side after no request has been
             made within the configured lifetime.
-        - The config variables conf.viur.session_persistent_fields_on_login and
-            conf.viur.session_persistent_fields_on_logout lists fields, that may survive a login/logout action.
+        - The config variables conf.user.session_persistent_fields_on_login and
+            conf.user.session_persistent_fields_on_logout lists fields, that may survive a login/logout action.
             For security reasons, we completely destroy a session on login/logout (it will be deleted, a new empty
             database object will be created and a new cookie with a different key is sent to the browser). This causes
             all data currently stored to be lost. Only keys listed in these variables will be copied into the new
@@ -66,7 +66,7 @@ class Session:
         """
         if cookie_key := str(req.request.cookies.get(self.cookie_name)):
             if data := db.Get(db.Key(self.kindName, cookie_key)):  # Loaded successfully
-                if data["lastseen"] < time.time() - conf.viur.session_life_time:
+                if data["lastseen"] < time.time() - conf.user.session_life_time:
                     # This session is too old
                     self.reset()
                     return False
@@ -118,7 +118,7 @@ class Session:
             "HttpOnly",
             f"SameSite={self.same_site}" if self.same_site else None,
             "Secure" if not conf.viur.instance_is_dev_server else None,
-            f"Max-Age={conf.viur.session_life_time}" if not self.use_session_cookie else None,
+            f"Max-Age={conf.user.session_life_time}" if not self.use_session_cookie else None,
         )
 
         req.response.headerlist.append(
@@ -232,5 +232,5 @@ def start_clear_sessions():
     """
         Removes old (expired) Sessions
     """
-    query = db.Query(Session.kindName).filter("lastseen <", time.time() - (conf.viur.session_life_time + 300))
+    query = db.Query(Session.kindName).filter("lastseen <", time.time() - (conf.user.session_life_time + 300))
     DeleteEntitiesIter.startIterOnQuery(query)

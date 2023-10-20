@@ -114,7 +114,7 @@ class UserSkel(skeleton.Skeleton):
 
     roles = SelectBone(
         descr=i18n.translate("viur.user.bone.roles", defaultText="Roles"),
-        values=conf.viur.user_roles,
+        values=conf.user.roles,
         required=True,
         multiple=True,
         # fixme: This is generally broken in VIUR! See #776 for details.
@@ -123,14 +123,14 @@ class UserSkel(skeleton.Skeleton):
         #         "user.bone.roles.invalid",
         #         defaultText="Invalid role setting: 'custom' can only be set alone.")
         #     if "custom" in values and len(values) > 1 else None,
-        defaultValue=list(conf.viur.user_roles.keys())[:1],
+        defaultValue=list(conf.user.roles.keys())[:1],
     )
 
     access = SelectBone(
         descr=i18n.translate("viur.user.bone.access", defaultText="Access rights"),
         values=lambda: {
             right: i18n.translate("server.modules.user.accessright.%s" % right, defaultText=right)
-            for right in sorted(conf.viur.access_rights)
+            for right in sorted(conf.user.access_rights)
         },
         multiple=True,
         params={
@@ -571,8 +571,8 @@ class GoogleAccount(UserPrimaryAuthentication):
     @skey(allow_empty=True)
     def login(self, token: str | None = None, *args, **kwargs):
         # FIXME: Check if already logged in
-        if not conf.viur.user_google_client_id:
-            raise errors.PreconditionFailed("Please configure conf.viur.user_google_client_id!")
+        if not conf.user.google_client_id:
+            raise errors.PreconditionFailed("Please configure conf.user.google_client_id!")
         if not token:
             request = current.request.get()
             request.response.headers["Content-Type"] = "text/html"
@@ -584,11 +584,11 @@ class GoogleAccount(UserPrimaryAuthentication):
                   .joinpath("viur/core/template/vi_user_google_login.html")
                   .open() as tpl_file):
                 tplStr = tpl_file.read()
-            tplStr = tplStr.replace("{{ clientID }}", conf.viur.user_google_client_id)
+            tplStr = tplStr.replace("{{ clientID }}", conf.user.google_client_id)
             extendCsp({"script-src": ["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
                        "style-src": ["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]})
             return tplStr
-        userInfo = id_token.verify_oauth2_token(token, requests.Request(), conf.viur.user_google_client_id)
+        userInfo = id_token.verify_oauth2_token(token, requests.Request(), conf.user.google_client_id)
         if userInfo['iss'] not in {'accounts.google.com', 'https://accounts.google.com'}:
             raise ValueError('Wrong issuer.')
         # Token looks valid :)
@@ -604,7 +604,7 @@ class GoogleAccount(UserPrimaryAuthentication):
             if not (userSkel := addSkel().all().filter("name.idx =", email.lower()).getSkel()):
                 # Still no luck - it's a completely new user
                 if not self.registrationEnabled:
-                    if userInfo.get("hd") and userInfo["hd"] in conf.viur.user_google_gsuite_domains:
+                    if userInfo.get("hd") and userInfo["hd"] in conf.user.google_gsuite_domains:
                         print("User is from domain - adding account")
                     else:
                         logging.warning("Denying registration of %s", email)
@@ -974,9 +974,9 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         """
         if not (cuser := current.user.get()):
             raise errors.Unauthorized()
-        if not (issuer := conf.viur.otp_issuer):
+        if not (issuer := conf.user.otp_issuer):
             logging.warning(
-                f"conf.viur.otp_issuer is None we replace the issuer by {conf.viur.instance_project_id=}")
+                f"conf.user.otp_issuer is None we replace the issuer by {conf.viur.instance_project_id=}")
             issuer = conf.viur.instance_project_id
 
         return pyotp.TOTP(otp_app_secret).provisioning_uri(name=cuser["name"], issuer_name=issuer)
@@ -1262,7 +1262,7 @@ class User(List):
             Performs Log-In for the current session and the given user key.
 
             This resets the current session: All fields not explicitly marked as persistent
-            by conf.viur.session_persistent_fields_on_login are gone afterwards.
+            by conf.user.session_persistent_fields_on_login are gone afterwards.
 
             :param key: The (DB-)Key of the user we shall authenticate
         """
@@ -1277,7 +1277,7 @@ class User(List):
         # Update session for user
         session = current.session.get()
         # Remember persistent fields...
-        take_over = {k: v for k, v in session.items() if k in conf.viur.session_persistent_fields_on_login}
+        take_over = {k: v for k, v in session.items() if k in conf.user.session_persistent_fields_on_login}
         session.reset()
         # and copy them over to the new session
         session |= take_over
@@ -1305,7 +1305,7 @@ class User(List):
         self.onLogout(user)
 
         session = current.session.get()
-        take_over = {k: v for k, v in session.items() if k in conf.viur.session_persistent_fields_on_logout}
+        take_over = {k: v for k, v in session.items() if k in conf.user.session_persistent_fields_on_logout}
         session.reset()
         session |= take_over
         current.user.set(None)  # set user to none in context var

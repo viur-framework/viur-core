@@ -361,7 +361,7 @@ class Module:
     If set, a tuple of access rights (like add, edit, delete) that this module supports.
 
     These will be prefixed on instance startup with the actual module name (becoming file-add, file-edit etc)
-    and registered in ``conf.viur.access_rights`` so these will be available on the access bone in user/add
+    and registered in ``conf.user.access_rights`` so these will be available on the access bone in user/add
     or user/edit.
     """
 
@@ -505,9 +505,9 @@ class Module:
             for right in self.accessRights:
                 right = f"{self.moduleName}-{right}"
 
-                # fixme: Turn conf.viur.access_rights into a set.
-                if right not in conf.viur.access_rights:
-                    conf.viur.access_rights.append(right)
+                # fixme: Turn conf.user.access_rights into a set.
+                if right not in conf.user.access_rights:
+                    conf.user.access_rights.append(right)
 
         # Collect methods and (sub)modules
         self._methods = {}
