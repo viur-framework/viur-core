@@ -321,41 +321,6 @@ class Viur(ConfigType):
     domain_language_mapping: dict[str, str] = {}
     """Maps Domains to alternative default languages"""
 
-    # TODO: Email sub type?
-    email_log_retention: datetime.timedelta = datetime.timedelta(days=30)
-    """For how long we'll keep successfully send emails in the viur-emails table"""
-
-    email_transport_class: Type["EmailTransport"] = None
-    """Class that actually delivers the email using the service provider
-    of choice. See email.py for more details
-    """
-
-    email_sendinblue_api_key: Optional[str] = None
-    """API Key for SendInBlue (now Brevo) for the EmailTransportSendInBlue
-    """
-
-    email_sendinblue_thresholds: tuple[int] | list[int] = (1000, 500, 100)
-    """Warning thresholds for remaining email quota
-
-    Used by email.EmailTransportSendInBlue.check_sib_quota
-    """
-
-    email_send_from_local_development_server: bool = False
-    """If set, we'll enable sending emails from the local development server.
-    Otherwise, they'll just be logged.
-    """
-
-    email_recipient_override: str | list[str] | Callable[[], str | list[str]] | Literal[False] = None
-    """If set, all outgoing emails will be sent to this address
-    (overriding the 'dests'-parameter in email.sendEmail)
-    """
-
-    email_sender_override: str | None = None
-    """If set, this sender will be used, regardless of what the templates advertise as sender"""
-
-    email_admin_recipients: str | list[str] | Callable[[], str | list[str]] = None
-    """Sets recipients for mails send with email.sendEMailToAdmins. If not set, all root users will be used."""
-
     error_handler: Callable[[Exception], str] | None = None
     """If set, ViUR calls this function instead of rendering the viur.errorTemplate if an exception occurs"""
 
@@ -513,14 +478,6 @@ class Viur(ConfigType):
         "domainLanguageMapping": "domain_language_mapping",
         "bone.boolean.str2true": "bone_boolean_str2true",
         "db.engine": "db_engine",
-        "email.logRetention": "email_log_retention",
-        "email.transportClass": "email_transport_class",
-        "email.sendFromLocalDevelopmentServer": "email_send_from_local_development_server",
-        "email.recipientOverride": "email_recipient_override",
-        "email.senderOverride": "email_sender_override",
-        "email.admin_recipients": "email_admin_recipients",
-        "email.sendInBlue.apiKey": "email_sendinblue_api_key",
-        "email_sendInBlue.thresholds": "email_sendinblue_thresholds",
         "errorHandler": "error_handler",
         "static.embedSvg.path": "static_embed_svg_path",
         "file.hmacKey": "file_hmac_key",
@@ -701,6 +658,55 @@ class Debug(ConfigType):
     }
 
 
+class Email(ConfigType):
+    """Email related settings."""
+
+    log_retention: datetime.timedelta = datetime.timedelta(days=30)
+    """For how long we'll keep successfully send emails in the viur-emails table"""
+
+    transport_class: Type["EmailTransport"] = None
+    """Class that actually delivers the email using the service provider
+    of choice. See email.py for more details
+    """
+
+    sendinblue_api_key: Optional[str] = None
+    """API Key for SendInBlue (now Brevo) for the EmailTransportSendInBlue
+    """
+
+    sendinblue_thresholds: tuple[int] | list[int] = (1000, 500, 100)
+    """Warning thresholds for remaining email quota
+
+    Used by email.EmailTransportSendInBlue.check_sib_quota
+    """
+
+    send_from_local_development_server: bool = False
+    """If set, we'll enable sending emails from the local development server.
+    Otherwise, they'll just be logged.
+    """
+
+    recipient_override: str | list[str] | Callable[[], str | list[str]] | Literal[False] = None
+    """If set, all outgoing emails will be sent to this address
+    (overriding the 'dests'-parameter in email.sendEmail)
+    """
+
+    sender_override: str | None = None
+    """If set, this sender will be used, regardless of what the templates advertise as sender"""
+
+    admin_recipients: str | list[str] | Callable[[], str | list[str]] = None
+    """Sets recipients for mails send with email.sendEMailToAdmins. If not set, all root users will be used."""
+
+    _mapping = {
+        "logRetention": "log_retention",
+        "transportClass": "transport_class",
+        "sendFromLocalDevelopmentServer": "send_from_local_development_server",
+        "recipientOverride": "recipient_override",
+        "senderOverride": "sender_override",
+        "admin_recipients": "admin_recipients",
+        "sendInBlue.apiKey": "sendinblue_api_key",
+        "sendInBlue.thresholds": "sendinblue_thresholds",
+    }
+
+
 class Conf(ConfigType):
     """Conf class wraps the conf dict and allows to handle
     deprecated keys or other special operations.
@@ -713,6 +719,7 @@ class Conf(ConfigType):
         self.viur = Viur(parent=self)
         self.security = Security(parent=self)
         self.debug = Debug(parent=self)
+        self.email = Email(parent=self)
 
     _mapping = {
         "viur.dev_server_cloud_logging": "debug.dev_server_cloud_logging",
@@ -725,6 +732,8 @@ class Conf(ConfigType):
             key = key.replace("viur.security.", "security.")
         if key.startswith("viur.debug"):
             key = key.replace("viur.debug.", "debug.")
+        if key.startswith("viur.email"):
+            key = key.replace("viur.email.", "email.")
         return super()._resolve_mapping(key)
 
 
