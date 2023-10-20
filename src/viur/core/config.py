@@ -145,16 +145,16 @@ class ConfigType:
         Not allowed in strict mode.
         """
         # print(f"CALLING __getitem__({self.__class__}, {key})")
-
+        new_path = f"{self._path}{self._resolve_mapping(key)}"
         warnings.warn(f"conf uses now attributes! "
-                      f"Use conf.{self._path}{key} to access your option",
+                      f"Use conf.{new_path} to access your option",
                       DeprecationWarning)
 
         if self.strict_mode:
-            print(self._resolve_mapping(key))
             raise SyntaxError(
                 f"In strict mode, the config must not be accessed "
-                f"with dict notation. Only attribute access is allowed."
+                f"with dict notation. "
+                f"Only attribute access (conf.{new_path}) is allowed."
             )
 
         print(f"PASS to getattr({key!r})")
@@ -193,10 +193,12 @@ class ConfigType:
         """
         # print(f"CALLING __setitem__({self.__class__}, {key}, {value})")
 
+        new_path = f"{self._path}{self._resolve_mapping(key)}"
         if self.strict_mode:
             raise SyntaxError(
                 f"In strict mode, the config must not be accessed "
-                f"with dict notation. Only attribute access is allowed."
+                f"with dict notation. "
+                f"Only attribute access (conf.{new_path}) is allowed."
             )
 
         # TODO: re-enable?!
