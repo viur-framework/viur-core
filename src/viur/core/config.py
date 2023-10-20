@@ -259,9 +259,6 @@ _project_base_path = Path().absolute()
 _core_base_path = Path(__file__).parent.parent.parent  # fixme: this points to site-packages!!!
 
 
-# Conf is a static, local dictionary.
-# Changes here apply locally to the current instance only.
-
 class Admin(ConfigType):
     """Administration tool configuration"""
 
@@ -292,6 +289,9 @@ class Admin(ConfigType):
 
 
 class Viur(ConfigType):
+    # TODO: move?
+    """ViUR Configuration"""
+
     access_rights: Multiple[str] = ["root", "admin"]
     """Additional access rights available on this project"""
 
@@ -564,6 +564,8 @@ class Viur(ConfigType):
 
 
 class Security(ConfigType):
+    """Security related settings"""
+
     content_security_policy: Optional[dict[str, dict[str, list[str]]]] = {
         "enforce": {
             "style-src": ["self", "https://accounts.google.com/gsi/style"],
@@ -666,6 +668,8 @@ class Security(ConfigType):
 
 
 class Debug(ConfigType):
+    """Several debug flags"""
+
     trace: bool = False
     """If enabled, trace any routing, HTTPExceptions and decorations for debugging and insight"""
 
@@ -698,8 +702,8 @@ class Debug(ConfigType):
 
 
 class Conf(ConfigType):
-    """
-    Conf class wraps the conf dict and allows to handle deprecated keys or other special operations.
+    """Conf class wraps the conf dict and allows to handle
+    deprecated keys or other special operations.
     """
 
     def __init__(self, strict_mode: bool = False):
@@ -715,7 +719,8 @@ class Conf(ConfigType):
         "viur.disable_cache": "debug.disable_cache",
     }
 
-    def _resolve_mapping(self, key):
+    def _resolve_mapping(self, key: str) -> str:
+        """Additional mapping for new sub confs."""
         if key.startswith("viur.security"):
             key = key.replace("viur.security.", "security.")
         if key.startswith("viur.debug"):
@@ -723,14 +728,9 @@ class Conf(ConfigType):
         return super()._resolve_mapping(key)
 
 
-# from viur.core import utils
-
 conf = Conf(
     strict_mode=os.getenv("VIUR_CORE_CONFIG_STRICT_MODE", "").lower() == "true",
 )
-
-print(os.getenv("VIUR_CORE_CONFIG_STRICT_MODE"))
-print(os.environ)
 
 from pprint import pprint  # noqa
 
@@ -744,5 +744,3 @@ pprint(dict(conf.items(True)))
 # print(repr(conf))
 # print("# PPRINT")
 print(pprint(conf))
-
-# import viur.core.utils
