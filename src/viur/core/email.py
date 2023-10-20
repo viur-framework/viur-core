@@ -226,7 +226,7 @@ def sendEMail(*,
     if conf.email.sender_override:
         sender = conf.email.sender_override
     elif sender is None:
-        sender = f'viur@{conf.viur.instance_project_id}.appspotmail.com'
+        sender = f'viur@{conf.instance.project_id}.appspotmail.com'
     subject, body = conf.viur.emailRenderer(dests, tpl, stringTemplate, skel, **kwargs)
     # Push that email to the outgoing queue
     queueEntity = db.Entity(db.Key("viur-emails"))
@@ -244,7 +244,7 @@ def sendEMail(*,
     queueEntity["context"] = context
     queueEntity.exclude_from_indexes = ["body", "attachments", "context"]
     transportClass.validateQueueEntity(queueEntity)  # Will raise an exception if the entity is not valid
-    if conf.viur.instance_is_dev_server and not conf.email.send_from_local_development_server:
+    if conf.instance.is_dev_server and not conf.email.send_from_local_development_server:
         logging.info("Not sending email from local development server")
         logging.info("Subject: %s", queueEntity["subject"])
         logging.info("Body: %s", queueEntity["body"])
@@ -275,7 +275,7 @@ def sendEMailToAdmins(subject: str, body: str, *args, **kwargs) -> bool:
                 users.append(user_skel["name"])
 
         # Prefix the instance's project_id to subject
-        subject = f"{conf.viur.instance_project_id}: {subject}"
+        subject = f"{conf.instance.project_id}: {subject}"
 
         if users:
             ret = sendEMail(dests=users, stringTemplate=os.linesep.join((subject, body)), *args, **kwargs)

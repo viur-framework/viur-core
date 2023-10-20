@@ -86,7 +86,7 @@ def load_indexes_from_file() -> Dict[str, List]:
     """
     indexes_dict = {}
     try:
-        with open(os.path.join(conf.viur.instance_project_base_path, "index.yaml"), "r") as file:
+        with open(os.path.join(conf.instance.project_base_path, "index.yaml"), "r") as file:
             indexes = yaml.safe_load(file)
             indexes = indexes.get("indexes", [])
             for index in indexes:
@@ -238,9 +238,9 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
     # noinspection PyUnresolvedReferences
     import skeletons  # This import is not used here but _must_ remain to ensure that the
     # application's data models are explicitly imported at some place!
-    if conf.viur.instance_project_id not in conf.viur.valid_application_ids:
+    if conf.instance.project_id not in conf.viur.valid_application_ids:
         raise RuntimeError(
-            f"""Refusing to start, {conf.viur.instance_project_id=} is not in {conf.viur.valid_application_ids=}""")
+            f"""Refusing to start, {conf.instance.project_id=} is not in {conf.viur.valid_application_ids=}""")
     if not render:
         import viur.core.render
         render = viur.core.render
@@ -251,7 +251,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
     if ((conf.debug.trace
             or conf.debug.trace_external_call_routing
             or conf.debug.trace_internal_call_routing)
-            and (not conf.viur.instance_is_dev_server or conf.debug.dev_server_cloud_logging)):
+            and (not conf.instance.is_dev_server or conf.debug.dev_server_cloud_logging)):
         from viur.core import email
         try:
             email.sendEMailToAdmins(

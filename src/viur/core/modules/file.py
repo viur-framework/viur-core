@@ -28,7 +28,7 @@ from viur.core.utils import sanitizeFileName
 
 credentials, project = google.auth.default()
 client = storage.Client(project, credentials)
-bucket = client.lookup_bucket(f"""{conf.viur.instance_project_id}.appspot.com""")
+bucket = client.lookup_bucket(f"""{conf.instance.project_id}.appspot.com""")
 iamClient = iam_credentials_v1.IAMCredentialsClient()
 
 
@@ -173,7 +173,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
         raise ValueError("conf.viur.file_thumbnailer_url is not set")
 
     def getsignedurl():
-        if conf.viur.instance_is_dev_server:
+        if conf.instance.is_dev_server:
             signedUrl = utils.downloadUrlFor(fileSkel["dlkey"], fileSkel["name"])
         else:
             path = f"""{fileSkel["dlkey"]}/source/{file_name}"""
@@ -647,7 +647,7 @@ class File(Tree):
             expiresAt = datetime.now() + timedelta(seconds=60)
             signedUrl = blob.generate_signed_url(expiresAt, response_disposition=contentDisposition, version="v4")
             raise errors.Redirect(signedUrl)
-        elif conf.viur.instance_is_dev_server:  # No Service-Account to sign with - Serve everything directly
+        elif conf.instance.is_dev_server:  # No Service-Account to sign with - Serve everything directly
             response = current.request.get().response
             response.headers["Content-Type"] = blob.content_type
             if contentDisposition:

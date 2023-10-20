@@ -107,7 +107,7 @@ def getVersion(*args, **kwargs):
     while len(version) < 4:
         version += (None,)
 
-    if conf.viur.instance_is_dev_server \
+    if conf.instance.is_dev_server \
             or ((cuser := current.user.get()) and ("root" in cuser["access"] or "admin" in cuser["access"])):
         return json.dumps(version[:4])
 
@@ -141,9 +141,9 @@ def canAccess(*args, **kwargs) -> bool:
 
 @exposed
 def index(*args, **kwargs):
-    if not conf.viur.instance_project_base_path.joinpath("vi", "main.html").exists():
+    if not conf.instance.project_base_path.joinpath("vi", "main.html").exists():
         raise errors.NotFound()
-    if conf.viur.instance_is_dev_server or current.request.get().isSSLConnection:
+    if conf.instance.is_dev_server or current.request.get().isSSLConnection:
         raise errors.Redirect("/vi/s/main.html")
     else:
         appVersion = current.request.get().request.host

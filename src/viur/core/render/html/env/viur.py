@@ -223,7 +223,7 @@ def getVersionHash(render: Render) -> str:
             deployed (identical across all instances), but will change whenever a new version is deployed.
     :return: The current version hash
     """
-    return conf.viur.instance_version_hash
+    return conf.instance.version_hash
 
 
 @jinjaGlobalFunction
@@ -232,7 +232,7 @@ def getAppVersion(render: Render) -> str:
     Jinja2 global: Return the application version for the current version as set on deployment.
     :return: The current version
     """
-    return conf.viur.instance_app_version
+    return conf.instance.app_version
 
 
 @jinjaGlobalFunction

@@ -148,10 +148,10 @@ class Router:
     @property
     def isDevServer(self) -> bool:
         import warnings
-        msg = "Use of `isDevServer` is deprecated; Use `conf.viur.instance_is_dev_server` instead!"
+        msg = "Use of `isDevServer` is deprecated; Use `conf.instance.is_dev_server` instead!"
         warnings.warn(msg, DeprecationWarning, stacklevel=2)
         logging.warning(msg)
-        return conf.viur.instance_is_dev_server
+        return conf.instance.is_dev_server
 
     def _select_language(self, path: str) -> str:
         """
@@ -261,10 +261,10 @@ class Router:
             self.response.headers["Cross-Origin-Resource-Policy"] = conf.security.enable_corp
 
         # Ensure that TLS is used if required
-        if conf.viur.force_ssl and not self.isSSLConnection and not conf.viur.instance_is_dev_server:
+        if conf.security.force_ssl and not self.isSSLConnection and not conf.instance.is_dev_server:
             isWhitelisted = False
             reqPath = self.request.path
-            for testUrl in conf.viur.no_ssl_check_urls:
+            for testUrl in conf.security.no_ssl_check_urls:
                 if testUrl.endswith("*"):
                     if reqPath.startswith(testUrl[:-1]):
                         isWhitelisted = True
@@ -349,7 +349,7 @@ class Router:
                         "descr": descr
                     }
 
-                if conf.viur.instance_is_dev_server:
+                if conf.instance.is_dev_server:
                     error_info["traceback"] = traceback.format_exc()
 
                 if (len(self.path_list) > 0 and self.path_list[0] in ("vi", "json")) or \
@@ -372,7 +372,7 @@ class Router:
 
         finally:
             self.saveSession()
-            if conf.viur.instance_is_dev_server and conf.debug.dev_server_cloud_logging:
+            if conf.instance.is_dev_server and conf.debug.dev_server_cloud_logging:
                 # Emit the outer log only on dev_appserver (we'll use the existing request log when live)
                 SEVERITY = "DEBUG"
                 if self.maxLogLevel >= 50:
@@ -409,7 +409,7 @@ class Router:
                     }
                 )
 
-        if conf.viur.instance_is_dev_server:
+        if conf.instance.is_dev_server:
             self.is_deferred = True
 
             while self.pendingTasks:
@@ -515,7 +515,7 @@ class Router:
         if not self.internalRequest \
                 and caller.ssl \
                 and not self.request.host_url.lower().startswith("https://") \
-                and not conf.viur.instance_is_dev_server:
+                and not conf.instance.is_dev_server:
             raise errors.PreconditionFailed("You must use SSL to access this resource!")
 
         # Check for @force_post flag

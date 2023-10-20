@@ -120,13 +120,13 @@ class Render(object):
                 if "_" in filename:
                     dirname, tail = filename.split("_", 1)
                     if tail:
-                        if conf.viur.instance_project_base_path.joinpath(htmlpath, dirname, filename).is_file():
+                        if conf.instance.project_base_path.joinpath(htmlpath, dirname, filename).is_file():
                             return os.path.join(dirname, filename)
 
-                if conf.viur.instance_project_base_path.joinpath(htmlpath, filename).is_file():
+                if conf.instance.project_base_path.joinpath(htmlpath, filename).is_file():
                     return filename
 
-                if conf.viur.instance_core_base_path.joinpath("viur", "core", "template", filename).is_file():
+                if conf.instance.core_base_path.joinpath("viur", "core", "template", filename).is_file():
                     return filename
 
         msg = f"""Template {" or ".join((repr(tpl) for tpl in template))} not found."""
@@ -146,7 +146,7 @@ class Render(object):
         # fixme: Why not use ChoiceLoader directly for template loading?
         return ChoiceLoader((
             FileSystemLoader(getattr(self, "htmlpath", "html")),
-            FileSystemLoader(conf.viur.instance_core_base_path / "viur" / "core" / "template"),
+            FileSystemLoader(conf.instance.core_base_path / "viur" / "core" / "template"),
         ))
 
     def renderBoneValue(self,

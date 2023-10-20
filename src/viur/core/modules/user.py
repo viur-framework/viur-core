@@ -580,7 +580,7 @@ class GoogleAccount(UserPrimaryAuthentication):
                 # We have to allow popups here
                 request.response.headers["cross-origin-opener-policy"] = "same-origin-allow-popups"
             # Fixme: Render with Jinja2?
-            with (conf.viur.instance_core_base_path
+            with (conf.instance.core_base_path
                   .joinpath("viur/core/template/vi_user_google_login.html")
                   .open() as tpl_file):
                 tplStr = tpl_file.read()
@@ -976,8 +976,8 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             raise errors.Unauthorized()
         if not (issuer := conf.user.otp_issuer):
             logging.warning(
-                f"conf.user.otp_issuer is None we replace the issuer by {conf.viur.instance_project_id=}")
-            issuer = conf.viur.instance_project_id
+                f"conf.user.otp_issuer is None we replace the issuer by {conf.instance.project_id=}")
+            issuer = conf.instance.project_id
 
         return pyotp.TOTP(otp_app_secret).provisioning_uri(name=cuser["name"], issuer_name=issuer)
 
@@ -1454,7 +1454,7 @@ def createNewUserIfNotExists():
                  userMod.validAuthenticationMethods])):  # It uses UserPassword login
         if not db.Query(userMod.addSkel().kindName).getEntry():  # There's currently no user in the database
             addSkel = skeleton.skeletonByKind(userMod.addSkel().kindName)()  # Ensure we have the full skeleton
-            uname = f"""admin@{conf.viur.instance_project_id}.appspot.com"""
+            uname = f"""admin@{conf.instance.project_id}.appspot.com"""
             pw = utils.generateRandomString(13)
             addSkel["name"] = uname
             addSkel["status"] = Status.ACTIVE  # Ensure it's enabled right away

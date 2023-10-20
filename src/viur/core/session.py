@@ -47,7 +47,7 @@ class Session:
     kindName = "viur-session"
     same_site = "lax"  # Either None (don't issue same_site header), "none", "lax" or "strict"
     use_session_cookie = True  # If True, issue the cookie without a lifeTime (will disappear on browser close)
-    cookie_name = f"""viur_cookie_{conf.viur.instance_project_id}"""
+    cookie_name = f"""viur_cookie_{conf.instance.project_id}"""
     GUEST_USER = "__guest__"
 
     def __init__(self):
@@ -92,7 +92,7 @@ class Session:
             return
 
         # We will not issue sessions over http anymore
-        if not (req.isSSLConnection or conf.viur.instance_is_dev_server):
+        if not (req.isSSLConnection or conf.instance.is_dev_server):
             return
 
         # Get the current user's key
@@ -117,7 +117,7 @@ class Session:
             "Path=/",
             "HttpOnly",
             f"SameSite={self.same_site}" if self.same_site else None,
-            "Secure" if not conf.viur.instance_is_dev_server else None,
+            "Secure" if not conf.instance.is_dev_server else None,
             f"Max-Age={conf.user.session_life_time}" if not self.use_session_cookie else None,
         )
 
