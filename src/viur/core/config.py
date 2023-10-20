@@ -415,7 +415,7 @@ class Viur(ConfigType):
     If set, it must be a tuple of two functions (serialize_env, restore_env)
     for serializing/restoring environment data.
     The `serialize_env` function must not require any parameters and must
-    return a JSON serializable object with the the desired information.
+    return a JSON serializable object with the desired information.
     The function `restore_env` will receive this object and should write
     the information it contains to the environment of the deferred request.
     """
@@ -546,8 +546,9 @@ class Security(ConfigType):
     enable_coep: bool = False
     """Shall we emit Cross-Origin-Embedder-Policy: require-corp?"""
 
-    enable_coop: Literal["unsafe-none", "same-origin-allow-popups",
-    "same-origin", "same-origin-plus-COEP"] = "same-origin"
+    enable_coop: Literal[
+        "unsafe-none", "same-origin-allow-popups",
+        "same-origin", "same-origin-plus-COEP"] = "same-origin"
     """Emit a Cross-Origin-Opener-Policy Header?
 
     See https://html.spec.whatwg.org/multipage/browsers.html#cross-origin-opener-policy-value
