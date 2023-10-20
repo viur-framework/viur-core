@@ -301,7 +301,7 @@ class Viur(ConfigType):
     file_hmac_key = None
     """Hmac-Key used to sign download urls - set automatically"""
 
-    file_derivers = {}  # FIXME: Is this correct English?
+    file_derivations = {}
     """Call-Map for file pre-processors"""
 
     file_thumbnailer_url = None
@@ -448,7 +448,7 @@ class Viur(ConfigType):
         "file.hmacKey": "file_hmac_key",
         "forceSSL": "force_ssl",
         "file_hmacKey": "file_hmac_key",
-        "file.derivers": "file_derivers",
+        "file.derivers": "file_derivations",
         "file.thumbnailerURL": "file_thumbnailer_url",
         "instance.app_version": "instance_app_version",
         "instance.core_base_path": "instance_core_base_path",

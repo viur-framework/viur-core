@@ -146,24 +146,28 @@ def thumbnailer(fileSkel, existingFiles, params):
 def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
     """External Thumbnailer for images.
 
-       The corresponding cloudfunction can be found here .
-       https://github.com/viur-framework/viur-cloudfunctions/tree/main/thumbnailer
+    The corresponding cloudfunction can be found here .
+    https://github.com/viur-framework/viur-cloudfunctions/tree/main/thumbnailer
 
-       You can use it like so:
-       main.py:
+    You can use it like so:
+    main.py:
 
-       from viur.core.modules.file import cloudfunction_thumbnailer
+    .. code-block:: python
 
-       conf.viur.file_thumbnailer_url="https://xxxxx.cloudfunctions.net/imagerenderer"
-       conf.viur.file_derivers = {"thumbnail": cloudfunction_thumbnailer}
+        from viur.core.modules.file import cloudfunction_thumbnailer
 
-       conf.derives_pdf = {
-       "thumbnail": [{"width": 1920,"sites":"1,2"}]
-       }
-       skeletons/xxx.py:
+        conf.viur.file_thumbnailer_url = "https://xxxxx.cloudfunctions.net/imagerenderer"
+        conf.viur.file_derivations = {"thumbnail": cloudfunction_thumbnailer}
 
-       test = FileBone(derive=conf.derives_pdf)
-       """
+        conf.derives_pdf = {
+            "thumbnail": [{"width": 1920,"sites":"1,2"}]
+        }
+
+    skeletons/xxx.py:
+    .. code-block:: python
+
+        test = FileBone(derive=conf.derives_pdf)
+   """
 
     if not conf.viur.file_thumbnailer_url:
         raise ValueError("conf.viur.file_thumbnailer_url is not set")
