@@ -4,7 +4,7 @@ import logging
 import os
 import warnings
 from pathlib import Path
-from typing import Any, Iterator, Union
+from typing import Any, Iterator, Optional, Union
 
 import google.auth
 
@@ -411,13 +411,17 @@ class Viur(ConfigType):
     }
     """User roles available on this project"""
 
-    user_google_client_id = None
+    user_google_client_id: Optional[str] = None
     """OAuth Client ID for Google Login"""
 
-    user_google_gsuite_domains = []
-    # TODO: """"""
+    user_google_gsuite_domains: list[str] = []
+    """A list of domains. When a user signs in for the first time with a
+    Google account using Google OAuth sign-in, and the user's email address
+    belongs to one of the listed domains, a user account (UserSkel) is created.
+    If the user's email address belongs to any other domain,
+    no account is created."""
 
-    valid_application_ids = []
+    valid_application_ids: list[str] = []
     """Which application-ids we're supposed to run on"""
 
     version = tuple(int(part) if part.isdigit() else part for part in __version__.split(".", 3))
