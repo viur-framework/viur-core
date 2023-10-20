@@ -109,13 +109,13 @@ class TestConfig(unittest.TestCase):
         conf.strict_mode = False
 
     def test_old_member_access(self):
-        from viur.core.config import conf, ViurDeprecationsWarning
+        from viur.core.config import conf
 
         for key in OLD_MEMBERS:
             with self.subTest(key=key):
                 # FIXME self.logger.debug(f"Access conf[\"{key}\"]")
                 print(f"Access conf[\"{key}\"]")
-                with self.assertWarns(ViurDeprecationsWarning):
+                with self.assertWarns(DeprecationWarning):
                     _ = conf[key]
 
     def test_items(self):
@@ -131,7 +131,7 @@ class TestConfig(unittest.TestCase):
             self.assertIsInstance(value[0], str)
 
     def test_strict_mode(self):
-        from viur.core.config import conf, ViurDeprecationsWarning
+        from viur.core.config import conf
         conf.strict_mode = True
 
         for key in OLD_MEMBERS:
@@ -139,10 +139,20 @@ class TestConfig(unittest.TestCase):
                 # FIXME self.logger.debug(f"Access conf[\"{key}\"]")
                 print(f"Access conf[\"{key}\"]")
                 with (
-                    self.assertWarns(ViurDeprecationsWarning),
+                    self.assertWarns(DeprecationWarning),
                     self.assertRaises(SyntaxError)
                 ):
                     _ = conf[key]
+
+    def test_backward1(self):
+        from viur.core.config import conf
+        _ = conf["viur.downloadUrlFor.expiration"]
+
+    def test_backward2(self):
+        from viur.core.config import conf
+        _ = getattr(conf, "viur.downloadUrlFor.expiration")
+
+
 
     def tearDown(self):
         from viur.core.config import conf

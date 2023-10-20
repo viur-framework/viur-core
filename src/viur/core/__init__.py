@@ -76,6 +76,8 @@ __all__ = [
     "translate",
 ]
 
+# Show DeprecationWarning from the viur-core
+warnings.filterwarnings("always", category=DeprecationWarning, module=r"viur\.core.*")
 
 def load_indexes_from_file() -> Dict[str, List]:
     """

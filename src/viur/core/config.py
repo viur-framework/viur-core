@@ -15,21 +15,26 @@ if TYPE_CHECKING:
     from viur.core.skeleton import SkeletonInstance
     from viur.core.module import Module
 
-
-class ViurDeprecationsWarning(UserWarning):
-    """Class for warnings about deprecated viur-core features."""
-    pass
-
-
+# Construct an alias with a generic type to be able to write Multiple[str]
 _T = TypeVar("_T")
 Multiple: TypeAlias = list[_T] | tuple[_T] | set[_T] | frozenset[_T]
 
-MultipleStrings = list[str] | tuple[str] | set[str] | frozenset[str]
-
 
 class ConfigType:
+    """An abstract class for config
+
+    It ensures nesting and backward compatibility for the viur-corec onfig
+    """
     _mapping = {}
+    """Mapping from old dict-key (must not the whole key in case of nesting) to new attribute name"""
+
+    _strict_mode = None
+    """Internal strict mode for this instance.
+
+     Use the property getter and setter to access it!"""
+
     _parent = None
+    """Parent config instance"""
 
     def __init__(self, *,
                  strict_mode: bool = None,
@@ -40,12 +45,23 @@ class ConfigType:
 
     @property
     def _path(self):
+        """Get the path in dot-Notation to the current config instance."""
         if self._parent is None:
             return ""
         return f"{self._parent._path}{self.__class__.__name__.lower()}."
 
     @property
     def strict_mode(self):
+        """Determine if the config runs in strict mode.
+
+        In strict mode, the dict-item-access backward compatibility is disabled,
+        only attribute access is allowed.
+        Alias mapping is also disabled. Only the real attribute  names are allowed.
+
+        If self._strict_mode is None, it would inherit the value
+        of the parent.
+        If it's explicitly set to True or False, that value will be used.
+        """
         # logging.debug(f"{self.__class__=} // {self._parent=} // {self._strict_mode=}")
         if self._strict_mode is not None or self._parent is None:
             # This config has an explicit value set or there's no parent
@@ -55,37 +71,46 @@ class ConfigType:
             return self._parent.strict_mode
 
     @strict_mode.setter
-    def strict_mode(self, value: bool | None):
+    def strict_mode(self, value: bool | None) -> None:
+        """Setter for the strict mode of the current instance.
+
+        Does not affect other instances!
+        """
         if not isinstance(value, (bool, type(None))):
             raise TypeError(f"Invalid {value=} for strict mode!")
         self._strict_mode = value
 
-    def _resolve_mapping(self, key):
+    def _resolve_mapping(self, key: str) -> str:
+        """Resolve the mapping old dict -> new attribute.
+
+        This method must not be called in strict mode!
+        It can be overwritten to apply additional mapping.
+        """
         if key in self._mapping:
             old, key = key, self._mapping[key]
-            warnings.warn(f"Conf member {old} is now {key}!",
-                          ViurDeprecationsWarning, stacklevel=3)
+            warnings.warn(
+                f"Conf member {self._path}{old} is now {self._path}{key}!",
+                DeprecationWarning
+            )
         return key
 
     def items(self,
               full_path: bool = False,
               recursive: bool = True,
               ) -> Iterator[tuple[str, Any]]:
-        """Get all members.
+        """Get all setting of this config as key-value mapping.
 
         :param full_path: Show prefix oder only the key.
-        :param recursive: Call .items() on ConfigType members?
+        :param recursive: Call .items() on ConfigType members (children)?
         :return:
         """
         # print(self, self.__dict__, vars(self), dir(self))
         for key in dir(self):
             # print(f"{key = }")
-            if key in {"_parent", "_strict_mode"}:  # TODO: use .startswith("_") ???
+            if key.startswith("_"):
+                # skip internals, like _parent and _strict_mode
                 continue
             value = getattr(self, key)
-            # print(f"{key = }, {value = }")
-            # if key.startswith("_"):  # TODO: use .startswith("_") ???
-            #     continue
             if recursive and isinstance(value, ConfigType):
                 yield from value.items(full_path, recursive)
             elif key not in dir(ConfigType):
@@ -97,26 +122,33 @@ class ConfigType:
             #     print(f">>> Skip {key}")
             pass  # keep this indent
 
-    def get(self, key, default: Any = None) -> Any:
-        """Return an item from the config, if it doesn't exist `default` is returned."""
+    def get(self, key: str, default: Any = None) -> Any:
+        """Return an item from the config, if it doesn't exist `default` is returned.
+
+        :param key: The key for the attribute lookup.
+        :param default: The fallback value.
+        :return: The attribute value or the fallback value.
+        """
         if self.strict_mode:
             raise SyntaxError(
                 f"In strict mode, the config must not be accessed "
                 f"with .get(). Only attribute access is allowed."
             )
-
         try:
-            return self[key]
+            return getattr(self, key)
         except (KeyError, AttributeError):
             return default
 
     def __getitem__(self, key: str) -> Any:
-        """Support the old dict Syntax (getter)."""
+        """Support the old dict-like syntax (getter).
+
+        Not allowed in strict mode.
+        """
         # print(f"CALLING __getitem__({self.__class__}, {key})")
 
         warnings.warn(f"conf uses now attributes! "
                       f"Use conf.{self._path}{key} to access your option",
-                      ViurDeprecationsWarning)
+                      DeprecationWarning)
 
         if self.strict_mode:
             raise SyntaxError(
@@ -124,20 +156,26 @@ class ConfigType:
                 f"with dict notation. Only attribute access is allowed."
             )
 
-        # VIUR3.3: Handle deprecations...
-        match key:
-            case "viur.downloadUrlFor.expiration":
-                msg = f"{key!r} was substituted by `viur.render.html.downloadUrlExpiration`"
-                warnings.warn(msg, ViurDeprecationsWarning, stacklevel=3)
-                key = "viur.render.html.downloadUrlExpiration"
-
         # print(f"PASS to getattr({key!r})")
         return getattr(self, key)
 
     def __getattr__(self, key: str) -> Any:
-        # print(f"CALLING __getattr__({self.__class__}, {key})")
+        """Resolve dot-notation and name mapping in not strict-mode.
 
-        key = self._resolve_mapping(key)
+        This method is mostly executed by __getitem__, by the
+        old dict-like access or by attr(conf, "key").
+        In strict mode it does nothing except raising an AttributeError.
+        """
+        # print(f"CALLING __getattr__({self.__class__}, {key})")
+        if self.strict_mode:
+            raise AttributeError(
+                f"AttributeError: '{self.__class__.__name__}' object has no"
+                f" attribute '{key}' (strict-mode is enabled)"
+            )
+            return super().__getattribute__(key)
+
+        if not self.strict_mode:
+            key = self._resolve_mapping(key)
 
         # Got an old dict-key and resolve the segment to the first dot (.) as attribute.
         if "." in key:
@@ -148,7 +186,10 @@ class ConfigType:
         return super().__getattribute__(key)
 
     def __setitem__(self, key: str, value: Any) -> None:
-        """Support the old dict Syntax (setter)."""
+        """Support the old dict-like syntax (setter).
+
+        Not allowed in strict mode.
+        """
         # print(f"CALLING __setitem__({self.__class__}, {key}, {value})")
 
         if self.strict_mode:
@@ -156,11 +197,6 @@ class ConfigType:
                 f"In strict mode, the config must not be accessed "
                 f"with dict notation. Only attribute access is allowed."
             )
-
-        # VIUR3.3: Handle deprecations...
-        match key:
-            case "viur.downloadUrlFor.expiration":
-                raise ValueError(f"{key!r} was replaced by `viur.render.html.downloadUrlExpiration`, please fix!")
 
         # TODO: re-enable?!
         # Avoid to set conf values to something which is already the default
@@ -187,19 +223,30 @@ class ConfigType:
         return setattr(self, key, value)
 
     def __setattr__(self, key: str, value: Any) -> None:
+        """Set attributes after applying the old -> new mapping
+
+        In strict mode it does nothing except a super call
+        for the default object behavior.
+        """
         # print(f"CALLING __setattr__({self.__class__}, {key}, {value})")
 
-        key = self._resolve_mapping(key)
+        if self.strict_mode:
+            return super().__setattr__(key, value)
+
+        if not self.strict_mode:
+            key = self._resolve_mapping(key)
 
         # Got an old dict-key and resolve the segment to the first dot (.) as attribute.
         if "." in key:
+            # TODO: Shall we allow this in strict mode as well?
             # print(f"FOUND . in {key = }")
             first, remaining = key.split(".", 1)
             return setattr(getattr(self, first), remaining, value)
 
         return super().__setattr__(key, value)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Representation of this config"""
         return f"{self.__class__.__qualname__}({dict(self.items(False, False))})"
 
 
@@ -499,6 +546,7 @@ class Viur(ConfigType):
         "noSSLCheckUrls": "no_ssl_check_urls",
         "otp.issuer": "otp_issuer",
         "render.html.downloadUrlExpiration": "render_html_download_url_expiration",
+        "downloadUrlFor.expiration": "render_html_download_url_expiration",
         "render.json.downloadUrlExpiration": "render_json_download_url_expiration",
         "requestPreprocessor": "request_preprocessor",
         "searchValidChars": "search_valid_chars",
