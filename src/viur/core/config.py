@@ -4,16 +4,26 @@ import logging
 import os
 import warnings
 from pathlib import Path
-from typing import Any, Iterator, Optional, Union
+from typing import Any, Callable, Iterator, Literal, Optional, TYPE_CHECKING, Type, TypeAlias, TypeVar, Union
 
 import google.auth
 
 from viur.core.version import __version__
 
+if TYPE_CHECKING:
+    from viur.core.email import EmailTransport
+    from viur.core.skeleton import SkeletonInstance
+
 
 class ViurDeprecationsWarning(UserWarning):
     """Class for warnings about deprecated viur-core features."""
     pass
+
+
+_T = TypeVar("_T")
+Multiple: TypeAlias = list[_T] | tuple[_T] | set[_T] | frozenset[_T]
+
+MultipleStrings = list[str] | tuple[str] | set[str] | frozenset[str]
 
 
 class ConfigType:
@@ -204,29 +214,28 @@ _core_base_path = Path(__file__).parent.parent.parent  # fixme: this points to s
 # Conf is a static, local dictionary.
 # Changes here apply locally to the current instance only.
 
-
 class Admin(ConfigType):
     """Administration tool configuration"""
 
-    name = "ViUR"
+    name: str = "ViUR"
     """Administration tool configuration"""
 
-    logo = ""
+    logo: str = ""
     """URL for the Logo in the Topbar of the VI"""
 
-    login_background = ""
+    login_background: str = ""
     """URL for the big Image in the background of the VI Login screen"""
 
-    login_logo = ""
+    login_logo: str = ""
     """URL for the Logo over the VI Login screen"""
 
-    color_primary = "#d00f1c"
+    color_primary: str = "#d00f1c"
     """primary color for the  VI"""
 
-    color_secondary = "#333333"
+    color_secondary: str = "#333333"
     """secondary color for the  VI"""
 
-    _mapping = {
+    _mapping: dict[str, str] = {
         "login.background": "login_background",
         "login.logo": "login_logo",
         "color.primary": "color_primary",
@@ -235,88 +244,89 @@ class Admin(ConfigType):
 
 
 class Viur(ConfigType):
-    access_rights = ["root", "admin"]
+    access_rights: Multiple[str] = ["root", "admin"]
     """Additional access rights available on this project"""
 
-    available_languages = ["en"]
+    available_languages: Multiple[str] = ["en"]
     """List of language-codes, which are valid for this application"""
 
-    bone_boolean_str2true = ("true", "yes", "1")
+    bone_boolean_str2true: Multiple[str | int] = ("true", "yes", "1")
     """Allowed values that define a str to evaluate to true"""
 
-    cache_environment_key = None
+    cache_environment_key: Optional[Callable[[], str]] = None
     """If set, this function will be called for each cache-attempt
     and the result will be included in the computed cache-key"""
 
-    compatibility = [
+    compatibility: Multiple[str] = [
         "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
         "bone.structure.keytuples",  # use classic structure notation: `"structure = [["key", {...}] ...]` (#649)
         "json.bone.structure.inlists",  # dump skeleton structure with every JSON list response (#774 for details)
     ]
     """Backward compatibility flags; Remove to enforce new layout."""
 
-    db_engine = "viur.datastore"
+    db_engine: str = "viur.datastore"
     """Database engine module"""
 
-    default_language = "en"
+    default_language: str = "en"
     """Unless overridden by the Project: Use english as default language"""
 
-    domain_language_mapping = {}
+    domain_language_mapping: dict[str, str] = {}
     """Maps Domains to alternative default languages"""
 
     # TODO: Email sub type?
-    email_log_retention = datetime.timedelta(days=30)
+    email_log_retention: datetime.timedelta = datetime.timedelta(days=30)
     """For how long we'll keep successfully send emails in the viur-emails table"""
 
-    email_transport_class = None
+    email_transport_class: Type["EmailTransport"] = None
     """Class that actually delivers the email using the service provider
     of choice. See email.py for more details
     """
 
-    email_send_from_local_development_server = False
+    email_send_from_local_development_server: bool = False
     """If set, we'll enable sending emails from the local development server.
     Otherwise, they'll just be logged.
     """
 
-    email_recipient_override = None
+    email_recipient_override: str | list[str] | Callable[[], str | list[str]] | Literal[False] = None
     """If set, all outgoing emails will be sent to this address
     (overriding the 'dests'-parameter in email.sendEmail)
     """
 
-    email_sender_override = None
+    email_sender_override: str | None = None
     """If set, this sender will be used, regardless of what the templates advertise as sender"""
 
-    email_admin_recipients = None
+    email_admin_recipients: str | list[str] | Callable[[], str | list[str]] = None
     """Sets recipients for mails send with email.sendEMailToAdmins. If not set, all root users will be used."""
 
-    error_handler = None
+    error_handler: Callable[[Exception], str] | None = None
     """If set, ViUR calls this function instead of rendering the viur.errorTemplate if an exception occurs"""
 
-    static_embed_svg_path = "/static/svgs/"
+    static_embed_svg_path: str = "/static/svgs/"
     """Path to the static SVGs folder. Will be used by the jinja-renderer-method: embedSvg"""
 
-    force_ssl = True
+    force_ssl: bool = True
     """If true, all requests must be encrypted (ignored on development server)"""
 
-    file_hmac_key = None
+    file_hmac_key: str = None
     """Hmac-Key used to sign download urls - set automatically"""
 
-    file_derivations = {}
+    # TODO: separate this type hints and use it in the File module as well
+    file_derivations: dict[str, Callable[["SkeletonInstance", dict, dict], list[tuple[str, float, str, Any]]]] = {}
     """Call-Map for file pre-processors"""
 
-    file_thumbnailer_url = None
+    file_thumbnailer_url: Optional[str] = None
     # TODO: """docstring"""
 
-    instance_app_version = _app_version
+    instance_app_version: str = _app_version
     """Name of this version as deployed to the appengine"""
 
-    instance_core_base_path = _core_base_path
+    instance_core_base_path: Path = _core_base_path
     """The base path of the core, can be used to find file in the core folder"""
 
-    instance_is_dev_server = os.getenv("GAE_ENV") == "localdev"
+    instance_is_dev_server: bool = os.getenv("GAE_ENV") == "localdev"
     """Determine whether instance is running on a local development server"""
 
-    instance_project_base_path = _project_base_path
+    instance_project_base_path: Path = _project_base_path
     """The base path of the project, can be used to find file in the project folder"""
 
     instance_project_id = _project_id
