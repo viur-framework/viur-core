@@ -295,9 +295,6 @@ class Viur(ConfigType):
     access_rights: Multiple[str] = ["root", "admin"]
     """Additional access rights available on this project"""
 
-    available_languages: Multiple[str] = ["en"]
-    """List of language-codes, which are valid for this application"""
-
     bone_boolean_str2true: Multiple[str | int] = ("true", "yes", "1")
     """Allowed values that define a str to evaluate to true"""
 
@@ -314,12 +311,6 @@ class Viur(ConfigType):
 
     db_engine: str = "viur.datastore"
     """Database engine module"""
-
-    default_language: str = "en"
-    """Unless overridden by the Project: Use english as default language"""
-
-    domain_language_mapping: dict[str, str] = {}
-    """Maps Domains to alternative default languages"""
 
     error_handler: Callable[[Exception], str] | None = None
     """If set, ViUR calls this function instead of rendering the viur.errorTemplate if an exception occurs"""
@@ -357,19 +348,6 @@ class Viur(ConfigType):
 
     instance_version_hash: str = hashlib.sha256((_app_version + _project_id).encode("UTF-8")).hexdigest()[:10]
     """Version hash that does not reveal the actual version name, can be used for cache-busting static resources"""
-
-    language_alias_map: dict[str, str] = {}
-    """Allows mapping of certain languages to one translation (ie. us->en)"""
-
-    language_method: Literal["session", "url", "domain"] = "session"
-    """Defines how translations are applied:
-        - session: Per Session
-        - url: inject language prefix in url
-        - domain: one domain per language
-    """
-
-    language_module_map: dict[str, dict[str, str]] = {}
-    """Maps modules to their translation (if set)"""
 
     main_app: "Module" = None
     """Reference to our pre-build Application-Instance"""
@@ -471,11 +449,8 @@ class Viur(ConfigType):
 
     _mapping = {
         "accessRights": "access_rights",
-        "availableLanguages": "available_languages",
         "cacheEnvironmentKey": "cache_environment_key",
         "contentSecurityPolicy": "content_security_policy",
-        "defaultLanguage": "default_language",
-        "domainLanguageMapping": "domain_language_mapping",
         "bone.boolean.str2true": "bone_boolean_str2true",
         "db.engine": "db_engine",
         "errorHandler": "error_handler",
@@ -491,9 +466,6 @@ class Viur(ConfigType):
         "instance.project_base_path": "instance_project_base_path",
         "instance.project_id": "instance_project_id",
         "instance.version_hash": "instance_version_hash",
-        "languageAliasMap": "language_alias_map",
-        "languageMethod": "language_method",
-        "languageModuleMap": "language_module_map",
         "mainApp": "main_app",
         "mainResolver": "main_resolver",
         "maxPasswordLength": "max_password_length",
@@ -707,6 +679,42 @@ class Email(ConfigType):
     }
 
 
+class I18N(ConfigType):
+    """All i18n, multilang related settings."""
+
+    available_languages: Multiple[str] = ["en"]
+    """List of language-codes, which are valid for this application"""
+
+    default_language: str = "en"
+    """Unless overridden by the Project: Use english as default language"""
+
+    domain_language_mapping: dict[str, str] = {}
+    """Maps Domains to alternative default languages"""
+
+    language_alias_map: dict[str, str] = {}
+    """Allows mapping of certain languages to one translation (i.e. us->en)"""
+
+    language_method: Literal["session", "url", "domain"] = "session"
+    """Defines how translations are applied:
+        - session: Per Session
+        - url: inject language prefix in url
+        - domain: one domain per language
+    """
+
+    language_module_map: dict[str, dict[str, str]] = {}
+    """Maps modules to their translation (if set)"""
+
+    _mapping = {
+        # TODO: are they here necessary, or only in the root Conf?
+        "availableLanguages": "available_languages",
+        "defaultLanguage": "default_language",
+        "domainLanguageMapping": "domain_language_mapping",
+        "languageAliasMap": "language_alias_map",
+        "languageMethod": "language_method",
+        "languageModuleMap": "language_module_map",
+    }
+
+
 class Conf(ConfigType):
     """Conf class wraps the conf dict and allows to handle
     deprecated keys or other special operations.
@@ -720,10 +728,17 @@ class Conf(ConfigType):
         self.security = Security(parent=self)
         self.debug = Debug(parent=self)
         self.email = Email(parent=self)
+        self.i18n = I18N(parent=self)
 
     _mapping = {
         "viur.dev_server_cloud_logging": "debug.dev_server_cloud_logging",
         "viur.disable_cache": "debug.disable_cache",
+        "viur.availableLanguages": "i18n.available_languages",
+        "viur.defaultLanguage": "i18n.default_language",
+        "viur.domainLanguageMapping": "i18n.domain_language_mapping",
+        "viur.languageAliasMap": "i18n.language_alias_map",
+        "viur.languageMethod": "i18n.language_method",
+        "viur.languageModuleMap": "i18n.language_module_map",
     }
 
     def _resolve_mapping(self, key: str) -> str:

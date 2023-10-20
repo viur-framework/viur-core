@@ -204,10 +204,10 @@ def seoUrlToEntry(module: str,
     pathComponents = [""]
     if language is None:
         language = current.language.get()
-    if conf.viur.language_method == "url":
+    if conf.i18n.language_method == "url":
         pathComponents.append(language)
-    if module in conf.viur.language_module_map and language in conf.viur.language_module_map[module]:
-        module = conf.viur.language_module_map[module][language]
+    if module in conf.i18n.language_module_map and language in conf.i18n.language_module_map[module]:
+        module = conf.i18n.language_module_map[module][language]
     pathComponents.append(module)
     if not entry:
         return "/".join(pathComponents)
@@ -234,9 +234,9 @@ def seoUrlToEntry(module: str,
 def seoUrlToFunction(module: str, function: str, render: Optional[str] = None) -> str:
     from viur.core import conf
     lang = current.language.get()
-    if module in conf.viur.language_module_map and lang in conf.viur.language_module_map[module]:
-        module = conf.viur.language_module_map[module][lang]
-    if conf.viur.language_method == "url":
+    if module in conf.i18n.language_module_map and lang in conf.i18n.language_module_map[module]:
+        module = conf.i18n.language_module_map[module][lang]
+    if conf.i18n.language_method == "url":
         pathComponents = ["", lang]
     else:
         pathComponents = [""]

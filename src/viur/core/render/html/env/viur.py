@@ -253,11 +253,11 @@ def getLanguage(render: Render, resolveAlias: bool = False) -> str:
     Jinja2 global: Returns the language used for this request.
 
     :param resolveAlias: If True, the function tries to resolve the current language
-        using conf.viur.language_alias_map.
+        using conf.i18n.language_alias_map.
     """
     lang = current.language.get()
-    if resolveAlias and lang in conf.viur.language_alias_map:
-        lang = conf.viur.language_alias_map[lang]
+    if resolveAlias and lang in conf.i18n.language_alias_map:
+        lang = conf.i18n.language_alias_map[lang]
     return lang
 
 

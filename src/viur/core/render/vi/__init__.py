@@ -67,7 +67,7 @@ def getStructure(module):
 @exposed
 @skey
 def setLanguage(lang):
-    if lang in conf.viur.available_languages:
+    if lang in conf.i18n.available_languages:
         current.language.set(lang)
 
 

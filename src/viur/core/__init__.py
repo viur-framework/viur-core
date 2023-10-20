@@ -106,12 +106,12 @@ def setDefaultLanguage(lang: str):
 
         :param lang: Name of the language module to use by default.
     """
-    conf.viur.default_language = lang.lower()
+    conf.i18n.default_language = lang.lower()
 
 
 def setDefaultDomainLanguage(domain: str, lang: str):
     """
-        If conf.viur.language_method is set to "domain", this function allows setting the map of which domain
+        If conf.i18n.language_method is set to "domain", this function allows setting the map of which domain
         should use which language.
         :param domain: The domain for which the language should be set
         :param lang: The language to use (in ISO2 format, e.g. "DE")
@@ -119,7 +119,7 @@ def setDefaultDomainLanguage(domain: str, lang: str):
     host = domain.lower().strip(" /")
     if host.startswith("www."):
         host = host[4:]
-    conf.viur.domain_language_mapping[host] = lang.lower()
+    conf.i18n.domain_language_mapping[host] = lang.lower()
 
 
 def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Dict], default: str = None) -> Module:

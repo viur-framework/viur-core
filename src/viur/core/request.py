@@ -130,7 +130,7 @@ class Router:
         db.currentDbAccessLog.set(set())
 
         # Set context variables
-        current.language.set(conf.viur.default_language)
+        current.language.set(conf.i18n.default_language)
         current.request.set(self)
         current.session.set(session.Session())
         current.request_data.set({})
@@ -156,41 +156,41 @@ class Router:
     def _select_language(self, path: str) -> str:
         """
             Tries to select the best language for the current request. Depending on the value of
-            conf.viur.language_method, we'll either try to load it from the session, determine it by the domain
+            conf.i18n.language_method, we'll either try to load it from the session, determine it by the domain
             or extract it from the URL.
         """
         sessionReference = current.session.get()
-        if not conf.viur.available_languages:
+        if not conf.i18n.available_languages:
             # This project doesn't use the multi-language feature, nothing to do here
             return path
-        if conf.viur.language_method == "session":
+        if conf.i18n.language_method == "session":
             # We store the language inside the session, try to load it from there
             if "lang" not in sessionReference:
                 if "X-Appengine-Country" in self.request.headers:
                     lng = self.request.headers["X-Appengine-Country"].lower()
-                    if lng in conf.viur.available_languages + list(conf.viur.language_alias_map.keys()):
+                    if lng in conf.i18n.available_languages + list(conf.i18n.language_alias_map.keys()):
                         sessionReference["lang"] = lng
                         current.language.set(lng)
                     else:
-                        sessionReference["lang"] = conf.viur.default_language
+                        sessionReference["lang"] = conf.i18n.default_language
             else:
                 current.language.set(sessionReference["lang"])
-        elif conf.viur.language_method == "domain":
+        elif conf.i18n.language_method == "domain":
             host = self.request.host_url.lower()
             host = host[host.find("://") + 3:].strip(" /")  # strip http(s)://
             if host.startswith("www."):
                 host = host[4:]
-            if host in conf.viur.domain_language_mapping:
-                current.language.set(conf.viur.domain_language_mapping[host])
+            if host in conf.i18n.domain_language_mapping:
+                current.language.set(conf.i18n.domain_language_mapping[host])
             else:  # We have no language configured for this domain, try to read it from session
                 if "lang" in sessionReference:
                     current.language.set(sessionReference["lang"])
-        elif conf.viur.language_method == "url":
+        elif conf.i18n.language_method == "url":
             tmppath = urlparse(path).path
             tmppath = [unquote(x) for x in tmppath.lower().strip("/").split("/")]
             if (
                 len(tmppath) > 0
-                and tmppath[0] in conf.viur.available_languages + list(conf.viur.language_alias_map.keys())
+                and tmppath[0] in conf.i18n.available_languages + list(conf.i18n.language_alias_map.keys())
             ):
                 current.language.set(tmppath[0])
                 return path[len(tmppath[0]) + 1:]  # Return the path stripped by its language segment
@@ -199,7 +199,7 @@ class Router:
                     current.language.set(sessionReference["lang"])
                 elif "X-Appengine-Country" in self.request.headers.keys():
                     lng = self.request.headers["X-Appengine-Country"].lower()
-                    if lng in conf.viur.available_languages or lng in conf.viur.language_alias_map:
+                    if lng in conf.i18n.available_languages or lng in conf.i18n.language_alias_map:
                         current.language.set(lng)
         return path
 
@@ -214,7 +214,7 @@ class Router:
             elif os.getenv("TASKS_EMULATOR") is not None:
                 self.is_deferred = True
 
-        current.language.set(conf.viur.default_language)
+        current.language.set(conf.i18n.default_language)
         # Check if we should process or abort the request
         for validator, reqValidatorResult in [(x, x.validate(self)) for x in self.requestValidators]:
             if reqValidatorResult is not None:
