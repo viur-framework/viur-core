@@ -359,10 +359,11 @@ class Viur(ConfigType):
     }
     """Describing the internal ModuleConfig-module"""
 
-    script_admin_info = {  # TODO: not in use?!
+    script_admin_info = {
         "icon": "icon-hashtag",
         "display": "hidden",
     }
+    """Describing the Script module"""
 
     no_ssl_check_urls = ["/_tasks*", "/ah/*"]
     """List of URLs for which viur.force_ssl is ignored.

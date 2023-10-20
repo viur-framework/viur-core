@@ -80,7 +80,7 @@ class Script(Tree):
     }
 
     def adminInfo(self):
-        return conf.viur.moduleconf_admin_info or {}
+        return conf.viur.script_admin_info or {}
 
     def getAvailableRootNodes(self):
         if not current.user.get():
