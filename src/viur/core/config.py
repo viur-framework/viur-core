@@ -10,7 +10,7 @@ import google.auth
 
 from viur.core.version import __version__
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from viur.core.email import EmailTransport
     from viur.core.skeleton import SkeletonInstance
     from viur.core.module import Module
@@ -160,7 +160,7 @@ class ConfigType:
         return getattr(self, key)
 
     def __getattr__(self, key: str) -> Any:
-        """Resolve dot-notation and name mapping in not strict-mode.
+        """Resolve dot-notation and name mapping in not strict mode.
 
         This method is mostly executed by __getitem__, by the
         old dict-like access or by attr(conf, "key").
@@ -170,7 +170,7 @@ class ConfigType:
         if self.strict_mode:
             raise AttributeError(
                 f"AttributeError: '{self.__class__.__name__}' object has no"
-                f" attribute '{key}' (strict-mode is enabled)"
+                f" attribute '{key}' (strict mode is enabled)"
             )
             return super().__getattribute__(key)
 

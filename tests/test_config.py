@@ -114,7 +114,7 @@ class TestConfig(unittest.TestCase):
         for key in OLD_MEMBERS:
             with self.subTest(key=key):
                 # FIXME self.logger.debug(f"Access conf[\"{key}\"]")
-                print(f"Access conf[\"{key}\"]")
+                # print(f"Access conf[\"{key}\"]")
                 with self.assertWarns(DeprecationWarning):
                     _ = conf[key]
 
@@ -137,22 +137,57 @@ class TestConfig(unittest.TestCase):
         for key in OLD_MEMBERS:
             with (self.subTest(key=key)):
                 # FIXME self.logger.debug(f"Access conf[\"{key}\"]")
-                print(f"Access conf[\"{key}\"]")
+                # print(f"Access conf[\"{key}\"]")
                 with (
                     self.assertWarns(DeprecationWarning),
                     self.assertRaises(SyntaxError)
                 ):
                     _ = conf[key]
 
+    def test_strict_mode_setter_invalid(self):
+        from viur.core.config import conf
+        with self.assertRaises(TypeError):
+            conf.strict_mode = "invalid-value"
+
     def test_backward1(self):
         from viur.core.config import conf
         _ = conf["viur.downloadUrlFor.expiration"]
+
+    def test_backward1s(self):
+        from viur.core.config import conf
+        conf.strict_mode = True
+        with self.assertRaises(SyntaxError) as exc:
+            _ = conf["viur.downloadUrlFor.expiration"]
+        msg, *_ = exc.exception.args
+        self.assertIn("In strict mode,", msg)
 
     def test_backward2(self):
         from viur.core.config import conf
         _ = getattr(conf, "viur.downloadUrlFor.expiration")
 
+    def test_backward2s(self):
+        from viur.core.config import conf
+        conf.strict_mode = True
+        with self.assertRaises(AttributeError) as exc:
+            _ = getattr(conf, "viur.downloadUrlFor.expiration")
+        msg, *_ = exc.exception.args
+        self.assertIn("(strict mode is enabled)", msg)
 
+    def test_get1(self):
+        from viur.core.config import conf
+        _ = conf.get("viur.main_app")
+
+    def test_get1s(self):
+        from viur.core.config import conf
+        conf.strict_mode = True
+        with self.assertRaises(SyntaxError) as exc:
+            _ = conf.get("viur.main_app")
+        msg, *_ = exc.exception.args
+        self.assertIn("In strict mode,", msg)
+
+    def test_get2(self):
+        from viur.core.config import conf
+        self.assertEqual(42, conf.get("viur.notexisting", 42))
 
     def tearDown(self):
         from viur.core.config import conf
