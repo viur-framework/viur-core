@@ -23,7 +23,7 @@ Multiple: TypeAlias = list[_T] | tuple[_T] | set[_T] | frozenset[_T]
 class ConfigType:
     """An abstract class for config
 
-    It ensures nesting and backward compatibility for the viur-corec onfig
+    It ensures nesting and backward compatibility for the viur-core config
     """
     _mapping = {}
     """Mapping from old dict-key (must not the whole key in case of nesting) to new attribute name"""
@@ -62,7 +62,6 @@ class ConfigType:
         of the parent.
         If it's explicitly set to True or False, that value will be used.
         """
-        # logging.debug(f"{self.__class__=} // {self._parent=} // {self._strict_mode=}")
         if self._strict_mode is not None or self._parent is None:
             # This config has an explicit value set or there's no parent
             return self._strict_mode
@@ -104,9 +103,7 @@ class ConfigType:
         :param recursive: Call .items() on ConfigType members (children)?
         :return:
         """
-        # print(self, self.__dict__, vars(self), dir(self))
         for key in dir(self):
-            # print(f"{key = }")
             if key.startswith("_"):
                 # skip internals, like _parent and _strict_mode
                 continue
@@ -118,9 +115,6 @@ class ConfigType:
                     yield f"{self._path}{key}", value
                 else:
                     yield key, value
-            # else:
-            #     print(f">>> Skip {key}")
-            pass  # keep this indent
 
     def get(self, key: str, default: Any = None) -> Any:
         """Return an item from the config, if it doesn't exist `default` is returned.
@@ -144,7 +138,6 @@ class ConfigType:
 
         Not allowed in strict mode.
         """
-        # print(f"CALLING __getitem__({self.__class__}, {key})")
         new_path = f"{self._path}{self._resolve_mapping(key)}"
         warnings.warn(f"conf uses now attributes! "
                       f"Use conf.{new_path} to access your option",
@@ -157,7 +150,6 @@ class ConfigType:
                 f"Only attribute access (conf.{new_path}) is allowed."
             )
 
-        print(f"PASS to getattr({key!r})")
         return getattr(self, key)
 
     def __getattr__(self, key: str) -> Any:
@@ -167,20 +159,16 @@ class ConfigType:
         old dict-like access or by attr(conf, "key").
         In strict mode it does nothing except raising an AttributeError.
         """
-        # print(f"CALLING __getattr__({self.__class__}, {key})")
         if self.strict_mode:
             raise AttributeError(
                 f"AttributeError: '{self.__class__.__name__}' object has no"
                 f" attribute '{key}' (strict mode is enabled)"
             )
-            return super().__getattribute__(key)
 
-        if not self.strict_mode:
-            key = self._resolve_mapping(key)
+        key = self._resolve_mapping(key)
 
         # Got an old dict-key and resolve the segment to the first dot (.) as attribute.
         if "." in key:
-            # print(f"FOUND . in {key = }")
             first, remaining = key.split(".", 1)
             return getattr(getattr(self, first), remaining)
 
@@ -191,8 +179,6 @@ class ConfigType:
 
         Not allowed in strict mode.
         """
-        # print(f"CALLING __setitem__({self.__class__}, {key}, {value})")
-
         new_path = f"{self._path}{self._resolve_mapping(key)}"
         if self.strict_mode:
             raise SyntaxError(
@@ -213,7 +199,6 @@ class ConfigType:
 
         # Got an old dict-key and resolve the segment to the first dot (.) as attribute.
         if "." in key:
-            # print(f"FOUND . in {key = }")
             first, remaining = key.split(".", 1)
             if not hasattr(self, first):
                 # TODO: Compatibility, remove it in a future major release!
@@ -231,8 +216,6 @@ class ConfigType:
         In strict mode it does nothing except a super call
         for the default object behavior.
         """
-        # print(f"CALLING __setattr__({self.__class__}, {key}, {value})")
-
         if self.strict_mode:
             return super().__setattr__(key, value)
 
@@ -242,7 +225,6 @@ class ConfigType:
         # Got an old dict-key and resolve the segment to the first dot (.) as attribute.
         if "." in key:
             # TODO: Shall we allow this in strict mode as well?
-            # print(f"FOUND . in {key = }")
             first, remaining = key.split(".", 1)
             return setattr(getattr(self, first), remaining, value)
 
@@ -510,16 +492,6 @@ class I18N(ConfigType):
     language_module_map: dict[str, dict[str, str]] = {}
     """Maps modules to their translation (if set)"""
 
-    _NO_mapping = {
-        # TODO: are they here necessary, or only in the root Conf?
-        "availableLanguages": "available_languages",
-        "defaultLanguage": "default_language",
-        "domainLanguageMapping": "domain_language_mapping",
-        "languageAliasMap": "language_alias_map",
-        "languageMethod": "language_method",
-        "languageModuleMap": "language_module_map",
-    }
-
 
 class User(ConfigType):
     """User, session, login related settings"""
@@ -560,19 +532,6 @@ class User(ConfigType):
     belongs to one of the listed domains, a user account (UserSkel) is created.
     If the user's email address belongs to any other domain,
     no account is created."""
-
-    _NO_mapping = {
-        # TODO: are they here necessary, or only in the root Conf?
-        "accessRights": "access_rights",
-        "maxPasswordLength": "max_password_length",
-        "otp.issuer": "otp_issuer",
-        "session.lifeTime": "session_life_time",
-        "session.persistentFieldsOnLogin": "session_persistent_fields_on_login",
-        "session.persistentFieldsOnLogout": "session_persistent_fields_on_logout",
-        "user.roles": "roles",
-        "user.google.clientID": "google_client_id",
-        "user.google.gsuiteDomains": "google_gsuite_domains",
-    }
 
 
 class Instance(ConfigType):
@@ -693,6 +652,7 @@ class Conf(ConfigType):
     """Semantic version number of viur-core as a tuple of 3 (major, minor, patch-level)"""
 
     viur2import_blobsource: Optional[dict[Literal["infoURL", "gsdir"], str]] = None
+    """Configuration to import file blobs from ViUR2"""
 
     def __init__(self, strict_mode: bool = False):
         super().__init__()
@@ -779,16 +739,3 @@ class Conf(ConfigType):
 conf = Conf(
     strict_mode=os.getenv("VIUR_CORE_CONFIG_STRICT_MODE", "").lower() == "true",
 )
-
-from pprint import pprint  # noqa
-
-# pprint(conf)
-# for k,v in conf.items():
-#     print(f"{k} = {v}")
-# print("# DUMP IT!")
-pprint(dict(conf.items()))
-pprint(dict(conf.items(True)))
-# print("## REPRESENT YOURSELF!")
-# print(repr(conf))
-# print("# PPRINT")
-print(pprint(conf))
