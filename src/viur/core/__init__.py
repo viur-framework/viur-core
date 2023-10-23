@@ -310,7 +310,7 @@ def app(environ: dict, start_response: Callable):
 __DEPRECATED_DECORATORS = {
     # stuff prior viur-core < 3.5
     "forcePost": ("force_post", force_post),
-    "force_ssl": ("force_ssl", force_ssl),
+    "forceSSL": ("force_ssl", force_ssl),
     "internalExposed": ("internal_exposed", internal_exposed)
 }
 
