@@ -354,7 +354,7 @@ class TaskHandler(Module):
         return self.render.list(tasks)
 
     @exposed
-    @skey
+    @skey(allow_empty=True)
     def execute(self, taskID, *args, **kwargs):
         """Queues a specific task for the next maintenance run"""
         global _callableTasks
