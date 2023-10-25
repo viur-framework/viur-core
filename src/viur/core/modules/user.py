@@ -771,7 +771,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             # Verify the otptoken. If valid, this returns the current timedrift index for this hardware OTP.
             res = self.verify(
                 otp=skel["otptoken"],
-                secret=otp_user_conf.secret,
+                secret=otp_user_conf["secret"],
                 algorithm=otp_user_conf.get("algorithm") or "sha1",
                 interval=otp_user_conf.get("interval") or 60,
                 timedrift=otp_user_conf.get("timedrift") or 0.0,
@@ -782,7 +782,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
 
         # Check if Token is invalid. Caution: 'if not verifyIndex' gets false positive for verifyIndex === 0!
         if res is None:
-            otp_user_conf.attempts = attempts + 1
+            otp_user_conf["attempts"] = attempts + 1
             session.markChanged()
             skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
             return self._user_module.render.edit(
@@ -794,7 +794,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             )
 
         # Remove otp user config from session
-        user_key = db.keyHelper(otp_user_conf.key, self._user_module._resolveSkelCls().kindName)
+        user_key = db.keyHelper(otp_user_conf["key"], self._user_module._resolveSkelCls().kindName)
         del session["_otp_user"]
         session.markChanged()
 
