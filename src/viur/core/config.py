@@ -21,12 +21,12 @@ Multiple: TypeAlias = list[_T] | tuple[_T] | set[_T] | frozenset[_T]
 
 
 class ConfigType:
-    """An abstract class for config
+    """An abstract class for configurations.
 
     It ensures nesting and backward compatibility for the viur-core config
     """
     _mapping = {}
-    """Mapping from old dict-key (must not the whole key in case of nesting) to new attribute name"""
+    """Mapping from old dict-key (must not be the entire key in case of nesting) to new attribute name"""
 
     _strict_mode = None
     """Internal strict mode for this instance.
