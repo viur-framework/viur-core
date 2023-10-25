@@ -2,6 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.5.4]
+
+- fix: Add `allow_empty=True` for tasks/execute (#922)
+- fix: `pipenv run clean` for packaging
+- docs: Improve and correct tasks docs tutorial (#915)
+
 ## [3.5.3]
 
 - docs: Improve basics and getting started tutorials (#916)
