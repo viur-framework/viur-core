@@ -16,7 +16,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from viur.core.module import Module
 
 # Construct an alias with a generic type to be able to write Multiple[str]
-# TODO: Backward compatible implementation, refactor when viur-core 
+# TODO: Backward compatible implementation, refactor when viur-core
 #       becomes >= Python 3.12 with a type statement (PEP 695)
 _T = TypeVar("_T")
 Multiple: TypeAlias = list[_T] | tuple[_T] | set[_T] | frozenset[_T]  # TODO: Refactor for Python 3.12
