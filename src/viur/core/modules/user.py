@@ -800,7 +800,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
 
         # Check if the OTP device has a time drift
 
-        timedriftchange = float(res) - otp_user_conf.timedrift
+        timedriftchange = float(res) - otp_user_conf["timedrift"]
         if abs(timedriftchange) > 2:
             # The time-drift change accumulates to more than 2 minutes (for interval==60):
             # update clock-drift value accordingly
