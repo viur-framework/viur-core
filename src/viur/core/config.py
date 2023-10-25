@@ -727,14 +727,8 @@ class Conf(ConfigType):
 
     def _resolve_mapping(self, key: str) -> str:
         """Additional mapping for new sub confs."""
-        if key.startswith("viur.security"):
-            key = key.replace("viur.security.", "security.")
-        elif key.startswith("viur.debug"):
-            key = key.replace("viur.debug.", "debug.")
-        elif key.startswith("viur.email"):
-            key = key.replace("viur.email.", "email.")
-        elif key.startswith("viur.") and key not in self._mapping:
-            key = key[len("viur."):]
+        if key.startswith("viur.") and key not in self._mapping:
+            key = key.removeprefix("viur.")
         return super()._resolve_mapping(key)
 
 
