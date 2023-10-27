@@ -582,6 +582,9 @@ class Conf(ConfigType):
     error_handler: Callable[[Exception], str] | None = None
     """If set, ViUR calls this function instead of rendering the viur.errorTemplate if an exception occurs"""
 
+    error_logo: str = None
+    """Path to a logo (static file). Will be used for the default error template"""
+
     static_embed_svg_path: str = "/static/svgs/"
     """Path to the static SVGs folder. Will be used by the jinja-renderer-method: embedSvg"""
 

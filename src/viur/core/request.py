@@ -352,6 +352,8 @@ class Router:
                 if conf.instance.is_dev_server:
                     error_info["traceback"] = traceback.format_exc()
 
+                error_info["logo"] = conf.error_logo
+
                 if (len(self.path_list) > 0 and self.path_list[0] in ("vi", "json")) or \
                         current.request.get().response.headers["Content-Type"] == "application/json":
                     current.request.get().response.headers["Content-Type"] = "application/json"
@@ -361,12 +363,13 @@ class Router:
                     if filename := conf.main_app.render.getTemplateFileName((f"{error_info['status']}", "error"),
                                                                             raise_exception=False):
                         template = conf.main_app.render.getEnv().get_template(filename)
-                        res = template.render(error_info)
-
-                        # fixme: this might be the viur/core/template/error.html ...
-                        extendCsp({"style-src": ['sha256-Lwf7c88gJwuw6L6p6ILPSs/+Ui7zCk8VaIvp8wLhQ4A=']})
+                        nonce = utils.generateRandomString(16)
+                        res = template.render(error_info, nonce=nonce)
+                        extendCsp({"style-src": [f"nonce-{nonce}"]})
                     else:
-                        res = f"""<html><h1>{error_info["status"]} - {error_info["reason"]}"""
+                        res = (f'<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'
+                               f'<title>{error_info["status"]} - {error_info["reason"]}</title>'
+                               f'</head><body><h1>{error_info["status"]} - {error_info["reason"]}</h1>')
 
             self.response.write(res.encode("UTF-8"))
 
