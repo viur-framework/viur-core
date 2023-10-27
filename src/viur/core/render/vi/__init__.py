@@ -142,7 +142,7 @@ def canAccess(*args, **kwargs) -> bool:
 def index(*args, **kwargs):
     if not conf["viur.instance.project_base_path"].joinpath("vi", "main.html").exists():
         raise errors.NotFound()
-    if conf["viur.instance.is_dev_server"] or current.request.get().isSSLConnection:
+    if conf["viur.instance.is_dev_server"] or "ssl" in current.request.get().flags:
         raise errors.Redirect("/vi/s/main.html")
     else:
         appVersion = current.request.get().request.host

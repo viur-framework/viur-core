@@ -77,8 +77,8 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
     tmp_params = request.kwargs.copy()
     request.kwargs = {"__args": args, "__outer": tmp_params}
     request.kwargs.update(kwargs)
-    lastRequestState = request.internalRequest
-    request.internalRequest = True
+    lastRequestState = "exec-request" in request.flags
+    request.flags.add("exec-request")
     last_template_style = request.template_style
     request.template_style = template_style
     caller = conf["viur.mainApp"]
@@ -90,13 +90,15 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
             caller = getattr(caller, "index")
         else:
             request.kwargs = tmp_params  # Reset RequestParams
-            request.internalRequest = lastRequestState
+            if not lastRequestState:
+                request.flags.remove("exec-request")
             request.template_style = last_template_style
             return u"Path not found %s (failed Part was %s)" % (path, currpath)
 
     if not (isinstance(caller, Method) and caller.exposed is not None):
         request.kwargs = tmp_params  # Reset RequestParams
-        request.internalRequest = lastRequestState
+        if not lastRequestState:
+            request.flags.remove("exec-request")
         request.template_style = last_template_style
         return u"%s not callable or not exposed" % str(caller)
     try:
@@ -106,7 +108,8 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
         logging.exception(e)
         raise
     request.kwargs = tmp_params
-    request.internalRequest = lastRequestState
+    if not lastRequestState:
+        request.flags.remove("exec-request")
     request.template_style = last_template_style
     if cachetime:
         pass

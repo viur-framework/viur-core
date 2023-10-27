@@ -92,7 +92,7 @@ class Session:
             return
 
         # We will not issue sessions over http anymore
-        if not (req.isSSLConnection or conf["viur.instance.is_dev_server"]):
+        if not ("ssl" in req.flags or conf["viur.instance.is_dev_server"]):
             return
 
         # Get the current user's key

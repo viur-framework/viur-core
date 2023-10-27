@@ -63,16 +63,21 @@ class FetchMetaDataValidator(RequestValidator):
     @staticmethod
     def validate(request: 'BrowseHandler') -> typing.Optional[typing.Tuple[int, str, str]]:
         headers = request.request.headers
+
         if not headers.get("sec-fetch-site"):  # These headers are not send by all browsers
             return None
+
         if headers.get('sec-fetch-site') in {"same-origin", "none"}:  # A Request from our site
             return None
+
         if os.environ['GAE_ENV'] == "localdev" and headers.get('sec-fetch-site') == "same-site":
             # We are accepting a request with same-site only in local dev mode
             return None
-        if headers.get('sec-fetch-mode') == 'navigate' and not request.isPostRequest \
+
+        if headers.get("sec-fetch-mode") == "navigate" and "method-post" not in request.flags \
             and headers.get('sec-fetch-dest') not in {'object', 'embed'}:  # Incoming navigation GET request
             return None
+
         return 403, "Forbidden", "Request rejected due to fetch metadata"
 
 
@@ -110,22 +115,24 @@ class Router:
         self.maxLogLevel = logging.DEBUG
         self._traceID = \
             self.request.headers.get("X-Cloud-Trace-Context", "").split("/")[0] or utils.generateRandomString()
-        self.is_deferred = False
         self.path_list = ()
+        self.flags = {"method-" + self.request.method.lower()}
+        if self.request.host_url.lower().startswith("https://"):
+            self.flags.add("ssl")
 
-        self.skey_checked = False  # indicates whether @skey-decorator-check has already performed within a request
-        self.internalRequest = False
-        self.disableCache = False  # Shall this request bypass the caches?
+        # TODO: Create compatiblity layer and deprecation warnings for:
+        # self.is_deferred = False  # deferred
+        # self.skey_checked = False  # skey-checked
+        # self.internalRequest = False  # exec-request
+        # self.disableCache = False  # nocache
+        # self.isPostRequest  # method-post
+        # self.isSSLConnection  # ssl
+
         self.pendingTasks = []
         self.args = ()
         self.kwargs = {}
         self.context = {}
         self.template_style: str | None = None
-
-        # Check if it's a HTTP-Method we support
-        self.method = self.request.method.lower()
-        self.isPostRequest = self.method == "post"
-        self.isSSLConnection = self.request.host_url.lower().startswith("https://")  # We have an encrypted channel
 
         db.currentDbAccessLog.set(set())
 
@@ -207,10 +214,11 @@ class Router:
             return
 
         if self.request.headers.get("X-AppEngine-TaskName", None) is not None:  # Check if we run in the appengine
-            if self.request.environ.get("HTTP_X_APPENGINE_USER_IP") in _appengineServiceIPs:
-                self.is_deferred = True
-            elif os.getenv("TASKS_EMULATOR") is not None:
-                self.is_deferred = True
+            if (
+                    self.request.environ.get("HTTP_X_APPENGINE_USER_IP") in _appengineServiceIPs
+                    or os.getenv("TASKS_EMULATOR") is not None
+            ):
+                self.flags.add("deferred")
 
         current.language.set(conf["viur.defaultLanguage"])
 
@@ -229,7 +237,7 @@ class Router:
         if conf["viur.security.contentSecurityPolicy"] and conf["viur.security.contentSecurityPolicy"]["_headerCache"]:
             for k, v in conf["viur.security.contentSecurityPolicy"]["_headerCache"].items():
                 self.response.headers[k] = v
-        if self.isSSLConnection:  # Check for HTST and PKP headers only if we have a secure channel.
+        if "ssl" in self.flags:  # Check for HTST and PKP headers only if we have a secure channel.
             if conf["viur.security.strictTransportSecurity"]:
                 self.response.headers["Strict-Transport-Security"] = conf["viur.security.strictTransportSecurity"]
         # Check for X-Security-Headers we shall emit
@@ -261,7 +269,7 @@ class Router:
             self.response.headers["Cross-Origin-Resource-Policy"] = conf["viur.security.enableCORP"]
 
         # Ensure that TLS is used if required
-        if conf["viur.forceSSL"] and not self.isSSLConnection and not conf["viur.instance.is_dev_server"]:
+        if conf["viur.forceSSL"] and "ssl" not in self.flags and not conf["viur.instance.is_dev_server"]:
             isWhitelisted = False
             reqPath = self.request.path
             for testUrl in conf["viur.noSSLCheckUrls"]:
@@ -410,7 +418,7 @@ class Router:
                 )
 
         if conf["viur.instance.is_dev_server"]:
-            self.is_deferred = True
+            self.flags.add("deferred")
 
             while self.pendingTasks:
                 task = self.pendingTasks.pop()
@@ -508,26 +516,26 @@ class Router:
                 raise errors.MethodNotAllowed()
 
         # Check for internal exposed
-        if caller.exposed is False and not self.internalRequest:
+        if caller.exposed is False and "exec-request" not in self.flags:
             raise errors.NotFound()
 
         # Check for @force_ssl flag
-        if not self.internalRequest \
+        if "exec-request" not in self.flags \
                 and caller.ssl \
                 and not self.request.host_url.lower().startswith("https://") \
                 and not conf["viur.instance.is_dev_server"]:
             raise errors.PreconditionFailed("You must use SSL to access this resource!")
 
         # Check for @force_post flag
-        if not self.isPostRequest and caller.methods == ("POST", ):
+        if "method-post" not in self.flags and caller.methods == ("POST", ):
             raise errors.MethodNotAllowed("You must use POST to access this resource!")
 
         # Check if this request should bypass the caches
-        if self.request.headers.get("X-Viur-Disable-Cache"):
+        if self.request.headers.get("X-Viur-nocache"):
             # No cache requested, check if the current user is allowed to do so
             if (user := current.user.get()) and "root" in user["access"]:
-                logging.debug("Caching disabled by X-Viur-Disable-Cache header")
-                self.disableCache = True
+                logging.debug("Caching disabled by X-Viur-nocache header")
+                self.flags.add("nocache")
 
         # Destill context as self.context, if available
         if context := {k: v for k, v in self.kwargs.items() if k.startswith("@")}:
@@ -538,7 +546,7 @@ class Router:
         else:
             kwargs = self.kwargs
 
-        if ((self.internalRequest and conf["viur.debug.traceInternalCallRouting"])
+        if (("exec-request" in self.flags and conf["viur.debug.traceInternalCallRouting"])
                 or conf["viur.debug.traceExternalCallRouting"]):
             logging.debug(
                 f"Calling {caller._func!r} with args={self.args!r}, {kwargs=} within context={self.context!r}"
