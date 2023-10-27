@@ -114,7 +114,7 @@ class UserSkel(skeleton.Skeleton):
 
     roles = SelectBone(
         descr=i18n.translate("viur.user.bone.roles", defaultText="Roles"),
-        values=conf["viur.user.roles"],
+        values=conf.user.roles,
         required=True,
         multiple=True,
         # fixme: This is generally broken in VIUR! See #776 for details.
@@ -123,14 +123,14 @@ class UserSkel(skeleton.Skeleton):
         #         "user.bone.roles.invalid",
         #         defaultText="Invalid role setting: 'custom' can only be set alone.")
         #     if "custom" in values and len(values) > 1 else None,
-        defaultValue=list(conf["viur.user.roles"].keys())[:1],
+        defaultValue=list(conf.user.roles.keys())[:1],
     )
 
     access = SelectBone(
         descr=i18n.translate("viur.user.bone.access", defaultText="Access rights"),
         values=lambda: {
             right: i18n.translate("server.modules.user.accessright.%s" % right, defaultText=right)
-            for right in sorted(conf["viur.accessRights"])
+            for right in sorted(conf.user.access_rights)
         },
         multiple=True,
         params={
@@ -185,14 +185,14 @@ class UserSkel(skeleton.Skeleton):
 
             for role in skel["roles"]:
                 # Get default access for this role
-                access |= conf["viur.mainApp"].vi.user.get_role_defaults(role)
+                access |= conf.main_app.vi.user.get_role_defaults(role)
 
                 # Go through all modules and evaluate available role-settings
-                for name in dir(conf["viur.mainApp"].vi):
+                for name in dir(conf.main_app.vi):
                     if name.startswith("_"):
                         continue
 
-                    module = getattr(conf["viur.mainApp"].vi, name)
+                    module = getattr(conf.main_app.vi, name)
                     if not isinstance(module, Module):
                         continue
 
@@ -394,7 +394,7 @@ class UserPassword(UserPrimaryAuthentication):
 
             recovery_key = securitykey.create(
                 duration=15 * 60,
-                key_length=conf["viur.security.password_recovery_key_length"],
+                key_length=conf.security.password_recovery_key_length,
                 user_name=skel["name"].lower(),
                 session_bound=False,
             )
@@ -571,8 +571,8 @@ class GoogleAccount(UserPrimaryAuthentication):
     @skey(allow_empty=True)
     def login(self, token: str | None = None, *args, **kwargs):
         # FIXME: Check if already logged in
-        if not conf.get("viur.user.google.clientID"):
-            raise errors.PreconditionFailed("Please configure 'viur.user.google.clientID' in your conf!")
+        if not conf.user.google_client_id:
+            raise errors.PreconditionFailed("Please configure conf.user.google_client_id!")
         if not token:
             request = current.request.get()
             request.response.headers["Content-Type"] = "text/html"
@@ -580,15 +580,15 @@ class GoogleAccount(UserPrimaryAuthentication):
                 # We have to allow popups here
                 request.response.headers["cross-origin-opener-policy"] = "same-origin-allow-popups"
             # Fixme: Render with Jinja2?
-            with (conf["viur.instance.core_base_path"]
+            with (conf.instance.core_base_path
                   .joinpath("viur/core/template/vi_user_google_login.html")
                   .open() as tpl_file):
                 tplStr = tpl_file.read()
-            tplStr = tplStr.replace("{{ clientID }}", conf["viur.user.google.clientID"])
+            tplStr = tplStr.replace("{{ clientID }}", conf.user.google_client_id)
             extendCsp({"script-src": ["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
                        "style-src": ["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]})
             return tplStr
-        userInfo = id_token.verify_oauth2_token(token, requests.Request(), conf["viur.user.google.clientID"])
+        userInfo = id_token.verify_oauth2_token(token, requests.Request(), conf.user.google_client_id)
         if userInfo['iss'] not in {'accounts.google.com', 'https://accounts.google.com'}:
             raise ValueError('Wrong issuer.')
         # Token looks valid :)
@@ -604,7 +604,7 @@ class GoogleAccount(UserPrimaryAuthentication):
             if not (userSkel := addSkel().all().filter("name.idx =", email.lower()).getSkel()):
                 # Still no luck - it's a completely new user
                 if not self.registrationEnabled:
-                    if userInfo.get("hd") and userInfo["hd"] in conf["viur.user.google.gsuiteDomains"]:
+                    if userInfo.get("hd") and userInfo["hd"] in conf.user.google_gsuite_domains:
                         print("User is from domain - adding account")
                     else:
                         logging.warning("Denying registration of %s", email)
@@ -646,7 +646,7 @@ class GoogleAccount(UserPrimaryAuthentication):
 
 class UserSecondFactorAuthentication(UserAuthentication, abc.ABC):
     """Abstract class for all second factors."""
-
+    MAX_RETRY = 3
     second_factor_login_template = "user_login_secondfactor"
     """Template to enter the TOPT on login"""
 
@@ -671,7 +671,6 @@ class UserSecondFactorAuthentication(UserAuthentication, abc.ABC):
 
 class TimeBasedOTP(UserSecondFactorAuthentication):
     WINDOW_SIZE = 5
-    MAX_RETRY = 3
     ACTION_NAME = "otp"
     NAME = "Time based Otp"
     second_factor_login_template = "user_login_secondfactor"
@@ -785,14 +784,13 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         if res is None:
             otp_user_conf["attempts"] = attempts + 1
             session.markChanged()
-
+            skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
             return self._user_module.render.edit(
-                self.OtpSkel(),
+                skel,
                 name=translate(self.NAME),
                 action_name=self.ACTION_NAME,
                 action_url=f"{self.modulePath}/{self.ACTION_NAME}",
-                tpl=self.second_factor_login_template,
-                secondFactorFailed=True,
+                tpl=self.second_factor_login_template
             )
 
         # Remove otp user config from session
@@ -976,10 +974,10 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         """
         if not (cuser := current.user.get()):
             raise errors.Unauthorized()
-        if not (issuer := conf["viur.otp.issuer"]):
+        if not (issuer := conf.user.otp_issuer):
             logging.warning(
-                f"""conf["viur.otp.issuer"] is None we replace the issuer by conf["viur.instance.project_id"]""")
-            issuer = conf["viur.instance.project_id"]
+                f"conf.user.otp_issuer is None we replace the issuer by {conf.instance.project_id=}")
+            issuer = conf.instance.project_id
 
         return pyotp.TOTP(otp_app_secret).provisioning_uri(name=cuser["name"], issuer_name=issuer)
 
@@ -997,6 +995,10 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
 
     @exposed
     def start(self):
+        otp_user_conf = {"attempts": 0}
+        session = current.session.get()
+        session["_otp_user"] = otp_user_conf
+        session.markChanged()
         return self._user_module.render.edit(
             TimeBasedOTP.OtpSkel(),
             params={
@@ -1017,6 +1019,13 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         session = current.session.get()
         user_key = db.Key(self._user_module.kindName, session["possible_user_key"])
 
+        if not (otp_user_conf := session.get("_otp_user")):
+            raise errors.PreconditionFailed("No OTP process started in this session")
+
+        # Check if maximum second factor verification attempts
+        if (attempts := otp_user_conf.get("attempts") or 0) > self.MAX_RETRY:
+            raise errors.Forbidden("Maximum amount of authentication retries exceeded")
+
         if not (user := db.Get(user_key)):
             raise errors.NotFound()
 
@@ -1027,8 +1036,9 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
 
         if AuthenticatorOTP.verify_otp(otp=otp_token, secret=user["otp_app_secret"]):
             return self._user_module.secondFactorSucceeded(self, user_key)
-
-        skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token")]
+        otp_user_conf["attempts"] = attempts + 1
+        session.markChanged()
+        skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
         return self._user_module.render.edit(
             skel,
             name=translate(self.NAME),
@@ -1252,7 +1262,7 @@ class User(List):
             Performs Log-In for the current session and the given user key.
 
             This resets the current session: All fields not explicitly marked as persistent
-            by conf["viur.session.persistentFieldsOnLogin"] are gone afterwards.
+            by conf.user.session_persistent_fields_on_login are gone afterwards.
 
             :param key: The (DB-)Key of the user we shall authenticate
         """
@@ -1267,7 +1277,7 @@ class User(List):
         # Update session for user
         session = current.session.get()
         # Remember persistent fields...
-        take_over = {k: v for k, v in session.items() if k in conf["viur.session.persistentFieldsOnLogin"]}
+        take_over = {k: v for k, v in session.items() if k in conf.user.session_persistent_fields_on_login}
         session.reset()
         # and copy them over to the new session
         session |= take_over
@@ -1287,7 +1297,7 @@ class User(List):
     def logout(self, *args, **kwargs):
         """
             Implements the logout action. It also terminates the current session (all keys not listed
-            in viur.session.persistentFieldsOnLogout will be lost).
+            in viur.session_persistent_fields_on_logout will be lost).
         """
         if not (user := current.user.get()):
             raise errors.Unauthorized()
@@ -1295,7 +1305,7 @@ class User(List):
         self.onLogout(user)
 
         session = current.session.get()
-        take_over = {k: v for k, v in session.items() if k in conf["viur.session.persistentFieldsOnLogout"]}
+        take_over = {k: v for k, v in session.items() if k in conf.user.session_persistent_fields_on_logout}
         session.reset()
         session |= take_over
         current.user.set(None)  # set user to none in context var
@@ -1435,7 +1445,7 @@ def createNewUserIfNotExists():
     """
         Create a new Admin user, if the userDB is empty
     """
-    userMod = getattr(conf["viur.mainApp"], "user", None)
+    userMod = getattr(conf.main_app, "user", None)
     if (userMod  # We have a user module
         and isinstance(userMod, User)
         and "addSkel" in dir(userMod)
@@ -1444,7 +1454,7 @@ def createNewUserIfNotExists():
                  userMod.validAuthenticationMethods])):  # It uses UserPassword login
         if not db.Query(userMod.addSkel().kindName).getEntry():  # There's currently no user in the database
             addSkel = skeleton.skeletonByKind(userMod.addSkel().kindName)()  # Ensure we have the full skeleton
-            uname = f"""admin@{conf["viur.instance.project_id"]}.appspot.com"""
+            uname = f"""admin@{conf.instance.project_id}.appspot.com"""
             pw = utils.generateRandomString(13)
             addSkel["name"] = uname
             addSkel["status"] = Status.ACTIVE  # Ensure it's enabled right away

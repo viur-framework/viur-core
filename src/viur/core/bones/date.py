@@ -232,7 +232,7 @@ class DateBone(BaseBone):
         if not (self.date and self.time and self.localize):
             return pytz.utc
 
-        if conf["viur.instance.is_dev_server"]:
+        if conf.instance.is_dev_server:
             return pytz.timezone(tzlocal.get_localzone_name())
 
         timeZone = pytz.utc  # Default fallback

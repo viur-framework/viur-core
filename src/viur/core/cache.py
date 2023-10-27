@@ -86,9 +86,9 @@ def keyFromArgs(f: Callable, userSensitive: int, languageSensitive: bool, evalua
                 res["__user"] = None
     if languageSensitive:
         res["__lang"] = current.language.get()
-    if conf["viur.cacheEnvironmentKey"]:
+    if conf.cache_environment_key:
         try:
-            res["_cacheEnvironment"] = conf["viur.cacheEnvironmentKey"]()
+            res["_cacheEnvironment"] = conf.cache_environment_key()
         except RuntimeError:
             return None
     res["__path"] = path  # Different path might have different output (html,xml,..)
@@ -119,9 +119,9 @@ def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool
     @wraps(f)
     def wrapF(self, *args, **kwargs) -> Union[str, bytes]:
         currReq = current.request.get()
-        if conf["viur.disableCache"] or currReq.disableCache:
+        if conf.disable_cache or currReq.disableCache:
             # Caching disabled
-            if conf["viur.disableCache"]:
+            if conf.disable_cache:
                 logging.debug("Caching is disabled by config")
             return f(self, *args, **kwargs)
         # How many arguments are part of the way to the function called (and how many are just *args)

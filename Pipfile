@@ -15,6 +15,8 @@ google-cloud-secret-manager = "~=2.0"
 google-cloud-storage = "~=2.0"
 google-cloud-tasks = "~=2.0"
 google-resumable-media = "~=2.0"
+googleapis-common-protos = { version = "~=1.0", extras = ["grpc"] }
+google-api-core = { version = "~=2.0", extras = ["grpc"] }
 gunicorn = "~=21.0"
 jinja2 = "~=3.0"
 jsonschema = "~=4.0"
@@ -26,7 +28,9 @@ qrcode = "~=7.0"
 requests = "~=2.0"
 tzlocal = "~=5.0"
 user-agents = "~=2.0"
-viur-datastore = "~=1.0"
+urllib3 = "==1.26.17"  # for appengine-python-standard used by some projects (https://github.com/GoogleCloudPlatform/appengine-python-standard/blob/main/setup.py#L28)
+#viur-datastore = "~=1.0"
+viur-datastore = "==1.3.11"
 webob = "~=1.0"
 
 [dev-packages]
@@ -35,10 +39,10 @@ pycodestyle = "*"
 twine="*"
 
 [requires]
-python_version = "3.11"
+python_version = "3.10"
 
 [scripts]
-clean = "rm -rf dist build viur_core.egg-info"
+clean = "rm -rf dist build src/viur_core.egg-info"
 build = "python -m build --wheel"
 release = "twine upload dist/*"
 develop = "twine upload --repository=testpypi dist/*"

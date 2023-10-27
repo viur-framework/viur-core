@@ -89,13 +89,17 @@ Starting a ViUR project
 =======================
 
 For a professional project setup, we recommend to use our pre-configured
-`base repository <https://github.com/viur-framework/base>`_. This repository can be used for a ViUR project setup
-that imports the required ViUR modules like *server*, *vi* and *ignite* as submodules into the repository,
-so they can easily be upgraded to newer versions and supplied bugfixes.
+`base repository <https://github.com/viur-framework/viur-base>`_.
+This repository can be used for a ViUR project setup that prepares the required
+ViUR modules like ``viur-core``, ``vi-admin`` and ``ignite`` as dependencies into the repository.
+
 
 ---------------------------
 Cloning the base repository
 ---------------------------
+
+..
+    #TODO: describe the way with the viur-cli!
 
 Simply clone the base repository and afterwards run ``clean-base.py`` to obtain a stand-alone repository which can
 immediately be executed or pushed wherever you like.
@@ -105,7 +109,7 @@ These are the commands to be executed in a shell:
 .. code-block:: bash
 
    # Clone base repository into a project folder
-   git clone https://github.com/viur-framework/base.git hello-viur
+   git clone https://github.com/viur-framework/viur-base.git hello-viur
 
    # Change into new project folder
    cd hello-viur

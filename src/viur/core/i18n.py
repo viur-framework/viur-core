@@ -37,8 +37,8 @@ class LanguageWrapper(dict):
         if not lang:
             lang = self.languages[0]
         else:
-            if lang in conf["viur.languageAliasMap"]:
-                lang = conf["viur.languageAliasMap"][lang]
+            if lang in conf.i18n.language_alias_map:
+                lang = conf.i18n.language_alias_map[lang]
         if lang in self and self[lang] is not None and str(self[lang]).strip():  # The users language is available :)
             return self[lang]
         else:  # We need to select another lang for him
@@ -91,8 +91,8 @@ class translate:
         except:
             return self.defaultText
 
-        if lang in conf["viur.languageAliasMap"]:
-            lang = conf["viur.languageAliasMap"][lang]
+        if lang in conf.i18n.language_alias_map:
+            lang = conf.i18n.language_alias_map[lang]
 
         if lang not in self.translationCache:
             return self.defaultText
@@ -174,7 +174,7 @@ def initializeTranslations() -> None:
 
     invertMap = {}
 
-    for srcLang, dstLang in conf["viur.languageAliasMap"].items():
+    for srcLang, dstLang in conf.i18n.language_alias_map.items():
         if dstLang not in invertMap:
             invertMap[dstLang] = []
         invertMap[dstLang].append(srcLang)

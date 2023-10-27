@@ -38,7 +38,7 @@ alter your query in a way that excludes these entries. Did you use query.filter(
 perform any error/type-checking. Check that your types match: qry.filter("test =", str("5")) is *not* equivalent to
 qry.filter("test =", int(5)). If in doubt, check the entry, the types of it's values and wherever properties are indexed
 using the cloud console. Temporary rewrite your query to use .mergeExternalFilter() and see if that succeeds.
-If you had still no luck; set "viur.debug.traceQueries" in server.config to True. It will log the raw filters and
+If you had still no luck; set "viur.debug.traceQueries" in viur.core.config to True. It will log the raw filters and
 orderings send to the datastore (and wherever it yields any results). Verify that the query looks like expected, then
 manually run that query in the cloud console using GQL.
 
@@ -68,14 +68,16 @@ Internationalization (i18n) does not work
 -----------------------------------------
 
 Verify that you selected a method for ViUR to determine the language acceptable for the current request
-(check server.config["viur.languageMethod"]). Working with different domains does not work on the development server,
+(check viur.core.config["viur.languageMethod"]). Working with different domains does not work on the development server,
 the session (cookie) approach does not work for search engines like google. Check that your project has a "translations"
 module, it contains tables for the languages you'll need and that it's importable without exception. Then ensure that
-server.config["viur.availableLanguages"] is filled (*after* server.setup() had been called).
+viur.core.config["viur.availableLanguages"] is filled (*after* viur.core.setup() had been called).
 
 
 Still lost?
 -----------
+..
+    #FIXME: Is this still active? How about issues, discussions, ...
 
 Feel free to join our IRC channel #viur on freenode `<https://webchat.freenode.net?channels=viur&uio=d4>`_ and ask your
 project-specific questions.

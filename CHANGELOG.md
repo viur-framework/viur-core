@@ -2,6 +2,32 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.5.4]
+
+- fix: Add `allow_empty=True` for tasks/execute (#922)
+- fix: `pipenv run clean` for packaging
+- docs: Improve and correct tasks docs tutorial (#915)
+
+## [3.5.3]
+
+- docs: Improve basics and getting started tutorials (#916)
+- docs: remove old configs, fix RST-Syntax and adjustments for server->core (#913)
+- docs: Fix SEO training after renaming in #800 (#912)
+- docs: Improve and correct session docs (#914)
+- ci: Add python 3.11 to matrix in test workflow (#917)
+- chore: Downgrade urllib3 to `1.26.17` (#918)
+- fix: Add `google-api-core[grpc]` and `googleapis-common-protos[grpc]` (#911)
+- feat: Add a way to disable `Module.describe()` caching (#906)
+
+## [3.5.2]
+
+- fix: Built a standardized way for the return of errors in 2Factor (#900)
+- fix: `Formmailer` expects a `skey` parameter, but it uses the `@skey` decorator (#903)
+- chore: Update dependencies to latest version (#899)
+- fix: Prefix `project_id` to all admin emails (#885)
+- fix: Remove `@`-marker from request context destillation (#884, #888)
+- fix: Downgrade debug level for emulated deferred tasks (#883)
+
 ## [3.5.1]
 
 - fix: Accept `staticSecurityKey` from sessions created by viur-core < 3.5 (#877)

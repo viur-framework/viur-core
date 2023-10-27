@@ -73,7 +73,7 @@ class Method:
         - execution of guard configurations from @skey and @access, if present
         """
 
-        if trace := conf["viur.debug.trace"]:
+        if trace := conf.debug.trace:
             logging.debug(f"calling {self._func=} with raw {args=}, {kwargs=}")
 
         def parse_value_by_annotation(annotation: type, name: str, value: str | list | tuple) -> typing.Any:
@@ -210,7 +210,7 @@ class Method:
             kwargs = parsed_kwargs
 
         # Trace message for final call configuration
-        if trace := conf["viur.debug.trace"]:
+        if trace := conf.debug.trace:
             logging.debug(f"calling {self._func=} with cleaned {args=}, {kwargs=}")
 
         # evaluate skey guard setting?
@@ -256,7 +256,7 @@ class Method:
         if self.access:
             user = current.user.get()
 
-            if trace := conf["viur.debug.trace"]:
+            if trace := conf.debug.trace:
                 logging.debug(f"@access {user=} {self.access=}")
 
             if not user:
@@ -352,8 +352,8 @@ class Module:
     handler: str | typing.Callable = None
     """
     This is the module's handler, respectively its type.
-    It can be provided as a callable() which determines the handler at runtime.
-    A module without a handler setting is invalid.
+    Use the @property-decorator in specific Modules to construct the handler's value dynamically.
+    A module without a handler setting cannot be described, so cannot be handled by admin-tools.
     """
 
     accessRights: tuple[str] = None
@@ -361,7 +361,7 @@ class Module:
     If set, a tuple of access rights (like add, edit, delete) that this module supports.
 
     These will be prefixed on instance startup with the actual module name (becoming file-add, file-edit etc)
-    and registered in ``conf["viur.accessRights"]`` so these will be available on the access bone in user/add
+    and registered in ``conf.user.access_rights`` so these will be available on the access bone in user/add
     or user/edit.
     """
 
@@ -505,9 +505,9 @@ class Module:
             for right in self.accessRights:
                 right = f"{self.moduleName}-{right}"
 
-                # fixme: Turn conf["viur.accessRights"] into a set.
-                if right not in conf["viur.accessRights"]:
-                    conf["viur.accessRights"].append(right)
+                # fixme: Turn conf.user.access_rights into a set.
+                if right not in conf.user.access_rights:
+                    conf.user.access_rights.append(right)
 
         # Collect methods and (sub)modules
         self._methods = {}
@@ -542,7 +542,7 @@ class Module:
             return self._cached_description
 
         # Retrieve handler
-        if not (handler := self.handler() if callable(self.handler) else self.handler):
+        if not (handler := self.handler):
             return None
 
         # Default description
@@ -566,7 +566,8 @@ class Module:
             ret |= admin_info
 
         # Cache description for later re-use.
-        self._cached_description = ret
+        if self._cached_description is not False:
+            self._cached_description = ret
 
         return ret
 
@@ -580,7 +581,7 @@ class Module:
 
         # Map module under SEO-mapped name, if available.
         if self.seo_language_map:
-            for lang in conf["viur.availableLanguages"] or [conf["viur.defaultLanguage"]]:
+            for lang in conf.i18n.available_languages or [conf.i18n.default_language]:
                 # Map the module under each translation
                 if translated_module_name := self.seo_language_map.get(lang):
                     translated_module = target.setdefault(translated_module_name, {})
@@ -589,7 +590,7 @@ class Module:
                     for name, method in self._methods.items():
                         method.register(translated_module, name, lang)
 
-            conf["viur.languageModuleMap"][self.moduleName] = self.seo_language_map
+            conf.i18n.language_module_map[self.moduleName] = self.seo_language_map
 
         # Map the module also under it's original name
         if self.moduleName != "index":
