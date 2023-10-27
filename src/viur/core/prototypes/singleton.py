@@ -1,4 +1,3 @@
-import logging
 from typing import Any
 from viur.core import db, current, errors
 from viur.core.decorators import *
@@ -274,10 +273,10 @@ class Singleton(SkelModule):
 
         .. seealso:: :func:`edit`, :func:`onEdit`
         """
-        logging.info("Entry changed: %s" % skel["key"])
+        self.log.info(f"Entry {skel['key']} edited")
         flushCache(key=skel["key"])
         if user := current.user.get():
-            logging.info("User: %s (%s)" % (user["name"], user["key"]))
+            self.log.info(f"By user {user['name']!r} ({user['key']})")
 
     def onView(self, skel: SkeletonInstance):
         """

@@ -1,4 +1,3 @@
-import logging
 from viur.core.bones import StringBone, TextBone
 from viur.core.bones.text import _defaultTags
 from viur.core.tasks import StartupTask
@@ -59,7 +58,7 @@ class ModuleConf(List):
         db_key = db.Key("viur-module-conf", module_name)
         skel = conf["viur.mainApp"]._moduleconf.viewSkel()
         if not skel.fromDB(db_key):
-            logging.error(f"module({module_name}) not found in viur-module-conf")
+            self.log.error(f"module({module_name}) not found in viur-module-conf")
             return None
 
         return skel

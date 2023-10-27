@@ -110,6 +110,10 @@ class ViURLocalFormatter(logging.Formatter):
 
         record.pathname = pathname
 
+        # Show logger-name before message when not "root" logger
+        if record.name != "root":
+            record.msg = record.name + ": " + record.msg
+
         # Select colorization mode
         match (os.getenv(f"VIUR_LOGGING_COLORIZATION") or "FULL").upper():
             case "DECENT":
