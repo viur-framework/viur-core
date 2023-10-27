@@ -1,3 +1,4 @@
+from viur.core import current
 from viur.core.render.json.user import UserRender as user
 import string, json
 
@@ -10,6 +11,8 @@ class UserRender(user):
         This loginSuccess method generates a HTML site, which redirects by meta-refresh to the Vi,
         but can also be easily read by Ajax requests.
         """
+        if current.request.get().context.get("vi-admin"):
+            return json.dumps(kwargs.get("msg", "OKAY"))
         msg = "".join([x for x in kwargs.get("msg", "OKAY") if x in string.digits + string.ascii_letters + "-"])
 
         return """
