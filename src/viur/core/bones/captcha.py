@@ -26,9 +26,9 @@ class CaptchaBone(BaseBone):
         self.privateKey = privateKey
         if not self.defaultValue and not self.privateKey:
             # Merge these values from the side-wide configuration if set
-            if conf["viur.security.captcha.defaultCredentials"]:
-                self.defaultValue = self.publicKey = conf["viur.security.captcha.defaultCredentials"]["sitekey"]
-                self.privateKey = conf["viur.security.captcha.defaultCredentials"]["secret"]
+            if conf.security.captcha_default_credentials:
+                self.defaultValue = self.publicKey = conf.security.captcha_default_credentials["sitekey"]
+                self.privateKey = conf.security.captcha_default_credentials["secret"]
         self.required = True
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
@@ -62,7 +62,7 @@ class CaptchaBone(BaseBone):
             :param data: *User-supplied* request-data
             :returns: None or a list of errors
         """
-        if conf["viur.instance.is_dev_server"]:  # We dont enforce captchas on dev server
+        if conf.instance.is_dev_server:  # We dont enforce captchas on dev server
             return None
         if (user := current.user.get()) and "root" in user["access"]:
             return None  # Don't bother trusted users with this (not supported by admin/vi anyways)

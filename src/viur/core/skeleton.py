@@ -388,7 +388,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                         # further down the hierarchy (in an record- or relational-Bone)
                         complete = False
 
-                        if conf["viur.debug.skeleton.fromClient"] and cls.kindName:
+                        if conf.debug.skeleton_from_client and cls.kindName:
                             logging.debug("%s: %s: %r", cls.kindName, error.fieldPath, error.errorMessage)
 
         if (len(data) == 0
@@ -423,8 +423,8 @@ class MetaSkel(MetaBaseSkel):
     def __init__(cls, name, bases, dct):
         super(MetaSkel, cls).__init__(name, bases, dct)
         relNewFileName = inspect.getfile(cls) \
-            .replace(str(conf["viur.instance.project_base_path"]), "") \
-            .replace(str(conf["viur.instance.core_base_path"]), "")
+            .replace(str(conf.instance.project_base_path), "") \
+            .replace(str(conf.instance.core_base_path), "")
 
         # Check if we have an abstract skeleton
         if cls.__name__.endswith("AbstractSkel"):
@@ -444,16 +444,16 @@ class MetaSkel(MetaBaseSkel):
         # Try to determine which skeleton definition takes precedence
         if cls.kindName and cls.kindName is not _undefined and cls.kindName in MetaBaseSkel._skelCache:
             relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]) \
-                .replace(str(conf["viur.instance.project_base_path"]), "") \
-                .replace(str(conf["viur.instance.core_base_path"]), "")
+                .replace(str(conf.instance.project_base_path), "") \
+                .replace(str(conf.instance.core_base_path), "")
             idxOld = min(
-                [x for (x, y) in enumerate(conf["viur.skeleton.searchPath"]) if relOldFileName.startswith(y)] + [999])
+                [x for (x, y) in enumerate(conf.skeleton_search_path) if relOldFileName.startswith(y)] + [999])
             idxNew = min(
-                [x for (x, y) in enumerate(conf["viur.skeleton.searchPath"]) if relNewFileName.startswith(y)] + [999])
+                [x for (x, y) in enumerate(conf.skeleton_search_path) if relNewFileName.startswith(y)] + [999])
             if idxNew == 999:
                 # We could not determine a priority for this class as its from a path not listed in the config
                 raise NotImplementedError(
-                    "Skeletons must be defined in a folder listed in conf[\"viur.skeleton.searchPath\"]")
+                    "Skeletons must be defined in a folder listed in conf.skeleton_search_path")
             elif idxOld < idxNew:  # Lower index takes precedence
                 # The currently processed skeleton has a lower priority than the one we already saw - just ignore it
                 return
@@ -463,11 +463,11 @@ class MetaSkel(MetaBaseSkel):
             else:  # They seem to be from the same Package - raise as something is messed up
                 raise ValueError("Duplicate definition for %s in %s and %s" %
                                  (cls.kindName, relNewFileName, relOldFileName))
-        # Ensure that all skeletons are defined in folders listed in conf["viur.skeleton.searchPath"]
-        if (not any([relNewFileName.startswith(x) for x in conf["viur.skeleton.searchPath"]])
+        # Ensure that all skeletons are defined in folders listed in conf.skeleton_search_path
+        if (not any([relNewFileName.startswith(x) for x in conf.skeleton_search_path])
             and not "viur_doc_build" in dir(sys)):  # Do not check while documentation build
             raise NotImplementedError(
-                f"""{relNewFileName} must be defined in a folder listed in {conf["viur.skeleton.searchPath"]}""")
+                f"""{relNewFileName} must be defined in a folder listed in {conf.skeleton_search_path}""")
         if cls.kindName and cls.kindName is not _undefined:
             MetaBaseSkel._skelCache[cls.kindName] = cls
         # Auto-Add ViUR Search Tags Adapter if the skeleton has no adapter attached
@@ -560,7 +560,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
         res = set()
 
         for tag in value.split(" "):
-            tag = "".join([x for x in tag.lower() if x in conf["viur.searchValidChars"]])
+            tag = "".join([x for x in tag.lower() if x in conf.search_valid_chars])
 
             if len(tag) >= self.min_length:
                 res.add(tag)
@@ -666,7 +666,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     viurCurrentSeoKeys = seoKeyBone(descr="Seo-Keys",
                                     readOnly=True,
                                     visible=False,
-                                    languages=conf["viur.availableLanguages"])
+                                    languages=conf.i18n.available_languages)
 
     def __repr__(self):
         return "<skeleton %s with data=%r>" % (self.kindName, {k: self[k] for k in self.keys()})
@@ -728,7 +728,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 for error in errors:
                     if error.severity.value > 1:
                         complete = False
-                        if conf["viur.debug.skeleton.fromClient"]:
+                        if conf.debug.skeleton_from_client:
                             logging.debug("%s: %s: %r", cls.kindName, error.fieldPath, error.errorMessage)
 
                 skelValues.errors.extend(errors)
@@ -913,7 +913,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                         .replace("&", "") \
                         .replace("#", "").strip()
                     currentSeoKeys[lang] = value
-            for language in (conf["viur.availableLanguages"] or [conf["viur.defaultLanguage"]]):
+            for language in (conf.i18n.available_languages or [conf.i18n.default_language]):
                 if currentSeoKeys and language in currentSeoKeys:
                     currentKey = currentSeoKeys[language]
                     if currentKey != lastRequestedSeoKeys.get(language):  # This one is new or has changed
@@ -974,7 +974,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                             if isinstance(x, dict):
                                 fixDotNames(x)
 
-            if conf.get("viur.viur2import.blobsource"):  # Try to fix these only when converting from ViUR2
+            if conf.viur2import_blobsource:  # Try to fix these only when converting from ViUR2
                 fixDotNames(dbObj)
 
             # Write the core entry back

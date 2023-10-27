@@ -83,11 +83,11 @@ if _gaeApp:
         }
         queueRegion = regionMap.get(regionPrefix)
 
-if not queueRegion and conf["viur.instance.is_dev_server"] and os.getenv("TASKS_EMULATOR") is None:
+if not queueRegion and conf.instance.is_dev_server and os.getenv("TASKS_EMULATOR") is None:
     # Probably local development server
     logging.warning("Taskqueue disabled, tasks will run inline!")
 
-if not conf["viur.instance.is_dev_server"] or os.getenv("TASKS_EMULATOR") is None:
+if not conf.instance.is_dev_server or os.getenv("TASKS_EMULATOR") is None:
     taskClient = tasks_v2.CloudTasksClient()
 else:
     taskClient = tasks_v2.CloudTasksClient(
@@ -165,12 +165,12 @@ class TaskHandler(Module):
             If it succeeds in finding it, it returns the function and its instance (-> its "self").
             Otherwise, None is returned.
             :param task: A callable decorated with @PeriodicTask
-            :param obj: Object, which will be scanned in the current iteration. None means start at conf["viur.mainApp"].
+            :param obj: Object, which will be scanned in the current iteration. None means start at conf.main_app.
             :param depth: Current iteration depth.
         """
         if depth > 3 or not "periodicTaskName" in dir(task):  # Limit the maximum amount of recursions
             return None
-        obj = obj or conf["viur.mainApp"]
+        obj = obj or conf.main_app
         for attr in dir(obj):
             if attr.startswith("_"):
                 continue
@@ -215,7 +215,7 @@ class TaskHandler(Module):
             logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
             raise errors.Forbidden()
         if req.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs:
-            if not conf["viur.instance.is_dev_server"] or os.getenv("TASKS_EMULATOR") is None:
+            if not conf.instance.is_dev_server or os.getenv("TASKS_EMULATOR") is None:
                 logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
             raise errors.Forbidden()
 
@@ -244,15 +244,15 @@ class TaskHandler(Module):
                     return
                 else:
                     logging.info("Executing task, transaction %s did succeed" % env["transactionMarker"])
-            if "custom" in env and conf["viur.tasks.customEnvironmentHandler"]:
+            if "custom" in env and conf.tasks_custom_environment_handler:
                 # Check if we need to restore additional environmental data
-                assert isinstance(conf["viur.tasks.customEnvironmentHandler"], tuple) \
-                       and len(conf["viur.tasks.customEnvironmentHandler"]) == 2 \
-                       and callable(conf["viur.tasks.customEnvironmentHandler"][1]), \
+                assert isinstance(conf.tasks_custom_environment_handler, tuple) \
+                       and len(conf.tasks_custom_environment_handler) == 2 \
+                       and callable(conf.tasks_custom_environment_handler[1]), \
                     "Your customEnvironmentHandler must be a tuple of two callable if set!"
-                conf["viur.tasks.customEnvironmentHandler"][1](env["custom"])
+                conf.tasks_custom_environment_handler[1](env["custom"])
         if cmd == "rel":
-            caller = conf["viur.mainApp"]
+            caller = conf.main_app
             pathlist = [x for x in funcPath.split("/") if x]
             for currpath in pathlist:
                 if currpath not in dir(caller):
@@ -286,7 +286,7 @@ class TaskHandler(Module):
     def cron(self, cronName="default", *args, **kwargs):
         global _callableTasks, _periodicTasks, _appengineServiceIPs
         req = current.request.get()
-        if not conf["viur.instance.is_dev_server"]:
+        if not conf.instance.is_dev_server:
             if 'X-Appengine-Cron' not in req.request.headers:
                 logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Cron" was not set.')
                 raise errors.Forbidden()
@@ -565,13 +565,13 @@ def CallDeferred(func: Callable) -> Callable:
                 # We move that task at least 90 seconds into the future so the transaction has time to settle
                 taskargs["countdown"] = max(90, taskargs.get("countdown") or 0)  # Countdown can be set to None
 
-            if conf["viur.tasks.customEnvironmentHandler"]:
+            if conf.tasks_custom_environment_handler:
                 # Check if this project relies on additional environmental variables and serialize them too
-                assert isinstance(conf["viur.tasks.customEnvironmentHandler"], tuple) \
-                       and len(conf["viur.tasks.customEnvironmentHandler"]) == 2 \
-                       and callable(conf["viur.tasks.customEnvironmentHandler"][0]), \
+                assert isinstance(conf.tasks_custom_environment_handler, tuple) \
+                       and len(conf.tasks_custom_environment_handler) == 2 \
+                       and callable(conf.tasks_custom_environment_handler[0]), \
                     "Your customEnvironmentHandler must be a tuple of two callable if set!"
-                env["custom"] = conf["viur.tasks.customEnvironmentHandler"][0]()
+                env["custom"] = conf.tasks_custom_environment_handler[0]()
 
             # Create task description
             task = tasks_v2.Task(
@@ -580,12 +580,12 @@ def CallDeferred(func: Callable) -> Callable:
                     http_method=tasks_v2.HttpMethod.POST,
                     relative_uri=taskargs["url"],
                     app_engine_routing=tasks_v2.AppEngineRouting(
-                        version=taskargs.get("target_version", conf["viur.instance.app_version"]),
+                        version=taskargs.get("target_version", conf.instance.app_version),
                     ),
                 ),
             )
             if taskargs.get("name"):
-                task.name = taskClient.task_path(conf["viur.instance.project_id"], queueRegion, queue, taskargs["name"])
+                task.name = taskClient.task_path(conf.instance.project_id, queueRegion, queue, taskargs["name"])
 
             # Set a schedule time in case eta (absolut) or countdown (relative) was set.
             eta = taskargs.get("eta")
@@ -598,7 +598,7 @@ def CallDeferred(func: Callable) -> Callable:
                 task.schedule_time = timestamp
 
             # Use the client to build and send the task.
-            parent = taskClient.queue_path(conf["viur.instance.project_id"], queueRegion, queue)
+            parent = taskClient.queue_path(conf.instance.project_id, queueRegion, queue)
             logging.debug(f"{parent=}, {task=}")
             taskClient.create_task(tasks_v2.CreateTaskRequest(parent=parent, task=task))
 
@@ -748,14 +748,14 @@ class QueryIter(object, metaclass=MetaQueryIter):
                 req.pendingTasks.append(task)  # < This property will be only exist on development server!
                 return
         taskClient.create_task(tasks_v2.CreateTaskRequest(
-            parent=taskClient.queue_path(conf["viur.instance.project_id"], queueRegion, cls.queueName),
+            parent=taskClient.queue_path(conf.instance.project_id, queueRegion, cls.queueName),
             task=tasks_v2.Task(
                 app_engine_http_request=tasks_v2.AppEngineHttpRequest(
                     body=json.dumps(preprocessJsonObject(qryDict)).encode("UTF-8"),
                     http_method=tasks_v2.HttpMethod.POST,
                     relative_uri="/_tasks/queryIter",
                     app_engine_routing=tasks_v2.AppEngineRouting(
-                        version=conf["viur.instance.app_version"],
+                        version=conf.instance.app_version,
                     ),
                 )
             ),
@@ -786,7 +786,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
                 sleep(5)
                 try:
                     cls.handleEntry(item, qryDict["customData"])
-                except Exception as e:  # Second exception - call errorHandler
+                except Exception as e:  # Second exception - call error_handler
                     try:
                         doCont = cls.handleError(item, qryDict["customData"], e)
                     except Exception as e:

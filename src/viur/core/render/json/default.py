@@ -41,7 +41,7 @@ class DefaultRender(object):
         """
         for struct in structure.values():
             # Optionally replace new-key by a copy of the value under the old-key
-            if "json.bone.structure.camelcasenames" in conf["viur.compatibility"]:
+            if "json.bone.structure.camelcasenames" in conf.compatibility:
                 for find, replace in {
                     "boundslat": "boundsLat",
                     "boundslng": "boundsLng",
@@ -63,7 +63,7 @@ class DefaultRender(object):
                     struct[substruct] = DefaultRender.render_structure(struct[substruct])
 
         # Optionally return list of tuples instead of dict
-        if "json.bone.structure.keytuples" in conf["viur.compatibility"]:
+        if "json.bone.structure.keytuples" in conf.compatibility:
             return [(key, struct) for key, struct in structure.items()]
 
         return structure
@@ -136,7 +136,7 @@ class DefaultRender(object):
             res[key] = self.renderBoneValue(bone, skel, key)
         if injectDownloadURL and "dlkey" in skel and "name" in skel:
             res["downloadUrl"] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False,
-                                                      expires=conf["viur.render.json.downloadUrlExpiration"])
+                                                      expires=conf.render_json_download_url_expiration)
         return res
 
     def renderEntry(self, skel: SkeletonInstance, actionName, params=None):
@@ -179,7 +179,7 @@ class DefaultRender(object):
 
         if skellist:
             if isinstance(skellist[0], SkeletonInstance):
-                if "json.bone.structure.inlists" in conf["viur.compatibility"]:
+                if "json.bone.structure.inlists" in conf.compatibility:
                     structure = DefaultRender.render_structure(skellist[0].structure())
 
                 cursor = skellist.getCursor()
