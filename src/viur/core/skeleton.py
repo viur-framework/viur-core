@@ -632,6 +632,7 @@ class seoKeyBone(StringBone):
             skel.dbEntity["viur"]["viurCurrentSeoKeys"] = res
         return True
 
+
 class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     kindName: str = _undefined  # To which kind we save our data to
     customDatabaseAdapter: Union[CustomDatabaseAdapter, None] = _undefined
@@ -643,6 +644,15 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     # Warning: Assigning to this bones value now *will* set the key
     # it gets stored in. Must be kept readOnly to avoid security-issues with add/edit.
     key = KeyBone(descr="key", readOnly=True, visible=False)
+
+    name = StringBone(
+        descr="Name",
+        visible=False,
+        compute=Compute(
+            fn=lambda skel: str(skel["key"]),
+            interval=ComputeInterval(ComputeMethod.OnWrite)
+        )
+    )
 
     # The date (including time) when this entry has been created
     creationdate = DateBone(
