@@ -608,7 +608,11 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
         return [resultEntryMap[x[0]] for x in resultList[:databaseQuery.queries.limit]]
 
 
-class seoKeyBone(StringBone):
+class SeoKeyBone(StringBone):
+    """
+    Special kind of StringBone saving its contents as `viurCurrentSeoKeys` into the entity's `viur` dict.
+    """
+
     def unserialize(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> bool:
         try:
             skel.accessedValues[name] = skel.dbEntity["viur"]["viurCurrentSeoKeys"]
@@ -631,6 +635,7 @@ class seoKeyBone(StringBone):
                     res[language] = self.singleValueSerialize(newVal[language], skel, name, parentIndexed)
             skel.dbEntity["viur"]["viurCurrentSeoKeys"] = res
         return True
+
 
 class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     kindName: str = _undefined  # To which kind we save our data to
@@ -663,10 +668,12 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         compute=Compute(fn=utils.utcNow, interval=ComputeInterval(ComputeMethod.OnWrite)),
     )
 
-    viurCurrentSeoKeys = seoKeyBone(descr="Seo-Keys",
-                                    readOnly=True,
-                                    visible=False,
-                                    languages=conf.i18n.available_languages)
+    viurCurrentSeoKeys = SeoKeyBone(
+        descr="SEO-Keys",
+        readOnly=True,
+        visible=False,
+        languages=conf.i18n.available_languages
+    )
 
     def __repr__(self):
         return "<skeleton %s with data=%r>" % (self.kindName, {k: self[k] for k in self.keys()})
@@ -892,7 +899,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             # Ensure the SEO-Keys are up2date
             lastRequestedSeoKeys = dbObj["viur"].get("viurLastRequestedSeoKeys") or {}
             lastSetSeoKeys = dbObj["viur"].get("viurCurrentSeoKeys") or {}
-            # Filter garbage serialized into this field by the seoKeyBone
+            # Filter garbage serialized into this field by the SeoKeyBone
             lastSetSeoKeys = {k: v for k, v in lastSetSeoKeys.items() if not k.startswith("_") and v}
             currentSeoKeys = skel.getCurrentSEOKeys()
             if not isinstance(dbObj["viur"].get("viurCurrentSeoKeys"), dict):
