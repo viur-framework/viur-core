@@ -647,7 +647,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     # The "key" bone stores the current database key of this skeleton.
     # Warning: Assigning to this bones value now *will* set the key
     # it gets stored in. Must be kept readOnly to avoid security-issues with add/edit.
-    key = KeyBone(descr="key", readOnly=True, visible=False)
+    key = KeyBone(
+        descr="Key"
+    )
 
     name = StringBone(
         descr="Name",
