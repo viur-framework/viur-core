@@ -119,9 +119,9 @@ def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool
     @wraps(f)
     def wrapF(self, *args, **kwargs) -> Union[str, bytes]:
         currReq = current.request.get()
-        if conf.disable_cache or currReq.disableCache:
+        if conf.debug.disable_cache or currReq.disableCache:
             # Caching disabled
-            if conf.disable_cache:
+            if conf.debug.disable_cache:
                 logging.debug("Caching is disabled by config")
             return f(self, *args, **kwargs)
         # How many arguments are part of the way to the function called (and how many are just *args)
