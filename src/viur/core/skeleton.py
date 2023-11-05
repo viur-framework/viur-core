@@ -215,7 +215,10 @@ class SkeletonInstance:
                       "preProcessSerializedData", "preProcessBlobLocks", "postSavedHandler", "setBoneValue",
                       "delete", "postDeletedHandler", "refresh"}:
             return partial(getattr(self.skeletonCls, item), self)
-        return self.boneMap[item]
+        try:
+            return self.boneMap[item]
+        except KeyError:
+            raise AttributeError(f"{self.__class__.__name__!r} object has no attribute '{item}'")
 
     def __delattr__(self, item):
         del self.boneMap[item]

@@ -125,8 +125,8 @@ def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool
                 logging.debug("Caching is disabled by config")
             return f(self, *args, **kwargs)
         # How many arguments are part of the way to the function called (and how many are just *args)
-        offset = -len(currReq.args) or len(currReq.pathlist)
-        path = "/" + "/".join(currReq.pathlist[: offset])
+        offset = -len(currReq.args) or len(currReq.path_list)
+        path = "/" + "/".join(currReq.path_list[: offset])
         if not path in urls:
             # This path (possibly a sub-render) should not be cached
             logging.debug("Not caching for %s" % path)
