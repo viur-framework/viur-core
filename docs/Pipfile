@@ -4,9 +4,11 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-sphinx = "*"
-sphinx-autoapi = "*"
-sphinx-autobuild = "*"
+sphinx = "==6.2.1"
+sphinx-autoapi = "==2.1.1"
+sphinx-autobuild = "==2021.3.14"
+sphinx-autodoc-typehints = "==1.23.0"
+astroid = "==2.15.6"
 
 [dev-packages]
 

@@ -1,21 +1,13 @@
 import setuptools
 
-# Read all requirements with versions from requirements.txt
-requirements = {}
-for line in open("requirements.txt").readlines():
+# Read all dependencies with versions and python-version flag, but without hashes from requirements.txt
+install_requires = {}
+for line in open("src/viur/core/requirements.txt").readlines():
     if "==" not in line or line.strip().startswith("#"):
         continue
     line = line.split("--hash", maxsplit=1)[0].strip(" \t\\\r\n").split("==", 1)
-    requirements[line[0]] = line[1]
-
-# Check for "[grpc]" packages and remove the non-"[grpc]"-version of them
-for req in list(requirements.keys()):
-    if (pos := req.find("[grpc]")) > 0:
-        if req[:pos] in requirements:
-            del requirements[req[:pos]]
+    install_requires[line[0]] = line[1]
 
 setuptools.setup(
-    package_dir={'viur': '.'},
-    packages=[f'viur.{mod}' for mod in setuptools.find_packages('.', exclude=('tests*',))],
-    install_requires=[f"{k}=={v}" for k, v in sorted(requirements.items(), key=lambda k: k[0].lower())]
+    install_requires=[f"{k}=={v}" for k, v in sorted(install_requires.items(), key=lambda k: k[0].lower())]
 )
