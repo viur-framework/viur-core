@@ -324,7 +324,7 @@ class Method:
             ret["skey"] = self.skey["name"]
 
         if self.access:
-            ret["access"] = (str(access) for access in self.access["access"])
+            ret["access"] = [str(access) for access in self.access["access"]]
 
         return ret
 
