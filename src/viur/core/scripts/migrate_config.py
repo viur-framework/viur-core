@@ -81,7 +81,7 @@ mapping = {
     "viur.static.embedSvg.path": "static_embed_svg_path",
     "viur.tasks.customEnvironmentHandler": "tasks_custom_environment_handler",
     "viur.user.roles": "user.roles",
-    "viur.valid_application_ids": "valid_application_ids",
+    "viur.validApplicationIDs": "valid_application_ids",
     "viur.version": "version",
 }
 
