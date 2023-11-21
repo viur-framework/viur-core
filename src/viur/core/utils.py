@@ -67,12 +67,12 @@ def markFileForDeletion(dlkey: str) -> None:
     db.Put(fileObj)
 
 
-def escapeString(val: str, maxLength: int = 254) -> str:
+def escapeString(val: str, max_length: int = 254) -> str:
     """
         Quotes several characters and removes "\\\\n" and "\\\\0" to prevent XSS injection.
 
         :param val: The value to be escaped.
-        :param maxLength: Cut-off after maxLength characters. A value of 0 means "unlimited".
+        :param max_length: Cut-off after max_length characters. A value of 0 means "unlimited".
         :returns: The quoted string.
     """
     val = str(val).strip() \
@@ -86,8 +86,8 @@ def escapeString(val: str, maxLength: int = 254) -> str:
         .replace("\n", "") \
         .replace("\0", "")
 
-    if maxLength:
-        return val[0:maxLength]
+    if max_length:
+        return val[0:max_length]
 
     return val
 

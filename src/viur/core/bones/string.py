@@ -1,3 +1,5 @@
+import warnings
+
 import logging
 from typing import Callable, Dict, List, Optional, Set
 
@@ -15,7 +17,7 @@ class StringBone(BaseBone):
         self,
         *,
         caseSensitive: bool = True,
-        maxLength: int | None = 254,
+        max_length: int | None = 254,
         natural_sorting: bool | Callable = False,
         **kwargs
     ):
@@ -23,7 +25,7 @@ class StringBone(BaseBone):
         Initializes a new StringBone.
 
         :param caseSensitive: When filtering for values in this bone, should it be case-sensitive?
-        :param maxLength: The maximum length allowed for values of this bone. Set to None for no limitation.
+        :param max_length: The maximum length allowed for values of this bone. Set to None for no limitation.
         :param natural_sorting: Allows a more natural sorting
             than the default sorting on the plain values.
             This uses the .sort_idx property.
@@ -32,11 +34,15 @@ class StringBone(BaseBone):
             that creates the value for the index property.
         :param kwargs: Inherited arguments from the BaseBone.
         """
+        # fixme: Remove in viur-core >= 4
+        if "maxLength" in kwargs:
+            warnings.warn("maxLength is deprecated, please use max_length")
+            max_length = kwargs.pop("maxLength")
         super().__init__(**kwargs)
-        if maxLength is not None and maxLength <= 0:
-            raise ValueError("maxLength must be a positive integer or None")
+        if max_length is not None and max_length <= 0:
+            raise ValueError("max_length must be a positive integer or None")
         self.caseSensitive = caseSensitive
-        self.maxLength = maxLength
+        self.max_length = max_length
         if callable(natural_sorting):
             self.natural_sorting = natural_sorting
         elif not isinstance(natural_sorting, bool):
@@ -104,12 +110,12 @@ class StringBone(BaseBone):
         Returns None if the value would be valid for
         this bone, an error-message otherwise.
         """
-        if self.maxLength is not None and len(value) > self.maxLength:
+        if self.max_length is not None and len(value) > self.max_length:
             return "Maximum length exceeded"
         return None
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
-        value = utils.escapeString(value, self.maxLength)
+        value = utils.escapeString(value, self.max_length)
 
         if not (err := self.isInvalid(value)):
             return value, None
@@ -302,6 +308,6 @@ class StringBone(BaseBone):
 
     def structure(self) -> dict:
         ret = super().structure() | {
-            "maxlength": self.maxLength
+            "max_length": self.max_length
         }
         return ret
