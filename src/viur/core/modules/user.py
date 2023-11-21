@@ -1073,7 +1073,7 @@ class User(List):
                 "icon": "trash",
                 "access": ["root"],
                 "action": "fetch",
-                "url": "/vi/{{module}}/trigger/kick/{{key}}",
+                "url": "/vi/{{module}}/trigger/kick/{{key}}?skey={{skey}}",
                 "confirm": i18n.translate(
                     key="viur.modules.user.customActions.kick.confirm",
                     defaultText="Do you really want to drop all sessions of the selected user from the system?",
@@ -1092,7 +1092,7 @@ class User(List):
                 "icon": "interface",
                 "access": ["root"],
                 "action": "fetch",
-                "url": "/vi/{{module}}/trigger/takeover/{{key}}",
+                "url": "/vi/{{module}}/trigger/takeover/{{key}}?skey={{skey}}",
                 "confirm": i18n.translate(
                     key="viur.modules.user.customActions.takeover.confirm",
                     defaultText="Do you really want to replace your current user session by a "
@@ -1377,16 +1377,14 @@ class User(List):
         return json.dumps(res)
 
     @exposed
-    def trigger(self, action: str, key: str, skey: str):
+    @skey
+    def trigger(self, action: str, key: str):
         current.request.get().response.headers["Content-Type"] = "application/json"
 
         # Check for provided access right definition (equivalent to client-side check), fallback to root!
         access = self.adminInfo.get("customActions", {}).get(f"trigger_{action}", {}).get("access") or ("root", )
         if not ((cuser := current.user.get()) and any(role in cuser["access"] for role in access)):
             raise errors.Unauthorized()
-
-        if not securitykey.validate(skey, session_bound=True):
-            raise errors.PreconditionFailed()
 
         skel = self.baseSkel()
         if not skel.fromDB(key):
