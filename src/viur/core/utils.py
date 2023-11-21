@@ -1,5 +1,7 @@
 import hashlib
 import hmac
+import warnings
+
 import logging
 import secrets
 import string
@@ -67,7 +69,7 @@ def markFileForDeletion(dlkey: str) -> None:
     db.Put(fileObj)
 
 
-def escapeString(val: str, max_length: int = 254) -> str:
+def escapeString(val: str, max_length: int = 254, **kwargs) -> str:
     """
         Quotes several characters and removes "\\\\n" and "\\\\0" to prevent XSS injection.
 
@@ -75,6 +77,11 @@ def escapeString(val: str, max_length: int = 254) -> str:
         :param max_length: Cut-off after max_length characters. A value of 0 means "unlimited".
         :returns: The quoted string.
     """
+    # fixme: Remove in viur-core >= 4
+    if "maxLength" in kwargs:
+        warnings.warn("maxLength is deprecated, please use max_length")
+        max_length = kwargs.pop("maxLength")
+
     val = str(val).strip() \
         .replace("<", "&lt;") \
         .replace(">", "&gt;") \
