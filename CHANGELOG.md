@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.5.7]
+
+- fix: Update dependencies, urllib3 CVE-2023-45803 (#938)
+- fix: User-module default customAction triggers require skey (#939)
+
 ## [3.5.6]
 
 - fix: `access` in method description must not be a generator object (#936)
