@@ -104,7 +104,7 @@ class StringBone(BaseBone):
         Returns None if the value would be valid for
         this bone, an error-message otherwise.
         """
-        if self.maxLength is not None and len(value) > self.maxLength:
+        if self.maxLength is not None and len(str(value)) > self.maxLength:
             return "Maximum length exceeded"
         return None
 
