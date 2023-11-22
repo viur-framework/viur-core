@@ -26,7 +26,6 @@ class StringBone(BaseBone):
         Initializes a new StringBone.
 
         :param caseSensitive: When filtering for values in this bone, should it be case-sensitive?
-
         :param max_length: The maximum length allowed for values of this bone. Set to None for no limitation.
         :param min_length: The minimum length allowed for values of this bone. Set to None for no limitation.
         :param natural_sorting: Allows a more natural sorting
