@@ -44,7 +44,6 @@ class StringBone(BaseBone):
         super().__init__(**kwargs)
         if max_length is not None and max_length <= 0:
             raise ValueError("max_length must be a positive integer or None")
-        
         if min_length is not None and min_length <= 0:
             raise ValueError("min_length must be a positive integer or None")
         if min_length is not None and max_length is not None:
@@ -320,7 +319,7 @@ class StringBone(BaseBone):
 
     def structure(self) -> dict:
         ret = super().structure() | {
-            "maxlength": self.max_length
+            "maxlength": self.max_length,
             "minlength": self.min_length
         }
         return ret
