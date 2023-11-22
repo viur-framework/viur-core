@@ -94,7 +94,7 @@ def escapeString(val: str, max_length: int = 254, **kwargs) -> str:
         .replace("\0", "")
 
     if max_length:
-        return val[0:max_length]
+        return val[:max_length]
 
     return val
 
