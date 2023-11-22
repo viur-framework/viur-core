@@ -16,6 +16,7 @@ class StringBone(BaseBone):
         *,
         caseSensitive: bool = True,
         maxLength: int | None = 254,
+        min_length: int | None = None,
         natural_sorting: bool | Callable = False,
         **kwargs
     ):
@@ -24,6 +25,7 @@ class StringBone(BaseBone):
 
         :param caseSensitive: When filtering for values in this bone, should it be case-sensitive?
         :param maxLength: The maximum length allowed for values of this bone. Set to None for no limitation.
+        :param min_length: The minimum length allowed for values of this bone. Set to None for no limitation.
         :param natural_sorting: Allows a more natural sorting
             than the default sorting on the plain values.
             This uses the .sort_idx property.
@@ -35,8 +37,14 @@ class StringBone(BaseBone):
         super().__init__(**kwargs)
         if maxLength is not None and maxLength <= 0:
             raise ValueError("maxLength must be a positive integer or None")
+        if min_length is not None and min_length <= 0:
+            raise ValueError("min_length must be a positive integer or None")
+        if min_length is not None and maxLength is not None:
+            if min_length > maxLength:
+                raise ValueError("min_length can't be greater than maxLength")
         self.caseSensitive = caseSensitive
         self.maxLength = maxLength
+        self.min_length = min_length
         if callable(natural_sorting):
             self.natural_sorting = natural_sorting
         elif not isinstance(natural_sorting, bool):
@@ -106,6 +114,8 @@ class StringBone(BaseBone):
         """
         if self.maxLength is not None and len(value) > self.maxLength:
             return "Maximum length exceeded"
+        if self.min_length is not None and len(value) < self.min_length:
+            return "Minimum length not reached"
         return None
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
@@ -302,6 +312,7 @@ class StringBone(BaseBone):
 
     def structure(self) -> dict:
         ret = super().structure() | {
-            "maxlength": self.maxLength
+            "maxlength": self.maxLength,
+            "minlength": self.min_length
         }
         return ret
