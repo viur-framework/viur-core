@@ -36,7 +36,7 @@ class StringBone(BaseBone):
         """
         # fixme: Remove in viur-core >= 4
         if "maxLength" in kwargs:
-            warnings.warn("maxLength is deprecated, please use max_length")
+            warnings.warn("maxLength parameter is deprecated, please use max_length", DeprecationWarning)
             max_length = kwargs.pop("maxLength")
         super().__init__(**kwargs)
         if max_length is not None and max_length <= 0:
@@ -308,6 +308,6 @@ class StringBone(BaseBone):
 
     def structure(self) -> dict:
         ret = super().structure() | {
-            "max_length": self.max_length
+            "maxlength": self.max_length
         }
         return ret

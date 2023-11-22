@@ -47,7 +47,7 @@ class DefaultRender(object):
                     "boundslng": "boundsLng",
                     "emptyvalue": "emptyValue",
                     "max": "maxAmount",
-                    "max_length": "max_length",
+                    "maxlength": "max_length",
                     "min": "minAmount",
                     "preventduplicates": "preventDuplicates",
                     "readonly": "readOnly",

@@ -79,7 +79,7 @@ def escapeString(val: str, max_length: int = 254, **kwargs) -> str:
     """
     # fixme: Remove in viur-core >= 4
     if "maxLength" in kwargs:
-        warnings.warn("maxLength is deprecated, please use max_length")
+        warnings.warn("maxLength parameter is deprecated, please use max_length", DeprecationWarning)
         max_length = kwargs.pop("maxLength")
 
     val = str(val).strip() \
