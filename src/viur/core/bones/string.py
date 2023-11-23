@@ -1,3 +1,5 @@
+import warnings
+
 import logging
 from typing import Callable, Dict, List, Optional, Set
 
@@ -15,7 +17,7 @@ class StringBone(BaseBone):
         self,
         *,
         caseSensitive: bool = True,
-        maxLength: int | None = 254,
+        max_length: int | None = 254,
         min_length: int | None = None,
         natural_sorting: bool | Callable = False,
         **kwargs
@@ -24,7 +26,7 @@ class StringBone(BaseBone):
         Initializes a new StringBone.
 
         :param caseSensitive: When filtering for values in this bone, should it be case-sensitive?
-        :param maxLength: The maximum length allowed for values of this bone. Set to None for no limitation.
+        :param max_length: The maximum length allowed for values of this bone. Set to None for no limitation.
         :param min_length: The minimum length allowed for values of this bone. Set to None for no limitation.
         :param natural_sorting: Allows a more natural sorting
             than the default sorting on the plain values.
@@ -34,16 +36,20 @@ class StringBone(BaseBone):
             that creates the value for the index property.
         :param kwargs: Inherited arguments from the BaseBone.
         """
+        # fixme: Remove in viur-core >= 4
+        if "maxLength" in kwargs:
+            warnings.warn("maxLength parameter is deprecated, please use max_length", DeprecationWarning)
+            max_length = kwargs.pop("maxLength")
         super().__init__(**kwargs)
-        if maxLength is not None and maxLength <= 0:
-            raise ValueError("maxLength must be a positive integer or None")
+        if max_length is not None and max_length <= 0:
+            raise ValueError("max_length must be a positive integer or None")
         if min_length is not None and min_length <= 0:
             raise ValueError("min_length must be a positive integer or None")
-        if min_length is not None and maxLength is not None:
-            if min_length > maxLength:
-                raise ValueError("min_length can't be greater than maxLength")
+        if min_length is not None and max_length is not None:
+            if min_length > max_length:
+                raise ValueError("min_length can't be greater than max_length")
         self.caseSensitive = caseSensitive
-        self.maxLength = maxLength
+        self.max_length = max_length
         self.min_length = min_length
         if callable(natural_sorting):
             self.natural_sorting = natural_sorting
@@ -112,14 +118,14 @@ class StringBone(BaseBone):
         Returns None if the value would be valid for
         this bone, an error-message otherwise.
         """
-        if self.maxLength is not None and len(value) > self.maxLength:
+        if self.max_length is not None and len(value) > self.max_length:
             return "Maximum length exceeded"
         if self.min_length is not None and len(value) < self.min_length:
             return "Minimum length not reached"
         return None
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
-        value = utils.escapeString(value, self.maxLength)
+        value = utils.escapeString(value, self.max_length)
 
         if not (err := self.isInvalid(value)):
             return value, None
@@ -312,7 +318,7 @@ class StringBone(BaseBone):
 
     def structure(self) -> dict:
         ret = super().structure() | {
-            "maxlength": self.maxLength,
+            "maxlength": self.max_length,
             "minlength": self.min_length
         }
         return ret

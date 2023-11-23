@@ -17,10 +17,11 @@ class CredentialBone(StringBone):
     def __init__(
         self,
         *,
-        maxLength: int = None,  # Unlimited length
+        max_length: int = None,  # Unlimited length
         **kwargs
     ):
-        super().__init__(maxLength=maxLength, **kwargs)
+
+        super().__init__(max_length=max_length, **kwargs)
         if self.multiple or self.languages:
             raise ValueError("CredentialBone cannot be multiple or translated")
 
@@ -31,7 +32,7 @@ class CredentialBone(StringBone):
         """
         if value is None:
             return False
-        if self.maxLength is not None and len(value) > self.maxLength:
+        if self.max_length is not None and len(value) > self.max_length:
             return "Maximum length exceeded"
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
