@@ -114,7 +114,7 @@ class StringBone(BaseBone):
         this bone, otherwise the empty value and an error-message.
         """
         if not (err := self.isInvalid(value)):
-            return utils.escapeString(value, self.maxLength), None
+            return utils.escapeString(value, None), None
         return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
     def buildDBFilter(
