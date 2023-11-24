@@ -36,9 +36,11 @@ To optimize speed and resource usage Memcache can be enabled in the ``viur-datas
 
 .. code-block:: python
 
-    if not conf["viur.instance.is_dev_server"]:
+    from viur.core import db
+    if conf.instance.is_dev_server:
+        db.config["memcache_client"] = db.cache.LocalMemcache()
+    else:
         from google.appengine.api.memcache import Client
-        from viur.core import db
         db.config["memcache_client"] = Client()
 
 
