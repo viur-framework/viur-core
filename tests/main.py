@@ -57,7 +57,7 @@ def monkey_patch():
         "keyHelper", "fixUnindexableProperties", "GetOrInsert", "Query",
         "QueryDefinition", "IsInTransaction",
         "acquireTransactionSuccessMarker", "RunInTransaction",
-        "startDataAccessLog", "endDataAccessLog", "Count"
+        "startDataAccessLog", "endDataAccessLog", "Count","cache"
     ]  # \ "config"
     viur_datastore = mock.Mock()
     for attr in db_attr:
