@@ -1,5 +1,7 @@
 import hashlib
 import hmac
+import warnings
+
 import logging
 import secrets
 import string
@@ -67,14 +69,19 @@ def markFileForDeletion(dlkey: str) -> None:
     db.Put(fileObj)
 
 
-def escapeString(val: str, maxLength: int = 254) -> str:
+def escapeString(val: str, max_length: int = 254, **kwargs) -> str:
     """
         Quotes several characters and removes "\\\\n" and "\\\\0" to prevent XSS injection.
 
         :param val: The value to be escaped.
-        :param maxLength: Cut-off after maxLength characters. A value of 0 means "unlimited".
+        :param max_length: Cut-off after max_length characters. A value of 0 means "unlimited".
         :returns: The quoted string.
     """
+    # fixme: Remove in viur-core >= 4
+    if "maxLength" in kwargs:
+        warnings.warn("maxLength parameter is deprecated, please use max_length", DeprecationWarning)
+        max_length = kwargs.pop("maxLength")
+
     val = str(val).strip() \
         .replace("<", "&lt;") \
         .replace(">", "&gt;") \
@@ -86,17 +93,17 @@ def escapeString(val: str, maxLength: int = 254) -> str:
         .replace("\n", "") \
         .replace("\0", "")
 
-    if maxLength:
-        return val[0:maxLength]
+    if max_length:
+        return val[:max_length]
 
     return val
 
 
 def hmacSign(data: Any) -> str:
-    assert conf["viur.file.hmacKey"] is not None, "No hmac-key set!"
+    assert conf.file_hmac_key is not None, "No hmac-key set!"
     if not isinstance(data, bytes):
         data = str(data).encode("UTF-8")
-    return hmac.new(conf["viur.file.hmacKey"], msg=data, digestmod=hashlib.sha3_384).hexdigest()
+    return hmac.new(conf.file_hmac_key, msg=data, digestmod=hashlib.sha3_384).hexdigest()
 
 
 def hmacVerify(data: Any, signature: str) -> bool:
@@ -204,10 +211,10 @@ def seoUrlToEntry(module: str,
     pathComponents = [""]
     if language is None:
         language = current.language.get()
-    if conf["viur.languageMethod"] == "url":
+    if conf.i18n.language_method == "url":
         pathComponents.append(language)
-    if module in conf["viur.languageModuleMap"] and language in conf["viur.languageModuleMap"][module]:
-        module = conf["viur.languageModuleMap"][module][language]
+    if module in conf.i18n.language_module_map and language in conf.i18n.language_module_map[module]:
+        module = conf.i18n.language_module_map[module][language]
     pathComponents.append(module)
     if not entry:
         return "/".join(pathComponents)
@@ -234,13 +241,13 @@ def seoUrlToEntry(module: str,
 def seoUrlToFunction(module: str, function: str, render: Optional[str] = None) -> str:
     from viur.core import conf
     lang = current.language.get()
-    if module in conf["viur.languageModuleMap"] and lang in conf["viur.languageModuleMap"][module]:
-        module = conf["viur.languageModuleMap"][module][lang]
-    if conf["viur.languageMethod"] == "url":
+    if module in conf.i18n.language_module_map and lang in conf.i18n.language_module_map[module]:
+        module = conf.i18n.language_module_map[module][lang]
+    if conf.i18n.language_method == "url":
         pathComponents = ["", lang]
     else:
         pathComponents = [""]
-    targetObject = conf["viur.mainResolver"]
+    targetObject = conf.main_resolver
     if module in targetObject:
         pathComponents.append(module)
         targetObject = targetObject[module]
@@ -329,6 +336,7 @@ __utils_current_replacement = {
 def __getattr__(attr):
     if attr in __utils_conf_replacement:
         import warnings
+        # FIXME: config
         msg = f"Use of `utils.{attr}` is deprecated; Use `conf[\"{__utils_conf_replacement[attr]}\"]` instead!"
         warnings.warn(msg, DeprecationWarning, stacklevel=3)
         logging.warning(msg, stacklevel=3)

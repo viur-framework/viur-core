@@ -1,10 +1,10 @@
 import importlib
 from viur.core.config import conf
 
-if conf["viur.db.engine"] =="viur.datastore":
+if conf.db_engine == "viur.datastore":
     from viur.datastore import *
 else:
-    globals().update(importlib.import_module(conf["viur.db.engine"]).__dict__)
+    globals().update(importlib.import_module(conf.db_engine).__dict__)
 
 KeyClass = Key
 

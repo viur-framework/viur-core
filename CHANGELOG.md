@@ -2,6 +2,28 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.5.7]
+
+- fix: Update dependencies, urllib3 CVE-2023-45803 (#938)
+- fix: User-module default customAction triggers require skey (#939)
+
+## [3.5.6]
+
+- fix: `access` in method description must not be a generator object (#936)
+- fix: Always set `Secure` mode for session cookie (#931)
+
+## [3.5.5]
+
+- fix: Raise an `AttributeError` in case of `KeyError` in `SkeletonInstance.boneMap` (#930)
+- fix: refactor `pathlist` to `path_list` (#928)
+- feat: Add user admin login context (#901)
+
+## [3.5.4]
+
+- fix: Add `allow_empty=True` for tasks/execute (#922)
+- fix: `pipenv run clean` for packaging
+- docs: Improve and correct tasks docs tutorial (#915)
+
 ## [3.5.3]
 
 - docs: Improve basics and getting started tutorials (#916)

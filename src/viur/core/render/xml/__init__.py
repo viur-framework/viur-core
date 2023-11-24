@@ -21,8 +21,8 @@ def timestamp(*args, **kwargs):
 @exposed
 def dumpConfig():
     res = {}
-    for key in dir(conf["viur.mainApp"].xml):
-        module = getattr(conf["viur.mainApp"].xml, key)
+    for key in dir(conf.main_app.xml):
+        module = getattr(conf.main_app.xml, key)
         if not isinstance(module, Module):
             continue
         if admin_info := module.describe():

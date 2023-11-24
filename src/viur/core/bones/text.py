@@ -3,6 +3,7 @@ The `text` module contains the `Textbone` and a custom HTML-Parser
 to validate and extract client data for the `TextBone`.
 """
 import string
+import warnings
 from base64 import urlsafe_b64decode
 from datetime import datetime
 from html import entities as htmlentitydefs
@@ -332,7 +333,7 @@ class TextBone(BaseBone):
 
     :param Union[None, Dict] validHtml: A dictionary containing allowed HTML tags and their attributes. Defaults
         to _defaultTags. Must be a structured like :prop:_defaultTags
-    :param int maxLength: The maximum allowed length for the content. Defaults to 200000.
+    :param int max_length: The maximum allowed length for the content. Defaults to 200000.
     :param languages: If set, this bone can store a different content for each language
     :param Dict[str, List] srcSet: An optional dictionary containing width and height for srcset generation.
         Must be a dict of "width": [List of Ints], "height": [List of Ints], eg {"height": [720, 1080]}
@@ -349,7 +350,7 @@ class TextBone(BaseBone):
         self,
         *,
         validHtml: Union[None, Dict] = __undefinedC__,
-        maxLength: int = 200000,
+        max_length: int = 200000,
         srcSet: Optional[Dict[str, List]] = None,
         indexed: bool = False,
         **kwargs
@@ -357,11 +358,15 @@ class TextBone(BaseBone):
         """
             :param validHtml: If set, must be a structure like :prop:_defaultTags
             :param languages: If set, this bone can store a different content for each language
-            :param maxLength: Limit content to maxLength bytes
-            :param indexed: Must not be set True, unless you limit maxLength accordingly
+            :param max_length: Limit content to max_length bytes
+            :param indexed: Must not be set True, unless you limit max_length accordingly
             :param srcSet: If set, inject srcset tags to embedded images. Must be a dict of
                 "width": [List of Ints], "height": [List of Ints], eg {"height": [720, 1080]}
         """
+        # fixme: Remove in viur-core >= 4
+        if "maxLength" in kwargs:
+            warnings.warn("maxLength parameter is deprecated, please use max_length", DeprecationWarning)
+            max_length = kwargs.pop("maxLength")
         super().__init__(indexed=indexed, **kwargs)
 
         if validHtml == TextBone.__undefinedC__:
@@ -369,7 +374,7 @@ class TextBone(BaseBone):
             validHtml = _defaultTags
 
         self.validHtml = validHtml
-        self.maxLength = maxLength
+        self.max_length = max_length
         self.srcSet = srcSet
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
@@ -412,7 +417,7 @@ class TextBone(BaseBone):
 
         if value == None:
             return "No value entered"
-        if len(value) > self.maxLength:
+        if len(value) > self.max_length:
             return "Maximum length exceeded"
 
     def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
