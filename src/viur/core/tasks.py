@@ -24,8 +24,6 @@ from viur.core.module import Module
 from viur.core.utils import parse_bool
 
 CUSTOM_OBJ = TypeVar("CUSTOM_OBJ")  # A JSON serializable object
-SERIALIZE_FUNC = Callable[[], CUSTOM_OBJ]
-RESTORE_FUNC = Callable[[CUSTOM_OBJ], None]
 
 
 class CustomEnvironmentHandler(abc.ABC):
