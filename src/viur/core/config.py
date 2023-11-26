@@ -14,12 +14,13 @@ if TYPE_CHECKING:  # pragma: no cover
     from viur.core.email import EmailTransport
     from viur.core.skeleton import SkeletonInstance
     from viur.core.module import Module
+    from viur.core.tasks import CustomEnvironmentHandler
 
 # Construct an alias with a generic type to be able to write Multiple[str]
 # TODO: Backward compatible implementation, refactor when viur-core
 #       becomes >= Python 3.12 with a type statement (PEP 695)
 _T = TypeVar("_T")
-Multiple: TypeAlias = list[_T] | tuple[_T] | set[_T] | frozenset[_T]  # TODO: Refactor for Python 3.12
+Multiple: TypeAlias = list[_T] | tuple[_T] | set[_T] | frozenset[_T]  # TODO: Refactor for Python 3.12ORE_FUNC
 
 
 class ConfigType:
@@ -638,17 +639,39 @@ class Conf(ConfigType):
     ]
     """Priority, in which skeletons are loaded"""
 
-    tasks_custom_environment_handler: tuple[Callable[[], Any], Callable[[Any], None]] = None
-    """
-    Preserve additional environment in deferred tasks.
+    _tasks_custom_environment_handler: Optional["CustomEnvironmentHandler"] = None
 
-    If set, it must be a tuple of two functions (serialize_env, restore_env)
-    for serializing/restoring environment data.
-    The `serialize_env` function must not require any parameters and must
-    return a JSON serializable object with the desired information.
-    The function `restore_env` will receive this object and should write
-    the information it contains to the environment of the deferred request.
-    """
+    @property
+    def tasks_custom_environment_handler(self) -> Optional["CustomEnvironmentHandler"]:
+        """
+        Preserve additional environment in deferred tasks.
+
+        If set, it must be an instance of CustomEnvironmentHandler
+        for serializing/restoring environment data.
+        """
+        return self._tasks_custom_environment_handler
+
+    @tasks_custom_environment_handler.setter
+    def tasks_custom_environment_handler(self, value: "CustomEnvironmentHandler") -> None:
+        from .tasks import CustomEnvironmentHandler
+        if isinstance(value, CustomEnvironmentHandler) or value is None:
+            self._tasks_custom_environment_handler = value
+        elif isinstance(value, tuple):
+            if len(value) != 2:
+                raise ValueError(f"Expected a (serialize_env_func, restore_env_func) pair")
+            warnings.warn(
+                f"tuple is deprecated, please provide a CustomEnvironmentHandler object!",
+                DeprecationWarning, stacklevel=2,
+            )
+            # Construct an CustomEnvironmentHandler class on the fly to be backward compatible
+            klass = type("ProjectCustomEnvironmentHandler", (CustomEnvironmentHandler,),
+                         # serialize and restore will be bound methods.
+                         # Therefore, consume the self argument with lambda.
+                         {"serialize": lambda self: value[0](),
+                          "restore": lambda self, obj: value[1](obj)})
+            self._tasks_custom_environment_handler = klass()
+        else:
+            raise ValueError(f"Invalid type {type(value)}. Expected a CustomEnvironmentHandler object.")
 
     valid_application_ids: list[str] = []
     """Which application-ids we're supposed to run on"""

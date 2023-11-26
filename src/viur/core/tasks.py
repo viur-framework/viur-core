@@ -1,24 +1,51 @@
+import abc
 import base64
 import json
 import logging
 import os
 import sys
 import traceback
-import grpc
-import pytz
-import requests
 from datetime import datetime, timedelta
 from functools import wraps
 from time import sleep
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple, TypeVar
+
+import grpc
+import pytz
+import requests
 from google.cloud import tasks_v2
 from google.cloud.tasks_v2.services.cloud_tasks.transports import CloudTasksGrpcTransport
 from google.protobuf import timestamp_pb2
+
 from viur.core import current, db, errors, utils
 from viur.core.config import conf
-from viur.core.module import Module
 from viur.core.decorators import exposed, skey
+from viur.core.module import Module
 from viur.core.utils import parse_bool
+
+CUSTOM_OBJ = TypeVar("CUSTOM_OBJ")  # A JSON serializable object
+SERIALIZE_FUNC = Callable[[], CUSTOM_OBJ]
+RESTORE_FUNC = Callable[[CUSTOM_OBJ], None]
+
+
+class CustomEnvironmentHandler(abc.ABC):
+    @abc.abstractmethod
+    def serialize(self) -> CUSTOM_OBJ:
+        """Serialize custom environment data
+
+        This function must not require any parameters and must
+        return a JSON serializable object with the desired information.
+        """
+        ...
+
+    @abc.abstractmethod
+    def restore(self, obj: CUSTOM_OBJ) -> None:
+        """Restore custom environment data
+
+        This function will receive the object from :meth:`serialize` and should write
+        the information it contains to the environment of the deferred request.
+        """
+        ...
 
 
 # class JsonKeyEncoder(json.JSONEncoder):
@@ -246,11 +273,7 @@ class TaskHandler(Module):
                     logging.info("Executing task, transaction %s did succeed" % env["transactionMarker"])
             if "custom" in env and conf.tasks_custom_environment_handler:
                 # Check if we need to restore additional environmental data
-                assert isinstance(conf.tasks_custom_environment_handler, tuple) \
-                       and len(conf.tasks_custom_environment_handler) == 2 \
-                       and callable(conf.tasks_custom_environment_handler[1]), \
-                    "Your customEnvironmentHandler must be a tuple of two callable if set!"
-                conf.tasks_custom_environment_handler[1](env["custom"])
+                conf.tasks_custom_environment_handler.restore(env["custom"])
         if cmd == "rel":
             caller = conf.main_app
             pathlist = [x for x in funcPath.split("/") if x]
@@ -567,11 +590,7 @@ def CallDeferred(func: Callable) -> Callable:
 
             if conf.tasks_custom_environment_handler:
                 # Check if this project relies on additional environmental variables and serialize them too
-                assert isinstance(conf.tasks_custom_environment_handler, tuple) \
-                       and len(conf.tasks_custom_environment_handler) == 2 \
-                       and callable(conf.tasks_custom_environment_handler[0]), \
-                    "Your customEnvironmentHandler must be a tuple of two callable if set!"
-                env["custom"] = conf.tasks_custom_environment_handler[0]()
+                env["custom"] = conf.tasks_custom_environment_handler.serialize()
 
             # Create task description
             task = tasks_v2.Task(
@@ -831,6 +850,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
         logging.debug("handleError called on %s with %s." % (cls, entry))
         logging.exception(exception)
         return True
+
 
 class DeleteEntitiesIter(QueryIter):
     """
