@@ -1296,6 +1296,7 @@ class RefSkel(RelSkel):
         newClass = type("RefSkelFor" + kindName, (RefSkel,), {})
         fromSkel = skeletonByKind(kindName)
         newClass.__boneMap__ = {k: v for k, v in fromSkel.__boneMap__.items() if k in args}
+        newClass.kindName = kindName
         return newClass
 
 
