@@ -216,6 +216,7 @@ class SkeletonInstance:
                       "delete", "postDeletedHandler", "refresh"}:
             return partial(getattr(self.skeletonCls, item), self)
         try:
+            logging.debug(f"try ? getattr {item}")
             return self.boneMap[item]
         except KeyError:
             raise AttributeError(f"{self.__class__.__name__!r} object has no attribute '{item}'")
@@ -325,8 +326,12 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                 bone.setSystemInitialized()
 
     @classmethod
-    def setBoneValue(cls, skelValues: Any, boneName: str, value: Any,
-                     append: bool = False, language: Optional[str] = None) -> bool:
+    def setBoneValue(cls, skel: SkeletonInstance,
+                     bone_name: str,
+                     value: Any,
+                     append: bool = False,
+                     language: Optional[str] = None,
+                     **kwargs) -> bool:
         """
             Allow setting a bones value without calling fromClient or assigning to valuesCache directly.
             Santy-Checks are performed; if the value is invalid, that bone flips back to its original
@@ -339,11 +344,17 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
             :param language: Set/append which language
             :return: Wherever that operation succeeded or not.
         """
-        bone = getattr(skelValues, boneName, None)
+        # fixme: Remove in viur-core >= 4
+        if "boneName" in kwargs:
+            msg = "boneName was replaced by bone_name in 'setBoneValue'"
+            warnings.warn(msg, DeprecationWarning, stacklevel=3)
+            logging.warning(msg, stacklevel=3)
+            bone_name = kwargs["boneName"]
+        bone = getattr(skel, bone_name, None)
         if not isinstance(bone, BaseBone):
-            raise ValueError("%s is no valid bone on this skeleton (%s)" % (boneName, str(skelValues)))
-        skelValues[boneName]  # FIXME, ensure this bone is unserialized first
-        return bone.setBoneValue(skelValues, boneName, value, append, language)
+            raise ValueError(f"{bone_name} is no valid bone on this skeleton ({skel})")
+        bone.unserialize(skel, bone_name)
+        return bone.setBoneValue(skel, bone_name, value, append, language)
 
     @classmethod
     def fromClient(cls, skelValues: SkeletonInstance, data: Dict[str, Union[List[str], str]],

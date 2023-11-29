@@ -3,6 +3,7 @@
 - The `SpatialBone` to handle coordinates
 - and `haversine`  to calculate the distance between two points on earth using their latitude and longitude.
 """
+import warnings
 
 import logging
 from copy import deepcopy
@@ -366,10 +367,11 @@ class SpatialBone(BaseBone):
     def setBoneValue(
         self,
         skel: 'SkeletonInstance',
-        boneName: str,
+        bone_name: str,
         value: Any,
         append: bool,
-        language: Union[None, str] = None
+        language: Union[None, str] = None,
+        **kwargs
     ) -> bool:
         """
         Sets the value of the bone to the provided 'value'.
@@ -377,7 +379,7 @@ class SpatialBone(BaseBone):
         (default) value and the function will return False.
 
         :param skel: Dictionary with the current values from the skeleton the bone belongs to
-        :param boneName: The name of the bone that should be modified
+        :param bone_name: The name of the bone that should be modified
         :param value: The value that should be assigned. Its type depends on the type of the bone
         :param append: If True, the given value will be appended to the existing bone values instead of
             replacing them. Only supported on bones with multiple=True
@@ -385,10 +387,17 @@ class SpatialBone(BaseBone):
         :return: A boolean indicating whether the operation succeeded or not
         :rtype: bool
         """
+        # fixme: Remove in viur-core >= 4
+        if "boneName" in kwargs:
+            msg = "boneName was replaced by bone_name in 'setBoneValue'"
+            warnings.warn(msg, DeprecationWarning, stacklevel=3)
+            logging.warning(msg, stacklevel=3)
+            bone_name = kwargs["boneName"]
         if append:
             raise ValueError("append is not possible on %s bones" % self.type)
         assert isinstance(value, tuple) and len(value) == 2, "Value must be a tuple of (lat, lng)"
-        skel[boneName] = value
+        skel[bone_name] = value
+        return True
 
     def structure(self) -> dict:
         return super().structure() | {
