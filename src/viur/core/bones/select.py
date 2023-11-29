@@ -1,10 +1,15 @@
 import enum
 from collections import OrderedDict
 from numbers import Number
-from typing import Any, Callable, Dict, List, Self, TYPE_CHECKING, Tuple, Union
+from typing import Any, Callable, Dict, List, TYPE_CHECKING, Tuple, Union
 
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.i18n import translate
+
+try:
+    from typing import Self  # only py>=3.11
+except ImportError:
+    Self = BaseBone  # SelectBone is not defined here and Self is not available
 
 if TYPE_CHECKING:
     from viur.core.skeleton import SkeletonInstance
