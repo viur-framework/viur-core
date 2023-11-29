@@ -33,6 +33,7 @@ class SelectBone(BaseBone):
             SelectBoneValue,
             SelectBoneMultiple,
             Dict[str, Union[SelectBoneMultiple, SelectBoneValue]],
+            Callable[[SkeletonInstance, SelectBone], Any],
         ] = None,
         values: Union[Dict, List, Tuple, Callable, enum.EnumMeta] = (),
         **kwargs
