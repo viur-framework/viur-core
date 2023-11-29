@@ -647,6 +647,19 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     interBoneValidations: List[
         Callable[[Skeleton], List[ReadFromClientError]]] = []  # List of functions checking inter-bone dependencies
 
+    __seo_key_trans = str.maketrans({"<": "",
+                                    ">": "",
+                                    "\"": "",
+                                    "'": "",
+                                    "\n": "",
+                                    "\0": "",
+                                    "/": "",
+                                    "\\": "",
+                                    "?": "",
+                                    "&": "",
+                                    "#": ""
+                                    })
+
     # The "key" bone stores the current database key of this skeleton.
     # Warning: Assigning to this bones value now *will* set the key
     # it gets stored in. Must be kept readOnly to avoid security-issues with add/edit.
@@ -922,17 +935,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 # Convert to lower-case and remove certain characters
                 for lang, value in list(currentSeoKeys.items()):
                     value = value.lower()
-                    value = value.replace("<", "") \
-                        .replace(">", "") \
-                        .replace("\"", "") \
-                        .replace("'", "") \
-                        .replace("\n", "") \
-                        .replace("\0", "") \
-                        .replace("/", "") \
-                        .replace("\\", "") \
-                        .replace("?", "") \
-                        .replace("&", "") \
-                        .replace("#", "").strip()
+                    value = value.translate(Skeleton.__seo_key_trans).strip()
                     currentSeoKeys[lang] = value
             for language in (conf.i18n.available_languages or [conf.i18n.default_language]):
                 if currentSeoKeys and language in currentSeoKeys:
