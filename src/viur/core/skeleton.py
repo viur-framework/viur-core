@@ -209,7 +209,7 @@ class SkeletonInstance:
     def __getattr__(self, item):
         if item == "boneMap":
             return {}  # There are __setAttr__ calls before __init__ has run
-        elif item in {"kindName", "interBoneValidations", "customDatabaseAdapter"}:
+        elif item in {"kindName", "interBoneValidations", "customDatabaseAdapter", "skel_type"}:
             return getattr(self.skeletonCls, item)
         elif item in {"fromDB", "toDB", "all", "unserialize", "serialize", "fromClient", "getCurrentSEOKeys",
                       "preProcessSerializedData", "preProcessBlobLocks", "postSavedHandler", "setBoneValue",
@@ -293,6 +293,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
     """
     __viurBaseSkeletonMarker__ = True
     boneMap = None
+    skel_type = "BaseSkeleton"
 
     @classmethod
     def subSkel(cls, *name, fullClone: bool = False, **kwargs) -> SkeletonInstance:
@@ -646,7 +647,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     subSkels = {}  # List of pre-defined sub-skeletons of this type
     interBoneValidations: List[
         Callable[[Skeleton], List[ReadFromClientError]]] = []  # List of functions checking inter-bone dependencies
-
+    skel_type = "Skeleton"
     # The "key" bone stores the current database key of this skeleton.
     # Warning: Assigning to this bones value now *will* set the key
     # it gets stored in. Must be kept readOnly to avoid security-issues with add/edit.
@@ -1179,6 +1180,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
 
 class RelSkel(BaseSkeleton):
+    skel_type = "RelSkel"
     """
         This is a Skeleton-like class that acts as a container for Skeletons used as a
         additional information data skeleton for
@@ -1284,6 +1286,7 @@ class RelSkel(BaseSkeleton):
 
 
 class RefSkel(RelSkel):
+    skel_type = "RefSkel"
     @classmethod
     def fromSkel(cls, kindName: str, *args: List[str]) -> Type[RefSkel]:
         """

@@ -1199,8 +1199,9 @@ class BaseBone(object):
         compute_fn_parameters = inspect.signature(self.compute.fn).parameters
         compute_fn_args = {}
         if "skel" in compute_fn_parameters:
-            if "RefSkelFor" in skel.skeletonCls.__name__: #we have a ref skel we must load the complete skeleton
-                from viur.core.skeleton import skeletonByKind #cirular import
+
+            if skel.skel_type == "RefSkel":  # we have a ref skel we must load the complete skeleton
+                from viur.core.skeleton import skeletonByKind  # noqa: E402 # import works only here because circular imports
                 cloned_skel = skeletonByKind(skel.kindName)()
                 cloned_skel.fromDB(skel["key"])
                 cloned_skel[bone_name] = None  # remove value form accessedValues to avoid endless recursion
