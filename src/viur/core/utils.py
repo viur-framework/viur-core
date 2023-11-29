@@ -99,6 +99,30 @@ def escapeString(val: str, max_length: int = 254, **kwargs) -> str:
     return val
 
 
+def unescape_string(val: str, max_length: int = 254) -> str:
+    """
+        Unquotes several characters;
+
+        :param val: The value to be unescaped.
+        :param max_length: Cut-off after max_length characters. A value of 0 means "unlimited".
+        :returns: The unquoted string.
+    """
+
+    val = str(val).strip().replace("&lt;", "<") \
+        .replace("&lt;", "<") \
+        .replace("&gt;", ">") \
+        .replace("&quot;", "\"") \
+        .replace("&#39;", "'") \
+        .replace("&#040;", "(") \
+        .replace("&#041;", ")") \
+        .replace("&#061;", "=")
+
+    if max_length:
+        return val[:max_length]
+
+    return val
+
+
 def hmacSign(data: Any) -> str:
     assert conf.file_hmac_key is not None, "No hmac-key set!"
     if not isinstance(data, bytes):
