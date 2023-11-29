@@ -26,7 +26,7 @@ from viur.core.securityheaders import extendCsp
 from viur.core.tasks import _appengineServiceIPs
 
 TEMPLATE_STYLE_KEY = "style"
-
+CATCH_ALL_BLACK_LIST = ["vi", "json"]
 
 class RequestValidator(ABC):
     """
@@ -478,10 +478,8 @@ class Router:
 
             idx += 1
             part = part.replace("-", "_")
-            if part not in caller:
+            if part not in caller and not any(entry for entry in CATCH_ALL_BLACK_LIST if entry in self.path_list):
                 part = "index"
-
-            # print(part, caller.get(part))
 
             if caller := caller.get(part):
                 if isinstance(caller, Method):
