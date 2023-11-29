@@ -21,6 +21,7 @@ class DateBone(BaseBone):
     :param time: If True, the bone will contain time information.
     :param localize: If True, the user's timezone is assumed for input and output. This is only valid if both 'date'
           and 'time' are set to True. By default, UTC time is used.
+    :param bool allow_microsecond If True the bones stores the date with microsecond.
     """
     # FIXME: the class has no parameters; merge with __init__
     type = "date"
@@ -34,6 +35,7 @@ class DateBone(BaseBone):
         naive: bool = False,
         time: bool = True,
         updateMagic: bool = False,
+        allow_microsecond: bool = False,
         **kwargs
     ):
         """
@@ -77,6 +79,7 @@ class DateBone(BaseBone):
         self.time = time
         self.localize = localize
         self.naive = naive
+        self.allow_microsecond = allow_microsecond
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
         """
@@ -117,7 +120,11 @@ class DateBone(BaseBone):
             if int(value) < -1 * (2 ** 30) or int(value) > (2 ** 31) - 2:
                 value = None
             else:
-                value = datetime.fromtimestamp(float(value), tz=time_zone).replace(microsecond=0)
+                value = datetime.fromtimestamp(float(value), tz=time_zone)
+                if not self.allow_microsecond:
+                    value = value.replace(microsecond=0)
+
+
 
         elif not self.date and self.time:
             try:
@@ -188,9 +195,8 @@ class DateBone(BaseBone):
         if not value.tzinfo and not self.naive:
             value = time_zone.localize(value)
 
-        # remove microseconds
-        # TODO: might become configurable
-        value = value.replace(microsecond=0)
+        if not self.allow_microsecond:
+            value = value.replace(microsecond=0)
 
         if err := self.isInvalid(value):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
@@ -278,7 +284,8 @@ class DateBone(BaseBone):
         """
         if value:
             # Crop unwanted values to zero
-            value = value.replace(microsecond=0)
+            if not self.allow_microsecond:
+                value = value.replace(microsecond=0)
             if not self.time:
                 value = value.replace(hour=0, minute=0, second=0)
             elif not self.date:
@@ -349,13 +356,20 @@ class DateBone(BaseBone):
         """
         if (self.creationMagic and isAdd) or self.updateMagic:
             if self.naive:
-                valuesCache[name] = utcNow().replace(microsecond=0, tzinfo=None)
+                valuesCache[name] = utcNow()
+
+                if not self.allow_microsecond:
+                    valuesCache[name] = valuesCache[name].replace(microsecond=0, tzinfo=None)
             else:
-                valuesCache[name] = utcNow().replace(microsecond=0).astimezone(self.guessTimeZone())
+                valuesCache[name] = utcNow().astimezone(self.guessTimeZone())
+
+                if not self.allow_microsecond:
+                    valuesCache[name] = valuesCache[name].replace(microsecond=0)
 
     def structure(self) -> dict:
         return super().structure() | {
             "date": self.date,
             "time": self.time,
-            "naive": self.naive
+            "naive": self.naive,
+            "allow_microsecond": self.allow_microsecond
         }
