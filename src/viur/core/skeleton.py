@@ -647,18 +647,19 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     interBoneValidations: List[
         Callable[[Skeleton], List[ReadFromClientError]]] = []  # List of functions checking inter-bone dependencies
 
-    __seo_key_trans = str.maketrans({"<": "",
-                                     ">": "",
-                                     "\"": "",
-                                     "'": "",
-                                     "\n": "",
-                                     "\0": "",
-                                     "/": "",
-                                     "\\": "",
-                                     "?": "",
-                                     "&": "",
-                                     "#": ""
-                                     })
+    __seo_key_trans = str.maketrans(
+        {"<": "",
+         ">": "",
+         "\"": "",
+         "'": "",
+         "\n": "",
+         "\0": "",
+         "/": "",
+         "\\": "",
+         "?": "",
+         "&": "",
+         "#": ""
+         })
 
     # The "key" bone stores the current database key of this skeleton.
     # Warning: Assigning to this bones value now *will* set the key
