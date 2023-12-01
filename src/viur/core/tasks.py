@@ -486,7 +486,7 @@ def CallDeferred(func: Callable) -> Callable:
     def make_deferred(func, self=__undefinedFlag_, *args, **kwargs):
         # Extract possibly provided task flags from kwargs
         queue = kwargs.pop("_queue", "default")
-        if "eta" in kwargs and "countdown" in kwargs:
+        if "_eta" in kwargs and "_countdown" in kwargs:
             raise ValueError("You cannot set the countdown and eta argument together!")
         taskargs = {k: kwargs.pop(f"_{k}", None) for k in ("countdown", "eta", "name", "target_version")}
 
