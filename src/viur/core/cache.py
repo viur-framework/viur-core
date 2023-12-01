@@ -156,7 +156,7 @@ def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool
         dbEntity["path"] = path
         dbEntity["content-type"] = currReq.response.headers['Content-Type']
         dbEntity["accessedEntries"] = list(accessedEntries)
-        dbEntity.exclude_from_indexes = ["data", "content-type"]  # We can save 2 DB-Writs :)
+        dbEntity.exclude_from_indexes = {"data", "content-type"}  # We can save 2 DB-Writs :)
         db.Put(dbEntity)
         logging.debug("This request was a cache-miss. Cache has been updated.")
         return res
