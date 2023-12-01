@@ -116,8 +116,8 @@ class Session:
         flags = (
             "Path=/",
             "HttpOnly",
-            f"SameSite={self.same_site}" if self.same_site else None,
-            "Secure",
+            f"SameSite={self.same_site}" if self.same_site and not conf["viur.instance.is_dev_server"] else None,
+            "Secure" if not conf["viur.instance.is_dev_server"] else None,
             f"Max-Age={conf['viur.session.lifeTime']}" if not self.use_session_cookie else None,
         )
 
