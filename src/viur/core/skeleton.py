@@ -853,16 +853,18 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     if "%s_uniqueIndexValue" % key in dbObj["viur"]:
                         oldUniqueValues = dbObj["viur"]["%s_uniqueIndexValue" % key]
 
-                # Merge the values from mergeFrom in
-                if key in skel.accessedValues or bone.compute:  # We can have a computed value on store
-                    # bone.mergeFrom(skel.valuesCache, key, mergeFrom)
-                    bone.serialize(skel, key, True)
-                elif key not in skel.dbEntity:  # It has not been written and is not in the database
+                if not (key in skel.accessedValues or bone.compute) and key not in skel.dbEntity:
                     _ = skel[key]  # Ensure the datastore is filled with the default value
-                    bone.serialize(skel, key, True)
-
-                ## Serialize bone into entity
-                # dbObj = bone.serialize(skel.valuesCache, key, dbObj)
+                if (
+                    key in skel.accessedValues or bone.compute  # We can have a computed value on store
+                    or key not in skel.dbEntity  # It has not been written and is not in the database
+                ):
+                    # Serialize bone into entity
+                    try:
+                        bone.serialize(skel, key, True)
+                    except Exception:
+                        logging.error(f"Failed to serialize {key} {bone} {skel.accessedValues[key]}")
+                        raise
 
                 # Obtain referenced blobs
                 blobList.update(bone.getReferencedBlobs(skel, key))
