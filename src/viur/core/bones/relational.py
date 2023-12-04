@@ -1190,17 +1190,18 @@ class RelationalBone(BaseBone):
     def setBoneValue(
         self,
         skel: 'SkeletonInstance',
-        boneName: str,
+        bone_name: str,
         value: Any,
         append: bool,
-        language: Union[None, str] = None
+        language: Union[None, str] = None,
+        **kwargs
     ) -> bool:
         """
         Sets the value of the specified bone in the given skeleton. Sanity checks are performed to ensure the
         value is valid. If the value is invalid, no modifications are made.
 
         :param SkeletonInstance skel: Dictionary with the current values from the skeleton we belong to.
-        :param str boneName: The name of the bone to be modified.
+        :param str bone_name: The name of the bone to be modified.
         :param value: The value to be assigned. The type depends on the bone type.
         :param bool append: If true, the given value is appended to the values of the bone instead of replacing it.
                    Only supported on bones with multiple=True.
@@ -1210,24 +1211,30 @@ class RelationalBone(BaseBone):
         :return: True if the operation succeeded, False otherwise.
         :rtype: bool
         """
+        # fixme: Remove in viur-core >= 4
+        if "boneName" in kwargs:
+            msg = "boneName was replaced by bone_name in 'setBoneValue'"
+            warnings.warn(msg, DeprecationWarning, stacklevel=3)
+            logging.warning(msg, stacklevel=3)
+            bone_name = kwargs["boneName"]
         assert not (bool(self.languages) ^ bool(language)), "Language is required or not supported"
         assert not append or self.multiple, "Can't append - bone is not multiple"
         if not self.multiple and not self.using:
             if not (isinstance(value, str) or isinstance(value, db.Key)):
                 logging.error(value)
                 logging.error(type(value))
-                raise ValueError("You must supply exactly one Database-Key to %s" % boneName)
+                raise ValueError(f"You must supply exactly one Database-Key to {bone_name}")
             realValue = (value, None)
         elif not self.multiple and self.using:
             if not isinstance(value, tuple) or len(value) != 2 or \
                 not (isinstance(value[0], str) or isinstance(value[0], db.Key)) or \
                     not isinstance(value[1], self._skeletonInstanceClassRef):
-                raise ValueError("You must supply a tuple of (Database-Key, relSkel) to %s" % boneName)
+                raise ValueError(f"You must supply a tuple of (Database-Key, relSkel) to {bone_name}")
             realValue = value
         elif self.multiple and not self.using:
             if not (isinstance(value, str) or isinstance(value, db.Key)) and not (isinstance(value, list)) \
                     and all([isinstance(x, str) or isinstance(x, db.Key) for x in value]):
-                raise ValueError("You must supply a Database-Key or a list hereof to %s" % boneName)
+                raise ValueError(f"You must supply a Database-Key or a list hereof to {bone_name}")
             if isinstance(value, list):
                 realValue = [(x, None) for x in value]
             else:
@@ -1240,7 +1247,7 @@ class RelationalBone(BaseBone):
                     (isinstance(x, tuple) and len(x) == 2 and
                      (isinstance(x[0], str) or isinstance(x[0], db.Key))
                      and isinstance(x[1], self._skeletonInstanceClassRef) for x in value))):
-                raise ValueError("You must supply (db.Key, RelSkel) or a list hereof to %s" % boneName)
+                raise ValueError(f"You must supply (db.Key, RelSkel) or a list hereof to {bone_name}")
             if not isinstance(value, list):
                 realValue = [value]
             else:
@@ -1250,11 +1257,11 @@ class RelationalBone(BaseBone):
             if not rel:
                 return False
             if language:
-                if boneName not in skel or not isinstance(skel[boneName], dict):
-                    skel[boneName] = {}
-                skel[boneName][language] = rel
+                if bone_name not in skel or not isinstance(skel[bone_name], dict):
+                    skel[bone_name] = {}
+                skel[bone_name][language] = rel
             else:
-                skel[boneName] = rel
+                skel[bone_name] = rel
         else:
             tmpRes = []
             for val in realValue:
@@ -1264,22 +1271,22 @@ class RelationalBone(BaseBone):
                 tmpRes.append(rel)
             if append:
                 if language:
-                    if boneName not in skel or not isinstance(skel[boneName], dict):
-                        skel[boneName] = {}
-                    if not isinstance(skel[boneName].get(language), list):
-                        skel[boneName][language] = []
-                    skel[boneName][language].extend(tmpRes)
+                    if bone_name not in skel or not isinstance(skel[bone_name], dict):
+                        skel[bone_name] = {}
+                    if not isinstance(skel[bone_name].get(language), list):
+                        skel[bone_name][language] = []
+                    skel[bone_name][language].extend(tmpRes)
                 else:
-                    if boneName not in skel or not isinstance(skel[boneName], list):
-                        skel[boneName] = []
-                    skel[boneName].extend(tmpRes)
+                    if bone_name not in skel or not isinstance(skel[bone_name], list):
+                        skel[bone_name] = []
+                    skel[bone_name].extend(tmpRes)
             else:
                 if language:
-                    if boneName not in skel or not isinstance(skel[boneName], dict):
-                        skel[boneName] = {}
-                    skel[boneName][language] = tmpRes
+                    if bone_name not in skel or not isinstance(skel[bone_name], dict):
+                        skel[bone_name] = {}
+                    skel[bone_name][language] = tmpRes
                 else:
-                    skel[boneName] = tmpRes
+                    skel[bone_name] = tmpRes
         return True
 
     def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:

@@ -8,6 +8,8 @@ built, such as string, numeric, and date/time bones.
 import copy
 import hashlib
 import inspect
+import warnings
+
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -1075,16 +1077,17 @@ class BaseBone(object):
 
     def setBoneValue(self,
                      skel: 'SkeletonInstance',
-                     boneName: str,
+                     bone_name: str,
                      value: Any,
                      append: bool,
-                     language: Union[None, str] = None) -> bool:
+                     language: Union[None, str] = None,
+                     **kwargs) -> bool:
         """
         Sets the value of a bone in a skeleton instance, with optional support for appending and language-specific
         values. Sanity checks are being performed.
 
         :param skel: The SkeletonInstance object representing the skeleton to which the bone belongs.
-        :param boneName: The property-name of the bone in the skeleton whose value should be set or modified.
+        :param bone_name: The property-name of the bone in the skeleton whose value should be set or modified.
         :param value: The value to be assigned. Its type depends on the type of the bone.
         :param append: If True, the given value is appended to the bone's values instead of replacing it. \
             Only supported for bones with multiple=True.
@@ -1097,6 +1100,13 @@ class BaseBone(object):
         the value is valid. If the value is invalid, no modification occurs. The function supports appending values to
         bones with multiple=True and setting or appending language-specific values for bones that support languages.
         """
+        # fixme: Remove in viur-core >= 4
+        if "boneName" in kwargs:
+            msg = "boneName was replaced by bone_name in 'setBoneValue'"
+            warnings.warn(msg, DeprecationWarning, stacklevel=3)
+            logging.warning(msg, stacklevel=3)
+            bone_name = kwargs["boneName"]
+
         assert not (bool(self.languages) ^ bool(language)), "Language is required or not supported"
         assert not append or self.multiple, "Can't append - bone is not multiple"
 
@@ -1105,13 +1115,13 @@ class BaseBone(object):
             val = []
             errors = []
             for singleValue in value:
-                singleValue, singleError = self.singleValueFromClient(singleValue, skel, boneName, {boneName: value})
+                singleValue, singleError = self.singleValueFromClient(singleValue, skel, bone_name, {bone_name: value})
                 val.append(singleValue)
                 if singleError:
                     errors.extend(singleError)
         else:
             # set or append one value
-            val, errors = self.singleValueFromClient(value, skel, boneName, {boneName: value})
+            val, errors = self.singleValueFromClient(value, skel, bone_name, {bone_name: value})
 
         if errors:
             for e in errors:
@@ -1119,17 +1129,17 @@ class BaseBone(object):
                     # If an invalid datatype (or a non-parseable structure) have been passed, abort the store
                     return False
         if not append and not language:
-            skel[boneName] = val
+            skel[bone_name] = val
         elif append and language:
-            if not language in skel[boneName] or not isinstance(skel[boneName][language], list):
-                skel[boneName][language] = []
-            skel[boneName][language].append(val)
+            if not language in skel[bone_name] or not isinstance(skel[bone_name][language], list):
+                skel[bone_name][language] = []
+            skel[bone_name][language].append(val)
         elif append:
-            if not isinstance(skel[boneName], list):
-                skel[boneName] = []
-            skel[boneName].append(val)
+            if not isinstance(skel[bone_name], list):
+                skel[bone_name] = []
+            skel[bone_name].append(val)
         else:  # Just language
-            skel[boneName][language] = val
+            skel[bone_name][language] = val
         return True
 
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
