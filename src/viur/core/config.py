@@ -91,7 +91,8 @@ class ConfigType:
             old, key = key, self._mapping[key]
             warnings.warn(
                 f"Conf member {self._path}{old} is now {self._path}{key}!",
-                DeprecationWarning
+                DeprecationWarning,
+                stacklevel=3,
             )
         return key
 
