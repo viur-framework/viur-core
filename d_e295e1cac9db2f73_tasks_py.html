@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="d_e295e1cac9db2f73_utils_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.3.2">coverage.py v7.3.2</a>,
-            created at 2023-12-04 11:32 +0000
+            created at 2023-12-04 14:34 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"/>
@@ -570,8 +570,8 @@
     <p class="run"><span class="n"><a id="t486" href="#t486">486</a></span><span class="t">    <span class="key">def</span> <span class="nam">make_deferred</span><span class="op">(</span><span class="nam">func</span><span class="op">,</span> <span class="nam">self</span><span class="op">=</span><span class="nam">__undefinedFlag_</span><span class="op">,</span> <span class="op">*</span><span class="nam">args</span><span class="op">,</span> <span class="op">**</span><span class="nam">kwargs</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t487" href="#t487">487</a></span><span class="t">        <span class="com"># Extract possibly provided task flags from kwargs</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t488" href="#t488">488</a></span><span class="t">        <span class="nam">queue</span> <span class="op">=</span> <span class="nam">kwargs</span><span class="op">.</span><span class="nam">pop</span><span class="op">(</span><span class="str">"_queue"</span><span class="op">,</span> <span class="str">"default"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t489" href="#t489">489</a></span><span class="t">        <span class="key">if</span> <span class="str">"eta"</span> <span class="key">in</span> <span class="nam">kwargs</span> <span class="key">and</span> <span class="str">"countdown"</span> <span class="key">in</span> <span class="nam">kwargs</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t490" href="#t490">490</a></span><span class="t">            <span class="key">raise</span> <span class="nam">ValueError</span><span class="op">(</span><span class="str">"You cannot set the countdown and eta argument together!"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t489" href="#t489">489</a></span><span class="t">        <span class="key">if</span> <span class="str">"_eta"</span> <span class="key">in</span> <span class="nam">kwargs</span> <span class="key">and</span> <span class="str">"_countdown"</span> <span class="key">in</span> <span class="nam">kwargs</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t490" href="#t490">490</a></span><span class="t">            <span class="key">raise</span> <span class="nam">ValueError</span><span class="op">(</span><span class="str">"You cannot set the _countdown and _eta argument together!"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t491" href="#t491">491</a></span><span class="t">        <span class="nam">taskargs</span> <span class="op">=</span> <span class="op">{</span><span class="nam">k</span><span class="op">:</span> <span class="nam">kwargs</span><span class="op">.</span><span class="nam">pop</span><span class="op">(</span><span class="str">f"_{k}"</span><span class="op">,</span> <span class="key">None</span><span class="op">)</span> <span class="key">for</span> <span class="nam">k</span> <span class="key">in</span> <span class="op">(</span><span class="str">"countdown"</span><span class="op">,</span> <span class="str">"eta"</span><span class="op">,</span> <span class="str">"name"</span><span class="op">,</span> <span class="str">"target_version"</span><span class="op">)</span><span class="op">}</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t492" href="#t492">492</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t493" href="#t493">493</a></span><span class="t">        <span class="nam">logging</span><span class="op">.</span><span class="nam">debug</span><span class="op">(</span><span class="str">f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, {queue=}, {taskargs=}"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -942,7 +942,7 @@
             <a id="nextFileLink" class="nav" href="d_e295e1cac9db2f73_utils_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.3.2">coverage.py v7.3.2</a>,
-            created at 2023-12-04 11:32 +0000
+            created at 2023-12-04 14:34 +0000
         </p>
     </div>
 </footer>
