@@ -1,16 +1,18 @@
 from __future__ import annotations
+
 import copy
 import inspect
 import logging
 import os
-import sys
 import string
+import sys
 import warnings
 from functools import partial
 from itertools import chain
 from time import time
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
-from viur.core import conf, db, email, errors, utils, current
+
+from viur.core import conf, current, db, email, errors, translate, utils
 from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, RelationalUpdateLevel, SelectBone, StringBone
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 from viur.core.bones.base import Compute, ComputeMethod, ComputeInterval
@@ -1432,8 +1434,9 @@ class TaskUpdateSearchIndex(CallableTaskBase):
 
     def dataSkel(self):
         modules = ["*"] + listKnownSkeletons()
+        modules.sort()
         skel = BaseSkeleton().clone()
-        skel.module = SelectBone(descr="Module", values={x: x for x in modules}, required=True)
+        skel.module = SelectBone(descr="Module", values={x: translate(x) for x in modules}, required=True)
         return skel
 
     def execute(self, module, *args, **kwargs):
