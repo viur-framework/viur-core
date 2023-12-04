@@ -525,6 +525,8 @@ class Module:
         for key in dir(self):
             if key[0] == "_":
                 continue
+            if not hasattr(self, key):
+                continue
 
             prop = getattr(self, key)
 
