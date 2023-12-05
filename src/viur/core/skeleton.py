@@ -970,7 +970,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                                 del entity[k2]
                                 backupKey= k2.replace(".", "__")
                                 entity[backupKey] = v2
-                                entity.exclude_from_indexes = list(entity.exclude_from_indexes) + [backupKey]
+                                entity.exclude_from_indexes = set(entity.exclude_from_indexes) | {backupKey}
                         fixDotNames(v)
                     elif isinstance(v, list):
                         for x in v:
