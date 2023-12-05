@@ -1,16 +1,18 @@
 from __future__ import annotations
+
 import copy
 import inspect
 import logging
 import os
-import sys
 import string
+import sys
 import warnings
 from functools import partial
 from itertools import chain
 from time import time
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
-from viur.core import conf, db, email, errors, utils, current
+
+from viur.core import conf, current, db, email, errors, translate, utils
 from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, RelationalUpdateLevel, SelectBone, StringBone
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 from viur.core.bones.base import Compute, ComputeMethod, ComputeInterval
@@ -647,6 +649,20 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     interBoneValidations: List[
         Callable[[Skeleton], List[ReadFromClientError]]] = []  # List of functions checking inter-bone dependencies
 
+    __seo_key_trans = str.maketrans(
+        {"<": "",
+         ">": "",
+         "\"": "",
+         "'": "",
+         "\n": "",
+         "\0": "",
+         "/": "",
+         "\\": "",
+         "?": "",
+         "&": "",
+         "#": ""
+         })
+
     # The "key" bone stores the current database key of this skeleton.
     # Warning: Assigning to this bones value now *will* set the key
     # it gets stored in. Must be kept readOnly to avoid security-issues with add/edit.
@@ -853,16 +869,18 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     if "%s_uniqueIndexValue" % key in dbObj["viur"]:
                         oldUniqueValues = dbObj["viur"]["%s_uniqueIndexValue" % key]
 
-                # Merge the values from mergeFrom in
-                if key in skel.accessedValues or bone.compute:  # We can have a computed value on store
-                    # bone.mergeFrom(skel.valuesCache, key, mergeFrom)
-                    bone.serialize(skel, key, True)
-                elif key not in skel.dbEntity:  # It has not been written and is not in the database
+                if not (key in skel.accessedValues or bone.compute) and key not in skel.dbEntity:
                     _ = skel[key]  # Ensure the datastore is filled with the default value
-                    bone.serialize(skel, key, True)
-
-                ## Serialize bone into entity
-                # dbObj = bone.serialize(skel.valuesCache, key, dbObj)
+                if (
+                    key in skel.accessedValues or bone.compute  # We can have a computed value on store
+                    or key not in skel.dbEntity  # It has not been written and is not in the database
+                ):
+                    # Serialize bone into entity
+                    try:
+                        bone.serialize(skel, key, True)
+                    except Exception:
+                        logging.error(f"Failed to serialize {key} {bone} {skel.accessedValues[key]}")
+                        raise
 
                 # Obtain referenced blobs
                 blobList.update(bone.getReferencedBlobs(skel, key))
@@ -922,17 +940,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 # Convert to lower-case and remove certain characters
                 for lang, value in list(currentSeoKeys.items()):
                     value = value.lower()
-                    value = value.replace("<", "") \
-                        .replace(">", "") \
-                        .replace("\"", "") \
-                        .replace("'", "") \
-                        .replace("\n", "") \
-                        .replace("\0", "") \
-                        .replace("/", "") \
-                        .replace("\\", "") \
-                        .replace("?", "") \
-                        .replace("&", "") \
-                        .replace("#", "").strip()
+                    value = value.translate(Skeleton.__seo_key_trans).strip()
                     currentSeoKeys[lang] = value
             for language in (conf.i18n.available_languages or [conf.i18n.default_language]):
                 if currentSeoKeys and language in currentSeoKeys:
@@ -1432,8 +1440,9 @@ class TaskUpdateSearchIndex(CallableTaskBase):
 
     def dataSkel(self):
         modules = ["*"] + listKnownSkeletons()
+        modules.sort()
         skel = BaseSkeleton().clone()
-        skel.module = SelectBone(descr="Module", values={x: x for x in modules}, required=True)
+        skel.module = SelectBone(descr="Module", values={x: translate(x) for x in modules}, required=True)
         return skel
 
     def execute(self, module, *args, **kwargs):
