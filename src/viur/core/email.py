@@ -242,7 +242,7 @@ def sendEMail(*,
     queueEntity["headers"] = headers
     queueEntity["attachments"] = attachments
     queueEntity["context"] = context
-    queueEntity.exclude_from_indexes = ["body", "attachments", "context"]
+    queueEntity.exclude_from_indexes = {"body", "attachments", "context"}
     transportClass.validateQueueEntity(queueEntity)  # Will raise an exception if the entity is not valid
     if conf["viur.instance.is_dev_server"] and not conf["viur.email.sendFromLocalDevelopmentServer"]:
         logging.info("Not sending email from local development server")
