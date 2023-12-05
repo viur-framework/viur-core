@@ -1454,7 +1454,7 @@ class RebuildSearchIndex(QueryIter):
         if not customData["notify"]:
             return
         try:
-            txt = f"Rebuild search index finished for {customData['module']}\n\n" \
+            txt = f"""{conf["viur.instance.project_id"]}: Rebuild search index finished for {customData["module"]}\n\n""" \
                   f"ViUR finished to rebuild the search index for module {customData['module']}.\n" \
                   f"{totalCount} records updated in total on this kind."
             email.sendEMail(dests=customData["notify"], stringTemplate=txt, skel=None)
@@ -1523,7 +1523,7 @@ def processVacuumRelationsChunk(
         processVacuumRelationsChunk(module, new_cursor, count_total, count_removed, notify)
     elif notify:
         try:
-            txt = (f"Vacuum Relations finished for {module}\n\n"
+            txt = (f"""{conf["viur.instance.project_id"]}: Vacuum relations finished for {module}\n\n"""
                    f"ViUR finished to vacuum viur-relations.\n"
                    f"{count_total} records processed, "
                    f"{count_removed} entries removed")
