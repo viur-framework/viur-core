@@ -1454,9 +1454,11 @@ class RebuildSearchIndex(QueryIter):
         if not customData["notify"]:
             return
         try:
-            txt = f"""{conf["viur.instance.project_id"]}: Rebuild search index finished for {customData["module"]}\n\n""" \
-                  f"ViUR finished to rebuild the search index for module {customData['module']}.\n" \
-                  f"{totalCount} records updated in total on this kind."
+            txt = (
+                f"{conf['viur.instance.project_id']}: Rebuild search index finished for {customData['module']}\n\n"
+                f"ViUR finished to rebuild the search index for module {customData['module']}.\n"
+                f"{totalCount} records updated in total on this kind."
+            )
             email.sendEMail(dests=customData["notify"], stringTemplate=txt, skel=None)
         except Exception as exc:  # noqa; OverQuota, whatever
             logging.exception(f'Failed to notify {customData["notify"]}')
@@ -1523,10 +1525,12 @@ def processVacuumRelationsChunk(
         processVacuumRelationsChunk(module, new_cursor, count_total, count_removed, notify)
     elif notify:
         try:
-            txt = (f"""{conf["viur.instance.project_id"]}: Vacuum relations finished for {module}\n\n"""
-                   f"ViUR finished to vacuum viur-relations.\n"
-                   f"{count_total} records processed, "
-                   f"{count_removed} entries removed")
+            txt = (
+                f"{conf['viur.instance.project_id']}: Vacuum relations finished for {module}\n\n"
+                f"ViUR finished to vacuum viur-relations for module {module}.\n"
+                f"{count_total} records processed, "
+                f"{count_removed} entries removed"
+            )
             email.sendEMail(dests=notify, stringTemplate=txt, skel=None)
         except Exception as exc:  # noqa; OverQuota, whatever
             logging.exception(f"Failed to notify {notify}")
