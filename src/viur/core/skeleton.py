@@ -773,32 +773,30 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return complete
 
     @classmethod
-    def fromDB(cls, skelValues: SkeletonInstance, key: Union[str, db.Key]) -> bool:
+    def fromDB(cls, skel: SkeletonInstance, key: db.Key | int | str) -> bool:
         """
-            Load entity with *key* from the data store into the Skeleton.
+            Load entity with *key* from the Datastore into the Skeleton.
 
             Reads all available data of entity kind *kindName* and the key *key*
-            from the data store into the Skeleton structure's bones. Any previous
+            from the Datastore into the Skeleton structure's bones. Any previous
             data of the bones will discard.
 
-            To store a Skeleton object to the data store, see :func:`~viur.core.skeleton.Skeleton.toDB`.
+            To store a Skeleton object to the Datastore, see :func:`~viur.core.skeleton.Skeleton.toDB`.
 
-            :param key: A :class:`viur.core.DB.Key`, :class:`viur.core.DB.Query`, or string,\
-            from which the data shall be fetched.
+            :param key: A :class:`viur.core.DB.Key`, string, or int; from which the data shall be fetched.
 
-            :returns: True on success; False if the given key could not be found.
+            :returns: True on success; False if the given key could not be found or can not be parsed.
 
         """
-        assert skelValues.renderPreparation is None, "Cannot modify values while rendering"
+        assert skel.renderPreparation is None, "Cannot modify values while rendering"
         try:
-            dbKey = db.keyHelper(key, skelValues.kindName)
+            db_key = db.keyHelper(key, skel.kindName)
         except ValueError:  # This key did not parse
             return False
-        dbRes = db.Get(dbKey)
-        if dbRes is None:
+
+        if not (db_res := db.Get(db_key)):
             return False
-        skelValues.setEntity(dbRes)
-        skelValues["key"] = dbKey
+        skel.setEntity(db_res)
         return True
 
     @classmethod
