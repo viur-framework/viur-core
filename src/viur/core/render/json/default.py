@@ -23,6 +23,7 @@ class CustomJsonEncoder(json.JSONEncoder):
             return db.encodeKey(o)
         elif isinstance(o, Enum):
             return o.value
+        print(f"{o = }")
         return json.JSONEncoder.default(self, o)
 
 
@@ -150,6 +151,7 @@ class DefaultRender(object):
 
         elif isinstance(skel, SkeletonInstance):
             vals = self.renderSkelValues(skel)
+            print(f"{skel = }")
             structure = DefaultRender.render_structure(skel.structure())
             errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage,
                        "invalidatedFields": x.invalidatedFields} for x in skel.errors]

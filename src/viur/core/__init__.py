@@ -161,9 +161,11 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
     # assign ViUR system modules
     from viur.core.modules.moduleconf import ModuleConf  # noqa: E402 # import works only here because circular imports
     from viur.core.modules.script import Script  # noqa: E402 # import works only here because circular imports
+    from viur.core.modules.translation import Translation  # noqa: E402 # import works only here because circular imports
 
     modules._tasks = TaskHandler
     modules._moduleconf = ModuleConf
+    modules._translation = Translation
     modules.script = Script
 
     # create module mappings

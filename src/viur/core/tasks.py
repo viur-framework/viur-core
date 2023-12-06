@@ -399,7 +399,11 @@ def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
     def outer_wrapper(func):
         @wraps(func)
         def inner_wrapper(*args, **kwargs):
-            retry_count = int(current.request.get().request.headers.get("X-Appengine-Taskretrycount", -1))
+            try:
+                retry_count = int(current.request.get().request.headers.get("X-Appengine-Taskretrycount", -1))
+            except AttributeError:
+                # During warmup current.request is None (at least on local devserver)
+                retry_count = -1
             try:
                 return func(*args, **kwargs)
             except Exception as exc:

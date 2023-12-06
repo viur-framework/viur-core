@@ -494,6 +494,15 @@ class I18N(ConfigType):
     language_module_map: dict[str, dict[str, str]] = {}
     """Maps modules to their translation (if set)"""
 
+    add_missing_translations = False
+    """Add missing translation into datastore.
+
+    If a key is not found in the translation table when a translation is
+    rendered, a database entry is created with the key and hint and
+    default value (if set) so that the translations
+    can be entered in the administration.
+    """
+
 
 class User(ConfigType):
     """User, session, login related settings"""

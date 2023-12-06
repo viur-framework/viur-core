@@ -5,11 +5,15 @@ import time
 import jinja2.ext as jinja2
 from typing import List, Tuple, Union
 from viur.core.config import conf
-from viur.core import db, utils, languages, current
+from viur.core import db, tasks, utils, languages, current
 from pprint import pprint
-systemTranslations = {}
 
-# pprint = lambda *args, **kwargs: None
+systemTranslations = {}
+"""Memory storage for translation methods"""
+
+KINDNAME = "viur-translations"
+"""Kindname for the translations"""
+
 
 
 class LanguageWrapper(dict):
@@ -100,9 +104,9 @@ class translate:
 
         lang = conf.i18n.language_alias_map.get(lang, lang)
 
-        # print(f'{self.translationCache = } // {self.key = } // {lang = }')
+        print(f'{self.translationCache = } // {self.key = } // {self.defaultText = } // {self.hint = } // {lang = }')
 
-        return self.translationCache.get(lang, self.defaultText)
+        return str(self.translationCache.get(lang, self.defaultText))
 
     def translate(self, **kwargs) -> str:
         res = str(self)
@@ -131,6 +135,7 @@ class TranslationExtension(jinja2.Extension):
         args = []
         kwargs = {}
         lineno = parser.stream.current.lineno
+        filename = parser.stream.filename
         print(f"{parser.stream.current = }")
         print(f"{parser.stream.current.type = }")
         # print(f"{parser.stream.current.value = }")
@@ -168,6 +173,16 @@ class TranslationExtension(jinja2.Extension):
         args += [""] * (3 - len(args))
         args += [kwargs]
         trKey = args[0].lower()
+        if trKey not in systemTranslations:
+            add_missing_translation(
+                key=trKey,
+                hint=args[1],
+                default_value=args[2],
+                filename=filename,
+                lineno=lineno,
+                variables=list(kwargs.keys()),
+            )
+
         trDict = systemTranslations.get(trKey, {})
         args = [jinja2.nodes.Const(x) for x in args]
         args.append(jinja2.nodes.Const(trDict))
@@ -190,56 +205,63 @@ def initializeTranslations() -> None:
         accumulate translations that are no longer/not yet used, we plan to made the translation-class fetch it's
         translations directly from the datastore, so we don't have to allocate memory for unused translations.
     """
-    global systemTranslations
+    # global systemTranslations
+    start = time.perf_counter()
+    # import viur_cli.deploy
+
 
     lang_to_alias_map = {}
 
-    pprint(f"{conf.i18n.language_alias_map = }")
-    for alias_lang, translation_lang in conf.i18n.language_alias_map.items():
-        lang_to_alias_map.setdefault(translation_lang, []).append(alias_lang)
+    # pprint(f"{conf.i18n.language_alias_map = }")
+    # for alias_lang, translation_lang in conf.i18n.language_alias_map.items():
+    #     lang_to_alias_map.setdefault(translation_lang, []).append(alias_lang)
 
     # Load translations from static languages module into systemTranslations
+    # If they're in the datastore, they will be overwritten below.
     for lang in dir(languages):
         if lang.startswith("__"):
             continue
-
         for tr_key, tr_value in getattr(languages, lang).items():
             systemTranslations.setdefault(tr_key, {})[lang] = tr_value
 
-            for alias in lang_to_alias_map.get(lang, []): #TODO: why not resolve this in translate?
-                systemTranslations[tr_key][alias] = tr_value
-
-    pprint("invertMap")
-    pprint(lang_to_alias_map)
-    s = time.perf_counter()
+    # pprint("invertMap")
+    # pprint(lang_to_alias_map)
     # Load translations from datastore into systemTranslations
-    for tr in db.Query("viur-translations").run(55555):
-        pprint(f"{tr = }")
-        if not tr.get("key"):
-            logging.error(f"translations entity {tr.key} has no key set")
+    # for tr in db.Query(KINDNAME).iter():
+    for tr in db.Query(KINDNAME).run(10_000):
+        # pprint(f"{tr = }")
+
+        if "tr_key" not in tr:
+            logging.error(f"translations entity {tr.key} has no tr_key set --> Call migration")
+            migrate_translation(tr.key)
+            # Before the migration has run do a quick modification to get it loaded as is
+            tr["tr_key"] = tr["key"] or tr.key.name
+        if not tr.get("tr_key"):
+            logging.error(f'translations entity {tr.key} has an empty {tr["tr_key"]=} set. Skipping.')
             continue
         if tr and not isinstance(tr["translations"], dict):
-            logging.error(f'translations entity {tr.key} has invalid translations set: {tr["translations"]}')
+            logging.error(f'translations entity {tr.key} has invalid translations set: {tr["translations"]}. Skipping.')
             continue
-        trDict = {}
+
+        tr_dict = {
+            "_default_value_": tr.get("default_value") or None,
+        }
         for lang, translation in tr["translations"].items():
             if lang not in conf.i18n.available_languages:
+                # Don't store unknown languages in the memory
                 continue
-            trDict[lang] = translation
-            for alias in lang_to_alias_map.get(lang, []): # TODO: keep real accent translations?!
-                trDict[alias] = translation
+            tr_dict[lang] = translation
+        # pprint("tr_dict")
+        # pprint(tr_dict)
+        # pprint(list(tr_dict.items())[:3])
+        systemTranslations[tr["tr_key"].lower()] = tr_dict
 
-        pprint("trDict")
-        pprint(trDict)
-        # pprint(list(trDict.items())[:3])
-        systemTranslations[tr["key"].lower()] = trDict
-
-    e = time.perf_counter()
-    print(f"time: {e - s}s")
+    end = time.perf_counter()
+    print(f"time: {end - start}s")
 
     pprint("systemTranslations")
     # pprint(systemTranslations)
-    pprint(list(systemTranslations.items())[:5])
+    # pprint(list(systemTranslations.items())[:5])
     # """
     current.language.set("de")
     print(f'{translate("yemen") = !s}')
@@ -251,6 +273,65 @@ def initializeTranslations() -> None:
     print(f'{translate("filter_amountresults").translate(current=7, total=42) = !s}')
     print(f'{translate("filter_amountresults")(current=7, total=42) = !s}')
     # """
+
+
+# @tasks.CallDeferred
+# @tasks.retry_n_times(20)
+def add_missing_translation(
+    key: str,
+    hint:str | None,
+    default_value: str |None,
+    filename: str | None,
+    lineno: int | None,
+    variables: list[str],
+) -> None:
+    from viur.core.modules.translation import TranslationSkel
+    from viur.core.modules.translation import Creator
+
+    logging.info(f"Add missing translation {key}")
+    skel = TranslationSkel()
+    skel["tr_key"] = key
+    skel["default_value"] = default_value
+    skel["hint"] = hint
+    skel["usage_filename"] = filename
+    skel["usage_lineno"] = lineno
+    skel["usage_variables"] = variables
+    skel["creator"] = Creator.VIUR
+    skel.toDB()
+
+
+@tasks.CallDeferred
+@tasks.retry_n_times(20)
+def migrate_translation(
+    key: db.Key,
+) -> None:
+    from viur.core.modules.translation import TranslationSkel
+
+    logging.info(f"Migrate translation {key}")
+    entity : db.Entity = db.Get(key)
+    logging.debug(f"Source: {entity}")
+    if "tr_key" not in entity:
+        entity["tr_key"] = entity["key"] or key.name
+    if "translation" in entity:
+        if not isinstance(dict, entity["translation"]):
+            logging.error("translation is not a dict?")
+        entity["translation"]["_viurLanguageWrapper_"] = True
+    skel = TranslationSkel()
+    skel.setEntity(entity)
+    skel["key"] = key
+    logging.debug(f"Write: {skel}")
+    try:
+        skel.toDB()
+    except ValueError as exc:
+        logging.exception(exc)
+        if "unique value" in exc.args[0] and "recently claimed" in exc.args[0]:
+            logging.info(f"Delete duplicate entry {key}: {entity}")
+            db.Delete(key)
+        else:
+            raise exc
+
+
+
 
 
 
@@ -330,14 +411,4 @@ def localizedStrfTime(datetimeObj: datetime.datetime, format: str) -> str:
     if "%B" in format:
         format = format.replace("%B", str(localizedMonthNames[int(datetimeObj.strftime("%m"))]))
     return datetimeObj.strftime(format)
-
-"""
-current.language.set("de")
-print(f'{translate("yemen") = !s}')
-print(f'{translate("CONTACT_FORM") = !s}')
-print(f'{translate("contact_form") = !s}')
-print(f'{translate("filter_amountresults") = !s}')
-print(f'{translate("filter_amountresults").translate() = !s}')
-print(f'{translate("filter_amountresults").translate() = !s}')
-# """
 
