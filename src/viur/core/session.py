@@ -117,7 +117,7 @@ class Session:
             "Path=/",
             "HttpOnly",
             f"SameSite={self.same_site}" if self.same_site else None,
-            "Secure" if not conf.instance.is_dev_server else None,
+            "Secure",
             f"Max-Age={conf.user.session_life_time}" if not self.use_session_cookie else None,
         )
 

@@ -226,4 +226,4 @@ class DefaultRender(object):
         for rn in rootNodes:
             rn["key"] = db.encodeKey(rn["key"])
 
-        return json.dumps(rootNodes)
+        return json.dumps(rootNodes, cls=CustomJsonEncoder)

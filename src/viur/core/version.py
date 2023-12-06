@@ -3,7 +3,7 @@
 # This will mark it as a pre-release as well on PyPI.
 # See CONTRIBUTING.md for further information.
 
-__version__ = "3.5.4"
+__version__ = "3.6.0.dev2"
 
 assert __version__.count(".") >= 2 and "".join(__version__.split(".", 3)[:3]).isdigit(), \
     "Semantic __version__ expected!"

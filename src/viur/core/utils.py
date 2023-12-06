@@ -1,5 +1,7 @@
 import hashlib
 import hmac
+import warnings
+
 import logging
 import secrets
 import string
@@ -11,6 +13,7 @@ from urllib.parse import quote
 
 from viur.core import current, db
 from viur.core.config import conf
+
 
 
 def utcNow() -> datetime:
@@ -67,30 +70,37 @@ def markFileForDeletion(dlkey: str) -> None:
     db.Put(fileObj)
 
 
-def escapeString(val: str, maxLength: int = 254) -> str:
+def escapeString(val: str, max_length: int = 254, **kwargs) -> str:
     """
         Quotes several characters and removes "\\\\n" and "\\\\0" to prevent XSS injection.
 
         :param val: The value to be escaped.
-        :param maxLength: Cut-off after maxLength characters. A value of 0 means "unlimited".
+        :param max_length: Cut-off after max_length characters. A value of 0 means "unlimited".
         :returns: The quoted string.
     """
-    val = str(val).strip() \
-        .replace("<", "&lt;") \
-        .replace(">", "&gt;") \
-        .replace("\"", "&quot;") \
-        .replace("'", "&#39;") \
-        .replace("(", "&#040;") \
-        .replace(")", "&#041;") \
-        .replace("=", "&#061;") \
-        .replace("\n", "") \
-        .replace("\0", "")
+    # fixme: Remove in viur-core >= 4
+    if "maxLength" in kwargs:
+        warnings.warn("maxLength parameter is deprecated, please use max_length", DeprecationWarning)
+        max_length = kwargs.pop("maxLength")
 
-    if maxLength:
-        return val[0:maxLength]
+    val = str(val).strip().translate(escapeString.__escape_trans)
+
+    if max_length:
+        return val[:max_length]
 
     return val
 
+
+escapeString.__escape_trans = str.maketrans(
+    {"<": "&lt;",
+     ">": "&gt;",
+     "\"": "&quot;",
+     "'": "&#39;",
+     "(": "&#040;",
+     ")": "&#041;",
+     "=": "&#061;",
+     "\n": "",
+     "\0": ""})
 
 def hmacSign(data: Any) -> str:
     assert conf.file_hmac_key is not None, "No hmac-key set!"

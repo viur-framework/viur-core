@@ -158,7 +158,7 @@ def get_settings():
     fields["admin.user.google.clientID"] = conf.user.google_client_id
 
     current.request.get().response.headers["Content-Type"] = "application/json"
-    return json.dumps(fields)
+    return json.dumps(fields, cls=CustomJsonEncoder)
 
 
 def _postProcessAppObj(obj):
