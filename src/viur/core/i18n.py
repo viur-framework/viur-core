@@ -1,21 +1,22 @@
 """
 This module provides translation, also known as internationalization -- short: i18n.
 
-Project translations has to be stored in the datastore. There are only some
-static translation tables in the viur-core to have some basics ones.
+Project translations must be stored in the datastore. There are only some
+static translation tables in the viur-core to have some basic ones.
 
-The viur-core own module "translation" (routed as _translation) provides an API
-to manage these translation, for example in the vi-admin.
+The viur-core's own "translation" module (routed as _translation) provides
+an API to manage these translations, for example in the vi-admin.
 
 How to use translations?
-First, make sure the languages are configured:
+First, make sure that the languages are configured:
 .. code-block:: python
     from viur.core.config import conf
-    # These are the main languages (for which can translated values exits)
-    # which should be available for the project
+    # These are the main languages (for which translated values exist)
+    # that should be available for the project.
     conf.i18n.available_languages = = ["en", "de", "fr"]
-    # These are some aliases for languages which should use the translated
-    # values of a specific main langauges, but don't have own values.
+
+    # These are some aliases for languages that should use the translated
+    # values of a particular main language, but don't have their own values.
     conf.i18n.language_alias_map = {
         "at": "de",  # Austria uses German
         "ch": "de",  # Switzerland uses German
@@ -28,47 +29,49 @@ Now translations can be used
 1. In python
 .. code-block:: python
     from viur.core.i18n import translate
-    # Just a key, the minimal cases
+    # Just the translation key, the minimal case
     print(translate("translation-key"))
-    # provide also a default values, which will be used if there isn't a value
-    # in the datastore set and a hint to provide some context.
+    # also provide a default value to use if there's no value in the datastore
+    # set and a hint to provide some context.
     print(translate("translation-key", "the default value", "a hint"))
     # Use string interpolation with variables
-    print(translate("hello", "Hello {{name}}!", "greet a user")(name=current.user.get()["firstname"]))
+    print(translate("hello", "Hello {{name}}!", "greeting a user")(name=current.user.get()["firstname"]))
 
 2. In jinja
 .. code-block:: jinja
-    {# Use the ViUR translate extension, it can be compiled with the template,
-       caches the translation values and is therefor efficient #}
+    {# Use the ViUR translation extension, it can be compiled with the template,
+       caches the translation values and is therefore efficient #}
     {% do translate "hello", "Hello {{name}}!", "greet a user", name="ViUR" %}
 
-    {# But in some cases the key or interpolation-variables are dynamically
-       and aren't available during template compilation.
-       For this you can use the translate function: #}
+   {# But in some cases the key or interpolation variables are dynamic and
+      not available during template compilation.
+      For this you can use the translate function: #}
     {{ translate("hello", "Hello {{name}}!", "greet a user", name=skel["firstname"]) }}
 
 
-How to add translation
-There are two ways how translations can be added:
+How to add translations
+There are two ways to add translations:
 1. Manually
-With the vi-admin. Entries can be added manuell by creating a new skeleton and
-filling out the key and values.
+With the vi-admin. Entries can be added manually by creating a new skeleton
+and filling in of the key and values.
+
 2. Automatically
-This requires the enabled option add_missing_translations
+The add_missing_translations option must be enabled for this.
 .. code-block:: python
 
     from viur.core.config import conf
     conf.i18n.add_missing_translations = True
 
-Now when an translation is printed and the key is unknown (because some just
-added the output) an entry will be added to the datastore kind. Additionally
-the defaultValue and hint will be filled out and the filename and lineno of
-the place of usage in the code will be set in the Skeleton too.
-That's the recommended way, because ViUR will collect all the information you
-need and you have only to enter the translated values.
-(3. Own way
-Of course you can add Skeletons / entries to the datastore in your project
-by your own. Just use the TranslateSkel.)
+
+If a translation is now printed and the key is unknown (because someone has
+just added the related print code), an entry is added in the datastore kind.
+In addition, the default text and the hint are filled in and the filename
+and the line from the call from the code are set in the skeleton.
+This is the recommended way, as ViUR collects all the information you need
+and you only have to enter the translated values.
+(3. own way
+Of course you can create skeletons / entries in the datastore in your project
+on your own. Just use the TranslateSkel).
 """
 # FIXME: grammar, rst syntax
 
