@@ -495,7 +495,7 @@ class I18N(ConfigType):
     language_module_map: dict[str, dict[str, str]] = {}
     """Maps modules to their translation (if set)"""
 
-    add_missing_translations : bool = False
+    add_missing_translations: bool = False
     """Add missing translation into datastore.
 
     If a key is not found in the translation table when a translation is
