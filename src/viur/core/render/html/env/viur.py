@@ -22,6 +22,10 @@ from ..default import Render
 
 @jinjaGlobalFunction
 def translate(render: Render, key: str, default_text: str = None, hint: str = None, **kwargs) -> str:
+    """Jinja function for translations
+
+    See also :class:`core.i18n.TranslationExtension`.
+    """
     return translationClass(key, default_text, hint)(**kwargs)
 
 

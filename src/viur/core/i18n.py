@@ -34,7 +34,7 @@ Now translations can be used
     # in the datastore set and a hint to provide some context.
     print(translate("translation-key", "the default value", "a hint"))
     # Use string interpolation with variables
-    print(translate("hello", "Hello {{name}}!", "greet a user", name=current.user.get()["firstname"]))
+    print(translate("hello", "Hello {{name}}!", "greet a user")(name=current.user.get()["firstname"]))
 
 2. In jinja
 .. code-block:: jinja
@@ -66,14 +66,17 @@ the defaultValue and hint will be filled out and the filename and lineno of
 the place of usage in the code will be set in the Skeleton too.
 That's the recommended way, because ViUR will collect all the information you
 need and you have only to enter the translated values.
+(3. Own way
+Of course you can add Skeletons / entries to the datastore in your project
+by your own. Just use the TranslateSkel.)
 """
 # FIXME: grammar, rst syntax
 
 
 import datetime
 import logging
-from pprint import pprint
-from typing import List, Tuple, Union
+import traceback
+import typing as t
 
 import jinja2.ext as jinja2
 import time
@@ -90,13 +93,18 @@ KINDNAME = "viur-translations"
 
 class LanguageWrapper(dict):
     """
-        Wrapper-class for a multi-language value.
-        It's a dictionary, allowing accessing each stored language,
-        but can also be used as a string, in which case it tries to
-        guess the correct language.
+    Wrapper-class for a multi-language value.
+
+    It's a dictionary, allowing accessing each stored language,
+    but can also be used as a string, in which case it tries to
+    guess the correct language.
+    Used by the HTML renderer to provide multi-lang bones values for templates.
     """
 
-    def __init__(self, languages: Union[List[str], Tuple[str]]):
+    def __init__(self, languages: list[str] | tuple[str]):
+        """
+        :param languages: Languages which are set in the bone.
+        """
         super(LanguageWrapper, self).__init__()
         self.languages = languages
 
@@ -108,51 +116,55 @@ class LanguageWrapper(dict):
         # (otherwise that test is always true as this dict contains keys)
         return bool(str(self))
 
-    def resolve(self) -> Union[str, List[str]]:
+    def resolve(self) -> str:
         """
-            Causes this wrapper to evaluate to the best language available for the current request.
+        Causes this wrapper to evaluate to the best language available for the current request.
 
-            :returns: A item stored inside this instance or the empty string.
+        :returns: An item stored inside this instance or the empty string.
         """
         lang = current.language.get()
-        if not lang:
+        if lang:
+            lang = conf.i18n.language_alias_map.get(lang, lang)
+        else:
             logging.warning(f"No lang set to current! {lang = }")
             lang = self.languages[0]
-        else:
-            lang = conf.i18n.language_alias_map.get(lang, lang)
-        if (value := self.get(lang)) and str(value).strip():  # The users language is available :)
+        if (value := self.get(lang)) and str(value).strip():
+            # The site language is available and not empty
             return value
-        else:  # We need to select another lang for him
+        else:  # Choose the first not-empty value as alternative
             for lang in self.languages:
                 if (value := self.get(lang)) and str(value).strip():
                     return value
-        return ""
+        return ""  # TODO: maybe we should better use sth like None or N/A
 
 
 class translate:
     """
-        This class is the replacement for the old translate() function provided by ViUR2.  This classes __init__
-        takes the unique translation key (a string usually something like "user.auth_user_password.loginfailed" which
-        uniquely defines this text fragment), a default text that will be used if no translation for this key has been
-        added yet (in the projects default language) and a hint (an optional text that can convey context information
-        for the persons translating these texts - they are not shown to the end-user). This class will resolve it's
-        translations upfront, so the actual resolving (by casting this class to string) is fast. This resolves most
-        translation issues with bones, which can now take an instance of this class as it's description/hints.
+    Translate class which chooses the correct translation according to the request language
+
+    This class is the replacement for the old translate() function provided by ViUR2.  This classes __init__
+    takes the unique translation key (a string usually something like "user.auth_user_password.loginfailed" which
+    uniquely defines this text fragment), a default text that will be used if no translation for this key has been
+    added yet (in the projects default language) and a hint (an optional text that can convey context information
+    for the persons translating these texts - they are not shown to the end-user). This class will resolve its
+    translations upfront, so the actual resolving (by casting this class to string) is fast. This resolves most
+    translation issues with bones, which can now take an instance of this class as it's description/hints.
     """
 
     __slots__ = ["key", "defaultText", "hint", "translationCache"]
 
     def __init__(self, key: str, defaultText: str = None, hint: str = None):
         """
-        :param key: The unique key defining this text fragment. Usually it's path/filename and a uniqe descriptor
-            in that file
-        :param defaultText:  The text to use if no translation has been added yet. While optional, it's recommended
-            to set this, as we use the key instead if neither are available.
-        :param hint: A text only shown to the person translating this text, as the key/defaultText may have different
-            meanings in the target language.
+        :param key: The unique key defining this text fragment.
+            Usually it's a path/filename and a unique descriptor in that file
+        :param defaultText: The text to use if no translation has been added yet.
+            While optional, it's recommended to set this, as the key is used
+             instead if neither are available.
+        :param hint: A text only shown to the person translating this text,
+            as the key/defaultText may have different meanings in the
+            target language.
         """
-        super(translate, self).__init__()
-
+        super().__init__()
         key = str(key)  # ensure key is a str
         self.key = key.lower()
         self.defaultText = defaultText or key
@@ -160,60 +172,35 @@ class translate:
         self.translationCache = None
 
     def __repr__(self) -> str:
-        return "<translate object for %s>" % self.key
+        return f"<translate object for {self.key}>"
 
     def __str__(self) -> str:
         if self.translationCache is None:
             global systemTranslations
 
-            import traceback
-            traceback.print_stack()
-            pprint(traceback.extract_stack())
-
-            # for frame, line in traceback.walk_stack(None):
-            #     print(f"{line=} // {frame=} // {frame.f_code} // {repr(frame)}")
-            #     pprint({k: repr(getattr(frame, k))[:150] for k in dir(frame)})
-            #     pprint({k: repr(getattr(frame.f_code, k))[:150] for k in dir(frame.f_code)})
-
-            # import traceback
-            # traceback.print_stack()
-            # print(traceback.extract_stack())
-
             from viur.core.render.html.env.viur import translate as jinja_translate
 
-            lineno = filename = None
+            if self.key not in systemTranslations and conf.i18n.add_missing_translations:
+                # This translation seems to be new and should be added
+                filename = lineno = None
+                is_jinja = False
+                for frame, line in traceback.walk_stack(None):
+                    if filename is None:
+                        # Use the first frame as fallback.
+                        # In case of calling this class directly,
+                        # this is anyway the caller we're looking for.
+                        filename = frame.f_code.co_filename
+                        lineno = frame.f_lineno
+                    if frame.f_code == jinja_translate.__code__:
+                        # The call was caused by our jinja method
+                        is_jinja = True
+                    if is_jinja and not frame.f_code.co_filename.endswith(".py"):
+                        # Look for the latest html, macro (not py) where the
+                        # translate method has been used, that's our caller
+                        filename = frame.f_code.co_filename
+                        lineno = line
+                        break
 
-            first = None
-            is_jinja = False
-            for frame, line in traceback.walk_stack(None):
-                if first is None:
-                    first = frame
-                print(f"{line=} // {frame=} // {frame.f_code.co_name=} // {frame=}")
-                if is_jinja and not frame.f_code.co_filename.endswith(".py"):
-                    pprint({k: repr(getattr(frame, k))[:150] for k in dir(frame)})
-                    pprint({k: repr(getattr(frame.f_code, k))[:150] for k in dir(frame.f_code)})
-                    filename = frame.f_code.co_filename
-                    lineno = line
-                    break
-
-                # if frame.f_code.co_filename.endswith("/render/html/env/viur.py") and frame.f_code.co_name == "translate":
-                if frame.f_code == jinja_translate.__code__:
-                    print("IS JINJA")
-                    is_jinja = True
-                    pprint({k: repr(getattr(frame, k))[:150] for k in dir(frame)})
-                    pprint({k: repr(getattr(frame.f_code, k))[:150] for k in dir(frame.f_code)})
-
-                print(f"{frame.f_code == jinja_translate.__code__ = }")
-                print(f"{frame.f_code is jinja_translate.__code__ = }")
-                print(f"{frame.f_code.co_code == jinja_translate.__code__ = }")
-                print(f"{is_jinja = }")
-                # print(f"{frame.f_code.co_code == jinja_translate}")
-
-            if not is_jinja:
-                lineno = first.f_lineno
-                first = first.f_code.co_filename
-
-            if self.key not in systemTranslations:
                 add_missing_translation(
                     key=self.key,
                     hint=self.hint,
@@ -227,30 +214,30 @@ class translate:
         lang = current.language.get()
         lang = conf.i18n.language_alias_map.get(lang, lang)
 
-        print(f'{self.translationCache = } // {self.key = } // {self.defaultText = } // {self.hint = } // {lang = }')
-
-        if not (value := self.translationCache.get(lang)):
+        if value := self.translationCache.get(lang):
+            return value
+        else:  # Use the default text from datastore or from the caller arguments
             return self.translationCache.get("_default_text_") or self.defaultText
 
-        return str(self.translationCache.get(lang, self.defaultText))
-
     def translate(self, **kwargs) -> str:
+        """Substitute the given kwargs in the translated or default text."""
         res = str(self)
         for k, v in kwargs.items():
             res = res.replace("{{%s}}" % k, str(v))
         return res
 
     def __call__(self, **kwargs):
+        """Just an alias for translate"""
         return self.translate(**kwargs)
 
 
 class TranslationExtension(jinja2.Extension):
     """
-        Default translation extension for jinja2 render.
-        Use like {% translate "translationKey", "defaultText", "translationHint", replaceValue1="replacedText1" %}
-        All except translationKey is optional. translationKey is the same Key supplied to _() before.
-        defaultText will be printed if no translation is available.
-        translationHint is a optional hint for anyone adding a now translation how/where that translation is used.
+    Default translation extension for jinja2 render.
+    Use like {% translate "translationKey", "defaultText", "translationHint", replaceValue1="replacedText1" %}
+    All except translationKey is optional. translationKey is the same Key supplied to _() before.
+    defaultText will be printed if no translation is available.
+    translationHint is an optional hint for anyone adding a now translation how/where that translation is used.
     """
 
     tags = {"translate"}
@@ -262,26 +249,17 @@ class TranslationExtension(jinja2.Extension):
         kwargs = {}
         lineno = parser.stream.current.lineno
         filename = parser.stream.filename
-        print(f"{parser.stream.current = }")
-        print(f"{parser.stream.current.type = }")
-        # print(f"{parser.stream.current.value = }")
-        print(f"{parser.stream = }")
-        print(f"{parser.stream.filename= }")
         # Parse arguments (args and kwargs) until the current block ends
         lastToken = None
         while parser.stream.current.type != 'block_end':
-            print("while loop")
             lastToken = parser.parse_expression()
-            print(f"{lastToken = }")
-            print(f"{parser.stream.current = }")
-            if parser.stream.current.type == "comma":  # It's an arg
+            if parser.stream.current.type == "comma":  # It's a positional arg
                 args.append(lastToken.value)
                 next(parser.stream)  # Advance pointer
                 lastToken = None
             elif parser.stream.current.type == "assign":
                 next(parser.stream)  # Advance beyond =
                 expr = parser.parse_expression()
-                print(f"{expr = }")
                 kwargs[lastToken.name] = expr.value
                 if parser.stream.current.type == "comma":
                     next(parser.stream)
@@ -292,16 +270,16 @@ class TranslationExtension(jinja2.Extension):
                     raise SyntaxError()
                 lastToken = None
         if lastToken:  # TODO: what's this? what it is doing?
-            print(f"final {lastToken = }")
+            print(f"final append {lastToken = }")
             args.append(lastToken.value)
         if not 0 < len(args) <= 3:
             raise SyntaxError("Translation-Key missing or excess parameters!")
         args += [""] * (3 - len(args))
         args += [kwargs]
-        trKey = args[0].lower()
-        if trKey not in systemTranslations:
+        tr_key = args[0].lower()
+        if tr_key not in systemTranslations:
             add_missing_translation(
-                key=trKey,
+                key=tr_key,
                 hint=args[1],
                 default_text=args[2],
                 filename=filename,
@@ -309,16 +287,20 @@ class TranslationExtension(jinja2.Extension):
                 variables=list(kwargs.keys()),
             )
 
-        trDict = systemTranslations.get(trKey, {})
+        translations = systemTranslations.get(tr_key, {})
         args = [jinja2.nodes.Const(x) for x in args]
-        args.append(jinja2.nodes.Const(trDict))
+        args.append(jinja2.nodes.Const(translations))
         return jinja2.nodes.CallBlock(self.call_method("_translate", args), [], [], []).set_lineno(lineno)
 
-    def _translate(self, key, defaultText, hint, kwargs, trDict, caller) -> str:
+    def _translate(
+        self, key: str, default_text: str, hint: str, kwargs: dict[str, t.Any],
+        translations: dict[str, str], caller
+    ) -> str:
         """Perform the actual translation during render"""
-        lng = current.language.get()
-        lng = conf.i18n.language_alias_map.get(lng, lng)
-        res = str(trDict.get(lng, defaultText))
+        lang = current.language.get()
+        lang = conf.i18n.language_alias_map.get(lang, lang)
+        default_text = translations.get("_default_text_") or default_text
+        res = str(translations.get(lang, default_text))
         for k, v in kwargs.items():
             res = res.replace("{{%s}}" % k, str(v))
         return res
@@ -331,15 +313,7 @@ def initializeTranslations() -> None:
         accumulate translations that are no longer/not yet used, we plan to made the translation-class fetch it's
         translations directly from the datastore, so we don't have to allocate memory for unused translations.
     """
-    # global systemTranslations
     start = time.perf_counter()
-    # import viur_cli.deploy
-
-    lang_to_alias_map = {}
-
-    # pprint(f"{conf.i18n.language_alias_map = }")
-    # for alias_lang, translation_lang in conf.i18n.language_alias_map.items():
-    #     lang_to_alias_map.setdefault(translation_lang, []).append(alias_lang)
 
     # Load translations from static languages module into systemTranslations
     # If they're in the datastore, they will be overwritten below.
@@ -349,55 +323,35 @@ def initializeTranslations() -> None:
         for tr_key, tr_value in getattr(languages, lang).items():
             systemTranslations.setdefault(tr_key, {})[lang] = tr_value
 
-    # pprint("invertMap")
-    # pprint(lang_to_alias_map)
     # Load translations from datastore into systemTranslations
-    # for tr in db.Query(KINDNAME).iter():
-    for tr in db.Query(KINDNAME).run(10_000):
-        # pprint(f"{tr = }")
-
-        if "tr_key" not in tr:
-            logging.error(f"translations entity {tr.key} has no tr_key set --> Call migration")
-            migrate_translation(tr.key)
+    # TODO: iter() would be more memory efficient, but unfortunately takes much longer than run()
+    # for entity in db.Query(KINDNAME).iter():
+    for entity in db.Query(KINDNAME).run(10_000):
+        if "tr_key" not in entity:
+            logging.error(f"translations entity {entity.key} has no tr_key set --> Call migration")
+            migrate_translation(entity.key)
             # Before the migration has run do a quick modification to get it loaded as is
-            tr["tr_key"] = tr["key"] or tr.key.name
-        if not tr.get("tr_key"):
-            logging.error(f'translations entity {tr.key} has an empty {tr["tr_key"]=} set. Skipping.')
+            entity["tr_key"] = entity["key"] or entity.key.name
+        if not entity.get("tr_key"):
+            logging.error(f'translations entity {entity.key} has an empty {entity["tr_key"]=} set. Skipping.')
             continue
-        if tr and not isinstance(tr["translations"], dict):
-            logging.error(f'translations entity {tr.key} has invalid translations set: {tr["translations"]}. Skipping.')
+        if entity and not isinstance(entity["translations"], dict):
+            logging.error(f'translations entity {entity.key} has invalid '
+                          f'translations set: {entity["translations"]}. Skipping.')
             continue
 
-        tr_dict = {
-            "_default_text_": tr.get("default_text") or None,
+        translations = {
+            "_default_text_": entity.get("default_text") or None,
         }
-        for lang, translation in tr["translations"].items():
+        for lang, translation in entity["translations"].items():
             if lang not in conf.i18n.available_languages:
                 # Don't store unknown languages in the memory
                 continue
-            tr_dict[lang] = translation
-        # pprint("tr_dict")
-        # pprint(tr_dict)
-        # pprint(list(tr_dict.items())[:3])
-        systemTranslations[tr["tr_key"].lower()] = tr_dict
+            translations[lang] = translation
+        systemTranslations[entity["tr_key"]] = translations
 
     end = time.perf_counter()
-    print(f"time: {end - start}s")
-
-    pprint("systemTranslations")
-    # pprint(systemTranslations)
-    # pprint(list(systemTranslations.items())[:5])
-    # """
-    current.language.set("de")
-    print(f'{translate("yemen") = !s}')
-    print(f'{translate("CONTACT_FORM") = !s}')
-    print(f'{translate("contact_form") = !s}')
-    print(f'{translate("filter_amountresults") = !s}')
-    print(f'{translate("filter_amountresults").translate() = !s}')
-    print(f'{translate("filter_amountresults").translate(current=7) = !s}')
-    print(f'{translate("filter_amountresults").translate(current=7, total=42) = !s}')
-    print(f'{translate("filter_amountresults")(current=7, total=42) = !s}')
-    # """
+    print(f"time: {end - start}s")  # TODO: remove me
 
 
 @tasks.CallDeferred
@@ -408,13 +362,13 @@ def add_missing_translation(
     default_text: str | None = None,
     filename: str | None = None,
     lineno: int | None = None,
-    variables: list[str] = [],
+    variables: list[str] = None,
 ) -> None:
-    from viur.core.modules.translation import TranslationSkel
-    from viur.core.modules.translation import Creator
-
+    """Add missing translations to datastore"""
+    from viur.core.modules.translation import TranslationSkel, Creator
     entity = db.Query(KINDNAME).filter("tr_key =", key).getEntry()
     if entity is not None:
+        # Ensure it doesn't exist to avoid datastore conflicts
         logging.warning(f"Found an entity with tr_key={key}. "
                         f"Probably an other instance was faster.")
         return
@@ -426,7 +380,7 @@ def add_missing_translation(
     skel["hint"] = hint
     skel["usage_filename"] = filename
     skel["usage_lineno"] = lineno
-    skel["usage_variables"] = variables
+    skel["usage_variables"] = variables or []
     skel["creator"] = Creator.VIUR
     skel.toDB()
 
@@ -436,11 +390,14 @@ def add_missing_translation(
 def migrate_translation(
     key: db.Key,
 ) -> None:
-    from viur.core.modules.translation import TranslationSkel
+    """Migrate entities in the required.
 
+    With viur-core 3.6 translations are now managed as Skeletons and require
+    some changes, which are performed in this method.
+    """
+    from viur.core.modules.translation import TranslationSkel
     logging.info(f"Migrate translation {key}")
     entity: db.Entity = db.Get(key)
-    logging.debug(f"Source: {entity}")
     if "tr_key" not in entity:
         entity["tr_key"] = entity["key"] or key.name
     if "translation" in entity:
@@ -450,7 +407,6 @@ def migrate_translation(
     skel = TranslationSkel()
     skel.setEntity(entity)
     skel["key"] = key
-    logging.debug(f"Write: {skel}")
     try:
         skel.toDB()
     except ValueError as exc:
