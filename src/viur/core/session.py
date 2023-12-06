@@ -108,7 +108,7 @@ class Session:
         dbSession["static_security_key"] = self.static_security_key
         dbSession["lastseen"] = time.time()
         dbSession["user"] = str(user_key)  # allow filtering for users
-        dbSession.exclude_from_indexes = ["data"]
+        dbSession.exclude_from_indexes = {"data"}
 
         db.Put(dbSession)
 
