@@ -22,10 +22,7 @@ from ..default import Render
 
 @jinjaGlobalFunction
 def translate(render: Render, key: str, **kwargs) -> str:
-    res = str(translationClass(key))
-    for k, v in kwargs.items():
-        res = res.replace("{{%s}}" % k, str(v))
-    return res
+    return translationClass(key)(**kwargs)
 
 
 @jinjaGlobalFunction

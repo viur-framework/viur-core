@@ -1,10 +1,15 @@
 import datetime
+import logging
+import time
+
 import jinja2.ext as jinja2
 from typing import List, Tuple, Union
 from viur.core.config import conf
 from viur.core import db, utils, languages, current
-
+from pprint import pprint
 systemTranslations = {}
+
+# pprint = lambda *args, **kwargs: None
 
 
 class LanguageWrapper(dict):
@@ -35,16 +40,16 @@ class LanguageWrapper(dict):
         """
         lang = current.language.get()
         if not lang:
+            logging.warning(f"No lang set to current! {lang = }")
             lang = self.languages[0]
         else:
-            if lang in conf.i18n.language_alias_map:
-                lang = conf.i18n.language_alias_map[lang]
-        if lang in self and self[lang] is not None and str(self[lang]).strip():  # The users language is available :)
-            return self[lang]
+            lang = conf.i18n.language_alias_map.get(lang, lang)
+        if (value := self.get(lang)) and str(value).strip():  # The users language is available :)
+            return value
         else:  # We need to select another lang for him
             for lang in self.languages:
-                if lang in self and self[lang]:
-                    return self[lang]
+                if (value := self.get(lang)) and str(value).strip():
+                    return value
         return ""
 
 
@@ -88,23 +93,25 @@ class translate:
 
         try:
             lang = current.language.get()
-        except:
+        except Exception:
+            # FIXME: when should this happen? we have a default value!
+            logging.warning("Current has no lang", exc_info=True)
             return self.defaultText
 
-        if lang in conf.i18n.language_alias_map:
-            lang = conf.i18n.language_alias_map[lang]
+        lang = conf.i18n.language_alias_map.get(lang, lang)
 
-        if lang not in self.translationCache:
-            return self.defaultText
+        # print(f'{self.translationCache = } // {self.key = } // {lang = }')
 
-        trStr = self.translationCache.get(lang, "")
-        return trStr
+        return self.translationCache.get(lang, self.defaultText)
 
     def translate(self, **kwargs) -> str:
         res = str(self)
         for k, v in kwargs.items():
             res = res.replace("{{%s}}" % k, str(v))
         return res
+
+    def __call__(self, *args, **kwargs):
+        return self.translate(*args, **kwargs)
 
 
 class TranslationExtension(jinja2.Extension):
@@ -124,10 +131,18 @@ class TranslationExtension(jinja2.Extension):
         args = []
         kwargs = {}
         lineno = parser.stream.current.lineno
+        print(f"{parser.stream.current = }")
+        print(f"{parser.stream.current.type = }")
+        # print(f"{parser.stream.current.value = }")
+        print(f"{parser.stream = }")
+        print(f"{parser.stream.filename= }")
         # Parse arguments (args and kwargs) until the current block ends
         lastToken = None
         while parser.stream.current.type != 'block_end':
+            print("while loop")
             lastToken = parser.parse_expression()
+            print(f"{lastToken = }")
+            print(f"{parser.stream.current = }")
             if parser.stream.current.type == "comma":  # It's an arg
                 args.append(lastToken.value)
                 next(parser.stream)  # Advance pointer
@@ -135,32 +150,37 @@ class TranslationExtension(jinja2.Extension):
             elif parser.stream.current.type == "assign":
                 next(parser.stream)  # Advance beyond =
                 expr = parser.parse_expression()
+                print(f"{expr = }")
                 kwargs[lastToken.name] = expr.value
                 if parser.stream.current.type == "comma":
                     next(parser.stream)
                 elif parser.stream.current.type == "block_end":
+                    lastToken = None
                     break
                 else:
                     raise SyntaxError()
                 lastToken = None
-        if lastToken:
+        if lastToken:  #TODO: what's this? what it is doing?
+            print(f"final {lastToken = }")
             args.append(lastToken.value)
         if not 0 < len(args) <= 3:
             raise SyntaxError("Translation-Key missing or excess parameters!")
         args += [""] * (3 - len(args))
         args += [kwargs]
-        trKey = args[0]
+        trKey = args[0].lower()
         trDict = systemTranslations.get(trKey, {})
         args = [jinja2.nodes.Const(x) for x in args]
         args.append(jinja2.nodes.Const(trDict))
         return jinja2.nodes.CallBlock(self.call_method("_translate", args), [], [], []).set_lineno(lineno)
 
     def _translate(self, key, defaultText, hint, kwargs, trDict, caller) -> str:
-        # Perform the actual translation during render
+        """Perform the actual translation during render"""
         lng = current.language.get()
-        if lng in trDict:
-            return trDict[lng].format(kwargs)
-        return str(defaultText).format(kwargs)
+        lng = conf.i18n.language_alias_map.get(lng, lng)
+        res = str(trDict.get(lng, defaultText))
+        for k, v in kwargs.items():
+            res = res.replace("{{%s}}" % k, str(v))
+        return res
 
 
 def initializeTranslations() -> None:
@@ -172,38 +192,66 @@ def initializeTranslations() -> None:
     """
     global systemTranslations
 
-    invertMap = {}
+    lang_to_alias_map = {}
 
-    for srcLang, dstLang in conf.i18n.language_alias_map.items():
-        if dstLang not in invertMap:
-            invertMap[dstLang] = []
-        invertMap[dstLang].append(srcLang)
+    pprint(f"{conf.i18n.language_alias_map = }")
+    for alias_lang, translation_lang in conf.i18n.language_alias_map.items():
+        lang_to_alias_map.setdefault(translation_lang, []).append(alias_lang)
 
     # Load translations from static languages module into systemTranslations
     for lang in dir(languages):
         if lang.startswith("__"):
             continue
 
-        for k, v in getattr(languages, lang).items():
-            if k not in systemTranslations:
-                systemTranslations[k] = {}
+        for tr_key, tr_value in getattr(languages, lang).items():
+            systemTranslations.setdefault(tr_key, {})[lang] = tr_value
 
-            systemTranslations[k][lang] = v
+            for alias in lang_to_alias_map.get(lang, []): #TODO: why not resolve this in translate?
+                systemTranslations[tr_key][alias] = tr_value
 
-            if lang in invertMap:
-                for i in invertMap[lang]:
-                    systemTranslations[k][i] = v
-
+    pprint("invertMap")
+    pprint(lang_to_alias_map)
+    s = time.perf_counter()
     # Load translations from datastore into systemTranslations
-    for tr in db.Query("viur-translations").run(9999):
+    for tr in db.Query("viur-translations").run(55555):
+        pprint(f"{tr = }")
+        if not tr.get("key"):
+            logging.error(f"translations entity {tr.key} has no key set")
+            continue
+        if tr and not isinstance(tr["translations"], dict):
+            logging.error(f'translations entity {tr.key} has invalid translations set: {tr["translations"]}')
+            continue
         trDict = {}
         for lang, translation in tr["translations"].items():
+            if lang not in conf.i18n.available_languages:
+                continue
             trDict[lang] = translation
-            if lang in invertMap:
-                for v in invertMap[lang]:
-                    trDict[v] = translation
+            for alias in lang_to_alias_map.get(lang, []): # TODO: keep real accent translations?!
+                trDict[alias] = translation
 
-        systemTranslations[tr["key"]] = trDict
+        pprint("trDict")
+        pprint(trDict)
+        # pprint(list(trDict.items())[:3])
+        systemTranslations[tr["key"].lower()] = trDict
+
+    e = time.perf_counter()
+    print(f"time: {e - s}s")
+
+    pprint("systemTranslations")
+    # pprint(systemTranslations)
+    pprint(list(systemTranslations.items())[:5])
+    # """
+    current.language.set("de")
+    print(f'{translate("yemen") = !s}')
+    print(f'{translate("CONTACT_FORM") = !s}')
+    print(f'{translate("contact_form") = !s}')
+    print(f'{translate("filter_amountresults") = !s}')
+    print(f'{translate("filter_amountresults").translate() = !s}')
+    print(f'{translate("filter_amountresults").translate(current=7) = !s}')
+    print(f'{translate("filter_amountresults").translate(current=7, total=42) = !s}')
+    print(f'{translate("filter_amountresults")(current=7, total=42) = !s}')
+    # """
+
 
 
 localizedDateTime = translate("const_datetimeformat", "%a %b %d %H:%M:%S %Y", "Localized Time and Date format string")
@@ -282,3 +330,14 @@ def localizedStrfTime(datetimeObj: datetime.datetime, format: str) -> str:
     if "%B" in format:
         format = format.replace("%B", str(localizedMonthNames[int(datetimeObj.strftime("%m"))]))
     return datetimeObj.strftime(format)
+
+"""
+current.language.set("de")
+print(f'{translate("yemen") = !s}')
+print(f'{translate("CONTACT_FORM") = !s}')
+print(f'{translate("contact_form") = !s}')
+print(f'{translate("filter_amountresults") = !s}')
+print(f'{translate("filter_amountresults").translate() = !s}')
+print(f'{translate("filter_amountresults").translate() = !s}')
+# """
+
