@@ -21,8 +21,8 @@ from ..default import Render
 
 
 @jinjaGlobalFunction
-def translate(render: Render, key: str, **kwargs) -> str:
-    return translationClass(key)(**kwargs)
+def translate(render: Render, key: str, default_text: str = None, hint: str = None, **kwargs) -> str:
+    return translationClass(key, default_text, hint)(**kwargs)
 
 
 @jinjaGlobalFunction

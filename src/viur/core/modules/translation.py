@@ -15,32 +15,39 @@ class Creator(enum.Enum):
 class TranslationSkel(Skeleton):
     kindName = KINDNAME
 
-    """
-    key = StringBone(
-        descr="Key",
-    )
-    """
-
     tr_key = StringBone(
-        descr="Tr Key",
-        readOnly=True,
+        descr="translation key",
+        searchable=True,
         unique=UniqueValue(UniqueLockMethod.SameValue, False,
                            "This translation key exist already"),
     )
 
     translations = StringBone(
-        descr="Übersetzungen",
-        # required=True,
+        descr="translations",
+        searchable=True,
         languages=conf.i18n.available_languages,
     )
 
-    default_value = StringBone(
-        descr="Default Value",
+    translations_missing = SelectBone(
+        descr="missing",
+        multiple=True,
+        readOnly=True,
+        values=conf.i18n.available_languages,
+        compute=Compute(
+            fn=lambda skel: [lang
+                             for lang in conf.i18n.available_languages
+                             if not skel["translations"].get(lang)],
+            interval=ComputeInterval(ComputeMethod.OnWrite),
+        ),
+    )
+
+    default_text = StringBone(
+        descr="default value",
         readOnly=True,  # TODO: ???
     )
 
     hint = StringBone(
-        descr="Hint",
+        descr="hint",
         readOnly=True,  # TODO: ???
     )
 
@@ -65,17 +72,6 @@ class TranslationSkel(Skeleton):
         values=Creator,
     )
 
-    # @classmethod
-    # def fromDB(cls, skelValues: SkeletonInstance, key: Union[str, db.Key]) -> bool:
-    #     res = super().fromDB(skelValues, key)
-    #     skelValues["tr_key"] = skelValues.dbEntity["key"]
-    #     return res
-    #
-    # @classmethod
-    # def preProcessSerializedData(cls, skelValues, entity):
-    #     entity["key"] = skelValues["tr_key"].lower()
-    #     return entity
-
     @classmethod
     def toDB(cls, skelValues: SkeletonInstance, **kwargs) -> db.Key:
         # Ensure we have only lowercase keys
@@ -86,30 +82,23 @@ class TranslationSkel(Skeleton):
 class Translation(List):
     kindName = KINDNAME
 
-    # adminInfo = {
-    #     "name": translate("translations"),
-    # }
+    def adminInfo(self):
+        admin_info = {
+            "views": [
+                {
+                    "name": f"missing translations for {lang}",
+                    "filter": {
+                        "translations_missing": lang,
+                    },
+                }
+                for lang in conf.i18n.available_languages
+            ],
+        }
+        return admin_info
 
     roles = {
         "admin": "*",
     }
-
-    """
-    def canAdd(self) -> bool:
-        return False
-
-    def addSkel(self, *args, **kwargs) -> SkeletonInstance:
-        skel: TranslationSkel = self.baseSkel(*args, **kwargs).clone()
-        skel.tr_key.readOnly = False
-        return skel
-
-    def canDelete(self, skel: SkeletonInstance) -> bool:
-        return False
-
-    def canEdit(self, skel: SkeletonInstance) -> bool:
-        # Sorry, but this should avoid accidents because WIP :)
-        return (user := current.user.get()) and user["name"] == "se@mausbrand.de"
-    """
 
     def on_item_added_and_edited_and_deleted(self, skel: SkeletonInstance):
         # TODO: debounce this

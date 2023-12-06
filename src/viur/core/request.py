@@ -418,7 +418,10 @@ class Router:
             while self.pendingTasks:
                 task = self.pendingTasks.pop()
                 logging.debug(f"Deferred task emulation, executing {task=}")
-                task()
+                try:
+                    task()
+                except Exception as exc:
+                    logging.exception(f"Task {task} failed")
 
     def _route(self, path: str) -> None:
         """

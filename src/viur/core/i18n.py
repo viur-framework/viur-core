@@ -1,19 +1,91 @@
+"""
+This module provides translation, also known as internationalization -- short: i18n.
+
+Project translations has to be stored in the datastore. There are only some
+static translation tables in the viur-core to have some basics ones.
+
+The viur-core own module "translation" (routed as _translation) provides an API
+to manage these translation, for example in the vi-admin.
+
+How to use translations?
+First, make sure the languages are configured:
+.. code-block:: python
+    from viur.core.config import conf
+    # These are the main languages (for which can translated values exits)
+    # which should be available for the project
+    conf.i18n.available_languages = = ["en", "de", "fr"]
+    # These are some aliases for languages which should use the translated
+    # values of a specific main langauges, but don't have own values.
+    conf.i18n.language_alias_map = {
+        "at": "de",  # Austria uses German
+        "ch": "de",  # Switzerland uses German
+        "be": "fr",  # Belgian uses France
+        "us": "en",  # US uses English
+    }
+
+Now translations can be used
+
+1. In python
+.. code-block:: python
+    from viur.core.i18n import translate
+    # Just a key, the minimal cases
+    print(translate("translation-key"))
+    # provide also a default values, which will be used if there isn't a value
+    # in the datastore set and a hint to provide some context.
+    print(translate("translation-key", "the default value", "a hint"))
+    # Use string interpolation with variables
+    print(translate("hello", "Hello {{name}}!", "greet a user", name=current.user.get()["firstname"]))
+
+2. In jinja
+.. code-block:: jinja
+    {# Use the ViUR translate extension, it can be compiled with the template,
+       caches the translation values and is therefor efficient #}
+    {% do translate "hello", "Hello {{name}}!", "greet a user", name="ViUR" %}
+
+    {# But in some cases the key or interpolation-variables are dynamically
+       and aren't available during template compilation.
+       For this you can use the translate function: #}
+    {{ translate("hello", "Hello {{name}}!", "greet a user", name=skel["firstname"]) }}
+
+
+How to add translation
+There are two ways how translations can be added:
+1. Manually
+With the vi-admin. Entries can be added manuell by creating a new skeleton and
+filling out the key and values.
+2. Automatically
+This requires the enabled option add_missing_translations
+.. code-block:: python
+
+    from viur.core.config import conf
+    conf.i18n.add_missing_translations = True
+
+Now when an translation is printed and the key is unknown (because some just
+added the output) an entry will be added to the datastore kind. Additionally
+the defaultValue and hint will be filled out and the filename and lineno of
+the place of usage in the code will be set in the Skeleton too.
+That's the recommended way, because ViUR will collect all the information you
+need and you have only to enter the translated values.
+"""
+# FIXME: grammar, rst syntax
+
+
 import datetime
 import logging
-import time
+from pprint import pprint
+from typing import List, Tuple, Union
 
 import jinja2.ext as jinja2
-from typing import List, Tuple, Union
+import time
+
+from viur.core import current, db, languages, tasks
 from viur.core.config import conf
-from viur.core import db, tasks, utils, languages, current
-from pprint import pprint
 
 systemTranslations = {}
 """Memory storage for translation methods"""
 
 KINDNAME = "viur-translations"
 """Kindname for the translations"""
-
 
 
 class LanguageWrapper(dict):
@@ -93,18 +165,72 @@ class translate:
     def __str__(self) -> str:
         if self.translationCache is None:
             global systemTranslations
+
+            import traceback
+            traceback.print_stack()
+            pprint(traceback.extract_stack())
+
+            # for frame, line in traceback.walk_stack(None):
+            #     print(f"{line=} // {frame=} // {frame.f_code} // {repr(frame)}")
+            #     pprint({k: repr(getattr(frame, k))[:150] for k in dir(frame)})
+            #     pprint({k: repr(getattr(frame.f_code, k))[:150] for k in dir(frame.f_code)})
+
+            # import traceback
+            # traceback.print_stack()
+            # print(traceback.extract_stack())
+
+            from viur.core.render.html.env.viur import translate as jinja_translate
+
+            lineno = filename = None
+
+            first = None
+            is_jinja = False
+            for frame, line in traceback.walk_stack(None):
+                if first is None:
+                    first = frame
+                print(f"{line=} // {frame=} // {frame.f_code.co_name=} // {frame=}")
+                if is_jinja and not frame.f_code.co_filename.endswith(".py"):
+                    pprint({k: repr(getattr(frame, k))[:150] for k in dir(frame)})
+                    pprint({k: repr(getattr(frame.f_code, k))[:150] for k in dir(frame.f_code)})
+                    filename = frame.f_code.co_filename
+                    lineno = line
+                    break
+
+                # if frame.f_code.co_filename.endswith("/render/html/env/viur.py") and frame.f_code.co_name == "translate":
+                if frame.f_code == jinja_translate.__code__:
+                    print("IS JINJA")
+                    is_jinja = True
+                    pprint({k: repr(getattr(frame, k))[:150] for k in dir(frame)})
+                    pprint({k: repr(getattr(frame.f_code, k))[:150] for k in dir(frame.f_code)})
+
+                print(f"{frame.f_code == jinja_translate.__code__ = }")
+                print(f"{frame.f_code is jinja_translate.__code__ = }")
+                print(f"{frame.f_code.co_code == jinja_translate.__code__ = }")
+                print(f"{is_jinja = }")
+                # print(f"{frame.f_code.co_code == jinja_translate}")
+
+            if not is_jinja:
+                lineno = first.f_lineno
+                first = first.f_code.co_filename
+
+            if self.key not in systemTranslations:
+                add_missing_translation(
+                    key=self.key,
+                    hint=self.hint,
+                    default_text=self.defaultText,
+                    filename=filename,
+                    lineno=lineno,
+                )
+
             self.translationCache = systemTranslations.get(self.key, {})
 
-        try:
-            lang = current.language.get()
-        except Exception:
-            # FIXME: when should this happen? we have a default value!
-            logging.warning("Current has no lang", exc_info=True)
-            return self.defaultText
-
+        lang = current.language.get()
         lang = conf.i18n.language_alias_map.get(lang, lang)
 
         print(f'{self.translationCache = } // {self.key = } // {self.defaultText = } // {self.hint = } // {lang = }')
+
+        if not (value := self.translationCache.get(lang)):
+            return self.translationCache.get("_default_text_") or self.defaultText
 
         return str(self.translationCache.get(lang, self.defaultText))
 
@@ -114,8 +240,8 @@ class translate:
             res = res.replace("{{%s}}" % k, str(v))
         return res
 
-    def __call__(self, *args, **kwargs):
-        return self.translate(*args, **kwargs)
+    def __call__(self, **kwargs):
+        return self.translate(**kwargs)
 
 
 class TranslationExtension(jinja2.Extension):
@@ -165,7 +291,7 @@ class TranslationExtension(jinja2.Extension):
                 else:
                     raise SyntaxError()
                 lastToken = None
-        if lastToken:  #TODO: what's this? what it is doing?
+        if lastToken:  # TODO: what's this? what it is doing?
             print(f"final {lastToken = }")
             args.append(lastToken.value)
         if not 0 < len(args) <= 3:
@@ -177,7 +303,7 @@ class TranslationExtension(jinja2.Extension):
             add_missing_translation(
                 key=trKey,
                 hint=args[1],
-                default_value=args[2],
+                default_text=args[2],
                 filename=filename,
                 lineno=lineno,
                 variables=list(kwargs.keys()),
@@ -208,7 +334,6 @@ def initializeTranslations() -> None:
     # global systemTranslations
     start = time.perf_counter()
     # import viur_cli.deploy
-
 
     lang_to_alias_map = {}
 
@@ -244,7 +369,7 @@ def initializeTranslations() -> None:
             continue
 
         tr_dict = {
-            "_default_value_": tr.get("default_value") or None,
+            "_default_text_": tr.get("default_text") or None,
         }
         for lang, translation in tr["translations"].items():
             if lang not in conf.i18n.available_languages:
@@ -275,23 +400,29 @@ def initializeTranslations() -> None:
     # """
 
 
-# @tasks.CallDeferred
-# @tasks.retry_n_times(20)
+@tasks.CallDeferred
+@tasks.retry_n_times(20)
 def add_missing_translation(
     key: str,
-    hint:str | None,
-    default_value: str |None,
-    filename: str | None,
-    lineno: int | None,
-    variables: list[str],
+    hint: str | None = None,
+    default_text: str | None = None,
+    filename: str | None = None,
+    lineno: int | None = None,
+    variables: list[str] = [],
 ) -> None:
     from viur.core.modules.translation import TranslationSkel
     from viur.core.modules.translation import Creator
 
+    entity = db.Query(KINDNAME).filter("tr_key =", key).getEntry()
+    if entity is not None:
+        logging.warning(f"Found an entity with tr_key={key}. "
+                        f"Probably an other instance was faster.")
+        return
+
     logging.info(f"Add missing translation {key}")
     skel = TranslationSkel()
     skel["tr_key"] = key
-    skel["default_value"] = default_value
+    skel["default_text"] = default_text
     skel["hint"] = hint
     skel["usage_filename"] = filename
     skel["usage_lineno"] = lineno
@@ -308,7 +439,7 @@ def migrate_translation(
     from viur.core.modules.translation import TranslationSkel
 
     logging.info(f"Migrate translation {key}")
-    entity : db.Entity = db.Get(key)
+    entity: db.Entity = db.Get(key)
     logging.debug(f"Source: {entity}")
     if "tr_key" not in entity:
         entity["tr_key"] = entity["key"] or key.name
@@ -329,10 +460,6 @@ def migrate_translation(
             db.Delete(key)
         else:
             raise exc
-
-
-
-
 
 
 localizedDateTime = translate("const_datetimeformat", "%a %b %d %H:%M:%S %Y", "Localized Time and Date format string")
@@ -411,4 +538,3 @@ def localizedStrfTime(datetimeObj: datetime.datetime, format: str) -> str:
     if "%B" in format:
         format = format.replace("%B", str(localizedMonthNames[int(datetimeObj.strftime("%m"))]))
     return datetimeObj.strftime(format)
-

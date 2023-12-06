@@ -1215,6 +1215,8 @@ class BaseBone(object):
         if self.compute.raw:
             return self.singleValueUnserialize(ret)
 
+        logging.debug(f"{bone_name=} :: {ret = }")
+
         if errors := self.fromClient(skel, bone_name, {bone_name: ret}):
             raise ValueError(f"Computed value fromClient failed with {errors!r}")
 
