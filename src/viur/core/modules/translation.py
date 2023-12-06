@@ -29,7 +29,7 @@ class TranslationSkel(Skeleton):
     )
 
     translations_missing = SelectBone(
-        descr="missing",
+        descr="translation missing for language",
         multiple=True,
         readOnly=True,
         values=conf.i18n.available_languages,
@@ -43,12 +43,10 @@ class TranslationSkel(Skeleton):
 
     default_text = StringBone(
         descr="default value",
-        readOnly=True,  # TODO: ???
     )
 
     hint = StringBone(
-        descr="hint",
-        readOnly=True,  # TODO: ???
+        descr="hint (internal only)",
     )
 
     usage_filename = StringBone(
