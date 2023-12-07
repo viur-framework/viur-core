@@ -825,22 +825,21 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             logging.warning(msg, stacklevel=3)
             update_relations = not kwargs["clearUpdateTag"]
 
-        def txnUpdate(mergeFrom):
-            db_key = mergeFrom["key"]
-            skel = mergeFrom.skeletonCls()
+        def txnUpdate(write_skel):
+            db_key = write_skel["key"]
+            skel = write_skel.skeletonCls()
 
             blob_list = set()
             change_list = []
             old_copy = {}
             # Load the current values from Datastore or create a new, empty db.Entity
+            is_add = not bool(db_key)
             if not db_key:
                 # We'll generate the key we'll be stored under early so we can use it for locks etc
                 db_key = db.AllocateIDs(db.Key(skel.kindName))
                 db_obj = db.Entity(db_key)
-
                 db_obj["viur"] = {}
                 skel.dbEntity = db_obj
-                is_add = True
             else:
                 db_key = db.keyHelper(db_key, skel.kindName)
                 if not (db_obj := db.Get(db_key)):
@@ -849,23 +848,18 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 else:
                     skel.setEntity(db_obj)
                     old_copy = {k: v for k, v in db_obj.items()}
-                is_add = False
-            if not "viur" in db_obj:
-                db_obj["viur"] = {}
+
+            db_obj.setdefault("viur", {})
+
             # Merge values and assemble unique properties
             # Move accessed Values from srcSkel over to skel
-            skel.accessedValues = mergeFrom.accessedValues
-            skel["key"] = db_key  # Ensure key stayes set
+            skel.accessedValues = write_skel.accessedValues
+            skel["key"] = db_key  # Ensure key stays set
             for bone_name, bone in skel.items():
                 if bone_name == "key":  # Explicitly skip key on top-level - this had been set above
                     continue
-                # Remember old hashes for bones that must have a unique value
-                old_unique_values = []
-                if bone.unique:
-                    if f"{bone_name!s}_uniqueIndexValue" in db_obj["viur"]:
-                        old_unique_values = db_obj["viur"][f"{bone_name!s}_uniqueIndexValue"]
 
-                # Merge the values from mergeFrom in
+                # Merge the values from write_skel in
                 if bone_name in skel.accessedValues or bone.compute:  # We can have a computed value on store
                     bone.serialize(skel, bone_name, True)
                 elif bone_name not in skel.dbEntity:  # It has not been written and is not in the database
@@ -881,6 +875,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
                 # Lock hashes from bones that must have unique values
                 if bone.unique:
+                    # Remember old hashes for bones that must have a unique value
+                    old_unique_values = db_obj["viur"].get(f"{bone_name}_uniqueIndexValue", [])
+
                     # Check if the property is unique
                     new_unique_values = bone.getUniquePropertyIndexValues(skel, bone_name)
                     new_lock_kind = f"{skel.kindName}_{bone_name}_uniquePropertyIndex"
@@ -890,8 +887,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                             # There's already a lock for that value, check if we hold it
                             if lock_db_obj["references"] != db_obj.key.id_or_name:
                                 # This value has already been claimed, and not by us
-                                raise ValueError(
-                                    f"The unique value '{skel[bone_name]}' of bone '{bone_name}' has been recently claimed!")
+                                raise ValueError(f"The unique value '{skel[bone_name]}' \
+                                    of bone '{bone_name}' has been recently claimed!")
                         else:
                             # This value is locked for the first time, create a new lock-object
                             lock_obj = db.Entity(db.Key(new_lock_kind, new_lock_key))
@@ -915,7 +912,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                         else:
                             logging.critical("Detected Database corruption! Could not delete stale lock-object!")
 
-            # Ensure the SEO-Keys are up2date
+            # Ensure the SEO-Keys are up-to-date
             last_requested_seo_keys = db_obj["viur"].get("viurLastRequestedSeoKeys") or {}
             last_set_seo_keys = db_obj["viur"].get("viurCurrentSeoKeys") or {}
             # Filter garbage serialized into this field by the SeoKeyBone
@@ -975,12 +972,12 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             if skel.customDatabaseAdapter:
                 db_obj = skel.customDatabaseAdapter.preprocessEntry(db_obj, skel, change_list, is_add)
 
-            # ViUR2 import compatibility - remove properties containing . if we have an dict with the same name
+            # ViUR2 import compatibility - remove properties containing. if we have a dict with the same name
             def fixDotNames(entity):
                 for k, v in list(entity.items()):
                     if isinstance(v, dict):
                         for k2, v2 in list(entity.items()):
-                            if k2.startswith("%s." % k):
+                            if k2.startswith(f"{k}."):
                                 del entity[k2]
                                 backupKey = k2.replace(".", "__")
                                 entity[backupKey] = v2
@@ -1046,15 +1043,15 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         # Perform post-save operations (postProcessSerializedData Hook, Searchindex, ..)
         skel["key"] = key
 
-        for boneName, bone in skel.items():
-            bone.postSavedHandler(skel, boneName, key)
+        for bone_name, bone in skel.items():
+            bone.postSavedHandler(skel, bone_name, key)
 
         skel.postSavedHandler(key, db_obj)
 
         if update_relations and not is_add:
             if change_list and len(change_list) < 5:  # Only a few bones have changed, process these individually
-                for idx, changedBone in enumerate(change_list):
-                    updateRelations(key, time() + 1, changedBone, _countdown=10 * idx)
+                for idx, changed_bone in enumerate(change_list):
+                    updateRelations(key, time() + 1, changed_bone, _countdown=10 * idx)
             else:  # Update all inbound relations, regardless of which bones they mirror
                 updateRelations(key, time() + 1, None)
 
