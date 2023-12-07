@@ -860,14 +860,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     continue
 
                 if not (bone_name in skel.accessedValues or bone.compute) and bone_name not in skel.dbEntity:
-                    _ = skel[key]  # Ensure the datastore is filled with the default value
+                    _ = skel[bone_name]  # Ensure the datastore is filled with the default value
                 if (
                     bone_name in skel.accessedValues or bone.compute  # We can have a computed value on store
                     or bone_name not in skel.dbEntity  # It has not been written and is not in the database
                 ):
                     # Serialize bone into entity
                     try:
-                        bone.serialize(skel, key, True)
+                        bone.serialize(skel, bone_name, True)
                     except Exception:
                         logging.error(f"Failed to serialize {bone_name} {bone} {skel.accessedValues[bone_name]}")
                         raise
@@ -898,7 +898,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                                     of bone '{bone_name}' has been recently claimed!")
                         else:
                             # This value is locked for the first time, create a new lock-object
-                            lock_obj = db.Entity(db.Key(new_lock_kind, new_lock_key))
+                            lock_obj = db.Entity(new_lock_key)
                             lock_obj["references"] = db_obj.key.id_or_name
                             db.Put(lock_obj)
                         if new_lock_value in old_unique_values:
