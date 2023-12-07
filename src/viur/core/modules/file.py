@@ -468,7 +468,8 @@ class File(Tree):
         try:
             data = blob.download_as_bytes()
             return io.BytesIO(data)
-        except:
+        except Exception as e:
+            logging.error(f"Could not read Bolb {e=}")
             raise errors.NotFound()
 
     @CallDeferred
