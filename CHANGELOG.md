@@ -2,6 +2,15 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.5.8]
+
+- fix: Callable task `TaskVacuumRelations` (#963)
+- fix: `exclude_from_indexes` has to be a `set` (#964)
+- fix: kwargs checks must be underline (`_`) prefixed as well (#962)
+- fix: Modules using `@property` crash on `_update_methods` (#952)
+- fix: Support `@cache`-decorator for both functions and `Method`-instance (#948)
+- fix: Invalid `maxLength` check in `StringBone` (#941)
+
 ## [3.5.7]
 
 - fix: Update dependencies, urllib3 CVE-2023-45803 (#938)

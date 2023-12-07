@@ -399,7 +399,11 @@ def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
     def outer_wrapper(func):
         @wraps(func)
         def inner_wrapper(*args, **kwargs):
-            retry_count = int(current.request.get().request.headers.get("X-Appengine-Taskretrycount", -1))
+            try:
+                retry_count = int(current.request.get().request.headers.get("X-Appengine-Taskretrycount", -1))
+            except AttributeError:
+                # During warmup current.request is None (at least on local devserver)
+                retry_count = -1
             try:
                 return func(*args, **kwargs)
             except Exception as exc:
@@ -486,8 +490,8 @@ def CallDeferred(func: Callable) -> Callable:
     def make_deferred(func, self=__undefinedFlag_, *args, **kwargs):
         # Extract possibly provided task flags from kwargs
         queue = kwargs.pop("_queue", "default")
-        if "eta" in kwargs and "countdown" in kwargs:
-            raise ValueError("You cannot set the countdown and eta argument together!")
+        if "_eta" in kwargs and "_countdown" in kwargs:
+            raise ValueError("You cannot set the _countdown and _eta argument together!")
         taskargs = {k: kwargs.pop(f"_{k}", None) for k in ("countdown", "eta", "name", "target_version")}
 
         logging.debug(f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, {queue=}, {taskargs=}")

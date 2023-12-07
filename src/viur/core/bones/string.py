@@ -125,10 +125,15 @@ class StringBone(BaseBone):
         return None
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
+        """
+        Returns None and the escaped value if the value would be valid for
+        this bone, otherwise the empty value and an error-message.
+        """
         value = utils.escapeString(value, self.max_length)
 
         if not (err := self.isInvalid(value)):
             return value, None
+
         return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
     def buildDBFilter(
