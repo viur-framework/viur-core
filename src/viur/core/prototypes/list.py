@@ -500,6 +500,8 @@ class List(SkelModule):
         flushCache(kind=skel.kindName)
         if user := current.user.get():
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
+        self.on_item_added_and_edited(skel)
+        self.on_item_added_and_edited_and_deleted(skel)
 
     def onEdit(self, skel: SkeletonInstance):
         """
@@ -528,6 +530,8 @@ class List(SkelModule):
         flushCache(key=skel["key"])
         if user := current.user.get():
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
+        self.on_item_added_and_edited(skel)
+        self.on_item_added_and_edited_and_deleted(skel)
 
     def onView(self, skel: SkeletonInstance):
         """
@@ -569,6 +573,21 @@ class List(SkelModule):
         flushCache(key=skel["key"])
         if user := current.user.get():
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
+        self.on_item_added_and_edited_and_deleted(skel)
+
+    def on_item_added_and_edited(self, skel: SkeletonInstance) -> None:
+        """Hook method which will be called if a skeleton changed.
+
+        Useful to do the same action onAdded, onEdited.
+        """
+        pass
+
+    def on_item_added_and_edited_and_deleted(self, skel: SkeletonInstance) -> None:
+        """Hook method which will be called if a skeleton changed.
+
+        Useful to do the same action onAdded, onEdited and onDeleted.
+        """
+        pass
 
 
 List.admin = True
