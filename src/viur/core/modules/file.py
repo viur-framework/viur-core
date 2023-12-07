@@ -1,8 +1,7 @@
 import base64
-import email.header
 import html
+import io
 import json
-import logging
 import string
 from base64 import urlsafe_b64decode
 from datetime import datetime, timedelta
@@ -11,6 +10,7 @@ from quopri import decodestring
 from typing import Any, List, Tuple, Union
 from urllib.request import urlopen
 
+import email.header
 import google.auth
 from PIL import Image, ImageCms
 from google.auth import compute_engine
@@ -18,9 +18,10 @@ from google.auth.transport import requests
 from google.cloud import iam_credentials_v1, storage
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
+import logging
 from viur.core import conf, current, db, errors, utils
-from viur.core.decorators import *
 from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
+from viur.core.decorators import *
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import SkeletonInstance, skeletonByKind
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
@@ -442,6 +443,33 @@ class File(Tree):
         skel["height"] = height
 
         return skel.toDB()
+
+    def read(self, key: db.Key | int | str | None = None, path: str | None = None) -> io.BytesIO:
+        """
+        Read a file from the Cloudstorage.
+
+        :param key: Key of the LeafSkel that contains the "dlkey" and the "name".
+        :param path: The path of the file in the Cloudstorage Bucket.
+
+
+        :return: Returns the file as a BytesIO buffer.
+        """
+        if not key and not path:
+            raise errors.PreconditionFailed("Please provide a key or a path")
+        if key:
+            skel = self.viewSkel("leaf")
+            if not skel.fromDB(db.keyHelper(key, self.leafSkelCls().kindName)):
+                if not path:
+                    raise errors.NotFound()
+            else:
+                path = f"""{skel["dlkey"]}/source/{skel["name"]}"""
+
+        blob = bucket.blob(path)
+        try:
+            data = blob.download_as_bytes()
+            return io.BytesIO(data)
+        except:
+            raise errors.NotFound()
 
     @CallDeferred
     def deleteRecursive(self, parentKey):
