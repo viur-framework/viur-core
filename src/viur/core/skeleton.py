@@ -1220,9 +1220,8 @@ class RelSkel(BaseSkeleton):
                 skelValues.errors.extend(errors)
                 for err in errors:
                     if err.fieldPath == [key] and (err.severity == ReadFromClientErrorSeverity.Empty or
-                                                   (
-                                                       err.severity == ReadFromClientErrorSeverity.NotSet and _bone.isEmpty(
-                                                       skelValues[key]))):
+                                                   (err.severity == ReadFromClientErrorSeverity.NotSet and
+                                                    _bone.isEmpty(skelValues[key]))):
                         thisBoneEmpty = True
                         if _bone.required:
                             requiredBonesEmpty = True
