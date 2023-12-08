@@ -214,17 +214,18 @@ class translate:
                     lineno=lineno,
                 )
 
-            self.translationCache = systemTranslations.get(self.key, {})
+            self.translationCache = self.merge_alias(systemTranslations.get(self.key, {}))
 
-        return self.choose_translation(self.translationCache, self.defaultText, self.force_lang)
-        if (lang := self.force_lang) is None:
-            # The default case: use the request language
-            lang = current.language.get()
-        # Check for alias language
-        if value := self.translationCache.get(lang):
-            return value
-        # Check the main language
-        lang = conf.i18n.language_alias_map.get(lang, lang)
+        lang = current.language.get()
+        # return self.choose_translation(self.translationCache, self.defaultText, self.force_lang)
+        # if (lang := self.force_lang) is None:
+        #     # The default case: use the request language
+        #     lang = current.language.get()
+        # # Check for alias language
+        # if value := self.translationCache.get(lang):
+        #     return value
+        # # Check the main language
+        # lang = conf.i18n.language_alias_map.get(lang, lang)
         if value := self.translationCache.get(lang):
             return value
         # Use the default text from datastore or from the caller arguments
@@ -258,11 +259,21 @@ class translate:
         return translations.get("_default_text_") or default_text or ""
 
     @staticmethod
-    def substitute_vars(value, **kwargs):
+    def substitute_vars(value:str, **kwargs):
         res = str(value)
         for k, v in kwargs.items():
             res = res.replace("{{%s}}" % k, str(v))
         return res
+
+    @staticmethod
+    def merge_alias(translations:dict[str, str]):
+        # TODO custom default text?
+        logging.debug(f"{translations = }")
+        for alias, main in conf.i18n.language_alias_map.items():
+            if not (value:=translations.get(alias)) or not value.strip():
+                translations[alias] = translations.get(main) or translations.get("_default_text_")
+        logging.debug(f"{translations = }")
+        return translations
 
 
 
@@ -322,7 +333,7 @@ class TranslationExtension(jinja2.Extension):
                 variables=list(kwargs.keys()),
             )
 
-        translations = systemTranslations.get(tr_key, {})
+        translations = translate.merge_alias(systemTranslations.get(tr_key, {}))
         args = [jinja2.nodes.Const(x) for x in args]
         args.append(jinja2.nodes.Const(translations))
         return jinja2.nodes.CallBlock(self.call_method("_translate", args), [], [], []).set_lineno(lineno)
@@ -333,7 +344,7 @@ class TranslationExtension(jinja2.Extension):
     ) -> str:
         """Perform the actual translation during render"""
         lang = current.language.get()
-        lang = conf.i18n.language_alias_map.get(lang, lang)
+        # lang = conf.i18n.language_alias_map.get(lang, lang)
         default_text = translations.get("_default_text_") or default_text
         res = str(translations.get(lang, default_text))
         return translate.substitute_vars(res, **kwargs)
@@ -377,7 +388,7 @@ def initializeTranslations() -> None:
             "_default_text_": entity.get("default_text") or None,
         }
         for lang, translation in entity["translations"].items():
-            if lang not in conf.i18n.available_languages:
+            if lang not in conf.i18n.available_dialects:
                 # Don't store unknown languages in the memory
                 continue
             translations[lang] = translation
