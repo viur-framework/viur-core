@@ -1565,3 +1565,21 @@ def processVacuumRelationsChunk(
 
 # Forward our references to SkelInstance to the database (needed for queries)
 db.config["SkeletonInstanceRef"] = SkeletonInstance
+
+
+# DEPRECATED ATTRIBUTES HANDLING
+
+__DEPRECATED_NAMES = {
+    # stuff prior viur-core < 3.6
+    "seoKeyBone": ("SeoKeyBone", SeoKeyBone),
+}
+
+def __getattr__(attr: str) -> object:
+    if entry := __DEPRECATED_NAMES.get(attr):
+        func = entry[1]
+        msg = f"{attr} was replaced by {entry[0]}"
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
+        logging.warning(msg, stacklevel=2)
+        return func
+
+    return super(__import__(__name__).__class__).__getattr__(attr)
