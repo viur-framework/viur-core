@@ -152,9 +152,7 @@ def index(*args, **kwargs):
 
 @exposed
 def get_settings():
-    fields = {key: values for key, values in conf.items()
-              if key.startswith("admin.")}
-
+    fields = {key: values for key, values in conf.admin.items()}
     fields["admin.user.google.clientID"] = conf.user.google_client_id
 
     current.request.get().response.headers["Content-Type"] = "application/json"
