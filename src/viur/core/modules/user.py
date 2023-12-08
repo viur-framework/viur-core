@@ -161,7 +161,7 @@ class UserSkel(skeleton.Skeleton):
         return super().toDB(skel, *args, **kwargs)
 
 
-class UserAuthentication(Module):
+class UserAuthentication(Module, abc.ABC):
     def __init__(self, moduleName, modulePath, userModule):
         super().__init__(moduleName, modulePath)
         self._user_module = userModule
@@ -170,7 +170,7 @@ class UserAuthentication(Module):
         return True
 
     @classmethod
-    def patch_user_skel(skel: skeleton.SkeletonInstance):
+    def patch_user_skel(cls, skel: skeleton.SkeletonInstance):
         return skel
 
 
@@ -238,7 +238,8 @@ class UserPassword(UserPrimaryAuthentication):
     def getAuthMethodName(*args, **kwargs):
         return "X-VIUR-AUTH-User-Password"
 
-    def patch_user_skel(skel):
+    @classmethod
+    def patch_user_skel(cls, skel):
         """
         Modifies the UserSkel to be equipped by a PasswordBone.
         """
@@ -546,7 +547,8 @@ class GoogleAccount(UserPrimaryAuthentication):
     def getAuthMethodName(*args, **kwargs):
         return "X-VIUR-AUTH-Google-Account"
 
-    def patch_user_skel(skel):
+    @classmethod
+    def patch_user_skel(cls, skel):
         """
         Modifies the UserSkel to be equipped by a bones required by Google Auth
         """
@@ -568,8 +570,9 @@ class GoogleAccount(UserPrimaryAuthentication):
             params={
                 "category": "Authentication",
                 "tooltip":
-                    "If set, user data like firstname and lastname is automatically kept synchronous with the information "
-                    "stored at the OAuth service provider (e.g. Google Login)."
+                    "If set, user data like firstname and lastname is automatically kept"
+                    "synchronous with the information stored at the OAuth service provider"
+                    "(e.g. Google Login)."
             }
         )
 
@@ -720,7 +723,8 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
     def get2FactorMethodName(*args, **kwargs):  # fixme: What is the purpose of this function? Why not just a member?
         return "X-VIUR-2FACTOR-TimeBasedOTP"
 
-    def patch_user_skel(skel):
+    @classmethod
+    def patch_user_skel(cls, skel):
         """
         Modifies the UserSkel to be equipped by a bones required by Timebased OTP
         """
@@ -999,7 +1003,8 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
     def get2FactorMethodName(*args, **kwargs) -> str:
         return "X-VIUR-2FACTOR-AuthenticatorOTP"
 
-    def patch_user_skel(skel):
+    @classmethod
+    def patch_user_skel(cls, skel):
         """
         Modifies the UserSkel to be equipped by bones required by Authenticator App
         """
@@ -1218,7 +1223,6 @@ class User(List):
 
         for provider in self.authenticationProviders:
             assert issubclass(provider, UserPrimaryAuthentication)
-            print(provider)
             skel = provider.patch_user_skel(skel)
 
         for provider in self.secondFactorProviders:
