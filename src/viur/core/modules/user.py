@@ -245,8 +245,7 @@ class UserPassword(UserPrimaryAuthentication):
         """
         skel = skel.clone()  # todo: is this equal to ensure_is_cloned, or does it always clone again??
 
-        skel.password = PasswordBone(
-            descr="Password",
+        skel.password = cls.PasswordBone(
             readOnly=True,
             visible=False,
             params={
@@ -263,7 +262,6 @@ class UserPassword(UserPrimaryAuthentication):
             caseSensitive=False,
         )
         password = PasswordBone(
-            descr="Password",
             required=True,
         )
 

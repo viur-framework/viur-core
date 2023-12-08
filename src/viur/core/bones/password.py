@@ -63,6 +63,7 @@ class PasswordBone(StringBone):
     def __init__(
         self,
         *,
+        descr: str = "Password",
         test_threshold: int = 4,
         tests: List[Tuple] = tests,
         **kwargs
@@ -74,7 +75,7 @@ class PasswordBone(StringBone):
             :param password_tests: A list of tuples. The tuple contains the test and a reason for the user if the test
                     fails.
         """
-        super().__init__(**kwargs)
+        super().__init__(descr=descr, **kwargs)
         self.test_threshold = test_threshold
         if tests is not None:
             self.tests = tests
