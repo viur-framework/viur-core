@@ -168,7 +168,6 @@ class TaskHandler(Module):
             :param obj: Object, which will be scanned in the current iteration.
             :param depth: Current iteration depth.
         """
-        # logging.debug(f"findBoundTask({task=}, {obj=}, {depth=})")
         if depth > 3 or "periodicTaskName" not in dir(task):  # Limit the maximum amount of recursions
             return None
         for attr in dir(obj):
@@ -305,9 +304,7 @@ class TaskHandler(Module):
                 if lastCall and utils.utcNow() - lastCall["date"] < timedelta(minutes=interval):
                     logging.debug("Skipping task %s - Has already run recently." % periodicTaskName)
                     continue
-            logging.debug(f"Searching {task}")
             res = self.findBoundTask(task, conf.main_app)
-            logging.debug(f"Calling {task} {res}")
             try:
                 if res:  # Its bound, call it this way :)
                     res[0]()
