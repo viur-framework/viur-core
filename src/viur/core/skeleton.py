@@ -1574,6 +1574,7 @@ __DEPRECATED_NAMES = {
     "seoKeyBone": ("SeoKeyBone", SeoKeyBone),
 }
 
+
 def __getattr__(attr: str) -> object:
     if entry := __DEPRECATED_NAMES.get(attr):
         func = entry[1]
