@@ -87,7 +87,7 @@ def dumpConfig():
         "modules": res,
         # "configuration": dict(conf.admin.items()), # TODO: this could be the short vision, if we use underscores
         "configuration": {
-            {f"admin.{key}": values for key, values in conf.admin.items()}
+            k.replace("_", "."): v for k, v in conf.admin.items(True)
         }
     }
     current.request.get().response.headers["Content-Type"] = "application/json"
@@ -156,7 +156,7 @@ def get_settings():
     Get public admin-tool specific settings, requires no user to be logged in.
     This is used by new vi-admin.
     """
-    fields = {f"admin.{key}": values for key, values in conf.admin.items()}
+    fields = {k.replace("_", "."): v for k, v in conf.admin.items(True)}
 
     if conf.user.google_client_id:
         fields["admin.user.google.clientID"] = conf.user.google_client_id
