@@ -895,7 +895,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     newUniqueValues = bone.getUniquePropertyIndexValues(skel, key)
                     for newLockValue in newUniqueValues:
                         lockObj = db.Get(db.Key("%s_%s_uniquePropertyIndex" % (skel.kindName, key), newLockValue))
-                        if lockObj:
+                        if lockObj:# and db.Get(db.Key(skel.kindName, lockObj['references'])):
+                            logging.debug(f"{lockObj = }")
+                            logging.debug(f"{db.Get(db.Key(skel.kindName, lockObj['references'])) = }")
+
                             # There's already a lock for that value, check if we hold it
                             if lockObj["references"] != dbObj.key.id_or_name:
                                 # This value has already been claimed, and not by us

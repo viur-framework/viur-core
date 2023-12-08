@@ -368,7 +368,13 @@ def add_missing_translation(
     variables: list[str] = None,
 ) -> None:
     """Add missing translations to datastore"""
-    from viur.core.modules.translation import TranslationSkel, Creator
+    try:
+        from viur.core.modules.translation import TranslationSkel, Creator
+    except ImportError as exc:
+        logging.exception(f"ImportError (probably during warmup), cannot add translation: {exc}")
+        return
+    # Ensure lowercase key
+    key = key.lower()
     entity = db.Query(KINDNAME).filter("tr_key =", key).getEntry()
     if entity is not None:
         # Ensure it doesn't exist to avoid datastore conflicts
@@ -379,13 +385,19 @@ def add_missing_translation(
     logging.info(f"Add missing translation {key}")
     skel = TranslationSkel()
     skel["tr_key"] = key
-    skel["default_text"] = default_text
-    skel["hint"] = hint
+    skel["default_text"] = default_text or None
+    skel["hint"] = hint or None
     skel["usage_filename"] = filename
     skel["usage_lineno"] = lineno
     skel["usage_variables"] = variables or []
     skel["creator"] = Creator.VIUR
     skel.toDB()
+
+    # Add to system translation to avoid triggering this method again
+    systemTranslations[key] = {
+        "_default_text_": default_text or None,
+    }
+
 
 
 @tasks.CallDeferred

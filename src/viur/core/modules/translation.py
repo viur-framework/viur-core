@@ -2,7 +2,7 @@ import enum
 
 from viur.core import conf, db
 from viur.core.bones import *
-from viur.core.i18n import KINDNAME, initializeTranslations, systemTranslations
+from viur.core.i18n import KINDNAME, initializeTranslations, systemTranslations, translate
 from viur.core.prototypes.list import List
 from viur.core.skeleton import Skeleton, SkeletonInstance
 
@@ -23,19 +23,26 @@ class TranslationSkel(Skeleton):
     )
 
     translations = StringBone(
-        descr="translations",
+        descr="core.translationskel.translations.descr",
         searchable=True,
-        languages=conf.i18n.available_languages,
+        languages=conf.i18n.available_dialects,
+        params={
+            "tooltip": translate(
+                "core.translationskel.translations.tooltip",
+                "The languages {{main}} are required,\n {{accent}} can be filled out"
+            )(main=", ".join(conf.i18n.available_languages),
+              accent=", ".join(conf.i18n.language_alias_map.keys())),
+        }
     )
 
     translations_missing = SelectBone(
         descr="translation missing for language",
         multiple=True,
         readOnly=True,
-        values=conf.i18n.available_languages,
+        values=conf.i18n.available_dialects,
         compute=Compute(
             fn=lambda skel: [lang
-                             for lang in conf.i18n.available_languages
+                             for lang in conf.i18n.available_dialects
                              if not skel["translations"].get(lang)],
             interval=ComputeInterval(ComputeMethod.OnWrite),
         ),
@@ -82,6 +89,7 @@ class Translation(List):
 
     def adminInfo(self):
         admin_info = {
+            "name": "translations",
             "views": [
                 {
                     "name": f"missing translations for {lang}",
@@ -89,7 +97,7 @@ class Translation(List):
                         "translations_missing": lang,
                     },
                 }
-                for lang in conf.i18n.available_languages
+                for lang in conf.i18n.available_dialects
             ],
         }
         return admin_info
