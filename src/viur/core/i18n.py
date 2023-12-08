@@ -154,9 +154,9 @@ class translate:
     translation issues with bones, which can now take an instance of this class as it's description/hints.
     """
 
-    __slots__ = ["key", "defaultText", "hint", "translationCache"]
+    __slots__ = ["key", "defaultText", "hint", "translationCache", "force_lang"]
 
-    def __init__(self, key: str, defaultText: str = None, hint: str = None):
+    def __init__(self, key: str, defaultText: str = None, hint: str = None, force_lang: str = None):
         """
         :param key: The unique key defining this text fragment.
             Usually it's a path/filename and a unique descriptor in that file
@@ -166,6 +166,7 @@ class translate:
         :param hint: A text only shown to the person translating this text,
             as the key/defaultText may have different meanings in the
             target language.
+        :param force_lang: Use this language instead the one of the request.
         """
         super().__init__()
         key = str(key)  # ensure key is a str
@@ -173,9 +174,10 @@ class translate:
         self.defaultText = defaultText or key
         self.hint = hint
         self.translationCache = None
+        self.force_lang = force_lang
 
     def __repr__(self) -> str:
-        return f"<translate object for {self.key}>"
+        return f"<translate object for {self.key} with force_lang={self.force_lang}>"
 
     def __str__(self) -> str:
         if self.translationCache is None:
@@ -214,24 +216,54 @@ class translate:
 
             self.translationCache = systemTranslations.get(self.key, {})
 
-        lang = current.language.get()
-        lang = conf.i18n.language_alias_map.get(lang, lang)
-
+        return self.choose_translation(self.translationCache, self.defaultText, self.force_lang)
+        if (lang := self.force_lang) is None:
+            # The default case: use the request language
+            lang = current.language.get()
+        # Check for alias language
         if value := self.translationCache.get(lang):
             return value
-        else:  # Use the default text from datastore or from the caller arguments
-            return self.translationCache.get("_default_text_") or self.defaultText
+        # Check the main language
+        lang = conf.i18n.language_alias_map.get(lang, lang)
+        if value := self.translationCache.get(lang):
+            return value
+        # Use the default text from datastore or from the caller arguments
+        return self.translationCache.get("_default_text_") or self.defaultText
 
     def translate(self, **kwargs) -> str:
         """Substitute the given kwargs in the translated or default text."""
-        res = str(self)
-        for k, v in kwargs.items():
-            res = res.replace("{{%s}}" % k, str(v))
-        return res
+        return self.substitute_vars(str(self), **kwargs)
 
     def __call__(self, **kwargs):
         """Just an alias for translate"""
         return self.translate(**kwargs)
+
+    @staticmethod
+    def choose_translation(
+        translations:dict[str, str],
+        default_text: str = "",
+        force_lang: str|None = None,
+    ):
+        if (lang := force_lang) is None:
+            # The default case: use the request language
+            lang = current.language.get()
+        # Check for alias language
+        if value := translations.get(lang):
+            return value
+        # Check the main language
+        lang = conf.i18n.language_alias_map.get(lang, lang)
+        if value := translations.get(lang):
+            return value
+        # Use the default text from datastore or from the caller arguments
+        return translations.get("_default_text_") or default_text or ""
+
+    @staticmethod
+    def substitute_vars(value, **kwargs):
+        res = str(value)
+        for k, v in kwargs.items():
+            res = res.replace("{{%s}}" % k, str(v))
+        return res
+
 
 
 class TranslationExtension(jinja2.Extension):
@@ -304,9 +336,7 @@ class TranslationExtension(jinja2.Extension):
         lang = conf.i18n.language_alias_map.get(lang, lang)
         default_text = translations.get("_default_text_") or default_text
         res = str(translations.get(lang, default_text))
-        for k, v in kwargs.items():
-            res = res.replace("{{%s}}" % k, str(v))
-        return res
+        return translate.substitute_vars(res, **kwargs)
 
 
 def initializeTranslations() -> None:
@@ -397,7 +427,6 @@ def add_missing_translation(
     systemTranslations[key] = {
         "_default_text_": default_text or None,
     }
-
 
 
 @tasks.CallDeferred
