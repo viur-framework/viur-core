@@ -38,7 +38,8 @@ class StringBone(BaseBone):
         """
         # fixme: Remove in viur-core >= 4
         if "maxLength" in kwargs:
-            warnings.warn("maxLength parameter is deprecated, please use max_length", DeprecationWarning)
+            warnings.warn("maxLength parameter is deprecated, please use max_length",
+                          DeprecationWarning, stacklevel=2)
             max_length = kwargs.pop("maxLength")
         super().__init__(**kwargs)
         if max_length is not None and max_length <= 0:
