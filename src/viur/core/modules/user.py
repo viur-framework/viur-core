@@ -57,8 +57,8 @@ class Status(enum.Enum):
 
 
 class UserSkel(skeleton.Skeleton):
-    kindName = "user"
-    # Properties required by google and custom auth
+    kindName = "user"  # FIXME this line is required, as this Skeleton is defined in viur-core (see #604)
+
     name = EmailBone(
         descr="E-Mail",
         required=True,
@@ -77,40 +77,6 @@ class UserSkel(skeleton.Skeleton):
         descr="Lastname",
         searchable=True,
     )
-
-    # Properties required by custom auth
-    password = PasswordBone(
-        descr="Password",
-        required=False,
-        readOnly=True,
-        visible=False,
-    )
-
-    # Properties required by google auth
-    uid = StringBone(
-        descr="Google's UserID",
-        required=False,
-        readOnly=True,
-        unique=UniqueValue(UniqueLockMethod.SameValue, False, "UID already in use"),
-    )
-
-    sync = BooleanBone(
-        descr="Sync user data with OAuth-based services",
-        defaultValue=True,
-        params={
-            "tooltip":
-                "If set, user data like firstname and lastname is automatically kept synchronous with the information "
-                "stored at the OAuth service provider (e.g. Google Login)."
-        }
-    )
-
-    gaeadmin = BooleanBone(
-        descr="Is GAE Admin",
-        defaultValue=False,
-        readOnly=True,
-    )
-
-    # Generic properties
 
     roles = SelectBone(
         descr=i18n.translate("viur.user.bone.roles", defaultText="Roles"),
@@ -148,27 +114,6 @@ class UserSkel(skeleton.Skeleton):
     lastlogin = DateBone(
         descr="Last Login",
         readOnly=True,
-    )
-
-    # One-Time Password Verification
-    otp_serial = StringBone(
-        descr="OTP serial",
-        searchable=True,
-    )
-
-    otp_secret = CredentialBone(
-        descr="OTP secret",
-    )
-
-    otp_timedrift = NumericBone(
-        descr="OTP time drift",
-        readOnly=True,
-        defaultValue=0,
-    )
-    # Authenticator OTP Apps (like Authy)
-    otp_app_secret = CredentialBone(
-        descr="OTP Secret (App-Key)",
-
     )
 
     admin_config = JsonBone(  # This bone stores settings from the vi
@@ -224,6 +169,10 @@ class UserAuthentication(Module):
     def can_handle(self, user: db.Entity) -> bool:
         return True
 
+    @classmethod
+    def patch_user_skel(skel: skeleton.SkeletonInstance):
+        return skel
+
 
 class UserPrimaryAuthentication(UserAuthentication, abc.ABC):
     """Abstract class for all primary authentication methods."""
@@ -234,7 +183,8 @@ class UserPrimaryAuthentication(UserAuthentication, abc.ABC):
         ...
 
     @abc.abstractmethod
-    def getAuthMethodName(self, *args, **kwargs) -> str: pass
+    def getAuthMethodName(self, *args, **kwargs) -> str:
+        ...
 
 
 class UserPassword(UserPrimaryAuthentication):
@@ -258,6 +208,9 @@ class UserPassword(UserPrimaryAuthentication):
     passwordRecoveryRateLimit = RateLimit("user.passwordrecovery", 10, 15, "ip")
     # Limit (invalid) login-retries to once per 5 seconds
     loginRateLimit = RateLimit("user.login", 12, 1, "ip")
+
+    # Authentication-related password bone class or generator
+    PasswordBone = PasswordBone
 
     # Default translations for password recovery
     passwordRecoveryKeyExpired = i18n.translate(
@@ -285,12 +238,39 @@ class UserPassword(UserPrimaryAuthentication):
     def getAuthMethodName(*args, **kwargs):
         return "X-VIUR-AUTH-User-Password"
 
+    def patch_user_skel(skel):
+        """
+        Modifies the UserSkel to be equipped by a PasswordBone.
+        """
+        skel = skel.clone()  # todo: is this equal to ensure_is_cloned, or does it always clone again??
+
+        skel.password = PasswordBone(
+            descr="Password",
+            readOnly=True,
+            visible=False,
+            params={
+                "category": "Authentication",
+            }
+        )
+
+        return skel
+
     class LoginSkel(skeleton.RelSkel):
-        name = EmailBone(descr="E-Mail", required=True, caseSensitive=False, indexed=True)
-        password = PasswordBone(descr="Password", indexed=True, params={"justinput": True}, required=True)
+        name = EmailBone(
+            descr="Username",
+            required=True,
+            caseSensitive=False,
+        )
+        password = PasswordBone(
+            descr="Password",
+            required=True,
+        )
 
     class LostPasswordStep1Skel(skeleton.RelSkel):
-        name = EmailBone(descr="Username", required=True)
+        name = EmailBone(
+            descr="Username",
+            required=True
+        )
 
     class LostPasswordStep2Skel(skeleton.RelSkel):
         recovery_key = StringBone(
@@ -566,6 +546,44 @@ class GoogleAccount(UserPrimaryAuthentication):
     def getAuthMethodName(*args, **kwargs):
         return "X-VIUR-AUTH-Google-Account"
 
+    def patch_user_skel(skel):
+        """
+        Modifies the UserSkel to be equipped by a bones required by Google Auth
+        """
+        skel = skel.clone()  # todo: is this equal to ensure_is_cloned, or does it always clone again??
+
+        skel.uid = StringBone(
+            descr="Google UserID",
+            required=False,
+            readOnly=True,
+            unique=UniqueValue(UniqueLockMethod.SameValue, False, "UID already in use"),
+            params={
+                "category": "Authentication",
+            }
+        )
+
+        skel.sync = BooleanBone(
+            descr="Sync user data with OAuth-based services",
+            defaultValue=True,
+            params={
+                "category": "Authentication",
+                "tooltip":
+                    "If set, user data like firstname and lastname is automatically kept synchronous with the information "
+                    "stored at the OAuth service provider (e.g. Google Login)."
+            }
+        )
+
+        skel.gaeadmin = BooleanBone(
+            descr="Is GAE Admin",
+            defaultValue=False,
+            readOnly=True,
+            params={
+                "category": "Authentication",
+            }
+        )
+
+        return skel
+
     @exposed
     @force_ssl
     @skey(allow_empty=True)
@@ -701,6 +719,39 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
     @classmethod
     def get2FactorMethodName(*args, **kwargs):  # fixme: What is the purpose of this function? Why not just a member?
         return "X-VIUR-2FACTOR-TimeBasedOTP"
+
+    def patch_user_skel(skel):
+        """
+        Modifies the UserSkel to be equipped by a bones required by Timebased OTP
+        """
+        skel = skel.clone()  # todo: is this equal to ensure_is_cloned, or does it always clone again??
+
+        # One-Time Password Verification
+        skel.otp_serial = StringBone(
+            descr="OTP serial",
+            searchable=True,
+            params={
+                "category": "Second Factor Authentication",
+            }
+        )
+
+        skel.otp_secret = CredentialBone(
+            descr="OTP secret",
+            params={
+                "category": "Second Factor Authentication",
+            }
+        )
+
+        skel.otp_timedrift = NumericBone(
+            descr="OTP time drift",
+            readOnly=True,
+            defaultValue=0,
+            params={
+                "category": "Second Factor Authentication",
+            }
+        )
+
+        return skel
 
     def get_config(self, user: db.Entity) -> OtpConfig | None:
         """
@@ -948,6 +999,22 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
     def get2FactorMethodName(*args, **kwargs) -> str:
         return "X-VIUR-2FACTOR-AuthenticatorOTP"
 
+    def patch_user_skel(skel):
+        """
+        Modifies the UserSkel to be equipped by bones required by Authenticator App
+        """
+        skel = skel.clone()  # todo: is this equal to ensure_is_cloned, or does it always clone again??
+
+        # Authenticator OTP Apps (like Authy)
+        skel.otp_app_secret = CredentialBone(
+            descr="OTP Secret (App-Key)",
+            params={
+                "category": "Second Factor Authentication",
+            }
+        )
+
+        return skel
+
     @classmethod
     def set_otp_app_secret(cls, otp_app_secret=None):
         """
@@ -1123,7 +1190,7 @@ class User(List):
 
     def __init__(self, moduleName, modulePath):
         for provider in self.authenticationProviders:
-            assert issubclass(provider, UserAuthentication)
+            assert issubclass(provider, UserPrimaryAuthentication)
             name = f"auth_{provider.__name__.lower()}"
             setattr(self, name, provider(name, f"{modulePath}/{name}", self))
 
@@ -1143,8 +1210,25 @@ class User(List):
 
         return set()
 
+    def baseSkel(self):
+        """
+        Generates the baseSkel patched by the configured authentication methods.
+        """
+        skel = super().baseSkel()
+
+        for provider in self.authenticationProviders:
+            assert issubclass(provider, UserPrimaryAuthentication)
+            print(provider)
+            skel = provider.patch_user_skel(skel)
+
+        for provider in self.secondFactorProviders:
+            assert issubclass(provider, UserSecondFactorAuthentication)
+            skel = provider.patch_user_skel(skel)
+
+        return skel
+
     def addSkel(self):
-        skel = super(User, self).addSkel().clone()
+        skel = super().addSkel().clone()
         user = current.user.get()
         if not (user and user["access"] and ("%s-add" % self.moduleName in user["access"] or "root" in user["access"])):
             skel.status.readOnly = True
@@ -1170,7 +1254,7 @@ class User(List):
         return skel
 
     def editSkel(self, *args, **kwargs):
-        skel = super(User, self).editSkel().clone()
+        skel = super().editSkel().clone()
 
         if "password" in skel:
             skel.password.required = False
