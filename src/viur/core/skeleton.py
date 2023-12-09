@@ -970,7 +970,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                                 del entity[k2]
                                 backupKey= k2.replace(".", "__")
                                 entity[backupKey] = v2
-                                entity.exclude_from_indexes = list(entity.exclude_from_indexes) + [backupKey]
+                                entity.exclude_from_indexes = set(entity.exclude_from_indexes) | {backupKey}
                         fixDotNames(v)
                     elif isinstance(v, list):
                         for x in v:
@@ -1451,41 +1451,32 @@ class RebuildSearchIndex(QueryIter):
     @classmethod
     def handleFinish(cls, totalCount: int, customData: Dict[str, str]):
         QueryIter.handleFinish(totalCount, customData)
+        if not customData["notify"]:
+            return
+        txt = (
+            f"{conf['viur.instance.project_id']}: Rebuild search index finished for {customData['module']}\n\n"
+            f"ViUR finished to rebuild the search index for module {customData['module']}.\n"
+            f"{totalCount} records updated in total on this kind."
+        )
         try:
-            if customData["notify"]:
-                txt = f"Rebuild search index finished for {customData['module']}\n\n" \
-                      f"ViUR finished to rebuild the search index for module {customData['module']}.\n" \
-                      f"{totalCount} records updated in total on this kind."
-                email.sendEMail(dests=customData["notify"], stringTemplate=txt, skel=None)
-        except:  # OverQuota, whatever
-            pass
+            email.sendEMail(dests=customData["notify"], stringTemplate=txt, skel=None)
+        except Exception as exc:  # noqa; OverQuota, whatever
+            logging.exception(f'Failed to notify {customData["notify"]}')
 
 
 ### Vacuum Relations
 
 @CallableTask
-class TaskVacuumRelations(CallableTaskBase):
+class TaskVacuumRelations(TaskUpdateSearchIndex):
     """
-    Checks entries in viur-relations and verifies that the src-kind and it's relational-bone still exists.
+    Checks entries in viur-relations and verifies that the src-kind
+    and it's RelationalBone still exists.
     """
     key = "vacuumRelations"
-    name = u"Vacuum viur-relations (dangerous)"
-    descr = u"Drop stale inbound relations for the given kind"
+    name = "Vacuum viur-relations (dangerous)"
+    descr = "Drop stale inbound relations for the given kind"
 
-    def canCall(self) -> bool:
-        """
-        Checks wherever the current user can execute this task
-        :returns: bool
-        """
-        user = current.user.get()
-        return user is not None and "root" in user["access"]
-
-    def dataSkel(self):
-        skel = BaseSkeleton(cloned=True)
-        skel.module = StringBone(descr="Module", required=True)
-        return skel
-
-    def execute(self, module, *args, **kwargs):
+    def execute(self, module: str, *args, **kwargs):
         usr = current.user.get()
         if not usr:
             logging.warning("Don't know who to inform after rebuilding finished")
@@ -1496,56 +1487,53 @@ class TaskVacuumRelations(CallableTaskBase):
 
 
 @CallDeferred
-def processVacuumRelationsChunk(module, cursor, allCount=0, removedCount=0, notify=None):
+def processVacuumRelationsChunk(
+    module: str, cursor, count_total: int = 0, count_removed: int = 0, notify=None
+):
     """
-        Processes 100 Entries and calls the next batch
+    Processes 25 Entries and calls the next batch
     """
     query = db.Query("viur-relations")
     if module != "*":
         query.filter("viur_src_kind =", module)
     query.setCursor(cursor)
-    countTotal = 0
-    countRemoved = 0
-    for relationObject in query.run(25):
-        countTotal += 1
-        srcKind = relationObject.get("viur_src_kind")
-        if not srcKind:
-            logging.critical("We got an relation-object without a srcKind!")
+    for relation_object in query.run(25):
+        count_total += 1
+        if not (src_kind := relation_object.get("viur_src_kind")):
+            logging.critical("We got an relation-object without a src_kind!")
             continue
-        srcProp = relationObject.get("viur_src_property")
-        if not srcProp:
-            logging.critical("We got an relation-object without a srcProp!")
+        if not (src_prop := relation_object.get("viur_src_property")):
+            logging.critical("We got an relation-object without a src_prop!")
             continue
         try:
-            skel = skeletonByKind(srcKind)()
+            skel = skeletonByKind(src_kind)()
         except AssertionError:
             # The referenced skeleton does not exist in this data model -> drop that relation object
-            logging.info("Deleting %r which refers to unknown kind %s", str(relationObject.key()), srcKind)
-            db.Delete(relationObject)
-            countRemoved += 1
+            logging.info(f"Deleting {relation_object.key} which refers to unknown kind {src_kind}")
+            db.Delete(relation_object)
+            count_removed += 1
             continue
-        if srcProp not in skel:
-            logging.info("Deleting %r which refers to non-existing RelationalBone %s of %s",
-                         str(relationObject.key()), srcProp, srcKind)
-            db.Delete(relationObject)
-            countRemoved += 1
-    newCursor = query.getCursor()
-    newTotalCount = allCount + countTotal
-    newRemovedCount = removedCount + countRemoved
-    logging.info("END processVacuumRelationsChunk %s, %d records processed, %s removed " % (
-        module, newTotalCount, newRemovedCount))
-    if newCursor:
+        if src_prop not in skel:
+            logging.info(f"Deleting {relation_object.key} which refers to "
+                         f"non-existing RelationalBone {src_prop} of {src_kind}")
+            db.Delete(relation_object)
+            count_removed += 1
+    logging.info(f"END processVacuumRelationsChunk {module}, "
+                 f"{count_total} records processed, {count_removed} removed")
+    if new_cursor := query.getCursor():
         # Start processing of the next chunk
-        processVacuumRelationsChunk(module, newCursor, newTotalCount, newRemovedCount, notify)
-    else:
+        processVacuumRelationsChunk(module, new_cursor, count_total, count_removed, notify)
+    elif notify:
+        txt = (
+            f"{conf['viur.instance.project_id']}: Vacuum relations finished for {module}\n\n"
+            f"ViUR finished to vacuum viur-relations for module {module}.\n"
+            f"{count_total} records processed, "
+            f"{count_removed} entries removed"
+        )
         try:
-            if notify:
-                txt = ("Vaccum Relations finished for %s\n\n" +
-                       "ViUR finished to vaccum viur-relations.\n" +
-                       "%d records processed, %d entries removed") % (module, newTotalCount, newRemovedCount)
-                email.sendEMail(dests=[notify], stringTemplate=txt, skel=None)
-        except:  # OverQuota, whatever
-            pass
+            email.sendEMail(dests=notify, stringTemplate=txt, skel=None)
+        except Exception as exc:  # noqa; OverQuota, whatever
+            logging.exception(f"Failed to notify {notify}")
 
 
 # Forward our references to SkelInstance to the database (needed for queries)
