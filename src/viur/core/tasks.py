@@ -159,18 +159,17 @@ class TaskHandler(Module):
     adminInfo = None
     retryCountWarningThreshold = 25
 
-    def findBoundTask(self, task: Callable, obj: object = None, depth: int = 0) -> Optional[Tuple[Callable, object]]:
+    def findBoundTask(self, task: Callable, obj: object, depth: int = 0) -> Optional[Tuple[Callable, object]]:
         """
             Tries to locate the instance, this function belongs to.
             If it succeeds in finding it, it returns the function and its instance (-> its "self").
             Otherwise, None is returned.
             :param task: A callable decorated with @PeriodicTask
-            :param obj: Object, which will be scanned in the current iteration. None means start at conf.main_app.
+            :param obj: Object, which will be scanned in the current iteration.
             :param depth: Current iteration depth.
         """
-        if depth > 3 or not "periodicTaskName" in dir(task):  # Limit the maximum amount of recursions
+        if depth > 3 or "periodicTaskName" not in dir(task):  # Limit the maximum amount of recursions
             return None
-        obj = obj or conf.main_app
         for attr in dir(obj):
             if attr.startswith("_"):
                 continue
@@ -305,7 +304,7 @@ class TaskHandler(Module):
                 if lastCall and utils.utcNow() - lastCall["date"] < timedelta(minutes=interval):
                     logging.debug("Skipping task %s - Has already run recently." % periodicTaskName)
                     continue
-            res = self.findBoundTask(task)
+            res = self.findBoundTask(task, conf.main_app)
             try:
                 if res:  # Its bound, call it this way :)
                     res[0]()
