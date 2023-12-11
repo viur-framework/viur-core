@@ -4,13 +4,13 @@ import logging
 import os
 import warnings
 from pathlib import Path
-from typing import Any, Callable, Iterator, Literal, Optional, TYPE_CHECKING, Type, TypeAlias, TypeVar, Union
+import typing as t
 
 import google.auth
 
 from viur.core.version import __version__
 
-if TYPE_CHECKING:  # pragma: no cover
+if t.TYPE_CHECKING:  # pragma: no cover
     from viur.core.email import EmailTransport
     from viur.core.skeleton import SkeletonInstance
     from viur.core.module import Module
@@ -18,8 +18,8 @@ if TYPE_CHECKING:  # pragma: no cover
 # Construct an alias with a generic type to be able to write Multiple[str]
 # TODO: Backward compatible implementation, refactor when viur-core
 #       becomes >= Python 3.12 with a type statement (PEP 695)
-_T = TypeVar("_T")
-Multiple: TypeAlias = list[_T] | tuple[_T] | set[_T] | frozenset[_T]  # TODO: Refactor for Python 3.12
+_T = t.TypeVar("_T")
+Multiple: t.TypeAlias = list[_T] | tuple[_T] | t.Set[_T] | frozenset[_T]  # TODO: Refactor for Python 3.12
 
 
 class ConfigType:
@@ -40,7 +40,7 @@ class ConfigType:
 
     def __init__(self, *,
                  strict_mode: bool = None,
-                 parent: Union["ConfigType", None] = None):
+                 parent: t.Union["ConfigType", None] = None):
         super().__init__()
         self._strict_mode = strict_mode
         self._parent = parent
@@ -99,7 +99,7 @@ class ConfigType:
     def items(self,
               full_path: bool = False,
               recursive: bool = True,
-              ) -> Iterator[tuple[str, Any]]:
+              ) -> t.Iterator[tuple[str, t.Any]]:
         """Get all setting of this config as key-value mapping.
 
         :param full_path: Show prefix oder only the key.
@@ -119,7 +119,7 @@ class ConfigType:
                 else:
                     yield key, value
 
-    def get(self, key: str, default: Any = None) -> Any:
+    def get(self, key: str, default: t.Any= None) -> t.Any:
         """Return an item from the config, if it doesn't exist `default` is returned.
 
         :param key: The key for the attribute lookup.
@@ -136,7 +136,7 @@ class ConfigType:
         except (KeyError, AttributeError):
             return default
 
-    def __getitem__(self, key: str) -> Any:
+    def __getitem__(self, key: str) -> t.Any:
         """Support the old dict-like syntax (getter).
 
         Not allowed in strict mode.
@@ -155,7 +155,7 @@ class ConfigType:
 
         return getattr(self, key)
 
-    def __getattr__(self, key: str) -> Any:
+    def __getattr__(self, key: str) -> t.Any:
         """Resolve dot-notation and name mapping in not strict mode.
 
         This method is mostly executed by __getitem__, by the
@@ -177,7 +177,7 @@ class ConfigType:
 
         return super().__getattribute__(key)
 
-    def __setitem__(self, key: str, value: Any) -> None:
+    def __setitem__(self, key: str, value: t.Any) -> None:
         """Support the old dict-like syntax (setter).
 
         Not allowed in strict mode.
@@ -213,7 +213,7 @@ class ConfigType:
 
         return setattr(self, key, value)
 
-    def __setattr__(self, key: str, value: Any) -> None:
+    def __setattr__(self, key: str, value: t.Any) -> None:
         """Set attributes after applying the old -> new mapping
 
         In strict mode it does nothing except a super call
@@ -286,7 +286,7 @@ class Security(ConfigType):
     """List of URLs for which force_ssl is ignored.
     Add an asterisk to mark that entry as a prefix (exact match otherwise)"""
 
-    content_security_policy: Optional[dict[str, dict[str, list[str]]]] = {
+    content_security_policy: t.Optional[dict[str, dict[str, list[str]]]] = {
         "enforce": {
             "style-src": ["self", "https://accounts.google.com/gsi/style"],
             "default-src": ["self"],
@@ -328,7 +328,7 @@ class Security(ConfigType):
     enable_coep: bool = False
     """Shall we emit Cross-Origin-Embedder-Policy: require-corp?"""
 
-    enable_coop: Literal[
+    enable_coop: t.Literal[
         "unsafe-none", "same-origin-allow-popups",
         "same-origin", "same-origin-plus-COEP"] = "same-origin"
     """Emit a Cross-Origin-Opener-Policy Header?
@@ -336,33 +336,33 @@ class Security(ConfigType):
     See https://html.spec.whatwg.org/multipage/browsers.html#cross-origin-opener-policy-value
     """
 
-    enable_corp: Literal["same-origin", "same-site", "cross-origin"] = "same-origin"
+    enable_corp: t.Literal["same-origin", "same-site", "cross-origin"] = "same-origin"
     """Emit a Cross-Origin-Resource-Policy Header?
 
     See https://fetch.spec.whatwg.org/#cross-origin-resource-policy-header
     """
 
-    strict_transport_security: Optional[str] = "max-age=22118400"
+    strict_transport_security: t.Optional[str] = "max-age=22118400"
     """If set, ViUR will emit a HSTS HTTP-header with each request.
     Use security.enableStrictTransportSecurity to set this property"""
 
-    x_frame_options: Optional[tuple[Literal["deny", "sameorigin", "allow-from"], Optional[str]]] = ("sameorigin", None)
+    x_frame_options: t.Optional[tuple[t.Literal["deny", "sameorigin", "allow-from"], t.Optional[str]]] = ("sameorigin", None)
     """If set, ViUR will emit an X-Frame-Options header
 
     In case of allow-from, the second parameters must be the host-url.
     Otherwise, it can be None.
     """
 
-    x_xss_protection: Optional[bool] = True
+    x_xss_protection: t.Optional[bool] = True
     """ViUR will emit an X-XSS-Protection header if set (the default)"""
 
     x_content_type_options: bool = True
     """ViUR will emit X-Content-Type-Options: nosniff Header unless set to False"""
 
-    x_permitted_cross_domain_policies: Optional[Literal["none", "master-only", "by-content-type", "all"]] = "none"
+    x_permitted_cross_domain_policies: t.Optional[t.Literal["none", "master-only", "by-content-type", "all"]] = "none"
     """Unless set to logical none; ViUR will emit a X-Permitted-Cross-Domain-Policies with each request"""
 
-    captcha_default_credentials: Optional[dict[Literal["sitekey", "secret"], str]] = None
+    captcha_default_credentials: t.Optional[dict[t.Literal["sitekey", "secret"], str]] = None
     """The default sitekey and secret to use for the captcha-bone.
     If set, must be a dictionary of "sitekey" and "secret".
     """
@@ -427,12 +427,12 @@ class Email(ConfigType):
     log_retention: datetime.timedelta = datetime.timedelta(days=30)
     """For how long we'll keep successfully send emails in the viur-emails table"""
 
-    transport_class: Type["EmailTransport"] = None
+    transport_class: t.Type["EmailTransport"] = None
     """Class that actually delivers the email using the service provider
     of choice. See email.py for more details
     """
 
-    sendinblue_api_key: Optional[str] = None
+    sendinblue_api_key: t.Optional[str] = None
     """API Key for SendInBlue (now Brevo) for the EmailTransportSendInBlue
     """
 
@@ -447,7 +447,7 @@ class Email(ConfigType):
     Otherwise, they'll just be logged.
     """
 
-    recipient_override: str | list[str] | Callable[[], str | list[str]] | Literal[False] = None
+    recipient_override: str | list[str] | t.Callable[[], str | list[str]] | t.Literal[False] = None
     """If set, all outgoing emails will be sent to this address
     (overriding the 'dests'-parameter in email.sendEmail)
     """
@@ -455,7 +455,7 @@ class Email(ConfigType):
     sender_override: str | None = None
     """If set, this sender will be used, regardless of what the templates advertise as sender"""
 
-    admin_recipients: str | list[str] | Callable[[], str | list[str]] = None
+    admin_recipients: str | list[str] | t.Callable[[], str | list[str]] = None
     """Sets recipients for mails send with email.sendEMailToAdmins. If not set, all root users will be used."""
 
     _mapping = {
@@ -485,7 +485,7 @@ class I18N(ConfigType):
     language_alias_map: dict[str, str] = {}
     """Allows mapping of certain languages to one translation (i.e. us->en)"""
 
-    language_method: Literal["session", "url", "domain"] = "session"
+    language_method: t.Literal["session", "url", "domain"] = "session"
     """Defines how translations are applied:
         - session: Per Session
         - url: inject language prefix in url
@@ -523,10 +523,10 @@ class User(ConfigType):
     max_password_length: int = 512
     """Prevent Denial of Service attacks using large inputs for pbkdf2"""
 
-    otp_issuer: Optional[str] = None
+    otp_issuer: t.Optional[str] = None
     """The name of the issuer for the opt token"""
 
-    google_client_id: Optional[str] = None
+    google_client_id: t.Optional[str] = None
     """OAuth Client ID for Google Login"""
 
     google_gsuite_domains: list[str] = []
@@ -566,7 +566,7 @@ class Conf(ConfigType):
     bone_boolean_str2true: Multiple[str | int] = ("true", "yes", "1")
     """Allowed values that define a str to evaluate to true"""
 
-    cache_environment_key: Optional[Callable[[], str]] = None
+    cache_environment_key: t.Optional[t.Callable[[], str]] = None
     """If set, this function will be called for each cache-attempt
     and the result will be included in the computed cache-key"""
 
@@ -580,7 +580,7 @@ class Conf(ConfigType):
     db_engine: str = "viur.datastore"
     """Database engine module"""
 
-    error_handler: Callable[[Exception], str] | None = None
+    error_handler: t.Callable[[Exception], str] | None = None
     """If set, ViUR calls this function instead of rendering the viur.errorTemplate if an exception occurs"""
 
     error_logo: str = None
@@ -593,10 +593,10 @@ class Conf(ConfigType):
     """Hmac-Key used to sign download urls - set automatically"""
 
     # TODO: separate this type hints and use it in the File module as well
-    file_derivations: dict[str, Callable[["SkeletonInstance", dict, dict], list[tuple[str, float, str, Any]]]] = {}
+    file_derivations: dict[str, t.Callable[["SkeletonInstance", dict, dict], list[tuple[str, float, str, t.Any]]]] = {}
     """Call-Map for file pre-processors"""
 
-    file_thumbnailer_url: Optional[str] = None
+    file_thumbnailer_url: t.Optional[str] = None
     # TODO: """docstring"""
 
     main_app: "Module" = None
@@ -608,25 +608,25 @@ class Conf(ConfigType):
     max_post_params_count: int = 250
     """Upper limit of the amount of parameters we accept per request. Prevents Hash-Collision-Attacks"""
 
-    moduleconf_admin_info: dict[str, Any] = {
+    moduleconf_admin_info: dict[str, t.Any] = {
         "icon": "icon-settings",
         "display": "hidden",
     }
     """Describing the internal ModuleConfig-module"""
 
-    script_admin_info: dict[str, Any] = {
+    script_admin_info: dict[str, t.Any] = {
         "icon": "icon-hashtag",
         "display": "hidden",
     }
     """Describing the Script module"""
 
-    render_html_download_url_expiration: Optional[float | int] = None
+    render_html_download_url_expiration: t.Optional[float | int] = None
     """The default duration, for which downloadURLs generated by the html renderer will stay valid"""
 
-    render_json_download_url_expiration: Optional[float | int] = None
+    render_json_download_url_expiration: t.Optional[float | int] = None
     """The default duration, for which downloadURLs generated by the json renderer will stay valid"""
 
-    request_preprocessor: Optional[Callable[[str], str]] = None
+    request_preprocessor: t.Optional[t.Callable[[str], str]] = None
     """Allows the application to register a function that's called before the request gets routed"""
 
     search_valid_chars: str = "abcdefghijklmnopqrstuvwxyzäöüß0123456789"
@@ -639,7 +639,7 @@ class Conf(ConfigType):
     ]
     """Priority, in which skeletons are loaded"""
 
-    tasks_custom_environment_handler: tuple[Callable[[], Any], Callable[[Any], None]] = None
+    tasks_custom_environment_handler: tuple[t.Callable[[], t.Any], t.Callable[[t.Any], None]] = None
     """
     Preserve additional environment in deferred tasks.
 
@@ -657,7 +657,7 @@ class Conf(ConfigType):
     version: tuple[int, int, int] = tuple(int(part) if part.isdigit() else part for part in __version__.split(".", 3))
     """Semantic version number of viur-core as a tuple of 3 (major, minor, patch-level)"""
 
-    viur2import_blobsource: Optional[dict[Literal["infoURL", "gsdir"], str]] = None
+    viur2import_blobsource: t.Optional[dict[t.Literal["infoURL", "gsdir"], str]] = None
     """Configuration to import file blobs from ViUR2"""
 
     def __init__(self, strict_mode: bool = False):

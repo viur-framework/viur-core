@@ -28,7 +28,7 @@ import inspect
 import os
 import warnings
 from types import ModuleType
-from typing import Callable, Dict, Union, List
+import typing as t
 
 import yaml
 
@@ -79,7 +79,7 @@ __all__ = [
 # Show DeprecationWarning from the viur-core
 warnings.filterwarnings("always", category=DeprecationWarning, module=r"viur\.core.*")
 
-def load_indexes_from_file() -> Dict[str, List]:
+def load_indexes_from_file() -> t.Dict[str, t.List]:
     """
         Loads all indexes from the index.yaml and stores it in a dictionary  sorted by the module(kind)
         :return A dictionary of indexes per module
@@ -122,7 +122,7 @@ def setDefaultDomainLanguage(domain: str, lang: str):
     conf.i18n.domain_language_mapping[host] = lang.lower()
 
 
-def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Dict], default: str = None) -> Module:
+def buildApp(modules: t.Union[ModuleType, object], renderers: t.Union[ModuleType, t.Dict], default: str = None) -> Module:
     """
         Creates the application-context for the current instance.
 
@@ -224,7 +224,7 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
     return root
 
 
-def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = None, default: str = "html"):
+def setup(modules: t.Union[object, ModuleType], render: t.Union[ModuleType, t.Dict] = None, default: str = "html"):
     """
         Define whats going to be served by this instance.
 
@@ -301,7 +301,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
     return app
 
 
-def app(environ: dict, start_response: Callable):
+def app(environ: dict, start_response: t.Callable):
     return request.Router(environ).response(environ, start_response)
 
 

@@ -1,4 +1,4 @@
-from typing import Callable, Union
+import typing as t
 
 __jinjaGlobals_ = {}
 __jinjaFilters_ = {}
@@ -38,7 +38,7 @@ def jinjaGlobalFilter(f):
     return f
 
 
-def jinjaGlobalTest(func_or_alias: Union[Callable, str]) -> Callable:
+def jinjaGlobalTest(func_or_alias: t.Union[t.Callable, str]) -> t.Callable:
     """
     Decorator, marks a function as a Jinja2 test.
 

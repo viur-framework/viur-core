@@ -1,4 +1,4 @@
-from typing import Iterable
+import typing as t
 
 from . import default as DefaultRender
 from viur.core.modules.user import UserSecondFactorAuthentication
@@ -79,7 +79,7 @@ class Render(DefaultRender):  # Render user-data to xml
         return template.render(action_name=action_name, name=name)
 
     def second_factor_choice(self,
-                             second_factors: Iterable[UserSecondFactorAuthentication],
+                             second_factors: t.Iterable[UserSecondFactorAuthentication],
                              tpl: str | None = None):
         tpl = self._choose_template(tpl, "second_factor_choice_template")
         template = self.getEnv().get_template(self.getTemplateFileName(tpl))

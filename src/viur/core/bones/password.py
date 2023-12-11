@@ -6,7 +6,7 @@ directly. The class also includes various tests to determine the strength of the
 
 import hashlib
 import re
-from typing import List, Tuple, Union
+import typing as t
 
 from viur.core import conf, utils
 from viur.core.bones.string import StringBone
@@ -64,7 +64,7 @@ class PasswordBone(StringBone):
         self,
         *,
         test_threshold: int = 4,
-        tests: List[Tuple] = tests,
+        tests: t.List[t.Tuple] = tests,
         **kwargs
     ):
         """
@@ -108,7 +108,7 @@ class PasswordBone(StringBone):
 
         return False
 
-    def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
+    def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> t.Union[None, t.List[ReadFromClientError]]:
         """
         Processes the password field from the client data, validates it, and stores it in the
         skeleton instance after hashing. This method performs several checks, such as ensuring that

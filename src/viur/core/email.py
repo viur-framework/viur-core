@@ -3,7 +3,7 @@ import json
 import logging
 import os
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Union
+import typing as t
 from urllib import request
 
 import requests
@@ -44,9 +44,9 @@ class EmailTransport(ABC):
 
     @staticmethod
     @abstractmethod
-    def deliverEmail(*, sender: str, dests: List[str], cc: List[str], bcc: List[str], subject: str, body: str,
-                     headers: Dict[str, str], attachments: List[Dict[str, bytes]],
-                     customData: Union[dict, None], **kwargs):
+    def deliverEmail(*, sender: str, dests: t.List[str], cc: t.List[str], bcc: t.List[str], subject: str, body: str,
+                     headers: t.Dict[str, str], attachments: t.List[t.Dict[str, bytes]],
+                     customData: t.Union[dict, None], **kwargs):
         """
             The actual email delivery must be implemented here. All email-adresses can be either in the form of
             "mm@example.com" or "Max Musterman <mm@example.com>". If the delivery was successful, this method
@@ -124,7 +124,7 @@ def sendEmailDeferred(emailKey: db.Key):
         logging.exception(e)
 
 
-def normalize_to_list(value: Union[None, Any, List[Any], Callable[[], List]]) -> List[Any]:
+def normalize_to_list(value: t.Union[None, t.Any, t.List[t.Any], t.Callable[[], t.List]]) -> t.List[t.Any]:
     """
     Convert the given value to a list.
 
@@ -142,14 +142,14 @@ def normalize_to_list(value: Union[None, Any, List[Any], Callable[[], List]]) ->
 def sendEMail(*,
               tpl: str = None,
               stringTemplate: str = None,
-              skel: Union[None, Dict, "SkeletonInstance", List["SkeletonInstance"]] = None,
+              skel: t.Union[None, t.Dict, "SkeletonInstance", t.List["SkeletonInstance"]] = None,
               sender: str = None,
-              dests: Union[str, List[str]] = None,
-              cc: Union[str, List[str]] = None,
-              bcc: Union[str, List[str]] = None,
-              headers: Dict[str, str] = None,
-              attachments: List[Dict[str, Any]] = None,
-              context: Union[db.DATASTORE_BASE_TYPES, List[db.DATASTORE_BASE_TYPES], db.Entity] = None,
+              dests: t.Union[str, t.List[str]] = None,
+              cc: t.Union[str, t.List[str]] = None,
+              bcc: t.Union[str, t.List[str]] = None,
+              headers: t.Dict[str, str] = None,
+              attachments: t.List[t.Dict[str, t.Any]] = None,
+              context: t.Union[db.DATASTORE_BASE_TYPES, t.List[db.DATASTORE_BASE_TYPES], db.Entity] = None,
               **kwargs) -> bool:
     """
     General purpose function for sending e-mail.
@@ -302,7 +302,7 @@ class EmailTransportSendInBlue(EmailTransport):
                          "xls", "xlsx", "ppt", "tar", "ez"}
 
     @staticmethod
-    def splitAddress(address: str) -> Dict[str, str]:
+    def splitAddress(address: str) -> t.Dict[str, str]:
         """
             Splits an Name/Address Pair as "Max Musterman <mm@example.com>" into a dict
             {"name": "Max Mustermann", "email": "mm@example.com"}
@@ -319,8 +319,8 @@ class EmailTransportSendInBlue(EmailTransport):
             return {"email": address}
 
     @staticmethod
-    def deliverEmail(*, sender: str, dests: List[str], cc: List[str], bcc: List[str], subject: str, body: str,
-                     headers: Dict[str, str], attachments: List[Dict[str, bytes]], **kwargs):
+    def deliverEmail(*, sender: str, dests: t.List[str], cc: t.List[str], bcc: t.List[str], subject: str, body: str,
+                     headers: t.Dict[str, str], attachments: t.List[t.Dict[str, bytes]], **kwargs):
         """
             Internal function for delivering Emails using Send in Blue. This function requires the
             conf.email.sendinblue_api_key to be set.

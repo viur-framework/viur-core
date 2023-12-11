@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Optional
+import typing as t
 
 import pytz
 import tzlocal
@@ -316,8 +316,8 @@ class DateBone(BaseBone):
                       name: str,
                       skel: 'viur.core.skeleton.SkeletonInstance',
                       dbFilter: db.Query,
-                      rawFilter: Dict,
-                      prefix: Optional[str] = None) -> db.Query:
+                      rawFilter: t.Dict,
+                      prefix: t.Optional[str] = None) -> db.Query:
         """
         Constructs a datastore filter for date and/or time values based on the given raw filter. It parses the
         raw filter and, if successful, applies it to the datastore query.

@@ -1,6 +1,6 @@
 import datetime
 import jinja2.ext as jinja2
-from typing import List, Tuple, Union
+import typing as t
 from viur.core.config import conf
 from viur.core import db, utils, languages, current
 
@@ -15,7 +15,7 @@ class LanguageWrapper(dict):
         guess the correct language.
     """
 
-    def __init__(self, languages: Union[List[str], Tuple[str]]):
+    def __init__(self, languages: t.Union[t.List[str], t.Tuple[str]]):
         super(LanguageWrapper, self).__init__()
         self.languages = languages
 
@@ -27,7 +27,7 @@ class LanguageWrapper(dict):
         # (otherwise that test is always true as this dict contains keys)
         return bool(str(self))
 
-    def resolve(self) -> Union[str, List[str]]:
+    def resolve(self) -> t.Union[str, t.List[str]]:
         """
             Causes this wrapper to evaluate to the best language available for the current request.
 

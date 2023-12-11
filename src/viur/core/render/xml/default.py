@@ -1,4 +1,4 @@
-from typing import Any, Dict
+import typing as t
 
 from viur.core.bones import *
 from viur.core import db
@@ -89,7 +89,7 @@ class DefaultRender(object):
             res = self.renderSingleBoneValue(boneVal, bone, skel, key)
         return res
 
-    def renderSingleBoneValue(self, value: Any, bone: baseBone, skel: SkeletonInstance, key: str) -> Dict:
+    def renderSingleBoneValue(self, value: t.Any, bone: baseBone, skel: SkeletonInstance, key: str) -> t.Dict:
         """
         Renders the value of a bone.
 

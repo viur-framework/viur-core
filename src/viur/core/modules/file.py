@@ -8,7 +8,7 @@ from base64 import urlsafe_b64decode
 from datetime import datetime, timedelta
 from io import BytesIO
 from quopri import decodestring
-from typing import Any, List, Tuple, Union
+import typing as t
 from urllib.request import urlopen
 
 import google.auth
@@ -414,7 +414,7 @@ class File(Tree):
 
     blobCacheTime = 60 * 60 * 24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
 
-    def write(self, filename: str, content: Any, mimetype: str = "text/plain", width: int = None,
+    def write(self, filename: str, content: t.Any, mimetype: str = "text/plain", width: int = None,
               height: int = None) -> db.Key:
         """
         Write a file from any buffer into the file module.
@@ -459,8 +459,8 @@ class File(Tree):
             if skel.fromDB(d.key):
                 skel.delete()
 
-    def signUploadURL(self, mimeTypes: Union[List[str], None] = None, maxSize: Union[int, None] = None,
-                      node: Union[str, None] = None):
+    def signUploadURL(self, mimeTypes: t.Union[t.List[str], None] = None, maxSize: t.Union[int, None] = None,
+                      node: t.Union[str, None] = None):
         """
         Internal helper that will create a signed upload-url that can be used to retrieve an uploadURL from
         getUploadURL for guests / users without having file/add permissions. This URL is valid for an hour and can
@@ -492,8 +492,8 @@ class File(Tree):
     def initializeUpload(self,
                          fileName: str,
                          mimeType: str,
-                         node: Union[str, None],
-                         size: Union[int, None] = None) -> Tuple[str, str]:
+                         node: t.Union[str, None],
+                         size: t.Union[int, None] = None) -> t.Tuple[str, str]:
         """
         Internal helper that registers a new upload. Will create the pending fileSkel entry (needed to remove any
         started uploads from GCS if that file isn't used) and creates a resumable (and signed) uploadURL for that.

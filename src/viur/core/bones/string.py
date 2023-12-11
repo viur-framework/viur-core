@@ -1,7 +1,7 @@
 import warnings
 
 import logging
-from typing import Callable, Dict, List, Optional, Set
+import typing as t
 
 from viur.core import current, db, utils
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
@@ -19,7 +19,7 @@ class StringBone(BaseBone):
         caseSensitive: bool = True,
         max_length: int | None = 254,
         min_length: int | None = None,
-        natural_sorting: bool | Callable = False,
+        natural_sorting: bool | t.Callable = False,
         **kwargs
     ):
         """
@@ -141,8 +141,8 @@ class StringBone(BaseBone):
         name: str,
         skel: 'viur.core.skeleton.SkeletonInstance',
         dbFilter: db.Query,
-        rawFilter: Dict,
-        prefix: Optional[str] = None
+        rawFilter: t.Dict,
+        prefix: t.Optional[str] = None
     ) -> db.Query:
         """
         Builds and returns a database filter for this data field based on the provided raw filter data.
@@ -209,8 +209,8 @@ class StringBone(BaseBone):
         name: str,
         skel: 'viur.core.skeleton.SkeletonInstance',
         dbFilter: db.Query,
-        rawFilter: Dict
-    ) -> Optional[db.Query]:
+        rawFilter: t.Dict
+    ) -> t.Optional[db.Query]:
         """
         Build a DB sort based on the specified name and a raw filter.
 
@@ -285,7 +285,7 @@ class StringBone(BaseBone):
             "ẞ": "SS",
         }))
 
-    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> t.Set[str]:
         """
         Returns a set of lowercased words that represent searchable tags for the given bone.
 
@@ -304,7 +304,7 @@ class StringBone(BaseBone):
                     result.add(word.lower())
         return result
 
-    def getUniquePropertyIndexValues(self, skel, name: str) -> List[str]:
+    def getUniquePropertyIndexValues(self, skel, name: str) -> t.List[str]:
         """
         Returns a list of unique index values for a given property name.
 

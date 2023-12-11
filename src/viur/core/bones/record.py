@@ -1,4 +1,4 @@
-from typing import List, Set
+import typing as t
 
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
@@ -98,7 +98,7 @@ class RecordBone(BaseBone):
             )
         return usingSkel, usingSkel.errors
 
-    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> t.Set[str]:
         """
         Collects search tags from the 'using' skeleton instance for the given bone.
 
@@ -147,7 +147,7 @@ class RecordBone(BaseBone):
 
         return res
 
-    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> t.Set[str]:
         """
         Retrieves a set of referenced blobs for the given skeleton instance and name.
 
@@ -170,7 +170,7 @@ class RecordBone(BaseBone):
 
         return result
 
-    def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
+    def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> t.List[str]:
         """
         This method is intentionally not implemented as it's not possible to determine how to derive
         a key from the related skeleton being used (i.e., which fields to include and how).

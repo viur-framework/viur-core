@@ -1,12 +1,12 @@
 import json
-from typing import Any
+import typing as t
 
 from ..utils import jinjaGlobalFilter
 from ..default import Render
 
 
 @jinjaGlobalFilter
-def parseJSON(render: Render, value: str) -> Any:
+def parseJSON(render: Render, value: str) -> t.Any:
     """
     Jinja2 filter: Parses a JSON-string into a python object.
 

@@ -17,7 +17,7 @@
 
         Therefor that header is prefixed with "Sec-" - so it cannot be read or set using JavaScript.
 """
-import typing
+import typing as t
 import datetime
 import hmac
 from viur.core import conf, utils, current, db, tasks
@@ -28,7 +28,7 @@ SECURITYKEY_STATIC = "Sec-X-ViUR-StaticSessionKey"
 
 
 def create(
-        duration: typing.Union[None, int] = None,
+        duration: t.Union[None, int] = None,
         session_bound: bool = True,
         key_length: int = 13,
         indexed: bool = True,
@@ -68,7 +68,7 @@ def create(
     return key
 
 
-def validate(key: str, session_bound: bool = True) -> typing.Union[bool, db.Entity]:
+def validate(key: str, session_bound: bool = True) -> t.Union[bool, db.Entity]:
     """
         Validates a CSRF-security-key.
 

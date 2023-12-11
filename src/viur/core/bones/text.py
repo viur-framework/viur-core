@@ -8,7 +8,7 @@ from base64 import urlsafe_b64decode
 from datetime import datetime
 from html import entities as htmlentitydefs
 from html.parser import HTMLParser
-from typing import Dict, List, Optional, Set, Tuple, Union
+import typing as t
 
 from viur.core import db, utils
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
@@ -49,7 +49,7 @@ A dictionary containing default configurations for handling HTML content in Text
 """
 
 
-def parseDownloadUrl(urlStr: str) -> Tuple[Optional[str], Optional[bool], Optional[str]]:
+def parseDownloadUrl(urlStr: str) -> t.Tuple[t.Optional[str], t.Optional[bool], t.Optional[str]]:
     """
     Parses a file download URL in the format `/file/download/xxxx?sig=yyyy` into its components: blobKey, derived,
     and filename. If the URL cannot be parsed, the function returns None for each component.
@@ -351,9 +351,9 @@ class TextBone(BaseBone):
     def __init__(
         self,
         *,
-        validHtml: Union[None, Dict] = __undefinedC__,
+        validHtml: t.Union[None, t.Dict] = __undefinedC__,
         max_length: int = 200000,
-        srcSet: Optional[Dict[str, List]] = None,
+        srcSet: t.Optional[t.Dict[str, t.List]] = None,
         indexed: bool = False,
         **kwargs
     ):
@@ -422,7 +422,7 @@ class TextBone(BaseBone):
         if len(value) > self.max_length:
             return "Maximum length exceeded"
 
-    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> t.Set[str]:
         """
         Extracts and returns the blob keys of referenced files in the HTML content of the TextBone instance.
 
@@ -479,7 +479,7 @@ class TextBone(BaseBone):
             elif not self.languages and isinstance(val, str):
                 skel[boneName] = self.singleValueFromClient(val, skel, boneName, None)[0]
 
-    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> t.Set[str]:
         """
         Extracts search tags from the text content of a TextBone.
 
@@ -500,7 +500,7 @@ class TextBone(BaseBone):
                     result.add(word.lower())
         return result
 
-    def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
+    def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> t.List[str]:
         """
         Retrieves the unique property index values for the TextBone.
 

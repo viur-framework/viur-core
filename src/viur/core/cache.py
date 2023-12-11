@@ -3,7 +3,7 @@ import os
 from datetime import timedelta
 from functools import wraps
 from hashlib import sha512
-from typing import Callable, Dict, List, Tuple, Union
+import typing as t
 
 from viur.core import Method, current, db, tasks, utils
 from viur.core.config import conf
@@ -29,8 +29,8 @@ from viur.core.config import conf
 viurCacheName = "viur-cache"
 
 
-def keyFromArgs(f: Callable, userSensitive: int, languageSensitive: bool, evaluatedArgs: List[str], path: str,
-                args: Tuple, kwargs: Dict) -> str:
+def keyFromArgs(f: t.Callable, userSensitive: int, languageSensitive: bool, evaluatedArgs: t.List[str], path: str,
+                args: t.Tuple, kwargs: t.Dict) -> str:
     """
         Utility function to derive a unique but stable string-key that can be used in a datastore-key
         for the given wrapped function f, the parameter *args and **kwargs it has been called with,
@@ -110,8 +110,8 @@ def keyFromArgs(f: Callable, userSensitive: int, languageSensitive: bool, evalua
     return mysha512.hexdigest()
 
 
-def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool,
-                 evaluatedArgs: List[str], maxCacheTime: int):
+def wrapCallable(f, urls: t.List[str], userSensitive: int, languageSensitive: bool,
+                 evaluatedArgs: t.List[str], maxCacheTime: int):
     """
         Does the actual work of wrapping a callable.
         Use the decorator enableCache instead of calling this directly.
@@ -123,7 +123,7 @@ def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool
         f = f._func
 
     @wraps(f)
-    def wrapF(self, *args, **kwargs) -> Union[str, bytes]:
+    def wrapF(self, *args, **kwargs) -> t.Union[str, bytes]:
         currReq = current.request.get()
         if conf.debug.disable_cache or currReq.disableCache:
             # Caching disabled
@@ -174,8 +174,8 @@ def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool
         return method
 
 
-def enableCache(urls: List[str], userSensitive: int = 0, languageSensitive: bool = False,
-                evaluatedArgs: Union[List[str], None] = None, maxCacheTime: Union[int, None] = None):
+def enableCache(urls: t.List[str], userSensitive: int = 0, languageSensitive: bool = False,
+                evaluatedArgs: t.Union[t.List[str], None] = None, maxCacheTime: t.Union[int, None] = None):
     """
         Decorator to wrap this cache around a function. In order for this to function correctly, you must provide
         additional information so ViUR can determine in which situations it's possible to re-use an already cached
@@ -211,7 +211,7 @@ def enableCache(urls: List[str], userSensitive: int = 0, languageSensitive: bool
 
 
 @tasks.CallDeferred
-def flushCache(prefix: str = None, key: Union[db.Key, None] = None, kind: Union[str, None] = None):
+def flushCache(prefix: str = None, key: t.Union[db.Key, None] = None, kind: t.Union[str, None] = None):
     """
         Flushes the cache. Its possible the flush only a part of the cache by specifying
         the path-prefix. The path is equal to the url that caused it to be cached (eg /page/view) and must be one

@@ -4,7 +4,7 @@ import enum
 import functools
 import logging
 import os
-from typing import Any, Dict, List, Literal, Tuple, Union
+import typing as t
 
 from jinja2 import ChoiceLoader, Environment, FileSystemLoader, Template
 
@@ -66,7 +66,7 @@ class Render(object):
 
     def getTemplateFileName(
         self,
-        template: str | List[str] | Tuple[str],
+        template: str | t.List[str] | t.Tuple[str],
         ignoreStyle: bool = False,
         raise_exception: bool = True,
     ) -> str | None:
@@ -152,10 +152,10 @@ class Render(object):
     def renderBoneValue(self,
                         bone: BaseBone,
                         skel: SkeletonInstance,
-                        key: Any,  # TODO: unused
-                        boneValue: Any,
+                        key: t.Any,  # TODO: unused
+                        boneValue: t.Any,
                         isLanguageWrapped: bool = False
-                        ) -> Union[List, Dict, KeyValueWrapper, LanguageWrapper, str, None]:
+                        ) -> t.Union[t.List, t.Dict, KeyValueWrapper, LanguageWrapper, str, None]:
         """
         Renders the value of a bone.
 
@@ -253,7 +253,7 @@ class Render(object):
         skel: SkeletonInstance,
         action: str,
         tpl: str = None,
-        params: Dict = None,
+        params: t.Dict = None,
         **kwargs
     ) -> str:
         """
@@ -301,7 +301,7 @@ class Render(object):
         skel: SkeletonInstance,
         action: str,
         tpl: str = None,
-        params: Dict = None,
+        params: t.Dict = None,
         **kwargs
     ) -> str:
         """
@@ -329,7 +329,7 @@ class Render(object):
             **kwargs
         )
 
-    def list(self, skellist: SkelList, action: str = "list", tpl: str = None, params: Any = None, **kwargs) -> str:
+    def list(self, skellist: SkelList, action: str = "list", tpl: str = None, params: t.Any= None, **kwargs) -> str:
         """
         Renders a page with a list of entries.
 
@@ -350,7 +350,7 @@ class Render(object):
 
         return template.render(skellist=skellist, action=action, params=params, **kwargs)
 
-    def view(self, skel: SkeletonInstance, action: str = "view", tpl: str = None, params: Any = None, **kwargs) -> str:
+    def view(self, skel: SkeletonInstance, action: str = "view", tpl: str = None, params: t.Any= None, **kwargs) -> str:
         """
         Renders a page for viewing an entry.
 
@@ -358,7 +358,7 @@ class Render(object):
         """
         return self.render_view_template("view", skel, action, tpl, params, **kwargs)
 
-    def add(self, skel: SkeletonInstance, action: str = "add", tpl: str = None, params: Any = None, **kwargs) -> str:
+    def add(self, skel: SkeletonInstance, action: str = "add", tpl: str = None, params: t.Any= None, **kwargs) -> str:
         """
         Renders a page for adding an entry.
 
@@ -366,7 +366,7 @@ class Render(object):
         """
         return self.render_action_template("add", skel, action, tpl, params, **kwargs)
 
-    def edit(self, skel: SkeletonInstance, action: str = "edit", tpl: str = None, params: Any = None, **kwargs) -> str:
+    def edit(self, skel: SkeletonInstance, action: str = "edit", tpl: str = None, params: t.Any= None, **kwargs) -> str:
         """
         Renders a page for modifying an entry.
 
@@ -379,7 +379,7 @@ class Render(object):
         skel: SkeletonInstance,
         action: str = "addSuccess",
         tpl: str = None,
-        params: Any = None,
+        params: t.Any= None,
         **kwargs
     ) -> str:
         """
@@ -394,7 +394,7 @@ class Render(object):
         skel: SkeletonInstance,
         action: str = "editSuccess",
         tpl: str = None,
-        params: Any = None,
+        params: t.Any= None,
         **kwargs
     ) -> str:
         """
@@ -409,7 +409,7 @@ class Render(object):
         skel: SkeletonInstance,
         action: str = "deleteSuccess",
         tpl: str = None,
-        params: Any = None,
+        params: t.Any= None,
         **kwargs
     ) -> str:
         """
@@ -421,10 +421,10 @@ class Render(object):
 
     def listRootNodes(  # fixme: This is a relict, should be solved differently (later!).
         self,
-        repos: List[Dict[Literal["key", "name"], Any]],
+        repos: t.List[t.Dict[t.Literal["key", "name"], t.Any]],
         action: str = "listrootnodes",
         tpl: str = None,
-        params: Any = None,
+        params: t.Any= None,
         **kwargs
     ) -> str:
         """
@@ -443,11 +443,11 @@ class Render(object):
         return template.render(repos=repos, action=action, params=params, **kwargs)
 
     def renderEmail(self,
-                    dests: List[str],
+                    dests: t.List[str],
                     file: str = None,
                     template: str = None,
-                    skel: Union[None, Dict, SkeletonInstance, List[SkeletonInstance]] = None,
-                    **kwargs) -> Tuple[str, str]:
+                    skel: t.Union[None, t.Dict, SkeletonInstance, t.List[SkeletonInstance]] = None,
+                    **kwargs) -> t.Tuple[str, str]:
         """
             Renders an email.
             Uses the first not-empty line as subject and the remaining template as body.
