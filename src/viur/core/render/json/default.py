@@ -68,7 +68,6 @@ class DefaultRender(object):
 
         return structure
 
-
     def renderSingleBoneValue(self, value: t.Any,
                               bone: bones.BaseBone,
                               skel: SkeletonInstance,

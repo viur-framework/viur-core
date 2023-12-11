@@ -155,7 +155,7 @@ class Session:
         self.session |= other
         return self
 
-    def get(self, key: str, default: t.Any= None) -> t.Any:
+    def get(self, key: str, default: t.Any = None) -> t.Any:
         """
             Returns the value stored under the given key.
 

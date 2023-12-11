@@ -102,6 +102,7 @@ escapeString.__escape_trans = str.maketrans(
      "\n": "",
      "\0": ""})
 
+
 def hmacSign(data: t.Any) -> str:
     assert conf.file_hmac_key is not None, "No hmac-key set!"
     if not isinstance(data, bytes):
@@ -156,7 +157,8 @@ def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
     return "/file/download/%s?sig=%s" % (sigStr.decode("ASCII"), resstr)
 
 
-def srcSetFor(fileObj: dict, expires: t.Optional[int], width: t.Optional[int] = None, height: t.Optional[int] = None) -> str:
+def srcSetFor(fileObj: dict, expires: t.Optional[int], width: t.Optional[int] = None,
+              height: t.Optional[int] = None) -> str:
     """
         Generates a string suitable for use as the srcset tag in html. This functionality provides the browser
         with a list of images in different sizes and allows it to choose the smallest file that will fill it's viewport
