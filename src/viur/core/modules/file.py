@@ -467,12 +467,7 @@ class File(Tree):
                 path = f"""{skel["dlkey"]}/source/{skel["name"]}"""
 
         blob = bucket.blob(path)
-        try:
-            data = blob.download_as_bytes()
-            return io.BytesIO(data), blob.content_type
-        except Exception as e:
-            logging.error(f"Could not find Blob {e=}")
-            raise FileNotFoundError("Could not find Blob")
+        return io.BytesIO(blob.download_as_bytes()), blob.content_type
 
     @CallDeferred
     def deleteRecursive(self, parentKey):
