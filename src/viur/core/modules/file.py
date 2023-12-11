@@ -444,33 +444,35 @@ class File(Tree):
 
         return skel.toDB()
 
-    def read(self, key: db.Key | int | str | None = None, path: str | None = None) -> io.BytesIO:
+    def read(self, key: db.Key | int | str | None = None, path: str | None = None) -> Tuple[io.BytesIO, str]:
         """
         Read a file from the Cloudstorage.
+
+        If a key and a path are provided, the key is preferred.
+        This means that the entry in the db is searched first and if this is not found, the path is used.
 
         :param key: Key of the LeafSkel that contains the "dlkey" and the "name".
         :param path: The path of the file in the Cloudstorage Bucket.
 
-
-        :return: Returns the file as a BytesIO buffer.
+        :return: Returns the file as a BytesIO buffer and the content-type
         """
         if not key and not path:
-            raise errors.PreconditionFailed("Please provide a key or a path")
+            raise ValueError("Please provide a key or a path")
         if key:
             skel = self.viewSkel("leaf")
             if not skel.fromDB(db.keyHelper(key, self.leafSkelCls().kindName)):
                 if not path:
-                    raise errors.NotFound()
+                    raise ValueError("This skeleton is not in the database!")
             else:
                 path = f"""{skel["dlkey"]}/source/{skel["name"]}"""
 
         blob = bucket.blob(path)
         try:
             data = blob.download_as_bytes()
-            return io.BytesIO(data)
+            return io.BytesIO(data), blob.content_type
         except Exception as e:
-            logging.error(f"Could not read Bolb {e=}")
-            raise errors.NotFound()
+            logging.error(f"Could not find Blob {e=}")
+            raise FileNotFoundError("Could not find Blob")
 
     @CallDeferred
     def deleteRecursive(self, parentKey):
