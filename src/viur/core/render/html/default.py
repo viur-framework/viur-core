@@ -329,7 +329,7 @@ class Render(object):
             **kwargs
         )
 
-    def list(self, skellist: SkelList, action: str = "list", tpl: str = None, params: t.Any= None, **kwargs) -> str:
+    def list(self, skellist: SkelList, action: str = "list", tpl: str = None, params: t.Any = None, **kwargs) -> str:
         """
         Renders a page with a list of entries.
 
@@ -350,7 +350,8 @@ class Render(object):
 
         return template.render(skellist=skellist, action=action, params=params, **kwargs)
 
-    def view(self, skel: SkeletonInstance, action: str = "view", tpl: str = None, params: t.Any= None, **kwargs) -> str:
+    def view(self, skel: SkeletonInstance, action: str = "view", tpl: str = None, params: t.Any = None,
+             **kwargs) -> str:
         """
         Renders a page for viewing an entry.
 
@@ -358,7 +359,7 @@ class Render(object):
         """
         return self.render_view_template("view", skel, action, tpl, params, **kwargs)
 
-    def add(self, skel: SkeletonInstance, action: str = "add", tpl: str = None, params: t.Any= None, **kwargs) -> str:
+    def add(self, skel: SkeletonInstance, action: str = "add", tpl: str = None, params: t.Any = None, **kwargs) -> str:
         """
         Renders a page for adding an entry.
 
@@ -366,7 +367,8 @@ class Render(object):
         """
         return self.render_action_template("add", skel, action, tpl, params, **kwargs)
 
-    def edit(self, skel: SkeletonInstance, action: str = "edit", tpl: str = None, params: t.Any= None, **kwargs) -> str:
+    def edit(self, skel: SkeletonInstance, action: str = "edit", tpl: str = None, params: t.Any = None,
+             **kwargs) -> str:
         """
         Renders a page for modifying an entry.
 
@@ -379,7 +381,7 @@ class Render(object):
         skel: SkeletonInstance,
         action: str = "addSuccess",
         tpl: str = None,
-        params: t.Any= None,
+        params: t.Any = None,
         **kwargs
     ) -> str:
         """
@@ -394,7 +396,7 @@ class Render(object):
         skel: SkeletonInstance,
         action: str = "editSuccess",
         tpl: str = None,
-        params: t.Any= None,
+        params: t.Any = None,
         **kwargs
     ) -> str:
         """
@@ -409,7 +411,7 @@ class Render(object):
         skel: SkeletonInstance,
         action: str = "deleteSuccess",
         tpl: str = None,
-        params: t.Any= None,
+        params: t.Any = None,
         **kwargs
     ) -> str:
         """
@@ -424,7 +426,7 @@ class Render(object):
         repos: t.List[t.Dict[t.Literal["key", "name"], t.Any]],
         action: str = "listrootnodes",
         tpl: str = None,
-        params: t.Any= None,
+        params: t.Any = None,
         **kwargs
     ) -> str:
         """

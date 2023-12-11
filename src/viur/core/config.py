@@ -119,7 +119,7 @@ class ConfigType:
                 else:
                     yield key, value
 
-    def get(self, key: str, default: t.Any= None) -> t.Any:
+    def get(self, key: str, default: t.Any = None) -> t.Any:
         """Return an item from the config, if it doesn't exist `default` is returned.
 
         :param key: The key for the attribute lookup.
@@ -346,7 +346,9 @@ class Security(ConfigType):
     """If set, ViUR will emit a HSTS HTTP-header with each request.
     Use security.enableStrictTransportSecurity to set this property"""
 
-    x_frame_options: t.Optional[tuple[t.Literal["deny", "sameorigin", "allow-from"], t.Optional[str]]] = ("sameorigin", None)
+    x_frame_options: t.Optional[
+        tuple[t.Literal["deny", "sameorigin", "allow-from"],
+              t.Optional[str]]] = ("sameorigin", None)
     """If set, ViUR will emit an X-Frame-Options header
 
     In case of allow-from, the second parameters must be the host-url.
