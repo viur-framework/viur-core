@@ -138,7 +138,8 @@ class RandomSliceBone(BaseBone):
         """
         return ceil(targetAmount * self.sliceSize)
 
-    def customMultiQueryMerge(self, dbFilter: db.Query, result: t.List[db.Entity], targetAmount: int) -> t.List[db.Entity]:
+    def customMultiQueryMerge(self, dbFilter: db.Query, result: t.List[db.Entity], targetAmount: int) -> t.List[
+        db.Entity]:
         """
         Merges the results of multiple subqueries by randomly selecting 'targetAmount' elements
         from the combined 'result' list.
