@@ -1,10 +1,11 @@
-import logging, os
+import logging
+import os
 from datetime import timedelta
 from functools import wraps
 from hashlib import sha512
-from typing import List, Union, Callable, Tuple, Dict
+from typing import Callable, Dict, List, Tuple, Union
 
-from viur.core import tasks, utils, db, current
+from viur.core import Method, current, db, tasks, utils
 from viur.core.config import conf
 
 """
@@ -115,6 +116,11 @@ def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool
         Does the actual work of wrapping a callable.
         Use the decorator enableCache instead of calling this directly.
     """
+    method = None
+    if isinstance(f, Method):
+        # Wrapping an (exposed) Method; continue with Method._func
+        method = f
+        f = f._func
 
     @wraps(f)
     def wrapF(self, *args, **kwargs) -> Union[str, bytes]:
@@ -156,12 +162,16 @@ def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool
         dbEntity["path"] = path
         dbEntity["content-type"] = currReq.response.headers['Content-Type']
         dbEntity["accessedEntries"] = list(accessedEntries)
-        dbEntity.exclude_from_indexes = ["data", "content-type"]  # We can save 2 DB-Writs :)
+        dbEntity.exclude_from_indexes = {"data", "content-type"}  # save two DB-writes.
         db.Put(dbEntity)
         logging.debug("This request was a cache-miss. Cache has been updated.")
         return res
 
-    return wrapF
+    if method is None:
+        return wrapF
+    else:
+        method._func = wrapF
+        return method
 
 
 def enableCache(urls: List[str], userSensitive: int = 0, languageSensitive: bool = False,

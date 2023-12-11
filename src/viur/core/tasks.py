@@ -159,18 +159,17 @@ class TaskHandler(Module):
     adminInfo = None
     retryCountWarningThreshold = 25
 
-    def findBoundTask(self, task: Callable, obj: object = None, depth: int = 0) -> Optional[Tuple[Callable, object]]:
+    def findBoundTask(self, task: Callable, obj: object, depth: int = 0) -> Optional[Tuple[Callable, object]]:
         """
             Tries to locate the instance, this function belongs to.
             If it succeeds in finding it, it returns the function and its instance (-> its "self").
             Otherwise, None is returned.
             :param task: A callable decorated with @PeriodicTask
-            :param obj: Object, which will be scanned in the current iteration. None means start at conf.main_app.
+            :param obj: Object, which will be scanned in the current iteration.
             :param depth: Current iteration depth.
         """
-        if depth > 3 or not "periodicTaskName" in dir(task):  # Limit the maximum amount of recursions
+        if depth > 3 or "periodicTaskName" not in dir(task):  # Limit the maximum amount of recursions
             return None
-        obj = obj or conf.main_app
         for attr in dir(obj):
             if attr.startswith("_"):
                 continue
@@ -305,7 +304,7 @@ class TaskHandler(Module):
                 if lastCall and utils.utcNow() - lastCall["date"] < timedelta(minutes=interval):
                     logging.debug("Skipping task %s - Has already run recently." % periodicTaskName)
                     continue
-            res = self.findBoundTask(task)
+            res = self.findBoundTask(task, conf.main_app)
             try:
                 if res:  # Its bound, call it this way :)
                     res[0]()
@@ -399,7 +398,11 @@ def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
     def outer_wrapper(func):
         @wraps(func)
         def inner_wrapper(*args, **kwargs):
-            retry_count = int(current.request.get().request.headers.get("X-Appengine-Taskretrycount", -1))
+            try:
+                retry_count = int(current.request.get().request.headers.get("X-Appengine-Taskretrycount", -1))
+            except AttributeError:
+                # During warmup current.request is None (at least on local devserver)
+                retry_count = -1
             try:
                 return func(*args, **kwargs)
             except Exception as exc:
@@ -486,8 +489,8 @@ def CallDeferred(func: Callable) -> Callable:
     def make_deferred(func, self=__undefinedFlag_, *args, **kwargs):
         # Extract possibly provided task flags from kwargs
         queue = kwargs.pop("_queue", "default")
-        if "eta" in kwargs and "countdown" in kwargs:
-            raise ValueError("You cannot set the countdown and eta argument together!")
+        if "_eta" in kwargs and "_countdown" in kwargs:
+            raise ValueError("You cannot set the _countdown and _eta argument together!")
         taskargs = {k: kwargs.pop(f"_{k}", None) for k in ("countdown", "eta", "name", "target_version")}
 
         logging.debug(f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, {queue=}, {taskargs=}")

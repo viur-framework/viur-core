@@ -15,6 +15,7 @@ from viur.core import current, db
 from viur.core.config import conf
 
 
+
 def utcNow() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -82,22 +83,24 @@ def escapeString(val: str, max_length: int = 254, **kwargs) -> str:
         warnings.warn("maxLength parameter is deprecated, please use max_length", DeprecationWarning)
         max_length = kwargs.pop("maxLength")
 
-    val = str(val).strip() \
-        .replace("<", "&lt;") \
-        .replace(">", "&gt;") \
-        .replace("\"", "&quot;") \
-        .replace("'", "&#39;") \
-        .replace("(", "&#040;") \
-        .replace(")", "&#041;") \
-        .replace("=", "&#061;") \
-        .replace("\n", "") \
-        .replace("\0", "")
+    val = str(val).strip().translate(escapeString.__escape_trans)
 
     if max_length:
         return val[:max_length]
 
     return val
 
+
+escapeString.__escape_trans = str.maketrans(
+    {"<": "&lt;",
+     ">": "&gt;",
+     "\"": "&quot;",
+     "'": "&#39;",
+     "(": "&#040;",
+     ")": "&#041;",
+     "=": "&#061;",
+     "\n": "",
+     "\0": ""})
 
 def hmacSign(data: Any) -> str:
     assert conf.file_hmac_key is not None, "No hmac-key set!"

@@ -1285,7 +1285,7 @@ class User(List):
         # Update session, user and request
         session["user"] = skel.dbEntity
 
-        current.request.get().response.headers[securitykey.SECURITYKEY_STATIC] = session.static_security_key
+        current.request.get().response.headers[securitykey.SECURITYKEY_STATIC_HEADER] = session.static_security_key
         current.user.set(self.getCurrentUser())
 
         self.onLogin(skel)

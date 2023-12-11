@@ -113,6 +113,13 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
     :param dict validHtml: A dictionary containing valid HTML tags, attributes, styles, and classes.
     :param dict srcSet: A dictionary containing width and height for srcset attribute processing.
     """
+    __html_serializer_trans = str.maketrans(
+        {"<": "&lt;",
+         ">": "&gt;",
+         "\"": "&quot;",
+         "'": "&#39;",
+         "\n": "",
+         "\0": ""})
 
     def __init__(self, validHtml=None, srcSet=None):
         global _defaultTags
@@ -130,12 +137,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
 
         :param str data: The data encountered by the parser.
         """
-        data = str(data) \
-            .replace("<", "&lt;") \
-            .replace(">", "&gt;") \
-            .replace("\"", "&quot;") \
-            .replace("'", "&#39;") \
-            .replace("\0", "")
+        data = str(data).translate(HtmlSerializer.__html_serializer_trans)
         if data.strip():
             self.flushCache()
             self.result += data

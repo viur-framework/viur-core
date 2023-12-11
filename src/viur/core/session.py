@@ -108,7 +108,7 @@ class Session:
         dbSession["static_security_key"] = self.static_security_key
         dbSession["lastseen"] = time.time()
         dbSession["user"] = str(user_key)  # allow filtering for users
-        dbSession.exclude_from_indexes = ["data"]
+        dbSession.exclude_from_indexes = {"data"}
 
         db.Put(dbSession)
 
@@ -116,8 +116,8 @@ class Session:
         flags = (
             "Path=/",
             "HttpOnly",
-            f"SameSite={self.same_site}" if self.same_site else None,
-            "Secure",
+            f"SameSite={self.same_site}" if self.same_site and not conf.instance.is_dev_server else None,
+            "Secure" if not conf.instance.is_dev_server else None,
             f"Max-Age={conf.user.session_life_time}" if not self.use_session_cookie else None,
         )
 
