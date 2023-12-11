@@ -24,8 +24,14 @@
  See file LICENSE for more information.
 """
 
-import inspect
 import os
+import sys
+
+# Set a dummy project id to survive API Client initializations
+if sys.argv[0].endswith("viur-core-migrate-config"):
+    os.environ["GOOGLE_CLOUD_PROJECT"] = "dummy"
+
+import inspect
 import warnings
 from types import ModuleType
 import typing as t
