@@ -80,7 +80,6 @@ class UserSkel(skeleton.Skeleton):
 
     # Properties required by custom auth
     password = PasswordBone(
-        descr="Password",
         required=False,
         readOnly=True,
         visible=False,
@@ -286,11 +285,20 @@ class UserPassword(UserPrimaryAuthentication):
         return "X-VIUR-AUTH-User-Password"
 
     class LoginSkel(skeleton.RelSkel):
-        name = EmailBone(descr="E-Mail", required=True, caseSensitive=False, indexed=True)
-        password = PasswordBone(descr="Password", indexed=True, params={"justinput": True}, required=True)
+        name = EmailBone(
+            descr="Username",
+            required=True,
+            caseSensitive=False,
+        )
+        password = PasswordBone(
+            required=True,
+        )
 
     class LostPasswordStep1Skel(skeleton.RelSkel):
-        name = EmailBone(descr="Username", required=True)
+        name = EmailBone(
+            descr="Username",
+            required=True
+        )
 
     class LostPasswordStep2Skel(skeleton.RelSkel):
         recovery_key = StringBone(
