@@ -72,16 +72,13 @@ and you only have to enter the translated values.
 (3. own way
 Of course you can create skeletons / entries in the datastore in your project
 on your own. Just use the TranslateSkel).
-"""
-# FIXME: grammar, rst syntax
-
-
+"""  # FIXME: grammar, rst syntax
 import datetime
 import jinja2.ext as jinja2
 import logging
-import time
 import traceback
 import typing as t
+from pathlib import Path
 
 from viur.core import current, db, languages, tasks
 from viur.core.config import conf
@@ -410,6 +407,14 @@ def add_missing_translation(
         logging.warning(f"Found an entity with tr_key={key}. "
                         f"Probably an other instance was faster.")
         return
+
+    if isinstance(filename, str):
+        try:
+            filename = str(Path(filename)
+                           .relative_to(conf.instance.project_base_path,
+                                        conf.instance.core_base_path))
+        except ValueError:
+            pass  # not a subpath
 
     logging.info(f"Add missing translation {key}")
     skel = TranslationSkel()
