@@ -103,7 +103,9 @@ class TranslationSkel(Skeleton):
             "core.translationskel.creator.descr",
             "Creator",
         ),
+        readOnly=True,
         values=Creator,
+        defaultValue=Creator.USER,
     )
 
     @classmethod
