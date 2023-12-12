@@ -358,7 +358,8 @@ de = {
     "translations": "Übersetzungen",
     "core.translationskel.tr_key.descr": "Schlüssel",
     "core.translationskel.translations.descr": "Übersetzung",
-    "core.translationskel.translations.tooltip": "Die Übersetzungen {{main}} sind erforderlich, {{accent}} können optional ausgefüllt werden.",
+    "core.translationskel.translations.tooltip":
+        "Die Übersetzungen {{main}} sind erforderlich, {{accent}} können optional ausgefüllt werden.",
 
     # Bones
     "core.bones.password.no_capital_letters": "Das eingegebene Passwort enthält keine Großbuchstaben.",

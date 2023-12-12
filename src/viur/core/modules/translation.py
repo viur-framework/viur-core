@@ -127,8 +127,10 @@ class Translation(List):
         self._reload_translations()
 
     def _reload_translations(self):
-        if (self._last_reload is not None
-            and self._last_reload - utils.utcNow() < td(minutes=10)):
+        if (
+            self._last_reload is not None
+            and self._last_reload - utils.utcNow() < td(minutes=10)
+        ):
             # debounce: translations has been reload recently, skip this
             return None
         logging.info("Reload translations")
