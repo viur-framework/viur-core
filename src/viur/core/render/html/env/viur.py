@@ -1,19 +1,19 @@
+from collections import OrderedDict
+
 import logging
 import os
-import string
 import urllib
 import urllib.parse
-from collections import OrderedDict
 from datetime import timedelta
 from hashlib import sha512
-from typing import Any, Dict, List, NoReturn, Optional, Union
-
 from qrcode import make as qrcode_make
 from qrcode.image import svg as qrcode_svg
+from typing import Any, Dict, List, NoReturn, Optional, Union
 
+import string
 from viur.core import Method, current, db, errors, prototypes, securitykey, utils
 from viur.core.config import conf
-from viur.core.i18n import translate as translationClass
+from viur.core.i18n import translate as translate_class
 from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
 from viur.core.request import TEMPLATE_STYLE_KEY
 from viur.core.skeleton import RelSkel, SkeletonInstance
@@ -21,12 +21,19 @@ from ..default import Render
 
 
 @jinjaGlobalFunction
-def translate(render: Render, key: str, default_text: str = None, hint: str = None, **kwargs) -> str:
+def translate(
+    render: Render,
+    key: str,
+    default_text: str = None,
+    hint: str = None,
+    force_lang: str | None = None,
+    **kwargs
+) -> str:
     """Jinja function for translations
 
     See also :class:`core.i18n.TranslationExtension`.
     """
-    return translationClass(key, default_text, hint)(**kwargs)
+    return translate_class(key, default_text, hint, force_lang)(**kwargs)
 
 
 @jinjaGlobalFunction

@@ -77,12 +77,11 @@ on your own. Just use the TranslateSkel).
 
 
 import datetime
+import jinja2.ext as jinja2
 import logging
+import time
 import traceback
 import typing as t
-
-import jinja2.ext as jinja2
-import time
 
 from viur.core import current, db, languages, tasks
 from viur.core.config import conf
@@ -174,6 +173,8 @@ class translate:
         self.defaultText = defaultText or key
         self.hint = hint
         self.translationCache = None
+        if force_lang is not None and force_lang not in conf.i18n.available_dialects:
+            raise ValueError(f"The language {force_lang=} is not available")
         self.force_lang = force_lang
 
     def __repr__(self) -> str:
@@ -216,16 +217,9 @@ class translate:
 
             self.translationCache = self.merge_alias(systemTranslations.get(self.key, {}))
 
-        lang = current.language.get()
-        # return self.choose_translation(self.translationCache, self.defaultText, self.force_lang)
-        # if (lang := self.force_lang) is None:
-        #     # The default case: use the request language
-        #     lang = current.language.get()
-        # # Check for alias language
-        # if value := self.translationCache.get(lang):
-        #     return value
-        # # Check the main language
-        # lang = conf.i18n.language_alias_map.get(lang, lang)
+        if (lang := self.force_lang) is None:
+            # The default case: use the request language
+            lang = current.language.get()
         if value := self.translationCache.get(lang):
             return value
         # Use the default text from datastore or from the caller arguments
@@ -241,9 +235,9 @@ class translate:
 
     @staticmethod
     def choose_translation(
-        translations:dict[str, str],
+        translations: dict[str, str],
         default_text: str = "",
-        force_lang: str|None = None,
+        force_lang: str | None = None,
     ):
         if (lang := force_lang) is None:
             # The default case: use the request language
@@ -259,22 +253,36 @@ class translate:
         return translations.get("_default_text_") or default_text or ""
 
     @staticmethod
-    def substitute_vars(value:str, **kwargs):
+    def substitute_vars(value: str, **kwargs):
+        """Substitute vars in a translation
+
+        Variables has to start with two braces (`{{`), followed by the variable
+        name and end with two braces (`}}`).
+        Values can be anything, they are cast to string anyway.
+        "Hello {{name}}!" becomes with name="Bob": "Hello Bob!"
+        """
         res = str(value)
         for k, v in kwargs.items():
-            res = res.replace("{{%s}}" % k, str(v))
+            # 2 braces * (escape + real brace) + 1 for variable = 5
+            res = res.replace(f"{{{{{k}}}}}", str(v))
         return res
 
     @staticmethod
-    def merge_alias(translations:dict[str, str]):
+    def merge_alias(translations: dict[str, str]):
+        """Make sure each aliased language has a value
+
+        If an aliased language does not have a value in the translation dict,
+        the value of the main language is copied.
+        """
         # TODO custom default text?
         logging.debug(f"{translations = }")
         for alias, main in conf.i18n.language_alias_map.items():
-            if not (value:=translations.get(alias)) or not value.strip():
-                translations[alias] = translations.get(main) or translations.get("_default_text_")
+            if not (value := translations.get(alias)) or not value.strip():
+                if main_value := translations.get(main):
+                    # Use only not empty value
+                    translations[alias] = main_value
         logging.debug(f"{translations = }")
         return translations
-
 
 
 class TranslationExtension(jinja2.Extension):
@@ -284,6 +292,8 @@ class TranslationExtension(jinja2.Extension):
     All except translationKey is optional. translationKey is the same Key supplied to _() before.
     defaultText will be printed if no translation is available.
     translationHint is an optional hint for anyone adding a now translation how/where that translation is used.
+    `force_lang` can be used as a keyword argument (the only allowed way) to
+    force the use of a specific language, not the language of the request.
     """
 
     tags = {"translate"}
@@ -291,8 +301,8 @@ class TranslationExtension(jinja2.Extension):
     def parse(self, parser):
         # Parse the translate tag
         global systemTranslations
-        args = []
-        kwargs = {}
+        args = []  # positional args for the `_translate()` method
+        kwargs = {}  # keyword args (force_lang + substitute vars) for the `_translate()` method
         lineno = parser.stream.current.lineno
         filename = parser.stream.filename
         # Parse arguments (args and kwargs) until the current block ends
@@ -334,6 +344,7 @@ class TranslationExtension(jinja2.Extension):
             )
 
         translations = translate.merge_alias(systemTranslations.get(tr_key, {}))
+        args[1] = translations.get("_default_text_") or args[1]
         args = [jinja2.nodes.Const(x) for x in args]
         args.append(jinja2.nodes.Const(translations))
         return jinja2.nodes.CallBlock(self.call_method("_translate", args), [], [], []).set_lineno(lineno)
@@ -343,19 +354,17 @@ class TranslationExtension(jinja2.Extension):
         translations: dict[str, str], caller
     ) -> str:
         """Perform the actual translation during render"""
-        lang = current.language.get()
-        # lang = conf.i18n.language_alias_map.get(lang, lang)
-        default_text = translations.get("_default_text_") or default_text
+        lang = kwargs.pop("force_lang", current.language.get())
         res = str(translations.get(lang, default_text))
         return translate.substitute_vars(res, **kwargs)
 
 
 def initializeTranslations() -> None:
     """
-        Fetches all translations from the datastore and populates the *systemTranslations* dictionary of this module.
-        Currently, the translate-class will resolve using that dictionary; but as we expect projects to grow and
-        accumulate translations that are no longer/not yet used, we plan to made the translation-class fetch it's
-        translations directly from the datastore, so we don't have to allocate memory for unused translations.
+    Fetches all translations from the datastore and populates the *systemTranslations* dictionary of this module.
+    Currently, the translate-class will resolve using that dictionary; but as we expect projects to grow and
+    accumulate translations that are no longer/not yet used, we plan to made the translation-class fetch it's
+    translations directly from the datastore, so we don't have to allocate memory for unused translations.
     """
     start = time.perf_counter()
 
@@ -391,6 +400,9 @@ def initializeTranslations() -> None:
             if lang not in conf.i18n.available_dialects:
                 # Don't store unknown languages in the memory
                 continue
+            if not translation or not str(translation).strip():
+                # Skip empty values
+                continue
             translations[lang] = translation
         systemTranslations[entity["tr_key"]] = translations
 
@@ -412,8 +424,10 @@ def add_missing_translation(
     try:
         from viur.core.modules.translation import TranslationSkel, Creator
     except ImportError as exc:
-        logging.exception(f"ImportError (probably during warmup), cannot add translation: {exc}")
+        # We use translate inside the TranslationSkel, this causes circular dependencies which can be ignored
+        logging.warning(f"ImportError (probably during warmup), cannot add translation: {exc}", exc_info=True)
         return
+
     # Ensure lowercase key
     key = key.lower()
     entity = db.Query(KINDNAME).filter("tr_key =", key).getEntry()
