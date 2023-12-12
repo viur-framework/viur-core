@@ -4,7 +4,7 @@ from viur.core import Module
 
 
 class InstancedModule:
-    """InstancedModule is a base class for modules, an instance of which can be passed to the viur-core.
+    """InstancedModule is a base class for modules, which can be passed as instance to the viur-core.
 
     Normally, the viur-core expects classes from modules and instantiates them during setup.
     However, there are cases where you want to pass already instantiated
