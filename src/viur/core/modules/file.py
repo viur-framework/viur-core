@@ -460,7 +460,7 @@ class File(Tree):
             raise ValueError("Please provide a key or a path")
         if key:
             skel = self.viewSkel("leaf")
-            if not skel.fromDB(db.keyHelper(key, self.leafSkelCls().kindName)):
+            if not skel.fromDB(db.keyHelper(key, skel.kindName)):
                 if not path:
                     raise ValueError("This skeleton is not in the database!")
             else:
