@@ -83,6 +83,12 @@ class TranslationSkel(Skeleton):
         skelValues["tr_key"] = skelValues["tr_key"].lower()
         return super().toDB(skelValues, **kwargs)
 
+    @classmethod
+    def preProcessSerializedData(cls, skelValues: SkeletonInstance, entity: db.Entity) -> db.Entity:
+        # Backward-compatibility: re-add the key for viur-core < v3.6
+        entity["key"] = skelValues["tr_key"]
+        return super().preProcessSerializedData(skelValues, entity)
+
 
 class Translation(List):
     kindName = KINDNAME
