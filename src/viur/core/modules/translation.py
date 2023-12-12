@@ -1,6 +1,8 @@
 import enum
+import logging
+from datetime import timedelta as td
 
-from viur.core import conf, db
+from viur.core import conf, db, utils
 from viur.core.bones import *
 from viur.core.i18n import KINDNAME, initializeTranslations, systemTranslations, translate
 from viur.core.prototypes.list import List
@@ -112,9 +114,27 @@ class Translation(List):
         "admin": "*",
     }
 
-    def on_item_added_and_edited_and_deleted(self, skel: SkeletonInstance):
-        # TODO: debounce this
-        # TODO: Can we affect all instances?
-        super().on_item_added_and_edited_and_deleted(skel)
+    def onAdded(self, *args, **kwargs):
+        super().onAdded(*args, **kwargs)
+        self._reload_translations()
+
+    def onEdited(self, *args, **kwargs):
+        super().onEdited(*args, **kwargs)
+        self._reload_translations()
+
+    def onDeleted(self, *args, **kwargs):
+        super().onDeleted(*args, **kwargs)
+        self._reload_translations()
+
+    def _reload_translations(self):
+        if (self._last_reload is not None
+            and self._last_reload - utils.utcNow() < td(minutes=10)):
+            # debounce: translations has been reload recently, skip this
+            return None
+        logging.info("Reload translations")
+        # TODO: this affects only the current instance
+        self._last_reload = utils.utcNow()
         systemTranslations.clear()
         initializeTranslations()
+
+    _last_reload = None

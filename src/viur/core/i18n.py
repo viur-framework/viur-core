@@ -425,7 +425,8 @@ def add_missing_translation(
         from viur.core.modules.translation import TranslationSkel, Creator
     except ImportError as exc:
         # We use translate inside the TranslationSkel, this causes circular dependencies which can be ignored
-        logging.warning(f"ImportError (probably during warmup), cannot add translation: {exc}", exc_info=True)
+        logging.warning(f"ImportError (probably during warmup), "
+                        f"cannot add translation {key}: {exc}", exc_info=True)
         return
 
     # Ensure lowercase key
