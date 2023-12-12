@@ -234,25 +234,6 @@ class translate:
         return self.translate(**kwargs)
 
     @staticmethod
-    def choose_translation(
-        translations: dict[str, str],
-        default_text: str = "",
-        force_lang: str | None = None,
-    ):
-        if (lang := force_lang) is None:
-            # The default case: use the request language
-            lang = current.language.get()
-        # Check for alias language
-        if value := translations.get(lang):
-            return value
-        # Check the main language
-        lang = conf.i18n.language_alias_map.get(lang, lang)
-        if value := translations.get(lang):
-            return value
-        # Use the default text from datastore or from the caller arguments
-        return translations.get("_default_text_") or default_text or ""
-
-    @staticmethod
     def substitute_vars(value: str, **kwargs):
         """Substitute vars in a translation
 
@@ -274,14 +255,11 @@ class translate:
         If an aliased language does not have a value in the translation dict,
         the value of the main language is copied.
         """
-        # TODO custom default text?
-        logging.debug(f"{translations = }")
         for alias, main in conf.i18n.language_alias_map.items():
             if not (value := translations.get(alias)) or not value.strip():
                 if main_value := translations.get(main):
                     # Use only not empty value
                     translations[alias] = main_value
-        logging.debug(f"{translations = }")
         return translations
 
 
@@ -326,7 +304,7 @@ class TranslationExtension(jinja2.Extension):
                     raise SyntaxError()
                 lastToken = None
         if lastToken:  # TODO: what's this? what it is doing?
-            print(f"final append {lastToken = }")
+            logging.debug(f"final append {lastToken = }")
             args.append(lastToken.value)
         if not 0 < len(args) <= 3:
             raise SyntaxError("Translation-Key missing or excess parameters!")
@@ -366,8 +344,6 @@ def initializeTranslations() -> None:
     accumulate translations that are no longer/not yet used, we plan to made the translation-class fetch it's
     translations directly from the datastore, so we don't have to allocate memory for unused translations.
     """
-    start = time.perf_counter()
-
     # Load translations from static languages module into systemTranslations
     # If they're in the datastore, they will be overwritten below.
     for lang in dir(languages):
@@ -405,9 +381,6 @@ def initializeTranslations() -> None:
                 continue
             translations[lang] = translation
         systemTranslations[entity["tr_key"]] = translations
-
-    end = time.perf_counter()
-    print(f"time: {end - start}s")  # TODO: remove me
 
 
 @tasks.CallDeferred
