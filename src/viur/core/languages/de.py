@@ -360,6 +360,13 @@ de = {
     "core.translationskel.translations.descr": "Übersetzung",
     "core.translationskel.translations.tooltip":
         "Die Übersetzungen {{main}} sind erforderlich, {{accent}} können optional ausgefüllt werden.",
+    "core.translationskel.translations_missing.descr": "Übersetzung fehlt für Sprache",
+    "core.translationskel.default_text.descr": "Fallback-Wert",
+    "core.translationskel.hint.descr": "Hinweis/Kontext (nur intern)",
+    "core.translationskel.usage_filename.descr": "Verwendet und hinzugefügt von dieser Datei",
+    "core.translationskel.usage_lineno.descr": "Verwendet und hinzugefügt von dieser Zeilennummer",
+    "core.translationskel.usage_variables.descr": "Empfängt diese Ersetzungsvariablen",
+    "core.translationskel.creator.descr": "Autor",
 
     # Bones
     "core.bones.password.no_capital_letters": "Das eingegebene Passwort enthält keine Großbuchstaben.",

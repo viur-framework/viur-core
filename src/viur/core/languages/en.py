@@ -40,4 +40,16 @@ en = {
     "const_datetimeformat": "%a %b %d %H:%M:%S %Y ",  # Format: Date with Time
     "const_timeformat": "%H:%M:%S",  # Format: Time  only
     "const_dateformat": "%m/%d/%Y",  # Format: Date  only
+
+    # translation
+    "translations": "Translations",
+    "core.translationskel.tr_key.descr": "Translation key",
+    "core.translationskel.translations.descr": "translations",
+    "core.translationskel.translations_missing.descr": "translation missing for language",
+    "core.translationskel.default_text.descr": "Fallback value",
+    "core.translationskel.hint.descr": "Hint / Context (internal only)",
+    "core.translationskel.usage_filename.descr": "Used and added from this file",
+    "core.translationskel.usage_lineno.descr": "Used and added from this lineno",
+    "core.translationskel.usage_variables.descr": "Receives these substitution variables",
+    "core.translationskel.creator.descr": "Creator",
 }

@@ -18,7 +18,7 @@ class TranslationSkel(Skeleton):
     kindName = KINDNAME
 
     tr_key = StringBone(
-        descr="translation key",
+        descr="core.translationskel.tr_key.descr",
         searchable=True,
         unique=UniqueValue(UniqueLockMethod.SameValue, False,
                            "This translation key exist already"),
@@ -38,7 +38,7 @@ class TranslationSkel(Skeleton):
     )
 
     translations_missing = SelectBone(
-        descr="translation missing for language",
+        descr="core.translationskel.translations_missing.descr",
         multiple=True,
         readOnly=True,
         values=conf.i18n.available_dialects,
@@ -51,31 +51,31 @@ class TranslationSkel(Skeleton):
     )
 
     default_text = StringBone(
-        descr="default value",
+        descr="core.translationskel.default_text.descr",
     )
 
     hint = StringBone(
-        descr="hint (internal only)",
+        descr="core.translationskel.hint.descr",
     )
 
     usage_filename = StringBone(
-        descr="Used and added from this file",
+        descr="core.translationskel.usage_filename.descr",
         readOnly=True,
     )
 
     usage_lineno = NumericBone(
-        descr="Used and added from this lineno",
+        descr="core.translationskel.usage_lineno.descr",
         readOnly=True,
     )
 
     usage_variables = StringBone(
-        descr="Variables",
+        descr="core.translationskel.usage_variables.descr",
         readOnly=True,
         multiple=True,
     )
 
     creator = SelectBone(
-        descr="Creator",
+        descr="core.translationskel.creator.descr",
         values=Creator,
     )
 
