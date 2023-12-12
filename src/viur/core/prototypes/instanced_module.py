@@ -48,11 +48,17 @@ class InstancedModule:
     """
 
     def __init__(self, *args, **kwargs):
-        print(f"Call {self}.__init__")
+        """Overwrite the Module.__init__ and do nothing
+
+        Can be overwritten as needed, e.g. to assign instance attributes.
+        """
         object.__init__(self)
 
-    def __call__(self, moduleName: str, modulePath: str, *args, **kwargs):
-        print(f"Call {self}.__call__")
+    def __call__(self, moduleName: str, modulePath: str, *args, **kwargs) -> "InstancedModule":
+        """Do the instance initialisation
+
+        Take the role of Module.__init__ (and call it).
+        """
         is_default_renderer = modulePath == f"/{moduleName}"
         if is_default_renderer:
             # For the default renderer we use the original instance
@@ -64,5 +70,8 @@ class InstancedModule:
         return instance
 
     def _viur_clone(self):
-        print(f"Call {self}._viur_clone")
+        """Creates a copy for non-standard renderers.
+
+        Since viur keeps one instance per render. Can be overwritten if desired.
+        """
         return copy.copy(self)

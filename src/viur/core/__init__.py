@@ -178,13 +178,11 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
     resolver = {}
 
     for module_name, module_cls in vars(modules).items():  # iterate over all modules
-        # print((module_name, module_cls))
         if not (  # we define the cases we want to use and then negate them all
             (inspect.isclass(module_cls) and issubclass(module_cls, Module)  # is a normal Module class
              and not issubclass(module_cls, InstancedModule))  # but not a "instantiable" Module
             or isinstance(module_cls, InstancedModule)  # is an already instanced Module
         ):
-            print(("skip", module_name, module_cls))
             continue
 
         if module_name == "index":
@@ -202,7 +200,6 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
                 module_name, ("/" + render_name if render_name != default else "") + "/" + module_name
             )
             module_instance.indexes = indexes.get(module_name, [])  # todo: Fix this in SkelModule (see above!)
-            print(f"{module_cls = } --> {module_instance = }")
 
             # Attach the module-specific or the default render
             if render_name == default:  # default or render (sub)namespace?
@@ -258,10 +255,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
     if not render:
         import viur.core.render
         render = viur.core.render
-    # from pprint import pprint
-    # pprint(dir(modules))
     conf.main_app = buildApp(modules, render, default)
-    # conf.wsgiApp = webapp.WSGIApplication([(r'/(.*)', BrowseHandler)])
 
     # Send warning email in case trace is activated in a cloud environment
     if ((conf.debug.trace
