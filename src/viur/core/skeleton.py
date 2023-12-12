@@ -1,16 +1,18 @@
 from __future__ import annotations
+
 import copy
 import inspect
 import logging
 import os
-import sys
 import string
+import sys
 import warnings
 from functools import partial
 from itertools import chain
 from time import time
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
-from viur.core import conf, db, email, errors, utils, current
+
+from viur.core import conf, current, db, email, errors, translate, utils
 from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, RelationalUpdateLevel, SelectBone, StringBone
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 from viur.core.bones.base import Compute, ComputeMethod, ComputeInterval
@@ -215,7 +217,10 @@ class SkeletonInstance:
                       "preProcessSerializedData", "preProcessBlobLocks", "postSavedHandler", "setBoneValue",
                       "delete", "postDeletedHandler", "refresh"}:
             return partial(getattr(self.skeletonCls, item), self)
-        return self.boneMap[item]
+        try:
+            return self.boneMap[item]
+        except KeyError:
+            raise AttributeError(f"{self.__class__.__name__!r} object has no attribute '{item}'")
 
     def __delattr__(self, item):
         del self.boneMap[item]
@@ -388,7 +393,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                         # further down the hierarchy (in an record- or relational-Bone)
                         complete = False
 
-                        if conf["viur.debug.skeleton.fromClient"] and cls.kindName:
+                        if conf.debug.skeleton_from_client and cls.kindName:
                             logging.debug("%s: %s: %r", cls.kindName, error.fieldPath, error.errorMessage)
 
         if (len(data) == 0
@@ -423,8 +428,8 @@ class MetaSkel(MetaBaseSkel):
     def __init__(cls, name, bases, dct):
         super(MetaSkel, cls).__init__(name, bases, dct)
         relNewFileName = inspect.getfile(cls) \
-            .replace(str(conf["viur.instance.project_base_path"]), "") \
-            .replace(str(conf["viur.instance.core_base_path"]), "")
+            .replace(str(conf.instance.project_base_path), "") \
+            .replace(str(conf.instance.core_base_path), "")
 
         # Check if we have an abstract skeleton
         if cls.__name__.endswith("AbstractSkel"):
@@ -444,16 +449,16 @@ class MetaSkel(MetaBaseSkel):
         # Try to determine which skeleton definition takes precedence
         if cls.kindName and cls.kindName is not _undefined and cls.kindName in MetaBaseSkel._skelCache:
             relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]) \
-                .replace(str(conf["viur.instance.project_base_path"]), "") \
-                .replace(str(conf["viur.instance.core_base_path"]), "")
+                .replace(str(conf.instance.project_base_path), "") \
+                .replace(str(conf.instance.core_base_path), "")
             idxOld = min(
-                [x for (x, y) in enumerate(conf["viur.skeleton.searchPath"]) if relOldFileName.startswith(y)] + [999])
+                [x for (x, y) in enumerate(conf.skeleton_search_path) if relOldFileName.startswith(y)] + [999])
             idxNew = min(
-                [x for (x, y) in enumerate(conf["viur.skeleton.searchPath"]) if relNewFileName.startswith(y)] + [999])
+                [x for (x, y) in enumerate(conf.skeleton_search_path) if relNewFileName.startswith(y)] + [999])
             if idxNew == 999:
                 # We could not determine a priority for this class as its from a path not listed in the config
                 raise NotImplementedError(
-                    "Skeletons must be defined in a folder listed in conf[\"viur.skeleton.searchPath\"]")
+                    "Skeletons must be defined in a folder listed in conf.skeleton_search_path")
             elif idxOld < idxNew:  # Lower index takes precedence
                 # The currently processed skeleton has a lower priority than the one we already saw - just ignore it
                 return
@@ -463,11 +468,11 @@ class MetaSkel(MetaBaseSkel):
             else:  # They seem to be from the same Package - raise as something is messed up
                 raise ValueError("Duplicate definition for %s in %s and %s" %
                                  (cls.kindName, relNewFileName, relOldFileName))
-        # Ensure that all skeletons are defined in folders listed in conf["viur.skeleton.searchPath"]
-        if (not any([relNewFileName.startswith(x) for x in conf["viur.skeleton.searchPath"]])
+        # Ensure that all skeletons are defined in folders listed in conf.skeleton_search_path
+        if (not any([relNewFileName.startswith(x) for x in conf.skeleton_search_path])
             and not "viur_doc_build" in dir(sys)):  # Do not check while documentation build
             raise NotImplementedError(
-                f"""{relNewFileName} must be defined in a folder listed in {conf["viur.skeleton.searchPath"]}""")
+                f"""{relNewFileName} must be defined in a folder listed in {conf.skeleton_search_path}""")
         if cls.kindName and cls.kindName is not _undefined:
             MetaBaseSkel._skelCache[cls.kindName] = cls
         # Auto-Add ViUR Search Tags Adapter if the skeleton has no adapter attached
@@ -560,7 +565,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
         res = set()
 
         for tag in value.split(" "):
-            tag = "".join([x for x in tag.lower() if x in conf["viur.searchValidChars"]])
+            tag = "".join([x for x in tag.lower() if x in conf.search_valid_chars])
 
             if len(tag) >= self.min_length:
                 res.add(tag)
@@ -608,7 +613,11 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
         return [resultEntryMap[x[0]] for x in resultList[:databaseQuery.queries.limit]]
 
 
-class seoKeyBone(StringBone):
+class SeoKeyBone(StringBone):
+    """
+    Special kind of StringBone saving its contents as `viurCurrentSeoKeys` into the entity's `viur` dict.
+    """
+
     def unserialize(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> bool:
         try:
             skel.accessedValues[name] = skel.dbEntity["viur"]["viurCurrentSeoKeys"]
@@ -632,6 +641,7 @@ class seoKeyBone(StringBone):
             skel.dbEntity["viur"]["viurCurrentSeoKeys"] = res
         return True
 
+
 class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     kindName: str = _undefined  # To which kind we save our data to
     customDatabaseAdapter: Union[CustomDatabaseAdapter, None] = _undefined
@@ -639,10 +649,35 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     interBoneValidations: List[
         Callable[[Skeleton], List[ReadFromClientError]]] = []  # List of functions checking inter-bone dependencies
 
+    __seo_key_trans = str.maketrans(
+        {"<": "",
+         ">": "",
+         "\"": "",
+         "'": "",
+         "\n": "",
+         "\0": "",
+         "/": "",
+         "\\": "",
+         "?": "",
+         "&": "",
+         "#": ""
+         })
+
     # The "key" bone stores the current database key of this skeleton.
     # Warning: Assigning to this bones value now *will* set the key
     # it gets stored in. Must be kept readOnly to avoid security-issues with add/edit.
-    key = KeyBone(descr="key", readOnly=True, visible=False)
+    key = KeyBone(
+        descr="Key"
+    )
+
+    name = StringBone(
+        descr="Name",
+        visible=False,
+        compute=Compute(
+            fn=lambda skel: str(skel["key"]),
+            interval=ComputeInterval(ComputeMethod.OnWrite)
+        )
+    )
 
     # The date (including time) when this entry has been created
     creationdate = DateBone(
@@ -663,10 +698,12 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         compute=Compute(fn=utils.utcNow, interval=ComputeInterval(ComputeMethod.OnWrite)),
     )
 
-    viurCurrentSeoKeys = seoKeyBone(descr="Seo-Keys",
-                                    readOnly=True,
-                                    visible=False,
-                                    languages=conf["viur.availableLanguages"])
+    viurCurrentSeoKeys = SeoKeyBone(
+        descr="SEO-Keys",
+        readOnly=True,
+        visible=False,
+        languages=conf.i18n.available_languages
+    )
 
     def __repr__(self):
         return "<skeleton %s with data=%r>" % (self.kindName, {k: self[k] for k in self.keys()})
@@ -728,7 +765,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 for error in errors:
                     if error.severity.value > 1:
                         complete = False
-                        if conf["viur.debug.skeleton.fromClient"]:
+                        if conf.debug.skeleton_from_client:
                             logging.debug("%s: %s: %r", cls.kindName, error.fieldPath, error.errorMessage)
 
                 skelValues.errors.extend(errors)
@@ -832,16 +869,18 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     if "%s_uniqueIndexValue" % key in dbObj["viur"]:
                         oldUniqueValues = dbObj["viur"]["%s_uniqueIndexValue" % key]
 
-                # Merge the values from mergeFrom in
-                if key in skel.accessedValues or bone.compute:  # We can have a computed value on store
-                    # bone.mergeFrom(skel.valuesCache, key, mergeFrom)
-                    bone.serialize(skel, key, True)
-                elif key not in skel.dbEntity:  # It has not been written and is not in the database
+                if not (key in skel.accessedValues or bone.compute) and key not in skel.dbEntity:
                     _ = skel[key]  # Ensure the datastore is filled with the default value
-                    bone.serialize(skel, key, True)
-
-                ## Serialize bone into entity
-                # dbObj = bone.serialize(skel.valuesCache, key, dbObj)
+                if (
+                    key in skel.accessedValues or bone.compute  # We can have a computed value on store
+                    or key not in skel.dbEntity  # It has not been written and is not in the database
+                ):
+                    # Serialize bone into entity
+                    try:
+                        bone.serialize(skel, key, True)
+                    except Exception:
+                        logging.error(f"Failed to serialize {key} {bone} {skel.accessedValues[key]}")
+                        raise
 
                 # Obtain referenced blobs
                 blobList.update(bone.getReferencedBlobs(skel, key))
@@ -892,7 +931,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             # Ensure the SEO-Keys are up2date
             lastRequestedSeoKeys = dbObj["viur"].get("viurLastRequestedSeoKeys") or {}
             lastSetSeoKeys = dbObj["viur"].get("viurCurrentSeoKeys") or {}
-            # Filter garbage serialized into this field by the seoKeyBone
+            # Filter garbage serialized into this field by the SeoKeyBone
             lastSetSeoKeys = {k: v for k, v in lastSetSeoKeys.items() if not k.startswith("_") and v}
             currentSeoKeys = skel.getCurrentSEOKeys()
             if not isinstance(dbObj["viur"].get("viurCurrentSeoKeys"), dict):
@@ -901,19 +940,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 # Convert to lower-case and remove certain characters
                 for lang, value in list(currentSeoKeys.items()):
                     value = value.lower()
-                    value = value.replace("<", "") \
-                        .replace(">", "") \
-                        .replace("\"", "") \
-                        .replace("'", "") \
-                        .replace("\n", "") \
-                        .replace("\0", "") \
-                        .replace("/", "") \
-                        .replace("\\", "") \
-                        .replace("?", "") \
-                        .replace("&", "") \
-                        .replace("#", "").strip()
+                    value = value.translate(Skeleton.__seo_key_trans).strip()
                     currentSeoKeys[lang] = value
-            for language in (conf["viur.availableLanguages"] or [conf["viur.defaultLanguage"]]):
+            for language in (conf.i18n.available_languages or [conf.i18n.default_language]):
                 if currentSeoKeys and language in currentSeoKeys:
                     currentKey = currentSeoKeys[language]
                     if currentKey != lastRequestedSeoKeys.get(language):  # This one is new or has changed
@@ -967,14 +996,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                                 del entity[k2]
                                 backupKey= k2.replace(".", "__")
                                 entity[backupKey] = v2
-                                entity.exclude_from_indexes = list(entity.exclude_from_indexes) + [backupKey]
+                                entity.exclude_from_indexes = set(entity.exclude_from_indexes) | {backupKey}
                         fixDotNames(v)
                     elif isinstance(v, list):
                         for x in v:
                             if isinstance(x, dict):
                                 fixDotNames(x)
 
-            if conf.get("viur.viur2import.blobsource"):  # Try to fix these only when converting from ViUR2
+            if conf.viur2import_blobsource:  # Try to fix these only when converting from ViUR2
                 fixDotNames(dbObj)
 
             # Write the core entry back
@@ -1411,8 +1440,9 @@ class TaskUpdateSearchIndex(CallableTaskBase):
 
     def dataSkel(self):
         modules = ["*"] + listKnownSkeletons()
+        modules.sort()
         skel = BaseSkeleton().clone()
-        skel.module = SelectBone(descr="Module", values={x: x for x in modules}, required=True)
+        skel.module = SelectBone(descr="Module", values={x: translate(x) for x in modules}, required=True)
         return skel
 
     def execute(self, module, *args, **kwargs):
@@ -1448,41 +1478,32 @@ class RebuildSearchIndex(QueryIter):
     @classmethod
     def handleFinish(cls, totalCount: int, customData: Dict[str, str]):
         QueryIter.handleFinish(totalCount, customData)
+        if not customData["notify"]:
+            return
+        txt = (
+            f"{conf.instance.project_id}: Rebuild search index finished for {customData['module']}\n\n"
+            f"ViUR finished to rebuild the search index for module {customData['module']}.\n"
+            f"{totalCount} records updated in total on this kind."
+        )
         try:
-            if customData["notify"]:
-                txt = f"Rebuild search index finished for {customData['module']}\n\n" \
-                      f"ViUR finished to rebuild the search index for module {customData['module']}.\n" \
-                      f"{totalCount} records updated in total on this kind."
-                email.sendEMail(dests=customData["notify"], stringTemplate=txt, skel=None)
-        except:  # OverQuota, whatever
-            pass
+            email.sendEMail(dests=customData["notify"], stringTemplate=txt, skel=None)
+        except Exception as exc:  # noqa; OverQuota, whatever
+            logging.exception(f'Failed to notify {customData["notify"]}')
 
 
 ### Vacuum Relations
 
 @CallableTask
-class TaskVacuumRelations(CallableTaskBase):
+class TaskVacuumRelations(TaskUpdateSearchIndex):
     """
-    Checks entries in viur-relations and verifies that the src-kind and it's relational-bone still exists.
+    Checks entries in viur-relations and verifies that the src-kind
+    and it's RelationalBone still exists.
     """
     key = "vacuumRelations"
-    name = u"Vacuum viur-relations (dangerous)"
-    descr = u"Drop stale inbound relations for the given kind"
+    name = "Vacuum viur-relations (dangerous)"
+    descr = "Drop stale inbound relations for the given kind"
 
-    def canCall(self) -> bool:
-        """
-        Checks wherever the current user can execute this task
-        :returns: bool
-        """
-        user = current.user.get()
-        return user is not None and "root" in user["access"]
-
-    def dataSkel(self):
-        skel = BaseSkeleton(cloned=True)
-        skel.module = StringBone(descr="Module", required=True)
-        return skel
-
-    def execute(self, module, *args, **kwargs):
+    def execute(self, module: str, *args, **kwargs):
         usr = current.user.get()
         if not usr:
             logging.warning("Don't know who to inform after rebuilding finished")
@@ -1493,56 +1514,53 @@ class TaskVacuumRelations(CallableTaskBase):
 
 
 @CallDeferred
-def processVacuumRelationsChunk(module, cursor, allCount=0, removedCount=0, notify=None):
+def processVacuumRelationsChunk(
+    module: str, cursor, count_total: int = 0, count_removed: int = 0, notify=None
+):
     """
-        Processes 100 Entries and calls the next batch
+    Processes 25 Entries and calls the next batch
     """
     query = db.Query("viur-relations")
     if module != "*":
         query.filter("viur_src_kind =", module)
     query.setCursor(cursor)
-    countTotal = 0
-    countRemoved = 0
-    for relationObject in query.run(25):
-        countTotal += 1
-        srcKind = relationObject.get("viur_src_kind")
-        if not srcKind:
-            logging.critical("We got an relation-object without a srcKind!")
+    for relation_object in query.run(25):
+        count_total += 1
+        if not (src_kind := relation_object.get("viur_src_kind")):
+            logging.critical("We got an relation-object without a src_kind!")
             continue
-        srcProp = relationObject.get("viur_src_property")
-        if not srcProp:
-            logging.critical("We got an relation-object without a srcProp!")
+        if not (src_prop := relation_object.get("viur_src_property")):
+            logging.critical("We got an relation-object without a src_prop!")
             continue
         try:
-            skel = skeletonByKind(srcKind)()
+            skel = skeletonByKind(src_kind)()
         except AssertionError:
             # The referenced skeleton does not exist in this data model -> drop that relation object
-            logging.info("Deleting %r which refers to unknown kind %s", str(relationObject.key()), srcKind)
-            db.Delete(relationObject)
-            countRemoved += 1
+            logging.info(f"Deleting {relation_object.key} which refers to unknown kind {src_kind}")
+            db.Delete(relation_object)
+            count_removed += 1
             continue
-        if srcProp not in skel:
-            logging.info("Deleting %r which refers to non-existing RelationalBone %s of %s",
-                         str(relationObject.key()), srcProp, srcKind)
-            db.Delete(relationObject)
-            countRemoved += 1
-    newCursor = query.getCursor()
-    newTotalCount = allCount + countTotal
-    newRemovedCount = removedCount + countRemoved
-    logging.info("END processVacuumRelationsChunk %s, %d records processed, %s removed " % (
-        module, newTotalCount, newRemovedCount))
-    if newCursor:
+        if src_prop not in skel:
+            logging.info(f"Deleting {relation_object.key} which refers to "
+                         f"non-existing RelationalBone {src_prop} of {src_kind}")
+            db.Delete(relation_object)
+            count_removed += 1
+    logging.info(f"END processVacuumRelationsChunk {module}, "
+                 f"{count_total} records processed, {count_removed} removed")
+    if new_cursor := query.getCursor():
         # Start processing of the next chunk
-        processVacuumRelationsChunk(module, newCursor, newTotalCount, newRemovedCount, notify)
-    else:
+        processVacuumRelationsChunk(module, new_cursor, count_total, count_removed, notify)
+    elif notify:
+        txt = (
+            f"{conf.instance.project_id}: Vacuum relations finished for {module}\n\n"
+            f"ViUR finished to vacuum viur-relations for module {module}.\n"
+            f"{count_total} records processed, "
+            f"{count_removed} entries removed"
+        )
         try:
-            if notify:
-                txt = ("Vaccum Relations finished for %s\n\n" +
-                       "ViUR finished to vaccum viur-relations.\n" +
-                       "%d records processed, %d entries removed") % (module, newTotalCount, newRemovedCount)
-                email.sendEMail(dests=[notify], stringTemplate=txt, skel=None)
-        except:  # OverQuota, whatever
-            pass
+            email.sendEMail(dests=notify, stringTemplate=txt, skel=None)
+        except Exception as exc:  # noqa; OverQuota, whatever
+            logging.exception(f"Failed to notify {notify}")
 
 
 # Forward our references to SkelInstance to the database (needed for queries)

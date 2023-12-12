@@ -1,10 +1,11 @@
-import logging, os
+import logging
+import os
 from datetime import timedelta
 from functools import wraps
 from hashlib import sha512
-from typing import List, Union, Callable, Tuple, Dict
+from typing import Callable, Dict, List, Tuple, Union
 
-from viur.core import tasks, utils, db, current
+from viur.core import Method, current, db, tasks, utils
 from viur.core.config import conf
 
 """
@@ -86,9 +87,9 @@ def keyFromArgs(f: Callable, userSensitive: int, languageSensitive: bool, evalua
                 res["__user"] = None
     if languageSensitive:
         res["__lang"] = current.language.get()
-    if conf["viur.cacheEnvironmentKey"]:
+    if conf.cache_environment_key:
         try:
-            res["_cacheEnvironment"] = conf["viur.cacheEnvironmentKey"]()
+            res["_cacheEnvironment"] = conf.cache_environment_key()
         except RuntimeError:
             return None
     res["__path"] = path  # Different path might have different output (html,xml,..)
@@ -115,18 +116,23 @@ def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool
         Does the actual work of wrapping a callable.
         Use the decorator enableCache instead of calling this directly.
     """
+    method = None
+    if isinstance(f, Method):
+        # Wrapping an (exposed) Method; continue with Method._func
+        method = f
+        f = f._func
 
     @wraps(f)
     def wrapF(self, *args, **kwargs) -> Union[str, bytes]:
         currReq = current.request.get()
-        if conf["viur.disableCache"] or currReq.disableCache:
+        if conf.debug.disable_cache or currReq.disableCache:
             # Caching disabled
-            if conf["viur.disableCache"]:
+            if conf.debug.disable_cache:
                 logging.debug("Caching is disabled by config")
             return f(self, *args, **kwargs)
         # How many arguments are part of the way to the function called (and how many are just *args)
-        offset = -len(currReq.args) or len(currReq.pathlist)
-        path = "/" + "/".join(currReq.pathlist[: offset])
+        offset = -len(currReq.args) or len(currReq.path_list)
+        path = "/" + "/".join(currReq.path_list[: offset])
         if not path in urls:
             # This path (possibly a sub-render) should not be cached
             logging.debug("Not caching for %s" % path)
@@ -156,12 +162,16 @@ def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool
         dbEntity["path"] = path
         dbEntity["content-type"] = currReq.response.headers['Content-Type']
         dbEntity["accessedEntries"] = list(accessedEntries)
-        dbEntity.exclude_from_indexes = ["data", "content-type"]  # We can save 2 DB-Writs :)
+        dbEntity.exclude_from_indexes = {"data", "content-type"}  # save two DB-writes.
         db.Put(dbEntity)
         logging.debug("This request was a cache-miss. Cache has been updated.")
         return res
 
-    return wrapF
+    if method is None:
+        return wrapF
+    else:
+        method._func = wrapF
+        return method
 
 
 def enableCache(urls: List[str], userSensitive: int = 0, languageSensitive: bool = False,

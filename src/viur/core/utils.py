@@ -1,5 +1,7 @@
 import hashlib
 import hmac
+import warnings
+
 import logging
 import secrets
 import string
@@ -11,6 +13,7 @@ from urllib.parse import quote
 
 from viur.core import current, db
 from viur.core.config import conf
+
 
 
 def utcNow() -> datetime:
@@ -67,36 +70,43 @@ def markFileForDeletion(dlkey: str) -> None:
     db.Put(fileObj)
 
 
-def escapeString(val: str, maxLength: int = 254) -> str:
+def escapeString(val: str, max_length: int = 254, **kwargs) -> str:
     """
         Quotes several characters and removes "\\\\n" and "\\\\0" to prevent XSS injection.
 
         :param val: The value to be escaped.
-        :param maxLength: Cut-off after maxLength characters. A value of 0 means "unlimited".
+        :param max_length: Cut-off after max_length characters. A value of 0 means "unlimited".
         :returns: The quoted string.
     """
-    val = str(val).strip() \
-        .replace("<", "&lt;") \
-        .replace(">", "&gt;") \
-        .replace("\"", "&quot;") \
-        .replace("'", "&#39;") \
-        .replace("(", "&#040;") \
-        .replace(")", "&#041;") \
-        .replace("=", "&#061;") \
-        .replace("\n", "") \
-        .replace("\0", "")
+    # fixme: Remove in viur-core >= 4
+    if "maxLength" in kwargs:
+        warnings.warn("maxLength parameter is deprecated, please use max_length", DeprecationWarning)
+        max_length = kwargs.pop("maxLength")
 
-    if maxLength:
-        return val[0:maxLength]
+    val = str(val).strip().translate(escapeString.__escape_trans)
+
+    if max_length:
+        return val[:max_length]
 
     return val
 
 
+escapeString.__escape_trans = str.maketrans(
+    {"<": "&lt;",
+     ">": "&gt;",
+     "\"": "&quot;",
+     "'": "&#39;",
+     "(": "&#040;",
+     ")": "&#041;",
+     "=": "&#061;",
+     "\n": "",
+     "\0": ""})
+
 def hmacSign(data: Any) -> str:
-    assert conf["viur.file.hmacKey"] is not None, "No hmac-key set!"
+    assert conf.file_hmac_key is not None, "No hmac-key set!"
     if not isinstance(data, bytes):
         data = str(data).encode("UTF-8")
-    return hmac.new(conf["viur.file.hmacKey"], msg=data, digestmod=hashlib.sha3_384).hexdigest()
+    return hmac.new(conf.file_hmac_key, msg=data, digestmod=hashlib.sha3_384).hexdigest()
 
 
 def hmacVerify(data: Any, signature: str) -> bool:
@@ -204,10 +214,10 @@ def seoUrlToEntry(module: str,
     pathComponents = [""]
     if language is None:
         language = current.language.get()
-    if conf["viur.languageMethod"] == "url":
+    if conf.i18n.language_method == "url":
         pathComponents.append(language)
-    if module in conf["viur.languageModuleMap"] and language in conf["viur.languageModuleMap"][module]:
-        module = conf["viur.languageModuleMap"][module][language]
+    if module in conf.i18n.language_module_map and language in conf.i18n.language_module_map[module]:
+        module = conf.i18n.language_module_map[module][language]
     pathComponents.append(module)
     if not entry:
         return "/".join(pathComponents)
@@ -234,13 +244,13 @@ def seoUrlToEntry(module: str,
 def seoUrlToFunction(module: str, function: str, render: Optional[str] = None) -> str:
     from viur.core import conf
     lang = current.language.get()
-    if module in conf["viur.languageModuleMap"] and lang in conf["viur.languageModuleMap"][module]:
-        module = conf["viur.languageModuleMap"][module][lang]
-    if conf["viur.languageMethod"] == "url":
+    if module in conf.i18n.language_module_map and lang in conf.i18n.language_module_map[module]:
+        module = conf.i18n.language_module_map[module][lang]
+    if conf.i18n.language_method == "url":
         pathComponents = ["", lang]
     else:
         pathComponents = [""]
-    targetObject = conf["viur.mainResolver"]
+    targetObject = conf.main_resolver
     if module in targetObject:
         pathComponents.append(module)
         targetObject = targetObject[module]
@@ -273,6 +283,29 @@ def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
     return db.Key(key.kind, key.id_or_name, parent=parent)
 
 
+def is_prefix(name: str, prefix: str, delimiter: str = ".") -> bool:
+    """
+    Utility function to check if a given name matches a prefix,
+    which defines a specialization, delimited by `delimiter`.
+
+    In ViUR, modules, bones, renders, etc. provide a kind or handler
+    to classify or subclassify the specific object. To securitly
+    check for a specific type, it is either required to ask for the
+    exact type or if its prefixed by a path delimited normally by
+    dots.
+
+    Example:
+
+    .. code-block:: python
+        handler = "tree.file.special"
+        utils.is_prefix(handler, "tree")  # True
+        utils.is_prefix(handler, "tree.node")  # False
+        utils.is_prefix(handler, "tree.file")  # True
+        utils.is_prefix(handler, "tree.file.special")  # True
+    """
+    return name == prefix or name.startswith(prefix + delimiter)
+
+
 def parse_bool(value: Any, truthy_values: typing.Iterable = ("true", "yes", "1")) -> bool:
     """
     Parse a value into a boolean based on accepted truthy values.
@@ -286,6 +319,7 @@ def parse_bool(value: Any, truthy_values: typing.Iterable = ("true", "yes", "1")
     :returns: True if the value matches any of the truthy values, False otherwise.
     """
     return str(value).strip().lower() in truthy_values
+
 
 # DEPRECATED ATTRIBUTES HANDLING
 __utils_conf_replacement = {
@@ -305,6 +339,7 @@ __utils_current_replacement = {
 def __getattr__(attr):
     if attr in __utils_conf_replacement:
         import warnings
+        # FIXME: config
         msg = f"Use of `utils.{attr}` is deprecated; Use `conf[\"{__utils_conf_replacement[attr]}\"]` instead!"
         warnings.warn(msg, DeprecationWarning, stacklevel=3)
         logging.warning(msg, stacklevel=3)

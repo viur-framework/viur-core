@@ -27,6 +27,18 @@ ViUR is an open source software development framework that was created to fulfil
 
 To get started with ViUR, check out [viur-base](https://github.com/viur-framework/viur-base). It comes with a pre-configured and well documented project template to immediately start with.
 
+## Migration
+
+### from `<=v3.5` to `v3.6`
+In [#833](https://github.com/viur-framework/viur-core/pull/833) the config has
+changed from a dict to an object.
+To migrate the access expressions like `conf["option"]` in your project
+to `conf.option` the viur-core provides a migration script.
+Install the _viur-core_ in your project, open a (virtual) environment shell
+and `viur-core-migrate-config` will be available.
+After checking the result with `viur-core-migrate-config ./deploy/ -d`
+you can apply the changes with `viur-core-migrate-config ./deploy/ -x`.
+
 ## Contributing
 
 Help of any kind to extend and improve or enhance this project in any kind or way is always appreciated.

@@ -717,7 +717,7 @@ class BaseBone(object):
         elif (
             # fixme: Remove this piece of sh*t at least with VIUR4
             # We're importing from an old ViUR2 instance - there may only be keys prefixed with our name
-            conf.get("viur.viur2import.blobsource") and any(n.startswith(name + ".") for n in skel.dbEntity)
+            conf.viur2import_blobsource and any(n.startswith(name + ".") for n in skel.dbEntity)
             # ... or computed
             or self.compute
         ):
@@ -809,8 +809,8 @@ class BaseBone(object):
             res = []
             if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
                 # Pick one language we'll use
-                if conf["viur.defaultLanguage"] in loadVal:
-                    loadVal = loadVal[conf["viur.defaultLanguage"]]
+                if conf.i18n.default_language in loadVal:
+                    loadVal = loadVal[conf.i18n.default_language]
                 else:
                     loadVal = [x for x in loadVal.values() if x is not True]
             if loadVal and not isinstance(loadVal, list):
@@ -822,8 +822,8 @@ class BaseBone(object):
             res = None
             if isinstance(loadVal, dict) and "_viurLanguageWrapper_" in loadVal:
                 # Pick one language we'll use
-                if conf["viur.defaultLanguage"] in loadVal:
-                    loadVal = loadVal[conf["viur.defaultLanguage"]]
+                if conf.i18n.default_language in loadVal:
+                    loadVal = loadVal[conf.i18n.default_language]
                 else:
                     loadVal = [x for x in loadVal.values() if x is not True]
             if loadVal and isinstance(loadVal, list):

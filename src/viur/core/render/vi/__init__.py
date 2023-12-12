@@ -29,7 +29,7 @@ def getStructure(module):
     """
     Returns all available skeleton structures for a given module.
     """
-    moduleObj = getattr(conf["viur.mainApp"].vi, module, None)
+    moduleObj = getattr(conf.main_app.vi, module, None)
     if not isinstance(moduleObj, Module) or not moduleObj.describe():
         return json.dumps(None)
 
@@ -67,7 +67,7 @@ def getStructure(module):
 @exposed
 @skey
 def setLanguage(lang):
-    if lang in conf["viur.availableLanguages"]:
+    if lang in conf.i18n.available_languages:
         current.language.set(lang)
 
 
@@ -75,8 +75,8 @@ def setLanguage(lang):
 def dumpConfig():
     res = {}
 
-    for key in dir(conf["viur.mainApp"].vi):
-        module = getattr(conf["viur.mainApp"].vi, key, None)
+    for key in dir(conf.main_app.vi):
+        module = getattr(conf.main_app.vi, key, None)
         if not isinstance(module, Module):
             continue
 
@@ -85,8 +85,9 @@ def dumpConfig():
 
     res = {
         "modules": res,
+        # "configuration": dict(conf.admin.items()), # TODO: this could be the short vision, if we use underscores
         "configuration": {
-            k.removeprefix("admin."): v for k, v in conf.items() if k.lower().startswith("admin.")
+            k.replace("_", "."): v for k, v in conf.admin.items(True)
         }
     }
     current.request.get().response.headers["Content-Type"] = "application/json"
@@ -100,13 +101,13 @@ def getVersion(*args, **kwargs):
     """
     current.request.get().response.headers["Content-Type"] = "application/json"
 
-    version = conf["viur.version"]
+    version = conf.version
 
     # always fill up to 4 parts
     while len(version) < 4:
         version += (None,)
 
-    if conf["viur.instance.is_dev_server"] \
+    if conf.instance.is_dev_server \
             or ((cuser := current.user.get()) and ("root" in cuser["access"] or "admin" in cuser["access"])):
         return json.dumps(version[:4])
 
@@ -140,9 +141,9 @@ def canAccess(*args, **kwargs) -> bool:
 
 @exposed
 def index(*args, **kwargs):
-    if not conf["viur.instance.project_base_path"].joinpath("vi", "main.html").exists():
+    if not conf.instance.project_base_path.joinpath("vi", "main.html").exists():
         raise errors.NotFound()
-    if conf["viur.instance.is_dev_server"] or current.request.get().isSSLConnection:
+    if conf.instance.is_dev_server or current.request.get().isSSLConnection:
         raise errors.Redirect("/vi/s/main.html")
     else:
         appVersion = current.request.get().request.host
@@ -151,13 +152,17 @@ def index(*args, **kwargs):
 
 @exposed
 def get_settings():
-    fields = {key: values for key, values in conf.items()
-              if key.startswith("admin.")}
+    """
+    Get public admin-tool specific settings, requires no user to be logged in.
+    This is used by new vi-admin.
+    """
+    fields = {k.replace("_", "."): v for k, v in conf.admin.items(True)}
 
-    fields["admin.user.google.clientID"] = conf.get("viur.user.google.clientID", "")
+    if conf.user.google_client_id:
+        fields["admin.user.google.clientID"] = conf.user.google_client_id
 
     current.request.get().response.headers["Content-Type"] = "application/json"
-    return json.dumps(fields)
+    return json.dumps(fields, cls=CustomJsonEncoder)
 
 
 def _postProcessAppObj(obj):

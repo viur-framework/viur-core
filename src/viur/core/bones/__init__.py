@@ -87,7 +87,7 @@ for __cls_name, __cls in locals().copy().items():
             def __init__(self, *args, **kwargs):
                 import logging, warnings
                 logging.warning(f"Use of class '{old_cls_name}' is deprecated, use '{cls_name}' instead.")
-                warnings.warn(f"Use of class '{old_cls_name}' is deprecated, use '{cls_name}' instead.")
+                warnings.warn(f"Use of class '{old_cls_name}' is deprecated, use '{cls_name}' instead.", stacklevel=2)
                 cls.__init__(self, *args, **kwargs)
 
             return __init__

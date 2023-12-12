@@ -51,6 +51,7 @@ class Tree(SkelModule):
         assert self.nodeSkelCls, f"Need to specify at least nodeSkelCls for {self.__class__.__name__!r}"
         super().__init__(moduleName, modulePath, *args, **kwargs)
 
+    @property
     def handler(self):
         return "tree" if self.leafSkelCls else "tree.node"  # either a tree or a tree with nodes only (former hierarchy)
 

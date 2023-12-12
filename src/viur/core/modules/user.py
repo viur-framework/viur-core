@@ -114,7 +114,7 @@ class UserSkel(skeleton.Skeleton):
 
     roles = SelectBone(
         descr=i18n.translate("viur.user.bone.roles", defaultText="Roles"),
-        values=conf["viur.user.roles"],
+        values=conf.user.roles,
         required=True,
         multiple=True,
         # fixme: This is generally broken in VIUR! See #776 for details.
@@ -123,14 +123,14 @@ class UserSkel(skeleton.Skeleton):
         #         "user.bone.roles.invalid",
         #         defaultText="Invalid role setting: 'custom' can only be set alone.")
         #     if "custom" in values and len(values) > 1 else None,
-        defaultValue=list(conf["viur.user.roles"].keys())[:1],
+        defaultValue=list(conf.user.roles.keys())[:1],
     )
 
     access = SelectBone(
         descr=i18n.translate("viur.user.bone.access", defaultText="Access rights"),
         values=lambda: {
             right: i18n.translate("server.modules.user.accessright.%s" % right, defaultText=right)
-            for right in sorted(conf["viur.accessRights"])
+            for right in sorted(conf.user.access_rights)
         },
         multiple=True,
         params={
@@ -185,14 +185,14 @@ class UserSkel(skeleton.Skeleton):
 
             for role in skel["roles"]:
                 # Get default access for this role
-                access |= conf["viur.mainApp"].vi.user.get_role_defaults(role)
+                access |= conf.main_app.vi.user.get_role_defaults(role)
 
                 # Go through all modules and evaluate available role-settings
-                for name in dir(conf["viur.mainApp"].vi):
+                for name in dir(conf.main_app.vi):
                     if name.startswith("_"):
                         continue
 
-                    module = getattr(conf["viur.mainApp"].vi, name)
+                    module = getattr(conf.main_app.vi, name)
                     if not isinstance(module, Module):
                         continue
 
@@ -221,9 +221,24 @@ class UserAuthentication(Module):
         super().__init__(moduleName, modulePath)
         self._user_module = userModule
 
+    def can_handle(self, user: db.Entity) -> bool:
+        return True
 
-class UserPassword(UserAuthentication):
+
+class UserPrimaryAuthentication(UserAuthentication, abc.ABC):
+    """Abstract class for all primary authentication methods."""
     registrationEnabled = False
+
+    @abc.abstractmethod
+    def login(self, *args, kwargs):
+        ...
+
+    @abc.abstractmethod
+    def getAuthMethodName(self, *args, **kwargs) -> str: pass
+
+
+class UserPassword(UserPrimaryAuthentication):
+
     registrationEmailVerificationRequired = True
     registrationAdminVerificationRequired = True
 
@@ -379,7 +394,7 @@ class UserPassword(UserAuthentication):
 
             recovery_key = securitykey.create(
                 duration=15 * 60,
-                key_length=conf["viur.security.password_recovery_key_length"],
+                key_length=conf.security.password_recovery_key_length,
                 user_name=skel["name"].lower(),
                 session_bound=False,
             )
@@ -474,7 +489,7 @@ class UserPassword(UserAuthentication):
             skel.toDB(update_relations=False)
             return skel
 
-        if not isinstance(data, dict) or not (skel := db.RunInTransaction(transact, data.get("userKey"))):
+        if not isinstance(data, dict) or not (skel := db.RunInTransaction(transact, data.get("user_key"))):
             return self._user_module.render.view(None, tpl=self.verifyFailedTemplate)
 
         return self._user_module.render.view(skel, tpl=self.verifySuccessTemplate)
@@ -536,7 +551,7 @@ class UserPassword(UserAuthentication):
         if self.registrationEmailVerificationRequired and skel["status"] == Status.WAITING_FOR_EMAIL_VERIFICATION:
             # The user will have to verify his email-address. Create a skey and send it to his address
             skey = securitykey.create(duration=60 * 60 * 24 * 7, session_bound=False,
-                                      userKey=utils.normalizeKey(skel["key"]),
+                                      user_key=utils.normalizeKey(skel["key"]),
                                       name=skel["name"])
             skel.skey = BaseBone(descr="Skey")
             skel["skey"] = skey
@@ -545,8 +560,7 @@ class UserPassword(UserAuthentication):
         return self._user_module.render.addSuccess(skel)
 
 
-class GoogleAccount(UserAuthentication):
-    registrationEnabled = False
+class GoogleAccount(UserPrimaryAuthentication):
 
     @classmethod
     def getAuthMethodName(*args, **kwargs):
@@ -557,8 +571,8 @@ class GoogleAccount(UserAuthentication):
     @skey(allow_empty=True)
     def login(self, token: str | None = None, *args, **kwargs):
         # FIXME: Check if already logged in
-        if not conf.get("viur.user.google.clientID"):
-            raise errors.PreconditionFailed("Please configure 'viur.user.google.clientID' in your conf!")
+        if not conf.user.google_client_id:
+            raise errors.PreconditionFailed("Please configure conf.user.google_client_id!")
         if not token:
             request = current.request.get()
             request.response.headers["Content-Type"] = "text/html"
@@ -566,15 +580,15 @@ class GoogleAccount(UserAuthentication):
                 # We have to allow popups here
                 request.response.headers["cross-origin-opener-policy"] = "same-origin-allow-popups"
             # Fixme: Render with Jinja2?
-            with (conf["viur.instance.core_base_path"]
+            with (conf.instance.core_base_path
                   .joinpath("viur/core/template/vi_user_google_login.html")
                   .open() as tpl_file):
                 tplStr = tpl_file.read()
-            tplStr = tplStr.replace("{{ clientID }}", conf["viur.user.google.clientID"])
+            tplStr = tplStr.replace("{{ clientID }}", conf.user.google_client_id)
             extendCsp({"script-src": ["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
                        "style-src": ["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]})
             return tplStr
-        userInfo = id_token.verify_oauth2_token(token, requests.Request(), conf["viur.user.google.clientID"])
+        userInfo = id_token.verify_oauth2_token(token, requests.Request(), conf.user.google_client_id)
         if userInfo['iss'] not in {'accounts.google.com', 'https://accounts.google.com'}:
             raise ValueError('Wrong issuer.')
         # Token looks valid :)
@@ -590,7 +604,7 @@ class GoogleAccount(UserAuthentication):
             if not (userSkel := addSkel().all().filter("name.idx =", email.lower()).getSkel()):
                 # Still no luck - it's a completely new user
                 if not self.registrationEnabled:
-                    if userInfo.get("hd") and userInfo["hd"] in conf["viur.user.google.gsuiteDomains"]:
+                    if userInfo.get("hd") and userInfo["hd"] in conf.user.google_gsuite_domains:
                         print("User is from domain - adding account")
                     else:
                         logging.warning("Denying registration of %s", email)
@@ -654,10 +668,6 @@ class UserSecondFactorAuthentication(UserAuthentication, abc.ABC):
         self.add_url = f"{self.modulePath}/add"
         self.start_url = f"{self.modulePath}/start"
 
-    @abc.abstractmethod
-    def can_handle(self, possible_user: db.Entity) -> bool:
-        pass
-
 
 class TimeBasedOTP(UserSecondFactorAuthentication):
     WINDOW_SIZE = 5
@@ -692,22 +702,22 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
     def get2FactorMethodName(*args, **kwargs):  # fixme: What is the purpose of this function? Why not just a member?
         return "X-VIUR-2FACTOR-TimeBasedOTP"
 
-    def get_config(self, possible_user: db.Entity) -> OtpConfig | None:
+    def get_config(self, user: db.Entity) -> OtpConfig | None:
         """
         Returns an instance of self.OtpConfig with a provided token configuration,
         or None when there is no appropriate configuration of this second factor handler available.
         """
 
-        if possible_user.get("otp_secret"):
-            return self.OtpConfig(secret=possible_user["otp_secret"], timedrift=possible_user.get("otp_timedrift") or 0)
+        if user.get("otp_secret"):
+            return self.OtpConfig(secret=user["otp_secret"], timedrift=user.get("otp_timedrift") or 0)
 
         return None
 
-    def can_handle(self, possible_user: db.Entity) -> bool:
+    def can_handle(self, user: db.Entity) -> bool:
         """
         Specified whether the second factor authentication can be handled by the given user or not.
         """
-        return bool(self.get_config(possible_user))
+        return bool(self.get_config(user))
 
     @exposed
     def start(self):
@@ -928,11 +938,11 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
                 name=translate(self.NAME),
             )
 
-    def can_handle(self, possible_user: db.Entity) -> bool:
+    def can_handle(self, user: db.Entity) -> bool:
         """
         We can only handle the second factor if we have stored an otp_app_secret before.
         """
-        return bool(possible_user.get("otp_app_secret", ""))
+        return bool(user.get("otp_app_secret", ""))
 
     @classmethod
     def get2FactorMethodName(*args, **kwargs) -> str:
@@ -964,10 +974,10 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         """
         if not (cuser := current.user.get()):
             raise errors.Unauthorized()
-        if not (issuer := conf["viur.otp.issuer"]):
+        if not (issuer := conf.user.otp_issuer):
             logging.warning(
-                f"""conf["viur.otp.issuer"] is None we replace the issuer by conf["viur.instance.project_id"]""")
-            issuer = conf["viur.instance.project_id"]
+                f"conf.user.otp_issuer is None we replace the issuer by {conf.instance.project_id=}")
+            issuer = conf.instance.project_id
 
         return pyotp.TOTP(otp_app_secret).provisioning_uri(name=cuser["name"], issuer_name=issuer)
 
@@ -1073,7 +1083,7 @@ class User(List):
                 "icon": "trash",
                 "access": ["root"],
                 "action": "fetch",
-                "url": "/vi/{{module}}/trigger/kick/{{key}}",
+                "url": "/vi/{{module}}/trigger/kick/{{key}}?skey={{skey}}",
                 "confirm": i18n.translate(
                     key="viur.modules.user.customActions.kick.confirm",
                     defaultText="Do you really want to drop all sessions of the selected user from the system?",
@@ -1092,7 +1102,7 @@ class User(List):
                 "icon": "interface",
                 "access": ["root"],
                 "action": "fetch",
-                "url": "/vi/{{module}}/trigger/takeover/{{key}}",
+                "url": "/vi/{{module}}/trigger/takeover/{{key}}?skey={{skey}}",
                 "confirm": i18n.translate(
                     key="viur.modules.user.customActions.takeover.confirm",
                     defaultText="Do you really want to replace your current user session by a "
@@ -1191,24 +1201,32 @@ class User(List):
 
         return None
 
-    def continueAuthenticationFlow(self, caller, userKey):
+    def continueAuthenticationFlow(self, provider: UserPrimaryAuthentication, user_key: db.Key):
+        """
+        Continue authentication flow when primary authentication succeeded.
+        """
+        if not (possible_user := db.Get(user_key)):
+            raise errors.NotFound("User was not found.")
+
+        if not provider.can_handle(possible_user):
+            raise errors.Forbidden("User is not allowed to use this primary login method.")
+
         session = current.session.get()
-        session["possible_user_key"] = userKey.id_or_name
+        session["possible_user_key"] = user_key.id_or_name
         session["_secondFactorStart"] = utils.utcNow()
         session.markChanged()
 
         second_factor_providers = []
 
-        if not (possible_user := db.Get(userKey)):
-            raise errors.NotFound()
         for auth_provider, second_factor in self.validAuthenticationMethods:
-            if isinstance(caller, auth_provider):
+            if isinstance(provider, auth_provider):
                 if second_factor is not None:
                     second_factor_provider_instance = self.secondFactorProviderByClass(second_factor)
                     if second_factor_provider_instance.can_handle(possible_user):
                         second_factor_providers.append(second_factor_provider_instance)
                 else:
                     second_factor_providers.append(None)
+
         if len(second_factor_providers) > 1 and None in second_factor_providers:
             # We have a second factor. So we can get rid of the None
             second_factor_providers.pop(second_factor_providers.index(None))
@@ -1218,27 +1236,33 @@ class User(List):
         elif len(second_factor_providers) == 1:
             if second_factor_providers[0] is None:
                 # We allow sign-in without a second factor
-                return self.authenticateUser(userKey)
+                return self.authenticateUser(user_key)
             # We have only one second factor we don't need the choice template
-            return second_factor_providers[0].start(userKey)
+            return second_factor_providers[0].start(user_key)
+
         # In case there is more than one second factor, let the user select a method.
         return self.render.second_factor_choice(second_factors=second_factor_providers)
 
-    def secondFactorSucceeded(self, secondFactor, userKey):
+    def secondFactorSucceeded(self, provider: UserSecondFactorAuthentication, user_key: db.Key):
+        """
+        Continue authentication flow when secondary authentication succeeded.
+        """
         session = current.session.get()
-        if session["possible_user_key"] != userKey.id_or_name:
+        if session["possible_user_key"] != user_key.id_or_name:
             raise errors.Forbidden()
+
         # Assert that the second factor verification finished in time
         if utils.utcNow() - session["_secondFactorStart"] > self.secondFactorTimeWindow:
             raise errors.RequestTimeout()
-        return self.authenticateUser(userKey)
+
+        return self.authenticateUser(user_key)
 
     def authenticateUser(self, key: db.Key, **kwargs):
         """
             Performs Log-In for the current session and the given user key.
 
             This resets the current session: All fields not explicitly marked as persistent
-            by conf["viur.session.persistentFieldsOnLogin"] are gone afterwards.
+            by conf.user.session_persistent_fields_on_login are gone afterwards.
 
             :param key: The (DB-)Key of the user we shall authenticate
         """
@@ -1253,7 +1277,7 @@ class User(List):
         # Update session for user
         session = current.session.get()
         # Remember persistent fields...
-        take_over = {k: v for k, v in session.items() if k in conf["viur.session.persistentFieldsOnLogin"]}
+        take_over = {k: v for k, v in session.items() if k in conf.user.session_persistent_fields_on_login}
         session.reset()
         # and copy them over to the new session
         session |= take_over
@@ -1261,7 +1285,7 @@ class User(List):
         # Update session, user and request
         session["user"] = skel.dbEntity
 
-        current.request.get().response.headers[securitykey.SECURITYKEY_STATIC] = session.static_security_key
+        current.request.get().response.headers[securitykey.SECURITYKEY_STATIC_HEADER] = session.static_security_key
         current.user.set(self.getCurrentUser())
 
         self.onLogin(skel)
@@ -1273,7 +1297,7 @@ class User(List):
     def logout(self, *args, **kwargs):
         """
             Implements the logout action. It also terminates the current session (all keys not listed
-            in viur.session.persistentFieldsOnLogout will be lost).
+            in viur.session_persistent_fields_on_logout will be lost).
         """
         if not (user := current.user.get()):
             raise errors.Unauthorized()
@@ -1281,7 +1305,7 @@ class User(List):
         self.onLogout(user)
 
         session = current.session.get()
-        take_over = {k: v for k, v in session.items() if k in conf["viur.session.persistentFieldsOnLogout"]}
+        take_over = {k: v for k, v in session.items() if k in conf.user.session_persistent_fields_on_logout}
         session.reset()
         session |= take_over
         current.user.set(None)  # set user to none in context var
@@ -1377,16 +1401,14 @@ class User(List):
         return json.dumps(res)
 
     @exposed
-    def trigger(self, action: str, key: str, skey: str):
+    @skey
+    def trigger(self, action: str, key: str):
         current.request.get().response.headers["Content-Type"] = "application/json"
 
         # Check for provided access right definition (equivalent to client-side check), fallback to root!
         access = self.adminInfo.get("customActions", {}).get(f"trigger_{action}", {}).get("access") or ("root", )
         if not ((cuser := current.user.get()) and any(role in cuser["access"] for role in access)):
             raise errors.Unauthorized()
-
-        if not securitykey.validate(skey, session_bound=True):
-            raise errors.PreconditionFailed()
 
         skel = self.baseSkel()
         if not skel.fromDB(key):
@@ -1421,7 +1443,7 @@ def createNewUserIfNotExists():
     """
         Create a new Admin user, if the userDB is empty
     """
-    userMod = getattr(conf["viur.mainApp"], "user", None)
+    userMod = getattr(conf.main_app, "user", None)
     if (userMod  # We have a user module
         and isinstance(userMod, User)
         and "addSkel" in dir(userMod)
@@ -1430,7 +1452,7 @@ def createNewUserIfNotExists():
                  userMod.validAuthenticationMethods])):  # It uses UserPassword login
         if not db.Query(userMod.addSkel().kindName).getEntry():  # There's currently no user in the database
             addSkel = skeleton.skeletonByKind(userMod.addSkel().kindName)()  # Ensure we have the full skeleton
-            uname = f"""admin@{conf["viur.instance.project_id"]}.appspot.com"""
+            uname = f"""admin@{conf.instance.project_id}.appspot.com"""
             pw = utils.generateRandomString(13)
             addSkel["name"] = uname
             addSkel["status"] = Status.ACTIVE  # Ensure it's enabled right away
