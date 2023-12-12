@@ -38,7 +38,8 @@ class StringBone(BaseBone):
         """
         # fixme: Remove in viur-core >= 4
         if "maxLength" in kwargs:
-            warnings.warn("maxLength parameter is deprecated, please use max_length", DeprecationWarning)
+            warnings.warn("maxLength parameter is deprecated, please use max_length",
+                          DeprecationWarning, stacklevel=2)
             max_length = kwargs.pop("maxLength")
         super().__init__(**kwargs)
         if max_length is not None and max_length <= 0:
@@ -125,10 +126,15 @@ class StringBone(BaseBone):
         return None
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
+        """
+        Returns None and the escaped value if the value would be valid for
+        this bone, otherwise the empty value and an error-message.
+        """
         value = utils.escapeString(value, self.max_length)
 
         if not (err := self.isInvalid(value)):
             return value, None
+
         return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
     def buildDBFilter(

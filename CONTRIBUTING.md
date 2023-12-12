@@ -63,7 +63,7 @@ In all cases, `N` is a number counted upwards for every pre-release kind.
 
 - For local development and dependency management, run `pipenv install --dev`
 - Update dependencies with `pipenv update`
-- Regenerate requirements.txt from locked pipenv using `pipenv requirements --hash >requirements.txt`
+- Regenerate requirements.txt from locked pipenv using `pipenv requirements --hash >src/viur/core/requirements.txt`
 
 Try to keep external dependencies low.
 

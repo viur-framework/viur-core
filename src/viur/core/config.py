@@ -571,7 +571,7 @@ class Instance(ConfigType):
     project_id: str = _project_id
     """The instance's project ID"""
 
-    version_hash: str = hashlib.sha256((_app_version + _project_id).encode("UTF-8")).hexdigest()[:10]
+    version_hash: str = hashlib.sha256(f"{_app_version}{project_id}".encode("UTF-8")).hexdigest()[:10]
     """Version hash that does not reveal the actual version name, can be used for cache-busting static resources"""
 
 
