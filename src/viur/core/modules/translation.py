@@ -124,10 +124,12 @@ class Translation(List):
 
     def adminInfo(self):
         admin_info = {
-            "name": "translations",
+            "name": translate("translations"),
             "views": [
                 {
-                    "name": f"missing translations for {lang}",
+                    "name": translate("core.translations.view.missing",
+                                      "Missing translations for {{lang}}",
+                                      )(lang=lang),
                     "filter": {
                         "translations_missing": lang,
                     },

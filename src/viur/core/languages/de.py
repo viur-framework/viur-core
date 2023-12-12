@@ -356,6 +356,7 @@ de = {
 
     # translation
     "translations": "Übersetzungen",
+    "core.translations.view.missing": "Fehlende Übersetzungen für {{lang}}",
     "core.translationskel.tr_key.descr": "Schlüssel",
     "core.translationskel.translations.descr": "Übersetzung",
     "core.translationskel.translations.tooltip":
