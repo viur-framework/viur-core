@@ -26,17 +26,10 @@ class BooleanBone(BaseBone):
         ] = None,
         **kwargs
     ):
-        if defaultValue is None:
-            if kwargs.get("multiple") or kwargs.get("languages"):
-                # BaseBone's __init__ will choose an empty container for this
-                defaultValue = None
-            else:
-                # We have a single bone which is False
-                defaultValue = False
-        else:
+        if defaultValue is not None:
             # We have given an explicit defaultValue and maybe a complex structure
-            if not (kwargs.get("multiple") or kwargs.get("languages")) and not isinstance(defaultValue, bool):
-                raise TypeError("Only 'True' or 'False' can be provided as BooleanBone defaultValue")
+            if not (kwargs.get("multiple") or kwargs.get("languages")) and not (isinstance(defaultValue, bool)):
+                raise TypeError("Only 'True', 'False' or 'None' can be provided as BooleanBone defaultValue")
             # TODO: missing validation for complex types, but in other bones too
 
         super().__init__(defaultValue=defaultValue, **kwargs)
