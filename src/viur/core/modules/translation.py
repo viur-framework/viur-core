@@ -18,14 +18,20 @@ class TranslationSkel(Skeleton):
     kindName = KINDNAME
 
     tr_key = StringBone(
-        descr="core.translationskel.tr_key.descr",
+        descr=translate(
+            "core.translationskel.tr_key.descr",
+            "Translation key",
+        ),
         searchable=True,
         unique=UniqueValue(UniqueLockMethod.SameValue, False,
                            "This translation key exist already"),
     )
 
     translations = StringBone(
-        descr="core.translationskel.translations.descr",
+        descr=translate(
+            "core.translationskel.translations.descr",
+            "Translations",
+        ),
         searchable=True,
         languages=conf.i18n.available_dialects,
         params={
@@ -38,7 +44,10 @@ class TranslationSkel(Skeleton):
     )
 
     translations_missing = SelectBone(
-        descr="core.translationskel.translations_missing.descr",
+        descr=translate(
+            "core.translationskel.translations_missing.descr",
+            "Translation missing for language",
+        ),
         multiple=True,
         readOnly=True,
         values=conf.i18n.available_dialects,
@@ -51,31 +60,49 @@ class TranslationSkel(Skeleton):
     )
 
     default_text = StringBone(
-        descr="core.translationskel.default_text.descr",
+        descr=translate(
+            "core.translationskel.default_text.descr",
+            "Fallback value",
+        ),
     )
 
     hint = StringBone(
-        descr="core.translationskel.hint.descr",
+        descr=translate(
+            "core.translationskel.hint.descr",
+            "Hint / Context (internal only)",
+        ),
     )
 
     usage_filename = StringBone(
-        descr="core.translationskel.usage_filename.descr",
+        descr=translate(
+            "core.translationskel.usage_filename.descr",
+            "Used and added from this file",
+        ),
         readOnly=True,
     )
 
     usage_lineno = NumericBone(
-        descr="core.translationskel.usage_lineno.descr",
+        descr=translate(
+            "core.translationskel.usage_lineno.descr",
+            "Used and added from this lineno",
+        ),
         readOnly=True,
     )
 
     usage_variables = StringBone(
-        descr="core.translationskel.usage_variables.descr",
+        descr=translate(
+            "core.translationskel.usage_variables.descr",
+            "Receives these substitution variables",
+        ),
         readOnly=True,
         multiple=True,
     )
 
     creator = SelectBone(
-        descr="core.translationskel.creator.descr",
+        descr=translate(
+            "core.translationskel.creator.descr",
+            "Creator",
+        ),
         values=Creator,
     )
 

@@ -44,8 +44,8 @@ en = {
     # translation
     "translations": "Translations",
     "core.translationskel.tr_key.descr": "Translation key",
-    "core.translationskel.translations.descr": "translations",
-    "core.translationskel.translations_missing.descr": "translation missing for language",
+    "core.translationskel.translations.descr": "Translations",
+    "core.translationskel.translations_missing.descr": "Translation missing for language",
     "core.translationskel.default_text.descr": "Fallback value",
     "core.translationskel.hint.descr": "Hint / Context (internal only)",
     "core.translationskel.usage_filename.descr": "Used and added from this file",
