@@ -17,7 +17,7 @@ def random(length: int = 13) -> str:
 
     :returns: A string with random characters of the given length.
     """
-    return "".join(secrets.choice(py_string.ascii_letters + py_string.digits) for _ in range(length))
+    return "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(length))
 
 
 # String base mapping
