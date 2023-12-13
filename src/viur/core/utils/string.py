@@ -2,9 +2,10 @@
 ViUR utility functions regarding string processing.
 """
 import re
-import string
 import secrets
+import string
 import typing as t
+import warnings
 
 
 def random(length: int = 13) -> str:
@@ -37,7 +38,7 @@ __STRING_ESCAPE_MAPPING = {
 __STRING_ESCAPE_TRANSTAB = str.maketrans(__STRING_ESCAPE_MAPPING)
 
 # Lookup-table for string unescaping
-__STRING_UNESCAPE_MAPPING = {v: k for k, v in __STRING_ESCAPE_MAPPING.items() if v} | {39: "'"}
+__STRING_UNESCAPE_MAPPING = {v: k for k, v in __STRING_ESCAPE_MAPPING.items() if v}
 
 
 def escape(val: str, max_length: int | None = 254, maxLength: int | None = None) -> str:
@@ -63,7 +64,7 @@ def escape(val: str, max_length: int | None = 254, maxLength: int | None = None)
     return res
 
 
-def unescape(val: str, max_length: int | None = None) -> str:
+def unescape(val: str) -> str:
     """
         Unquotes characters formerly escaped by `escape`.
 
@@ -82,12 +83,7 @@ def unescape(val: str, max_length: int | None = None) -> str:
 
         return __STRING_UNESCAPE_MAPPING.get(find) or re_match.group(0)
 
-    res = re.sub(r"&(\w{2,4}|#0*(\d{2}));", __escape_replace, str(val).strip())
-
-    if max_length:
-        return res[:max_length]
-
-    return res
+    return re.sub(r"&(\w{2,4}|#0*(\d{2}));", __escape_replace, str(val).strip())
 
 
 def is_prefix(name: str, prefix: str, delimiter: str = ".") -> bool:
