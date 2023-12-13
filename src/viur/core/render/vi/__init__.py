@@ -98,7 +98,7 @@ def dumpConfig():
 
             if admin_info := module.describe():
                 # map path --> config
-                res[module.modulePath.lstrip("/vi")] = admin_info
+                res[module.modulePath.removeprefix("/vi/")] = admin_info
             # Collect children
             collect_modules(module, depth=depth + 1)
 
