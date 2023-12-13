@@ -80,7 +80,6 @@ class UserSkel(skeleton.Skeleton):
 
     # Properties required by custom auth
     password = PasswordBone(
-        required=False,
         readOnly=True,
         visible=False,
     )
