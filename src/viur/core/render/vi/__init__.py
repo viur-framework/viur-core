@@ -90,7 +90,7 @@ def dumpConfig():
             k.replace("_", "."): v for k, v in conf.admin.items(True)
         }
     }
-    # The vi-admin expects moduleGroups in CamelCase without "admin." prefix
+    # The vi-admin expects moduleGroups in camelCase without "admin." prefix
     res["configuration"]["moduleGroups"] = conf.admin.module_groups
 
     current.request.get().response.headers["Content-Type"] = "application/json"
