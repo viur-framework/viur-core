@@ -1,13 +1,14 @@
-# noinspection PyUnresolvedReferences
-from viur.core.render.vi.user import UserRender as user  # this import must exist!
-from viur.core.render.json import skey as json_render_skey
-from viur.core.render.json.default import DefaultRender, CustomJsonEncoder
-from viur.core.render.vi.user import UserRender as user
-from viur.core import Module, conf, current, errors
-from viur.core.decorators import *
-from viur.core.skeleton import SkeletonInstance
 import datetime
 import json
+import logging
+
+from viur.core import Module, conf, current, errors
+from viur.core.decorators import *
+from viur.core.render.json import skey as json_render_skey
+from viur.core.render.json.default import CustomJsonEncoder, DefaultRender
+# noinspection PyUnresolvedReferences
+from viur.core.render.vi.user import UserRender as user, UserRender as user  # this import must exist!
+from viur.core.skeleton import SkeletonInstance
 
 
 class default(DefaultRender):
@@ -74,14 +75,34 @@ def setLanguage(lang):
 @exposed
 def dumpConfig():
     res = {}
+    visited_objects = set()
 
-    for key in dir(conf.main_app.vi):
-        module = getattr(conf.main_app.vi, key, None)
-        if not isinstance(module, Module):
-            continue
+    def collect_modules(parent, depth: int = 0) -> None:
+        """Recursively collects all routable modules for the vi renderer"""
+        if depth > 10:
+            logging.warning(f"Reached maximum recursion limit of {depth} at {parent=}")
+            return
 
-        if admin_info := module.describe():
-            res[key] = admin_info
+        for key in dir(parent):
+            module = getattr(parent, key, None)
+            if not isinstance(module, Module):
+                continue
+            if module in visited_objects:
+                # Some modules reference other modules as parents, this will
+                # lead to infinite recursion. We can avoid reaching the
+                # maximum recursion limit by remembering already seen modules.
+                if conf.debug.trace:
+                    logging.debug(f"Already visited and added {module=}")
+                continue
+            visited_objects.add(module)
+
+            if admin_info := module.describe():
+                # map path --> config
+                res[module.modulePath.lstrip("/vi")] = admin_info
+            # Collect children
+            collect_modules(module, depth=depth + 1)
+
+    collect_modules(conf.main_app.vi)
 
     res = {
         "modules": res,
