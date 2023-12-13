@@ -59,8 +59,7 @@ class InstancedModule:
 
         Take the role of Module.__init__ (and call it).
         """
-        is_default_renderer = modulePath == f"/{moduleName}"
-        if is_default_renderer:
+        if modulePath == f"/{moduleName}":
             # For the default renderer we use the original instance
             instance = self
         else:
