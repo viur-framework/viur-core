@@ -45,7 +45,7 @@ class BooleanBone(BaseBone):
             raise ValueError("BooleanBone cannot be multiple")
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
-        return utils.string.parse_bool(value, conf.bone_boolean_str2true), None
+        return utils.parse.bool(value, conf.bone_boolean_str2true), None
 
     def getEmptyValue(self):
         """
@@ -78,7 +78,7 @@ class BooleanBone(BaseBone):
             :param name: The property-name this bone has in its Skeleton (not the description!)
         """
         if not isinstance(skel[boneName], bool):
-            skel[boneName] = utils.string.parse_bool(skel[boneName], conf.bone_boolean_str2true)
+            skel[boneName] = utils.parse.bool(skel[boneName], conf.bone_boolean_str2true)
 
     def buildDBFilter(
         self,
@@ -100,7 +100,7 @@ class BooleanBone(BaseBone):
         :rtype: google.cloud.ndb.query.Query
         """
         if name in rawFilter:
-            val = utils.string.parse_bool(rawFilter[name], conf.bone_boolean_str2true)
+            val = utils.parse.bool(rawFilter[name], conf.bone_boolean_str2true)
             return super().buildDBFilter(name, skel, dbFilter, {name: val}, prefix=prefix)
 
         return dbFilter

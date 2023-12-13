@@ -145,7 +145,7 @@ class Singleton(SkelModule):
         if (
             not kwargs  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or utils.string.parse_bool(kwargs.get("bounce"))  # review before changing
+            or utils.parse.bool(kwargs.get("bounce"))  # review before changing
         ):
             return self.render.edit(skel)
 

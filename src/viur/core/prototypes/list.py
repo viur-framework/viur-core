@@ -195,7 +195,7 @@ class List(SkelModule):
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or utils.string.parse_bool(kwargs.get("bounce"))  # review before changing
+            or utils.parse.bool(kwargs.get("bounce"))  # review before changing
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self.render.edit(skel)
@@ -232,7 +232,7 @@ class List(SkelModule):
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or utils.string.parse_bool(kwargs.get("bounce"))  # review before adding
+            or utils.parse.bool(kwargs.get("bounce"))  # review before adding
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self.render.add(skel)

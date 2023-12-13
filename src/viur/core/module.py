@@ -89,7 +89,7 @@ class Method:
             elif annotation is float:
                 return float(value)
             elif annotation is bool:
-                return utils.string.parse_bool(value)
+                return utils.parse.bool(value)
             elif annotation is types.NoneType:
                 return None
 

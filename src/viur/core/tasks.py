@@ -363,7 +363,7 @@ class TaskHandler(Module):
         if not task.canCall():
             raise errors.Unauthorized()
         skel = task.dataSkel()
-        if not kwargs or not skel.fromClient(kwargs) or utils.string.parse_bool(kwargs.get("bounce")):
+        if not kwargs or not skel.fromClient(kwargs) or utils.parse.bool(kwargs.get("bounce")):
             return self.render.add(skel)
         task.execute(**skel.accessedValues)
         return self.render.addSuccess(skel)

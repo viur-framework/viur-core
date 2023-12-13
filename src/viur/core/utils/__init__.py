@@ -8,7 +8,7 @@ from typing import Any, Union, Optional
 from urllib.parse import quote
 from viur.core import current, db
 from viur.core.config import conf
-from . import string
+from . import string, parse
 
 
 def utcNow() -> datetime:
@@ -249,7 +249,7 @@ __UTILS_NAME_REPLACEMENT = {
     "generateRandomString": ("utils.string.random", string.random),
     "escapeString": ("utils.string.escape", string.escape),
     "is_prefix": ("utils.string.is_prefix", string.is_prefix),
-    "parse_bool": ("utils.string.parse_bool", string.parse_bool),
+    "parse_bool": ("utils.parse.bool", parse.bool),
 }
 
 
