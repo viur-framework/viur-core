@@ -1,8 +1,7 @@
 import base64
-import email.header
 import html
+import io
 import json
-import logging
 import string
 from base64 import urlsafe_b64decode
 from datetime import datetime, timedelta
@@ -11,6 +10,7 @@ from quopri import decodestring
 import typing as t
 from urllib.request import urlopen
 
+import email.header
 import google.auth
 from PIL import Image, ImageCms
 from google.auth import compute_engine
@@ -18,9 +18,10 @@ from google.auth.transport import requests
 from google.cloud import iam_credentials_v1, storage
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
+import logging
 from viur.core import conf, current, db, errors, utils
-from viur.core.decorators import *
 from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
+from viur.core.decorators import *
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import SkeletonInstance, skeletonByKind
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
@@ -442,6 +443,31 @@ class File(Tree):
         skel["height"] = height
 
         return skel.toDB()
+
+    def read(self, key: db.Key | int | str | None = None, path: str | None = None) -> Tuple[io.BytesIO, str]:
+        """
+        Read a file from the Cloud Storage.
+
+        If a key and a path are provided, the key is preferred.
+        This means that the entry in the db is searched first and if this is not found, the path is used.
+
+        :param key: Key of the LeafSkel that contains the "dlkey" and the "name".
+        :param path: The path of the file in the Cloud Storage Bucket.
+
+        :return: Returns the file as a BytesIO buffer and the content-type
+        """
+        if not key and not path:
+            raise ValueError("Please provide a key or a path")
+        if key:
+            skel = self.viewSkel("leaf")
+            if not skel.fromDB(db.keyHelper(key, skel.kindName)):
+                if not path:
+                    raise ValueError("This skeleton is not in the database!")
+            else:
+                path = f"""{skel["dlkey"]}/source/{skel["name"]}"""
+
+        blob = bucket.blob(path)
+        return io.BytesIO(blob.download_as_bytes()), blob.content_type
 
     @CallDeferred
     def deleteRecursive(self, parentKey):

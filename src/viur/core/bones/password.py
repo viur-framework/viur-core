@@ -37,8 +37,9 @@ def encode_password(password: str | bytes, salt: str | bytes,
 
 class PasswordBone(StringBone):
     """
-    A specialized subclass of the StringBone class designed to handle password data. The
-    PasswordBone class hashes the password before saving it to the database and prevents it from
+    A specialized subclass of the StringBone class designed to handle password data.
+
+    The PasswordBone hashes the password before saving it to the database and prevents it from
     being read directly. It also includes various tests to determine the strength of the entered
     password.
     """
@@ -63,18 +64,19 @@ class PasswordBone(StringBone):
     def __init__(
         self,
         *,
+        descr: str = "Password",
         test_threshold: int = 4,
         tests: t.List[t.Tuple] = tests,
         **kwargs
     ):
         """
-            Initializes a new Password Bone.
+            Initializes a new PasswordBone.
 
             :param test_threshold: The minimum number of tests the password must pass.
             :param password_tests: A list of tuples. The tuple contains the test and a reason for the user if the test
                     fails.
         """
-        super().__init__(**kwargs)
+        super().__init__(descr=descr, **kwargs)
         self.test_threshold = test_threshold
         if tests is not None:
             self.tests = tests
@@ -96,6 +98,7 @@ class PasswordBone(StringBone):
         tests_errors = []
         tests_passed = 0
         required_test_failed = False
+
         for test, hint, required in self.tests:
             if re.match(test, value):
                 tests_passed += 1
@@ -103,6 +106,7 @@ class PasswordBone(StringBone):
                 tests_errors.append(str(hint))  # we may need to convert a "translate" object
                 if required:  # we have a required test that failed make sure we abort
                     required_test_failed = True
+
         if tests_passed < self.test_threshold or required_test_failed:
             return tests_errors
 
@@ -122,16 +126,17 @@ class PasswordBone(StringBone):
         :return: None if the password is valid, otherwise a list of ReadFromClientErrors.
         :rtype: Union[None, List[ReadFromClientError]]
         """
-        if not name in data:
+        if name not in data:
             return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "Field not submitted")]
-        value = data.get(name)
-        if not value:
-            # Password-Bone is special: As it cannot be read don't set back no None if no value is given
-            # This means an once set password can only be changed - but never deleted.
+
+        if not (value := data[name]):
+            # PasswordBone is special: As it cannot be read, don't set back to None if no value is given
+            # This means a password once set can only be changed - but not deleted.
             return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value entered")]
-        err = self.isInvalid(value)
-        if err:
+
+        if err := self.isInvalid(value):
             return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
+
         # As we don't escape passwords and allow most special characters we'll hash it early on so we don't open
         # an XSS attack vector if a password is echoed back to the client (which should not happen)
         skel[name] = encode_password(value, utils.generateRandomString(self.saltLength))
@@ -157,21 +162,23 @@ class PasswordBone(StringBone):
             otherwise, a list of ReadFromClientErrors containing detailed information about the errors.
         :rtype: Union[None, List[ReadFromClientError]]
         """
-        if name in skel.accessedValues and skel.accessedValues[name]:
-            value = skel.accessedValues[name]
-            if isinstance(value, dict):  # It is a pre-hashed value (probably fromClient)
-                skel.dbEntity[name] = value
-            else:  # This has been set by skel["password"] = "secret", we'll still have to hash it
-                skel.dbEntity[name] = encode_password(value, utils.generateRandomString(self.saltLength))
+        if not (value := skel.accessedValues.get(name)):
+            return False
 
-            # Ensure our indexed flag is up2date
-            indexed = self.indexed and parentIndexed
-            if indexed and name in skel.dbEntity.exclude_from_indexes:
-                skel.dbEntity.exclude_from_indexes.discard(name)
-            elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
-                skel.dbEntity.exclude_from_indexes.add(name)
-            return True
-        return False
+        if isinstance(value, dict):  # It is a pre-hashed value (probably fromClient)
+            skel.dbEntity[name] = value
+        else:  # This has been set by skel["password"] = "secret", we'll still have to hash it
+            skel.dbEntity[name] = encode_password(value, utils.generateRandomString(self.saltLength))
+
+        # Ensure our indexed flag is up2date
+        indexed = self.indexed and parentIndexed
+
+        if indexed and name in skel.dbEntity.exclude_from_indexes:
+            skel.dbEntity.exclude_from_indexes.discard(name)
+        elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
+            skel.dbEntity.exclude_from_indexes.add(name)
+
+        return True
 
     def unserialize(self, skeletonValues, name):
         """
