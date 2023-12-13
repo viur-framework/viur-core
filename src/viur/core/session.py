@@ -196,8 +196,8 @@ class Session:
             from viur.core import securitykey
             securitykey.clear_session_skeys(self.cookie_key)
 
-        self.cookie_key = utils.generateRandomString(42)
-        self.static_security_key = utils.generateRandomString(13)
+        self.cookie_key = utils.string.random(42)
+        self.static_security_key = utils.string.random(13)
         self.session.clear()
         self.changed = True
 

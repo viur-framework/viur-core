@@ -1,11 +1,10 @@
 import logging
 from typing import Any
-from viur.core import db, current, errors
+from viur.core import db, current, utils, errors
 from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
 from .skelmodule import SkelModule
-from ..utils import parse_bool
 
 
 class Singleton(SkelModule):
@@ -146,7 +145,7 @@ class Singleton(SkelModule):
         if (
             not kwargs  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or parse_bool(kwargs.get("bounce"))  # review before changing
+            or utils.string.parse_bool(kwargs.get("bounce"))  # review before changing
         ):
             return self.render.edit(skel)
 

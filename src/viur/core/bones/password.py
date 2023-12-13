@@ -134,7 +134,7 @@ class PasswordBone(StringBone):
             return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
         # As we don't escape passwords and allow most special characters we'll hash it early on so we don't open
         # an XSS attack vector if a password is echoed back to the client (which should not happen)
-        skel[name] = encode_password(value, utils.generateRandomString(self.saltLength))
+        skel[name] = encode_password(value, utils.string.random(self.saltLength))
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
         """
@@ -162,7 +162,7 @@ class PasswordBone(StringBone):
             if isinstance(value, dict):  # It is a pre-hashed value (probably fromClient)
                 skel.dbEntity[name] = value
             else:  # This has been set by skel["password"] = "secret", we'll still have to hash it
-                skel.dbEntity[name] = encode_password(value, utils.generateRandomString(self.saltLength))
+                skel.dbEntity[name] = encode_password(value, utils.string.random(self.saltLength))
 
             # Ensure our indexed flag is up2date
             indexed = self.indexed and parentIndexed

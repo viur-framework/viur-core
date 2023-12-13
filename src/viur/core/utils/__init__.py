@@ -1,36 +1,21 @@
 import hashlib
 import hmac
 import warnings
-
 import logging
 import secrets
-import string
+import string as py_string
 import typing
 from base64 import urlsafe_b64encode
 from datetime import datetime, timedelta, timezone
 from typing import Any, Union, Optional
 from urllib.parse import quote
-
 from viur.core import current, db
 from viur.core.config import conf
-
+from . import string
 
 
 def utcNow() -> datetime:
     return datetime.now(timezone.utc)
-
-
-def generateRandomString(length: int = 13) -> str:
-    """
-    Return a string containing random characters of given *length*.
-    It's safe to use this string in URLs or HTML.
-    Because we use the secrets module it could be used for security purposes as well
-
-    :param length: The desired length of the generated string.
-
-    :returns: A string with random characters of the given length.
-    """
-    return "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(length))
 
 
 def getCurrentUser() -> Optional["SkeletonInstance"]:
@@ -69,38 +54,6 @@ def markFileForDeletion(dlkey: str) -> None:
     fileObj["dlkey"] = str(dlkey)
     db.Put(fileObj)
 
-
-def escapeString(val: str, max_length: int = 254, **kwargs) -> str:
-    """
-        Quotes several characters and removes "\\\\n" and "\\\\0" to prevent XSS injection.
-
-        :param val: The value to be escaped.
-        :param max_length: Cut-off after max_length characters. A value of 0 means "unlimited".
-        :returns: The quoted string.
-    """
-    # fixme: Remove in viur-core >= 4
-    if "maxLength" in kwargs:
-        warnings.warn("maxLength parameter is deprecated, please use max_length", DeprecationWarning)
-        max_length = kwargs.pop("maxLength")
-
-    val = str(val).strip().translate(escapeString.__escape_trans)
-
-    if max_length:
-        return val[:max_length]
-
-    return val
-
-
-escapeString.__escape_trans = str.maketrans(
-    {"<": "&lt;",
-     ">": "&gt;",
-     "\"": "&quot;",
-     "'": "&#39;",
-     "(": "&#040;",
-     ")": "&#041;",
-     "=": "&#061;",
-     "\n": "",
-     "\0": ""})
 
 def hmacSign(data: Any) -> str:
     assert conf.file_hmac_key is not None, "No hmac-key set!"
@@ -283,73 +236,37 @@ def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
     return db.Key(key.kind, key.id_or_name, parent=parent)
 
 
-def is_prefix(name: str, prefix: str, delimiter: str = ".") -> bool:
-    """
-    Utility function to check if a given name matches a prefix,
-    which defines a specialization, delimited by `delimiter`.
-
-    In ViUR, modules, bones, renders, etc. provide a kind or handler
-    to classify or subclassify the specific object. To securitly
-    check for a specific type, it is either required to ask for the
-    exact type or if its prefixed by a path delimited normally by
-    dots.
-
-    Example:
-
-    .. code-block:: python
-        handler = "tree.file.special"
-        utils.is_prefix(handler, "tree")  # True
-        utils.is_prefix(handler, "tree.node")  # False
-        utils.is_prefix(handler, "tree.file")  # True
-        utils.is_prefix(handler, "tree.file.special")  # True
-    """
-    return name == prefix or name.startswith(prefix + delimiter)
-
-
-def parse_bool(value: Any, truthy_values: typing.Iterable = ("true", "yes", "1")) -> bool:
-    """
-    Parse a value into a boolean based on accepted truthy values.
-
-    This method takes a value, converts it to a lowercase string,
-    removes whitespace, and checks if it matches any of the provided
-    truthy values.
-    :param value: The value to be parsed into a boolean.
-    :param truthy_values: An iterable of strings representing truthy values.
-        Default is ("true", "yes", "1").
-    :returns: True if the value matches any of the truthy values, False otherwise.
-    """
-    return str(value).strip().lower() in truthy_values
-
-
 # DEPRECATED ATTRIBUTES HANDLING
-__utils_conf_replacement = {
+__UTILS_CONF_REPLACEMENT = {
     "projectID": "viur.instance.project_id",
     "isLocalDevelopmentServer": "viur.instance.is_dev_server",
     "projectBasePath": "viur.instance.project_base_path",
     "coreBasePath": "viur.instance.core_base_path"
 }
-__utils_current_replacement = {
-    "currentRequest": "request",
-    "currentRequestData": "request_data",
-    "currentSession": "session",
-    "currentLanguage": "language"
+
+__UTILS_NAME_REPLACEMENT = {
+    "currentRequest": ("current.request", current.request),
+    "currentRequestData": ("current.request_data", current.request_data),
+    "currentSession": ("current.session", current.session),
+    "currentLanguage": ("current.language", current.language),
+    "generateRandomString": ("utils.string.random", string.random),
+    "escapeString": ("utils.string.escape", string.escape),
+    "is_prefix": ("utils.string.is_prefix", string.is_prefix),
+    "parse_bool": ("utils.string.parse_bool", string.parse_bool),
 }
 
 
 def __getattr__(attr):
-    if attr in __utils_conf_replacement:
-        import warnings
-        # FIXME: config
-        msg = f"Use of `utils.{attr}` is deprecated; Use `conf[\"{__utils_conf_replacement[attr]}\"]` instead!"
+    if replace := __UTILS_CONF_REPLACEMENT.get(attr):
+        msg = f"Use of `utils.{attr}` is deprecated; Use `conf.{replace}` instead!"
         warnings.warn(msg, DeprecationWarning, stacklevel=3)
         logging.warning(msg, stacklevel=3)
-        return conf[__utils_conf_replacement[attr]]
+        return conf[replace]
 
-    if attr in __utils_current_replacement:
-        import warnings
-        msg = f"Use of `utils.{attr}` is deprecated; Use `current.{__utils_current_replacement[attr]}` instead!"
+    if replace := __UTILS_NAME_REPLACEMENT.get(attr):
+        msg = f"Use of `utils.{attr}` is deprecated; Use `{replace[0]}` instead!"
         warnings.warn(msg, DeprecationWarning, stacklevel=3)
         logging.warning(msg, stacklevel=3)
-        return getattr(current, __utils_current_replacement[attr])
+        return replace[1]
 
     return super(__import__(__name__).__class__).__getattr__(attr)

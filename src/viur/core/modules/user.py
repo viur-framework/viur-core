@@ -28,7 +28,6 @@ from viur.core.i18n import translate
 from viur.core.prototypes.list import List
 from viur.core.ratelimit import RateLimit
 from viur.core.securityheaders import extendCsp
-from viur.core.utils import parse_bool
 
 
 @functools.total_ordering
@@ -542,7 +541,7 @@ class UserPassword(UserPrimaryAuthentication):
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # bail out if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or parse_bool(kwargs.get("bounce"))  # review before adding
+            or utils.string.parse_bool(kwargs.get("bounce"))  # review before adding
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self._user_module.render.add(skel)
@@ -1453,7 +1452,7 @@ def createNewUserIfNotExists():
         if not db.Query(userMod.addSkel().kindName).getEntry():  # There's currently no user in the database
             addSkel = skeleton.skeletonByKind(userMod.addSkel().kindName)()  # Ensure we have the full skeleton
             uname = f"""admin@{conf.instance.project_id}.appspot.com"""
-            pw = utils.generateRandomString(13)
+            pw = utils.string.random(13)
             addSkel["name"] = uname
             addSkel["status"] = Status.ACTIVE  # Ensure it's enabled right away
             addSkel["access"] = ["root"]
