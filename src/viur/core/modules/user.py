@@ -356,6 +356,13 @@ class UserPassword(UserPrimaryAuthentication):
             skel["password"] = password  # will be hashed on serialize
             skel.toDB(update_relations=False)
 
+        return self.on_login(user_entry)
+
+    def on_login(self, user_entry: db.Entity):
+        """
+        Hook that is called whenever the password authentication was successful.
+        It allows to perform further steps in custom UserPassword authentications.
+        """
         return self._user_module.continueAuthenticationFlow(self, user_entry.key)
 
     @exposed
