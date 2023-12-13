@@ -446,13 +446,13 @@ class File(Tree):
 
     def read(self, key: db.Key | int | str | None = None, path: str | None = None) -> Tuple[io.BytesIO, str]:
         """
-        Read a file from the Cloudstorage.
+        Read a file from the Cloud Storage.
 
         If a key and a path are provided, the key is preferred.
         This means that the entry in the db is searched first and if this is not found, the path is used.
 
         :param key: Key of the LeafSkel that contains the "dlkey" and the "name".
-        :param path: The path of the file in the Cloudstorage Bucket.
+        :param path: The path of the file in the Cloud Storage Bucket.
 
         :return: Returns the file as a BytesIO buffer and the content-type
         """
