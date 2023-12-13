@@ -286,7 +286,7 @@ class UserPassword(UserPrimaryAuthentication):
 
     class LoginSkel(skeleton.RelSkel):
         name = EmailBone(
-            descr="Username",
+            descr="E-Mail",
             required=True,
             caseSensitive=False,
         )
@@ -296,7 +296,7 @@ class UserPassword(UserPrimaryAuthentication):
 
     class LostPasswordStep1Skel(skeleton.RelSkel):
         name = EmailBone(
-            descr="Username",
+            descr="E-Mail",
             required=True,
         )
 
