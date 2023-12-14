@@ -243,7 +243,6 @@ class UserPrimaryAuthentication(UserAuthentication, abc.ABC):
         return self._user_module.continueAuthenticationFlow(self, skel["key"])
 
 
-
 class UserPassword(UserPrimaryAuthentication):
 
     registrationEmailVerificationRequired = True
