@@ -5,7 +5,6 @@ import warnings
 import logging
 import secrets
 import string
-import typing
 from base64 import urlsafe_b64encode
 from datetime import datetime, timedelta, timezone
 import typing as t
@@ -268,7 +267,7 @@ def seoUrlToFunction(module: str, function: str, render: t.Optional[str] = None)
     return "/".join(pathComponents)
 
 
-def normalizeKey(key: None | db.KeyClass) -> None | db.KeyClass:
+def normalizeKey(key: t.Union[None, 'db.KeyClass']) -> t.Union[None, 'db.KeyClass']:
     """
         Normalizes a datastore key (replacing _application with the current one)
 

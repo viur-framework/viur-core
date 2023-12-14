@@ -1156,7 +1156,7 @@ class RelationalBone(BaseBone):
 
         return result
 
-    def createRelSkelFromKey(self, key: str | db.Key, rel: dict | None = None):
+    def createRelSkelFromKey(self, key: t.Union[str, "db.Key"], rel: dict | None = None):
         """
         Creates a relSkel instance valid for this bone from the given database key.
 
