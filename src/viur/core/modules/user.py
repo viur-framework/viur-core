@@ -79,8 +79,6 @@ class UserSkel(skeleton.Skeleton):
 
     # Properties required by custom auth
     password = PasswordBone(
-        descr="Password",
-        required=False,
         readOnly=True,
         visible=False,
     )
@@ -285,11 +283,20 @@ class UserPassword(UserPrimaryAuthentication):
         return "X-VIUR-AUTH-User-Password"
 
     class LoginSkel(skeleton.RelSkel):
-        name = EmailBone(descr="E-Mail", required=True, caseSensitive=False, indexed=True)
-        password = PasswordBone(descr="Password", indexed=True, params={"justinput": True}, required=True)
+        name = EmailBone(
+            descr="E-Mail",
+            required=True,
+            caseSensitive=False,
+        )
+        password = PasswordBone(
+            required=True,
+        )
 
     class LostPasswordStep1Skel(skeleton.RelSkel):
-        name = EmailBone(descr="Username", required=True)
+        name = EmailBone(
+            descr="E-Mail",
+            required=True,
+        )
 
     class LostPasswordStep2Skel(skeleton.RelSkel):
         recovery_key = StringBone(
@@ -355,6 +362,13 @@ class UserPassword(UserPrimaryAuthentication):
             skel["password"] = password  # will be hashed on serialize
             skel.toDB(update_relations=False)
 
+        return self.on_login(user_entry)
+
+    def on_login(self, user_entry: db.Entity):
+        """
+        Hook that is called whenever the password authentication was successful.
+        It allows to perform further steps in custom UserPassword authentications.
+        """
         return self._user_module.continueAuthenticationFlow(self, user_entry.key)
 
     @exposed
