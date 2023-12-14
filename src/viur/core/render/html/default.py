@@ -445,10 +445,10 @@ class Render(object):
         return template.render(repos=repos, action=action, params=params, **kwargs)
 
     def renderEmail(self,
-                    dests: list[str],
+                    dests: t.List[str],
                     file: str = None,
                     template: str = None,
-                    skel: None | dict| "SkeletonInstance" | list["SkeletonInstance"] = None,
+                    skel: None | dict | SkeletonInstance | t.List["SkeletonInstance"] = None,
                     **kwargs) -> tuple[str, str]:
         """
             Renders an email.

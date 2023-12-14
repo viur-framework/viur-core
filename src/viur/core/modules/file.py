@@ -444,7 +444,7 @@ class File(Tree):
 
         return skel.toDB()
 
-    def read(self, key: db.Key | int | str | None = None, path: str | None = None) -> Tuple[io.BytesIO, str]:
+    def read(self, key: db.Key | int | str | None = None, path: str | None = None) -> tuple[io.BytesIO, str]:
         """
         Read a file from the Cloud Storage.
 

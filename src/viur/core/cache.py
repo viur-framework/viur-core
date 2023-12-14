@@ -123,7 +123,7 @@ def wrapCallable(f, urls: list[str], userSensitive: int, languageSensitive: bool
         f = f._func
 
     @wraps(f)
-    def wrapF(self, *args, **kwargs) ->  str | bytes:
+    def wrapF(self, *args, **kwargs) -> str | bytes:
         currReq = current.request.get()
         if conf.debug.disable_cache or currReq.disableCache:
             # Caching disabled

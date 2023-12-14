@@ -40,7 +40,7 @@ class ConfigType:
 
     def __init__(self, *,
                  strict_mode: bool = None,
-                 parent: "ConfigType" | None = None):
+                 parent: t.Union["ConfigType", None] = None):
         super().__init__()
         self._strict_mode = strict_mode
         self._parent = parent

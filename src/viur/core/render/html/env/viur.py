@@ -129,7 +129,7 @@ def getCurrentUser(render: Render) -> t.Optional[SkeletonInstance]:
 
 
 @jinjaGlobalFunction
-def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel") -> dict |  bool | None:
+def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel") -> dict | bool | None:
     """
     Jinja2 global: Fetch an entry from a given module, and return the data as a dict,
     prepared for direct use in the output.
@@ -287,7 +287,7 @@ def modulePath(render: Render) -> str:
 
 @jinjaGlobalFunction
 def getList(render: Render, module: str, skel: str = "viewSkel",
-            _noEmptyFilter: bool = False, *args, **kwargs) -> bool | None, list[SkeletonInstance]:
+            _noEmptyFilter: bool = False, *args, **kwargs) -> bool | None | list[SkeletonInstance]:
     """
     Jinja2 global: Fetches a list of entries which match the given filter criteria.
 

@@ -197,11 +197,11 @@ class BaseBone(object):
         getEmptyValueFunc: callable = None,
         indexed: bool = True,
         isEmptyFunc: callable = None,  # fixme: Rename this, see below.
-        languages: None| list[str] = None,
+        languages: None | list[str] = None,
         multiple: bool | MultipleConstraints = False,
         params: dict = None,
         readOnly: bool = None,  # fixme: Rename into readonly (all lowercase!) soon.
-        required: bool| list[str]| tuple[str] = False,
+        required: bool | list[str] | tuple[str] = False,
         searchable: bool = False,
         unique: None | UniqueValue = None,
         vfunc: callable = None,  # fixme: Rename this, see below.
