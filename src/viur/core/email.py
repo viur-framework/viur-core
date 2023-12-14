@@ -429,7 +429,7 @@ class EmailTransportSendInBlue(EmailTransport):
         entity["credits"] = credits
         entity["email"] = data["email"]
 
-        thresholds = sorted(conf.email_sendinblue_thresholds, reverse=True)
+        thresholds = sorted(conf.email.sendinblue_thresholds, reverse=True)
         for idx, limit in list(enumerate(thresholds, 1))[::-1]:
             if credits < limit:
                 if entity["latest_warning_for"] == limit:
