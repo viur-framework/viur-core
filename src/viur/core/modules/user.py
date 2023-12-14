@@ -231,7 +231,7 @@ class UserPrimaryAuthentication(UserAuthentication, abc.ABC):
         ...
 
     @abc.abstractmethod
-    def login(self, *args, kwargs):
+    def login(self, *args, **kwargs):
         ...
 
     def next_or_finish(self, skel: skeleton.SkeletonInstance):
