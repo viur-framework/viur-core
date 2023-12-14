@@ -66,7 +66,7 @@ class Render(object):
 
     def getTemplateFileName(
         self,
-        template: str | t.List[str] | t.Tuple[str],
+        template: str | list[str] | tuple[str],
         ignoreStyle: bool = False,
         raise_exception: bool = True,
     ) -> str | None:
@@ -155,7 +155,7 @@ class Render(object):
                         key: t.Any,  # TODO: unused
                         boneValue: t.Any,
                         isLanguageWrapped: bool = False
-                        ) -> t.Union[t.List, t.Dict, KeyValueWrapper, LanguageWrapper, str, None]:
+                        ) -> list | dict | KeyValueWrapper | LanguageWrapper | str | None:
         """
         Renders the value of a bone.
 
@@ -253,7 +253,7 @@ class Render(object):
         skel: SkeletonInstance,
         action: str,
         tpl: str = None,
-        params: t.Dict = None,
+        params: dict = None,
         **kwargs
     ) -> str:
         """
@@ -301,7 +301,7 @@ class Render(object):
         skel: SkeletonInstance,
         action: str,
         tpl: str = None,
-        params: t.Dict = None,
+        params: dict = None,
         **kwargs
     ) -> str:
         """
@@ -423,7 +423,7 @@ class Render(object):
 
     def listRootNodes(  # fixme: This is a relict, should be solved differently (later!).
         self,
-        repos: t.List[t.Dict[t.Literal["key", "name"], t.Any]],
+        repos: t.List[dict[t.Literal["key", "name"], t.Any]],
         action: str = "listrootnodes",
         tpl: str = None,
         params: t.Any = None,
@@ -445,11 +445,11 @@ class Render(object):
         return template.render(repos=repos, action=action, params=params, **kwargs)
 
     def renderEmail(self,
-                    dests: t.List[str],
+                    dests: list[str],
                     file: str = None,
                     template: str = None,
-                    skel: t.Union[None, t.Dict, SkeletonInstance, t.List[SkeletonInstance]] = None,
-                    **kwargs) -> t.Tuple[str, str]:
+                    skel: None | dict| "SkeletonInstance" | list["SkeletonInstance"] = None,
+                    **kwargs) -> tuple[str, str]:
         """
             Renders an email.
             Uses the first not-empty line as subject and the remaining template as body.

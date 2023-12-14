@@ -64,7 +64,7 @@ class PasswordBone(StringBone):
         self,
         *,
         test_threshold: int = 4,
-        tests: t.List[t.Tuple] = tests,
+        tests: list[tuple] = tests,
         **kwargs
     ):
         """
@@ -108,7 +108,7 @@ class PasswordBone(StringBone):
 
         return False
 
-    def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> t.Union[None, t.List[ReadFromClientError]]:
+    def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> None | list[ReadFromClientError]:
         """
         Processes the password field from the client data, validates it, and stores it in the
         skeleton instance after hashing. This method performs several checks, such as ensuring that

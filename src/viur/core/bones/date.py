@@ -316,7 +316,7 @@ class DateBone(BaseBone):
                       name: str,
                       skel: 'viur.core.skeleton.SkeletonInstance',
                       dbFilter: db.Query,
-                      rawFilter: t.Dict,
+                      rawFilter: dict,
                       prefix: t.Optional[str] = None) -> db.Query:
         """
         Constructs a datastore filter for date and/or time values based on the given raw filter. It parses the

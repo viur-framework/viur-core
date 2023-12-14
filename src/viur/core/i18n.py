@@ -15,7 +15,7 @@ class LanguageWrapper(dict):
         guess the correct language.
     """
 
-    def __init__(self, languages: t.Union[t.List[str], t.Tuple[str]]):
+    def __init__(self, languages: list[str] | tuple[str]):
         super(LanguageWrapper, self).__init__()
         self.languages = languages
 
@@ -27,7 +27,7 @@ class LanguageWrapper(dict):
         # (otherwise that test is always true as this dict contains keys)
         return bool(str(self))
 
-    def resolve(self) -> t.Union[str, t.List[str]]:
+    def resolve(self) -> str | list[str]:
         """
             Causes this wrapper to evaluate to the best language available for the current request.
 

@@ -170,7 +170,7 @@ class RecordBone(BaseBone):
 
         return result
 
-    def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> t.List[str]:
+    def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> list[str]:
         """
         This method is intentionally not implemented as it's not possible to determine how to derive
         a key from the related skeleton being used (i.e., which fields to include and how).

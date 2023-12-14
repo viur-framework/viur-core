@@ -168,8 +168,8 @@ class RelationalBone(BaseBone):
         format: str = "$(dest.name)",
         kind: str = None,
         module: t.Optional[str] = None,
-        parentKeys: t.Optional[t.List[str]] = None,
-        refKeys: t.Optional[t.List[str]] = None,
+        parentKeys: t.Optional[list[str]] = None,
+        refKeys: t.Optional[list[str]] = None,
         updateLevel: RelationalUpdateLevel = RelationalUpdateLevel.Always,
         using: t.Optional['viur.core.skeleton.RelSkel'] = None,
         **kwargs
@@ -796,7 +796,7 @@ class RelationalBone(BaseBone):
         name: str,
         skel: 'viur.core.skeleton.SkeletonInstance',
         dbFilter: db.Query,
-        rawFilter: t.Dict,
+        rawFilter: dict,
         prefix: t.Optional[str] = None
     ) -> db.Query:
         """
@@ -902,7 +902,7 @@ class RelationalBone(BaseBone):
         name: str,
         skel: 'viur.core.skeleton.SkeletonInstance',
         dbFilter: db.Query,
-        rawFilter: t.Dict
+        rawFilter: dict
     ) -> t.Optional[db.Query]:
         """
         Builds a datastore query by modifying the given filter based on the RelationalBone's properties for sorting.
@@ -1156,7 +1156,7 @@ class RelationalBone(BaseBone):
 
         return result
 
-    def createRelSkelFromKey(self, key: t.Union[str, db.Key], rel: t.Union[dict, None] = None):
+    def createRelSkelFromKey(self, key: str | db.Key, rel: dict | None = None):
         """
         Creates a relSkel instance valid for this bone from the given database key.
 
@@ -1193,7 +1193,7 @@ class RelationalBone(BaseBone):
         boneName: str,
         value: t.Any,
         append: bool,
-        language: t.Union[None, str] = None
+        language: None | str = None
     ) -> bool:
         """
         Sets the value of the specified bone in the given skeleton. Sanity checks are performed to ensure the
@@ -1304,7 +1304,7 @@ class RelationalBone(BaseBone):
                     result.update(bone_.getReferencedBlobs(value["rel"], key))
         return result
 
-    def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> t.List[str]:
+    def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> list[str]:
         """
         Generates unique property index values for the RelationalBone based on the referenced keys.
         Can be overridden if different behavior is required (e.g., examining values from `prop:usingSkel`).

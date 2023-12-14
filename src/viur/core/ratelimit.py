@@ -33,7 +33,7 @@ class RateLimit(object):
         assert method in ["ip", "user"], "method must be 'ip' or 'user'"
         self.useUser = method == "user"
 
-    def _getEndpointKey(self) -> t.Union[db.Key, str]:
+    def _getEndpointKey(self) -> db.Key | str:
         """
         :warning:
             It's invalid to call _getEndpointKey if method is set to user and there's no user logged in!

@@ -72,7 +72,7 @@ class DefaultRender(object):
                               bone: bones.BaseBone,
                               skel: SkeletonInstance,
                               key
-                              ) -> t.Union[t.Dict, str, None]:
+                              ) -> dict | str | None:
         """
         Renders the value of a bone.
 
@@ -98,7 +98,7 @@ class DefaultRender(object):
             return value
         return None
 
-    def renderBoneValue(self, bone: bones.BaseBone, skel: SkeletonInstance, key: str) -> t.Union[t.List, t.Dict, None]:
+    def renderBoneValue(self, bone: bones.BaseBone, skel: SkeletonInstance, key: str) -> list | dict | None:
         boneVal = skel[key]
         if bone.languages and bone.multiple:
             res = {}
@@ -120,7 +120,7 @@ class DefaultRender(object):
             res = self.renderSingleBoneValue(boneVal, bone, skel, key)
         return res
 
-    def renderSkelValues(self, skel: SkeletonInstance, injectDownloadURL: bool = False) -> t.Optional[t.Dict]:
+    def renderSkelValues(self, skel: SkeletonInstance, injectDownloadURL: bool = False) -> t.Optional[dict]:
         """
         Prepares values of one :class:`viur.core.skeleton.Skeleton` or a list of skeletons for output.
 

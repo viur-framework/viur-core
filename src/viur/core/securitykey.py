@@ -24,16 +24,16 @@ from viur.core import conf, utils, current, db, tasks
 
 SECURITYKEY_KINDNAME = "viur-securitykey"
 SECURITYKEY_DURATION = 24 * 60 * 60  # one day
-SECURITYKEY_STATIC_HEADER: typing.Final[str] = "Sec-X-ViUR-StaticSessionKey"
+SECURITYKEY_STATIC_HEADER: t.Final[str] = "Sec-X-ViUR-StaticSessionKey"
 """The name of the header in which the static session key is provided at login
 and must be specified in requests that require a skey."""
-SECURITYKEY_STATIC_SKEY: typing.Final[str] = "STATIC_SESSION_KEY"
+SECURITYKEY_STATIC_SKEY: t.Final[str] = "STATIC_SESSION_KEY"
 """Value that must be used as a marker in the payload (key: skey) to indicate
 that the session key from the headers should be used."""
 
 
 def create(
-        duration: t.Union[None, int] = None,
+        duration: None | int = None,
         session_bound: bool = True,
         key_length: int = 13,
         indexed: bool = True,
@@ -73,7 +73,7 @@ def create(
     return key
 
 
-def validate(key: str, session_bound: bool = True) -> t.Union[bool, db.Entity]:
+def validate(key: str, session_bound: bool = True) -> bool | db.Entity:
     """
         Validates a CSRF-security-key.
 

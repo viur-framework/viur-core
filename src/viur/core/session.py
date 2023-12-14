@@ -209,7 +209,7 @@ class Session:
 
 
 @tasks.CallDeferred
-def killSessionByUser(user: t.Optional[t.Union[str, db.Key]] = None):
+def killSessionByUser(user: t.Optional[str | db.Key] = None):
     """
         Invalidates all active sessions for the given *user*.
 

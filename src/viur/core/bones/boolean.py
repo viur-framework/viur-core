@@ -19,11 +19,7 @@ class BooleanBone(BaseBone):
     def __init__(
         self,
         *,
-        defaultValue: t.Union[
-            bool,
-            t.List[bool],
-            t.Dict[str, t.Union[t.List[bool], bool]],
-        ] = None,
+        defaultValue: bool | list[bool] | dict[str, list[bool] | bool] = None,
         **kwargs
     ):
         if defaultValue is None:
@@ -86,7 +82,7 @@ class BooleanBone(BaseBone):
         name: str,
         skel: 'viur.core.skeleton.SkeletonInstance',
         dbFilter: db.Query,
-        rawFilter: t.Dict,
+        rawFilter: dict,
         prefix: t.Optional[str] = None
     ) -> db.Query:
         """

@@ -95,7 +95,7 @@ else:
     )
     queueRegion = "local"
 
-_periodicTasks: t.Dict[str, t.Dict[t.Callable, int]] = {}
+_periodicTasks: dict[str, dict[t.Callable, int]] = {}
 _callableTasks = {}
 _deferred_tasks = {}
 _startupTasks = []
@@ -159,7 +159,7 @@ class TaskHandler(Module):
     adminInfo = None
     retryCountWarningThreshold = 25
 
-    def findBoundTask(self, task: t.Callable, obj: object, depth: int = 0) -> t.Optional[t.Tuple[t.Callable, object]]:
+    def findBoundTask(self, task: t.Callable, obj: object, depth: int = 0) -> t.Optional[tuple[t.Callable, object]]:
 
         """
             Tries to locate the instance, this function belongs to.
@@ -740,7 +740,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
         cls._requeueStep(qryDict)
 
     @classmethod
-    def _requeueStep(cls, qryDict: t.Dict[str, t.Any]) -> None:
+    def _requeueStep(cls, qryDict: dict[str, t.Any]) -> None:
         """
             Internal use only. Pushes a new step defined in qryDict to either the taskqueue or append it to
             the current request    if we are on the local development server.
@@ -766,7 +766,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
         ))
 
     @classmethod
-    def _qryStep(cls, qryDict: t.Dict[str, t.Any]) -> None:
+    def _qryStep(cls, qryDict: dict[str, t.Any]) -> None:
         """
             Internal use only. Processes one block of five entries from the query defined in qryDict and
             reschedules the next block.

@@ -52,7 +52,7 @@ class JsonBone(RawBone):
 
         return False
 
-    def singleValueFromClient(self, value: t.Union[str, list, dict], skel, bone_name, client_data):
+    def singleValueFromClient(self, value: str | list | dict, skel, bone_name, client_data):
         if value:
             if not isinstance(value, (list, dict)):
                 value = str(value)

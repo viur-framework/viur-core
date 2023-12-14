@@ -14,12 +14,12 @@ except ImportError:
 if t.TYPE_CHECKING:
     from viur.core.skeleton import SkeletonInstance
 
-SelectBoneValue = t.Union[str, Number, enum.Enum]
+SelectBoneValue = str | Number, enum.Enum
 """
 Type alias of possible values in a SelectBone. SelectBoneValue can be either a string (str) or a number (Number)
 """
 
-SelectBoneMultiple = t.List[SelectBoneValue]
+SelectBoneMultiple = list[SelectBoneValue]
 """ SelectBoneMultiple is a list of SelectBoneValue elements."""
 
 
@@ -37,13 +37,13 @@ class SelectBone(BaseBone):
     def __init__(
         self,
         *,
-        defaultValue: t.Union[
-            SelectBoneValue,
-            SelectBoneMultiple,
-            t.Dict[str, t.Union[SelectBoneMultiple, SelectBoneValue]],
-            t.Callable[["SkeletonInstance", Self], t.Any],
-        ] = None,
-        values: t.Union[t.Dict, t.List, t.Tuple, t.Callable, enum.EnumMeta] = (),
+        defaultValue:
+            SelectBoneValue |
+            SelectBoneMultiple |
+            dict[str, SelectBoneMultiple | SelectBoneValue] |
+            t.Callable[["SkeletonInstance", Self], t.Any]
+            = None,
+        values: dict | list | tuple | t.Callable | enum.EnumMeta = (),
         **kwargs
     ):
 

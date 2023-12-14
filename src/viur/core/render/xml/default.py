@@ -89,7 +89,7 @@ class DefaultRender(object):
             res = self.renderSingleBoneValue(boneVal, bone, skel, key)
         return res
 
-    def renderSingleBoneValue(self, value: t.Any, bone: baseBone, skel: SkeletonInstance, key: str) -> t.Dict:
+    def renderSingleBoneValue(self, value: t.Any, bone: baseBone, skel: SkeletonInstance, key: str) -> dict
         """
         Renders the value of a bone.
 

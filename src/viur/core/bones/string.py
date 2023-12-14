@@ -142,7 +142,7 @@ class StringBone(BaseBone):
         name: str,
         skel: 'viur.core.skeleton.SkeletonInstance',
         dbFilter: db.Query,
-        rawFilter: t.Dict,
+        rawFilter: dict,
         prefix: t.Optional[str] = None
     ) -> db.Query:
         """
@@ -210,7 +210,7 @@ class StringBone(BaseBone):
         name: str,
         skel: 'viur.core.skeleton.SkeletonInstance',
         dbFilter: db.Query,
-        rawFilter: t.Dict
+        rawFilter: dict
     ) -> t.Optional[db.Query]:
         """
         Build a DB sort based on the specified name and a raw filter.
@@ -305,7 +305,7 @@ class StringBone(BaseBone):
                     result.add(word.lower())
         return result
 
-    def getUniquePropertyIndexValues(self, skel, name: str) -> t.List[str]:
+    def getUniquePropertyIndexValues(self, skel, name: str) -> list[str]:
         """
         Returns a list of unique index values for a given property name.
 

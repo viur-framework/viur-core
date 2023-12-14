@@ -126,7 +126,7 @@ def sanitizeFileName(fileName: str) -> str:
 
 
 def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
-                   expires: t.Union[timedelta, None] = timedelta(hours=1),
+                   expires: timedelta | None = timedelta(hours=1),
                    downloadFileName: t.Optional[str] = None) -> str:
     """
         Utility function that creates a signed download-url for the given folder/filename combination
@@ -268,7 +268,7 @@ def seoUrlToFunction(module: str, function: str, render: t.Optional[str] = None)
     return "/".join(pathComponents)
 
 
-def normalizeKey(key: t.Union[None, 'db.KeyClass']) -> t.Union[None, 'db.KeyClass']:
+def normalizeKey(key: None | 'db.KeyClass') -> None | 'db.KeyClass':
     """
         Normalizes a datastore key (replacing _application with the current one)
 

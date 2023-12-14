@@ -29,8 +29,8 @@ class NumericBone(BaseBone):
     def __init__(
         self,
         *,
-        max: t.Union[int, float] = MAX,
-        min: t.Union[int, float] = MIN,
+        max: int | float = MAX,
+        min: int | float = MIN,
         mode=None,  # deprecated!
         precision: int = 0,
         **kwargs
@@ -139,7 +139,7 @@ class NumericBone(BaseBone):
         name: str,
         skel: 'viur.core.skeleton.SkeletonInstance',
         dbFilter: db.Query,
-        rawFilter: t.Dict,
+        rawFilter: dict,
         prefix: t.Optional[str] = None
     ) -> db.Query:
         updatedFilter = {}

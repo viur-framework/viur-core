@@ -129,7 +129,7 @@ def getCurrentUser(render: Render) -> t.Optional[SkeletonInstance]:
 
 
 @jinjaGlobalFunction
-def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel") -> t.Union[dict, bool, None]:
+def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel") -> dict |  bool | None:
     """
     Jinja2 global: Fetch an entry from a given module, and return the data as a dict,
     prepared for direct use in the output.
@@ -287,7 +287,7 @@ def modulePath(render: Render) -> str:
 
 @jinjaGlobalFunction
 def getList(render: Render, module: str, skel: str = "viewSkel",
-            _noEmptyFilter: bool = False, *args, **kwargs) -> t.Union[bool, None, t.List[SkeletonInstance]]:
+            _noEmptyFilter: bool = False, *args, **kwargs) -> bool | None, list[SkeletonInstance]:
     """
     Jinja2 global: Fetches a list of entries which match the given filter criteria.
 
@@ -335,7 +335,7 @@ def getSecurityKey(render: Render, **kwargs) -> str:
 def getStructure(render: Render,
                  module: str,
                  skel: str = "viewSkel",
-                 subSkel: t.Optional[str] = None) -> t.Union[t.Dict, bool]:
+                 subSkel: t.Optional[str] = None) -> dict | bool:
     """
     Jinja2 global: Returns the skeleton structure instead of data for a module.
 
@@ -367,7 +367,7 @@ def getStructure(render: Render,
 
 
 @jinjaGlobalFunction
-def requestParams(render: Render) -> t.Dict[str, str]:
+def requestParams(render: Render) -> dict[str, str]:
     """
     Jinja2 global: Allows for accessing the request-parameters from the template.
 
@@ -408,7 +408,7 @@ def updateURL(render: Render, **kwargs) -> str:
 
 
 @jinjaGlobalFilter
-def fileSize(render: Render, value: t.Union[int, float], binary: bool = False) -> str:
+def fileSize(render: Render, value: int | float, binary: bool = False) -> str:
     """
     Jinja2 filter: Format the value in an 'human-readable' file size (i.e. 13 kB, 4.1 MB, 102 Bytes, etc).
     Per default, decimal prefixes are used (Mega, Giga, etc.). When the second parameter is set to True,
@@ -551,11 +551,11 @@ def renderEditBone(render: Render, skel, boneName, boneErrors=None, prefix=None)
 
 @jinjaGlobalFunction
 def renderEditForm(render: Render,
-                   skel: t.Dict,
-                   ignore: t.List[str] = None,
-                   hide: t.List[str] = None,
+                   skel: dict,
+                   ignore: list[str] = None,
+                   hide: list[str] = None,
                    prefix=None,
-                   bones: t.List[str] = None,
+                   bones: list[str] = None,
                    ) -> str:
     """Render an edit-form based on a skeleton.
 
@@ -636,7 +636,7 @@ def renderEditForm(render: Render,
 
 
 @jinjaGlobalFunction
-def embedSvg(render: Render, name: str, classes: t.Union[t.List[str], None] = None, **kwargs: t.Dict[str, str]) -> str:
+def embedSvg(render: Render, name: str, classes: list[str] | None = None, **kwargs: dict[str, str]) -> str:
     """
     jinja2 function to get an <img/>-tag for a SVG.
     This method will not check the existence of a SVG!
@@ -667,7 +667,7 @@ def embedSvg(render: Render, name: str, classes: t.Union[t.List[str], None] = No
 @jinjaGlobalFunction
 def downloadUrlFor(render: Render,
                    fileObj: dict,
-                   expires: t.Union[None, int] = conf.render_html_download_url_expiration,
+                   expires: None | int = conf.render_html_download_url_expiration,
                    derived: t.Optional[str] = None,
                    downloadFileName: t.Optional[str] = None) -> t.Optional[str]:
     """

@@ -134,7 +134,7 @@ class Tree(SkelModule):
         kindName = self.viewSkel("node").kindName
         return db.GetOrInsert(db.Key(kindName, key), creationdate=utils.utcNow(), rootNode=1)
 
-    def getAvailableRootNodes(self, *args, **kwargs) -> t.List[t.Dict[t.Literal["name", "key"], str]]:
+    def getAvailableRootNodes(self, *args, **kwargs) -> list[dict[t.Literal["name", "key"], str]]:
         """
         Default function for providing a list of root node items.
         This list is requested by several module-internal functions and *must* be

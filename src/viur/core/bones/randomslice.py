@@ -59,7 +59,7 @@ class RandomSliceBone(BaseBone):
         name: str,
         skel: 'viur.core.skeleton.SkeletonInstance',
         dbFilter: db.Query,
-        rawFilter: t.Dict
+        rawFilter: dict
     ) -> t.Optional[db.Query]:
         """
         Modifies the database query to return a random selection of elements by creating multiple
@@ -138,8 +138,8 @@ class RandomSliceBone(BaseBone):
         """
         return ceil(targetAmount * self.sliceSize)
 
-    def customMultiQueryMerge(self, dbFilter: db.Query, result: t.List[db.Entity], targetAmount: int) \
-            -> t.List[db.Entity]:
+    def customMultiQueryMerge(self, dbFilter: db.Query, result: list[db.Entity], targetAmount: int) \
+            -> list[db.Entity]:
         """
         Merges the results of multiple subqueries by randomly selecting 'targetAmount' elements
         from the combined 'result' list.

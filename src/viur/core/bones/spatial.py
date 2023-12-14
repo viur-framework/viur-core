@@ -70,8 +70,8 @@ class SpatialBone(BaseBone):
 
     type = "spatial"
 
-    def __init__(self, *, boundsLat: t.Tuple[float, float], boundsLng: t.Tuple[float, float],
-                 gridDimensions: t.Tuple[int, int], **kwargs):
+    def __init__(self, *, boundsLat: tuple[float, float], boundsLng: tuple[float, float],
+                 gridDimensions: tuple[int, int], **kwargs):
         """
             Initializes a new SpatialBone.
 
@@ -110,7 +110,7 @@ class SpatialBone(BaseBone):
         lngDelta = float(self.boundsLng[1] - self.boundsLng[0])
         return latDelta / float(self.gridDimensions[0]), lngDelta / float(self.gridDimensions[1])
 
-    def isInvalid(self, value: t.Tuple[float, float]) -> t.Union[str, bool]:
+    def isInvalid(self, value: tuple[float, float]) -> str | bool:
         """
         Validate if the given point (latitude, longitude) falls within the specified boundaries.
         Rejects all values outside the defined region.
@@ -202,7 +202,7 @@ class SpatialBone(BaseBone):
                 return True
         return value == self.getEmptyValue()
 
-    def getEmptyValue(self) -> t.Tuple[float, float]:
+    def getEmptyValue(self) -> tuple[float, float]:
         """
         Returns an empty value for the bone, which represents an invalid position. Use 91.0, 181.0 as a special
         marker for empty, as they are both out of range for Latitude (-90, +90) and Longitude (-180, 180), but will
@@ -240,7 +240,7 @@ class SpatialBone(BaseBone):
         name: str,
         skel: 'viur.core.skeleton.SkeletonInstance',
         dbFilter: db.Query,
-        rawFilter: t.Dict,
+        rawFilter: dict,
         prefix: t.Optional[str] = None
     ) -> db.Query:
         """
@@ -314,8 +314,8 @@ class SpatialBone(BaseBone):
         return targetAmount * 2
 
     def customMultiQueryMerge(self, name, lat, lng, dbFilter: db.Query,
-                              result: t.List[db.Entity], targetAmount: int
-                              ) -> t.List[db.Entity]:
+                              result: list[db.Entity], targetAmount: int
+                              ) -> list[db.Entity]:
         """
         Randomly returns 'targetAmount' elements from 'result'.
 
@@ -369,7 +369,7 @@ class SpatialBone(BaseBone):
         boneName: str,
         value: t.Any,
         append: bool,
-        language: t.Union[None, str] = None
+        language: None | str = None
     ) -> bool:
         """
         Sets the value of the bone to the provided 'value'.

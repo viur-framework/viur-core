@@ -459,8 +459,8 @@ class File(Tree):
             if skel.fromDB(d.key):
                 skel.delete()
 
-    def signUploadURL(self, mimeTypes: t.Union[t.List[str], None] = None, maxSize: t.Union[int, None] = None,
-                      node: t.Union[str, None] = None):
+    def signUploadURL(self, mimeTypes: list[str] | None = None, maxSize: int | None = None,
+                      node:  str | None = None):
         """
         Internal helper that will create a signed upload-url that can be used to retrieve an uploadURL from
         getUploadURL for guests / users without having file/add permissions. This URL is valid for an hour and can
@@ -492,8 +492,8 @@ class File(Tree):
     def initializeUpload(self,
                          fileName: str,
                          mimeType: str,
-                         node: t.Union[str, None],
-                         size: t.Union[int, None] = None) -> t.Tuple[str, str]:
+                         node: str | None,
+                         size: int | None = None) -> tuple[str, str]:
         """
         Internal helper that registers a new upload. Will create the pending fileSkel entry (needed to remove any
         started uploads from GCS if that file isn't used) and creates a resumable (and signed) uploadURL for that.

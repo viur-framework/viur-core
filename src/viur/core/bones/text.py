@@ -49,7 +49,7 @@ A dictionary containing default configurations for handling HTML content in Text
 """
 
 
-def parseDownloadUrl(urlStr: str) -> t.Tuple[t.Optional[str], t.Optional[bool], t.Optional[str]]:
+def parseDownloadUrl(urlStr: str) -> tuple[t.Optional[str], t.Optional[bool], t.Optional[str]]:
     """
     Parses a file download URL in the format `/file/download/xxxx?sig=yyyy` into its components: blobKey, derived,
     and filename. If the URL cannot be parsed, the function returns None for each component.
@@ -351,9 +351,9 @@ class TextBone(BaseBone):
     def __init__(
         self,
         *,
-        validHtml: t.Union[None, t.Dict] = __undefinedC__,
+        validHtml: None | dict = __undefinedC__,
         max_length: int = 200000,
-        srcSet: t.Optional[t.Dict[str, t.List]] = None,
+        srcSet: t.Optional[dict[str, list]] = None,
         indexed: bool = False,
         **kwargs
     ):
@@ -500,7 +500,7 @@ class TextBone(BaseBone):
                     result.add(word.lower())
         return result
 
-    def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> t.List[str]:
+    def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> list[str]:
         """
         Retrieves the unique property index values for the TextBone.
 

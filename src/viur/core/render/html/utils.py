@@ -38,7 +38,7 @@ def jinjaGlobalFilter(f):
     return f
 
 
-def jinjaGlobalTest(func_or_alias: t.Union[t.Callable, str]) -> t.Callable:
+def jinjaGlobalTest(func_or_alias: t.Callable | str) -> t.Callable:
     """
     Decorator, marks a function as a Jinja2 test.
 

@@ -65,7 +65,7 @@ class Pagination:
         filter_key = "".join("%s%s" % (x, y) for x, y in orig_filter)
         return sha256(filter_key.encode()).hexdigest()
 
-    def get_or_build_index(self, orig_query: db.Query) -> t.List[str]:
+    def get_or_build_index(self, orig_query: db.Query) -> list[str]:
         """
         Builds a specific index based on origQuery
         AND local variables (self.page_size and self.max_pages)
@@ -123,7 +123,7 @@ class Pagination:
         else:
             return None
 
-    def get_pages(self, query: db.Query) -> t.List[str]:
+    def get_pages(self, query: db.Query) -> list[str]:
         """
         Returns a list of all starting-cursors for this query.
         The first element is always None as the first page doesn't

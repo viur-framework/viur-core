@@ -16,7 +16,7 @@ import logging
 
 
 @CallDeferred
-def ensureDerived(key: db.Key, srcKey, deriveMap: t.Dict[str, t.Any], refreshKey: db.Key = None):
+def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refreshKey: db.Key = None):
     r"""
     The function is a deferred function that ensures all pending thumbnails or other derived files
     are built. It takes the following parameters:
@@ -24,7 +24,7 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: t.Dict[str, t.Any], refreshKey
     :param db.key key: The database key of the file-object that needs to have its derivation map
         updated.
     :param str srcKey: A prefix for a stable key to prevent rebuilding derived files repeatedly.
-    :param t.Dict[str,Any] deriveMap: A list of DeriveDicts that need to be built or updated.
+    :param dict[str,Any] deriveMap: A list of DeriveDicts that need to be built or updated.
     :param db.Key refreshKey: If set, the function fetches and refreshes the skeleton after
         building new derived files.
 
@@ -139,9 +139,9 @@ class FileBone(TreeLeafBone):
     def __init__(
         self,
         *,
-        derive: t.Union[None, t.Dict[str, t.Any]] = None,
-        maxFileSize: t.Union[None, int] = None,
-        validMimeTypes: t.Union[None, t.List[str]] = None,
+        derive: None | dict[str, t.Any] = None,
+        maxFileSize: None | int = None,
+        validMimeTypes: None | list[str] = None,
         **kwargs
     ):
         r"""

@@ -265,7 +265,7 @@ def _rebuildPermissionHeaderCache() -> None:
     ])
 
 
-def setPermissionPolicyDirective(directive: str, allowList: t.Optional[t.List[str]]) -> None:
+def setPermissionPolicyDirective(directive: str, allowList: t.Optional[list[str]]) -> None:
     """
         Set the permission policy.
             :param directive: The directive to set.

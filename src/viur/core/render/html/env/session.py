@@ -6,7 +6,7 @@ from ..default import Render
 
 
 @jinjaGlobalFunction
-def getSession(render: Render) -> t.Dict:
+def getSession(render: Render) -> dict
     """
     Jinja2 global: Allows templates to store variables server-side inside the session.
 

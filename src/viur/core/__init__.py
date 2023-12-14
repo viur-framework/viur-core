@@ -86,7 +86,7 @@ __all__ = [
 warnings.filterwarnings("always", category=DeprecationWarning, module=r"viur\.core.*")
 
 
-def load_indexes_from_file() -> t.Dict[str, t.List]:
+def load_indexes_from_file() -> dict[str, list]:
     """
         Loads all indexes from the index.yaml and stores it in a dictionary  sorted by the module(kind)
         :return A dictionary of indexes per module
@@ -129,8 +129,7 @@ def setDefaultDomainLanguage(domain: str, lang: str):
     conf.i18n.domain_language_mapping[host] = lang.lower()
 
 
-def buildApp(modules: t.Union[ModuleType, object], renderers: t.Union[ModuleType, t.Dict],
-             default: str = None) -> Module:
+def buildApp(modules: ModuleType | object, renderers: ModuleType | object, default: str = None) -> Module:
     """
         Creates the application-context for the current instance.
 
@@ -232,7 +231,7 @@ def buildApp(modules: t.Union[ModuleType, object], renderers: t.Union[ModuleType
     return root
 
 
-def setup(modules: t.Union[object, ModuleType], render: t.Union[ModuleType, t.Dict] = None, default: str = "html"):
+def setup(modules:  ModuleType | object, render:  ModuleType | object = None, default: str = "html"):
     """
         Define whats going to be served by this instance.
 

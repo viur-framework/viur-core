@@ -27,7 +27,7 @@ class KeyBone(BaseBone):
         descr: str = "Key",
         readOnly: bool = True,  # default is readonly
         visible: bool = False,  # default is invisible
-        allowed_kinds: t.Union[None, t.List[str]] = None,  # None allows for any kind
+        allowed_kinds: None | list[str] = None,  # None allows for any kind
         check: bool = False,  # check for entity existence
         **kwargs
     ):
@@ -153,7 +153,7 @@ class KeyBone(BaseBone):
         name: str,
         skel: 'viur.core.skeleton.SkeletonInstance',
         dbFilter: db.Query,
-        rawFilter: t.Dict,
+        rawFilter: dict,
         prefix: t.Optional[str] = None
     ) -> db.Query:
         """
