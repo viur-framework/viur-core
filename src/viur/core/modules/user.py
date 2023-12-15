@@ -715,22 +715,22 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
     def get2FactorMethodName(*args, **kwargs):  # fixme: What is the purpose of this function? Why not just a member?
         return "X-VIUR-2FACTOR-TimeBasedOTP"
 
-    def get_config(self, user: db.Entity) -> OtpConfig | None:
+    def get_config(self, skel: skeleton.SkeletonInstance) -> OtpConfig | None:
         """
         Returns an instance of self.OtpConfig with a provided token configuration,
         or None when there is no appropriate configuration of this second factor handler available.
         """
 
-        if user.get("otp_secret"):
-            return self.OtpConfig(secret=user["otp_secret"], timedrift=user.get("otp_timedrift") or 0)
+        if otp_secret := skel.dbEntity.get("otp_secret"):
+            return self.OtpConfig(secret=otp_secret, timedrift=skel.dbEntity.get("otp_timedrift") or 0)
 
         return None
 
-    def can_handle(self, user: db.Entity) -> bool:
+    def can_handle(self, skel: skeleton.SkeletonInstance) -> bool:
         """
         Specified whether the second factor authentication can be handled by the given user or not.
         """
-        return bool(self.get_config(user))
+        return bool(self.get_config(skel))
 
     @exposed
     def start(self):
@@ -951,11 +951,11 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
                 name=translate(self.NAME),
             )
 
-    def can_handle(self, user: db.Entity) -> bool:
+    def can_handle(self, skel: skeleton.SkeletinInstance) -> bool:
         """
         We can only handle the second factor if we have stored an otp_app_secret before.
         """
-        return bool(user.get("otp_app_secret", ""))
+        return bool(skel.dbEntity.get("otp_app_secret", ""))
 
     @classmethod
     def get2FactorMethodName(*args, **kwargs) -> str:
@@ -1218,10 +1218,12 @@ class User(List):
         """
         Continue authentication flow when primary authentication succeeded.
         """
-        if not (possible_user := db.Get(user_key)):
+        skel = self.baseSkel()
+
+        if not skel.fromDB(user_key):
             raise errors.NotFound("User was not found.")
 
-        if not provider.can_handle(possible_user):
+        if not provider.can_handle(skel):
             raise errors.Forbidden("User is not allowed to use this primary login method.")
 
         session = current.session.get()
@@ -1235,7 +1237,7 @@ class User(List):
             if isinstance(provider, auth_provider):
                 if second_factor is not None:
                     second_factor_provider_instance = self.secondFactorProviderByClass(second_factor)
-                    if second_factor_provider_instance.can_handle(possible_user):
+                    if second_factor_provider_instance.can_handle(skel):
                         second_factor_providers.append(second_factor_provider_instance)
                 else:
                     second_factor_providers.append(None)
