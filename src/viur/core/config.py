@@ -263,10 +263,10 @@ class Admin(ConfigType):
     """URL for the Logo over the VI Login screen"""
 
     color_primary: str = "#d00f1c"
-    """primary color for the VI"""
+    """primary color for viur-admin"""
 
     color_secondary: str = "#333333"
-    """secondary color for the VI"""
+    """secondary color for viur-admin"""
 
     module_groups: dict[str, dict[Literal["name", "icon", "sortindex"], str | int]] = {}
     """Module Groups for the VI
@@ -278,12 +278,12 @@ class Admin(ConfigType):
             "content": {
                 "name": "Content",
                 "icon": "text-file",
-                "sortIndex": 10,
+                "sortindex": 10,
             },
             "shop": {
                 "name": "Shop",
                 "icon": "cart",
-                "sortIndex": 20,
+                "sortindex": 20,
             },
         }
 
