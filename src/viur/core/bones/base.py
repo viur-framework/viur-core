@@ -361,7 +361,7 @@ class BaseBone(object):
             assignment.
         """
         if not self.isClonedInstance and getSystemInitialized() and key != "isClonedInstance" and not key.startswith(
-            "_"):
+                "_"):
             raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")
         super().__setattr__(key, value)
 
