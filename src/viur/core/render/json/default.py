@@ -132,8 +132,8 @@ class DefaultRender(object):
         elif isinstance(skel, dict):
             return skel
         res = {}
-        for key, bone in skel.items():
-            res[key] = self.renderBoneValue(bone, skel, key)
+        for bone_name, bone in skel.items():
+            res[f"{bone_name}"] = self.renderBoneValue(bone, skel, bone_name)
         if injectDownloadURL and "dlkey" in skel and "name" in skel:
             res["downloadUrl"] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False,
                                                       expires=conf.render_json_download_url_expiration)
@@ -149,7 +149,8 @@ class DefaultRender(object):
                 structure = DefaultRender.render_structure(skel[0].structure())
 
         elif isinstance(skel, SkeletonInstance):
-            vals = self.renderSkelValues(skel)
+            vals_old = self.renderSkelValues(skel)
+            vals = skel.render_bone_values()
             structure = DefaultRender.render_structure(skel.structure())
             errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage,
                        "invalidatedFields": x.invalidatedFields} for x in skel.errors]
@@ -162,7 +163,8 @@ class DefaultRender(object):
             "errors": errors,
             "params": params,
             "structure": structure,
-            "values": vals,
+            "values": vals_old,
+            "values_new": vals,
         }
 
         current.request.get().response.headers["Content-Type"] = "application/json"

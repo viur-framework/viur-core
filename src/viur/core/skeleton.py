@@ -267,6 +267,12 @@ class SkeletonInstance:
             for i, (key, bone) in enumerate(self.items())
         }
 
+    def render_bone_values(self):
+        return {
+            bone_name: bone.render_value(self, bone_name)
+            for i, (bone_name, bone) in enumerate(self.items())
+        }
+
     def __deepcopy__(self, memodict):
         res = self.clone()
         memodict[id(self)] = res

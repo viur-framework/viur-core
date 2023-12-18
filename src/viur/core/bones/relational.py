@@ -1331,3 +1331,10 @@ class RelationalBone(BaseBone):
             "using": self.using().structure() if self.using else None,
             "relskel": self._refSkelCache().structure(),
         }
+
+    def render_single_value(self, value: dict[str, "SkeletonInstance"]) -> dict | None:
+        if isinstance(value, dict):
+            return {
+                "dest": value["dest"].render_bone_values(),
+                "rel": value["rel"].render_bone_values() if value["rel"] else None,
+            }

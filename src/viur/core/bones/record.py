@@ -182,3 +182,7 @@ class RecordBone(BaseBone):
         return super().structure() | {
             "format": self.format,
             "using": self.using().structure()}
+
+    def render_single_value(self, value: "SkeletonInstance") -> dict | None:
+        if value is not None:
+            return value.render_bone_values()

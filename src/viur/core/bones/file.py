@@ -8,7 +8,7 @@ metadata.
 from hashlib import sha256
 from time import time
 from typing import Any, Dict, List, Set, Union
-from viur.core import conf, db
+from viur.core import conf, db, utils
 from viur.core.bones.treeleaf import TreeLeafBone
 from viur.core.tasks import CallDeferred
 
@@ -306,3 +306,12 @@ class FileBone(TreeLeafBone):
         return super().structure() | {
             "valid_mime_types": self.validMimeTypes
         }
+
+    def render_single_value(self, value: dict[str, "SkeletonInstance"]) -> dict | None:
+        res = super().render_single_value(value)
+        if res is not None:
+            for key, value in res.items():
+                if value is not None:
+                    res[key]["downloadUrl"] = utils.downloadUrlFor(value["dlkey"], value["name"], derived=False,
+                                                                   expires=conf.render_json_download_url_expiration)
+        return res
