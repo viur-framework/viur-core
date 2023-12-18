@@ -320,6 +320,9 @@ conf = Conf({
         "admin": "Administrator",
     },
 
+    # Allow-list for domains accepting Google users when registration is generally disabled.
+    "viur.user.google.gsuiteDomains": (),
+
     # Which application-ids we're supposed to run on
     "viur.validApplicationIDs": [],
 
