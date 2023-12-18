@@ -329,37 +329,35 @@ class UserPassword(UserPrimaryAuthentication):
 
         self.loginRateLimit.assertQuotaIsAvailable()
 
+        # query for the username. The query might find another user, but the name is being checked for equality below
         name = name.lower().strip()
-        query = self._user_module.baseSkel().all()
-        user_skel = query.filter("name.idx >=", name).getSkel() or {}  # might find another user; always keep a dict
+        user_skel = self._user_module.baseSkel()
+        user_skel = user_skel.all().filter("name.idx >=", name).getSkel() or user_skel
 
-        password_data = user_skel.dbEntity.get("password") or {}
-        # old password hashes used 1001 iterations
-        iterations = password_data.get("iterations", 1001)
+        # extract password hash from raw database entity (skeleton access blocks it)
+        password_data = (user_skel.dbEntity and user_skel.dbEntity.get("password")) or {}
+        iterations = password_data.get("iterations", 1001) # remember iterations; old password hashes used 1001
         password_hash = encode_password(password, password_data.get("salt", "-invalid-"), iterations)["pwhash"]
 
-        # Check if the username matches
+        # now check if the username matches
         is_okay = secrets.compare_digest((user_skel["name"] or "").lower().strip(), name)
 
-        # Check if the password matches
+        # next, check if the password hash matches
         is_okay &= secrets.compare_digest(password_data.get("pwhash", b"-invalid-"), password_hash)
 
-        status = None
-
-        # Verify that this account isn't blocked
-        if (user_skel.get("status") or 0) < Status.ACTIVE.value:
-            if is_okay:
-                # The username and password is valid, in this case we can inform that user about his account status
-                # (ie account locked or email verification pending)
-                status = user_skel["status"]
-
-            is_okay = False
+        # next, check if the user account is active
+        is_okay &= (user_skel["status"] or 0) >= Status.ACTIVE.value
 
         if not is_okay:
             self.loginRateLimit.decrementQuota()  # Only failed login attempts will count to the quota
             skel = self.LoginSkel()
-            return self._user_module.render.login(skel, loginFailed=True, accountStatus=status)
+            return self._user_module.render.login(
+                skel,
+                loginFailed=True,  # FIXME: Is this still being used?
+                accountStatus=user_skel["status"]  # FIXME: Is this still being used?
+            )
 
+        # check if iterations are below current security standards, and update if necessary.
         if iterations < PBKDF2_DEFAULT_ITERATIONS:
             logging.info(f"Update password hash for user {name}.")
             # re-hash the password with more iterations
