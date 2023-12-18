@@ -66,8 +66,8 @@
             <a id="indexLink" class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a id="nextFileLink" class="nav" href="d_e295e1cac9db2f73_pagination_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.3.2">coverage.py v7.3.2</a>,
-            created at 2023-12-13 18:31 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.3.3">coverage.py v7.3.3</a>,
+            created at 2023-12-18 22:46 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"/>
@@ -681,10 +681,10 @@
     <p class="mis show_mis"><span class="n"><a id="t597" href="#t597">597</a></span><span class="t">            <span class="key">if</span> <span class="key">not</span> <span class="op">(</span><span class="nam">userSkel</span> <span class="op">:=</span> <span class="nam">addSkel</span><span class="op">(</span><span class="op">)</span><span class="op">.</span><span class="nam">all</span><span class="op">(</span><span class="op">)</span><span class="op">.</span><span class="nam">filter</span><span class="op">(</span><span class="str">"name.idx ="</span><span class="op">,</span> <span class="nam">email</span><span class="op">.</span><span class="nam">lower</span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">.</span><span class="nam">getSkel</span><span class="op">(</span><span class="op">)</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t598" href="#t598">598</a></span><span class="t">                <span class="com"># Still no luck - it's a completely new user</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t599" href="#t599">599</a></span><span class="t">                <span class="key">if</span> <span class="key">not</span> <span class="nam">self</span><span class="op">.</span><span class="nam">registrationEnabled</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t600" href="#t600">600</a></span><span class="t">                    <span class="key">if</span> <span class="nam">userInfo</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">"hd"</span><span class="op">)</span> <span class="key">and</span> <span class="nam">userInfo</span><span class="op">[</span><span class="str">"hd"</span><span class="op">]</span> <span class="key">in</span> <span class="nam">conf</span><span class="op">[</span><span class="str">"viur.user.google.gsuiteDomains"</span><span class="op">]</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t601" href="#t601">601</a></span><span class="t">                        <span class="nam">print</span><span class="op">(</span><span class="str">"User is from domain - adding account"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t600" href="#t600">600</a></span><span class="t">                    <span class="key">if</span> <span class="op">(</span><span class="nam">domain</span> <span class="op">:=</span> <span class="nam">userInfo</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">"hd"</span><span class="op">)</span><span class="op">)</span> <span class="key">and</span> <span class="nam">domain</span> <span class="key">in</span> <span class="nam">conf</span><span class="op">[</span><span class="str">"viur.user.google.gsuiteDomains"</span><span class="op">]</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t601" href="#t601">601</a></span><span class="t">                        <span class="nam">logging</span><span class="op">.</span><span class="nam">debug</span><span class="op">(</span><span class="str">f"Google user is from allowed {domain} - adding account"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t602" href="#t602">602</a></span><span class="t">                    <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t603" href="#t603">603</a></span><span class="t">                        <span class="nam">logging</span><span class="op">.</span><span class="nam">warning</span><span class="op">(</span><span class="str">"Denying registration of %s"</span><span class="op">,</span> <span class="nam">email</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t603" href="#t603">603</a></span><span class="t">                        <span class="nam">logging</span><span class="op">.</span><span class="nam">debug</span><span class="op">(</span><span class="str">f"Google user is from {domain} - denying registration"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t604" href="#t604">604</a></span><span class="t">                        <span class="key">raise</span> <span class="nam">errors</span><span class="op">.</span><span class="nam">Forbidden</span><span class="op">(</span><span class="str">"Registration for new users is disabled"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t605" href="#t605">605</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t606" href="#t606">606</a></span><span class="t">                <span class="nam">userSkel</span> <span class="op">=</span> <span class="nam">addSkel</span><span class="op">(</span><span class="op">)</span>  <span class="com"># We'll add a new user</span>&nbsp;</span><span class="r"></span></p>
@@ -1558,8 +1558,8 @@
             <a id="indexLink" class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a id="nextFileLink" class="nav" href="d_e295e1cac9db2f73_pagination_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.3.2">coverage.py v7.3.2</a>,
-            created at 2023-12-13 18:31 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.3.3">coverage.py v7.3.3</a>,
+            created at 2023-12-18 22:46 +0000
         </p>
     </div>
 </footer>
