@@ -952,7 +952,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                                                                                  newSeoKey).getEntry()
                             if entryUsingKey and entryUsingKey.key != dbObj.key:
                                 # It's not unique; append a random string and try again
-                                newSeoKey = "%s-%s" % (currentSeoKeys[language], utils.generateRandomString(5).lower())
+                                newSeoKey = "%s-%s" % (currentSeoKeys[language], utils.string.random(5).lower())
                             else:
                                 break
                         else:

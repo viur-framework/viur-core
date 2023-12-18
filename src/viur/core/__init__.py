@@ -303,7 +303,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
 
         if "hmacKey" not in obj:  # create a new hmacKey
             logging.info("Creating new hmacKey")
-            obj["hmacKey"] = utils.generateRandomString(length=20)
+            obj["hmacKey"] = utils.string.random(length=20)
             db.Put(obj)
 
         conf.file_hmac_key = bytes(obj["hmacKey"], "utf-8")
