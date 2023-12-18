@@ -245,7 +245,7 @@ class SkeletonInstance:
                 except AttributeError as exc:
                     # The AttributeError cannot be re-raised any further at this point.
                     # Since this would then be evaluated as an access error
-                    # to the attribute of the property.
+                    # to the property attribute.
                     # Otherwise, it would be lost that it is an incorrect attribute access
                     # within this property (during the method call).
                     msg, *args = exc.args
