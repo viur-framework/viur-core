@@ -208,19 +208,54 @@ class SkeletonInstance:
         self.renderAccessedValues[key] = value
         return value
 
-    def __getattr__(self, item):
+    def __getattr__(self, item: str):
+        """
+        Get a special attribute from the SkeletonInstance
+
+        __getattr__ is called when an attribute access fails with an
+        AttributeError. So we know that this is not a real attribute of
+        the SkeletonInstance. But there are still a few special cases in which
+        attributes are loaded from the skeleton class.
+        """
         if item == "boneMap":
             return {}  # There are __setAttr__ calls before __init__ has run
+        # Load attribute value from the Skeleton class
         elif item in {"kindName", "interBoneValidations", "customDatabaseAdapter"}:
             return getattr(self.skeletonCls, item)
+        # Load a @classmethod from the Skeleton class and bound this SkeletonInstance
         elif item in {"fromDB", "toDB", "all", "unserialize", "serialize", "fromClient", "getCurrentSEOKeys",
                       "preProcessSerializedData", "preProcessBlobLocks", "postSavedHandler", "setBoneValue",
                       "delete", "postDeletedHandler", "refresh"}:
             return partial(getattr(self.skeletonCls, item), self)
+        # Load a @property from the Skeleton class
+        try:
+            # Use try/except to save an if check
+            class_value = getattr(self.skeletonCls, item)
+        except AttributeError:
+            # Not inside the Skeleton class, okay at this point.
+            pass
+        else:
+            if isinstance(class_value, property):
+                # The attribute is a @property and can be called
+                # Note: `self` is this SkeletonInstance, not the Skeleton class.
+                #       Therefore, you can access values inside the property method
+                #       with item-access like `self["key"]`.
+                try:
+                    return class_value.fget(self)
+                except AttributeError as exc:
+                    # The AttributeError cannot be re-raised any further at this point.
+                    # Since this would then be evaluated as an access error
+                    # to the attribute of the property.
+                    # Otherwise, it would be lost that it is an incorrect attribute access
+                    # within this property (during the method call).
+                    msg, *args = exc.args
+                    msg = f"AttributeError: {msg}"
+                    raise ValueError(msg, *args) from exc
+        # Load the bone instance from the bone map of this SkeletonInstance
         try:
             return self.boneMap[item]
-        except KeyError:
-            raise AttributeError(f"{self.__class__.__name__!r} object has no attribute '{item}'")
+        except KeyError as exc:
+            raise AttributeError(f"{self.__class__.__name__!r} object has no attribute '{item}'") from exc
 
     def __delattr__(self, item):
         del self.boneMap[item]
