@@ -16,7 +16,6 @@ def utcNow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-
 def getCurrentUser() -> t.Optional["SkeletonInstance"]:
     """
         Retrieve current user, if logged in.
@@ -52,6 +51,7 @@ def markFileForDeletion(dlkey: str) -> None:
     fileObj["itercount"] = 0
     fileObj["dlkey"] = str(dlkey)
     db.Put(fileObj)
+
 
 def hmacSign(data: t.Any) -> str:
     assert conf.file_hmac_key is not None, "No hmac-key set!"

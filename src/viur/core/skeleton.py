@@ -594,7 +594,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
         self.max_length = max_length
         self.substring_matching = substring_matching
 
-    def _tagsFromString(self, value: str) -> t.Set[str]:
+    def _tagsFromString(self, value: str) -> set[str]:
         """
         Extract all words including all min_length postfixes from given string
         """
