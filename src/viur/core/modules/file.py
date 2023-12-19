@@ -114,10 +114,11 @@ def thumbnailer(fileSkel, existingFiles, params):
             src_profile = ImageCms.ImageCmsProfile(f)
             dst_profile = ImageCms.createProfile('sRGB')
             try:
-                img = ImageCms.profileToProfile(img,
-                                                inputProfile=src_profile,
-                                                outputProfile=dst_profile,
-                                                outputMode="RGB")
+                img = ImageCms.profileToProfile(
+                    img,
+                    inputProfile=src_profile,
+                    outputProfile=dst_profile,
+                    outputMode="RGBA" if img.has_transparency_data else "RGB")
             except Exception as e:
                 logging.exception(e)
                 continue
