@@ -19,7 +19,7 @@ if t.TYPE_CHECKING:  # pragma: no cover
 # TODO: Backward compatible implementation, refactor when viur-core
 #       becomes >= Python 3.12 with a type statement (PEP 695)
 _T = t.TypeVar("_T")
-Multiple: t.TypeAlias = list[_T] | tuple[_T] | t.Set[_T] | frozenset[_T]  # TODO: Refactor for Python 3.12
+Multiple: t.TypeAlias = list[_T] | tuple[_T] | set[_T] | frozenset[_T]  # TODO: Refactor for Python 3.12
 
 
 class ConfigType:

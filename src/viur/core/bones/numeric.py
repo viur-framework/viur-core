@@ -162,7 +162,7 @@ class NumericBone(BaseBone):
 
         return super().buildDBFilter(name, skel, dbFilter, updatedFilter, prefix)
 
-    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> t.Set[str]:
+    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
         This method generates a set of search tags based on the numeric values stored in the NumericBone
         instance. It iterates through the bone values and adds the string representation of each value

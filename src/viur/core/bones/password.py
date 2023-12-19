@@ -6,7 +6,6 @@ directly. The class also includes various tests to determine the strength of the
 
 import hashlib
 import re
-import typing as t
 
 from viur.core import conf, utils
 from viur.core.bones.string import StringBone

@@ -422,7 +422,7 @@ class TextBone(BaseBone):
         if len(value) > self.max_length:
             return "Maximum length exceeded"
 
-    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> t.Set[str]:
+    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
         Extracts and returns the blob keys of referenced files in the HTML content of the TextBone instance.
 
@@ -479,7 +479,7 @@ class TextBone(BaseBone):
             elif not self.languages and isinstance(val, str):
                 skel[boneName] = self.singleValueFromClient(val, skel, boneName, None)[0]
 
-    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> t.Set[str]:
+    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
         Extracts search tags from the text content of a TextBone.
 

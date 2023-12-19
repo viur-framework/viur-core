@@ -1123,7 +1123,7 @@ class RelationalBone(BaseBone):
                 for k in skel[boneName]:
                     updateInplace(k)
 
-    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> t.Set[str]:
+    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
         Retrieves the search tags for the given RelationalBone in the provided skeleton.
 
@@ -1282,7 +1282,7 @@ class RelationalBone(BaseBone):
                     skel[boneName] = tmpRes
         return True
 
-    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> t.Set[str]:
+    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> t.set[str]:
         """
         Retrieves the set of referenced blobs from the specified bone in the given skeleton instance.
 

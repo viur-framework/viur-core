@@ -286,7 +286,7 @@ class StringBone(BaseBone):
             "ẞ": "SS",
         }))
 
-    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> t.Set[str]:
+    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
         Returns a set of lowercased words that represent searchable tags for the given bone.
 

@@ -1011,7 +1011,7 @@ class BaseBone(object):
             return []
         return self._hashValueForUniquePropertyIndex(val)
 
-    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> t.Set[str]:
+    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
         Returns a set of blob keys referenced from this bone
         """
@@ -1132,7 +1132,7 @@ class BaseBone(object):
             skel[boneName][language] = val
         return True
 
-    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> t.Set[str]:
+    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
         Returns a set of strings as search index for this bone.
 

@@ -1,4 +1,3 @@
-import typing as t
 
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
@@ -98,7 +97,7 @@ class RecordBone(BaseBone):
             )
         return usingSkel, usingSkel.errors
 
-    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> t.Set[str]:
+    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
         Collects search tags from the 'using' skeleton instance for the given bone.
 
@@ -147,7 +146,7 @@ class RecordBone(BaseBone):
 
         return res
 
-    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> t.Set[str]:
+    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
         Retrieves a set of referenced blobs for the given skeleton instance and name.
 

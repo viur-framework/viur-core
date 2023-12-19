@@ -231,7 +231,7 @@ class FileBone(TreeLeafBone):
             else:
                 handleDerives(values)
 
-    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> t.Set[str]:
+    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         r"""
         Retrieves the referenced blobs in the FileBone.
 
