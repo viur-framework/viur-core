@@ -128,8 +128,8 @@ class ConfigType:
         """
         if self.strict_mode:
             raise SyntaxError(
-                f"In strict mode, the config must not be accessed "
-                f"with .get(). Only attribute access is allowed."
+                "In strict mode, the config must not be accessed "
+                "with .get(). Only attribute access is allowed."
             )
         try:
             return getattr(self, key)

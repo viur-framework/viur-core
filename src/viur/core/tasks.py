@@ -209,12 +209,16 @@ class TaskHandler(Module):
         """
         global _deferred_tasks, _appengineServiceIPs
         req = current.request.get().request
-        if 'X-AppEngine-TaskName' not in req.headers:
+
+        if "X-AppEngine-TaskName" not in req.headers:
             logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
             raise errors.Forbidden()
-        if req.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs:
-            if not conf.instance.is_dev_server or os.getenv("TASKS_EMULATOR") is None:
-                logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
+
+        if (
+            req.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs
+            and (not conf.instance.is_dev_server or os.getenv("TASKS_EMULATOR") is None)
+        ):
+            logging.critical("Detected an attempted XSRF attack. This request did not originate from Task Queue.")
             raise errors.Forbidden()
 
         # Check if the retry count exceeds our warning threshold
