@@ -1282,7 +1282,7 @@ class RelationalBone(BaseBone):
                     skel[boneName] = tmpRes
         return True
 
-    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> t.set[str]:
+    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
         Retrieves the set of referenced blobs from the specified bone in the given skeleton instance.
 
