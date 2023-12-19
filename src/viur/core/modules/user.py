@@ -341,6 +341,13 @@ class UserPassword(UserAuthentication):
             skel["password"] = password  # will be hashed on serialize
             skel.toDB(update_relations=False)
 
+        return self.on_login(user_entry)
+
+    def on_login(self, user_entry: db.Entity):
+        """
+        Hook that is called whenever the password authentication was successful.
+        It allows to perform further steps in custom UserPassword authentications.
+        """
         return self._user_module.continueAuthenticationFlow(self, user_entry.key)
 
     @exposed
@@ -590,10 +597,10 @@ class GoogleAccount(UserAuthentication):
             if not (userSkel := addSkel().all().filter("name.idx =", email.lower()).getSkel()):
                 # Still no luck - it's a completely new user
                 if not self.registrationEnabled:
-                    if userInfo.get("hd") and userInfo["hd"] in conf["viur.user.google.gsuiteDomains"]:
-                        print("User is from domain - adding account")
+                    if (domain := userInfo.get("hd")) and domain in conf["viur.user.google.gsuiteDomains"]:
+                        logging.debug(f"Google user is from allowed {domain} - adding account")
                     else:
-                        logging.warning("Denying registration of %s", email)
+                        logging.debug(f"Google user is from {domain} - denying registration")
                         raise errors.Forbidden("Registration for new users is disabled")
 
                 userSkel = addSkel()  # We'll add a new user
