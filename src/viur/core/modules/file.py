@@ -428,7 +428,7 @@ class File(Tree):
 
         :return: Returns the key of the file object written. This can be associated e.g. with a FileBone.
         """
-        dl_key = utils.generateRandomString()
+        dl_key = utils.string.random()
 
         blob = bucket.blob("%s/source/%s" % (dl_key, filename))
         blob.upload_from_file(BytesIO(content), content_type=mimetype)
@@ -532,7 +532,7 @@ class File(Tree):
         global bucket
         fileName = sanitizeFileName(fileName)
 
-        targetKey = utils.generateRandomString()
+        targetKey = utils.string.random()
         blob = bucket.blob("%s/source/%s" % (targetKey, fileName))
         uploadUrl = blob.create_resumable_upload_session(content_type=mimeType, size=size, timeout=60)
         # Create a corresponding file-lock object early, otherwise we would have to ensure that the file-lock object
@@ -733,10 +733,10 @@ class File(Tree):
                 logging.error(targetKey)
                 raise errors.PreconditionFailed()
             blob = blobs[0]
-            skel["mimetype"] = utils.escapeString(blob.content_type)
+            skel["mimetype"] = utils.string.escape(blob.content_type)
             if any([x in blob.name for x in "$<>'\""]):  # Prevent these Characters from being used in a fileName
                 raise errors.PreconditionFailed()
-            skel["name"] = utils.escapeString(blob.name.replace("%s/source/" % skel["dlkey"], ""))
+            skel["name"] = utils.string.escape(blob.name.replace("%s/source/" % skel["dlkey"], ""))
             skel["size"] = blob.size
             skel["parentrepo"] = rootNode["key"] if rootNode else None
             skel["weak"] = rootNode is None

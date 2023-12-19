@@ -377,7 +377,7 @@ def requestParams(render: Render) -> dict[str, str]:
     """
     res = {}
     for k, v in current.request.get().kwargs.items():
-        res[utils.escapeString(k)] = utils.escapeString(v)
+        res[utils.string.escape(k)] = utils.string.escape(v)
     return res
 
 

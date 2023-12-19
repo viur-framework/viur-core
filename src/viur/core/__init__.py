@@ -167,6 +167,7 @@ def buildApp(modules: ModuleType | object, renderers: ModuleType | object, defau
     # assign ViUR system modules
     from viur.core.modules.moduleconf import ModuleConf  # noqa: E402 # import works only here because circular imports
     from viur.core.modules.script import Script  # noqa: E402 # import works only here because circular imports
+    from viur.core.prototypes.instanced_module import InstancedModule  # noqa: E402 # import works only here because circular imports
 
     modules._tasks = TaskHandler
     modules._moduleconf = ModuleConf
@@ -177,7 +178,11 @@ def buildApp(modules: ModuleType | object, renderers: ModuleType | object, defau
     resolver = {}
 
     for module_name, module_cls in vars(modules).items():  # iterate over all modules
-        if not inspect.isclass(module_cls) or not issubclass(module_cls, Module):
+        if not (  # we define the cases we want to use and then negate them all
+            (inspect.isclass(module_cls) and issubclass(module_cls, Module)  # is a normal Module class
+             and not issubclass(module_cls, InstancedModule))  # but not a "instantiable" Module
+            or isinstance(module_cls, InstancedModule)  # is an already instanced Module
+        ):
             continue
 
         if module_name == "index":
@@ -251,7 +256,6 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
         import viur.core.render
         render = viur.core.render
     conf.main_app = buildApp(modules, render, default)
-    # conf.wsgiApp = webapp.WSGIApplication([(r'/(.*)', BrowseHandler)])
 
     # Send warning email in case trace is activated in a cloud environment
     if ((conf.debug.trace
@@ -300,7 +304,7 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
 
         if "hmacKey" not in obj:  # create a new hmacKey
             logging.info("Creating new hmacKey")
-            obj["hmacKey"] = utils.generateRandomString(length=20)
+            obj["hmacKey"] = utils.string.random(length=20)
             db.Put(obj)
 
         conf.file_hmac_key = bytes(obj["hmacKey"], "utf-8")

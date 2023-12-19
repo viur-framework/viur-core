@@ -57,7 +57,7 @@ def create(
     if not duration:
         duration = conf.user.session_life_time if session_bound else SECURITYKEY_DURATION
 
-    key = utils.generateRandomString(key_length)
+    key = utils.string.random(key_length)
 
     entity = db.Entity(db.Key(SECURITYKEY_KINDNAME, key))
     entity |= custom_data
