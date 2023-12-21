@@ -47,7 +47,10 @@ class KeyBone(BaseBone):
                 return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, e.args[0])]
         else:
             try:
-                key = db.normalizeKey(db.Key.from_legacy_urlsafe(value))
+                if isinstance(value, str):
+                    key = db.normalizeKey(db.Key.from_legacy_urlsafe(value))
+                elif isinstance(value, db.Key):
+                    key = db.normalizeKey(value)
             except:
                 return self.getEmptyValue(), [
                     ReadFromClientError(
