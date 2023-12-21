@@ -100,27 +100,22 @@ class DefaultRender(object):
     def view(self, skel: SkeletonInstance, action: str = "view", params=None, **kwargs):
         return self.renderEntry(skel, action, params)
 
-    def list(self, skel_list: SkelList, action: str = "list", params=None, **kwargs):
-        if "skellist" in kwargs:
-            msg = f"parameter skellist in the 'list' method of the JSON Renderer is deprecated. " \
-                  f"Please use skel_list as the new parameter instead"
-            logging.warning(msg, stacklevel=3)
-            warnings.warn(msg, DeprecationWarning, stacklevel=3)
-            skel_list = kwargs["skellist"]
+    def list(self, skellist: SkelList, action: str = "list", params=None, **kwargs):
+
         # Rendering the structure in lists is flagged as deprecated
         structure = None
         cursor = None
         orders = None
 
-        if skel_list:
-            if isinstance(skel_list[0], SkeletonInstance):
+        if skellist:
+            if isinstance(skellist[0], SkeletonInstance):
                 if "json.bone.structure.inlists" in conf.compatibility:
-                    structure = DefaultRender.render_structure(skel_list[0].structure())
+                    structure = DefaultRender.render_structure(skellist[0].structure())
 
-                cursor = skel_list.getCursor()
-                orders = skel_list.get_orders()
+                cursor = skellist.getCursor()
+                orders = skellist.get_orders()
 
-            skellist = [skel.render_bone_values() for skel in skel_list]
+            skellist = [skel.render_bone_values() for skel in skellist]
         else:
             skellist = []
 
