@@ -8,7 +8,8 @@ from urllib import request
 
 import requests
 
-from viur.core.skeleton import SkeletonInstance
+if t.TYPE_CHECKING:
+    from viur.core.skeleton import SkeletonInstance
 from viur.core import db, utils
 from viur.core.config import conf
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
@@ -143,7 +144,7 @@ def normalize_to_list(value: None | t.Any | list[t.Any] | t.Callable[[], list]) 
 def sendEMail(*,
               tpl: str = None,
               stringTemplate: str = None,
-              skel: None | dict | SkeletonInstance | list[SkeletonInstance] = None,
+              skel: t.Union[None, dict, "SkeletonInstance", list["SkeletonInstance"]] = None,
               sender: str = None,
               dests: str | list[str] = None,
               cc: str | list[str] = None,
