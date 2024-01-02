@@ -39,7 +39,6 @@ from google.appengine.api import wrap_wsgi_app
 import yaml
 from viur.core import i18n, request, utils
 from viur.core.config import conf
-from viur.core.config import conf
 from viur.core.decorators import *
 from viur.core.decorators import access, exposed, force_post, force_ssl, internal_exposed, skey
 from viur.core.module import Method, Module
@@ -307,6 +306,25 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
             db.Put(obj)
 
         conf.file_hmac_key = bytes(obj["hmacKey"], "utf-8")
+
+    if conf.instance.is_dev_server:
+        # define lines to show
+        lines = (
+            " LOCAL DEVELOPMENT SERVER IS UP AND RUNNING ",
+            f"""viur-core \033[1;32m{".".join((str(i) for i in conf.version))}\033[0m""",
+            f"""project-id \033[1;31m{conf.instance.project_id}\033[0m""",
+            ""
+        )
+
+        # first and last line are shown with a cool line made of "="
+        first_last = (0, len(lines) - 1)
+
+        # dump to console
+        for i, line in enumerate(lines):
+            logging.debug(
+                f"""\033[0m={line:{"=" if i in first_last else " "}^{78 + (11 if i not in first_last else 0)}}="""
+            )
+
     return wrap_wsgi_app(app)
 
 
