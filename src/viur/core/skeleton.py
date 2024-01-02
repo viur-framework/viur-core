@@ -550,7 +550,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
     providesFulltextSearch = True
     fulltextSearchGuaranteesQueryConstrains = True
 
-    def __init__(self, min_length: int = 3, max_length: int = 99, substring_matching: bool = True):
+    def __init__(self, min_length: int = 2, max_length: int = 50, substring_matching: bool = False):
         super().__init__()
         self.min_length = min_length
         self.max_length = max_length
