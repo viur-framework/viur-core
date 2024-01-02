@@ -1,23 +1,24 @@
 import base64
-import json
+import grpc
 import logging
 import os
-import sys
-import traceback
-import grpc
 import pytz
 import requests
+import sys
+import traceback
 from datetime import datetime, timedelta
 from functools import wraps
-from time import sleep
-from typing import Any, Callable, Dict, Optional, Tuple
 from google.cloud import tasks_v2
 from google.cloud.tasks_v2.services.cloud_tasks.transports import CloudTasksGrpcTransport
 from google.protobuf import timestamp_pb2
+from time import sleep
+from typing import Any, Callable, Dict, Optional, Tuple
+
+import json
 from viur.core import current, db, errors, utils
 from viur.core.config import conf
-from viur.core.module import Module
 from viur.core.decorators import exposed, skey
+from viur.core.module import Module
 
 
 # class JsonKeyEncoder(json.JSONEncoder):
@@ -189,14 +190,8 @@ class TaskHandler(Module):
         """
             This processes one chunk of a queryIter (see below).
         """
-        global _deferred_tasks, _appengineServiceIPs
         req = current.request.get().request
-        if 'X-AppEngine-TaskName' not in req.headers:
-            logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
-            raise errors.Forbidden()
-        if req.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs:
-            logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
-            raise errors.Forbidden()
+        self._validate_request()
         data = json.loads(req.body, object_hook=jsonDecodeObjectHook)
         if data["classID"] not in MetaQueryIter._classCache:
             logging.error("Could not continue queryIter - %s not known on this instance" % data["classID"])
@@ -207,20 +202,8 @@ class TaskHandler(Module):
         """
             This catches one deferred call and routes it to its destination
         """
-        global _deferred_tasks, _appengineServiceIPs
         req = current.request.get().request
-
-        if "X-AppEngine-TaskName" not in req.headers:
-            logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
-            raise errors.Forbidden()
-
-        if (
-            req.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs
-            and (not conf.instance.is_dev_server or os.getenv("TASKS_EMULATOR") is None)
-        ):
-            logging.critical("Detected an attempted XSRF attack. This request did not originate from Task Queue.")
-            raise errors.Forbidden()
-
+        self._validate_request()
         # Check if the retry count exceeds our warning threshold
         retryCount = req.headers.get("X-Appengine-Taskretrycount", None)
         if retryCount and int(retryCount) == self.retryCountWarningThreshold:
@@ -286,15 +269,9 @@ class TaskHandler(Module):
 
     @exposed
     def cron(self, cronName="default", *args, **kwargs):
-        global _callableTasks, _periodicTasks, _appengineServiceIPs
         req = current.request.get()
         if not conf.instance.is_dev_server:
-            if 'X-Appengine-Cron' not in req.request.headers:
-                logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Cron" was not set.')
-                raise errors.Forbidden()
-            if req.request.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs:
-                logging.critical('Detected an attempted XSRF attack. This request did not originate from Cron.')
-                raise errors.Forbidden()
+            self._validate_request(require_cron=True, require_taskname=False)
         if cronName not in _periodicTasks:
             logging.warning("Got Cron request '%s' which doesn't have any tasks" % cronName)
         # We must defer from cron, as tasks will interpret it as a call originating from task-queue - causing deferred
@@ -339,6 +316,35 @@ class TaskHandler(Module):
                     logging.error("Error executing Task")
                     logging.exception(e)
         logging.debug("Scheduled tasks complete")
+
+    def _validate_request(
+        self,
+        *,
+        require_cron: bool = False,
+        require_taskname: bool = True,
+    ) -> None:
+        """
+        Validate the header and metadata of a request
+
+        If the request is valid, None will be returned.
+        Otherwise, an exception will be raised.
+
+        :param require_taskname: Require "X-AppEngine-TaskName" header
+        :param require_cron: Require "X-Appengine-Cron" header
+        """
+        req = current.request.get().request
+        if (
+            req.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs
+            and (not conf["viur.instance.is_dev_server"] or os.getenv("TASKS_EMULATOR") is None)
+        ):
+            logging.critical("Detected an attempted XSRF attack. This request did not originate from Task Queue.")
+            raise errors.Forbidden()
+        if require_cron and "X-Appengine-Cron" not in req.request.headers:
+            logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Cron" was not set.')
+            raise errors.Forbidden()
+        if require_taskname and "X-AppEngine-TaskName" not in req.headers:
+            logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
+            raise errors.Forbidden()
 
     @exposed
     def list(self, *args, **kwargs):
@@ -837,6 +843,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
         logging.debug("handleError called on %s with %s." % (cls, entry))
         logging.exception(exception)
         return True
+
 
 class DeleteEntitiesIter(QueryIter):
     """
