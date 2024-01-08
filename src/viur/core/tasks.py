@@ -19,45 +19,49 @@ from viur.core.decorators import exposed, skey
 from viur.core.module import Module
 
 
-# class JsonKeyEncoder(json.JSONEncoder):
-def preprocessJsonObject(o):
+def _preprocess_json_object(obj):
     """
-        Add support for Keys, Datetime, Bytes and db.Entities in deferred tasks.
-        This is not a subclass of json.JSONEncoder anymore, as db.Entites are a subclass of dict, which
-        is always handled from the json module itself.
+        Add support for db.Key, datetime, bytes and db.Entity in deferred tasks,
+        and converts the provided obj into a special dict with JSON-serializable values.
     """
-    if isinstance(o, db.Key):
-        return {".__key__": db.encodeKey(o)}
-    elif isinstance(o, datetime):
-        return {".__datetime__": o.astimezone(pytz.UTC).strftime("%d.%m.%Y %H:%M:%S")}
-    elif isinstance(o, bytes):
-        return {".__bytes__": base64.b64encode(o).decode("ASCII")}
-    elif isinstance(o, db.Entity):
-        return {".__entity__": preprocessJsonObject(dict(o)), ".__ekey__": db.encodeKey(o.key) if o.key else None}
-    elif isinstance(o, dict):
-        return {preprocessJsonObject(k): preprocessJsonObject(v) for k, v in o.items()}
-    elif isinstance(o, (list, tuple, set)):
-        return [preprocessJsonObject(x) for x in o]
-    else:
-        return o
+    if isinstance(obj, db.Key):
+        return {".__key__": db.encodeKey(obj)}
+    elif isinstance(obj, datetime):
+        return {".__datetime__": obj.astimezone(pytz.UTC).isoformat()}
+    elif isinstance(obj, bytes):
+        return {".__bytes__": base64.b64encode(obj).decode("ASCII")}
+    elif isinstance(obj, db.Entity):
+        # TODO: Support Skeleton instances as well?
+        return {
+            ".__entity__": _preprocess_json_object(dict(obj)),
+            ".__ekey__": db.encodeKey(obj.key) if obj.key else None
+        }
+    elif isinstance(obj, dict):
+        return {_preprocess_json_object(k): _preprocess_json_object(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple, set)):
+        return [_preprocess_json_object(x) for x in obj]
+
+    return obj
 
 
-def jsonDecodeObjectHook(obj):
+def _decode_object_hook(obj):
     """
-        Inverse to JsonKeyEncoder: Check if the object matches a custom ViUR type and recreate it accordingly
+        Inverse for _preprocess_json_object, which is an object-hook for json.loads.
+        Check if the object matches a custom ViUR type and recreate it accordingly.
     """
     if len(obj) == 1:
-        if ".__key__" in obj:
-            return db.Key.from_legacy_urlsafe(obj[".__key__"])
-        elif ".__datetime__" in obj:
-            value = datetime.datetime.strptime(obj[".__datetime__"], "%d.%m.%Y %H:%M:%S")
-            return datetime.datetime(value.year, value.month, value.day, value.hour, value.minute, value.second, tzinfo=pytz.UTC)
-        elif ".__bytes__" in obj:
-            return base64.b64decode(obj[".__bytes__"])
+        if key := obj.get(".__key__"):
+            return db.Key.from_legacy_urlsafe(key)
+        elif date := obj.get(".__datetime__"):
+            return datetime.datetime.fromisoformat(date)
+        elif buf := obj.get(".__bytes__"):
+            return base64.b64decode(buf)
+
     elif len(obj) == 2 and ".__entity__" in obj and ".__ekey__" in obj:
-        r = db.Entity(db.Key.from_legacy_urlsafe(obj[".__ekey__"]) if obj[".__ekey__"] else None)
-        r.update(obj[".__entity__"])
-        return r
+        entity = db.Entity(db.Key.from_legacy_urlsafe(obj[".__ekey__"]) if obj[".__ekey__"] else None)
+        entity.update(obj[".__entity__"])
+        return entity
+
     return obj
 
 
@@ -190,7 +194,7 @@ class TaskHandler(Module):
         """
         req = current.request.get().request
         self._validate_request()
-        data = json.loads(req.body, object_hook=jsonDecodeObjectHook)
+        data = json.loads(req.body, object_hook=_decode_object_hook)
         if data["classID"] not in MetaQueryIter._classCache:
             logging.error("Could not continue queryIter - %s not known on this instance" % data["classID"])
         MetaQueryIter._classCache[data["classID"]]._qryStep(data)
@@ -211,7 +215,7 @@ class TaskHandler(Module):
                 f"""Task {req.headers.get("X-Appengine-Taskname", "")} is retried for the {retryCount}th time."""
             )
 
-        cmd, data = json.loads(req.body, object_hook=jsonDecodeObjectHook)
+        cmd, data = json.loads(req.body, object_hook=_decode_object_hook)
         funcPath, args, kwargs, env = data
         logging.debug(f"Call task {funcPath} with {cmd=} {args=} {kwargs=} {env=}")
 
@@ -586,7 +590,7 @@ def CallDeferred(func: Callable) -> Callable:
             # Create task description
             task = tasks_v2.Task(
                 app_engine_http_request=tasks_v2.AppEngineHttpRequest(
-                    body=json.dumps(preprocessJsonObject((command, (funcPath, args, kwargs, env)))).encode("UTF-8"),
+                    body=json.dumps(_preprocess_json_object((command, (funcPath, args, kwargs, env)))).encode("UTF-8"),
                     http_method=tasks_v2.HttpMethod.POST,
                     relative_uri=taskargs["url"],
                     app_engine_routing=tasks_v2.AppEngineRouting(
@@ -761,7 +765,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
             parent=taskClient.queue_path(conf.instance.project_id, queueRegion, cls.queueName),
             task=tasks_v2.Task(
                 app_engine_http_request=tasks_v2.AppEngineHttpRequest(
-                    body=json.dumps(preprocessJsonObject(qryDict)).encode("UTF-8"),
+                    body=json.dumps(_preprocess_json_object(qryDict)).encode("UTF-8"),
                     http_method=tasks_v2.HttpMethod.POST,
                     relative_uri="/_tasks/queryIter",
                     app_engine_routing=tasks_v2.AppEngineRouting(
