@@ -590,9 +590,9 @@ class GoogleAccount(UserPrimaryAuthentication):
                 # We have to allow popups here
                 request.response.headers["cross-origin-opener-policy"] = "same-origin-allow-popups"
 
-            tpl_string = conf.instance.core_base_path.joinpath(
-                "viur/core/template/vi_user_google_login.html"
-            ).open().read()
+            file_path = conf.instance.core_base_path.joinpath("viur/core/template/vi_user_google_login.html")
+            with open(file_path) as file:
+                tpl_string = file.read()
 
             # FIXME: Use Jinja2 for rendering?
             tpl_string = tpl_string.replace("{{ clientID }}", conf.user.google_client_id)
