@@ -1,20 +1,18 @@
 import base64
+import datetime
+import functools
 import grpc
+import json
 import logging
 import os
 import pytz
 import requests
 import sys
+import time
 import traceback
-from datetime import datetime, timedelta
-from functools import wraps
 from google.cloud import tasks_v2
-from google.cloud.tasks_v2.services.cloud_tasks.transports import CloudTasksGrpcTransport
-from google.protobuf import timestamp_pb2
-from time import sleep
+from google import protobuf
 from typing import Any, Callable, Dict, Optional, Tuple
-
-import json
 from viur.core import current, db, errors, utils
 from viur.core.config import conf
 from viur.core.decorators import exposed, skey
@@ -52,8 +50,8 @@ def jsonDecodeObjectHook(obj):
         if ".__key__" in obj:
             return db.Key.from_legacy_urlsafe(obj[".__key__"])
         elif ".__datetime__" in obj:
-            value = datetime.strptime(obj[".__datetime__"], "%d.%m.%Y %H:%M:%S")
-            return datetime(value.year, value.month, value.day, value.hour, value.minute, value.second, tzinfo=pytz.UTC)
+            value = datetime.datetime.strptime(obj[".__datetime__"], "%d.%m.%Y %H:%M:%S")
+            return datetime.datetime(value.year, value.month, value.day, value.hour, value.minute, value.second, tzinfo=pytz.UTC)
         elif ".__bytes__" in obj:
             return base64.b64decode(obj[".__bytes__"])
     elif len(obj) == 2 and ".__entity__" in obj and ".__ekey__" in obj:
@@ -91,7 +89,7 @@ if not conf.instance.is_dev_server or os.getenv("TASKS_EMULATOR") is None:
     taskClient = tasks_v2.CloudTasksClient()
 else:
     taskClient = tasks_v2.CloudTasksClient(
-        transport=CloudTasksGrpcTransport(channel=grpc.insecure_channel(os.getenv("TASKS_EMULATOR")))
+        transport=tasks_v2.services.cloud_tasks.transports(channel=grpc.insecure_channel(os.getenv("TASKS_EMULATOR")))
     )
     queueRegion = "local"
 
@@ -281,7 +279,7 @@ class TaskHandler(Module):
             periodicTaskName = task.periodicTaskName.lower()
             if interval:  # Ensure this task doesn't get called to often
                 lastCall = db.Get(db.Key("viur-task-interval", periodicTaskName))
-                if lastCall and utils.utcNow() - lastCall["date"] < timedelta(minutes=interval):
+                if lastCall and utils.utcNow() - lastCall["date"] < datetime.timedelta(minutes=interval):
                     logging.debug("Skipping task %s - Has already run recently." % periodicTaskName)
                     continue
             res = self.findBoundTask(task, conf.main_app)
@@ -405,7 +403,7 @@ def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
         <pre>{{traceback|escape}}</pre>"""
 
     def outer_wrapper(func):
-        @wraps(func)
+        @functools.wraps(func)
         def inner_wrapper(*args, **kwargs):
             try:
                 retry_count = int(current.request.get().request.headers.get("X-Appengine-Taskretrycount", -1))
@@ -513,7 +511,7 @@ def CallDeferred(func: Callable) -> Callable:
             # Run tasks inline
             logging.debug(f"{func=} will be executed inline")
 
-            @wraps(func)
+            @functools.wraps(func)
             def task():
                 if self is __undefinedFlag_:
                     return func(*args, **kwargs)
@@ -602,10 +600,10 @@ def CallDeferred(func: Callable) -> Callable:
             # Set a schedule time in case eta (absolut) or countdown (relative) was set.
             eta = taskargs.get("eta")
             if seconds := taskargs.get("countdown"):
-                eta = utils.utcNow() + timedelta(seconds=seconds)
+                eta = utils.utcNow() + datetime.timedelta(seconds=seconds)
             if eta:
                 # We must send a Timestamp Protobuf instead of a date-string
-                timestamp = timestamp_pb2.Timestamp()
+                timestamp = protobuf.timestamp_pb2.Timestamp()
                 timestamp.FromDatetime(eta)
                 task.schedule_time = timestamp
 
@@ -619,7 +617,7 @@ def CallDeferred(func: Callable) -> Callable:
     global _deferred_tasks
     _deferred_tasks["%s.%s" % (func.__name__, func.__module__)] = func
 
-    @wraps(func)
+    @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return make_deferred(func, *args, **kwargs)
 
@@ -795,7 +793,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
             try:
                 cls.handleEntry(item, qryDict["customData"])
             except:  # First exception - we'll try another time (probably/hopefully transaction collision)
-                sleep(5)
+                time.sleep(5)
                 try:
                     cls.handleEntry(item, qryDict["customData"])
                 except Exception as e:  # Second exception - call error_handler
