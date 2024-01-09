@@ -13,7 +13,7 @@ import user_agents
 import pyotp
 import base64
 import dataclasses
-import typing
+import typing as t
 from google.auth.transport import requests
 from google.oauth2 import id_token
 
@@ -697,7 +697,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         """
         secret: str
         timedrift: float = 0.0
-        algorithm: typing.Literal["sha1", "sha256"] = "sha1"
+        algorithm: t.Literal["sha1", "sha256"] = "sha1"
         interval: int = 60
 
     class OtpSkel(skeleton.RelSkel):
