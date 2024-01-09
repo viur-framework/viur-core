@@ -144,7 +144,8 @@ class ConfigType:
         new_path = f"{self._path}{self._resolve_mapping(key)}"
         warnings.warn(f"conf uses now attributes! "
                       f"Use conf.{new_path} to access your option",
-                      DeprecationWarning)
+                      DeprecationWarning,
+                      stacklevel=2)
 
         if self.strict_mode:
             raise SyntaxError(
@@ -596,7 +597,7 @@ class Conf(ConfigType):
 
     compatibility: Multiple[str] = [
         "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
-        "bone.structure.keytuples",  # use classic structure notation: `"structure = [["key", {...}] ...]` (#649)
+        "json.bone.structure.keytuples",  # use classic structure notation: `"structure = [["key", {...}] ...]` (#649)
         "json.bone.structure.inlists",  # dump skeleton structure with every JSON list response (#774 for details)
     ]
     """Backward compatibility flags; Remove to enforce new layout."""
