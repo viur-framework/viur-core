@@ -263,10 +263,34 @@ class Admin(ConfigType):
     """URL for the Logo over the VI Login screen"""
 
     color_primary: str = "#d00f1c"
-    """primary color for the  VI"""
+    """primary color for viur-admin"""
 
     color_secondary: str = "#333333"
-    """secondary color for the  VI"""
+    """secondary color for viur-admin"""
+
+    module_groups: dict[str, dict[Literal["name", "icon", "sortindex"], str | int]] = {}
+    """Module Groups for the VI
+
+    Group modules in the sidebar in categories (groups).
+
+    Example:
+        conf.admin.module_groups = {
+            "content": {
+                "name": "Content",
+                "icon": "text-file",
+                "sortindex": 10,
+            },
+            "shop": {
+                "name": "Shop",
+                "icon": "cart",
+                "sortindex": 20,
+            },
+        }
+
+    To add a module to one of these groups (e.g. content), add `moduleGroup` to
+    the admin_info of the module:
+        "moduleGroup": "content",
+    """
 
     _mapping: dict[str, str] = {
         "login.background": "login_background",
