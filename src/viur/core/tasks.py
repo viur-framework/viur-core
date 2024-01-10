@@ -336,7 +336,7 @@ class TaskHandler(Module):
         req = current.request.get().request
         if (
             req.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs
-            and (not conf["viur.instance.is_dev_server"] or os.getenv("TASKS_EMULATOR") is None)
+            and (not conf.instance.is_dev_server or os.getenv("TASKS_EMULATOR") is None)
         ):
             logging.critical("Detected an attempted XSRF attack. This request did not originate from Task Queue.")
             raise errors.Forbidden()
