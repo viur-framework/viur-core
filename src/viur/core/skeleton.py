@@ -5,12 +5,13 @@ import inspect
 import logging
 import os
 import string
+import typing as t
 import sys
 import warnings
 from functools import partial
 from itertools import chain
 from time import time
-from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
+
 
 from viur.core import conf, current, db, email, errors, translate, utils
 from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, RelationalUpdateLevel, SelectBone, StringBone
@@ -98,7 +99,7 @@ class MetaBaseSkel(type):
         return map
 
 
-def skeletonByKind(kindName: str) -> Type[Skeleton]:
+def skeletonByKind(kindName: str) -> t.Type[Skeleton]:
     """
         Returns the Skeleton-Class for the given kindName. That skeleton must exist, otherwise an exception is raised.
         :param kindName: The kindname to retreive the skeleton for
@@ -108,14 +109,14 @@ def skeletonByKind(kindName: str) -> Type[Skeleton]:
     return MetaBaseSkel._skelCache[kindName]
 
 
-def listKnownSkeletons() -> List[str]:
+def listKnownSkeletons() -> list[str]:
     """
         :return: A list of all known kindnames (all kindnames for which a skeleton is defined)
     """
     return list(MetaBaseSkel._skelCache.keys())[:]
 
 
-def iterAllSkelClasses() -> Iterable["Skeleton"]:
+def iterAllSkelClasses() -> t.Iterable["Skeleton"]:
     """
         :return: An iterator that yields each Skeleton-Class once. (Only top-level skeletons are returned, so no
             RefSkel classes will be included)
@@ -159,20 +160,20 @@ class SkeletonInstance:
         self.skeletonCls = skelCls
         self.renderPreparation = None
 
-    def items(self, yieldBoneValues: bool = False) -> Iterable[Tuple[str, BaseBone]]:
+    def items(self, yieldBoneValues: bool = False) -> t.Iterable[tuple[str, BaseBone]]:
         if yieldBoneValues:
             for key in self.boneMap.keys():
                 yield key, self[key]
         else:
             yield from self.boneMap.items()
 
-    def keys(self) -> Iterable[str]:
+    def keys(self) -> t.Iterable[str]:
         yield from self.boneMap.keys()
 
-    def values(self) -> Iterable[Any]:
+    def values(self) -> t.Iterable[t.Any]:
         yield from self.boneMap.values()
 
-    def __iter__(self) -> Iterable[str]:
+    def __iter__(self) -> t.Iterable[str]:
         yield from self.keys()
 
     def __contains__(self, item):
@@ -362,8 +363,8 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                 bone.setSystemInitialized()
 
     @classmethod
-    def setBoneValue(cls, skelValues: Any, boneName: str, value: Any,
-                     append: bool = False, language: Optional[str] = None) -> bool:
+    def setBoneValue(cls, skelValues: t.Any, boneName: str, value: t.Any,
+                     append: bool = False, language: t.Optional[str] = None) -> bool:
         """
             Allow setting a bones value without calling fromClient or assigning to valuesCache directly.
             Santy-Checks are performed; if the value is invalid, that bone flips back to its original
@@ -383,7 +384,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
         return bone.setBoneValue(skelValues, boneName, value, append, language)
 
     @classmethod
-    def fromClient(cls, skelValues: SkeletonInstance, data: Dict[str, Union[List[str], str]],
+    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str],
                    allowEmptyRequired=False) -> bool:
         """
             Load supplied *data* into Skeleton.
@@ -523,7 +524,7 @@ class CustomDatabaseAdapter:
     # Indicate that we can run more types of queries than originally supported by firestore
     providesCustomQueries: bool = False
 
-    def preprocessEntry(self, entry: db.Entity, skel: BaseSkeleton, changeList: List[str], isAdd: bool) -> db.Entity:
+    def preprocessEntry(self, entry: db.Entity, skel: BaseSkeleton, changeList: list[str], isAdd: bool) -> db.Entity:
         """
         Can be overridden to add or alter the data of this entry before it's written to firestore.
         Will always be called inside an transaction.
@@ -535,7 +536,7 @@ class CustomDatabaseAdapter:
         """
         return entry
 
-    def updateEntry(self, dbObj: db.Entity, skel: BaseSkeleton, changeList: List[str], isAdd: bool) -> None:
+    def updateEntry(self, dbObj: db.Entity, skel: BaseSkeleton, changeList: list[str], isAdd: bool) -> None:
         """
         Like `meth:preprocessEntry`, but runs after the transaction had completed.
         Changes made to dbObj will be ignored.
@@ -554,7 +555,7 @@ class CustomDatabaseAdapter:
         """
         return
 
-    def fulltextSearch(self, queryString: str, databaseQuery: db.Query) -> List[db.Entity]:
+    def fulltextSearch(self, queryString: str, databaseQuery: db.Query) -> list[db.Entity]:
         """
         If this database supports fulltext searches, this method has to implement them.
         If it's a plain fulltext search engine, leave 'prop:fulltextSearchGuaranteesQueryConstrains' set to False,
@@ -593,7 +594,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
         self.max_length = max_length
         self.substring_matching = substring_matching
 
-    def _tagsFromString(self, value: str) -> Set[str]:
+    def _tagsFromString(self, value: str) -> set[str]:
         """
         Extract all words including all min_length postfixes from given string
         """
@@ -611,7 +612,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 
         return res
 
-    def preprocessEntry(self, entry: db.Entity, skel: Skeleton, changeList: List[str], isAdd: bool) -> db.Entity:
+    def preprocessEntry(self, entry: db.Entity, skel: Skeleton, changeList: list[str], isAdd: bool) -> db.Entity:
         """
         Collect searchTags from skeleton and build viurTags
         """
@@ -624,7 +625,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
         entry["viurTags"] = list(chain(*[self._tagsFromString(x) for x in tags if len(x) <= self.max_length]))
         return entry
 
-    def fulltextSearch(self, queryString: str, databaseQuery: db.Query) -> List[db.Entity]:
+    def fulltextSearch(self, queryString: str, databaseQuery: db.Query) -> list[db.Entity]:
         """
         Run a fulltext search
         """
@@ -679,10 +680,10 @@ class SeoKeyBone(StringBone):
 
 class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     kindName: str = _undefined  # To which kind we save our data to
-    customDatabaseAdapter: Union[CustomDatabaseAdapter, None] = _undefined
+    customDatabaseAdapter: CustomDatabaseAdapter | None = _undefined
     subSkels = {}  # List of pre-defined sub-skeletons of this type
-    interBoneValidations: List[
-        Callable[[Skeleton], List[ReadFromClientError]]] = []  # List of functions checking inter-bone dependencies
+    interBoneValidations: list[
+        t.Callable[[Skeleton], list[ReadFromClientError]]] = []  # List of functions checking inter-bone dependencies
 
     __seo_key_trans = str.maketrans(
         {"<": "",
@@ -760,7 +761,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return db.Query(skelValues.kindName, srcSkelClass=skelValues, **kwargs)
 
     @classmethod
-    def fromClient(cls, skelValues: SkeletonInstance, data: Dict[str, Union[List[str], str]],
+    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str],
                    allowEmptyRequired=False) -> bool:
         """
             This function works similar to :func:`~viur.core.skeleton.Skeleton.setValues`, except that
@@ -808,7 +809,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return complete
 
     @classmethod
-    def fromDB(cls, skelValues: SkeletonInstance, key: Union[str, db.Key]) -> bool:
+    def fromDB(cls, skelValues: SkeletonInstance, key: str | db.Key) -> bool:
         """
             Load entity with *key* from the data store into the Skeleton.
 
@@ -1143,7 +1144,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         pass
 
     @classmethod
-    def getCurrentSEOKeys(cls, skelValues) -> Union[None, Dict[str, str]]:
+    def getCurrentSEOKeys(cls, skelValues) -> None | dict[str, str]:
         """
         Should be overridden to return a dictionary of language -> SEO-Friendly key
         this entry should be reachable under. How theses names are derived are entirely up to the application.
@@ -1235,7 +1236,7 @@ class RelSkel(BaseSkeleton):
     """
 
     @classmethod
-    def fromClient(cls, skelValues: SkeletonInstance, data: Dict[str, Union[List[str], str]],
+    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str],
                    allowEmptyRequired=False) -> bool:
         """
             Reads the data supplied by data.
@@ -1294,7 +1295,7 @@ class RelSkel(BaseSkeleton):
 
     # return {k: v for k, v in self.valuesCache.entity.items() if k in self.__boneNames__}
 
-    def unserialize(self, values: Union[db.Entity, dict]):
+    def unserialize(self, values: db.Entity | dict):
         """
             Loads 'values' into this skeleton.
 
@@ -1328,7 +1329,7 @@ class RelSkel(BaseSkeleton):
 
 class RefSkel(RelSkel):
     @classmethod
-    def fromSkel(cls, kindName: str, *args: List[str]) -> Type[RefSkel]:
+    def fromSkel(cls, kindName: str, *args: list[str]) -> t.Type[RefSkel]:
         """
             Creates a relSkel from a skeleton-class using only the bones explicitly named
             in \*args
@@ -1406,7 +1407,7 @@ def processRemovedRelations(removedKey, cursor=None):
 
 
 @CallDeferred
-def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: Optional[str], cursor: Optional[str] = None):
+def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: t.Optional[str], cursor: t.Optional[str] = None):
     """
         This function updates Entities, which may have a copy of values from another entity which has been recently
         edited (updated). In ViUR, relations are implemented by copying the values from the referenced entity into the
@@ -1506,12 +1507,12 @@ class TaskUpdateSearchIndex(CallableTaskBase):
 
 class RebuildSearchIndex(QueryIter):
     @classmethod
-    def handleEntry(cls, skel: SkeletonInstance, customData: Dict[str, str]):
+    def handleEntry(cls, skel: SkeletonInstance, customData: dict[str, str]):
         skel.refresh()
         skel.toDB(update_relations=False)
 
     @classmethod
-    def handleFinish(cls, totalCount: int, customData: Dict[str, str]):
+    def handleFinish(cls, totalCount: int, customData: dict[str, str]):
         QueryIter.handleFinish(totalCount, customData)
         if not customData["notify"]:
             return
