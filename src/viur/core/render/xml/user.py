@@ -1,5 +1,3 @@
-import time, json
-from string import Template
 from viur.core.render.xml.default import DefaultRender, serializeXML
 
 

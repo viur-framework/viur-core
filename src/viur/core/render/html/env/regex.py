@@ -1,5 +1,5 @@
 import re
-from typing import Optional
+import typing as t
 
 from viur.core.render.html.utils import jinjaGlobalFunction
 from ..default import Render
@@ -37,7 +37,7 @@ def regexReplace(render: Render, string: str, pattern: str, replace: str) -> str
 
 
 @jinjaGlobalFunction
-def regexSearch(render: Render, string: str, pattern: str, flags=0) -> Optional[re.Match]:
+def regexSearch(render: Render, string: str, pattern: str, flags=0) -> t.Optional[re.Match]:
     """
     Jinja2 global: Search a string for regular expression pattern.
     This function internally runs re.search().

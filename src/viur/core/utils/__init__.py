@@ -1,10 +1,11 @@
 import hashlib
 import hmac
 import warnings
+
 import logging
 from base64 import urlsafe_b64encode
 from datetime import datetime, timedelta, timezone
-from typing import Any, Union, Optional
+import typing as t
 from urllib.parse import quote
 from viur.core import current, db
 from viur.core.config import conf
@@ -15,7 +16,7 @@ def utcNow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def getCurrentUser() -> Optional["SkeletonInstance"]:
+def getCurrentUser() -> t.Optional["SkeletonInstance"]:
     """
         Retrieve current user, if logged in.
         If a user is logged in, this function returns a dict containing user data.
@@ -52,14 +53,14 @@ def markFileForDeletion(dlkey: str) -> None:
     db.Put(fileObj)
 
 
-def hmacSign(data: Any) -> str:
+def hmacSign(data: t.Any) -> str:
     assert conf.file_hmac_key is not None, "No hmac-key set!"
     if not isinstance(data, bytes):
         data = str(data).encode("UTF-8")
     return hmac.new(conf.file_hmac_key, msg=data, digestmod=hashlib.sha3_384).hexdigest()
 
 
-def hmacVerify(data: Any, signature: str) -> bool:
+def hmacVerify(data: t.Any, signature: str) -> bool:
     return hmac.compare_digest(hmacSign(data), signature)
 
 
@@ -75,8 +76,8 @@ def sanitizeFileName(fileName: str) -> str:
 
 
 def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
-                   expires: Union[timedelta, None] = timedelta(hours=1),
-                   downloadFileName: Optional[str] = None) -> str:
+                   expires: timedelta | None = timedelta(hours=1),
+                   downloadFileName: t.Optional[str] = None) -> str:
     """
         Utility function that creates a signed download-url for the given folder/filename combination
 
@@ -106,7 +107,8 @@ def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
     return "/file/download/%s?sig=%s" % (sigStr.decode("ASCII"), resstr)
 
 
-def srcSetFor(fileObj: dict, expires: Optional[int], width: Optional[int] = None, height: Optional[int] = None) -> str:
+def srcSetFor(fileObj: dict, expires: t.Optional[int], width: t.Optional[int] = None,
+              height: t.Optional[int] = None) -> str:
     """
         Generates a string suitable for use as the srcset tag in html. This functionality provides the browser
         with a list of images in different sizes and allows it to choose the smallest file that will fill it's viewport
@@ -147,9 +149,9 @@ def srcSetFor(fileObj: dict, expires: Optional[int], width: Optional[int] = None
 
 
 def seoUrlToEntry(module: str,
-                  entry: Optional["SkeletonInstance"] = None,
-                  skelType: Optional[str] = None,
-                  language: Optional[str] = None) -> str:
+                  entry: t.Optional["SkeletonInstance"] = None,
+                  skelType: t.Optional[str] = None,
+                  language: t.Optional[str] = None) -> str:
     """
     Return the seo-url to a skeleton instance or the module.
 
@@ -191,7 +193,7 @@ def seoUrlToEntry(module: str,
         return "/".join(pathComponents)
 
 
-def seoUrlToFunction(module: str, function: str, render: Optional[str] = None) -> str:
+def seoUrlToFunction(module: str, function: str, render: t.Optional[str] = None) -> str:
     from viur.core import conf
     lang = current.language.get()
     if module in conf.i18n.language_module_map and lang in conf.i18n.language_module_map[module]:
@@ -216,7 +218,7 @@ def seoUrlToFunction(module: str, function: str, render: Optional[str] = None) -
     return "/".join(pathComponents)
 
 
-def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
+def normalizeKey(key: t.Union[None, 'db.KeyClass']) -> t.Union[None, 'db.KeyClass']:
     """
         Normalizes a datastore key (replacing _application with the current one)
 
