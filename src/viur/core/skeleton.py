@@ -1338,7 +1338,14 @@ class RefSkel(RelSkel):
         """
         newClass = type("RefSkelFor" + kindName, (RefSkel,), {})
         fromSkel = skeletonByKind(kindName)
-        newClass.__boneMap__ = {k: v for k, v in fromSkel.__boneMap__.items() if k in args}
+        bone_map = {}
+        for arg in args:
+            if "*" in arg:  # we have a wild card
+                bone_map |= {k: v for k, v in fromSkel.__boneMap__.items() if k.startswith(arg.replace("*", ""))}
+            else:
+                if bone := fromSkel.__boneMap__.get(arg):
+                    bone_map[arg] = bone
+        newClass.__boneMap__ = bone_map
         return newClass
 
 
