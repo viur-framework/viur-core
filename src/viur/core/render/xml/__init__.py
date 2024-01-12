@@ -9,7 +9,7 @@ __all__ = [default]
 
 @exposed
 def genSkey(*args, **kwargs):
-    return "<securityKey>%s</securityKey>" % securitykey.create()
+    return f"<securityKey>{securitykey.create()}</securityKey>"
 
 
 @exposed

@@ -79,7 +79,7 @@ class translate:
         self.translationCache = None
 
     def __repr__(self) -> str:
-        return "<translate object for %s>" % self.key
+        return f"<translate object for {self.key}>"
 
     def __str__(self) -> str:
         if self.translationCache is None:

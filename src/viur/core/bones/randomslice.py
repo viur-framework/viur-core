@@ -110,13 +110,13 @@ class RandomSliceBone(BaseBone):
                 rndVal = random()  # Choose our Slice center
                 # Right Side
                 q = db.QueryDefinition(origKind, {}, [])
-                property, value = applyFilterHook(dbFilter, "%s <=" % name, rndVal)
+                property, value = applyFilterHook(dbFilter, f"{name} <=", rndVal)
                 q.filters[property] = value
                 q.orders = [(name, db.SortOrder.Descending)]
                 queries.append(q)
                 # Left Side
                 q = db.QueryDefinition(origKind, {}, [])
-                property, value = applyFilterHook(dbFilter, "%s >" % name, rndVal)
+                property, value = applyFilterHook(dbFilter, f"{name} >", rndVal)
                 q.filters[property] = value
                 q.orders = [(name, db.SortOrder.Ascending)]
                 queries.append(q)

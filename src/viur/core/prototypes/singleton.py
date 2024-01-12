@@ -25,7 +25,7 @@ class Singleton(SkelModule):
 
         :returns: Current context DB-key
         """
-        return "%s-modulekey" % self.editSkel().kindName
+        return f"{self.editSkel().kindName}-modulekey"
 
     def viewSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -192,7 +192,7 @@ class Singleton(SkelModule):
         if user["access"] and "root" in user["access"]:
             return True
 
-        if user["access"] and "%s-edit" % self.viewSkel.kindName in user["access"]:
+        if user["access"] and f"{self.viewSkel.kindName}-edit"  in user["access"]:
             return True
 
         return False
@@ -220,7 +220,7 @@ class Singleton(SkelModule):
         if user["access"] and "root" in user["access"]:
             return True
 
-        if user["access"] and "%s-edit" % self.moduleName in user["access"]:
+        if user["access"] and f"{self.moduleName}-edit" in user["access"]:
             return True
 
         return False
@@ -246,7 +246,7 @@ class Singleton(SkelModule):
             return False
         if user["access"] and "root" in user["access"]:
             return True
-        if user["access"] and "%s-view" % self.moduleName in user["access"]:
+        if user["access"] and f"{self.moduleName}-view" in user["access"]:
             return True
         return False
 
@@ -273,10 +273,10 @@ class Singleton(SkelModule):
 
         .. seealso:: :func:`edit`, :func:`onEdit`
         """
-        logging.info("Entry changed: %s" % skel["key"])
+        logging.info(f"""Entry changed: {skel["key"]}""")
         flushCache(key=skel["key"])
         if user := current.user.get():
-            logging.info("User: %s (%s)" % (user["name"], user["key"]))
+            logging.info(f"""User: {user["name"]} ({user["key"]})""")
 
     def onView(self, skel: SkeletonInstance):
         """

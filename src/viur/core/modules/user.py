@@ -126,7 +126,7 @@ class UserSkel(skeleton.Skeleton):
     access = SelectBone(
         descr=i18n.translate("viur.user.bone.access", defaultText="Access rights"),
         values=lambda: {
-            right: i18n.translate("server.modules.user.accessright.%s" % right, defaultText=right)
+            right: i18n.translate(f"server.modules.user.accessright.{right}", defaultText=right)
             for right in sorted(conf.user.access_rights)
         },
         multiple=True,
@@ -1159,7 +1159,7 @@ class User(List):
     def addSkel(self):
         skel = super(User, self).addSkel().clone()
         user = current.user.get()
-        if not (user and user["access"] and ("%s-add" % self.moduleName in user["access"] or "root" in user["access"])):
+        if not (user and user["access"] and (f"{self.moduleName}-add" in user["access"] or "root" in user["access"])):
             skel.status.readOnly = True
             skel["status"] = Status.UNSET
             skel.status.visible = False
@@ -1200,7 +1200,7 @@ class User(List):
         return skel
 
     def secondFactorProviderByClass(self, cls) -> UserSecondFactorAuthentication:
-        return getattr(self, "f2_%s" % cls.__name__.lower())
+        return getattr(self, f"f2_{cls.__name__.lower()}")
 
     def getCurrentUser(self):
         # May be a deferred task
@@ -1475,7 +1475,7 @@ def createNewUserIfNotExists():
             try:
                 addSkel.toDB()
             except Exception as e:
-                logging.error("Something went wrong when trying to add admin user %s with Password %s", uname, pw)
+                logging.error(f"Something went wrong when trying to add admin user {uname} with Password {pw}")
                 logging.exception(e)
                 return
 

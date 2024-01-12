@@ -93,18 +93,18 @@ def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
     # Undo escaping on ()= performed on fileNames
     fileName = fileName.replace("&#040;", "(").replace("&#041;", ")").replace("&#061;", "=")
     if derived:
-        filePath = "%s/derived/%s" % (folder, fileName)
+        filePath = f"{folder}/derived/{fileName}"
     else:
-        filePath = "%s/source/%s" % (folder, fileName)
+        filePath = f"{folder}/source/{fileName}"
     if downloadFileName:
         downloadFileName = sanitizeFileName(downloadFileName)
     else:
         downloadFileName = ""
     expires = ((datetime.now() + expires).strftime("%Y%m%d%H%M") if expires else 0)
-    sigStr = "%s\0%s\0%s" % (filePath, expires, downloadFileName)
+    sigStr = f"{filePath}\0{expires}\0{downloadFileName}"
     sigStr = urlsafe_b64encode(sigStr.encode("UTF-8"))
     resstr = hmacSign(sigStr)
-    return "/file/download/%s?sig=%s" % (sigStr.decode("ASCII"), resstr)
+    return f"""/file/download/{sigStr.decode("ASCII")}?sig={resstr}"""
 
 
 def srcSetFor(fileObj: dict, expires: t.Optional[int], width: t.Optional[int] = None,
@@ -142,9 +142,9 @@ def srcSetFor(fileObj: dict, expires: t.Optional[int], width: t.Optional[int] = 
     for fileName, derivate in fileObj["derived"]["files"].items():
         customData = derivate.get("customData", {})
         if width and customData.get("width") in width:
-            resList.append("%s %sw" % (downloadUrlFor(fileObj["dlkey"], fileName, True, expires), customData["width"]))
+            resList.append(f"""{downloadUrlFor(fileObj["dlkey"], fileName, True, expires)} {customData["width"]}""")
         if height and customData.get("height") in height:
-            resList.append("%s %sh" % (downloadUrlFor(fileObj["dlkey"], fileName, True, expires), customData["height"]))
+            resList.append(f"""downloadUrlFor(fileObj["dlkey"], fileName, True, expires) {customData["height"]}h""")
     return ", ".join(resList)
 
 

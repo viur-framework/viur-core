@@ -156,7 +156,7 @@ class NumericBone(BaseBone):
                         paramValue = float(paramValue)
                 except ValueError:
                     # The value we should filter by is garbage, cancel this query
-                    logging.warning("Invalid filtering! Unparsable int/float supplied to NumericBone %s" % name)
+                    logging.warning(f"Invalid filtering! Unparsable int/float supplied to NumericBone {name}")
                     raise RuntimeError()
                 updatedFilter[parmKey] = paramValue
 

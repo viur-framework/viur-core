@@ -91,7 +91,7 @@ def sendEmailDeferred(emailKey: db.Key):
         Callback from the Taskqueue to send the given Email
         :param emailKey: Database-Key of the email we should send
     """
-    logging.debug("Sending deferred email: %s" % str(emailKey))
+    logging.debug(f"Sending deferred email: {emailKey}")
     queueEntity = db.Get(emailKey)
     assert queueEntity, "Email queue object went missing!"
     if queueEntity["isSend"]:
@@ -211,7 +211,7 @@ def sendEMail(*,
         assert all(["filename" in x for x in attachments]), "Attachment is missing the filename key"
     # If conf.email.recipient_override is set we'll redirect any email to these address(es)
     if conf.email.recipient_override:
-        logging.warning("Overriding destination %s with %s", dests, conf.email.recipient_override)
+        logging.warning(f"Overriding destination {dests} with {conf.email.recipient_override}")
         oldDests = dests
         newDests = normalize_to_list(conf.email.recipient_override)
         dests = []
@@ -248,9 +248,9 @@ def sendEMail(*,
     transportClass.validateQueueEntity(queueEntity)  # Will raise an exception if the entity is not valid
     if conf.instance.is_dev_server and not conf.email.send_from_local_development_server:
         logging.info("Not sending email from local development server")
-        logging.info("Subject: %s", queueEntity["subject"])
-        logging.info("Body: %s", queueEntity["body"])
-        logging.info("Recipients: %s", queueEntity["dests"])
+        logging.info(f"""Subject: {queueEntity["subject"]}""")
+        logging.info(f"""Body: {queueEntity["body"]}""")
+        logging.info(f"""Recipients: {queueEntity["dests"]}""")
         return False
     db.Put(queueEntity)
     sendEmailDeferred(queueEntity.key, _queue="viur-emails")
@@ -289,8 +289,8 @@ def sendEMailToAdmins(subject: str, body: str, *args, **kwargs) -> bool:
     finally:
         if not success:
             logging.critical("Cannot send mail to Admins.")
-            logging.critical("Subject of mail: %s", subject)
-            logging.critical("Content of mail: %s", body)
+            logging.critical(f"Subject of mail: {subject}")
+            logging.critical(f"Content of mail: {body}")
 
     return False
 
@@ -315,7 +315,7 @@ class EmailTransportSendInBlue(EmailTransport):
         posGt = address.rfind(">")
         if -1 < posLt < posGt:
             email = address[posLt + 1:posGt]
-            sname = address.replace("<%s>" % email, "", 1).strip()
+            sname = address.replace(f"<{email}>", "", 1).strip()
             return {"name": sname, "email": email}
         else:
             return {"email": address}
@@ -384,7 +384,7 @@ class EmailTransportSendInBlue(EmailTransport):
         for attachment in entity.get("attachments") or []:
             ext = attachment["filename"].split(".")[-1].lower()
             if ext not in EmailTransportSendInBlue.allowedExtensions:
-                raise ValueError("The file-extension %s cannot be send using Send in Blue" % ext)
+                raise ValueError(f"The file-extension {ext} cannot be send using Send in Blue")
 
     @PeriodicTask(60 * 60)
     @staticmethod

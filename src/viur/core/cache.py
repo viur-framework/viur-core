@@ -69,7 +69,7 @@ def keyFromArgs(f: t.Callable, userSensitive: int, languageSensitive: bool, eval
     for k, v in kwargs.items():
         if k in evaluatedArgs:
             if k in setArgs:
-                raise AssertionError("Got dupplicate arguments for %s" % k)
+                raise AssertionError(f"Got dupplicate arguments for {k}")
             res[k] = v
     if userSensitive:
         user = current.user.get()
@@ -135,7 +135,7 @@ def wrapCallable(f, urls: list[str], userSensitive: int, languageSensitive: bool
         path = "/" + "/".join(currReq.path_list[: offset])
         if not path in urls:
             # This path (possibly a sub-render) should not be cached
-            logging.debug("Not caching for %s" % path)
+            logging.debug(f"Not caching for {path}")
             return f(self, *args, **kwargs)
         key = keyFromArgs(f, userSensitive, languageSensitive, evaluatedArgs, path, args, kwargs)
         if not key:
@@ -240,22 +240,22 @@ def flushCache(prefix: str = None, key: db.Key | None = None, kind:  str | None 
                 .iter()
             for item in items:
                 db.Delete(item)
-        logging.debug("Flushing cache succeeded. Everything matching \"%s\" is gone." % prefix)
+        logging.debug(f"Flushing cache succeeded. Everything matching \"{prefix}\" is gone.")
     if key is not None:
         items = db.Query(viurCacheName).filter("accessedEntries =", key).iter()
         for item in items:
-            logging.info("Deleted cache entry %s", item["path"])
+            logging.info(f"""Deleted cache entry { item["path"]}""")
             db.Delete(item.key)
         if not isinstance(key, db.Key):
             key = db.Key.from_legacy_urlsafe(key)  # hopefully is a string
         items = db.Query(viurCacheName).filter("accessedEntries =", key.kind).iter()
         for item in items:
-            logging.info("Deleted cache entry %s", item["path"])
+            logging.info(f"""Deleted cache entry {item["path"]}""")
             db.Delete(item.key)
     if kind is not None:
         items = db.Query(viurCacheName).filter("accessedEntries =", kind).iter()
         for item in items:
-            logging.info("Deleted cache entry %s", item["path"])
+            logging.info(f"""Deleted cache entry { item["path"]}""")
             db.Delete(item.key)
 
 

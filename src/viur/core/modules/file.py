@@ -70,7 +70,7 @@ def importBlobFromViur2(dlKey, fileName):
         marker["oldBlobName"] = oldBlobName
         db.Put(marker)
         return False
-    bucket.rename_blob(srcBlob, "%s/source/%s" % (dlKey, fileName))
+    bucket.rename_blob(srcBlob, f"{dlKey}/source/{fileName}")
     marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
     marker["success"] = True
     marker["old_src_key"] = dlKey
@@ -93,9 +93,9 @@ class InjectStoreURLBone(BaseBone):
 
 def thumbnailer(fileSkel, existingFiles, params):
     file_name = html.unescape(fileSkel["name"])
-    blob = bucket.get_blob("%s/source/%s" % (fileSkel["dlkey"], file_name))
+    blob = bucket.get_blob(f"""{fileSkel["dlkey"]}/source/{file_name}""")
     if not blob:
-        logging.warning("Blob %s/source/%s is missing from cloud storage!" % (fileSkel["dlkey"], file_name))
+        logging.warning(f"""Blob {fileSkel["dlkey"]}/source/{file_name} is missing from cloud storage!""")
         return
     fileData = BytesIO()
     blob.download_to_file(fileData)
@@ -127,11 +127,11 @@ def thumbnailer(fileSkel, existingFiles, params):
         if "width" in sizeDict and "height" in sizeDict:
             width = sizeDict["width"]
             height = sizeDict["height"]
-            targetName = "thumbnail-%s-%s.%s" % (width, height, fileExtension)
+            targetName = f"thumbnail-{width}-{height}.{fileExtension}"
         elif "width" in sizeDict:
             width = sizeDict["width"]
             height = int((float(img.size[1]) * float(width / float(img.size[0]))))
-            targetName = "thumbnail-w%s.%s" % (width, fileExtension)
+            targetName = f"thumbnail-w{width}.{fileExtension}"
         else:  # No default fallback - ignore
             continue
         mimeType = sizeDict.get("mimeType", "image/webp")
@@ -139,7 +139,7 @@ def thumbnailer(fileSkel, existingFiles, params):
         img.save(outData, fileExtension)
         outSize = outData.tell()
         outData.seek(0)
-        targetBlob = bucket.blob("%s/derived/%s" % (fileSkel["dlkey"], targetName))
+        targetBlob = bucket.blob(f"""{fileSkel["dlkey"]}/derived/{targetName}""")
         targetBlob.upload_from_file(outData, content_type=mimeType)
         resList.append((targetName, outSize, mimeType, {"mimetype": mimeType, "width": width, "height": height}))
     return resList
@@ -185,7 +185,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
             authRequest = requests.Request()
             expiresAt = datetime.now() + timedelta(seconds=60)
             signing_credentials = compute_engine.IDTokenCredentials(authRequest, "")
-            contentDisposition = "filename=%s" % fileSkel["name"]
+            contentDisposition = f"""filename={fileSkel["name"]}"""
             signedUrl = blob.generate_signed_url(
                 expiresAt,
                 credentials=signing_credentials,
@@ -245,7 +245,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
     uploadUrls = {}
     for data in derivedData["values"]:
         fileName = sanitizeFileName(data["name"])
-        blob = bucket.blob("%s/derived/%s" % (fileSkel["dlkey"], fileName))
+        blob = bucket.blob(f"""{fileSkel["dlkey"]}/derived/{fileName}""")
         uploadUrls[fileSkel["dlkey"] + fileName] = blob.create_resumable_upload_session(timeout=60,
                                                                                         content_type=data["mimeType"])
 
@@ -431,7 +431,7 @@ class File(Tree):
         """
         dl_key = utils.string.random()
 
-        blob = bucket.blob("%s/source/%s" % (dl_key, filename))
+        blob = bucket.blob(f"{dl_key}/source/{filename}")
         blob.upload_from_file(BytesIO(content), content_type=mimetype)
 
         skel = self.addSkel("leaf")
@@ -534,7 +534,7 @@ class File(Tree):
         fileName = sanitizeFileName(fileName)
 
         targetKey = utils.string.random()
-        blob = bucket.blob("%s/source/%s" % (targetKey, fileName))
+        blob = bucket.blob(f"{targetKey}/source/{filename}")
         uploadUrl = blob.create_resumable_upload_session(content_type=mimeType, size=size, timeout=60)
         # Create a corresponding file-lock object early, otherwise we would have to ensure that the file-lock object
         # the user creates matches the file he had uploaded
@@ -663,13 +663,13 @@ class File(Tree):
         if not blob:
             raise errors.Gone()
         if downloadFilename:
-            contentDisposition = "attachment; filename=%s" % downloadFilename
+            contentDisposition = f"attachment; filename={downloadFilename}"
         elif download:
             fileName = sanitizeFileName(blob.name.split("/")[-1])
-            contentDisposition = "attachment; filename=%s" % fileName
+            contentDisposition = f"attachment; filename={fileName}"
         else:
             fileName = sanitizeFileName(blob.name.split("/")[-1])
-            contentDisposition = "filename=%s" % fileName
+            contentDisposition = f"filename={fileName}"
         if isinstance(credentials, ServiceAccountCredentials):  # We run locally with an service-account.json
             expiresAt = datetime.now() + timedelta(seconds=60)
             signedUrl = blob.generate_signed_url(expiresAt, response_disposition=contentDisposition, version="v4")
@@ -728,7 +728,7 @@ class File(Tree):
                     raise errors.Forbidden()
                 session["pendingFileUploadKeys"].remove(targetKey)
                 session.markChanged()
-            blobs = list(bucket.list_blobs(prefix="%s/" % skel["dlkey"]))
+            blobs = list(bucket.list_blobs(prefix=f"""{skel["dlkey"]}/"""))
             if len(blobs) != 1:
                 logging.error("Invalid number of blobs in folder")
                 logging.error(targetKey)
@@ -737,7 +737,7 @@ class File(Tree):
             skel["mimetype"] = utils.string.escape(blob.content_type)
             if any([x in blob.name for x in "$<>'\""]):  # Prevent these Characters from being used in a fileName
                 raise errors.PreconditionFailed()
-            skel["name"] = utils.string.escape(blob.name.replace("%s/source/" % skel["dlkey"], ""))
+            skel["name"] = utils.string.escape(blob.name.replace(f"""{skel["dlkey"]}/source/""", ""))
             skel["size"] = blob.size
             skel["parentrepo"] = rootNode["key"] if rootNode else None
             skel["weak"] = rootNode is None
@@ -800,17 +800,17 @@ def doCheckForUnreferencedBlobs(cursor=None):
         for blobKey in oldBlobKeys:
             if db.Query("viur-blob-locks").filter("active_blob_references =", blobKey).getEntry():
                 # This blob is referenced elsewhere
-                logging.info("Stale blob is still referenced, %s" % blobKey)
+                logging.info(f"Stale blob is still referenced, {blobKey}")
                 continue
             # Add a marker and schedule it for deletion
             fileObj = db.Query("viur-deleted-files").filter("dlkey", blobKey).getEntry()
             if fileObj:  # Its already marked
-                logging.info("Stale blob already marked for deletion, %s" % blobKey)
+                logging.info(f"Stale blob already marked for deletion, {blobKey}")
                 return
             fileObj = db.Entity(db.Key("viur-deleted-files"))
             fileObj["itercount"] = 0
             fileObj["dlkey"] = str(blobKey)
-            logging.info("Stale blob marked dirty, %s" % blobKey)
+            logging.info(f"Stale blob marked dirty, {blobKey}")
             db.Put(fileObj)
     newCursor = query.getCursor()
     if newCursor:
@@ -836,12 +836,12 @@ def doCleanupDeletedFiles(cursor=None):
         if not "dlkey" in file:
             db.Delete(file.key)
         elif db.Query("viur-blob-locks").filter("active_blob_references =", file["dlkey"]).getEntry():
-            logging.info("is referenced, %s" % file["dlkey"])
+            logging.info(f"""is referenced, {file["dlkey"]}""")
             db.Delete(file.key)
         else:
             if file["itercount"] > maxIterCount:
-                logging.info("Finally deleting, %s" % file["dlkey"])
-                blobs = bucket.list_blobs(prefix="%s/" % file["dlkey"])
+                logging.info(f"""Finally deleting, {file["dlkey"]}""" )
+                blobs = bucket.list_blobs(prefix=f"""{file["dlkey"]}/""")
                 for blob in blobs:
                     blob.delete()
                 db.Delete(file.key)
@@ -849,7 +849,7 @@ def doCleanupDeletedFiles(cursor=None):
                 for f in skeletonByKind("file")().all().filter("dlkey =", file["dlkey"]).fetch(99):
                     f.delete()
             else:
-                logging.debug("Increasing count, %s" % file["dlkey"])
+                logging.debug(f"""Increasing count, {file["dlkey"]}""")
                 file["itercount"] += 1
                 db.Put(file)
     newCursor = query.getCursor()
