@@ -1,7 +1,7 @@
 import copy
 import inspect
 import types
-import typing
+import typing as t
 import logging
 from viur.core import db, errors, current, utils
 from viur.core.config import conf
@@ -13,7 +13,7 @@ class Method:
     """
 
     @classmethod
-    def ensure(cls, func: typing.Callable | "Method") -> "Method":
+    def ensure(cls, func: t.Callable | "Method") -> "Method":
         """
         Ensures the provided `func` parameter is either a Method already, or turns it
         into a Method. This is done to avoid stacking Method objects, which may create
@@ -24,7 +24,7 @@ class Method:
 
         return cls(func)
 
-    def __init__(self, func: typing.Callable):
+    def __init__(self, func: t.Callable):
         # Content
         self._func = func
         self.__name__ = func.__name__
@@ -76,7 +76,7 @@ class Method:
         if trace := conf.debug.trace:
             logging.debug(f"calling {self._func=} with raw {args=}, {kwargs=}")
 
-        def parse_value_by_annotation(annotation: type, name: str, value: str | list | tuple) -> typing.Any:
+        def parse_value_by_annotation(annotation: type, name: str, value: str | list | tuple) -> t.Any:
             """
             Tries to parse a value according to a given type.
             May be called recursively to handle unions, lists and tuples as well.
@@ -89,12 +89,12 @@ class Method:
             elif annotation is float:
                 return float(value)
             elif annotation is bool:
-                return utils.parse_bool(value)
+                return utils.parse.bool(value)
             elif annotation is types.NoneType:
                 return None
 
             # complex types
-            origin_type = typing.get_origin(annotation)
+            origin_type = t.get_origin(annotation)
 
             if origin_type is list and len(annotation.__args__) == 1:
                 if not isinstance(value, list):
@@ -108,13 +108,13 @@ class Method:
 
                 return tuple(parse_value_by_annotation(annotation.__args__[0], name, item) for item in value)
 
-            elif origin_type is typing.Literal:
+            elif origin_type is t.Literal:
                 if not any(value == str(literal) for literal in annotation.__args__):
                     raise errors.NotAcceptable(f"Expecting any of {annotation.__args__} for {name}")
 
                 return value
 
-            elif origin_type is typing.Union or isinstance(annotation, types.UnionType):
+            elif origin_type is t.Union or isinstance(annotation, types.UnionType):
                 for i, sub_annotation in enumerate(annotation.__args__):
                     try:
                         return parse_value_by_annotation(sub_annotation, name, value)
@@ -304,7 +304,7 @@ class Method:
         """
         Describes the Method with a
         """
-        return_doc = typing.get_type_hints(self._func).get("return")
+        return_doc = t.get_type_hints(self._func).get("return")
 
         ret = {
             "args": {
@@ -349,7 +349,7 @@ class Module:
     This is the root module prototype that serves a minimal module in the ViUR system without any other bindings.
     """
 
-    handler: str | typing.Callable = None
+    handler: str | t.Callable = None
     """
     This is the module's handler, respectively its type.
     Use the @property-decorator in specific Modules to construct the handler's value dynamically.
@@ -410,7 +410,7 @@ class Module:
     Great, this part is now user and robot friendly :)
     """
 
-    adminInfo: dict[str, typing.Any] | typing.Callable = None
+    adminInfo: dict[str, t.Any] | t.Callable = None
     """
         This is a ``dict`` holding the information necessary for the Vi/Admin to handle this module.
 
@@ -446,7 +446,7 @@ class Module:
                 replaced as needed. If more than one preview-url is needed, supply a dictionary where the key is
                 the URL and the value the description shown to the user.
 
-            views: ``List[Dict[str, typing.Any]]``
+            views: ``List[Dict[str, t.Any]]``
                 (Optional) List of nested adminInfo like dictionaries. Used to define
                 additional views on the module. Useful f.e. for an order module, where you want separate list of
                 "payed orders", "unpayed orders", "orders waiting for shipment", etc.  If such views are defined,
@@ -487,7 +487,7 @@ class Module:
             moduleGroup: ``str``
                 (Optional) If set, should be a key of a moduleGroup defined in .... .
 
-            editViews: ``Dict[str, typing.Any]``
+            editViews: ``Dict[str, t.Any]``
                 (Optional) If set, will embed another list-widget in the edit forms for
                 a given entity. See .... for more details.
 
@@ -525,7 +525,7 @@ class Module:
         for key in dir(self):
             if key[0] == "_":
                 continue
-            if not hasattr(self, key):
+            if isinstance(getattr(self.__class__, key, None), property):
                 continue
 
             prop = getattr(self, key)

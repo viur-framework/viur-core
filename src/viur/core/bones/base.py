@@ -12,7 +12,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
+import typing as t
 
 from viur.core import db, utils
 from viur.core.config import conf
@@ -76,9 +76,9 @@ class ReadFromClientError:
     """A ReadFromClientErrorSeverity enumeration value representing the severity of the error."""
     errorMessage: str
     """A string containing a human-readable error message describing the issue."""
-    fieldPath: List[str] = field(default_factory=list)
+    fieldPath: list[str] = field(default_factory=list)
     """A list of strings representing the path to the field where the error occurred."""
-    invalidatedFields: List[str] = None
+    invalidatedFields: list[str] = None
     """A list of strings containing the names of invalidated fields, if any."""
 
 
@@ -192,18 +192,18 @@ class BaseBone(object):
         self,
         *,
         compute: Compute = None,
-        defaultValue: Any = None,
+        defaultValue: t.Any = None,
         descr: str = "",
         getEmptyValueFunc: callable = None,
         indexed: bool = True,
         isEmptyFunc: callable = None,  # fixme: Rename this, see below.
-        languages: Union[None, List[str]] = None,
-        multiple: Union[bool, MultipleConstraints] = False,
-        params: Dict = None,
+        languages: None | list[str] = None,
+        multiple: bool | MultipleConstraints = False,
+        params: dict = None,
         readOnly: bool = None,  # fixme: Rename into readonly (all lowercase!) soon.
-        required: Union[bool, List[str], Tuple[str]] = False,
+        required: bool | list[str] | tuple[str] = False,
         searchable: bool = False,
-        unique: Union[None, UniqueValue] = None,
+        unique: None | UniqueValue = None,
         vfunc: callable = None,  # fixme: Rename this, see below.
         visible: bool = True,
     ):
@@ -306,7 +306,7 @@ class BaseBone(object):
         """
         return False
 
-    def isEmpty(self, value: Any) -> bool:
+    def isEmpty(self, value: t.Any) -> bool:
         """
             Check if the given single value represents the "empty" value.
             This usually is the empty string, 0 or False.
@@ -339,7 +339,7 @@ class BaseBone(object):
         else:
             return self.defaultValue
 
-    def getEmptyValue(self) -> Any:
+    def getEmptyValue(self) -> t.Any:
         """
             Returns the value representing an empty field for this bone.
             This might be the empty string for str/text Bones, Zero for numeric bones etc.
@@ -482,9 +482,9 @@ class BaseBone(object):
         """
         return False
 
-    def singleValueFromClient(self, value: Any, skel: 'SkeletonInstance',
+    def singleValueFromClient(self, value: t.Any, skel: 'SkeletonInstance',
                               bone_name: str, client_data: dict
-                              ) -> tuple[Any, list[ReadFromClientError] | None]:
+                              ) -> tuple[t.Any, list[ReadFromClientError] | None]:
         """Load a single value from a client
 
         :param value: The single value which should be loaded.
@@ -501,7 +501,7 @@ class BaseBone(object):
         return self.getEmptyValue(), [
             ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Will not read a BaseBone fromClient!")]
 
-    def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> Union[None, List[ReadFromClientError]]:
+    def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> None | list[ReadFromClientError]:
         """
         Reads a value from the client and stores it in the skeleton instance if it is valid for the bone.
 
@@ -586,7 +586,7 @@ class BaseBone(object):
             errors.extend(self.validateMultipleConstraints(skel, name))
         return errors or None
 
-    def validateMultipleConstraints(self, skel: 'SkeletonInstance', name: str) -> List[ReadFromClientError]:
+    def validateMultipleConstraints(self, skel: 'SkeletonInstance', name: str) -> list[ReadFromClientError]:
         """
         Validates the value of a bone against its multiple constraints and returns a list of ReadFromClientError
         objects for each violation, such as too many items or duplicates.
@@ -844,8 +844,8 @@ class BaseBone(object):
                       name: str,
                       skel: 'viur.core.skeleton.SkeletonInstance',
                       dbFilter: db.Query,
-                      rawFilter: Dict,
-                      prefix: Optional[str] = None) -> db.Query:
+                      rawFilter: dict,
+                      prefix: t.Optional[str] = None) -> db.Query:
         """
             Parses the searchfilter a client specified in his Request into
             something understood by the datastore.
@@ -896,7 +896,7 @@ class BaseBone(object):
                     name: str,
                     skel: 'viur.core.skeleton.SkeletonInstance',
                     dbFilter: db.Query,
-                    rawFilter: Dict) -> Optional[db.Query]:
+                    rawFilter: dict) -> t.Optional[db.Query]:
         """
             Same as buildDBFilter, but this time its not about filtering
             the results, but by sorting them.
@@ -945,7 +945,7 @@ class BaseBone(object):
                 dbFilter.order(order)
         return dbFilter
 
-    def _hashValueForUniquePropertyIndex(self, value: Union[str, int]) -> List[str]:
+    def _hashValueForUniquePropertyIndex(self, value: str | int) -> list[str]:
         """
         Generates a hash of the given value for creating unique property indexes.
 
@@ -958,7 +958,7 @@ class BaseBone(object):
         :return: A list containing a string representation of the hashed value. If the bone is multiple,
                 the list may contain more than one hashed value.
         """
-        def hashValue(value: Union[str, int]) -> str:
+        def hashValue(value: str | int) -> str:
             h = hashlib.sha256()
             h.update(str(value).encode("UTF-8"))
             res = h.hexdigest()
@@ -994,7 +994,7 @@ class BaseBone(object):
         # Lock the value for that specific list
         return [hashValue(", ".join(tmpList))]
 
-    def getUniquePropertyIndexValues(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> List[str]:
+    def getUniquePropertyIndexValues(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> list[str]:
         """
         Returns a list of hashes for the current value(s) of a bone in the skeleton, used for storing in the
         unique property value index.
@@ -1011,13 +1011,13 @@ class BaseBone(object):
             return []
         return self._hashValueForUniquePropertyIndex(val)
 
-    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
         Returns a set of blob keys referenced from this bone
         """
         return set()
 
-    def performMagic(self, valuesCache: Dict, name: str, isAdd: bool):
+    def performMagic(self, valuesCache: dict, name: str, isAdd: bool):
         """
             This function applies "magically" functionality which f.e. inserts the current Date
             or the current user.
@@ -1051,7 +1051,7 @@ class BaseBone(object):
         """
         pass
 
-    def mergeFrom(self, valuesCache: Dict, boneName: str, otherSkel: 'viur.core.skeleton.SkeletonInstance'):
+    def mergeFrom(self, valuesCache: dict, boneName: str, otherSkel: 'viur.core.skeleton.SkeletonInstance'):
         """
         Merges the values from another skeleton instance into the current instance, given that the bone types match.
 
@@ -1076,9 +1076,9 @@ class BaseBone(object):
     def setBoneValue(self,
                      skel: 'SkeletonInstance',
                      boneName: str,
-                     value: Any,
+                     value: t.Any,
                      append: bool,
-                     language: Union[None, str] = None) -> bool:
+                     language: None | str = None) -> bool:
         """
         Sets the value of a bone in a skeleton instance, with optional support for appending and language-specific
         values. Sanity checks are being performed.
@@ -1132,7 +1132,7 @@ class BaseBone(object):
             skel[boneName][language] = val
         return True
 
-    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
         Returns a set of strings as search index for this bone.
 
@@ -1150,7 +1150,7 @@ class BaseBone(object):
 
     def iter_bone_value(
         self, skel: 'viur.core.skeleton.SkeletonInstance', name: str
-    ) -> Iterator[Tuple[Optional[int], Optional[str], Any]]:
+    ) -> t.Iterator[tuple[t.Optional[int], t.Optional[str], t.Any]]:
         """
         Yield all values from the Skeleton related to this bone instance.
 

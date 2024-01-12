@@ -2,13 +2,13 @@ from collections import OrderedDict
 
 import logging
 import os
+import typing as t
 import urllib
 import urllib.parse
 from datetime import timedelta
 from hashlib import sha512
 from qrcode import make as qrcode_make
 from qrcode.image import svg as qrcode_svg
-from typing import Any, Dict, List, NoReturn, Optional, Union
 
 import string
 from viur.core import Method, current, db, errors, prototypes, securitykey, utils
@@ -37,7 +37,7 @@ def translate(
 
 
 @jinjaGlobalFunction
-def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
+def execRequest(render: Render, path: str, *args, **kwargs) -> t.Any:
     """
     Jinja2 global: Perform an internal Request.
 
@@ -123,7 +123,7 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> Any:
 
 
 @jinjaGlobalFunction
-def getCurrentUser(render: Render) -> Optional[SkeletonInstance]:
+def getCurrentUser(render: Render) -> t.Optional[SkeletonInstance]:
     """
     Jinja2 global: Returns the current user from the session, or None if not logged in.
 
@@ -137,7 +137,7 @@ def getCurrentUser(render: Render) -> Optional[SkeletonInstance]:
 
 
 @jinjaGlobalFunction
-def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel") -> Union[dict, bool, None]:
+def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel") -> dict | bool | None:
     """
     Jinja2 global: Fetch an entry from a given module, and return the data as a dict,
     prepared for direct use in the output.
@@ -244,7 +244,7 @@ def getAppVersion(render: Render) -> str:
 
 
 @jinjaGlobalFunction
-def redirect(render: Render, url: str) -> NoReturn:
+def redirect(render: Render, url: str) -> t.NoReturn:
     """
     Jinja2 global: Redirect to another URL.
 
@@ -295,7 +295,7 @@ def modulePath(render: Render) -> str:
 
 @jinjaGlobalFunction
 def getList(render: Render, module: str, skel: str = "viewSkel",
-            _noEmptyFilter: bool = False, *args, **kwargs) -> Union[bool, None, List[SkeletonInstance]]:
+            _noEmptyFilter: bool = False, *args, **kwargs) -> bool | None | list[SkeletonInstance]:
     """
     Jinja2 global: Fetches a list of entries which match the given filter criteria.
 
@@ -343,7 +343,7 @@ def getSecurityKey(render: Render, **kwargs) -> str:
 def getStructure(render: Render,
                  module: str,
                  skel: str = "viewSkel",
-                 subSkel: Optional[str] = None) -> Union[Dict, bool]:
+                 subSkel: t.Optional[str] = None) -> dict | bool:
     """
     Jinja2 global: Returns the skeleton structure instead of data for a module.
 
@@ -375,7 +375,7 @@ def getStructure(render: Render,
 
 
 @jinjaGlobalFunction
-def requestParams(render: Render) -> Dict[str, str]:
+def requestParams(render: Render) -> dict[str, str]:
     """
     Jinja2 global: Allows for accessing the request-parameters from the template.
 
@@ -385,7 +385,7 @@ def requestParams(render: Render) -> Dict[str, str]:
     """
     res = {}
     for k, v in current.request.get().kwargs.items():
-        res[utils.escapeString(k)] = utils.escapeString(v)
+        res[utils.string.escape(k)] = utils.string.escape(v)
     return res
 
 
@@ -416,7 +416,7 @@ def updateURL(render: Render, **kwargs) -> str:
 
 
 @jinjaGlobalFilter
-def fileSize(render: Render, value: Union[int, float], binary: bool = False) -> str:
+def fileSize(render: Render, value: int | float, binary: bool = False) -> str:
     """
     Jinja2 filter: Format the value in an 'human-readable' file size (i.e. 13 kB, 4.1 MB, 102 Bytes, etc).
     Per default, decimal prefixes are used (Mega, Giga, etc.). When the second parameter is set to True,
@@ -504,7 +504,7 @@ def className(render: Render, s: str) -> str:
 
 
 @jinjaGlobalFilter
-def shortKey(render: Render, val: str) -> Optional[str]:
+def shortKey(render: Render, val: str) -> t.Optional[str]:
     """
     Jinja2 filter: Make a shortkey from an entity-key.
 
@@ -559,11 +559,11 @@ def renderEditBone(render: Render, skel, boneName, boneErrors=None, prefix=None)
 
 @jinjaGlobalFunction
 def renderEditForm(render: Render,
-                   skel: Dict,
-                   ignore: List[str] = None,
-                   hide: List[str] = None,
+                   skel: dict,
+                   ignore: list[str] = None,
+                   hide: list[str] = None,
                    prefix=None,
-                   bones: List[str] = None,
+                   bones: list[str] = None,
                    ) -> str:
     """Render an edit-form based on a skeleton.
 
@@ -644,7 +644,7 @@ def renderEditForm(render: Render,
 
 
 @jinjaGlobalFunction
-def embedSvg(render: Render, name: str, classes: Union[List[str], None] = None, **kwargs: Dict[str, str]) -> str:
+def embedSvg(render: Render, name: str, classes: list[str] | None = None, **kwargs: dict[str, str]) -> str:
     """
     jinja2 function to get an <img/>-tag for a SVG.
     This method will not check the existence of a SVG!
@@ -675,9 +675,9 @@ def embedSvg(render: Render, name: str, classes: Union[List[str], None] = None, 
 @jinjaGlobalFunction
 def downloadUrlFor(render: Render,
                    fileObj: dict,
-                   expires: Union[None, int] = conf.render_html_download_url_expiration,
-                   derived: Optional[str] = None,
-                   downloadFileName: Optional[str] = None) -> Optional[str]:
+                   expires: None | int = conf.render_html_download_url_expiration,
+                   derived: t.Optional[str] = None,
+                   downloadFileName: t.Optional[str] = None) -> t.Optional[str]:
     """
     Constructs a signed download-url for the given file-bone. Mostly a wrapper around
         :meth:`viur.core.utils.downloadUrlFor`.
@@ -710,8 +710,8 @@ def downloadUrlFor(render: Render,
 
 
 @jinjaGlobalFunction
-def srcSetFor(render: Render, fileObj: dict, expires: Optional[int],
-              width: Optional[int] = None, height: Optional[int] = None) -> str:
+def srcSetFor(render: Render, fileObj: dict, expires: t.Optional[int],
+              width: t.Optional[int] = None, height: t.Optional[int] = None) -> str:
     """
     Generates a string suitable for use as the srcset tag in html. This functionality provides the browser with a list
     of images in different sizes and allows it to choose the smallest file that will fill it's viewport without

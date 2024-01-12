@@ -1,5 +1,5 @@
 from random import random, sample, shuffle
-from typing import Dict, List, Optional
+import typing as t
 
 from itertools import chain
 from math import ceil
@@ -59,8 +59,8 @@ class RandomSliceBone(BaseBone):
         name: str,
         skel: 'viur.core.skeleton.SkeletonInstance',
         dbFilter: db.Query,
-        rawFilter: Dict
-    ) -> Optional[db.Query]:
+        rawFilter: dict
+    ) -> t.Optional[db.Query]:
         """
         Modifies the database query to return a random selection of elements by creating multiple
         subqueries, each covering a slice of the data. This method doesn't just change the order of
@@ -138,7 +138,8 @@ class RandomSliceBone(BaseBone):
         """
         return ceil(targetAmount * self.sliceSize)
 
-    def customMultiQueryMerge(self, dbFilter: db.Query, result: List[db.Entity], targetAmount: int) -> List[db.Entity]:
+    def customMultiQueryMerge(self, dbFilter: db.Query, result: list[db.Entity], targetAmount: int) \
+            -> list[db.Entity]:
         """
         Merges the results of multiple subqueries by randomly selecting 'targetAmount' elements
         from the combined 'result' list.

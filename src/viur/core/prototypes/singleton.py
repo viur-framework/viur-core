@@ -1,11 +1,10 @@
 import logging
-from typing import Any
-from viur.core import db, current, errors
+import typing as t
+from viur.core import db, current, utils, errors
 from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
 from .skelmodule import SkelModule
-from ..utils import parse_bool
 
 
 class Singleton(SkelModule):
@@ -58,7 +57,7 @@ class Singleton(SkelModule):
 
     @exposed
     @skey
-    def preview(self, *args, **kwargs) -> Any:
+    def preview(self, *args, **kwargs) -> t.Any:
         """
         Renders data for the entry, without reading it from the database.
         This function allows to preview the entry without writing it to the database.
@@ -78,7 +77,7 @@ class Singleton(SkelModule):
         return self.render.view(skel)
 
     @exposed
-    def structure(self, *args, **kwargs) -> Any:
+    def structure(self, *args, **kwargs) -> t.Any:
         """
         :returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
             in each bone.
@@ -91,7 +90,7 @@ class Singleton(SkelModule):
         return self.render.view(skel)
 
     @exposed
-    def view(self, *args, **kwargs) -> Any:
+    def view(self, *args, **kwargs) -> t.Any:
         """
         Prepares and renders the singleton entry for viewing.
 
@@ -120,7 +119,7 @@ class Singleton(SkelModule):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def edit(self, *args, **kwargs) -> Any:
+    def edit(self, *args, **kwargs) -> t.Any:
         """
         Modify the existing entry, and render the entry, eventually with error notes on incorrect data.
 
@@ -146,7 +145,7 @@ class Singleton(SkelModule):
         if (
             not kwargs  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or parse_bool(kwargs.get("bounce"))  # review before changing
+            or utils.parse.bool(kwargs.get("bounce"))  # review before changing
         ):
             return self.render.edit(skel)
 

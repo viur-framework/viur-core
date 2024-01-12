@@ -11,7 +11,7 @@ import logging
 import os
 import time
 import traceback
-import typing
+import typing as t
 import inspect
 import unicodedata
 import webob
@@ -40,7 +40,7 @@ class RequestValidator(ABC):
 
     @staticmethod
     @abstractmethod
-    def validate(request: 'BrowseHandler') -> typing.Optional[typing.Tuple[int, str, str]]:
+    def validate(request: 'BrowseHandler') -> t.Optional[tuple[int, str, str]]:
         """
             The function that checks the current request. If the request is valid, simply return None.
             If the request should be blocked, it must return a tuple of
@@ -61,7 +61,7 @@ class FetchMetaDataValidator(RequestValidator):
     name = "FetchMetaDataValidator"
 
     @staticmethod
-    def validate(request: 'BrowseHandler') -> typing.Optional[typing.Tuple[int, str, str]]:
+    def validate(request: 'BrowseHandler') -> t.Optional[tuple[int, str, str]]:
         headers = request.request.headers
         if not headers.get("sec-fetch-site"):  # These headers are not send by all browsers
             return None
@@ -109,7 +109,7 @@ class Router:
 
         self.maxLogLevel = logging.DEBUG
         self._traceID = \
-            self.request.headers.get("X-Cloud-Trace-Context", "").split("/")[0] or utils.generateRandomString()
+            self.request.headers.get("X-Cloud-Trace-Context", "").split("/")[0] or utils.string.random()
         self.is_deferred = False
         self.path_list = ()
 
@@ -363,7 +363,7 @@ class Router:
                     if filename := conf.main_app.render.getTemplateFileName((f"{error_info['status']}", "error"),
                                                                             raise_exception=False):
                         template = conf.main_app.render.getEnv().get_template(filename)
-                        nonce = utils.generateRandomString(16)
+                        nonce = utils.string.random(16)
                         res = template.render(error_info, nonce=nonce)
                         extendCsp({"style-src": [f"nonce-{nonce}"]})
                     else:
@@ -504,7 +504,7 @@ class Router:
 
         if not path_found:
             raise errors.NotFound(
-                f"""The path {utils.escapeString("/".join(self.path_list[:idx]))} could not be found""")
+                f"""The path {utils.string.escape("/".join(self.path_list[:idx]))} could not be found""")
 
         if not isinstance(caller, Method):
             # try to find "index" function
