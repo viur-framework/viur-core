@@ -1,6 +1,6 @@
 from viur.core import Module
 from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
-from typing import Tuple, Type
+import typing as t
 
 
 class SkelModule(Module):
@@ -20,7 +20,7 @@ class SkelModule(Module):
         For more information, refer to the function :func:`~_resolveSkelCls`.
     """
 
-    def _resolveSkelCls(self, *args, **kwargs) -> Type[Skeleton]:
+    def _resolveSkelCls(self, *args, **kwargs) -> t.Type[Skeleton]:
         """
         Retrieve the generally associated :class:`viur.core.skeleton.Skeleton` that is used by
         the application.

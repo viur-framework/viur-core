@@ -13,7 +13,7 @@ import user_agents
 import pyotp
 import base64
 import dataclasses
-import typing
+import typing as t
 from google.auth.transport import requests
 from google.oauth2 import id_token
 
@@ -617,10 +617,10 @@ class GoogleAccount(UserPrimaryAuthentication):
             if not (user_skel := base_skel.all().filter("name.idx =", email.lower()).getSkel()):
                 # Still no luck - it's a completely new user
                 if not self.registrationEnabled:
-                    if user_info.get("hd") and user_info["hd"] in conf.user.google_gsuite_domains:
-                        logging.debug("User is from domain - adding account")
+                    if (domain := user_info.get("hd")) and domain in conf.user.google_gsuite_domains:
+                        logging.debug(f"Google user is from allowed {domain} - adding account")
                     else:
-                        logging.warning("Denying registration of %s", email)
+                        logging.debug(f"Google user is from {domain} - denying registration")
                         raise errors.Forbidden("Registration for new users is disabled")
 
                 user_skel = base_skel
@@ -695,7 +695,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         """
         secret: str
         timedrift: float = 0.0
-        algorithm: typing.Literal["sha1", "sha256"] = "sha1"
+        algorithm: t.Literal["sha1", "sha256"] = "sha1"
         interval: int = 60
 
     class OtpSkel(skeleton.RelSkel):
