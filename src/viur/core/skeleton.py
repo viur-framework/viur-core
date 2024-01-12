@@ -364,7 +364,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
             :returns: True if all data was successfully read and taken by the Skeleton's bones.\
             False otherwise (eg. some required fields where missing or invalid).
         """
-        complete = len(data) > 0  # Empty values are never valid
+        complete = True
         skelValues.errors = []
 
         for key, bone in skelValues.items():
@@ -405,18 +405,13 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                     if incomplete:
                         complete = False
 
-                        if conf["viur.debug.skeleton.fromClient"] and cls.kindName:
+                        if conf["viur.debug.skeleton.fromClient"]:
                             logging.error(
-                                f"""{cls.kindName}: {".".join(error.fieldPath)}: """
+                                f"""{getattr(cls, "kindName", cls.__name__)}: {".".join(error.fieldPath)}: """
                                 f"""({error.severity}) {error.errorMessage}"""
                             )
 
                 skelValues.errors += errors
-
-        if (len(data) == 0
-            or (len(data) == 1 and "key" in data)
-            or ("nomissing" in data and str(data["nomissing"]) == "1")):
-            skelValues.errors = []
 
         return complete
 
@@ -725,8 +720,17 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         :return: True, if all values have been read correctly (without errors), False otherwise
         """
         assert skelValues.renderPreparation is None, "Cannot modify values while rendering"
+
         # Load data into this skeleton
-        complete = super().fromClient(skelValues, data)
+        complete = bool(data) and super().fromClient(skelValues, data)
+
+        if (
+            not data  # in case data is empty
+            or (len(data) == 1 and "key" in data)
+            # FIXME: Use case? Otherwise, use conf.viur.bone.boolean.str2true!
+            or (str(data.get("nomissing")) == "1")
+        ):
+            skelValues.errors = []
 
         # Check if all unique values are available
         for boneName, boneInstance in skelValues.items():
@@ -1189,63 +1193,6 @@ class RelSkel(BaseSkeleton):
         The Skeleton stores its bones in an :class:`OrderedDict`-Instance, so the definition order of the
         contained bones remains constant.
     """
-
-    @classmethod
-    def fromClient(cls, skelValues: SkeletonInstance, data: Dict[str, Union[List[str], str]]) -> bool:
-        """
-            Reads the data supplied by data.
-            Unlike setValues, error-checking is performed.
-            The values might be in a different representation than the one used in getValues/serValues.
-            Even if this function returns False, all bones are guranteed to be in a valid state:
-            The ones which have been read correctly contain their data; the other ones are set back to a safe default (None in most cases)
-            So its possible to call save() afterwards even if reading data fromClient faild (through this might violates the assumed consitency-model!).
-
-            :param data: Dictionary from which the data is read
-            :returns: True if the data was successfully read; False otherwise (eg. some required fields where missing or invalid)
-        """
-        complete = True
-        skelValues.errors = []
-
-        for key, bone in skelValues.items():
-            if bone.readOnly:
-                continue
-
-            if errors := bone.fromClient(skelValues, key, data):
-                for error in errors:
-                    error.fieldPath.insert(0, str(key))
-
-                    # logging.debug(f"RelSkel.fromClient {key=} {error=}")
-
-                    incomplete = (
-                        # always when something is invalid
-                        error.severity == ReadFromClientErrorSeverity.Invalid
-                        or (
-                            # only when path is top-level
-                            len(error.fieldPath) == 1
-                            and (
-                                # bone is generally required
-                                bool(bone.required)
-                                # and value is either empty or not set
-                                and error.severity in (
-                                    ReadFromClientErrorSeverity.Empty,
-                                    ReadFromClientErrorSeverity.NotSet
-                                )
-                            )
-                        )
-                    )
-
-                    # in case there are language requirements, test additionally
-                    if bone.languages and isinstance(bone.required, (list, tuple)):
-                        incomplete &= any([key, lang] == error.fieldPath for lang in bone.required)
-
-                    # logging.debug(f"RelSkel.fromClient {incomplete=} {error.severity=} {bone.required=}")
-
-                    if incomplete:
-                        complete = False
-
-                skelValues.errors += errors
-
-        return complete
 
     def serialize(self, parentIndexed):
         if self.dbEntity is None:
