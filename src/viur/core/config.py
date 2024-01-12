@@ -667,10 +667,10 @@ class Conf(ConfigType):
     ]
     """Priority, in which skeletons are loaded"""
 
-    _tasks_custom_environment_handler: Optional["CustomEnvironmentHandler"] = None
+    _tasks_custom_environment_handler: t.Optional["CustomEnvironmentHandler"] = None
 
     @property
-    def tasks_custom_environment_handler(self) -> Optional["CustomEnvironmentHandler"]:
+    def tasks_custom_environment_handler(self) -> t.Optional["CustomEnvironmentHandler"]:
         """
         Preserve additional environment in deferred tasks.
 
