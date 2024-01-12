@@ -369,40 +369,50 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
         complete = len(data) > 0  # Empty values are never valid
         skelValues.errors = []
 
-        for key, _bone in skelValues.items():
-            if _bone.readOnly:
+        for key, bone in skelValues.items():
+            if bone.readOnly:
                 continue
-            errors = _bone.fromClient(skelValues, key, data)
-            if errors:
-                for err in errors:
-                    err.fieldPath.insert(0, str(key))
-                skelValues.errors.extend(errors)
+
+            if errors := bone.fromClient(skelValues, key, data):
                 for error in errors:
-                    is_empty = error.severity == ReadFromClientErrorSeverity.Empty and bool(_bone.required)
+                    # insert current bone name into error's fieldPath
+                    error.fieldPath.insert(0, str(key))
 
-                    if _bone.languages and isinstance(_bone.required, (list, tuple)):
-                        is_empty &= any([key, lang] == error.fieldPath
-                                        for lang in _bone.required)
-                    else:
-                        is_empty &= error.fieldPath == [key]
+                    incomplete = (
+                        # always when something is invalid
+                        error.severity == ReadFromClientErrorSeverity.Invalid
+                        or (
+                            # only when path is top-level
+                            len(error.fieldPath) == 1
+                            and (
+                                # bone is generally required
+                                bool(bone.required)
+                                # and value is either empty or not set
+                                and error.severity in (
+                                    ReadFromClientErrorSeverity.Empty,
+                                    ReadFromClientErrorSeverity.NotSet
+                                )
+                            )
+                        )
+                    )
 
-                    # logging.debug(f"{is_empty=} {error.severity=} {_bone.required=}")
+                    # in case there are language requirements, test additionally
+                    if bone.languages and isinstance(bone.required, (list, tuple)):
+                        incomplete &= any([key, lang] == error.fieldPath
+                                        for lang in bone.required)
 
-                    if is_empty \
-                        or error.severity == ReadFromClientErrorSeverity.Invalid \
-                        or (error.severity == ReadFromClientErrorSeverity.NotSet
-                            and _bone.required
-                            and error.fieldPath == [key]
-                            and _bone.isEmpty(skelValues["key"])):
-                        # We'll consider empty required bones only as an error, if they're on the top-level (and not
-                        # further down the hierarchy (in an record- or relational-Bone)
+                    logging.debug(f"{incomplete=} {error.severity=} {bone.required=}")
+
+                    if incomplete:
                         complete = False
 
                         if conf["viur.debug.skeleton.fromClient"] and cls.kindName:
-                            logging.debug(
+                            logging.error(
                                 f"""{cls.kindName}: {".".join(error.fieldPath)}: """
                                 f"""({error.severity}) {error.errorMessage}"""
                             )
+
+                skelValues.errors += errors
 
         if (len(data) == 0
             or (len(data) == 1 and "key" in data)
