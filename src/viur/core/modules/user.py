@@ -336,7 +336,7 @@ class UserPassword(UserPrimaryAuthentication):
 
         # extract password hash from raw database entity (skeleton access blocks it)
         password_data = (user_skel.dbEntity and user_skel.dbEntity.get("password")) or {}
-        iterations = password_data.get("iterations", 1001) # remember iterations; old password hashes used 1001
+        iterations = password_data.get("iterations", 1001)  # remember iterations; old password hashes used 1001
         password_hash = encode_password(password, password_data.get("salt", "-invalid-"), iterations)["pwhash"]
 
         # now check if the username matches
