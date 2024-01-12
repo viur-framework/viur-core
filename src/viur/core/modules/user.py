@@ -13,7 +13,7 @@ import user_agents
 import pyotp
 import base64
 import dataclasses
-import typing
+import typing as t
 from google.auth.transport import requests
 from google.oauth2 import id_token
 
@@ -28,7 +28,6 @@ from viur.core.i18n import translate
 from viur.core.prototypes.list import List
 from viur.core.ratelimit import RateLimit
 from viur.core.securityheaders import extendCsp
-from viur.core.utils import parse_bool
 
 
 @functools.total_ordering
@@ -80,8 +79,6 @@ class UserSkel(skeleton.Skeleton):
 
     # Properties required by custom auth
     password = PasswordBone(
-        descr="Password",
-        required=False,
         readOnly=True,
         visible=False,
     )
@@ -286,11 +283,20 @@ class UserPassword(UserPrimaryAuthentication):
         return "X-VIUR-AUTH-User-Password"
 
     class LoginSkel(skeleton.RelSkel):
-        name = EmailBone(descr="E-Mail", required=True, caseSensitive=False, indexed=True)
-        password = PasswordBone(descr="Password", indexed=True, params={"justinput": True}, required=True)
+        name = EmailBone(
+            descr="E-Mail",
+            required=True,
+            caseSensitive=False,
+        )
+        password = PasswordBone(
+            required=True,
+        )
 
     class LostPasswordStep1Skel(skeleton.RelSkel):
-        name = EmailBone(descr="Username", required=True)
+        name = EmailBone(
+            descr="E-Mail",
+            required=True,
+        )
 
     class LostPasswordStep2Skel(skeleton.RelSkel):
         recovery_key = StringBone(
@@ -356,6 +362,13 @@ class UserPassword(UserPrimaryAuthentication):
             skel["password"] = password  # will be hashed on serialize
             skel.toDB(update_relations=False)
 
+        return self.on_login(user_entry)
+
+    def on_login(self, user_entry: db.Entity):
+        """
+        Hook that is called whenever the password authentication was successful.
+        It allows to perform further steps in custom UserPassword authentications.
+        """
         return self._user_module.continueAuthenticationFlow(self, user_entry.key)
 
     @exposed
@@ -542,7 +555,7 @@ class UserPassword(UserPrimaryAuthentication):
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # bail out if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or parse_bool(kwargs.get("bounce"))  # review before adding
+            or utils.parse.bool(kwargs.get("bounce"))  # review before adding
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self._user_module.render.add(skel)
@@ -604,10 +617,10 @@ class GoogleAccount(UserPrimaryAuthentication):
             if not (userSkel := addSkel().all().filter("name.idx =", email.lower()).getSkel()):
                 # Still no luck - it's a completely new user
                 if not self.registrationEnabled:
-                    if userInfo.get("hd") and userInfo["hd"] in conf.user.google_gsuite_domains:
-                        print("User is from domain - adding account")
+                    if (domain := userInfo.get("hd")) and domain in conf.user.google_gsuite_domains:
+                        logging.debug(f"Google user is from allowed {domain} - adding account")
                     else:
-                        logging.warning("Denying registration of %s", email)
+                        logging.debug(f"Google user is from {domain} - denying registration")
                         raise errors.Forbidden("Registration for new users is disabled")
 
                 userSkel = addSkel()  # We'll add a new user
@@ -684,7 +697,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         """
         secret: str
         timedrift: float = 0.0
-        algorithm: typing.Literal["sha1", "sha256"] = "sha1"
+        algorithm: t.Literal["sha1", "sha256"] = "sha1"
         interval: int = 60
 
     class OtpSkel(skeleton.RelSkel):
@@ -1285,7 +1298,7 @@ class User(List):
         # Update session, user and request
         session["user"] = skel.dbEntity
 
-        current.request.get().response.headers[securitykey.SECURITYKEY_STATIC] = session.static_security_key
+        current.request.get().response.headers[securitykey.SECURITYKEY_STATIC_HEADER] = session.static_security_key
         current.user.set(self.getCurrentUser())
 
         self.onLogin(skel)
@@ -1453,7 +1466,7 @@ def createNewUserIfNotExists():
         if not db.Query(userMod.addSkel().kindName).getEntry():  # There's currently no user in the database
             addSkel = skeleton.skeletonByKind(userMod.addSkel().kindName)()  # Ensure we have the full skeleton
             uname = f"""admin@{conf.instance.project_id}.appspot.com"""
-            pw = utils.generateRandomString(13)
+            pw = utils.string.random(13)
             addSkel["name"] = uname
             addSkel["status"] = Status.ACTIVE  # Ensure it's enabled right away
             addSkel["access"] = ["root"]

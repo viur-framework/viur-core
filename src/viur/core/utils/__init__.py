@@ -3,36 +3,20 @@ import hmac
 import warnings
 
 import logging
-import secrets
-import string
-import typing
 from base64 import urlsafe_b64encode
 from datetime import datetime, timedelta, timezone
-from typing import Any, Union, Optional
+import typing as t
 from urllib.parse import quote
-
 from viur.core import current, db
 from viur.core.config import conf
+from . import string, parse
 
 
 def utcNow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def generateRandomString(length: int = 13) -> str:
-    """
-    Return a string containing random characters of given *length*.
-    It's safe to use this string in URLs or HTML.
-    Because we use the secrets module it could be used for security purposes as well
-
-    :param length: The desired length of the generated string.
-
-    :returns: A string with random characters of the given length.
-    """
-    return "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(length))
-
-
-def getCurrentUser() -> Optional["SkeletonInstance"]:
+def getCurrentUser() -> t.Optional["SkeletonInstance"]:
     """
         Retrieve current user, if logged in.
         If a user is logged in, this function returns a dict containing user data.
@@ -69,44 +53,14 @@ def markFileForDeletion(dlkey: str) -> None:
     db.Put(fileObj)
 
 
-def escapeString(val: str, max_length: int = 254, **kwargs) -> str:
-    """
-        Quotes several characters and removes "\\\\n" and "\\\\0" to prevent XSS injection.
-
-        :param val: The value to be escaped.
-        :param max_length: Cut-off after max_length characters. A value of 0 means "unlimited".
-        :returns: The quoted string.
-    """
-    # fixme: Remove in viur-core >= 4
-    if "maxLength" in kwargs:
-        warnings.warn("maxLength parameter is deprecated, please use max_length", DeprecationWarning)
-        max_length = kwargs.pop("maxLength")
-
-    val = str(val).strip() \
-        .replace("<", "&lt;") \
-        .replace(">", "&gt;") \
-        .replace("\"", "&quot;") \
-        .replace("'", "&#39;") \
-        .replace("(", "&#040;") \
-        .replace(")", "&#041;") \
-        .replace("=", "&#061;") \
-        .replace("\n", "") \
-        .replace("\0", "")
-
-    if max_length:
-        return val[:max_length]
-
-    return val
-
-
-def hmacSign(data: Any) -> str:
+def hmacSign(data: t.Any) -> str:
     assert conf.file_hmac_key is not None, "No hmac-key set!"
     if not isinstance(data, bytes):
         data = str(data).encode("UTF-8")
     return hmac.new(conf.file_hmac_key, msg=data, digestmod=hashlib.sha3_384).hexdigest()
 
 
-def hmacVerify(data: Any, signature: str) -> bool:
+def hmacVerify(data: t.Any, signature: str) -> bool:
     return hmac.compare_digest(hmacSign(data), signature)
 
 
@@ -122,8 +76,8 @@ def sanitizeFileName(fileName: str) -> str:
 
 
 def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
-                   expires: Union[timedelta, None] = timedelta(hours=1),
-                   downloadFileName: Optional[str] = None) -> str:
+                   expires: timedelta | None = timedelta(hours=1),
+                   downloadFileName: t.Optional[str] = None) -> str:
     """
         Utility function that creates a signed download-url for the given folder/filename combination
 
@@ -153,7 +107,8 @@ def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
     return "/file/download/%s?sig=%s" % (sigStr.decode("ASCII"), resstr)
 
 
-def srcSetFor(fileObj: dict, expires: Optional[int], width: Optional[int] = None, height: Optional[int] = None) -> str:
+def srcSetFor(fileObj: dict, expires: t.Optional[int], width: t.Optional[int] = None,
+              height: t.Optional[int] = None) -> str:
     """
         Generates a string suitable for use as the srcset tag in html. This functionality provides the browser
         with a list of images in different sizes and allows it to choose the smallest file that will fill it's viewport
@@ -194,9 +149,9 @@ def srcSetFor(fileObj: dict, expires: Optional[int], width: Optional[int] = None
 
 
 def seoUrlToEntry(module: str,
-                  entry: Optional["SkeletonInstance"] = None,
-                  skelType: Optional[str] = None,
-                  language: Optional[str] = None) -> str:
+                  entry: t.Optional["SkeletonInstance"] = None,
+                  skelType: t.Optional[str] = None,
+                  language: t.Optional[str] = None) -> str:
     """
     Return the seo-url to a skeleton instance or the module.
 
@@ -238,7 +193,7 @@ def seoUrlToEntry(module: str,
         return "/".join(pathComponents)
 
 
-def seoUrlToFunction(module: str, function: str, render: Optional[str] = None) -> str:
+def seoUrlToFunction(module: str, function: str, render: t.Optional[str] = None) -> str:
     from viur.core import conf
     lang = current.language.get()
     if module in conf.i18n.language_module_map and lang in conf.i18n.language_module_map[module]:
@@ -263,7 +218,7 @@ def seoUrlToFunction(module: str, function: str, render: Optional[str] = None) -
     return "/".join(pathComponents)
 
 
-def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
+def normalizeKey(key: t.Union[None, 'db.KeyClass']) -> t.Union[None, 'db.KeyClass']:
     """
         Normalizes a datastore key (replacing _application with the current one)
 
@@ -280,73 +235,37 @@ def normalizeKey(key: Union[None, 'db.KeyClass']) -> Union[None, 'db.KeyClass']:
     return db.Key(key.kind, key.id_or_name, parent=parent)
 
 
-def is_prefix(name: str, prefix: str, delimiter: str = ".") -> bool:
-    """
-    Utility function to check if a given name matches a prefix,
-    which defines a specialization, delimited by `delimiter`.
-
-    In ViUR, modules, bones, renders, etc. provide a kind or handler
-    to classify or subclassify the specific object. To securitly
-    check for a specific type, it is either required to ask for the
-    exact type or if its prefixed by a path delimited normally by
-    dots.
-
-    Example:
-
-    .. code-block:: python
-        handler = "tree.file.special"
-        utils.is_prefix(handler, "tree")  # True
-        utils.is_prefix(handler, "tree.node")  # False
-        utils.is_prefix(handler, "tree.file")  # True
-        utils.is_prefix(handler, "tree.file.special")  # True
-    """
-    return name == prefix or name.startswith(prefix + delimiter)
-
-
-def parse_bool(value: Any, truthy_values: typing.Iterable = ("true", "yes", "1")) -> bool:
-    """
-    Parse a value into a boolean based on accepted truthy values.
-
-    This method takes a value, converts it to a lowercase string,
-    removes whitespace, and checks if it matches any of the provided
-    truthy values.
-    :param value: The value to be parsed into a boolean.
-    :param truthy_values: An iterable of strings representing truthy values.
-        Default is ("true", "yes", "1").
-    :returns: True if the value matches any of the truthy values, False otherwise.
-    """
-    return str(value).strip().lower() in truthy_values
-
-
 # DEPRECATED ATTRIBUTES HANDLING
-__utils_conf_replacement = {
+__UTILS_CONF_REPLACEMENT = {
     "projectID": "viur.instance.project_id",
     "isLocalDevelopmentServer": "viur.instance.is_dev_server",
     "projectBasePath": "viur.instance.project_base_path",
     "coreBasePath": "viur.instance.core_base_path"
 }
-__utils_current_replacement = {
-    "currentRequest": "request",
-    "currentRequestData": "request_data",
-    "currentSession": "session",
-    "currentLanguage": "language"
+
+__UTILS_NAME_REPLACEMENT = {
+    "currentRequest": ("current.request", current.request),
+    "currentRequestData": ("current.request_data", current.request_data),
+    "currentSession": ("current.session", current.session),
+    "currentLanguage": ("current.language", current.language),
+    "generateRandomString": ("utils.string.random", string.random),
+    "escapeString": ("utils.string.escape", string.escape),
+    "is_prefix": ("utils.string.is_prefix", string.is_prefix),
+    "parse_bool": ("utils.parse.bool", parse.bool),
 }
 
 
 def __getattr__(attr):
-    if attr in __utils_conf_replacement:
-        import warnings
-        # FIXME: config
-        msg = f"Use of `utils.{attr}` is deprecated; Use `conf[\"{__utils_conf_replacement[attr]}\"]` instead!"
+    if replace := __UTILS_CONF_REPLACEMENT.get(attr):
+        msg = f"Use of `utils.{attr}` is deprecated; Use `conf.{replace}` instead!"
         warnings.warn(msg, DeprecationWarning, stacklevel=3)
         logging.warning(msg, stacklevel=3)
-        return conf[__utils_conf_replacement[attr]]
+        return conf[replace]
 
-    if attr in __utils_current_replacement:
-        import warnings
-        msg = f"Use of `utils.{attr}` is deprecated; Use `current.{__utils_current_replacement[attr]}` instead!"
+    if replace := __UTILS_NAME_REPLACEMENT.get(attr):
+        msg = f"Use of `utils.{attr}` is deprecated; Use `{replace[0]}` instead!"
         warnings.warn(msg, DeprecationWarning, stacklevel=3)
         logging.warning(msg, stacklevel=3)
-        return getattr(current, __utils_current_replacement[attr])
+        return replace[1]
 
     return super(__import__(__name__).__class__).__getattr__(attr)

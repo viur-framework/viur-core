@@ -1,11 +1,10 @@
 import logging
-from typing import Any, Optional
+import typing as t
 from viur.core import current, db, errors, utils
 from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
 from .skelmodule import SkelModule
-from ..utils import parse_bool
 
 
 class List(SkelModule):
@@ -79,7 +78,7 @@ class List(SkelModule):
     @exposed
     @force_post
     @skey
-    def preview(self, *args, **kwargs) -> Any:
+    def preview(self, *args, **kwargs) -> t.Any:
         """
             Renders data for an entry, without reading from the database.
             This function allows to preview an entry without writing it to the database.
@@ -99,7 +98,7 @@ class List(SkelModule):
         return self.render.view(skel)
 
     @exposed
-    def structure(self, *args, **kwargs) -> Any:
+    def structure(self, *args, **kwargs) -> t.Any:
         """
             :returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
                 in each bone.
@@ -115,7 +114,7 @@ class List(SkelModule):
         return self.render.view(skel)
 
     @exposed
-    def view(self, key: db.Key | int | str, *args, **kwargs) -> Any:
+    def view(self, key: db.Key | int | str, *args, **kwargs) -> t.Any:
         """
             Prepares and renders a single entry for viewing.
 
@@ -142,7 +141,7 @@ class List(SkelModule):
         return self.render.view(skel)
 
     @exposed
-    def list(self, *args, **kwargs) -> Any:
+    def list(self, *args, **kwargs) -> t.Any:
         """
             Prepares and renders a list of entries.
 
@@ -167,7 +166,7 @@ class List(SkelModule):
     @force_ssl
     @exposed
     @skey(allow_empty=True)
-    def edit(self, key: db.Key | int | str, *args, **kwargs) -> Any:
+    def edit(self, key: db.Key | int | str, *args, **kwargs) -> t.Any:
         """
             Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
             Data is taken by any other arguments in *kwargs*.
@@ -196,7 +195,7 @@ class List(SkelModule):
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or parse_bool(kwargs.get("bounce"))  # review before changing
+            or utils.parse.bool(kwargs.get("bounce"))  # review before changing
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self.render.edit(skel)
@@ -210,7 +209,7 @@ class List(SkelModule):
     @force_ssl
     @exposed
     @skey(allow_empty=True)
-    def add(self, *args, **kwargs) -> Any:
+    def add(self, *args, **kwargs) -> t.Any:
         """
             Add a new entry, and render the entry, eventually with error notes on incorrect data.
             Data is taken by any other arguments in *kwargs*.
@@ -233,7 +232,7 @@ class List(SkelModule):
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or parse_bool(kwargs.get("bounce"))  # review before adding
+            or utils.parse.bool(kwargs.get("bounce"))  # review before adding
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self.render.add(skel)
@@ -248,7 +247,7 @@ class List(SkelModule):
     @force_post
     @exposed
     @skey
-    def delete(self, key: db.Key | int | str, *args, **kwargs) -> Any:
+    def delete(self, key: db.Key | int | str, *args, **kwargs) -> t.Any:
         """
             Delete an entry.
 
@@ -276,7 +275,7 @@ class List(SkelModule):
         return self.render.deleteSuccess(skel)
 
     @exposed
-    def index(self, *args, **kwargs) -> Any:
+    def index(self, *args, **kwargs) -> t.Any:
         """
             Default, SEO-Friendly fallback for view and list.
 
@@ -309,7 +308,7 @@ class List(SkelModule):
 
     ## Default access control functions
 
-    def listFilter(self, query: db.Query) -> Optional[db.Query]:
+    def listFilter(self, query: db.Query) -> t.Optional[db.Query]:
         """
             Access control function on item listing.
 

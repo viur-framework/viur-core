@@ -1,16 +1,19 @@
 from __future__ import annotations
+
 import copy
 import inspect
 import logging
 import os
-import sys
 import string
+import typing as t
+import sys
 import warnings
 from functools import partial
 from itertools import chain
 from time import time
-from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
-from viur.core import conf, db, email, errors, utils, current
+
+
+from viur.core import conf, current, db, email, errors, translate, utils
 from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, RelationalUpdateLevel, SelectBone, StringBone
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 from viur.core.bones.base import Compute, ComputeMethod, ComputeInterval
@@ -96,7 +99,7 @@ class MetaBaseSkel(type):
         return map
 
 
-def skeletonByKind(kindName: str) -> Type[Skeleton]:
+def skeletonByKind(kindName: str) -> t.Type[Skeleton]:
     """
         Returns the Skeleton-Class for the given kindName. That skeleton must exist, otherwise an exception is raised.
         :param kindName: The kindname to retreive the skeleton for
@@ -106,14 +109,14 @@ def skeletonByKind(kindName: str) -> Type[Skeleton]:
     return MetaBaseSkel._skelCache[kindName]
 
 
-def listKnownSkeletons() -> List[str]:
+def listKnownSkeletons() -> list[str]:
     """
         :return: A list of all known kindnames (all kindnames for which a skeleton is defined)
     """
     return list(MetaBaseSkel._skelCache.keys())[:]
 
 
-def iterAllSkelClasses() -> Iterable["Skeleton"]:
+def iterAllSkelClasses() -> t.Iterable["Skeleton"]:
     """
         :return: An iterator that yields each Skeleton-Class once. (Only top-level skeletons are returned, so no
             RefSkel classes will be included)
@@ -157,20 +160,20 @@ class SkeletonInstance:
         self.skeletonCls = skelCls
         self.renderPreparation = None
 
-    def items(self, yieldBoneValues: bool = False) -> Iterable[Tuple[str, BaseBone]]:
+    def items(self, yieldBoneValues: bool = False) -> t.Iterable[tuple[str, BaseBone]]:
         if yieldBoneValues:
             for key in self.boneMap.keys():
                 yield key, self[key]
         else:
             yield from self.boneMap.items()
 
-    def keys(self) -> Iterable[str]:
+    def keys(self) -> t.Iterable[str]:
         yield from self.boneMap.keys()
 
-    def values(self) -> Iterable[Any]:
+    def values(self) -> t.Iterable[t.Any]:
         yield from self.boneMap.values()
 
-    def __iter__(self) -> Iterable[str]:
+    def __iter__(self) -> t.Iterable[str]:
         yield from self.keys()
 
     def __contains__(self, item):
@@ -206,19 +209,54 @@ class SkeletonInstance:
         self.renderAccessedValues[key] = value
         return value
 
-    def __getattr__(self, item):
+    def __getattr__(self, item: str):
+        """
+        Get a special attribute from the SkeletonInstance
+
+        __getattr__ is called when an attribute access fails with an
+        AttributeError. So we know that this is not a real attribute of
+        the SkeletonInstance. But there are still a few special cases in which
+        attributes are loaded from the skeleton class.
+        """
         if item == "boneMap":
             return {}  # There are __setAttr__ calls before __init__ has run
+        # Load attribute value from the Skeleton class
         elif item in {"kindName", "interBoneValidations", "customDatabaseAdapter"}:
             return getattr(self.skeletonCls, item)
+        # Load a @classmethod from the Skeleton class and bound this SkeletonInstance
         elif item in {"fromDB", "toDB", "all", "unserialize", "serialize", "fromClient", "getCurrentSEOKeys",
                       "preProcessSerializedData", "preProcessBlobLocks", "postSavedHandler", "setBoneValue",
                       "delete", "postDeletedHandler", "refresh"}:
             return partial(getattr(self.skeletonCls, item), self)
+        # Load a @property from the Skeleton class
+        try:
+            # Use try/except to save an if check
+            class_value = getattr(self.skeletonCls, item)
+        except AttributeError:
+            # Not inside the Skeleton class, okay at this point.
+            pass
+        else:
+            if isinstance(class_value, property):
+                # The attribute is a @property and can be called
+                # Note: `self` is this SkeletonInstance, not the Skeleton class.
+                #       Therefore, you can access values inside the property method
+                #       with item-access like `self["key"]`.
+                try:
+                    return class_value.fget(self)
+                except AttributeError as exc:
+                    # The AttributeError cannot be re-raised any further at this point.
+                    # Since this would then be evaluated as an access error
+                    # to the property attribute.
+                    # Otherwise, it would be lost that it is an incorrect attribute access
+                    # within this property (during the method call).
+                    msg, *args = exc.args
+                    msg = f"AttributeError: {msg}"
+                    raise ValueError(msg, *args) from exc
+        # Load the bone instance from the bone map of this SkeletonInstance
         try:
             return self.boneMap[item]
-        except KeyError:
-            raise AttributeError(f"{self.__class__.__name__!r} object has no attribute '{item}'")
+        except KeyError as exc:
+            raise AttributeError(f"{self.__class__.__name__!r} object has no attribute '{item}'") from exc
 
     def __delattr__(self, item):
         del self.boneMap[item]
@@ -325,8 +363,8 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                 bone.setSystemInitialized()
 
     @classmethod
-    def setBoneValue(cls, skelValues: Any, boneName: str, value: Any,
-                     append: bool = False, language: Optional[str] = None) -> bool:
+    def setBoneValue(cls, skelValues: t.Any, boneName: str, value: t.Any,
+                     append: bool = False, language: t.Optional[str] = None) -> bool:
         """
             Allow setting a bones value without calling fromClient or assigning to valuesCache directly.
             Santy-Checks are performed; if the value is invalid, that bone flips back to its original
@@ -346,7 +384,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
         return bone.setBoneValue(skelValues, boneName, value, append, language)
 
     @classmethod
-    def fromClient(cls, skelValues: SkeletonInstance, data: Dict[str, Union[List[str], str]],
+    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str],
                    allowEmptyRequired=False) -> bool:
         """
             Load supplied *data* into Skeleton.
@@ -486,7 +524,7 @@ class CustomDatabaseAdapter:
     # Indicate that we can run more types of queries than originally supported by firestore
     providesCustomQueries: bool = False
 
-    def preprocessEntry(self, entry: db.Entity, skel: BaseSkeleton, changeList: List[str], isAdd: bool) -> db.Entity:
+    def preprocessEntry(self, entry: db.Entity, skel: BaseSkeleton, changeList: list[str], isAdd: bool) -> db.Entity:
         """
         Can be overridden to add or alter the data of this entry before it's written to firestore.
         Will always be called inside an transaction.
@@ -498,7 +536,7 @@ class CustomDatabaseAdapter:
         """
         return entry
 
-    def updateEntry(self, dbObj: db.Entity, skel: BaseSkeleton, changeList: List[str], isAdd: bool) -> None:
+    def updateEntry(self, dbObj: db.Entity, skel: BaseSkeleton, changeList: list[str], isAdd: bool) -> None:
         """
         Like `meth:preprocessEntry`, but runs after the transaction had completed.
         Changes made to dbObj will be ignored.
@@ -517,7 +555,7 @@ class CustomDatabaseAdapter:
         """
         return
 
-    def fulltextSearch(self, queryString: str, databaseQuery: db.Query) -> List[db.Entity]:
+    def fulltextSearch(self, queryString: str, databaseQuery: db.Query) -> list[db.Entity]:
         """
         If this database supports fulltext searches, this method has to implement them.
         If it's a plain fulltext search engine, leave 'prop:fulltextSearchGuaranteesQueryConstrains' set to False,
@@ -556,7 +594,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
         self.max_length = max_length
         self.substring_matching = substring_matching
 
-    def _tagsFromString(self, value: str) -> Set[str]:
+    def _tagsFromString(self, value: str) -> set[str]:
         """
         Extract all words including all min_length postfixes from given string
         """
@@ -574,7 +612,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 
         return res
 
-    def preprocessEntry(self, entry: db.Entity, skel: Skeleton, changeList: List[str], isAdd: bool) -> db.Entity:
+    def preprocessEntry(self, entry: db.Entity, skel: Skeleton, changeList: list[str], isAdd: bool) -> db.Entity:
         """
         Collect searchTags from skeleton and build viurTags
         """
@@ -587,7 +625,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
         entry["viurTags"] = list(chain(*[self._tagsFromString(x) for x in tags if len(x) <= self.max_length]))
         return entry
 
-    def fulltextSearch(self, queryString: str, databaseQuery: db.Query) -> List[db.Entity]:
+    def fulltextSearch(self, queryString: str, databaseQuery: db.Query) -> list[db.Entity]:
         """
         Run a fulltext search
         """
@@ -642,10 +680,24 @@ class SeoKeyBone(StringBone):
 
 class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     kindName: str = _undefined  # To which kind we save our data to
-    customDatabaseAdapter: Union[CustomDatabaseAdapter, None] = _undefined
+    customDatabaseAdapter: CustomDatabaseAdapter | None = _undefined
     subSkels = {}  # List of pre-defined sub-skeletons of this type
-    interBoneValidations: List[
-        Callable[[Skeleton], List[ReadFromClientError]]] = []  # List of functions checking inter-bone dependencies
+    interBoneValidations: list[
+        t.Callable[[Skeleton], list[ReadFromClientError]]] = []  # List of functions checking inter-bone dependencies
+
+    __seo_key_trans = str.maketrans(
+        {"<": "",
+         ">": "",
+         "\"": "",
+         "'": "",
+         "\n": "",
+         "\0": "",
+         "/": "",
+         "\\": "",
+         "?": "",
+         "&": "",
+         "#": ""
+         })
 
     # The "key" bone stores the current database key of this skeleton.
     # Warning: Assigning to this bones value now *will* set the key
@@ -709,7 +761,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return db.Query(skelValues.kindName, srcSkelClass=skelValues, **kwargs)
 
     @classmethod
-    def fromClient(cls, skelValues: SkeletonInstance, data: Dict[str, Union[List[str], str]],
+    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str],
                    allowEmptyRequired=False) -> bool:
         """
             This function works similar to :func:`~viur.core.skeleton.Skeleton.setValues`, except that
@@ -757,7 +809,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return complete
 
     @classmethod
-    def fromDB(cls, skelValues: SkeletonInstance, key: Union[str, db.Key]) -> bool:
+    def fromDB(cls, skelValues: SkeletonInstance, key: str | db.Key) -> bool:
         """
             Load entity with *key* from the data store into the Skeleton.
 
@@ -853,16 +905,18 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     if "%s_uniqueIndexValue" % key in dbObj["viur"]:
                         oldUniqueValues = dbObj["viur"]["%s_uniqueIndexValue" % key]
 
-                # Merge the values from mergeFrom in
-                if key in skel.accessedValues or bone.compute:  # We can have a computed value on store
-                    # bone.mergeFrom(skel.valuesCache, key, mergeFrom)
-                    bone.serialize(skel, key, True)
-                elif key not in skel.dbEntity:  # It has not been written and is not in the database
+                if not (key in skel.accessedValues or bone.compute) and key not in skel.dbEntity:
                     _ = skel[key]  # Ensure the datastore is filled with the default value
-                    bone.serialize(skel, key, True)
-
-                ## Serialize bone into entity
-                # dbObj = bone.serialize(skel.valuesCache, key, dbObj)
+                if (
+                    key in skel.accessedValues or bone.compute  # We can have a computed value on store
+                    or key not in skel.dbEntity  # It has not been written and is not in the database
+                ):
+                    # Serialize bone into entity
+                    try:
+                        bone.serialize(skel, key, True)
+                    except Exception:
+                        logging.error(f"Failed to serialize {key} {bone} {skel.accessedValues[key]}")
+                        raise
 
                 # Obtain referenced blobs
                 blobList.update(bone.getReferencedBlobs(skel, key))
@@ -922,17 +976,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 # Convert to lower-case and remove certain characters
                 for lang, value in list(currentSeoKeys.items()):
                     value = value.lower()
-                    value = value.replace("<", "") \
-                        .replace(">", "") \
-                        .replace("\"", "") \
-                        .replace("'", "") \
-                        .replace("\n", "") \
-                        .replace("\0", "") \
-                        .replace("/", "") \
-                        .replace("\\", "") \
-                        .replace("?", "") \
-                        .replace("&", "") \
-                        .replace("#", "").strip()
+                    value = value.translate(Skeleton.__seo_key_trans).strip()
                     currentSeoKeys[lang] = value
             for language in (conf.i18n.available_languages or [conf.i18n.default_language]):
                 if currentSeoKeys and language in currentSeoKeys:
@@ -944,7 +988,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                                                                                  newSeoKey).getEntry()
                             if entryUsingKey and entryUsingKey.key != dbObj.key:
                                 # It's not unique; append a random string and try again
-                                newSeoKey = "%s-%s" % (currentSeoKeys[language], utils.generateRandomString(5).lower())
+                                newSeoKey = "%s-%s" % (currentSeoKeys[language], utils.string.random(5).lower())
                             else:
                                 break
                         else:
@@ -988,7 +1032,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                                 del entity[k2]
                                 backupKey= k2.replace(".", "__")
                                 entity[backupKey] = v2
-                                entity.exclude_from_indexes = list(entity.exclude_from_indexes) + [backupKey]
+                                entity.exclude_from_indexes = set(entity.exclude_from_indexes) | {backupKey}
                         fixDotNames(v)
                     elif isinstance(v, list):
                         for x in v:
@@ -1100,7 +1144,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         pass
 
     @classmethod
-    def getCurrentSEOKeys(cls, skelValues) -> Union[None, Dict[str, str]]:
+    def getCurrentSEOKeys(cls, skelValues) -> None | dict[str, str]:
         """
         Should be overridden to return a dictionary of language -> SEO-Friendly key
         this entry should be reachable under. How theses names are derived are entirely up to the application.
@@ -1192,7 +1236,7 @@ class RelSkel(BaseSkeleton):
     """
 
     @classmethod
-    def fromClient(cls, skelValues: SkeletonInstance, data: Dict[str, Union[List[str], str]],
+    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str],
                    allowEmptyRequired=False) -> bool:
         """
             Reads the data supplied by data.
@@ -1251,7 +1295,7 @@ class RelSkel(BaseSkeleton):
 
     # return {k: v for k, v in self.valuesCache.entity.items() if k in self.__boneNames__}
 
-    def unserialize(self, values: Union[db.Entity, dict]):
+    def unserialize(self, values: db.Entity | dict):
         """
             Loads 'values' into this skeleton.
 
@@ -1285,7 +1329,7 @@ class RelSkel(BaseSkeleton):
 
 class RefSkel(RelSkel):
     @classmethod
-    def fromSkel(cls, kindName: str, *args: List[str]) -> Type[RefSkel]:
+    def fromSkel(cls, kindName: str, *args: list[str]) -> t.Type[RefSkel]:
         """
             Creates a relSkel from a skeleton-class using only the bones explicitly named
             in \*args
@@ -1363,7 +1407,7 @@ def processRemovedRelations(removedKey, cursor=None):
 
 
 @CallDeferred
-def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: Optional[str], cursor: Optional[str] = None):
+def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: t.Optional[str], cursor: t.Optional[str] = None):
     """
         This function updates Entities, which may have a copy of values from another entity which has been recently
         edited (updated). In ViUR, relations are implemented by copying the values from the referenced entity into the
@@ -1432,8 +1476,9 @@ class TaskUpdateSearchIndex(CallableTaskBase):
 
     def dataSkel(self):
         modules = ["*"] + listKnownSkeletons()
+        modules.sort()
         skel = BaseSkeleton().clone()
-        skel.module = SelectBone(descr="Module", values={x: x for x in modules}, required=True)
+        skel.module = SelectBone(descr="Module", values={x: translate(x) for x in modules}, required=True)
         return skel
 
     def execute(self, module, *args, **kwargs):
@@ -1462,48 +1507,39 @@ class TaskUpdateSearchIndex(CallableTaskBase):
 
 class RebuildSearchIndex(QueryIter):
     @classmethod
-    def handleEntry(cls, skel: SkeletonInstance, customData: Dict[str, str]):
+    def handleEntry(cls, skel: SkeletonInstance, customData: dict[str, str]):
         skel.refresh()
         skel.toDB(update_relations=False)
 
     @classmethod
-    def handleFinish(cls, totalCount: int, customData: Dict[str, str]):
+    def handleFinish(cls, totalCount: int, customData: dict[str, str]):
         QueryIter.handleFinish(totalCount, customData)
+        if not customData["notify"]:
+            return
+        txt = (
+            f"{conf.instance.project_id}: Rebuild search index finished for {customData['module']}\n\n"
+            f"ViUR finished to rebuild the search index for module {customData['module']}.\n"
+            f"{totalCount} records updated in total on this kind."
+        )
         try:
-            if customData["notify"]:
-                txt = f"Rebuild search index finished for {customData['module']}\n\n" \
-                      f"ViUR finished to rebuild the search index for module {customData['module']}.\n" \
-                      f"{totalCount} records updated in total on this kind."
-                email.sendEMail(dests=customData["notify"], stringTemplate=txt, skel=None)
-        except:  # OverQuota, whatever
-            pass
+            email.sendEMail(dests=customData["notify"], stringTemplate=txt, skel=None)
+        except Exception as exc:  # noqa; OverQuota, whatever
+            logging.exception(f'Failed to notify {customData["notify"]}')
 
 
 ### Vacuum Relations
 
 @CallableTask
-class TaskVacuumRelations(CallableTaskBase):
+class TaskVacuumRelations(TaskUpdateSearchIndex):
     """
-    Checks entries in viur-relations and verifies that the src-kind and it's relational-bone still exists.
+    Checks entries in viur-relations and verifies that the src-kind
+    and it's RelationalBone still exists.
     """
     key = "vacuumRelations"
-    name = u"Vacuum viur-relations (dangerous)"
-    descr = u"Drop stale inbound relations for the given kind"
+    name = "Vacuum viur-relations (dangerous)"
+    descr = "Drop stale inbound relations for the given kind"
 
-    def canCall(self) -> bool:
-        """
-        Checks wherever the current user can execute this task
-        :returns: bool
-        """
-        user = current.user.get()
-        return user is not None and "root" in user["access"]
-
-    def dataSkel(self):
-        skel = BaseSkeleton(cloned=True)
-        skel.module = StringBone(descr="Module", required=True)
-        return skel
-
-    def execute(self, module, *args, **kwargs):
+    def execute(self, module: str, *args, **kwargs):
         usr = current.user.get()
         if not usr:
             logging.warning("Don't know who to inform after rebuilding finished")
@@ -1514,56 +1550,53 @@ class TaskVacuumRelations(CallableTaskBase):
 
 
 @CallDeferred
-def processVacuumRelationsChunk(module, cursor, allCount=0, removedCount=0, notify=None):
+def processVacuumRelationsChunk(
+    module: str, cursor, count_total: int = 0, count_removed: int = 0, notify=None
+):
     """
-        Processes 100 Entries and calls the next batch
+    Processes 25 Entries and calls the next batch
     """
     query = db.Query("viur-relations")
     if module != "*":
         query.filter("viur_src_kind =", module)
     query.setCursor(cursor)
-    countTotal = 0
-    countRemoved = 0
-    for relationObject in query.run(25):
-        countTotal += 1
-        srcKind = relationObject.get("viur_src_kind")
-        if not srcKind:
-            logging.critical("We got an relation-object without a srcKind!")
+    for relation_object in query.run(25):
+        count_total += 1
+        if not (src_kind := relation_object.get("viur_src_kind")):
+            logging.critical("We got an relation-object without a src_kind!")
             continue
-        srcProp = relationObject.get("viur_src_property")
-        if not srcProp:
-            logging.critical("We got an relation-object without a srcProp!")
+        if not (src_prop := relation_object.get("viur_src_property")):
+            logging.critical("We got an relation-object without a src_prop!")
             continue
         try:
-            skel = skeletonByKind(srcKind)()
+            skel = skeletonByKind(src_kind)()
         except AssertionError:
             # The referenced skeleton does not exist in this data model -> drop that relation object
-            logging.info("Deleting %r which refers to unknown kind %s", str(relationObject.key()), srcKind)
-            db.Delete(relationObject)
-            countRemoved += 1
+            logging.info(f"Deleting {relation_object.key} which refers to unknown kind {src_kind}")
+            db.Delete(relation_object)
+            count_removed += 1
             continue
-        if srcProp not in skel:
-            logging.info("Deleting %r which refers to non-existing RelationalBone %s of %s",
-                         str(relationObject.key()), srcProp, srcKind)
-            db.Delete(relationObject)
-            countRemoved += 1
-    newCursor = query.getCursor()
-    newTotalCount = allCount + countTotal
-    newRemovedCount = removedCount + countRemoved
-    logging.info("END processVacuumRelationsChunk %s, %d records processed, %s removed " % (
-        module, newTotalCount, newRemovedCount))
-    if newCursor:
+        if src_prop not in skel:
+            logging.info(f"Deleting {relation_object.key} which refers to "
+                         f"non-existing RelationalBone {src_prop} of {src_kind}")
+            db.Delete(relation_object)
+            count_removed += 1
+    logging.info(f"END processVacuumRelationsChunk {module}, "
+                 f"{count_total} records processed, {count_removed} removed")
+    if new_cursor := query.getCursor():
         # Start processing of the next chunk
-        processVacuumRelationsChunk(module, newCursor, newTotalCount, newRemovedCount, notify)
-    else:
+        processVacuumRelationsChunk(module, new_cursor, count_total, count_removed, notify)
+    elif notify:
+        txt = (
+            f"{conf.instance.project_id}: Vacuum relations finished for {module}\n\n"
+            f"ViUR finished to vacuum viur-relations for module {module}.\n"
+            f"{count_total} records processed, "
+            f"{count_removed} entries removed"
+        )
         try:
-            if notify:
-                txt = ("Vaccum Relations finished for %s\n\n" +
-                       "ViUR finished to vaccum viur-relations.\n" +
-                       "%d records processed, %d entries removed") % (module, newTotalCount, newRemovedCount)
-                email.sendEMail(dests=[notify], stringTemplate=txt, skel=None)
-        except:  # OverQuota, whatever
-            pass
+            email.sendEMail(dests=notify, stringTemplate=txt, skel=None)
+        except Exception as exc:  # noqa; OverQuota, whatever
+            logging.exception(f"Failed to notify {notify}")
 
 
 # Forward our references to SkelInstance to the database (needed for queries)

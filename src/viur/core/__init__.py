@@ -24,14 +24,19 @@
  See file LICENSE for more information.
 """
 
-import inspect
 import os
+import sys
+
+# Set a dummy project id to survive API Client initializations
+if sys.argv[0].endswith("viur-core-migrate-config"):
+    os.environ["GOOGLE_CLOUD_PROJECT"] = "dummy"
+
+import inspect
 import warnings
 from types import ModuleType
-from typing import Callable, Dict, Union, List
-
+import typing as t
+from google.appengine.api import wrap_wsgi_app
 import yaml
-
 from viur.core import i18n, request, utils
 from viur.core.config import conf
 from viur.core.config import conf
@@ -79,7 +84,8 @@ __all__ = [
 # Show DeprecationWarning from the viur-core
 warnings.filterwarnings("always", category=DeprecationWarning, module=r"viur\.core.*")
 
-def load_indexes_from_file() -> Dict[str, List]:
+
+def load_indexes_from_file() -> dict[str, list]:
     """
         Loads all indexes from the index.yaml and stores it in a dictionary  sorted by the module(kind)
         :return A dictionary of indexes per module
@@ -122,7 +128,7 @@ def setDefaultDomainLanguage(domain: str, lang: str):
     conf.i18n.domain_language_mapping[host] = lang.lower()
 
 
-def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Dict], default: str = None) -> Module:
+def buildApp(modules: ModuleType | object, renderers: ModuleType | object, default: str = None) -> Module:
     """
         Creates the application-context for the current instance.
 
@@ -161,6 +167,7 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
     # assign ViUR system modules
     from viur.core.modules.moduleconf import ModuleConf  # noqa: E402 # import works only here because circular imports
     from viur.core.modules.script import Script  # noqa: E402 # import works only here because circular imports
+    from viur.core.prototypes.instanced_module import InstancedModule  # noqa: E402 # import works only here because circular imports
 
     modules._tasks = TaskHandler
     modules._moduleconf = ModuleConf
@@ -171,7 +178,11 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
     resolver = {}
 
     for module_name, module_cls in vars(modules).items():  # iterate over all modules
-        if not inspect.isclass(module_cls) or not issubclass(module_cls, Module):
+        if not (  # we define the cases we want to use and then negate them all
+            (inspect.isclass(module_cls) and issubclass(module_cls, Module)  # is a normal Module class
+             and not issubclass(module_cls, InstancedModule))  # but not a "instantiable" Module
+            or isinstance(module_cls, InstancedModule)  # is an already instanced Module
+        ):
             continue
 
         if module_name == "index":
@@ -224,7 +235,7 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
     return root
 
 
-def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = None, default: str = "html"):
+def setup(modules:  ModuleType | object, render:  ModuleType | object = None, default: str = "html"):
     """
         Define whats going to be served by this instance.
 
@@ -245,7 +256,6 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
         import viur.core.render
         render = viur.core.render
     conf.main_app = buildApp(modules, render, default)
-    # conf.wsgiApp = webapp.WSGIApplication([(r'/(.*)', BrowseHandler)])
 
     # Send warning email in case trace is activated in a cloud environment
     if ((conf.debug.trace
@@ -294,14 +304,14 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
 
         if "hmacKey" not in obj:  # create a new hmacKey
             logging.info("Creating new hmacKey")
-            obj["hmacKey"] = utils.generateRandomString(length=20)
+            obj["hmacKey"] = utils.string.random(length=20)
             db.Put(obj)
 
         conf.file_hmac_key = bytes(obj["hmacKey"], "utf-8")
-    return app
+    return wrap_wsgi_app(app)
 
 
-def app(environ: dict, start_response: Callable):
+def app(environ: dict, start_response: t.Callable):
     return request.Router(environ).response(environ, start_response)
 
 

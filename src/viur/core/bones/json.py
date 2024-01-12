@@ -1,6 +1,6 @@
 import ast
 import json
-from typing import Mapping, Union
+import typing as t
 
 import jsonschema
 
@@ -23,7 +23,7 @@ class JsonBone(RawBone):
 
     type = "raw.json"
 
-    def __init__(self, indexed: bool = False, multiple: bool = False, languages: bool = None, schema: Mapping = {},
+    def __init__(self, indexed: bool = False, multiple: bool = False, languages: bool = None, schema: t.Mapping = {},
                  *args,
                  **kwargs):
         super().__init__(*args, **kwargs)
@@ -52,7 +52,7 @@ class JsonBone(RawBone):
 
         return False
 
-    def singleValueFromClient(self, value: Union[str, list, dict], skel, bone_name, client_data):
+    def singleValueFromClient(self, value: str | list | dict, skel, bone_name, client_data):
         if value:
             if not isinstance(value, (list, dict)):
                 value = str(value)
