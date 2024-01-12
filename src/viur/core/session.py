@@ -4,7 +4,7 @@ import time
 from viur.core.tasks import DeleteEntitiesIter
 from viur.core.config import conf  # this import has to stay alone due partial import
 from viur.core import db, utils, tasks
-from typing import Any, Optional, Union
+import typing as t
 
 """
     Provides the session implementation for the Google AppEngine™ based on the datastore.
@@ -140,7 +140,7 @@ class Session:
         del self.session[key]
         self.changed = True
 
-    def __getitem__(self, key) -> Any:
+    def __getitem__(self, key) -> t.Any:
         """
             Returns the value stored under the given *key*.
 
@@ -155,7 +155,7 @@ class Session:
         self.session |= other
         return self
 
-    def get(self, key: str, default: Any = None) -> Any:
+    def get(self, key: str, default: t.Any = None) -> t.Any:
         """
             Returns the value stored under the given key.
 
@@ -164,7 +164,7 @@ class Session:
         """
         return self.session.get(key, default)
 
-    def __setitem__(self, key: str, item: Any):
+    def __setitem__(self, key: str, item: t.Any):
         """
             Stores a new value under the given key.
 
@@ -209,7 +209,7 @@ class Session:
 
 
 @tasks.CallDeferred
-def killSessionByUser(user: Optional[Union[str, db.Key]] = None):
+def killSessionByUser(user: t.Optional[t.Union[str, "db.Key", None]] = None):
     """
         Invalidates all active sessions for the given *user*.
 

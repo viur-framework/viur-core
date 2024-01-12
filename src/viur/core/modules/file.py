@@ -7,7 +7,7 @@ from base64 import urlsafe_b64decode
 from datetime import datetime, timedelta
 from io import BytesIO
 from quopri import decodestring
-from typing import Any, List, Tuple, Union
+import typing as t
 from urllib.request import urlopen
 
 import email.header
@@ -115,10 +115,11 @@ def thumbnailer(fileSkel, existingFiles, params):
             src_profile = ImageCms.ImageCmsProfile(f)
             dst_profile = ImageCms.createProfile('sRGB')
             try:
-                img = ImageCms.profileToProfile(img,
-                                                inputProfile=src_profile,
-                                                outputProfile=dst_profile,
-                                                outputMode="RGB")
+                img = ImageCms.profileToProfile(
+                    img,
+                    inputProfile=src_profile,
+                    outputProfile=dst_profile,
+                    outputMode="RGBA" if img.has_transparency_data else "RGB")
             except Exception as e:
                 logging.exception(e)
                 continue
@@ -415,7 +416,7 @@ class File(Tree):
 
     blobCacheTime = 60 * 60 * 24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
 
-    def write(self, filename: str, content: Any, mimetype: str = "text/plain", width: int = None,
+    def write(self, filename: str, content: t.Any, mimetype: str = "text/plain", width: int = None,
               height: int = None) -> db.Key:
         """
         Write a file from any buffer into the file module.
@@ -444,7 +445,7 @@ class File(Tree):
 
         return skel.toDB()
 
-    def read(self, key: db.Key | int | str | None = None, path: str | None = None) -> Tuple[io.BytesIO, str]:
+    def read(self, key: db.Key | int | str | None = None, path: str | None = None) -> tuple[io.BytesIO, str]:
         """
         Read a file from the Cloud Storage.
 
@@ -485,8 +486,8 @@ class File(Tree):
             if skel.fromDB(d.key):
                 skel.delete()
 
-    def signUploadURL(self, mimeTypes: Union[List[str], None] = None, maxSize: Union[int, None] = None,
-                      node: Union[str, None] = None):
+    def signUploadURL(self, mimeTypes: list[str] | None = None, maxSize: int | None = None,
+                      node:  str | None = None):
         """
         Internal helper that will create a signed upload-url that can be used to retrieve an uploadURL from
         getUploadURL for guests / users without having file/add permissions. This URL is valid for an hour and can
@@ -518,8 +519,8 @@ class File(Tree):
     def initializeUpload(self,
                          fileName: str,
                          mimeType: str,
-                         node: Union[str, None],
-                         size: Union[int, None] = None) -> Tuple[str, str]:
+                         node: str | None,
+                         size: int | None = None) -> tuple[str, str]:
         """
         Internal helper that registers a new upload. Will create the pending fileSkel entry (needed to remove any
         started uploads from GCS if that file isn't used) and creates a resumable (and signed) uploadURL for that.

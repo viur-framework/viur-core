@@ -11,7 +11,7 @@ import logging
 import os
 import time
 import traceback
-import typing
+import typing as t
 import inspect
 import unicodedata
 import webob
@@ -40,7 +40,7 @@ class RequestValidator(ABC):
 
     @staticmethod
     @abstractmethod
-    def validate(request: 'BrowseHandler') -> typing.Optional[typing.Tuple[int, str, str]]:
+    def validate(request: 'BrowseHandler') -> t.Optional[tuple[int, str, str]]:
         """
             The function that checks the current request. If the request is valid, simply return None.
             If the request should be blocked, it must return a tuple of
@@ -61,7 +61,7 @@ class FetchMetaDataValidator(RequestValidator):
     name = "FetchMetaDataValidator"
 
     @staticmethod
-    def validate(request: 'BrowseHandler') -> typing.Optional[typing.Tuple[int, str, str]]:
+    def validate(request: 'BrowseHandler') -> t.Optional[tuple[int, str, str]]:
         headers = request.request.headers
         if not headers.get("sec-fetch-site"):  # These headers are not send by all browsers
             return None

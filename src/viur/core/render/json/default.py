@@ -6,7 +6,7 @@ from viur.core.skeleton import SkelList, SkeletonInstance
 from viur.core.i18n import translate
 from viur.core.config import conf
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, Union
+import typing as t
 
 
 class CustomJsonEncoder(json.JSONEncoder):
@@ -14,7 +14,7 @@ class CustomJsonEncoder(json.JSONEncoder):
         This custom JSON-Encoder for this json-render ensures that translations are evaluated and can be dumped.
     """
 
-    def default(self, o: Any) -> Any:
+    def default(self, o: t.Any) -> t.Any:
         if isinstance(o, translate):
             return str(o)
         elif isinstance(o, datetime):
