@@ -401,7 +401,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                         incomplete &= any([key, lang] == error.fieldPath
                                         for lang in bone.required)
 
-                    logging.debug(f"{incomplete=} {error.severity=} {bone.required=}")
+                    # logging.debug(f"{incomplete=} {error.severity=} {bone.required=}")
 
                     if incomplete:
                         complete = False
@@ -1231,7 +1231,7 @@ class RelSkel(BaseSkeleton):
             allBonesEmpty &= thisBoneEmpty
         # Special Case for RecordBones that are not required, but contain required bones
 
-        logging.debug(f"{complete=} {requiredBonesEmpty=} {allBonesEmpty=} {allowEmptyRequired=} {data=}")
+        # logging.debug(f"{complete=} {requiredBonesEmpty=} {allBonesEmpty=} {allowEmptyRequired=} {data=}")
 
         if requiredBonesEmpty and not (allBonesEmpty and allowEmptyRequired):
             # There's at least one required Bone that's empty; but either allowEmptyRequired is not true, or we have
