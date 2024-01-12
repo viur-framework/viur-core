@@ -1392,7 +1392,7 @@ def processRemovedRelations(removedKey, cursor=None):
                     elif isinstance(relVal, list):
                         skel[key] = [x for x in relVal if x["dest"]["key"] != removedKey]
                     else:
-                        print(f"Type? {type(relVal)}" )
+                        logging.debug(f"Type? {type(relVal)}")
             skel.toDB(update_relations=False)
         else:
             logging.critical(f"""Cascading Delete to {skel.kindName}/{ skel["key"]}""")

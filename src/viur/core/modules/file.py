@@ -840,7 +840,7 @@ def doCleanupDeletedFiles(cursor=None):
             db.Delete(file.key)
         else:
             if file["itercount"] > maxIterCount:
-                logging.info(f"""Finally deleting, {file["dlkey"]}""" )
+                logging.info(f"""Finally deleting, {file["dlkey"]}""")
                 blobs = bucket.list_blobs(prefix=f"""{file["dlkey"]}/""")
                 for blob in blobs:
                     blob.delete()

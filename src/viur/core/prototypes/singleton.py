@@ -192,7 +192,7 @@ class Singleton(SkelModule):
         if user["access"] and "root" in user["access"]:
             return True
 
-        if user["access"] and f"{self.viewSkel.kindName}-edit"  in user["access"]:
+        if user["access"] and f"{self.viewSkel.kindName}-edit" in user["access"]:
             return True
 
         return False
