@@ -1053,14 +1053,24 @@ class User(List):
     verifyEmailAddressMail = "user_verify_address"
     passwordRecoveryMail = "user_password_recovery"
 
-    authenticationProviders: list[UserAuthentication] = [UserPassword, GoogleAccount]
-    secondFactorProviders: list[UserSecondFactorAuthentication] = [TimeBasedOTP, AuthenticatorOTP]
+    authenticationProviders: list[UserAuthentication] = [
+        UserPassword,
+        GoogleAccount
+    ]
+
+    secondFactorProviders: list[UserSecondFactorAuthentication] = [
+        TimeBasedOTP,
+        AuthenticatorOTP
+    ]
+
     validAuthenticationMethods = [
         (UserPassword, AuthenticatorOTP),
         (UserPassword, TimeBasedOTP),
         (UserPassword, None),
         (GoogleAccount, None),
     ]
+
+    msg_missing_second_factor = "Second factor required but not configured for this user."
 
     secondFactorTimeWindow = datetime.timedelta(minutes=10)
 
@@ -1221,7 +1231,7 @@ class User(List):
             second_factor_providers.pop(second_factor_providers.index(None))
 
         if len(second_factor_providers) == 0:
-            raise errors.NotAcceptable("There are no authentication methods to try")
+            raise errors.NotAcceptable(self.msg_missing_second_factor)
         elif len(second_factor_providers) == 1:
             if second_factor_providers[0] is None:
                 # We allow sign-in without a second factor
