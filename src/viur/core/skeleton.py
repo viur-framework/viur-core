@@ -1340,8 +1340,9 @@ class RefSkel(RelSkel):
         fromSkel = skeletonByKind(kindName)
         bone_map = {}
         for arg in args:
-            if "*" in arg:  # we have a wild card
-                bone_map |= {k: v for k, v in fromSkel.__boneMap__.items() if k.startswith(arg.replace("*", ""))}
+            if arg[-1] == "*":  # we have a wild card prefix
+                prefix = arg[:-1]
+                bone_map |= {k: v for k, v in fromSkel.__boneMap__.items() if k.startswith(prefix)}
             else:
                 if bone := fromSkel.__boneMap__.get(arg):
                     bone_map[arg] = bone
