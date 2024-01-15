@@ -727,8 +727,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         if (
             not data  # in case data is empty
             or (len(data) == 1 and "key" in data)
-            # FIXME: Use case? Otherwise, use conf.viur.bone.boolean.str2true!
-            or (str(data.get("nomissing")) == "1")
+            or (utils.parse_bool(data.get("nomissing")))
         ):
             skelValues.errors = []
 
