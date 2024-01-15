@@ -693,10 +693,10 @@ class Conf(ConfigType):
             )
             # Construct an CustomEnvironmentHandler class on the fly to be backward compatible
             cls = type("ProjectCustomEnvironmentHandler", (CustomEnvironmentHandler,),
-                         # serialize and restore will be bound methods.
-                         # Therefore, consume the self argument with lambda.
-                         {"serialize": lambda self: value[0](),
-                          "restore": lambda self, obj: value[1](obj)})
+                       # serialize and restore will be bound methods.
+                       # Therefore, consume the self argument with lambda.
+                       {"serialize": lambda self: value[0](),
+                        "restore": lambda self, obj: value[1](obj)})
             self._tasks_custom_environment_handler = cls()
         else:
             raise ValueError(f"Invalid type {type(value)}. Expected a CustomEnvironmentHandler object.")
