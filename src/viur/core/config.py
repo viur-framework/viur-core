@@ -543,8 +543,18 @@ class I18N(ConfigType):
 class User(ConfigType):
     """User, session, login related settings"""
 
-    access_rights: Multiple[str] = ["root", "admin"]
-    """Additional access rights available on this project"""
+    access_rights: Multiple[str] = [
+        "root",
+        "admin",
+        "scriptor",
+    ]
+    """Additional access rights available for users on this project.
+
+    There are three default rights:
+    - `root` is allowed to view/add/edit/delete any module, regardless of role or other settings
+    - `admin` is allowed to use the ViUR administration tool
+    - `scriptor` is allowed to use the ViUR scripting tool
+    """
 
     roles: dict[str, str] = {
         "custom": "Custom",
@@ -553,7 +563,22 @@ class User(ConfigType):
         "editor": "Editor",
         "admin": "Administrator",
     }
-    """User roles available on this project"""
+    """User roles available on this project.
+
+    The roles can be individually defined per module, see `Module.roles`.
+
+    The default roles can be described as follows:
+
+    - `custom` for users with a custom-settings via the `User.access`-bone; includes root users.
+    - `user` for users without any additonal rights. They can log-in and view themselves, or particular modules which
+      just check for authenticated users.
+    - `viewer` for users who should only view content.
+    - `editor` for users who are allowed to edit particular content. They mostly can `view` and `edit`, but not `add`
+      or `delete`.
+    - `admin` for users with administration privileges. They can edit any data, but still aren't `root`.
+
+    The preset roles are for guidiance, and already fit to most projects.
+    """
 
     session_life_time: int = 60 * 60
     """Default is 60 minutes lifetime for ViUR sessions"""
