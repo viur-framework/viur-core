@@ -438,7 +438,7 @@ def add_missing_translation(
 def migrate_translation(
     key: db.Key,
 ) -> None:
-    """Migrate entities in the required.
+    """Migrate entities, if required.
 
     With viur-core 3.6 translations are now managed as Skeletons and require
     some changes, which are performed in this method.
