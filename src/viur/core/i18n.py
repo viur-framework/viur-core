@@ -354,7 +354,7 @@ def initializeTranslations() -> None:
     # for entity in db.Query(KINDNAME).iter():
     for entity in db.Query(KINDNAME).run(10_000):
         if "tr_key" not in entity:
-            logging.error(f"translations entity {entity.key} has no tr_key set --> Call migration")
+            logging.warning(f"translations entity {entity.key} has no tr_key set --> Call migration")
             migrate_translation(entity.key)
             # Before the migration has run do a quick modification to get it loaded as is
             entity["tr_key"] = entity["key"] or entity.key.name
