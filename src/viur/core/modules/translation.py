@@ -117,6 +117,7 @@ class TranslationSkel(Skeleton):
     @classmethod
     def preProcessSerializedData(cls, skelValues: SkeletonInstance, entity: db.Entity) -> db.Entity:
         # Backward-compatibility: re-add the key for viur-core < v3.6
+        # TODO: Remove in ViUR4
         entity["key"] = skelValues["tr_key"]
         return super().preProcessSerializedData(skelValues, entity)
 
