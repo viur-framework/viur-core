@@ -1,6 +1,6 @@
 import logging
 import warnings
-from typing import Any, Dict, Optional, Set, Union
+import typing as t
 
 import sys
 
@@ -29,8 +29,8 @@ class NumericBone(BaseBone):
     def __init__(
         self,
         *,
-        max: Union[int, float] = MAX,
-        min: Union[int, float] = MIN,
+        max: int | float = MAX,
+        min: int | float = MIN,
         mode=None,  # deprecated!
         precision: int = 0,
         **kwargs
@@ -98,7 +98,7 @@ class NumericBone(BaseBone):
         else:
             return 0
 
-    def isEmpty(self, value: Any):
+    def isEmpty(self, value: t.Any):
         """
         This method checks if a given raw value is considered empty for the NumericBone instance.
         It attempts to convert the raw value into a valid numeric value (integer or floating-point
@@ -139,8 +139,8 @@ class NumericBone(BaseBone):
         name: str,
         skel: 'viur.core.skeleton.SkeletonInstance',
         dbFilter: db.Query,
-        rawFilter: Dict,
-        prefix: Optional[str] = None
+        rawFilter: dict,
+        prefix: t.Optional[str] = None
     ) -> db.Query:
         updatedFilter = {}
 
@@ -162,7 +162,7 @@ class NumericBone(BaseBone):
 
         return super().buildDBFilter(name, skel, dbFilter, updatedFilter, prefix)
 
-    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
         This method generates a set of search tags based on the numeric values stored in the NumericBone
         instance. It iterates through the bone values and adds the string representation of each value
@@ -179,7 +179,7 @@ class NumericBone(BaseBone):
             result.add(str(value))
         return result
 
-    def _convert_to_numeric(self, value: Any) -> int | float:
+    def _convert_to_numeric(self, value: t.Any) -> int | float:
         """Convert a value to an int or float considering the precision.
 
         If the value is not convertable an exception will be raised."""
@@ -199,7 +199,7 @@ class NumericBone(BaseBone):
         """
         super().refresh(skel, boneName)
 
-        def refresh_single_value(value: Any) -> float | int:
+        def refresh_single_value(value: t.Any) -> float | int:
             if value == "":
                 return self.getEmptyValue()
             elif not isinstance(value, (int, float, type(None))):

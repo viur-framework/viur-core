@@ -1,16 +1,16 @@
 import base64
-import email.header
 import html
+import io
 import json
-import logging
 import string
 from base64 import urlsafe_b64decode
 from datetime import datetime, timedelta
 from io import BytesIO
 from quopri import decodestring
-from typing import Any, List, Tuple, Union
+import typing as t
 from urllib.request import urlopen
 
+import email.header
 import google.auth
 from PIL import Image, ImageCms
 from google.auth import compute_engine
@@ -18,9 +18,10 @@ from google.auth.transport import requests
 from google.cloud import iam_credentials_v1, storage
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
+import logging
 from viur.core import conf, current, db, errors, utils
-from viur.core.decorators import *
 from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
+from viur.core.decorators import *
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import SkeletonInstance, skeletonByKind
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
@@ -114,10 +115,11 @@ def thumbnailer(fileSkel, existingFiles, params):
             src_profile = ImageCms.ImageCmsProfile(f)
             dst_profile = ImageCms.createProfile('sRGB')
             try:
-                img = ImageCms.profileToProfile(img,
-                                                inputProfile=src_profile,
-                                                outputProfile=dst_profile,
-                                                outputMode="RGB")
+                img = ImageCms.profileToProfile(
+                    img,
+                    inputProfile=src_profile,
+                    outputProfile=dst_profile,
+                    outputMode="RGBA" if img.has_transparency_data else "RGB")
             except Exception as e:
                 logging.exception(e)
                 continue
@@ -414,7 +416,7 @@ class File(Tree):
 
     blobCacheTime = 60 * 60 * 24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
 
-    def write(self, filename: str, content: Any, mimetype: str = "text/plain", width: int = None,
+    def write(self, filename: str, content: t.Any, mimetype: str = "text/plain", width: int = None,
               height: int = None) -> db.Key:
         """
         Write a file from any buffer into the file module.
@@ -427,7 +429,7 @@ class File(Tree):
 
         :return: Returns the key of the file object written. This can be associated e.g. with a FileBone.
         """
-        dl_key = utils.generateRandomString()
+        dl_key = utils.string.random()
 
         blob = bucket.blob("%s/source/%s" % (dl_key, filename))
         blob.upload_from_file(BytesIO(content), content_type=mimetype)
@@ -442,6 +444,31 @@ class File(Tree):
         skel["height"] = height
 
         return skel.toDB()
+
+    def read(self, key: db.Key | int | str | None = None, path: str | None = None) -> tuple[io.BytesIO, str]:
+        """
+        Read a file from the Cloud Storage.
+
+        If a key and a path are provided, the key is preferred.
+        This means that the entry in the db is searched first and if this is not found, the path is used.
+
+        :param key: Key of the LeafSkel that contains the "dlkey" and the "name".
+        :param path: The path of the file in the Cloud Storage Bucket.
+
+        :return: Returns the file as a BytesIO buffer and the content-type
+        """
+        if not key and not path:
+            raise ValueError("Please provide a key or a path")
+        if key:
+            skel = self.viewSkel("leaf")
+            if not skel.fromDB(db.keyHelper(key, skel.kindName)):
+                if not path:
+                    raise ValueError("This skeleton is not in the database!")
+            else:
+                path = f"""{skel["dlkey"]}/source/{skel["name"]}"""
+
+        blob = bucket.blob(path)
+        return io.BytesIO(blob.download_as_bytes()), blob.content_type
 
     @CallDeferred
     def deleteRecursive(self, parentKey):
@@ -459,8 +486,8 @@ class File(Tree):
             if skel.fromDB(d.key):
                 skel.delete()
 
-    def signUploadURL(self, mimeTypes: Union[List[str], None] = None, maxSize: Union[int, None] = None,
-                      node: Union[str, None] = None):
+    def signUploadURL(self, mimeTypes: list[str] | None = None, maxSize: int | None = None,
+                      node:  str | None = None):
         """
         Internal helper that will create a signed upload-url that can be used to retrieve an uploadURL from
         getUploadURL for guests / users without having file/add permissions. This URL is valid for an hour and can
@@ -492,8 +519,8 @@ class File(Tree):
     def initializeUpload(self,
                          fileName: str,
                          mimeType: str,
-                         node: Union[str, None],
-                         size: Union[int, None] = None) -> Tuple[str, str]:
+                         node: str | None,
+                         size: int | None = None) -> tuple[str, str]:
         """
         Internal helper that registers a new upload. Will create the pending fileSkel entry (needed to remove any
         started uploads from GCS if that file isn't used) and creates a resumable (and signed) uploadURL for that.
@@ -506,7 +533,7 @@ class File(Tree):
         global bucket
         fileName = sanitizeFileName(fileName)
 
-        targetKey = utils.generateRandomString()
+        targetKey = utils.string.random()
         blob = bucket.blob("%s/source/%s" % (targetKey, fileName))
         uploadUrl = blob.create_resumable_upload_session(content_type=mimeType, size=size, timeout=60)
         # Create a corresponding file-lock object early, otherwise we would have to ensure that the file-lock object
@@ -707,10 +734,10 @@ class File(Tree):
                 logging.error(targetKey)
                 raise errors.PreconditionFailed()
             blob = blobs[0]
-            skel["mimetype"] = utils.escapeString(blob.content_type)
+            skel["mimetype"] = utils.string.escape(blob.content_type)
             if any([x in blob.name for x in "$<>'\""]):  # Prevent these Characters from being used in a fileName
                 raise errors.PreconditionFailed()
-            skel["name"] = utils.escapeString(blob.name.replace("%s/source/" % skel["dlkey"], ""))
+            skel["name"] = utils.string.escape(blob.name.replace("%s/source/" % skel["dlkey"], ""))
             skel["size"] = blob.size
             skel["parentrepo"] = rootNode["key"] if rootNode else None
             skel["weak"] = rootNode is None

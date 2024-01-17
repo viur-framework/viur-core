@@ -6,7 +6,7 @@ from viur.core.skeleton import SkeletonInstance
 from viur.core.i18n import translate
 from viur.core.config import conf
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, Union
+import typing as t
 
 
 class CustomJsonEncoder(json.JSONEncoder):
@@ -14,7 +14,7 @@ class CustomJsonEncoder(json.JSONEncoder):
         This custom JSON-Encoder for this json-render ensures that translations are evaluated and can be dumped.
     """
 
-    def default(self, o: Any) -> Any:
+    def default(self, o: t.Any) -> t.Any:
         if isinstance(o, translate):
             return str(o)
         elif isinstance(o, datetime):
@@ -68,12 +68,11 @@ class DefaultRender(object):
 
         return structure
 
-
-    def renderSingleBoneValue(self, value: Any,
+    def renderSingleBoneValue(self, value: t.Any,
                               bone: bones.BaseBone,
                               skel: SkeletonInstance,
                               key
-                              ) -> Union[Dict, str, None]:
+                              ) -> dict | str | None:
         """
         Renders the value of a bone.
 
@@ -99,7 +98,7 @@ class DefaultRender(object):
             return value
         return None
 
-    def renderBoneValue(self, bone: bones.BaseBone, skel: SkeletonInstance, key: str) -> Union[List, Dict, None]:
+    def renderBoneValue(self, bone: bones.BaseBone, skel: SkeletonInstance, key: str) -> list | dict | None:
         boneVal = skel[key]
         if bone.languages and bone.multiple:
             res = {}
@@ -121,7 +120,7 @@ class DefaultRender(object):
             res = self.renderSingleBoneValue(boneVal, bone, skel, key)
         return res
 
-    def renderSkelValues(self, skel: SkeletonInstance, injectDownloadURL: bool = False) -> Optional[Dict]:
+    def renderSkelValues(self, skel: SkeletonInstance, injectDownloadURL: bool = False) -> t.Optional[dict]:
         """
         Prepares values of one :class:`viur.core.skeleton.Skeleton` or a list of skeletons for output.
 
