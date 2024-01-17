@@ -37,6 +37,7 @@ from types import ModuleType
 import typing as t
 from google.appengine.api import wrap_wsgi_app
 import yaml
+
 from viur.core import i18n, request, utils
 from viur.core.config import conf
 from viur.core.config import conf
@@ -167,10 +168,12 @@ def buildApp(modules: ModuleType | object, renderers: ModuleType | object, defau
     # assign ViUR system modules
     from viur.core.modules.moduleconf import ModuleConf  # noqa: E402 # import works only here because circular imports
     from viur.core.modules.script import Script  # noqa: E402 # import works only here because circular imports
+    from viur.core.modules.translation import Translation  # noqa: E402 # import works only here because circular imports
     from viur.core.prototypes.instanced_module import InstancedModule  # noqa: E402 # import works only here because circular imports
 
     modules._tasks = TaskHandler
     modules._moduleconf = ModuleConf
+    modules._translation = Translation
     modules.script = Script
 
     # create module mappings

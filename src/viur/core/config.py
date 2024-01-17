@@ -522,6 +522,23 @@ class I18N(ConfigType):
     language_module_map: dict[str, dict[str, str]] = {}
     """Maps modules to their translation (if set)"""
 
+    @property
+    def available_dialects(self) -> list[str]:
+        """Main languages and language aliases"""
+        # Use a dict to keep the order and remove duplicates
+        res = dict.fromkeys(self.available_languages)
+        res |= self.language_alias_map
+        return list(res.keys())
+
+    add_missing_translations: bool = False
+    """Add missing translation into datastore.
+
+    If a key is not found in the translation table when a translation is
+    rendered, a database entry is created with the key and hint and
+    default value (if set) so that the translations
+    can be entered in the administration.
+    """
+
 
 class User(ConfigType):
     """User, session, login related settings"""
