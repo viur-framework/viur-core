@@ -92,7 +92,7 @@ class RecordBone(BaseBone):
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
         usingSkel = self.using()
-        if not usingSkel.fromClient(value, not (self.required or self.multiple)):
+        if not usingSkel.fromClient(value):
             usingSkel.errors.append(
                 ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Incomplete data")
             )
