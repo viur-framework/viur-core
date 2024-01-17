@@ -1212,8 +1212,19 @@ class BaseBone(object):
 
         ret = self.compute.fn(**compute_fn_args)
 
-        if self.compute.raw:
+        def unserialize_raw_value(value: list[dict] | dict | None):
+            if self.multiple:
+                return [self.singleValueUnserialize(value)
+                        for value in ret]
             return self.singleValueUnserialize(ret)
+
+        if self.compute.raw:
+            if self.languages:
+                return {
+                    lang: unserialize_raw_value(ret.get(lang, [] if self.multiple else None))
+                    for lang in self.languages
+                }
+            return unserialize_raw_value(ret)
 
         if errors := self.fromClient(skel, bone_name, {bone_name: ret}):
             raise ValueError(f"Computed value fromClient failed with {errors!r}")
