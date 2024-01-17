@@ -384,8 +384,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
         return bone.setBoneValue(skelValues, boneName, value, append, language)
 
     @classmethod
-    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str],
-                   allowEmptyRequired=False) -> bool:
+    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str]) -> bool:
         """
             Load supplied *data* into Skeleton.
 
@@ -403,39 +402,54 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
             :returns: True if all data was successfully read and taken by the Skeleton's bones.\
             False otherwise (eg. some required fields where missing or invalid).
         """
-        assert not allowEmptyRequired, "allowEmptyRequired is only valid on RelSkels"
-        complete = len(data) > 0  # Empty values are never valid
+        complete = True
         skelValues.errors = []
 
-        for key, _bone in skelValues.items():
-            if _bone.readOnly:
+        for key, bone in skelValues.items():
+            if bone.readOnly:
                 continue
-            errors = _bone.fromClient(skelValues, key, data)
-            if errors:
-                for err in errors:
-                    err.fieldPath.insert(0, str(key))
-                skelValues.errors.extend(errors)
+
+            if errors := bone.fromClient(skelValues, key, data):
                 for error in errors:
-                    is_empty = error.severity == ReadFromClientErrorSeverity.Empty and bool(_bone.required)
-                    if _bone.languages and isinstance(_bone.required, (list, tuple)):
-                        is_empty &= any([key, lang] == error.fieldPath
-                                        for lang in _bone.required)
-                    else:
-                        is_empty &= error.fieldPath == [key]
-                    if is_empty or error.severity == ReadFromClientErrorSeverity.Invalid or \
-                        (error.severity == ReadFromClientErrorSeverity.NotSet and _bone.required and
-                         _bone.isEmpty(skelValues["key"])):
-                        # We'll consider empty required bones only as an error, if they're on the top-level (and not
-                        # further down the hierarchy (in an record- or relational-Bone)
+                    # insert current bone name into error's fieldPath
+                    error.fieldPath.insert(0, str(key))
+
+                    # logging.debug(f"BaseSkel.fromClient {key=} {error=}")
+
+                    incomplete = (
+                        # always when something is invalid
+                        error.severity == ReadFromClientErrorSeverity.Invalid
+                        or (
+                            # only when path is top-level
+                            len(error.fieldPath) == 1
+                            and (
+                                # bone is generally required
+                                bool(bone.required)
+                                # and value is either empty or not set
+                                and error.severity in (
+                                    ReadFromClientErrorSeverity.Empty,
+                                    ReadFromClientErrorSeverity.NotSet
+                                )
+                            )
+                        )
+                    )
+
+                    # in case there are language requirements, test additionally
+                    if bone.languages and isinstance(bone.required, (list, tuple)):
+                        incomplete &= any([key, lang] == error.fieldPath for lang in bone.required)
+
+                    # logging.debug(f"BaseSkel.fromClient {incomplete=} {error.severity=} {bone.required=}")
+
+                    if incomplete:
                         complete = False
 
-                        if conf.debug.skeleton_from_client and cls.kindName:
-                            logging.debug("%s: %s: %r", cls.kindName, error.fieldPath, error.errorMessage)
+                        if conf.debug.skeleton_from_client:
+                            logging.error(
+                                f"""{getattr(cls, "kindName", cls.__name__)}: {".".join(error.fieldPath)}: """
+                                f"""({error.severity}) {error.errorMessage}"""
+                            )
 
-        if (len(data) == 0
-            or (len(data) == 1 and "key" in data)
-            or ("nomissing" in data and str(data["nomissing"]) == "1")):
-            skelValues.errors = []
+                skelValues.errors += errors
 
         return complete
 
@@ -588,7 +602,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
     providesFulltextSearch = True
     fulltextSearchGuaranteesQueryConstrains = True
 
-    def __init__(self, min_length: int = 3, max_length: int = 99, substring_matching: bool = True):
+    def __init__(self, min_length: int = 2, max_length: int = 50, substring_matching: bool = False):
         super().__init__()
         self.min_length = min_length
         self.max_length = max_length
@@ -761,8 +775,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return db.Query(skelValues.kindName, srcSkelClass=skelValues, **kwargs)
 
     @classmethod
-    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str],
-                   allowEmptyRequired=False) -> bool:
+    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str]) -> bool:
         """
             This function works similar to :func:`~viur.core.skeleton.Skeleton.setValues`, except that
             the values retrieved from *data* are checked against the bones and their validity checks.
@@ -777,9 +790,16 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         :return: True, if all values have been read correctly (without errors), False otherwise
         """
         assert skelValues.renderPreparation is None, "Cannot modify values while rendering"
-        assert not allowEmptyRequired, "allowEmptyRequired is only valid on RelSkels"
+
         # Load data into this skeleton
-        complete = super().fromClient(skelValues, data)
+        complete = bool(data) and super().fromClient(skelValues, data)
+
+        if (
+            not data  # in case data is empty
+            or (len(data) == 1 and "key" in data)
+            or (utils.parse_bool(data.get("nomissing")))
+        ):
+            skelValues.errors = []
 
         # Check if all unique values are available
         for boneName, boneInstance in skelValues.items():
@@ -1234,53 +1254,6 @@ class RelSkel(BaseSkeleton):
         The Skeleton stores its bones in an :class:`OrderedDict`-Instance, so the definition order of the
         contained bones remains constant.
     """
-
-    @classmethod
-    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str],
-                   allowEmptyRequired=False) -> bool:
-        """
-            Reads the data supplied by data.
-            Unlike setValues, error-checking is performed.
-            The values might be in a different representation than the one used in getValues/serValues.
-            Even if this function returns False, all bones are guranteed to be in a valid state:
-            The ones which have been read correctly contain their data; the other ones are set back to a safe default (None in most cases)
-            So its possible to call save() afterwards even if reading data fromClient faild (through this might violates the assumed consitency-model!).
-
-            :param data: Dictionary from which the data is read
-            :returns: True if the data was successfully read; False otherwise (eg. some required fields where missing or invalid)
-        """
-        complete = len(data) > 0  # Empty values are never valid
-        skelValues.errors = []
-        allBonesEmpty = True  # Indicates if all bones in this skeleton are empty
-        requiredBonesEmpty = False  # If True, at least one bone marked with required=True is also empty
-        for key, _bone in skelValues.items():
-            if _bone.readOnly:
-                continue
-            errors = _bone.fromClient(skelValues, key, data)
-            thisBoneEmpty = False
-            if errors:
-                for err in errors:
-                    err.fieldPath.insert(0, str(key))
-                skelValues.errors.extend(errors)
-                for err in errors:
-                    if err.fieldPath == [key] and (err.severity == ReadFromClientErrorSeverity.Empty or
-                        (err.severity == ReadFromClientErrorSeverity.NotSet and _bone.isEmpty(skelValues[key]))):
-                        thisBoneEmpty = True
-                        if _bone.required:
-                            requiredBonesEmpty = True
-                    if err.severity == ReadFromClientErrorSeverity.Invalid:
-                        complete = False
-            allBonesEmpty &= thisBoneEmpty
-        # Special Case for RecordBones that are not required, but contain required bones
-        if requiredBonesEmpty and not (allBonesEmpty and allowEmptyRequired):
-            # There's at least one required Bone that's empty; but either allowEmptyRequired is not true, or we have
-            # at least one other bone in this skeleton, that have data; so we have to reject this skeleton
-            complete = False
-        if (len(data) == 0 or (len(data) == 1 and "key" in data) or (
-            "nomissing" in data and str(data["nomissing"]) == "1")):
-            skelValues.errors = []
-            return False  # Force the skeleton to be displayed to the user again
-        return complete
 
     def serialize(self, parentIndexed):
         if self.dbEntity is None:
