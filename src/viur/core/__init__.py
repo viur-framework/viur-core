@@ -14,8 +14,8 @@
 
    I N F O R M A T I O N    S Y S T E M
 
- ViUR core
- Copyright (C) 2012-2023 by Mausbrand Informationssysteme GmbH
+ viur-core
+ Copyright © 2012-2024 by Mausbrand Informationssysteme GmbH
 
  ViUR is a free software development framework for the Google App Engine™.
  More about ViUR can be found at https://www.viur.dev.
