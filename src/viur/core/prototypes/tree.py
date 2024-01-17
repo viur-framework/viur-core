@@ -546,7 +546,8 @@ class Tree(SkelModule):
 
         # Test if we try to move a rootNode
         tmp = skel.dbEntity
-        if tmp.get("rootNode") == 1 or tmp.get("is_root_node"):
+        # TODO: Remove "rootNode"-fallback with VIUR4
+        if skel.dbEntity.get("is_root_node") or skel.dbEntity.get("rootNode"):
             raise errors.NotAcceptable("Can't move a rootNode to somewhere else")
 
         currentParentRepo = skel["parentrepo"]
