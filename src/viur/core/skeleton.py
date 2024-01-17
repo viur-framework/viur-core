@@ -951,7 +951,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                             if lock_db_obj["references"] != db_obj.key.id_or_name:
                                 # This value has already been claimed, and not by us
                                 # TODO: Use a custom exception class which is catchable with an try/except
-                                raise ValueError(f"The unique value '{skel[bone_name]}' of bone '{bone_name}' has been recently claimed!")
+                                raise ValueError(
+                                    f"The unique value '{skel[bone_name]}' of bone '{bone_name}' "
+                                    "has been recently claimed!"
+                                )
                         else:
                             # This value is locked for the first time, create a new lock-object
                             lock_obj = db.Entity(new_lock_key)
