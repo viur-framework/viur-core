@@ -24,7 +24,6 @@ from viur.core import (
 from viur.core.decorators import *
 from viur.core.bones import *
 from viur.core.bones.password import PBKDF2_DEFAULT_ITERATIONS, encode_password
-from viur.core.i18n import translate
 from viur.core.prototypes.list import List
 from viur.core.ratelimit import RateLimit
 from viur.core.securityheaders import extendCsp
@@ -396,7 +395,19 @@ class UserPassword(UserAuthentication):
                 skel["name"], recovery_key, current_request.request.headers["User-Agent"]
             )
 
-            return self._user_module.render.view(None, tpl=self.passwordRecoveryInstructionsSentTemplate)
+            return self._user_module.render.edit(
+                self.LostPasswordStep2Skel(),
+                tpl=self.passwordRecoveryInstructionsSentTemplate,
+                params={
+                    "message": i18n.translate(
+                        key="viur.modules.user.userpassword.pwrecover.recoverykey",
+                        defaultText=
+                            "Please enter the security key you should have received via e-mail "
+                            "together with your new password.",
+                        hint="Provide a hint for the user to wait for recoverykey and enter new password"
+                    ),
+                }
+            )
 
         # in step 2
         skel = self.LostPasswordStep2Skel()
@@ -407,7 +418,6 @@ class UserPassword(UserAuthentication):
             return self._user_module.render.edit(
                 skel=skel,
                 tpl=self.passwordRecoveryStep2Template,
-                recovery_key=recovery_key
             )
 
         # validate security key
@@ -443,7 +453,17 @@ class UserPassword(UserAuthentication):
         user_skel["password"] = skel["password"]
         user_skel.toDB(update_relations=False)
 
-        return self._user_module.render.view(None, tpl=self.passwordRecoverySuccessTemplate)
+        return self._user_module.render.view(
+            None,
+            tpl=self.passwordRecoverySuccessTemplate,
+            params={
+                "message": i18n.translate(
+                    key="viur.modules.user.userpassword.pwrecover.successfull",
+                    defaultText="Your account has been recovered successfully, you can now login.",
+                    hint="This is the message to be shown when the recovery was successfull."
+                ),
+            }
+        )
 
     @tasks.CallDeferred
     def sendUserPasswordRecoveryCode(self, user_name: str, recovery_key: str, user_agent: str) -> None:
@@ -740,7 +760,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         return self._user_module.render.edit(
             self.OtpSkel(),
             params={
-                "name": translate(self.NAME),
+                "name": i18n.translate(self.NAME),
                 "action_name": self.ACTION_NAME,
                 "action_url": f"{self.modulePath}/{self.ACTION_NAME}",
             },
@@ -784,7 +804,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
             return self._user_module.render.edit(
                 skel,
-                name=translate(self.NAME),
+                name=i18n.translate(self.NAME),
                 action_name=self.ACTION_NAME,
                 action_url=f"{self.modulePath}/{self.ACTION_NAME}",
                 tpl=self.second_factor_login_template
@@ -916,7 +936,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             return self._user_module.render.second_factor_add(
                 tpl=self.second_factor_add_template,
                 action_name=self.ACTION_NAME,
-                name=translate(self.NAME),
+                name=i18n.translate(self.NAME),
                 add_url=self.add_url,
                 otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))
         else:
@@ -924,7 +944,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
                 return self._user_module.render.second_factor_add(
                     tpl=self.second_factor_add_template,
                     action_name=self.ACTION_NAME,
-                    name=translate(self.NAME),
+                    name=i18n.translate(self.NAME),
                     add_url=self.add_url,
                     otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))  # to add errors
 
@@ -932,7 +952,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             AuthenticatorOTP.set_otp_app_secret(otp_app_secret)
             return self._user_module.render.second_factor_add_success(
                 action_name=self.ACTION_NAME,
-                name=translate(self.NAME),
+                name=i18n.translate(self.NAME),
             )
 
     def can_handle(self, possible_user: db.Entity) -> bool:
@@ -999,7 +1019,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         return self._user_module.render.edit(
             TimeBasedOTP.OtpSkel(),
             params={
-                "name": translate(self.NAME),
+                "name": i18n.translate(self.NAME),
                 "action_name": self.ACTION_NAME,
                 "action_url": self.action_url,
             },
@@ -1038,7 +1058,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
         return self._user_module.render.edit(
             skel,
-            name=translate(self.NAME),
+            name=i18n.translate(self.NAME),
             action_name=self.ACTION_NAME,
             action_url=self.action_url,
             tpl=self.second_factor_login_template,
