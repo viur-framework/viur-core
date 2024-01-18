@@ -403,7 +403,7 @@ class UserPassword(UserAuthentication):
                         key="viur.modules.user.userpassword.pwrecover.recoverykey",
                         defaultText="Please enter the recovery key you should have received to your "
                             "e-mail address, along with your new password.",
-                        hint="Provide a hint for the user to wait for recoverykey and enter new password"
+                        hint="Provide a hint for the user to wait for recovery key and enter new password"
                     ),
                 }
             )
@@ -457,7 +457,7 @@ class UserPassword(UserAuthentication):
             tpl=self.passwordRecoverySuccessTemplate,
             params={
                 "message": i18n.translate(
-                    key="viur.modules.user.userpassword.pwrecover.successfull",
+                    key="viur.modules.user.userpassword.pwrecover.successful",
                     defaultText="Your account has been recovered successfully, you can now login.",
                     hint="This is the message to be shown when the recovery was successfull."
                 ),
