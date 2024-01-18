@@ -191,7 +191,7 @@ class Tree(SkelModule):
         if depth > 99:
             logging.critical(f"Maximum recursion depth reached in {self.updateParentRepo.__module__}/updateParentRepo")
             logging.critical("Your data is corrupt!")
-            logging.critical(f"Params: parentNode: {parentNode}, newRepoKey: {newRepoKey}")
+            logging.debug(f"{parentNode=}, {newRepoKey=}")
             return
 
         def fixTxn(nodeKey, newRepoKey):
@@ -748,10 +748,10 @@ class Tree(SkelModule):
 
         .. seealso:: :func:`add`, :func:`onAdd`
         """
-        logging.info(f"""Entry of kind {skelType!r} added: {skel["key"]}""")
+        logging.info(f"""Entry of kind {skelType!r} added: {skel["key"]!r}""")
         flushCache(kind=skel.kindName)
         if user := current.user.get():
-            logging.info(f"""User: {user["name"]} ({user["key"]})""")
+            logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
     def onEdit(self, skelType: SkelType, skel: SkeletonInstance):
         """
@@ -778,10 +778,10 @@ class Tree(SkelModule):
 
         .. seealso:: :func:`edit`, :func:`onEdit`
         """
-        logging.info(f"""Entry of kind {skelType!r} changed: {skel["key"]}""")
+        logging.info(f"""Entry of kind {skelType!r} changed: {skel["key"]!r}""")
         flushCache(key=skel["key"])
         if user := current.user.get():
-            logging.info(f"""User: {user["name"]} ({user["key"]})""")
+            logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
     def onView(self, skelType: SkelType, skel: SkeletonInstance):
         """
@@ -825,7 +825,7 @@ class Tree(SkelModule):
 
         .. seealso:: :func:`delete`, :func:`onDelete`
         """
-        logging.info(f"""Entry deleted: {skel["key"]} ({type(skel)})""")
+        logging.info(f"""Entry deleted: {skel["key"]!r} ({skelType!r})""")
         flushCache(key=skel["key"])
         if user := current.user.get():
             logging.info(f"""User: {user["name"]} ({user["key"]})""")

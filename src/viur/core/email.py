@@ -91,7 +91,7 @@ def sendEmailDeferred(emailKey: db.Key):
         Callback from the Taskqueue to send the given Email
         :param emailKey: Database-Key of the email we should send
     """
-    logging.debug(f"Sending deferred email: {emailKey}")
+    logging.debug(f"Sending deferred e-mail {emailKey!r}")
     queueEntity = db.Get(emailKey)
     assert queueEntity, "Email queue object went missing!"
     if queueEntity["isSend"]:
@@ -211,7 +211,7 @@ def sendEMail(*,
         assert all(["filename" in x for x in attachments]), "Attachment is missing the filename key"
     # If conf.email.recipient_override is set we'll redirect any email to these address(es)
     if conf.email.recipient_override:
-        logging.warning(f"Overriding destination {dests} with {conf.email.recipient_override}")
+        logging.warning(f"Overriding destination {dests!r} with {conf.email.recipient_override!r}")
         oldDests = dests
         newDests = normalize_to_list(conf.email.recipient_override)
         dests = []
@@ -289,8 +289,7 @@ def sendEMailToAdmins(subject: str, body: str, *args, **kwargs) -> bool:
     finally:
         if not success:
             logging.critical("Cannot send mail to Admins.")
-            logging.critical(f"Subject of mail: {subject}")
-            logging.critical(f"Content of mail: {body}")
+            logging.debug(f"{subject = }, {body = }")
 
     return False
 

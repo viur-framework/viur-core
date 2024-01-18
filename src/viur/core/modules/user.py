@@ -1485,7 +1485,7 @@ def createNewUserIfNotExists():
             try:
                 addSkel.toDB()
             except Exception as e:
-                logging.error(f"Something went wrong when trying to add admin user {uname} with Password {pw}")
+                logging.critical(f"Something went wrong when trying to add admin user {uname!r} with Password {pw!r}")
                 logging.exception(e)
                 return
 

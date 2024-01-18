@@ -495,10 +495,10 @@ class List(SkelModule):
 
             .. seealso:: :func:`add`, , :func:`onAdd`
         """
-        logging.info(f"""Entry added: {skel["key"]}""" % skel["key"])
+        logging.info(f"""Entry added: {skel["key"]!r}""")
         flushCache(kind=skel.kindName)
         if user := current.user.get():
-            logging.info(f"""User: {user["name"]} ({user["key"]})""")
+            logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
     def onEdit(self, skel: SkeletonInstance):
         """
@@ -523,10 +523,10 @@ class List(SkelModule):
 
             .. seealso:: :func:`edit`, :func:`onEdit`
         """
-        logging.info(f"""Entry changed: {skel["key"]}""")
+        logging.info(f"""Entry changed: {skel["key"]!r}""")
         flushCache(key=skel["key"])
         if user := current.user.get():
-            logging.info(f"""User: {user["name"]} ({user["key"]})""")
+            logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
     def onView(self, skel: SkeletonInstance):
         """
@@ -564,10 +564,10 @@ class List(SkelModule):
 
             .. seealso:: :func:`delete`, :func:`onDelete`
         """
-        logging.info(f"""Entry deleted: {skel["key"]}""")
+        logging.info(f"""Entry deleted: {skel["key"]!r}""")
         flushCache(key=skel["key"])
         if user := current.user.get():
-            logging.info(f"""User: {user["name"]} ({user["key"]})""")
+            logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
 
 List.admin = True

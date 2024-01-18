@@ -105,7 +105,7 @@ def skeletonByKind(kindName: str) -> t.Type[Skeleton]:
         :param kindName: The kindname to retreive the skeleton for
         :return: The skeleton-class for that kind
     """
-    assert kindName in MetaBaseSkel._skelCache, f"Unknown skeleton '{kindName}'"
+    assert kindName in MetaBaseSkel._skelCache, f"Unknown skeleton {kindName=}"
     return MetaBaseSkel._skelCache[kindName]
 
 
@@ -955,7 +955,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                             if lockObj["references"] != dbObj.key.id_or_name:
                                 # This value has already been claimed, and not by us
                                 raise ValueError(
-                                    f"The unique value '{skelValues[key]}' of bone '{key}' has been recently claimed!")
+                                    f"The unique value {skelValues[key]!r} of bone {key!r} has been recently claimed!")
                         else:
                             # This value is locked for the first time, create a new lock-object
                             newLockObj = db.Entity(db.Key(f"{skel.kindName}_{key}_uniquePropertyIndex", newLockValue))
@@ -1191,10 +1191,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                         lockKey = db.Key(f"{skel.kindName}_{boneName}_uniquePropertyIndex", lockValue)
                         lockObj = db.Get(lockKey)
                         if not lockObj:
-                            logging.error(f"Programming error detected: Lockobj {lockKey} missing!")
+                            logging.error(f"{lockKey=} missing!")
                         elif lockObj["references"] != dbObj.key.id_or_name:
                             logging.error(
-                                f"""Programming error detected: {skel["key"]} did not hold lock for {lockKey}""")
+                                f"""{skel["key"]!r} does not hold lock for {lockKey!r}""")
                         else:
                             flushList.append(lockObj)
                     if flushList:
@@ -1365,10 +1365,10 @@ def processRemovedRelations(removedKey, cursor=None):
                     elif isinstance(relVal, list):
                         skel[key] = [x for x in relVal if x["dest"]["key"] != removedKey]
                     else:
-                        logging.debug(f"Type? {type(relVal)}")
+                        raise NotImplementedError(f"No handling for {type(relVal)=}")
             skel.toDB(update_relations=False)
         else:
-            logging.critical(f"""Cascading Delete to {skel.kindName}/{ skel["key"]}""")
+            logging.critical(f"""Cascade deletion of {skel["key"]!r}""")
             skel.delete()
             pass
     if len(updateList) == 5:
@@ -1416,7 +1416,7 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: t.Optional
         try:
             skel = skeletonByKind(srcRel["viur_src_kind"])()
         except AssertionError:
-            logging.info(f"""Ignoring {srcRel.key} which refers to unknown kind {srcRel["viur_src_kind"]}""")
+            logging.info(f"""Ignoring {srcRel.key!r} which refers to unknown kind {srcRel["viur_src_kind"]!r}""")
             continue
         if db.IsInTransaction():
             updateTxn(skel, srcRel["src"].key, srcRel.key)

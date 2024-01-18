@@ -242,8 +242,7 @@ class TaskHandler(Module):
             pathlist = [x for x in funcPath.split("/") if x]
             for currpath in pathlist:
                 if currpath not in dir(caller):
-                    logging.error(f"ViUR missed a deferred task! Could not resolve the path {funcPath}. "
-                                  f"Failed segment was {currpath}")
+                    logging.error(f"Could not resolve {funcPath=} (failed part was {currpath!r})")
                     return
                 caller = getattr(caller, currpath)
             try:
@@ -255,7 +254,7 @@ class TaskHandler(Module):
                 raise errors.RequestTimeout()  # Task-API should retry
         elif cmd == "unb":
             if not funcPath in _deferred_tasks:
-                logging.error(f"ViUR missed a deferred task! {funcPath}({args},{kwargs})")
+                logging.error(f"Missed deferred task {funcPath=)({args=},{kwargs=})")
             # We call the deferred function *directly* (without walking through the mkDeferred lambda), so ensure
             # that any hit to another deferred function will defer again
 
@@ -274,7 +273,7 @@ class TaskHandler(Module):
         if not conf.instance.is_dev_server:
             self._validate_request(require_cron=True, require_taskname=False)
         if cronName not in _periodicTasks:
-            logging.warning(f"Got Cron request '{cronName}' which doesn't have any tasks")
+            logging.warning(f"Cron request {cronName=r} doesn't have any tasks")
         # We must defer from cron, as tasks will interpret it as a call originating from task-queue - causing deferred
         # functions to be called directly, wich causes calls with _countdown etc set to fail.
         req.DEFERRED_TASK_CALLED = True
@@ -283,7 +282,7 @@ class TaskHandler(Module):
             if interval:  # Ensure this task doesn't get called to often
                 lastCall = db.Get(db.Key("viur-task-interval", periodicTaskName))
                 if lastCall and utils.utcNow() - lastCall["date"] < timedelta(minutes=interval):
-                    logging.debug(f"Skipping task {periodicTaskName} - Has already run recently.")
+                    logging.debug(f"Task {periodicTaskName!r} has already run recently - skipping.")
                     continue
             res = self.findBoundTask(task, conf.main_app)
             try:

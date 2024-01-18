@@ -192,7 +192,7 @@ class Singleton(SkelModule):
         if user["access"] and "root" in user["access"]:
             return True
 
-        if user["access"] and f"{self.viewSkel.kindName}-edit" in user["access"]:
+        if user["access"] and f"{self.moduleName}-edit" in user["access"]:
             return True
 
         return False
@@ -273,10 +273,10 @@ class Singleton(SkelModule):
 
         .. seealso:: :func:`edit`, :func:`onEdit`
         """
-        logging.info(f"""Entry changed: {skel["key"]}""")
+        logging.info(f"""Entry changed: {skel["key"]!r}""")
         flushCache(key=skel["key"])
         if user := current.user.get():
-            logging.info(f"""User: {user["name"]} ({user["key"]})""")
+            logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
     def onView(self, skel: SkeletonInstance):
         """

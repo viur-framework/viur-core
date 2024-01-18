@@ -92,17 +92,17 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> t.Any:
             request.kwargs = tmp_params  # Reset RequestParams
             request.internalRequest = lastRequestState
             request.template_style = last_template_style
-            return f"Path not found {path} (failed Part was {currpath})"
+            return f"{path=} not found (failed at {currpath!r})"
 
     if not (isinstance(caller, Method) and caller.exposed is not None):
         request.kwargs = tmp_params  # Reset RequestParams
         request.internalRequest = lastRequestState
         request.template_style = last_template_style
-        return f"{caller} not callable or not exposed"
+        return f"{caller!r} not callable or not exposed"
     try:
         resstr = caller(*args, **kwargs)
     except Exception as e:
-        logging.error(f"Caught execption in execRequest while calling {path}")
+        logging.error(f"Caught exception in execRequest while calling {path}")
         logging.exception(e)
         raise
     request.kwargs = tmp_params
@@ -145,7 +145,7 @@ def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel"
     :returns: dict on success, False on error.
     """
     if module not in dir(conf.main_app):
-        logging.error(f"getSkel called with unknown module {module}!")
+        logging.error(f"getSkel called with unknown {module=}!")
         return False
 
     obj = getattr(conf.main_app, module)
