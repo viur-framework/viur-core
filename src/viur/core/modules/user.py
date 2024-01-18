@@ -401,9 +401,8 @@ class UserPassword(UserAuthentication):
                 params={
                     "message": i18n.translate(
                         key="viur.modules.user.userpassword.pwrecover.recoverykey",
-                        defaultText=
-                            "Please enter the security key you should have received via e-mail "
-                            "together with your new password.",
+                        defaultText="Please enter the recovery key you should have received to your "
+                            "e-mail address, along with your new password.",
                         hint="Provide a hint for the user to wait for recoverykey and enter new password"
                     ),
                 }
