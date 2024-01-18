@@ -2,6 +2,34 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.5.11]
+
+- fix: Improve and refactor `BaseSkel.fromClient()` to handle empty/unset data (#1023)
+- fix: Add check for `db.Key` in `KeyBone.singleValueFromClient` (#1008)
+- fix: Provide `User.msg_missing_second_factor` customization (#1026)
+- fix: Finetuning `ViurTagsSearchAdapter` defaults (#1010)
+- fix: support for tasks emulator (#1004)
+
+## [3.5.10]
+
+- fix: handling alpha channel within thumbnail generation if icc profile is present (#1006)
+- fix: Broken use of tasks emulator in combination with the app_server (#1003)
+- fix: Undocumented and uninitialized `conf["viur.user.google.gsuiteDomains"]` (#1002)
+
+## [3.5.9]
+
+- feat: Provide `UserPassword.on_login()` hook (#987)
+- fix: disable cookie's `SameSite` and `Secure` for local server (#961)
+
+## [3.5.8]
+
+- fix: Callable task `TaskVacuumRelations` (#963)
+- fix: `exclude_from_indexes` has to be a `set` (#964)
+- fix: kwargs checks must be underline (`_`) prefixed as well (#962)
+- fix: Modules using `@property` crash on `_update_methods` (#952)
+- fix: Support `@cache`-decorator for both functions and `Method`-instance (#948)
+- fix: Invalid `maxLength` check in `StringBone` (#941)
+
 ## [3.5.7]
 
 - fix: Update dependencies, urllib3 CVE-2023-45803 (#938)

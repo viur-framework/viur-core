@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Literal, Optional, Type
+import typing as t
 from viur.core import utils, errors, db, current
 from viur.core.decorators import *
 from viur.core.bones import KeyBone, SortIndexBone
@@ -7,9 +7,9 @@ from viur.core.cache import flushCache
 from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.tasks import CallDeferred
 from .skelmodule import SkelModule
-from ..utils import parse_bool
 
-SkelType = Literal["node", "leaf"]
+
+SkelType = t.Literal["node", "leaf"]
 
 
 class TreeSkel(Skeleton):
@@ -55,7 +55,7 @@ class Tree(SkelModule):
     def handler(self):
         return "tree" if self.leafSkelCls else "tree.node"  # either a tree or a tree with nodes only (former hierarchy)
 
-    def _checkSkelType(self, skelType: Any) -> Optional[SkelType]:
+    def _checkSkelType(self, skelType: t.Any) -> t.Optional[SkelType]:
         """
         Checks for correct skelType.
 
@@ -67,7 +67,7 @@ class Tree(SkelModule):
 
         return None
 
-    def _resolveSkelCls(self, skelType: SkelType, *args, **kwargs) -> Type[Skeleton]:
+    def _resolveSkelCls(self, skelType: SkelType, *args, **kwargs) -> t.Type[Skeleton]:
         if not (skelType := self._checkSkelType(skelType)):
             raise ValueError("Unsupported skelType")
 
@@ -134,7 +134,7 @@ class Tree(SkelModule):
         kindName = self.viewSkel("node").kindName
         return db.GetOrInsert(db.Key(kindName, key), creationdate=utils.utcNow(), rootNode=1)
 
-    def getAvailableRootNodes(self, *args, **kwargs) -> List[Dict[Literal["name", "key"], str]]:
+    def getAvailableRootNodes(self, *args, **kwargs) -> list[dict[t.Literal["name", "key"], str]]:
         """
         Default function for providing a list of root node items.
         This list is requested by several module-internal functions and *must* be
@@ -241,7 +241,7 @@ class Tree(SkelModule):
     ## External exposed functions
 
     @exposed
-    def listRootNodes(self, *args, **kwargs) -> Any:
+    def listRootNodes(self, *args, **kwargs) -> t.Any:
         """
         Renders a list of all available repositories for the current user using the
         modules default renderer.
@@ -251,7 +251,7 @@ class Tree(SkelModule):
         return self.render.listRootNodes(self.getAvailableRootNodes(*args, **kwargs))
 
     @exposed
-    def list(self, skelType: SkelType, *args, **kwargs) -> Any:
+    def list(self, skelType: SkelType, *args, **kwargs) -> t.Any:
         """
         Prepares and renders a list of entries.
 
@@ -277,7 +277,7 @@ class Tree(SkelModule):
         return self.render.list(res)
 
     @exposed
-    def structure(self, skelType: SkelType, *args, **kwargs) -> Any:
+    def structure(self, skelType: SkelType, *args, **kwargs) -> t.Any:
         """
         :returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
             in each bone.
@@ -296,7 +296,7 @@ class Tree(SkelModule):
         return self.render.view(skel)
 
     @exposed
-    def view(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> Any:
+    def view(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> t.Any:
         """
         Prepares and renders a single entry for viewing.
 
@@ -330,7 +330,7 @@ class Tree(SkelModule):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def add(self, skelType: SkelType, node: db.Key | int | str, *args, **kwargs) -> Any:
+    def add(self, skelType: SkelType, node: db.Key | int | str, *args, **kwargs) -> t.Any:
         """
         Add a new entry with the given parent *node*, and render the entry, eventually with error notes
         on incorrect data. Data is taken by any other arguments in *kwargs*.
@@ -367,7 +367,7 @@ class Tree(SkelModule):
             not kwargs  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or not current.request.get().isPostRequest
-            or parse_bool(kwargs.get("bounce"))  # review before adding
+            or utils.parse.bool(kwargs.get("bounce"))  # review before adding
         ):
             return self.render.add(skel)
 
@@ -380,7 +380,7 @@ class Tree(SkelModule):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def edit(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> Any:
+    def edit(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> t.Any:
         """
         Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
         Data is taken by any other arguments in *kwargs*.
@@ -413,7 +413,7 @@ class Tree(SkelModule):
             not kwargs  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or not current.request.get().isPostRequest
-            or parse_bool(kwargs.get("bounce"))  # review before adding
+            or utils.parse.bool(kwargs.get("bounce"))  # review before adding
         ):
             return self.render.edit(skel)
 
@@ -427,7 +427,7 @@ class Tree(SkelModule):
     @force_ssl
     @force_post
     @skey
-    def delete(self, skelType: SkelType, key: str, *args, **kwargs) -> Any:
+    def delete(self, skelType: SkelType, key: str, *args, **kwargs) -> t.Any:
         """
         Deletes an entry or an directory (including its contents).
 
@@ -537,7 +537,7 @@ class Tree(SkelModule):
         for _ in range(0, 99):
             if currLevel.key == skel["key"]:
                 break
-            if currLevel.get("rootNode"):
+            if currLevel.get("rootNode") or currLevel.get("is_root_node"):
                 # We reached a rootNode, so this is okay
                 break
             currLevel = db.Get(currLevel["parententry"])
@@ -545,8 +545,8 @@ class Tree(SkelModule):
             raise errors.NotAcceptable("Unable to find a root node in recursion?")
 
         # Test if we try to move a rootNode
-        tmp = skel.dbEntity
-        if "rootNode" in tmp and tmp["rootNode"] == 1:
+        # TODO: Remove "rootNode"-fallback with VIUR4
+        if skel.dbEntity.get("is_root_node") or skel.dbEntity.get("rootNode"):
             raise errors.NotAcceptable("Can't move a rootNode to somewhere else")
 
         currentParentRepo = skel["parentrepo"]
@@ -570,7 +570,7 @@ class Tree(SkelModule):
 
     ## Default access control functions
 
-    def listFilter(self, query: db.Query) -> Optional[db.Query]:
+    def listFilter(self, query: db.Query) -> t.Optional[db.Query]:
         """
         Access control function on item listing.
 
@@ -603,7 +603,7 @@ class Tree(SkelModule):
             return False
         return True
 
-    def canAdd(self, skelType: SkelType, parentNodeSkel: Optional[SkeletonInstance]) -> bool:
+    def canAdd(self, skelType: SkelType, parentNodeSkel: t.Optional[SkeletonInstance]) -> bool:
         """
         Access control function for adding permission.
 

@@ -42,7 +42,7 @@ setting the corresponding class-level variables on class:`Session<viur.core.sess
 from viur.core.config import conf
 from viur.core import current
 import logging
-from typing import Literal, Optional, List
+import typing as t
 
 
 def addCspRule(objectType: str, srcOrDirective: str, enforceMode: str = "monitor"):
@@ -189,7 +189,7 @@ def enableStrictTransportSecurity(maxAge: int = 365 * 24 * 60 * 60,
         conf.security.strict_transport_security += "; preload"
 
 
-def setXFrameOptions(action: str, uri: Optional[str] = None) -> None:
+def setXFrameOptions(action: str, uri: t.Optional[str] = None) -> None:
     """
         Sets X-Frame-Options to prevent click-jacking attacks.
         :param action: off | deny | sameorigin | allow-from
@@ -205,7 +205,7 @@ def setXFrameOptions(action: str, uri: Optional[str] = None) -> None:
         conf.security.x_frame_options = (action, uri)
 
 
-def setXXssProtection(enable: Optional[bool]) -> None:
+def setXXssProtection(enable: t.Optional[bool]) -> None:
     """
         Sets X-XSS-Protection header. If set, mode will always be block.
         :param enable: Enable the protection or not. Set to None to drop this header
@@ -265,7 +265,7 @@ def _rebuildPermissionHeaderCache() -> None:
     ])
 
 
-def setPermissionPolicyDirective(directive: str, allowList: Optional[List[str]]) -> None:
+def setPermissionPolicyDirective(directive: str, allowList: t.Optional[list[str]]) -> None:
     """
         Set the permission policy.
             :param directive: The directive to set.

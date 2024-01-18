@@ -1,8 +1,7 @@
-from typing import Any, Dict, List, Optional, Union
+import typing as t
 
-from viur.core import conf, db
+from viur.core import conf, db, utils
 from viur.core.bones.base import BaseBone
-from viur.core.utils import parse_bool
 
 
 class BooleanBone(BaseBone):
@@ -19,11 +18,7 @@ class BooleanBone(BaseBone):
     def __init__(
         self,
         *,
-        defaultValue: Union[
-            bool,
-            List[bool],
-            Dict[str, Union[List[bool], bool]],
-        ] = None,
+        defaultValue: bool | list[bool] | dict[str, list[bool] | bool] = None,
         **kwargs
     ):
         if defaultValue is None:
@@ -46,7 +41,7 @@ class BooleanBone(BaseBone):
             raise ValueError("BooleanBone cannot be multiple")
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
-        return parse_bool(value, conf.bone_boolean_str2true), None
+        return utils.parse.bool(value, conf.bone_boolean_str2true), None
 
     def getEmptyValue(self):
         """
@@ -57,7 +52,7 @@ class BooleanBone(BaseBone):
         """
         return False
 
-    def isEmpty(self, value: Any):
+    def isEmpty(self, value: t.Any):
         """
         Checks if the given boolean value is empty.
 
@@ -79,15 +74,15 @@ class BooleanBone(BaseBone):
             :param name: The property-name this bone has in its Skeleton (not the description!)
         """
         if not isinstance(skel[boneName], bool):
-            skel[boneName] = parse_bool(skel[boneName], conf.bone_boolean_str2true)
+            skel[boneName] = utils.parse.bool(skel[boneName], conf.bone_boolean_str2true)
 
     def buildDBFilter(
         self,
         name: str,
         skel: 'viur.core.skeleton.SkeletonInstance',
         dbFilter: db.Query,
-        rawFilter: Dict,
-        prefix: Optional[str] = None
+        rawFilter: dict,
+        prefix: t.Optional[str] = None
     ) -> db.Query:
         """
         Builds a database filter based on the boolean value.
@@ -101,7 +96,7 @@ class BooleanBone(BaseBone):
         :rtype: google.cloud.ndb.query.Query
         """
         if name in rawFilter:
-            val = parse_bool(rawFilter[name], conf.bone_boolean_str2true)
+            val = utils.parse.bool(rawFilter[name], conf.bone_boolean_str2true)
             return super().buildDBFilter(name, skel, dbFilter, {name: val}, prefix=prefix)
 
         return dbFilter

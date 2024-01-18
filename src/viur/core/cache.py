@@ -1,10 +1,11 @@
-import logging, os
+import logging
+import os
 from datetime import timedelta
 from functools import wraps
 from hashlib import sha512
-from typing import List, Union, Callable, Tuple, Dict
+import typing as t
 
-from viur.core import tasks, utils, db, current
+from viur.core import Method, current, db, tasks, utils
 from viur.core.config import conf
 
 """
@@ -28,8 +29,8 @@ from viur.core.config import conf
 viurCacheName = "viur-cache"
 
 
-def keyFromArgs(f: Callable, userSensitive: int, languageSensitive: bool, evaluatedArgs: List[str], path: str,
-                args: Tuple, kwargs: Dict) -> str:
+def keyFromArgs(f: t.Callable, userSensitive: int, languageSensitive: bool, evaluatedArgs: list[str], path: str,
+                args: tuple, kwargs: dict) -> str:
     """
         Utility function to derive a unique but stable string-key that can be used in a datastore-key
         for the given wrapped function f, the parameter *args and **kwargs it has been called with,
@@ -109,15 +110,20 @@ def keyFromArgs(f: Callable, userSensitive: int, languageSensitive: bool, evalua
     return mysha512.hexdigest()
 
 
-def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool,
-                 evaluatedArgs: List[str], maxCacheTime: int):
+def wrapCallable(f, urls: list[str], userSensitive: int, languageSensitive: bool,
+                 evaluatedArgs: list[str], maxCacheTime: int):
     """
         Does the actual work of wrapping a callable.
         Use the decorator enableCache instead of calling this directly.
     """
+    method = None
+    if isinstance(f, Method):
+        # Wrapping an (exposed) Method; continue with Method._func
+        method = f
+        f = f._func
 
     @wraps(f)
-    def wrapF(self, *args, **kwargs) -> Union[str, bytes]:
+    def wrapF(self, *args, **kwargs) -> str | bytes:
         currReq = current.request.get()
         if conf.debug.disable_cache or currReq.disableCache:
             # Caching disabled
@@ -156,16 +162,20 @@ def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool
         dbEntity["path"] = path
         dbEntity["content-type"] = currReq.response.headers['Content-Type']
         dbEntity["accessedEntries"] = list(accessedEntries)
-        dbEntity.exclude_from_indexes = ["data", "content-type"]  # We can save 2 DB-Writs :)
+        dbEntity.exclude_from_indexes = {"data", "content-type"}  # save two DB-writes.
         db.Put(dbEntity)
         logging.debug("This request was a cache-miss. Cache has been updated.")
         return res
 
-    return wrapF
+    if method is None:
+        return wrapF
+    else:
+        method._func = wrapF
+        return method
 
 
-def enableCache(urls: List[str], userSensitive: int = 0, languageSensitive: bool = False,
-                evaluatedArgs: Union[List[str], None] = None, maxCacheTime: Union[int, None] = None):
+def enableCache(urls: list[str], userSensitive: int = 0, languageSensitive: bool = False,
+                evaluatedArgs: list[str] | None = None, maxCacheTime: int | None = None):
     """
         Decorator to wrap this cache around a function. In order for this to function correctly, you must provide
         additional information so ViUR can determine in which situations it's possible to re-use an already cached
@@ -201,7 +211,7 @@ def enableCache(urls: List[str], userSensitive: int = 0, languageSensitive: bool
 
 
 @tasks.CallDeferred
-def flushCache(prefix: str = None, key: Union[db.Key, None] = None, kind: Union[str, None] = None):
+def flushCache(prefix: str = None, key: db.Key | None = None, kind:  str | None = None):
     """
         Flushes the cache. Its possible the flush only a part of the cache by specifying
         the path-prefix. The path is equal to the url that caused it to be cached (eg /page/view) and must be one

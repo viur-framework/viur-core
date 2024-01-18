@@ -1,6 +1,6 @@
 import copy
 import logging
-from typing import Dict, List, Optional, Union
+import typing as t
 
 from viur.core import db, utils
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
@@ -27,7 +27,7 @@ class KeyBone(BaseBone):
         descr: str = "Key",
         readOnly: bool = True,  # default is readonly
         visible: bool = False,  # default is invisible
-        allowed_kinds: Union[None, List[str]] = None,  # None allows for any kind
+        allowed_kinds: None | list[str] = None,  # None allows for any kind
         check: bool = False,  # check for entity existence
         **kwargs
     ):
@@ -47,8 +47,12 @@ class KeyBone(BaseBone):
                 return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, e.args[0])]
         else:
             try:
-                key = db.normalizeKey(db.Key.from_legacy_urlsafe(value))
-            except:
+                if isinstance(value, db.Key):
+                    key = db.normalizeKey(value)
+                else:
+                    key = db.normalizeKey(db.Key.from_legacy_urlsafe(value))
+            except Exception as exc:
+                logging.exception(f"Failed to normalize {value}: {exc}")
                 return self.getEmptyValue(), [
                     ReadFromClientError(
                         ReadFromClientErrorSeverity.Invalid,
@@ -153,8 +157,8 @@ class KeyBone(BaseBone):
         name: str,
         skel: 'viur.core.skeleton.SkeletonInstance',
         dbFilter: db.Query,
-        rawFilter: Dict,
-        prefix: Optional[str] = None
+        rawFilter: dict,
+        prefix: t.Optional[str] = None
     ) -> db.Query:
         """
         This method parses the search filter specified by the client in their request and converts
