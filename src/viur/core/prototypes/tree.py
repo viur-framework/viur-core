@@ -537,7 +537,7 @@ class Tree(SkelModule):
         for _ in range(0, 99):
             if currLevel.key == skel["key"]:
                 break
-            if currLevel.get("rootNode"):
+            if currLevel.get("rootNode") or currLevel.get("is_root_node"):
                 # We reached a rootNode, so this is okay
                 break
             currLevel = db.Get(currLevel["parententry"])
@@ -545,8 +545,8 @@ class Tree(SkelModule):
             raise errors.NotAcceptable("Unable to find a root node in recursion?")
 
         # Test if we try to move a rootNode
-        tmp = skel.dbEntity
-        if "rootNode" in tmp and tmp["rootNode"] == 1:
+        # TODO: Remove "rootNode"-fallback with VIUR4
+        if skel.dbEntity.get("is_root_node") or skel.dbEntity.get("rootNode"):
             raise errors.NotAcceptable("Can't move a rootNode to somewhere else")
 
         currentParentRepo = skel["parentrepo"]
