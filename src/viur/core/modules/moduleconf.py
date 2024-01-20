@@ -1,12 +1,38 @@
 import logging
-from viur.core.bones import StringBone, TextBone
+from viur.core.bones import StringBone, TextBone, SelectBone, TreeLeafBone
 from viur.core.bones.text import _defaultTags
 from viur.core.tasks import StartupTask
 from viur.core import Module, conf, db
 from viur.core.i18n import translate
-from viur.core.skeleton import Skeleton, SkeletonInstance
+from viur.core.skeleton import Skeleton, SkeletonInstance, RelSkel
 from viur.core.prototypes import List
 
+class ScriptRelSkel(RelSkel):
+    name = StringBone(
+        descr="Displayname"
+    )
+
+    icon = StringBone(
+        descr = "Icon"
+    )
+
+    capable = SelectBone(
+        descr="Capable to handle",
+        values={
+            "none": "Run action without further parameters.",
+            "single": "Script may use one entity key in parameters",
+            "multiple": "Script may use several entity keys in parameters"
+        }
+    )
+
+    access = SelectBone(
+        descr="Required access rights to run this Script",
+        values=lambda: {
+            right: translate("server.modules.user.accessright.%s" % right, defaultText=right)
+            for right in sorted(conf["viur.accessRights"])
+        },
+        multiple=True,
+    )
 
 class ModuleConfSkel(Skeleton):
     kindName = "viur-module-conf"
@@ -35,6 +61,14 @@ class ModuleConfSkel(Skeleton):
         descr=translate("edit helptext"),
         validHtml=_valid_html,
     )
+
+    scripts = TreeLeafBone(
+        descr=translate("scriptor scripts"),
+        module="script",
+        kind="viur-script-leaf",
+        using=ScriptRelSkel,
+        refKeys=['key','name','access'],
+        multiple=True)
 
 
 class ModuleConf(List):
