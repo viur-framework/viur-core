@@ -28,11 +28,12 @@ class ScriptRelSkel(RelSkel):
     access = SelectBone(
         descr="Required access rights to run this Script",
         values=lambda: {
-            right: translate("server.modules.user.accessright.%s" % right, defaultText=right)
+            right:translate("server.modules.user.accessright.%s" % right, defaultText=right)
             for right in sorted(conf["viur.accessRights"])
         },
         multiple=True,
     )
+
 
 class ModuleConfSkel(Skeleton):
     kindName = "viur-module-conf"
@@ -68,7 +69,8 @@ class ModuleConfSkel(Skeleton):
         kind="viur-script-leaf",
         using=ScriptRelSkel,
         refKeys=['key','name','access'],
-        multiple=True)
+        multiple=True
+    )
 
 
 class ModuleConf(List):

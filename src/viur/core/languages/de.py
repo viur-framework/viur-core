@@ -350,7 +350,7 @@ de = {
     "module helptext": "Modul Hilfetext",
     "add helptext": "Hinzufügen Hilfetext",
     "edit helptext": "Editieren Hilfetext",
-    "scriptor scripts":"Scriptor Scripte",
+    "scriptor scripts": "Scriptor Scripte",
 
     # Bones
     "core.bones.password.no_capital_letters": "Das eingegebene Passwort enthält keine Großbuchstaben.",
