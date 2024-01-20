@@ -28,7 +28,7 @@ class ScriptRelSkel(RelSkel):
     access = SelectBone(
         descr="Required access rights to run this Script",
         values=lambda: {
-            right:translate("server.modules.user.accessright.%s" % right, defaultText=right)
+            right: translate("server.modules.user.accessright.%s" % right, defaultText=right)
             for right in sorted(conf["viur.accessRights"])
         },
         multiple=True,
