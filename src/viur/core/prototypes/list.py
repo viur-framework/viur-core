@@ -327,6 +327,24 @@ class List(SkelModule):
     @force_ssl
     @skey(allow_empty=True)
     def clone(self, key: db.Key | str | int, **kwargs):
+        """
+        Clone an existing entry, and render the entry, eventually with error notes on incorrect data.
+        Data is taken by any other arguments in *kwargs*.
+
+        The function performs several access control checks on the requested entity before it is added.
+
+        .. seealso:: :func:`canEdit`, :func:`canAdd`, :func:`onClone`, :func:`onCloned`
+
+        :param key: URL-safe key of the item to be edited.
+
+        :returns: The cloned object of the entry, eventually with error hints.
+
+        :raises: :exc:`viur.core.errors.NotAcceptable`, when no valid *skelType* was provided.
+        :raises: :exc:`viur.core.errors.NotFound`, when no *entry* to clone from was found.
+        :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
+        :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
+        """
+
         skel = self.cloneSkel()
         if not skel.fromDB(key):
             raise errors.NotFound()
@@ -619,9 +637,29 @@ class List(SkelModule):
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
 
     def onClone(self, skel: SkeletonInstance, src_skel: SkeletonInstance):
-        ...
+        """
+            Hook function that is called before cloning an entry.
+
+            It can be overwritten to a module-specific behavior.
+
+            :param skel: The new Skeleton that is being created.
+            :param src_skel: The source Skeleton `skel` is cloned from.
+
+            .. seealso:: :func:`clone`, :func:`onCloned`
+        """
+        pass
 
     def onCloned(self, skel: SkeletonInstance, src_skel: SkeletonInstance):
+        """
+            Hook function that is called after cloning an entry.
+
+            It can be overwritten to a module-specific behavior.
+
+            :param skel: The new Skeleton that was created.
+            :param src_skel: The source Skeleton `skel` was cloned from.
+
+            .. seealso:: :func:`clone`, :func:`onClone`
+        """
         logging.info(f"Cloned: {skel['key']=} from {src_skel['key']=}")
         flushCache(kind=skel.kindName)
 
