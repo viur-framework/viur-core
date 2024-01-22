@@ -142,7 +142,7 @@ def canAccess(*args, **kwargs) -> bool:
 @exposed
 def index(*args, **kwargs):
     if args or kwargs:
-        raise errors.NotFound
+        raise errors.NotFound()
     if not conf.instance.project_base_path.joinpath("vi", "main.html").exists():
         raise errors.NotFound()
     if conf.instance.is_dev_server or current.request.get().isSSLConnection:
