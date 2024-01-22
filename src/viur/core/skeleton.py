@@ -889,8 +889,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             change_list = []
             old_copy = {}
             # Load the current values from Datastore or create a new, empty db.Entity
-            is_add = not bool(db_key)
-            if is_add:
+            if is_add := not bool(db_key):
                 # We'll generate the key we'll be stored under early so we can use it for locks etc
                 db_key = db.AllocateIDs(db.Key(skel.kindName))
                 db_obj = db.Entity(db_key)
