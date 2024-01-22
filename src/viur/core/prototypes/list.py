@@ -73,6 +73,23 @@ class List(SkelModule):
         """
         return self.baseSkel(*args, **kwargs)
 
+    def cloneSkel(self, *args, **kwargs) -> SkeletonInstance:
+        """
+            Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
+            for cloning an existing entry from the list.
+
+            The default is a Skeleton instance returned by :func:`~baseSkel`.
+
+            Like in :func:`viewSkel`, the skeleton can be post-processed. Bones that are being removed aren't visible
+            and cannot be set, but it's also possible to just set a bone to readOnly (revealing it's value to the user,
+            but preventing any modification.
+
+            .. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`~baseSkel`
+
+            :return: Returns a Skeleton instance for editing an entry.
+        """
+        return self.baseSkel(*args, **kwargs)
+
     ## External exposed functions
 
     @exposed
@@ -305,6 +322,38 @@ class List(SkelModule):
 
     def getDefaultListParams(self):
         return {}
+
+    @exposed
+    @force_ssl
+    @skey(allow_empty=True)
+    def clone(self, key: db.Key | str | int, **kwargs):
+        skel = self.cloneSkel()
+        if not skel.fromDB(key):
+            raise errors.NotFound()
+
+        # a clone-operation is some kind of edit and add...
+        if not (self.canEdit(skel) and self.canAdd()):
+            raise errors.Unauthorized()
+
+        # Remember source skel and unset the key for clone operation!
+        src_skel = skel
+        skel = skel.clone()
+        skel["key"] = None
+
+        # Check all required preconditions for clone
+        if (
+            not kwargs  # no data supplied
+            or not current.request.get().isPostRequest  # failure if not using POST-method
+            or not skel.fromClient(kwargs)  # failure on reading into the bones
+            or utils.parse.bool(kwargs.get("bounce"))  # review before changing
+        ):
+            return self.render.edit(skel, action="clone")
+
+        self.onClone(skel, src_skel=src_skel)
+        assert skel.toDB()
+        self.onCloned(skel, src_skel=src_skel)
+
+        return self.render.editSuccess(skel, action="cloneSuccess")
 
     ## Default access control functions
 
@@ -568,6 +617,16 @@ class List(SkelModule):
         flushCache(key=skel["key"])
         if user := current.user.get():
             logging.info("User: %s (%s)" % (user["name"], user["key"]))
+
+    def onClone(self, skel: SkeletonInstance, src_skel: SkeletonInstance):
+        ...
+
+    def onCloned(self, skel: SkeletonInstance, src_skel: SkeletonInstance):
+        logging.info(f"Cloned: {skel['key']=} from {src_skel['key']=}")
+        flushCache(kind=skel.kindName)
+
+        if user := utils.getCurrentUser():
+            logging.info(f"{user['name']=} ({user['key']=})")
 
 
 List.admin = True
