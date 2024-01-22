@@ -257,6 +257,13 @@ class UserPassword(UserAuthentication):
         recovery_key = StringBone(
             descr="Recovery Key",
             required=True,
+            params={
+                "tooltip": i18n.translate(
+                    key="viur.modules.user.userpassword.lostpasswordstep2.recoverykey",
+                    defaultText="The key is expired. Please try again",
+                    hint="Shown when the user needs more than 10 minutes to paste the key"
+                )
+            }
         )
 
     class LostPasswordStep3Skel(skeleton.RelSkel):
@@ -399,7 +406,7 @@ class UserPassword(UserAuthentication):
         skel = self.LostPasswordStep3Skel()
         skel["recovery_key"] = recovery_key
 
-        # check for any input; Render input-form when incomplete.
+        # check for any input; Render input-form again when incomplete.
         if not skel.fromClient(kwargs) or not current_request.isPostRequest:
             return self._user_module.render.edit(
                 skel=skel,
