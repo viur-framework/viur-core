@@ -254,7 +254,7 @@ class TaskHandler(Module):
                 raise errors.RequestTimeout()  # Task-API should retry
         elif cmd == "unb":
             if not funcPath in _deferred_tasks:
-                logging.error(f"Missed deferred task {funcPath=)({args=},{kwargs=})")
+                logging.error(f"Missed deferred task {funcPath=} ({args=},{kwargs=})")
             # We call the deferred function *directly* (without walking through the mkDeferred lambda), so ensure
             # that any hit to another deferred function will defer again
 
@@ -273,7 +273,7 @@ class TaskHandler(Module):
         if not conf.instance.is_dev_server:
             self._validate_request(require_cron=True, require_taskname=False)
         if cronName not in _periodicTasks:
-            logging.warning(f"Cron request {cronName=r} doesn't have any tasks")
+            logging.warning(f"Cron request {cronName} doesn't have any tasks")
         # We must defer from cron, as tasks will interpret it as a call originating from task-queue - causing deferred
         # functions to be called directly, wich causes calls with _countdown etc set to fail.
         req.DEFERRED_TASK_CALLED = True
