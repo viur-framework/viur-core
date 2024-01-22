@@ -988,7 +988,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 db_obj["viur"]["viurCurrentSeoKeys"] = {}
             if current_seo_keys := skel.getCurrentSEOKeys():
                 # Convert to lower-case and remove certain characters
-                for lang, value in list(current_seo_keys.items()):
+                for lang, value in current_seo_keys.items():
                     current_seo_keys[lang] = value.lower().translate(Skeleton.__seo_key_trans).strip()
 
             for language in (conf.i18n.available_languages or [conf.i18n.default_language]):
@@ -1073,12 +1073,12 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 removed_blobs = set(old_blob_lock_obj.get("active_blob_references", [])) - blob_list
                 old_blob_lock_obj["active_blob_references"] = list(blob_list)
                 if old_blob_lock_obj["old_blob_references"] is None:
-                    old_blob_lock_obj["old_blob_references"] = [removed_blob for removed_blob in removed_blobs]
+                    old_blob_lock_obj["old_blob_references"] = list(removed_blobs)
                 else:
                     old_blob_refs = set(old_blob_lock_obj["old_blob_references"])
-                    old_blob_refs += set([removed_blob for removed_blob in removed_blobs])  # Add removed blobs
+                    old_blob_refs.update(removed_blobs)  # Add removed blobs
                     old_blob_refs -= blob_list  # Remove active blobs
-                    old_blob_lock_obj["old_blob_references"] = [old_blob_ref for old_blob_ref in old_blob_refs]
+                    old_blob_lock_obj["old_blob_references"] = list(old_blob_refs)
 
                 old_blob_lock_obj["has_old_blob_references"] = bool(old_blob_lock_obj["old_blob_references"])
                 old_blob_lock_obj["is_stale"] = False
