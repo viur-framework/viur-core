@@ -580,15 +580,6 @@ class GoogleAccount(UserPrimaryAuthentication):
             }
         )
 
-        skel.gaeadmin = BooleanBone(
-            descr="Is GAE Admin",
-            defaultValue=False,
-            readOnly=True,
-            params={
-                "category": "Authentication",
-            }
-        )
-
         return skel
 
     @exposed
@@ -643,7 +634,6 @@ class GoogleAccount(UserPrimaryAuthentication):
 
         # Take user information from Google, if wanted!
         if userSkel["sync"]:
-
             for target, source in {
                 "name": email,
                 "firstname": userInfo.get("given_name"),
@@ -655,15 +645,6 @@ class GoogleAccount(UserPrimaryAuthentication):
                     update = True
 
         if update:
-            # TODO: Get access from IAM or similar
-            # if users.is_current_user_admin():
-            #    if not userSkel["access"]:
-            #        userSkel["access"] = []
-            #    if not "root" in userSkel["access"]:
-            #        userSkel["access"].append("root")
-            #    userSkel["gaeadmin"] = True
-            # else:
-            #    userSkel["gaeadmin"] = False
             assert userSkel.toDB()
 
         return self._user_module.continueAuthenticationFlow(self, userSkel["key"])
