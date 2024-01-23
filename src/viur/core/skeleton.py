@@ -1065,7 +1065,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             if blobList is None:
                 raise ValueError("Did you forget to return the bloblist somewhere inside getReferencedBlobs()?")
             if None in blobList:
-                logging.error(f"b1l is {blobList}")
+                logging.error(f"None is not a valid blobKey in {blobList=}")
                 raise ValueError("None is not a valid blobKey.")
             if oldBlobLockObj is not None:
                 oldBlobs = set(oldBlobLockObj.get("active_blob_references") or [])

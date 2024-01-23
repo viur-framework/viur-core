@@ -828,7 +828,7 @@ class Tree(SkelModule):
         logging.info(f"""Entry deleted: {skel["key"]!r} ({skelType!r})""")
         flushCache(key=skel["key"])
         if user := current.user.get():
-            logging.info(f"""User: {user["name"]} ({user["key"]})""")
+            logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
 
 Tree.vi = True
