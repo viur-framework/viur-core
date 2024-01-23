@@ -105,7 +105,7 @@ def skeletonByKind(kindName: str) -> t.Type[Skeleton]:
         :param kindName: The kindname to retreive the skeleton for
         :return: The skeleton-class for that kind
     """
-    assert kindName in MetaBaseSkel._skelCache, "Unknown skeleton '%s'" % kindName
+    assert kindName in MetaBaseSkel._skelCache, f"Unknown skeleton {kindName=}"
     return MetaBaseSkel._skelCache[kindName]
 
 
@@ -188,8 +188,8 @@ class SkeletonInstance:
     def __setitem__(self, key, value):
         assert self.renderPreparation is None, "Cannot modify values while rendering"
         if isinstance(value, BaseBone):
-            raise AttributeError("Don't assign this bone object as skel[\"%s\"] = ... anymore to the skeleton. "
-                                 "Use skel.%s = ... for bone to skeleton assignment!" % (key, key))
+            raise AttributeError(f"Don't assign this bone object as skel[\"{key}\"] = ... anymore to the skeleton. "
+                                 f"Use skel.{key} = ... for bone to skeleton assignment!")
         self.accessedValues[key] = value
 
     def __getitem__(self, key):
@@ -379,13 +379,12 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
         """
         bone = getattr(skelValues, boneName, None)
         if not isinstance(bone, BaseBone):
-            raise ValueError("%s is no valid bone on this skeleton (%s)" % (boneName, str(skelValues)))
+            raise ValueError(f"{boneName} is no valid bone on this skeleton ({skelValues})")
         skelValues[boneName]  # FIXME, ensure this bone is unserialized first
         return bone.setBoneValue(skelValues, boneName, value, append, language)
 
     @classmethod
-    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str],
-                   allowEmptyRequired=False) -> bool:
+    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str]) -> bool:
         """
             Load supplied *data* into Skeleton.
 
@@ -403,39 +402,54 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
             :returns: True if all data was successfully read and taken by the Skeleton's bones.\
             False otherwise (eg. some required fields where missing or invalid).
         """
-        assert not allowEmptyRequired, "allowEmptyRequired is only valid on RelSkels"
-        complete = len(data) > 0  # Empty values are never valid
+        complete = True
         skelValues.errors = []
 
-        for key, _bone in skelValues.items():
-            if _bone.readOnly:
+        for key, bone in skelValues.items():
+            if bone.readOnly:
                 continue
-            errors = _bone.fromClient(skelValues, key, data)
-            if errors:
-                for err in errors:
-                    err.fieldPath.insert(0, str(key))
-                skelValues.errors.extend(errors)
+
+            if errors := bone.fromClient(skelValues, key, data):
                 for error in errors:
-                    is_empty = error.severity == ReadFromClientErrorSeverity.Empty and bool(_bone.required)
-                    if _bone.languages and isinstance(_bone.required, (list, tuple)):
-                        is_empty &= any([key, lang] == error.fieldPath
-                                        for lang in _bone.required)
-                    else:
-                        is_empty &= error.fieldPath == [key]
-                    if is_empty or error.severity == ReadFromClientErrorSeverity.Invalid or \
-                        (error.severity == ReadFromClientErrorSeverity.NotSet and _bone.required and
-                         _bone.isEmpty(skelValues["key"])):
-                        # We'll consider empty required bones only as an error, if they're on the top-level (and not
-                        # further down the hierarchy (in an record- or relational-Bone)
+                    # insert current bone name into error's fieldPath
+                    error.fieldPath.insert(0, str(key))
+
+                    # logging.debug(f"BaseSkel.fromClient {key=} {error=}")
+
+                    incomplete = (
+                        # always when something is invalid
+                        error.severity == ReadFromClientErrorSeverity.Invalid
+                        or (
+                            # only when path is top-level
+                            len(error.fieldPath) == 1
+                            and (
+                                # bone is generally required
+                                bool(bone.required)
+                                # and value is either empty or not set
+                                and error.severity in (
+                                    ReadFromClientErrorSeverity.Empty,
+                                    ReadFromClientErrorSeverity.NotSet
+                                )
+                            )
+                        )
+                    )
+
+                    # in case there are language requirements, test additionally
+                    if bone.languages and isinstance(bone.required, (list, tuple)):
+                        incomplete &= any([key, lang] == error.fieldPath for lang in bone.required)
+
+                    # logging.debug(f"BaseSkel.fromClient {incomplete=} {error.severity=} {bone.required=}")
+
+                    if incomplete:
                         complete = False
 
-                        if conf.debug.skeleton_from_client and cls.kindName:
-                            logging.debug("%s: %s: %r", cls.kindName, error.fieldPath, error.errorMessage)
+                        if conf.debug.skeleton_from_client:
+                            logging.error(
+                                f"""{getattr(cls, "kindName", cls.__name__)}: {".".join(error.fieldPath)}: """
+                                f"""({error.severity}) {error.errorMessage}"""
+                            )
 
-        if (len(data) == 0
-            or (len(data) == 1 and "key" in data)
-            or ("nomissing" in data and str(data["nomissing"]) == "1")):
-            skelValues.errors = []
+                skelValues.errors += errors
 
         return complete
 
@@ -502,8 +516,7 @@ class MetaSkel(MetaBaseSkel):
                 # The currently processed skeleton has a higher priority, use that from now
                 MetaBaseSkel._skelCache[cls.kindName] = cls
             else:  # They seem to be from the same Package - raise as something is messed up
-                raise ValueError("Duplicate definition for %s in %s and %s" %
-                                 (cls.kindName, relNewFileName, relOldFileName))
+                raise ValueError(f"Duplicate definition for {cls.kindName} in {relNewFileName} and {relOldFileName}")
         # Ensure that all skeletons are defined in folders listed in conf.skeleton_search_path
         if (not any([relNewFileName.startswith(x) for x in conf.skeleton_search_path])
             and not "viur_doc_build" in dir(sys)):  # Do not check while documentation build
@@ -588,7 +601,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
     providesFulltextSearch = True
     fulltextSearchGuaranteesQueryConstrains = True
 
-    def __init__(self, min_length: int = 3, max_length: int = 99, substring_matching: bool = True):
+    def __init__(self, min_length: int = 2, max_length: int = 50, substring_matching: bool = False):
         super().__init__()
         self.min_length = min_length
         self.max_length = max_length
@@ -761,8 +774,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return db.Query(skelValues.kindName, srcSkelClass=skelValues, **kwargs)
 
     @classmethod
-    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str],
-                   allowEmptyRequired=False) -> bool:
+    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str]) -> bool:
         """
             This function works similar to :func:`~viur.core.skeleton.Skeleton.setValues`, except that
             the values retrieved from *data* are checked against the bones and their validity checks.
@@ -777,16 +789,23 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         :return: True, if all values have been read correctly (without errors), False otherwise
         """
         assert skelValues.renderPreparation is None, "Cannot modify values while rendering"
-        assert not allowEmptyRequired, "allowEmptyRequired is only valid on RelSkels"
+
         # Load data into this skeleton
-        complete = super().fromClient(skelValues, data)
+        complete = bool(data) and super().fromClient(skelValues, data)
+
+        if (
+            not data  # in case data is empty
+            or (len(data) == 1 and "key" in data)
+            or (utils.parse_bool(data.get("nomissing")))
+        ):
+            skelValues.errors = []
 
         # Check if all unique values are available
         for boneName, boneInstance in skelValues.items():
             if boneInstance.unique:
                 lockValues = boneInstance.getUniquePropertyIndexValues(skelValues, boneName)
                 for lockValue in lockValues:
-                    dbObj = db.Get(db.Key("%s_%s_uniquePropertyIndex" % (skelValues.kindName, boneName), lockValue))
+                    dbObj = db.Get(db.Key(f"{skelValues.kindName}_{boneName}_uniquePropertyIndex", lockValue))
                     if dbObj and (not skelValues["key"] or dbObj["references"] != skelValues["key"].id_or_name):
                         # This value is taken (sadly, not by us)
                         complete = False
@@ -802,39 +821,37 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     if error.severity.value > 1:
                         complete = False
                         if conf.debug.skeleton_from_client:
-                            logging.debug("%s: %s: %r", cls.kindName, error.fieldPath, error.errorMessage)
+                            logging.debug(f"{cls.kindName}: {error.fieldPath}: {error.errorMessage!r}")
 
                 skelValues.errors.extend(errors)
 
         return complete
 
     @classmethod
-    def fromDB(cls, skelValues: SkeletonInstance, key: str | db.Key) -> bool:
+    def fromDB(cls, skel: SkeletonInstance, key: db.Key | int | str) -> bool:
         """
-            Load entity with *key* from the data store into the Skeleton.
+            Load entity with *key* from the Datastore into the Skeleton.
 
             Reads all available data of entity kind *kindName* and the key *key*
-            from the data store into the Skeleton structure's bones. Any previous
+            from the Datastore into the Skeleton structure's bones. Any previous
             data of the bones will discard.
 
-            To store a Skeleton object to the data store, see :func:`~viur.core.skeleton.Skeleton.toDB`.
+            To store a Skeleton object to the Datastore, see :func:`~viur.core.skeleton.Skeleton.toDB`.
 
-            :param key: A :class:`viur.core.DB.Key`, :class:`viur.core.DB.Query`, or string,\
-            from which the data shall be fetched.
+            :param key: A :class:`viur.core.DB.Key`, string, or int; from which the data shall be fetched.
 
-            :returns: True on success; False if the given key could not be found.
+            :returns: True on success; False if the given key could not be found or can not be parsed.
 
         """
-        assert skelValues.renderPreparation is None, "Cannot modify values while rendering"
+        assert skel.renderPreparation is None, "Cannot modify values while rendering"
         try:
-            dbKey = db.keyHelper(key, skelValues.kindName)
+            db_key = db.keyHelper(key, skel.kindName)
         except ValueError:  # This key did not parse
             return False
-        dbRes = db.Get(dbKey)
-        if dbRes is None:
+
+        if not (db_res := db.Get(db_key)):
             return False
-        skelValues.setEntity(dbRes)
-        skelValues["key"] = dbKey
+        skel.setEntity(db_res)
         return True
 
     @classmethod
@@ -902,8 +919,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 # Remember old hashes for bones that must have an unique value
                 oldUniqueValues = []
                 if bone.unique:
-                    if "%s_uniqueIndexValue" % key in dbObj["viur"]:
-                        oldUniqueValues = dbObj["viur"]["%s_uniqueIndexValue" % key]
+                    if f"{key}_uniqueIndexValue" in dbObj["viur"]:
+                        oldUniqueValues = dbObj["viur"][f"{key}_uniqueIndexValue"]
 
                 if not (key in skel.accessedValues or bone.compute) and key not in skel.dbEntity:
                     _ = skel[key]  # Ensure the datastore is filled with the default value
@@ -930,28 +947,26 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     # Check if the property is really unique
                     newUniqueValues = bone.getUniquePropertyIndexValues(skel, key)
                     for newLockValue in newUniqueValues:
-                        lockObj = db.Get(db.Key("%s_%s_uniquePropertyIndex" % (skel.kindName, key), newLockValue))
+                        lockObj = db.Get(db.Key(f"{skel.kindName}_{key}_uniquePropertyIndex", newLockValue))
                         if lockObj:
                             # There's already a lock for that value, check if we hold it
                             if lockObj["references"] != dbObj.key.id_or_name:
                                 # This value has already been claimed, and not by us
+                                # TODO: Use a custom exception class which is catchable with an try/except
                                 raise ValueError(
-                                    "The unique value '%s' of bone '%s' has been recently claimed!" %
-                                    (skelValues[key], key))
+                                    f"The unique value {skelValues[key]!r} of bone {key!r} has been recently claimed!")
                         else:
                             # This value is locked for the first time, create a new lock-object
-                            newLockObj = db.Entity(db.Key(
-                                "%s_%s_uniquePropertyIndex" % (skel.kindName, key),
-                                newLockValue))
+                            newLockObj = db.Entity(db.Key(f"{skel.kindName}_{key}_uniquePropertyIndex", newLockValue))
                             newLockObj["references"] = dbObj.key.id_or_name
                             db.Put(newLockObj)
                         if newLockValue in oldUniqueValues:
                             oldUniqueValues.remove(newLockValue)
-                    dbObj["viur"]["%s_uniqueIndexValue" % key] = newUniqueValues
+                    dbObj["viur"][f"{key}_uniqueIndexValue"] = newUniqueValues
                     # Remove any lock-object we're holding for values that we don't have anymore
                     for oldValue in oldUniqueValues:
                         # Try to delete the old lock
-                        oldLockKey = db.Key("%s_%s_uniquePropertyIndex" % (skel.kindName, key), oldValue)
+                        oldLockKey = db.Key(f"{skel.kindName}_{key}_uniquePropertyIndex", oldValue)
                         oldLockObj = db.Get(oldLockKey)
                         if oldLockObj:
                             if oldLockObj["references"] != dbObj.key.id_or_name:
@@ -988,7 +1003,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                                                                                  newSeoKey).getEntry()
                             if entryUsingKey and entryUsingKey.key != dbObj.key:
                                 # It's not unique; append a random string and try again
-                                newSeoKey = "%s-%s" % (currentSeoKeys[language], utils.string.random(5).lower())
+                                newSeoKey = f"{currentSeoKeys[language]}-{utils.string.random(5).lower()}"
                             else:
                                 break
                         else:
@@ -1028,7 +1043,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 for k, v in list(entity.items()):
                     if isinstance(v, dict):
                         for k2, v2 in list(entity.items()):
-                            if k2.startswith("%s." % k):
+                            if k2.startswith(f"{k}."):
                                 del entity[k2]
                                 backupKey= k2.replace(".", "__")
                                 entity[backupKey] = v2
@@ -1050,7 +1065,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             if blobList is None:
                 raise ValueError("Did you forget to return the bloblist somewhere inside getReferencedBlobs()?")
             if None in blobList:
-                logging.error("b1l is %s" % blobList)
+                logging.error(f"None is not a valid blobKey in {blobList=}")
                 raise ValueError("None is not a valid blobKey.")
             if oldBlobLockObj is not None:
                 oldBlobs = set(oldBlobLockObj.get("active_blob_references") or [])
@@ -1171,14 +1186,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 bone.delete(skel, boneName)
                 if bone.unique:
                     flushList = []
-                    for lockValue in viurData.get("%s_uniqueIndexValue" % boneName) or []:
-                        lockKey = db.Key("%s_%s_uniquePropertyIndex" % (skel.kindName, boneName), lockValue)
+                    for lockValue in viurData.get(f"{boneName}_uniqueIndexValue") or []:
+                        lockKey = db.Key(f"{skel.kindName}_{boneName}_uniquePropertyIndex", lockValue)
                         lockObj = db.Get(lockKey)
                         if not lockObj:
-                            logging.error("Programming error detected: Lockobj %s missing!" % lockKey)
+                            logging.error(f"{lockKey=} missing!")
                         elif lockObj["references"] != dbObj.key.id_or_name:
                             logging.error(
-                                "Programming error detected: %s did not hold lock for %s" % (skel["key"], lockKey))
+                                f"""{skel["key"]!r} does not hold lock for {lockKey!r}""")
                         else:
                             flushList.append(lockObj)
                     if flushList:
@@ -1234,53 +1249,6 @@ class RelSkel(BaseSkeleton):
         The Skeleton stores its bones in an :class:`OrderedDict`-Instance, so the definition order of the
         contained bones remains constant.
     """
-
-    @classmethod
-    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str],
-                   allowEmptyRequired=False) -> bool:
-        """
-            Reads the data supplied by data.
-            Unlike setValues, error-checking is performed.
-            The values might be in a different representation than the one used in getValues/serValues.
-            Even if this function returns False, all bones are guranteed to be in a valid state:
-            The ones which have been read correctly contain their data; the other ones are set back to a safe default (None in most cases)
-            So its possible to call save() afterwards even if reading data fromClient faild (through this might violates the assumed consitency-model!).
-
-            :param data: Dictionary from which the data is read
-            :returns: True if the data was successfully read; False otherwise (eg. some required fields where missing or invalid)
-        """
-        complete = len(data) > 0  # Empty values are never valid
-        skelValues.errors = []
-        allBonesEmpty = True  # Indicates if all bones in this skeleton are empty
-        requiredBonesEmpty = False  # If True, at least one bone marked with required=True is also empty
-        for key, _bone in skelValues.items():
-            if _bone.readOnly:
-                continue
-            errors = _bone.fromClient(skelValues, key, data)
-            thisBoneEmpty = False
-            if errors:
-                for err in errors:
-                    err.fieldPath.insert(0, str(key))
-                skelValues.errors.extend(errors)
-                for err in errors:
-                    if err.fieldPath == [key] and (err.severity == ReadFromClientErrorSeverity.Empty or
-                        (err.severity == ReadFromClientErrorSeverity.NotSet and _bone.isEmpty(skelValues[key]))):
-                        thisBoneEmpty = True
-                        if _bone.required:
-                            requiredBonesEmpty = True
-                    if err.severity == ReadFromClientErrorSeverity.Invalid:
-                        complete = False
-            allBonesEmpty &= thisBoneEmpty
-        # Special Case for RecordBones that are not required, but contain required bones
-        if requiredBonesEmpty and not (allBonesEmpty and allowEmptyRequired):
-            # There's at least one required Bone that's empty; but either allowEmptyRequired is not true, or we have
-            # at least one other bone in this skeleton, that have data; so we have to reject this skeleton
-            complete = False
-        if (len(data) == 0 or (len(data) == 1 and "key" in data) or (
-            "nomissing" in data and str(data["nomissing"]) == "1")):
-            skelValues.errors = []
-            return False  # Force the skeleton to be displayed to the user again
-        return complete
 
     def serialize(self, parentIndexed):
         if self.dbEntity is None:
@@ -1396,10 +1364,10 @@ def processRemovedRelations(removedKey, cursor=None):
                     elif isinstance(relVal, list):
                         skel[key] = [x for x in relVal if x["dest"]["key"] != removedKey]
                     else:
-                        print("Type? %s" % type(relVal))
+                        raise NotImplementedError(f"No handling for {type(relVal)=}")
             skel.toDB(update_relations=False)
         else:
-            logging.critical("Cascading Delete to %s/%s" % (skel.kindName, skel["key"]))
+            logging.critical(f"""Cascade deletion of {skel["key"]!r}""")
             skel.delete()
             pass
     if len(updateList) == 5:
@@ -1425,8 +1393,7 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: t.Optional
         :param cursor: The database cursor for the current request as we only process five entities at once and then
             defer again.
     """
-    logging.debug("Starting updateRelations for %s ; minChangeTime %s, changedBone: %s, cursor: %s",
-                  destKey, minChangeTime, changedBone, cursor)
+    logging.debug(f"Starting updateRelations for {destKey} ; {minChangeTime=},{changedBone=}, {cursor=}")
     updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", destKey) \
         .filter("viur_delayed_update_tag <", minChangeTime).filter("viur_relational_updateLevel =",
                                                                    RelationalUpdateLevel.Always.value)
@@ -1448,7 +1415,7 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: t.Optional
         try:
             skel = skeletonByKind(srcRel["viur_src_kind"])()
         except AssertionError:
-            logging.info("Ignoring %s which refers to unknown kind %s" % (str(srcRel.key), srcRel["viur_src_kind"]))
+            logging.info(f"""Ignoring {srcRel.key!r} which refers to unknown kind {srcRel["viur_src_kind"]!r}""")
             continue
         if db.IsInTransaction():
             updateTxn(skel, srcRel["src"].key, srcRel.key)

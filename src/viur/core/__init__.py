@@ -14,8 +14,8 @@
 
    I N F O R M A T I O N    S Y S T E M
 
- ViUR core
- Copyright (C) 2012-2023 by Mausbrand Informationssysteme GmbH
+ viur-core
+ Copyright © 2012-2024 by Mausbrand Informationssysteme GmbH
 
  ViUR is a free software development framework for the Google App Engine™.
  More about ViUR can be found at https://www.viur.dev.
@@ -37,8 +37,8 @@ from types import ModuleType
 import typing as t
 from google.appengine.api import wrap_wsgi_app
 import yaml
+
 from viur.core import i18n, request, utils
-from viur.core.config import conf
 from viur.core.config import conf
 from viur.core.decorators import *
 from viur.core.decorators import access, exposed, force_post, force_ssl, internal_exposed, skey
@@ -167,10 +167,12 @@ def buildApp(modules: ModuleType | object, renderers: ModuleType | object, defau
     # assign ViUR system modules
     from viur.core.modules.moduleconf import ModuleConf  # noqa: E402 # import works only here because circular imports
     from viur.core.modules.script import Script  # noqa: E402 # import works only here because circular imports
+    from viur.core.modules.translation import Translation  # noqa: E402 # import works only here because circular imports
     from viur.core.prototypes.instanced_module import InstancedModule  # noqa: E402 # import works only here because circular imports
 
     modules._tasks = TaskHandler
     modules._moduleconf = ModuleConf
+    modules._translation = Translation
     modules.script = Script
 
     # create module mappings
@@ -308,6 +310,32 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
             db.Put(obj)
 
         conf.file_hmac_key = bytes(obj["hmacKey"], "utf-8")
+
+    if conf.instance.is_dev_server:
+        WIDTH = 80  # defines the standard width
+        FILL = "#"  # define sthe fill char (must be len(1)!)
+        PYTHON_VERSION = (sys.version_info.major, sys.version_info.minor, sys.version_info.micro)
+
+        # define lines to show
+        lines = (
+            " LOCAL DEVELOPMENT SERVER IS UP AND RUNNING ",  # title line
+            f"""project = \033[1;31m{conf.instance.project_id}\033[0m""",
+            f"""python = \033[1;32m{".".join((str(i) for i in PYTHON_VERSION))}\033[0m""",
+            f"""viur = \033[1;32m{".".join((str(i) for i in conf.version))}\033[0m""",
+            ""  # empty line
+        )
+
+        # first and last line are shown with a cool line made of FILL
+        first_last = (0, len(lines) - 1)
+
+        # dump to console
+        for i, line in enumerate(lines):
+            print(
+                f"""\033[0m{FILL}{line:{
+                    FILL if i in first_last else " "}^{(WIDTH - 2) + (11 if i not in first_last else 0)
+                }}{FILL}"""
+            )
+
     return wrap_wsgi_app(app)
 
 

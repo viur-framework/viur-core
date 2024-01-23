@@ -47,8 +47,12 @@ class KeyBone(BaseBone):
                 return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, e.args[0])]
         else:
             try:
-                key = db.normalizeKey(db.Key.from_legacy_urlsafe(value))
-            except:
+                if isinstance(value, db.Key):
+                    key = db.normalizeKey(value)
+                else:
+                    key = db.normalizeKey(db.Key.from_legacy_urlsafe(value))
+            except Exception as exc:
+                logging.exception(f"Failed to normalize {value}: {exc}")
                 return self.getEmptyValue(), [
                     ReadFromClientError(
                         ReadFromClientErrorSeverity.Invalid,
@@ -187,7 +191,7 @@ class KeyBone(BaseBone):
                     return db.Key.from_legacy_urlsafe(key)
                 except Exception as e:
                     logging.exception(e)
-                    logging.warning("Could not decode key %s" % key)
+                    logging.warning(f"Could not decode key {key}")
                     raise RuntimeError()
 
         if name in rawFilter:
@@ -202,18 +206,18 @@ class KeyBone(BaseBone):
                     newFilter = copy.deepcopy(oldFilter)
                     try:
                         if name == "key":
-                            newFilter.filters["%s%s =" % (prefix or "", db.KEY_SPECIAL_PROPERTY)] = _decodeKey(key)
+                            newFilter.filters[f"{prefix or ''}{db.KEY_SPECIAL_PROPERTY} ="] = _decodeKey(key)
                         else:
-                            newFilter.filters["%s%s =" % (prefix or "", name)] = _decodeKey(key)
+                            newFilter.filters[f"{prefix or ''}{name} ="] = _decodeKey(key)
                     except:  # Invalid key or something
                         raise RuntimeError()
                     dbFilter.queries.append(newFilter)
             else:
                 try:
                     if name == "key":
-                        dbFilter.filter("%s%s =" % (prefix or "", db.KEY_SPECIAL_PROPERTY), _decodeKey(rawFilter[name]))
+                        dbFilter.filter(f"""{prefix or ""}{db.KEY_SPECIAL_PROPERTY} =""", _decodeKey(rawFilter[name]))
                     else:
-                        dbFilter.filter("%s%s =" % (prefix or "", name), _decodeKey(rawFilter[name]))
+                        dbFilter.filter(f"""{prefix or ""}{name} =""", _decodeKey(rawFilter[name]))
                 except:  # Invalid key or something
                     raise RuntimeError()
             return dbFilter

@@ -2,6 +2,14 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.5.11]
+
+- fix: Improve and refactor `BaseSkel.fromClient()` to handle empty/unset data (#1023)
+- fix: Add check for `db.Key` in `KeyBone.singleValueFromClient` (#1008)
+- fix: Provide `User.msg_missing_second_factor` customization (#1026)
+- fix: Finetuning `ViurTagsSearchAdapter` defaults (#1010)
+- fix: support for tasks emulator (#1004)
+
 ## [3.5.10]
 
 - fix: handling alpha channel within thumbnail generation if icc profile is present (#1006)

@@ -189,9 +189,9 @@ class Tree(SkelModule):
         :param depth: Safety level depth preventing infinitive loops.
         """
         if depth > 99:
-            logging.critical("Maximum recursion depth reached in %s/updateParentRepo", self.updateParentRepo.__module__)
+            logging.critical(f"Maximum recursion depth reached in {self.updateParentRepo.__module__}/updateParentRepo")
             logging.critical("Your data is corrupt!")
-            logging.critical("Params: parentNode: %s, newRepoKey: %s" % (parentNode, newRepoKey))
+            logging.debug(f"{parentNode=}, {newRepoKey=}")
             return
 
         def fixTxn(nodeKey, newRepoKey):
@@ -537,7 +537,7 @@ class Tree(SkelModule):
         for _ in range(0, 99):
             if currLevel.key == skel["key"]:
                 break
-            if currLevel.get("rootNode"):
+            if currLevel.get("rootNode") or currLevel.get("is_root_node"):
                 # We reached a rootNode, so this is okay
                 break
             currLevel = db.Get(currLevel["parententry"])
@@ -545,8 +545,8 @@ class Tree(SkelModule):
             raise errors.NotAcceptable("Unable to find a root node in recursion?")
 
         # Test if we try to move a rootNode
-        tmp = skel.dbEntity
-        if "rootNode" in tmp and tmp["rootNode"] == 1:
+        # TODO: Remove "rootNode"-fallback with VIUR4
+        if skel.dbEntity.get("is_root_node") or skel.dbEntity.get("rootNode"):
             raise errors.NotAcceptable("Can't move a rootNode to somewhere else")
 
         currentParentRepo = skel["parentrepo"]
@@ -582,7 +582,7 @@ class Tree(SkelModule):
 
         :returns: The altered filter, or None if access is not granted.
         """
-        if (user := current.user.get()) and ("%s-view" % self.moduleName in user["access"] or "root" in user["access"]):
+        if (user := current.user.get()) and (f"{self.moduleName}-view" in user["access"] or "root" in user["access"]):
             return query
         return None
 
@@ -630,7 +630,7 @@ class Tree(SkelModule):
         if user["access"] and "root" in user["access"]:
             return True
         # user with add-permission is allowed.
-        if user and user["access"] and "%s-add" % self.moduleName in user["access"]:
+        if user and user["access"] and f"{self.moduleName}-add" in user["access"]:
             return True
         return False
 
@@ -658,7 +658,7 @@ class Tree(SkelModule):
             return False
         if user["access"] and "root" in user["access"]:
             return True
-        if user and user["access"] and "%s-edit" % self.moduleName in user["access"]:
+        if user and user["access"] and f"{self.moduleName}-edit" in user["access"]:
             return True
         return False
 
@@ -687,7 +687,7 @@ class Tree(SkelModule):
             return False
         if user["access"] and "root" in user["access"]:
             return True
-        if user and user["access"] and "%s-delete" % self.moduleName in user["access"]:
+        if user and user["access"] and f"{self.moduleName}-delete" in user["access"]:
             return True
         return False
 
@@ -717,7 +717,7 @@ class Tree(SkelModule):
             return False
         if user["access"] and "root" in user["access"]:
             return True
-        if user and user["access"] and "%s-edit" % self.moduleName in user["access"]:
+        if user and user["access"] and f"{self.moduleName}-edit" in user["access"]:
             return True
         return False
 
@@ -748,10 +748,10 @@ class Tree(SkelModule):
 
         .. seealso:: :func:`add`, :func:`onAdd`
         """
-        logging.info("Entry of kind %r added: %s", skelType, skel["key"])
+        logging.info(f"""Entry of kind {skelType!r} added: {skel["key"]!r}""")
         flushCache(kind=skel.kindName)
         if user := current.user.get():
-            logging.info("User: %s (%s)" % (user["name"], user["key"]))
+            logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
     def onEdit(self, skelType: SkelType, skel: SkeletonInstance):
         """
@@ -778,10 +778,10 @@ class Tree(SkelModule):
 
         .. seealso:: :func:`edit`, :func:`onEdit`
         """
-        logging.info("Entry of kind %r changed: %s", skelType, skel["key"])
+        logging.info(f"""Entry of kind {skelType!r} changed: {skel["key"]!r}""")
         flushCache(key=skel["key"])
         if user := current.user.get():
-            logging.info("User: %s (%s)" % (user["name"], user["key"]))
+            logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
     def onView(self, skelType: SkelType, skel: SkeletonInstance):
         """
@@ -825,10 +825,10 @@ class Tree(SkelModule):
 
         .. seealso:: :func:`delete`, :func:`onDelete`
         """
-        logging.info("Entry deleted: %s (%s)" % (skel["key"], type(skel)))
+        logging.info(f"""Entry deleted: {skel["key"]!r} ({skelType!r})""")
         flushCache(key=skel["key"])
         if user := current.user.get():
-            logging.info("User: %s (%s)" % (user["name"], user["key"]))
+            logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
 
 Tree.vi = True

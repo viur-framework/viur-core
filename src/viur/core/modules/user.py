@@ -126,7 +126,7 @@ class UserSkel(skeleton.Skeleton):
     access = SelectBone(
         descr=i18n.translate("viur.user.bone.access", defaultText="Access rights"),
         values=lambda: {
-            right: i18n.translate("server.modules.user.accessright.%s" % right, defaultText=right)
+            right: i18n.translate(f"server.modules.user.accessright.{right}", defaultText=right)
             for right in sorted(conf.user.access_rights)
         },
         multiple=True,
@@ -1067,14 +1067,24 @@ class User(List):
     verifyEmailAddressMail = "user_verify_address"
     passwordRecoveryMail = "user_password_recovery"
 
-    authenticationProviders: list[UserAuthentication] = [UserPassword, GoogleAccount]
-    secondFactorProviders: list[UserSecondFactorAuthentication] = [TimeBasedOTP, AuthenticatorOTP]
+    authenticationProviders: list[UserAuthentication] = [
+        UserPassword,
+        GoogleAccount
+    ]
+
+    secondFactorProviders: list[UserSecondFactorAuthentication] = [
+        TimeBasedOTP,
+        AuthenticatorOTP
+    ]
+
     validAuthenticationMethods = [
         (UserPassword, AuthenticatorOTP),
         (UserPassword, TimeBasedOTP),
         (UserPassword, None),
         (GoogleAccount, None),
     ]
+
+    msg_missing_second_factor = "Second factor required but not configured for this user."
 
     secondFactorTimeWindow = datetime.timedelta(minutes=10)
 
@@ -1157,7 +1167,7 @@ class User(List):
     def addSkel(self):
         skel = super(User, self).addSkel().clone()
         user = current.user.get()
-        if not (user and user["access"] and ("%s-add" % self.moduleName in user["access"] or "root" in user["access"])):
+        if not (user and user["access"] and (f"{self.moduleName}-add" in user["access"] or "root" in user["access"])):
             skel.status.readOnly = True
             skel["status"] = Status.UNSET
             skel.status.visible = False
@@ -1198,7 +1208,7 @@ class User(List):
         return skel
 
     def secondFactorProviderByClass(self, cls) -> UserSecondFactorAuthentication:
-        return getattr(self, "f2_%s" % cls.__name__.lower())
+        return getattr(self, f"f2_{cls.__name__.lower()}")
 
     def getCurrentUser(self):
         # May be a deferred task
@@ -1245,7 +1255,7 @@ class User(List):
             second_factor_providers.pop(second_factor_providers.index(None))
 
         if len(second_factor_providers) == 0:
-            raise errors.NotAcceptable("There are no authentication methods to try")
+            raise errors.NotAcceptable(self.msg_missing_second_factor)
         elif len(second_factor_providers) == 1:
             if second_factor_providers[0] is None:
                 # We allow sign-in without a second factor
@@ -1475,7 +1485,7 @@ def createNewUserIfNotExists():
             try:
                 addSkel.toDB()
             except Exception as e:
-                logging.error("Something went wrong when trying to add admin user %s with Password %s", uname, pw)
+                logging.critical(f"Something went wrong when trying to add admin user {uname!r} with Password {pw!r}")
                 logging.exception(e)
                 return
 
