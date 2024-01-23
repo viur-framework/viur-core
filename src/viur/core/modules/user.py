@@ -56,7 +56,7 @@ class Status(enum.Enum):
 
 
 class UserSkel(skeleton.Skeleton):
-    kindName = "user"  # FIXME this line is required, as this Skeleton is defined in viur-core (see #604)
+    kindName = "user"  # this assignment is required, as this Skeleton is defined in viur-core (see #604)
 
     name = EmailBone(
         descr="E-Mail",
