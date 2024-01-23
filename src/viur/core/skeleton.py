@@ -131,12 +131,23 @@ class SkeletonInstance:
         call a Skeleton-Class. With ViUR3, you don't get an instance of a Skeleton-Class any more - it's always this
         class. This is much faster as this is a small class.
     """
-    __slots__ = {"dbEntity", "accessedValues", "renderAccessedValues", "boneMap", "errors", "skeletonCls",
-                 "renderPreparation"}
+    __slots__ = {
+        "accessedValues",
+        "boneMap",
+        "dbEntity",
+        "errors",
+        "is_cloned",
+        "renderAccessedValues",
+        "renderPreparation",
+        "skeletonCls",
+    }
 
     def __init__(self, skelCls, subSkelNames=None, fullClone=False, clonedBoneMap=None):
         if clonedBoneMap:
             self.boneMap = clonedBoneMap
+            for k, v in self.boneMap.items():
+                v.isClonedInstance = True
+
         elif subSkelNames:
             boneList = ["key"] + list(chain(*[skelCls.subSkels.get(x, []) for x in ["*"] + subSkelNames]))
             doesMatch = lambda name: name in boneList or any(
@@ -147,18 +158,22 @@ class SkeletonInstance:
                     v.isClonedInstance = True
             else:
                 self.boneMap = {k: v for k, v in skelCls.__boneMap__.items() if doesMatch(k)}
+
         elif fullClone:
             self.boneMap = copy.deepcopy(skelCls.__boneMap__)
             for v in self.boneMap.values():
                 v.isClonedInstance = True
+
         else:  # No Subskel, no Clone
             self.boneMap = skelCls.__boneMap__.copy()
-        self.dbEntity = None
+
         self.accessedValues = {}
-        self.renderAccessedValues = {}
+        self.dbEntity = None
         self.errors = []
-        self.skeletonCls = skelCls
+        self.is_cloned = fullClone
+        self.renderAccessedValues = {}
         self.renderPreparation = None
+        self.skeletonCls = skelCls
 
     def items(self, yieldBoneValues: bool = False) -> t.Iterable[tuple[str, BaseBone]]:
         if yieldBoneValues:
@@ -284,13 +299,25 @@ class SkeletonInstance:
         return len(self.boneMap)
 
     def clone(self):
+        """
+        Clones a SkeletonInstance into a modificable object.
+        This will also allow to modfiy the underlying data model.
+        """
         res = SkeletonInstance(self.skeletonCls, clonedBoneMap=copy.deepcopy(self.boneMap))
-        for k, v in res.boneMap.items():
-            v.isClonedInstance = True
-        res.dbEntity = copy.deepcopy(self.dbEntity)
         res.accessedValues = copy.deepcopy(self.accessedValues)
+        res.dbEntity = copy.deepcopy(self.dbEntity)
+        res.is_cloned = True
         res.renderAccessedValues = copy.deepcopy(self.renderAccessedValues)
         return res
+
+    def ensure_is_cloned(self):
+        """
+        Ensured this SkeletonInstance is a stand-alone clone, which can be modified.
+        """
+        if not self.is_cloned:
+            return self.clone()
+
+        return self
 
     def setEntity(self, entity: db.Entity):
         self.dbEntity = entity
