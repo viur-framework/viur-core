@@ -300,8 +300,8 @@ class SkeletonInstance:
 
     def clone(self):
         """
-        Clones a SkeletonInstance into a modificable object.
-        This will also allow to modfiy the underlying data model.
+        Clones a SkeletonInstance into a modificable, stand-alone instance.
+        This will also allow to modify the underlying data model.
         """
         res = SkeletonInstance(self.skeletonCls, clonedBoneMap=copy.deepcopy(self.boneMap))
         res.accessedValues = copy.deepcopy(self.accessedValues)
@@ -313,6 +313,7 @@ class SkeletonInstance:
     def ensure_is_cloned(self):
         """
         Ensured this SkeletonInstance is a stand-alone clone, which can be modified.
+        Does nothing in case it was already cloned before.
         """
         if not self.is_cloned:
             return self.clone()
