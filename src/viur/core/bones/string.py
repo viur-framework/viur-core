@@ -165,8 +165,8 @@ class StringBone(BaseBone):
         else:
             lang = None
             for key in rawFilter.keys():
-                if key.startswith("%s." % name):
-                    langStr = key.replace("%s." % name, "")
+                if key.startswith(f"{name}."):
+                    langStr = key.replace(f"{name}.", "")
                     if langStr in self.languages:
                         lang = langStr
                         break
@@ -174,7 +174,7 @@ class StringBone(BaseBone):
                 lang = current.language.get()  # currentSession.getLanguage()
                 if not lang or not lang in self.languages:
                     lang = self.languages[0]
-            namefilter = "%s.%s" % (name, lang)
+            namefilter = f"{name}.{lang}"
 
         if name + "$lk" in rawFilter:  # Do a prefix-match
             if not self.caseSensitive:
@@ -255,7 +255,7 @@ class StringBone(BaseBone):
             if inEqFilter:
                 inEqFilter = inEqFilter[0][: inEqFilter[0].find(" ")]
                 if inEqFilter != order[0]:
-                    logging.warning("I fixed you query! Impossible ordering changed to %s, %s" % (inEqFilter, order[0]))
+                    logging.warning(f"I fixed you query! Impossible ordering changed to {inEqFilter}, {order[0]}")
                     dbFilter.order(inEqFilter, order)
                 else:
                     dbFilter.order(order)

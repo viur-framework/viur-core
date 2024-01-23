@@ -388,7 +388,7 @@ class List(SkelModule):
             :returns: The altered filter, or None if access is not granted.
         """
 
-        if (user := current.user.get()) and ("%s-view" % self.moduleName in user["access"] or "root" in user["access"]):
+        if (user := current.user.get()) and (f"{self.moduleName}-view" in user["access"] or "root" in user["access"]):
             return query
 
         return None
@@ -440,7 +440,7 @@ class List(SkelModule):
             return True
 
         # user with add-permission is allowed.
-        if user and user["access"] and "%s-add" % self.moduleName in user["access"]:
+        if user and user["access"] and f"{self.moduleName}-add" in user["access"]:
             return True
 
         return False
@@ -470,8 +470,8 @@ class List(SkelModule):
             return True
 
         if (user and user["access"]
-            and ("%s-add" % self.moduleName in user["access"]
-                 or "%s-edit" % self.moduleName in user["access"])):
+            and (f"{self.moduleName}-add" in user["access"]
+                 or f"{self.moduleName}-edit" in user["access"])):
             return True
 
         return False
@@ -501,7 +501,7 @@ class List(SkelModule):
         if user["access"] and "root" in user["access"]:
             return True
 
-        if user and user["access"] and "%s-edit" % self.moduleName in user["access"]:
+        if user and user["access"] and f"{self.moduleName}-edit" in user["access"]:
             return True
 
         return False
@@ -532,7 +532,7 @@ class List(SkelModule):
         if user["access"] and "root" in user["access"]:
             return True
 
-        if user and user["access"] and "%s-delete" % self.moduleName in user["access"]:
+        if user and user["access"] and f"{self.moduleName}-delete" in user["access"]:
             return True
 
         return False
@@ -562,10 +562,10 @@ class List(SkelModule):
 
             .. seealso:: :func:`add`, , :func:`onAdd`
         """
-        logging.info("Entry added: %s" % skel["key"])
+        logging.info(f"""Entry added: {skel["key"]!r}""")
         flushCache(kind=skel.kindName)
         if user := current.user.get():
-            logging.info("User: %s (%s)" % (user["name"], user["key"]))
+            logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
     def onEdit(self, skel: SkeletonInstance):
         """
@@ -590,10 +590,10 @@ class List(SkelModule):
 
             .. seealso:: :func:`edit`, :func:`onEdit`
         """
-        logging.info("Entry changed: %s" % skel["key"])
+        logging.info(f"""Entry changed: {skel["key"]!r}""")
         flushCache(key=skel["key"])
         if user := current.user.get():
-            logging.info("User: %s (%s)" % (user["name"], user["key"]))
+            logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
     def onView(self, skel: SkeletonInstance):
         """
@@ -631,10 +631,10 @@ class List(SkelModule):
 
             .. seealso:: :func:`delete`, :func:`onDelete`
         """
-        logging.info("Entry deleted: %s" % skel["key"])
+        logging.info(f"""Entry deleted: {skel["key"]!r}""")
         flushCache(key=skel["key"])
         if user := current.user.get():
-            logging.info("User: %s (%s)" % (user["name"], user["key"]))
+            logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
     def onClone(self, skel: SkeletonInstance, src_skel: SkeletonInstance):
         """
@@ -660,11 +660,11 @@ class List(SkelModule):
 
             .. seealso:: :func:`clone`, :func:`onClone`
         """
-        logging.info(f"Cloned: {skel['key']=} from {src_skel['key']=}")
+        logging.info(f"""Entry cloned: {skel["key"]!r}""")
         flushCache(kind=skel.kindName)
 
         if user := utils.getCurrentUser():
-            logging.info(f"{user['name']=} ({user['key']=})")
+            logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
 
 List.admin = True

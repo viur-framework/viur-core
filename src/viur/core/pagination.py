@@ -62,7 +62,7 @@ class Pagination:
         if query.queries.limit:
             orig_filter.append(("__pagesize =", self.page_size))
         orig_filter.sort(key=lambda sx: sx[0])
-        filter_key = "".join("%s%s" % (x, y) for x, y in orig_filter)
+        filter_key = "".join(f"{x}{y}" for x, y in orig_filter)
         return sha256(filter_key.encode()).hexdigest()
 
     def get_or_build_index(self, orig_query: db.Query) -> list[str]:

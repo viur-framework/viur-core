@@ -44,7 +44,7 @@ def serializeXML(data):
                 element.setAttribute('ViurDataType', 'none')
                 data = ""
             else:
-                raise NotImplementedError("Type %s is not supported!" % type(data))
+                raise NotImplementedError(f"Type {type(data)} is not supported!")
             element.appendChild(doc.createTextNode(str(data)))
         return element
 

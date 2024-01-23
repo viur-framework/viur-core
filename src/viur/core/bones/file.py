@@ -48,11 +48,11 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refreshKey: 
     skel["derived"]["files"] = skel["derived"].get("files") or {}
     resDict = {}  # Will contain new or updated resultDicts that will be merged into our file
     for calleeKey, params in deriveMap.items():
-        fullSrcKey = "%s_%s" % (srcKey, calleeKey)
+        fullSrcKey = f"{srcKey}_{calleeKey}"
         paramsHash = sha256(str(params).encode("UTF-8")).hexdigest()  # Hash over given params (dict?)
         if skel["derived"]["deriveStatus"].get(fullSrcKey) != paramsHash:
             if calleeKey not in deriveFuncMap:
-                logging.warning("File-Deriver %s not found - skipping!" % calleeKey)
+                logging.warning(f"File-Deriver {calleeKey} not found - skipping!")
                 continue
             callee = deriveFuncMap[calleeKey]
             callRes = callee(skel, skel["derived"]["files"], params)
@@ -221,7 +221,7 @@ class FileBone(TreeLeafBone):
             if isinstance(values, dict):
                 values = [values]
             for val in values:  # Ensure derives getting build for each file referenced in this relation
-                ensureDerived(val["dest"]["key"], "%s_%s" % (skel.kindName, boneName), self.derive)
+                ensureDerived(val["dest"]["key"], f"{skel.kindName}_{boneName}", self.derive)
 
         values = skel[boneName]
         if self.derive and values:

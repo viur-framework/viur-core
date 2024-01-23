@@ -149,7 +149,7 @@ def index(*args, **kwargs):
         raise errors.Redirect("/vi/s/main.html")
     else:
         appVersion = current.request.get().request.host
-        raise errors.Redirect("https://%s/vi/s/main.html" % appVersion)
+        raise errors.Redirect(f"https://{appVersion}/vi/s/main.html")
 
 
 @exposed
