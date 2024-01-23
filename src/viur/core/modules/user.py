@@ -208,9 +208,6 @@ class UserPassword(UserPrimaryAuthentication):
     # Limit (invalid) login-retries to once per 5 seconds
     loginRateLimit = RateLimit("user.login", 12, 1, "ip")
 
-    # Authentication-related password bone class or generator
-    PasswordBone = PasswordBone
-
     # Default translations for password recovery
     passwordRecoveryKeyExpired = i18n.translate(
         key="viur.modules.user.passwordrecovery.keyexpired",
@@ -244,7 +241,7 @@ class UserPassword(UserPrimaryAuthentication):
         """
         skel = skel.clone()  # todo: is this equal to ensure_is_cloned, or does it always clone again??
 
-        skel.password = cls.PasswordBone(
+        skel.password = PasswordBone(
             readOnly=True,
             visible=False,
             params={
