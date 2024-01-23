@@ -141,13 +141,15 @@ def canAccess(*args, **kwargs) -> bool:
 
 @exposed
 def index(*args, **kwargs):
+    if args or kwargs:
+        raise errors.NotFound()
     if not conf.instance.project_base_path.joinpath("vi", "main.html").exists():
         raise errors.NotFound()
     if conf.instance.is_dev_server or current.request.get().isSSLConnection:
         raise errors.Redirect("/vi/s/main.html")
     else:
         appVersion = current.request.get().request.host
-        raise errors.Redirect("https://%s/vi/s/main.html" % appVersion)
+        raise errors.Redirect(f"https://{appVersion}/vi/s/main.html")
 
 
 @exposed

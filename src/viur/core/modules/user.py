@@ -13,7 +13,7 @@ import user_agents
 import pyotp
 import base64
 import dataclasses
-import typing
+import typing as t
 from google.auth.transport import requests
 from google.oauth2 import id_token
 
@@ -28,7 +28,6 @@ from viur.core.i18n import translate
 from viur.core.prototypes.list import List
 from viur.core.ratelimit import RateLimit
 from viur.core.securityheaders import extendCsp
-from viur.core.utils import parse_bool
 
 
 @functools.total_ordering
@@ -95,7 +94,7 @@ class UserSkel(skeleton.Skeleton):
     access = SelectBone(
         descr=i18n.translate("viur.user.bone.access", defaultText="Access rights"),
         values=lambda: {
-            right: i18n.translate("server.modules.user.accessright.%s" % right, defaultText=right)
+            right: i18n.translate(f"server.modules.user.accessright.{right}", defaultText=right)
             for right in sorted(conf.user.access_rights)
         },
         multiple=True,
@@ -257,7 +256,7 @@ class UserPassword(UserPrimaryAuthentication):
 
     class LoginSkel(skeleton.RelSkel):
         name = EmailBone(
-            descr="Username",
+            descr="E-Mail",
             required=True,
             caseSensitive=False,
         )
@@ -267,8 +266,8 @@ class UserPassword(UserPrimaryAuthentication):
 
     class LostPasswordStep1Skel(skeleton.RelSkel):
         name = EmailBone(
-            descr="Username",
-            required=True
+            descr="E-Mail",
+            required=True,
         )
 
     class LostPasswordStep2Skel(skeleton.RelSkel):
@@ -335,6 +334,13 @@ class UserPassword(UserPrimaryAuthentication):
             skel["password"] = password  # will be hashed on serialize
             skel.toDB(update_relations=False)
 
+        return self.on_login(user_entry)
+
+    def on_login(self, user_entry: db.Entity):
+        """
+        Hook that is called whenever the password authentication was successful.
+        It allows to perform further steps in custom UserPassword authentications.
+        """
         return self._user_module.continueAuthenticationFlow(self, user_entry.key)
 
     @exposed
@@ -521,7 +527,7 @@ class UserPassword(UserPrimaryAuthentication):
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # bail out if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or parse_bool(kwargs.get("bounce"))  # review before adding
+            or utils.parse.bool(kwargs.get("bounce"))  # review before adding
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self._user_module.render.add(skel)
@@ -623,10 +629,10 @@ class GoogleAccount(UserPrimaryAuthentication):
             if not (userSkel := addSkel().all().filter("name.idx =", email.lower()).getSkel()):
                 # Still no luck - it's a completely new user
                 if not self.registrationEnabled:
-                    if userInfo.get("hd") and userInfo["hd"] in conf.user.google_gsuite_domains:
-                        print("User is from domain - adding account")
+                    if (domain := userInfo.get("hd")) and domain in conf.user.google_gsuite_domains:
+                        logging.debug(f"Google user is from allowed {domain} - adding account")
                     else:
-                        logging.warning("Denying registration of %s", email)
+                        logging.debug(f"Google user is from {domain} - denying registration")
                         raise errors.Forbidden("Registration for new users is disabled")
 
                 userSkel = addSkel()  # We'll add a new user
@@ -703,7 +709,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         """
         secret: str
         timedrift: float = 0.0
-        algorithm: typing.Literal["sha1", "sha256"] = "sha1"
+        algorithm: t.Literal["sha1", "sha256"] = "sha1"
         interval: int = 60
 
     class OtpSkel(skeleton.RelSkel):
@@ -1126,14 +1132,24 @@ class User(List):
     verifyEmailAddressMail = "user_verify_address"
     passwordRecoveryMail = "user_password_recovery"
 
-    authenticationProviders: list[UserAuthentication] = [UserPassword, GoogleAccount]
-    secondFactorProviders: list[UserSecondFactorAuthentication] = [TimeBasedOTP, AuthenticatorOTP]
+    authenticationProviders: list[UserAuthentication] = [
+        UserPassword,
+        GoogleAccount
+    ]
+
+    secondFactorProviders: list[UserSecondFactorAuthentication] = [
+        TimeBasedOTP,
+        AuthenticatorOTP
+    ]
+
     validAuthenticationMethods = [
         (UserPassword, AuthenticatorOTP),
         (UserPassword, TimeBasedOTP),
         (UserPassword, None),
         (GoogleAccount, None),
     ]
+
+    msg_missing_second_factor = "Second factor required but not configured for this user."
 
     secondFactorTimeWindow = datetime.timedelta(minutes=10)
 
@@ -1232,7 +1248,7 @@ class User(List):
     def addSkel(self):
         skel = super().addSkel().clone()
         user = current.user.get()
-        if not (user and user["access"] and ("%s-add" % self.moduleName in user["access"] or "root" in user["access"])):
+        if not (user and user["access"] and (f"{self.moduleName}-add" in user["access"] or "root" in user["access"])):
             skel.status.readOnly = True
             skel["status"] = Status.UNSET
             skel.status.visible = False
@@ -1273,7 +1289,7 @@ class User(List):
         return skel
 
     def secondFactorProviderByClass(self, cls) -> UserSecondFactorAuthentication:
-        return getattr(self, "f2_%s" % cls.__name__.lower())
+        return getattr(self, f"f2_{cls.__name__.lower()}")
 
     def getCurrentUser(self):
         # May be a deferred task
@@ -1318,7 +1334,7 @@ class User(List):
             second_factor_providers.pop(second_factor_providers.index(None))
 
         if len(second_factor_providers) == 0:
-            raise errors.NotAcceptable("There are no authentication methods to try")
+            raise errors.NotAcceptable(self.msg_missing_second_factor)
         elif len(second_factor_providers) == 1:
             if second_factor_providers[0] is None:
                 # We allow sign-in without a second factor
@@ -1539,7 +1555,7 @@ def createNewUserIfNotExists():
         if not db.Query(userMod.addSkel().kindName).getEntry():  # There's currently no user in the database
             addSkel = skeleton.skeletonByKind(userMod.addSkel().kindName)()  # Ensure we have the full skeleton
             uname = f"""admin@{conf.instance.project_id}.appspot.com"""
-            pw = utils.generateRandomString(13)
+            pw = utils.string.random(13)
             addSkel["name"] = uname
             addSkel["status"] = Status.ACTIVE  # Ensure it's enabled right away
             addSkel["access"] = ["root"]
@@ -1548,7 +1564,7 @@ def createNewUserIfNotExists():
             try:
                 addSkel.toDB()
             except Exception as e:
-                logging.error("Something went wrong when trying to add admin user %s with Password %s", uname, pw)
+                logging.critical(f"Something went wrong when trying to add admin user {uname!r} with Password {pw!r}")
                 logging.exception(e)
                 return
 

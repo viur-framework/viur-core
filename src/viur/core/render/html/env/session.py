@@ -1,4 +1,4 @@
-from typing import Dict
+import typing as t
 
 from viur.core.render.html.utils import jinjaGlobalFunction
 from viur.core import current
@@ -6,7 +6,7 @@ from ..default import Render
 
 
 @jinjaGlobalFunction
-def getSession(render: Render) -> Dict:
+def getSession(render: Render) -> dict:
     """
     Jinja2 global: Allows templates to store variables server-side inside the session.
 

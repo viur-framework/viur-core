@@ -1,7 +1,7 @@
 from logging import critical, debug, error, info, warning
 
 import pprint
-from typing import Any
+import typing as t
 
 from ..utils import jinjaGlobalFunction
 from ..default import Render
@@ -34,7 +34,7 @@ def logging(render: Render, msg: str, level: str = "info", *args, **kwargs) -> N
 
 
 @jinjaGlobalFunction
-def pprint(render: Render, obj: Any) -> str:
+def pprint(render: Render, obj: t.Any) -> str:
     """
     Jinja2 global: Provides a pprint function that renders into HTML.
     The function shall be used for debug purposes.
