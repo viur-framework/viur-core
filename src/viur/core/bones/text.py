@@ -150,7 +150,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
         :param str name: The name of the character reference.
         """
         self.flushCache()
-        self.result += "&#%s;" % (name)
+        self.result += f"&#{name};"
 
     def handle_entityref(self, name):  # FIXME
         """
@@ -160,7 +160,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
         """
         if name in htmlentitydefs.entitydefs.keys():
             self.flushCache()
-            self.result += "&%s;" % (name)
+            self.result += f"&{name};"
 
     def flushCache(self):
         """
@@ -217,12 +217,12 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
                             fileObj = db.Query("file").filter("dlkey =", blobKey) \
                                 .order(("creationdate", db.SortOrder.Ascending)).getEntry()
                             srcSet = utils.srcSetFor(fileObj, None, self.srcSet.get("width"), self.srcSet.get("height"))
-                            cacheTagStart += ' srcSet="%s"' % srcSet
+                            cacheTagStart += f' srcSet="{srcSet}"'
                 if not tag in self.validHtml["validAttrs"].keys() or not k in self.validHtml["validAttrs"][tag]:
                     # That attribute is not valid on this tag
                     continue
                 if k.lower()[0:2] != 'on' and v.lower()[0:10] != 'javascript':
-                    cacheTagStart += ' %s="%s"' % (k, v)
+                    cacheTagStart += f' {k}="{v}"'
                 if tag == "a" and k == "target" and v.lower() == "_blank":
                     isBlankTarget = True
             if styles:
@@ -241,8 +241,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
                            [(x in value) for x in ["\"", ":", ";"]]):
                         syleRes[style] = value
                 if len(syleRes.keys()):
-                    cacheTagStart += " style=\"%s\"" % "; ".join(
-                        [("%s: %s" % (k, v)) for (k, v) in syleRes.items()])
+                    cacheTagStart += f""" style=\"{"; ".join([(f"{k}: {v}") for k, v in syleRes.items()])}\""""
             if classes:
                 validClasses = []
                 for currentClass in classes:
@@ -264,7 +263,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
                     if isOkay:
                         validClasses.append(currentClass)
                 if validClasses:
-                    cacheTagStart += " class=\"%s\"" % " ".join(validClasses)
+                    cacheTagStart += f""" class=\"{" ".join(validClasses)}\""""
             if isBlankTarget:
                 # Add rel tag to prevent the browser to pass window.opener around
                 cacheTagStart += " rel=\"noopener noreferrer\""
@@ -299,7 +298,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
                 # Close all currently open Tags until we reach the current one. If no one is found,
                 # we just close everything and ignore the tag that should have been closed
                 for endTag in self.openTagsList[:]:
-                    self.result += "</%s>" % endTag
+                    self.result += f"</{endTag}>"
                     self.openTagsList.remove(endTag)
                     if endTag == tag:
                         break
@@ -308,7 +307,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
         """ Append missing closing tags to the result."""
         self.flushCache()
         for tag in self.openTagsList:
-            endTag = '</%s>' % tag
+            endTag = f'</{tag}>'
             self.result += endTag
 
     def sanitize(self, instr):
@@ -457,7 +456,7 @@ class TextBone(BaseBone):
                 file_obj = db.Query("file").filter("dlkey =", blob_key) \
                     .order(("creationdate", db.SortOrder.Ascending)).getEntry()
                 if file_obj:
-                    ensureDerived(file_obj.key, "%s_%s" % (skel.kindName, name), derive_dict, skel["key"])
+                    ensureDerived(file_obj.key, f"{skel.kindName}_{name}", derive_dict, skel["key"])
 
         return blob_keys
 

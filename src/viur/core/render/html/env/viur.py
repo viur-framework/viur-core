@@ -61,7 +61,7 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> t.Any:
             cachetime = 0
     if cachetime:
         # Calculate the cache key that entry would be stored under
-        tmpList = ["%s:%s" % (str(k), str(v)) for k, v in kwargs.items()]
+        tmpList = [f"{k}:{v}" for k, v in kwargs.items()]
         tmpList.sort()
         tmpList.extend(list(args))
         tmpList.append(path)
@@ -76,7 +76,7 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> t.Any:
         mysha512 = sha512()
         mysha512.update(str(tmpList).encode("UTF8"))
         # TODO: Add hook for optional memcache or remove these remnants
-        cacheKey = "jinja2_cache_%s" % mysha512.hexdigest()
+        cacheKey = f"jinja2_cache_{mysha512.hexdigest()}"
         res = None  # memcache.get(cacheKey)
         if res:
             return res
@@ -100,17 +100,17 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> t.Any:
             request.kwargs = tmp_params  # Reset RequestParams
             request.internalRequest = lastRequestState
             request.template_style = last_template_style
-            return u"Path not found %s (failed Part was %s)" % (path, currpath)
+            return f"{path=} not found (failed at {currpath!r})"
 
     if not (isinstance(caller, Method) and caller.exposed is not None):
         request.kwargs = tmp_params  # Reset RequestParams
         request.internalRequest = lastRequestState
         request.template_style = last_template_style
-        return u"%s not callable or not exposed" % str(caller)
+        return f"{caller!r} not callable or not exposed"
     try:
         resstr = caller(*args, **kwargs)
     except Exception as e:
-        logging.error("Caught execption in execRequest while calling %s" % path)
+        logging.error(f"Caught exception in execRequest while calling {path}")
         logging.exception(e)
         raise
     request.kwargs = tmp_params
@@ -153,7 +153,7 @@ def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel"
     :returns: dict on success, False on error.
     """
     if module not in dir(conf.main_app):
-        logging.error("getSkel called with unknown module %s!" % module)
+        logging.error(f"getSkel called with unknown {module=}!")
         return False
 
     obj = getattr(conf.main_app, module)
@@ -173,7 +173,7 @@ def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel"
 
         if "canView" in dir(obj):
             if not skel.fromDB(key):
-                logging.info("getSkel: Entry %s not found" % (key,))
+                logging.info(f"getSkel: Entry {key} not found")
                 return None
             if isinstance(obj, prototypes.singleton.Singleton):
                 isAllowed = obj.canView()
@@ -186,7 +186,7 @@ def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel"
             else:  # List and Hierarchies
                 isAllowed = obj.canView(skel)
             if not isAllowed:
-                logging.error("getSkel: Access to %s denied from canView" % (key,))
+                logging.error(f"getSkel: Access to {key} denied from canView")
                 return None
         elif "listFilter" in dir(obj):
             qry = skel.all().mergeExternalFilter({"key": str(key)})
@@ -309,11 +309,11 @@ def getList(render: Render, module: str, skel: str = "viewSkel",
         or None on error case.
     """
     if module not in dir(conf.main_app):
-        logging.error("Jinja2-Render can't fetch a list from an unknown module %s!" % module)
+        logging.error(f"Jinja2-Render can't fetch a list from an unknown module {module}!")
         return False
     caller = getattr(conf.main_app, module)
     if "viewSkel" not in dir(caller):
-        logging.error("Jinja2-Render cannot fetch a list from %s due to missing viewSkel function" % module)
+        logging.error(f"Jinja2-Render cannot fetch a list from {module} due to missing viewSkel function")
         return False
     if _noEmptyFilter:  # Test if any value of kwargs is an empty list
         if any([isinstance(x, list) and not len(x) for x in kwargs.values()]):
@@ -455,7 +455,7 @@ def fileSize(render: Render, value: int | float, binary: bool = False) -> str:
         if bytes < unit:
             break
 
-    return '%.1f %s' % ((base * bytes / unit), prefix)
+    return f'{(base * bytes / unit):.1f} {prefix}'
 
 
 @jinjaGlobalFilter
@@ -528,7 +528,7 @@ def renderEditBone(render: Render, skel, boneName, boneErrors=None, prefix=None)
     boneParams = skel["structure"].get(boneName)
 
     if not boneParams:
-        raise ValueError("Bone %s is not part of that skeleton" % boneName)
+        raise ValueError(f"Bone {boneName} is not part of that skeleton")
 
     if not boneParams["visible"]:
         fileName = "editform_bone_hidden"
@@ -669,7 +669,7 @@ def embedSvg(render: Render, name: str, classes: list[str] | None = None, **kwar
         "class": " ".join(classes),
         **kwargs
     }
-    return "<img %s>" % " ".join(f"{k}=\"{v}\"" for k, v in attributes.items())
+    return f"""<img {" ".join(f'{k}="{v}"' for k, v in attributes.items())}>"""
 
 
 @jinjaGlobalFunction

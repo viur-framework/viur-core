@@ -83,7 +83,7 @@ class RateLimit(object):
             obj["expires"] = utils.utcNow() + timedelta(minutes=2 * self.minutes)
             db.Put(obj)
 
-        lockKey = "%s-%s-%s" % (self.resource, self._getEndpointKey(), self._getCurrentTimeKey())
+        lockKey = f"{self.resource}-{self._getEndpointKey()}-{self._getCurrentTimeKey()}"
         db.RunInTransaction(updateTxn, lockKey)
 
     def isQuotaAvailable(self) -> bool:
@@ -100,7 +100,7 @@ class RateLimit(object):
         cacheKeys = []
         for x in range(0, self.steps):
             cacheKeys.append(
-                db.Key(self.rateLimitKind, "%s-%s-%s" % (self.resource, endPoint, keyBase % (currentStep - x))))
+                db.Key(self.rateLimitKind, f"{self.resource}-{endPoint}-{keyBase % (currentStep - x)}"))
         tmpRes = db.Get(cacheKeys)
         return sum([x["value"] for x in tmpRes if x and currentDateTime < x["expires"]]) <= self.maxRate
 
