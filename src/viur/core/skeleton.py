@@ -911,8 +911,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 if bone_name == "key":  # Explicitly skip key on top-level - this had been set above
                     continue
 
-
-
                 if not (bone_name in skel.accessedValues or bone.compute) and bone_name not in skel.dbEntity:
                     _ = skel[bone_name]  # Ensure the datastore is filled with the default value
                 if (
@@ -925,7 +923,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     except Exception:
                         logging.error(f"Failed to serialize {bone_name} {bone} {skel.accessedValues[bone_name]}")
                         raise
-
 
                 # Obtain referenced blobs
                 blob_list.update(bone.getReferencedBlobs(skel, bone_name))
@@ -1073,27 +1070,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 msg = f"None is not valid in {blob_list=}"
                 logging.error(msg)
                 raise ValueError(msg)
-            if not is_add and (old_blob_lock_obj := db.Get(db.Key("viur-blob-locks", db_key.id_or_name))):
-                removed_blobs = set(old_blob_lock_obj.get("active_blob_references", [])) - blob_list
-                old_blob_lock_obj["active_blob_references"] = list(blob_list)
-                if old_blob_lock_obj["old_blob_references"] is None:
-                    old_blob_lock_obj["old_blob_references"] = list(removed_blobs)
-                else:
-                    tmp = set(old_blob_lock_obj["old_blob_references"] + [x for x in removed_blobs])
-                    old_blob_lock_obj["old_blob_references"] = [x for x in (tmp - blob_list)]
-                old_blob_lock_obj["has_old_blob_references"] = \
-                    old_blob_lock_obj["old_blob_references"] is not None \
-                    and len(old_blob_lock_obj["old_blob_references"]) > 0
-                old_blob_lock_obj["is_stale"] = False
-                db.Put(old_blob_lock_obj)
-            else:  # We need to create a new blob-lock-object
-                blobLockObj = db.Entity(db.Key("viur-blob-locks", db_obj.key.id_or_name))
-                blobLockObj["active_blob_references"] = list(blob_list)
-                blobLockObj["old_blob_references"] = []
-                blobLockObj["has_old_blob_references"] = False
-                blobLockObj["is_stale"] = False
-                db.Put(blobLockObj)
-
 
             if not is_add and (old_blob_lock_obj := db.Get(db.Key("viur-blob-locks", db_key.id_or_name))):
                 removed_blobs = set(old_blob_lock_obj.get("active_blob_references", [])) - blob_list
