@@ -959,7 +959,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                             db.Put(lock_obj)
                         if new_lock_value in old_unique_values:
                             old_unique_values.remove(new_lock_value)
-                    db_obj["viur"][f"{key}_uniqueIndexValue"] = new_unique_values
+                    db_obj["viur"][f"{db_key}_uniqueIndexValue"] = new_unique_values
 
                     # Remove any lock-object we're holding for values that we don't have anymore
                     for old_unique_value in old_unique_values:
