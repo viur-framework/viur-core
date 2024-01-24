@@ -942,12 +942,11 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     if f"{bone_name}_uniqueIndexValue" in db_obj["viur"]:
                         old_unique_values = db_obj["viur"][f"{bone_name}_uniqueIndexValue"]
                     # Check if the property is unique
-                    new_unique_values = bone.getUniquePropertyIndexValues(skel, key)
+                    new_unique_values = bone.getUniquePropertyIndexValues(skel, bone_name)
                     new_lock_kind = f"{skel.kindName}_{bone_name}_uniquePropertyIndex"
                     for new_lock_value in new_unique_values:
                         new_lock_key = db.Key(new_lock_kind, new_lock_value)
-
-                        if lock_db_obj := db.Get(db.Key(new_lock_kind, new_lock_key)):
+                        if lock_db_obj := db.Get(new_lock_key):
 
                             # There's already a lock for that value, check if we hold it
                             if lock_db_obj["references"] != db_obj.key.id_or_name:
