@@ -7,28 +7,33 @@ from viur.core.i18n import translate
 from viur.core.skeleton import Skeleton, SkeletonInstance, RelSkel
 from viur.core.prototypes import List
 
+
 class ScriptRelSkel(RelSkel):
+
     name = StringBone(
-        descr="Displayed name"
+        descr="Name",
+        required=True,
     )
 
     icon = StringBone(
-        descr = "Icon"
+        descr="Icon",
     )
 
     capable = SelectBone(
-        descr="Capable to handle",
+        descr="Arguments",
+        required=True,
+        defaultValue="none",
         values={
-            "none": "Run action without further parameters.",
-            "single": "Script may use one entity key in parameters",
-            "multiple": "Script may use several entity keys in parameters"
+            "none": "No arguments, always executable",
+            "single": "Run script with single entry key as argument",
+            "multiple": "Run script with list of entity keys as argument",
         }
     )
 
     access = SelectBone(
-        descr="Required access rights to run this Script",
+        descr="Required access rights",
         values=lambda: {
-            right: translate("server.modules.user.accessright.%s" % right, defaultText=right)
+            right: translate(f"server.modules.user.accessright.{right}", defaultText=right)
             for right in sorted(conf["viur.accessRights"])
         },
         multiple=True,
@@ -71,7 +76,7 @@ class ModuleConfSkel(Skeleton):
         refKeys=[
             "key",
             "name",
-            "access"
+            "access",
         ],
         multiple=True,
     )
