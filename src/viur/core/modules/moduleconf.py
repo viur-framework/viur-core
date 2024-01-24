@@ -9,7 +9,7 @@ from viur.core.prototypes import List
 
 class ScriptRelSkel(RelSkel):
     name = StringBone(
-        descr="Displayname"
+        descr="Displayed name"
     )
 
     icon = StringBone(
@@ -68,8 +68,12 @@ class ModuleConfSkel(Skeleton):
         module="script",
         kind="viur-script-leaf",
         using=ScriptRelSkel,
-        refKeys=['key','name','access'],
-        multiple=True
+        refKeys=[
+            "key",
+            "name",
+            "access"
+        ],
+        multiple=True,
     )
 
 
