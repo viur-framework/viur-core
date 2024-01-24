@@ -28,8 +28,13 @@ def timestamp(*args, **kwargs):
 def getStructure(module):
     """
     Returns all available skeleton structures for a given module.
+
+    To access the structure of a nested module, separate the path with dots (.).
     """
-    moduleObj = getattr(conf.main_app.vi, module, None)
+    path = module.split(".")
+    moduleObj = conf.main_app.vi
+    while path:
+        moduleObj = getattr(moduleObj, path.pop(0), None)
     if not isinstance(moduleObj, Module) or not moduleObj.describe():
         return json.dumps(None)
 
@@ -141,13 +146,15 @@ def canAccess(*args, **kwargs) -> bool:
 
 @exposed
 def index(*args, **kwargs):
+    if args or kwargs:
+        raise errors.NotFound()
     if not conf.instance.project_base_path.joinpath("vi", "main.html").exists():
         raise errors.NotFound()
     if conf.instance.is_dev_server or current.request.get().isSSLConnection:
         raise errors.Redirect("/vi/s/main.html")
     else:
         appVersion = current.request.get().request.host
-        raise errors.Redirect("https://%s/vi/s/main.html" % appVersion)
+        raise errors.Redirect(f"https://{appVersion}/vi/s/main.html")
 
 
 @exposed

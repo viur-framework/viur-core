@@ -177,6 +177,7 @@ class translate:
     def __repr__(self) -> str:
         return f"<translate object for {self.key} with force_lang={self.force_lang}>"
 
+
     def __str__(self) -> str:
         if self.translationCache is None:
             global systemTranslations

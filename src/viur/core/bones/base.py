@@ -385,9 +385,9 @@ class BaseBone(object):
             res = {}
             for lang in languages:
                 if not collectSubfields:
-                    if "%s.%s" % (name, lang) in data:
+                    if f"{name}.{lang}" in data:
                         fieldSubmitted = True
-                        res[lang] = data["%s.%s" % (name, lang)]
+                        res[lang] = data[f"{name}.{lang}"]
                         if multiple and not isinstance(res[lang], list):
                             res[lang] = [res[lang]]
                         elif not multiple and isinstance(res[lang], list):
@@ -397,9 +397,9 @@ class BaseBone(object):
                                 res[lang] = None
                 else:
                     for key in data.keys():  # Allow setting relations with using, multiple and languages back to none
-                        if key == "%s.%s" % (name, lang):
+                        if key == f"{name}.{lang}":
                             fieldSubmitted = True
-                    prefix = "%s.%s." % (name, lang)
+                    prefix = f"{name}.{lang}."
                     if multiple:
                         tmpDict = {}
                         for key, value in data.items():
@@ -446,7 +446,7 @@ class BaseBone(object):
                 for key in data.keys():  # Allow setting relations with using, multiple and languages back to none
                     if key == name:
                         fieldSubmitted = True
-                prefix = "%s." % name
+                prefix = f"{name}."
                 if multiple:
                     tmpDict = {}
                     for key, value in data.items():
@@ -794,7 +794,7 @@ class BaseBone(object):
             else:  # We could not parse this, maybe it has been written before languages had been set?
                 for language in self.languages:
                     res[language] = None
-                    oldKey = "%s.%s" % (name, language)
+                    oldKey = f"{name}.{language}"
                     if oldKey in skel.dbEntity and skel.dbEntity[oldKey]:
                         res[language] = self.singleValueUnserialize(skel.dbEntity[oldKey])
                         loadVal = None  # Don't try to import later again, this format takes precedence
@@ -937,7 +937,7 @@ class BaseBone(object):
             if inEqFilter:
                 inEqFilter = inEqFilter[0][: inEqFilter[0].find(" ")]
                 if inEqFilter != order[0]:
-                    logging.warning("I fixed you query! Impossible ordering changed to %s, %s" % (inEqFilter, order[0]))
+                    logging.warning(f"I fixed you query! Impossible ordering changed to {inEqFilter}, {order[0]}")
                     dbFilter.order((inEqFilter, order))
                 else:
                     dbFilter.order(order)
@@ -963,19 +963,19 @@ class BaseBone(object):
             h.update(str(value).encode("UTF-8"))
             res = h.hexdigest()
             if isinstance(value, int) or isinstance(value, float):
-                return "I-%s" % res
+                return f"I-{res}"
             elif isinstance(value, str):
-                return "S-%s" % res
+                return f"S-{res}"
             elif isinstance(value, db.Key):
                 # We Hash the keys here by our self instead of relying on str() or to_legacy_urlsafe()
                 # as these may change in the future, which would invalidate all existing locks
                 def keyHash(key):
                     if key is None:
                         return "-"
-                    return "%s-%s-<%s>" % (hashValue(key.kind), hashValue(key.id_or_name), keyHash(key.parent))
+                    return f"{hashValue(key.kind)}-{hashValue(key.id_or_name)}-<{keyHash(key.parent)}>"
 
-                return "K-%s" % keyHash(value)
-            raise NotImplementedError("Type %s can't be safely used in an uniquePropertyIndex" % type(value))
+                return f"K-{keyHash(value)}"
+            raise NotImplementedError(f"Type {type(value)} can't be safely used in an uniquePropertyIndex")
 
         if not value and not self.unique.lockEmpty:
             return []  # We are zero/empty string and these should not be locked
@@ -1068,8 +1068,8 @@ class BaseBone(object):
         if getattr(otherSkel, boneName) is None:
             return
         if not isinstance(getattr(otherSkel, boneName), type(self)):
-            logging.error("Ignoring values from conflicting boneType (%s is not a instance of %s)!" % (
-                getattr(otherSkel, boneName), type(self)))
+            logging.error(f"Ignoring values from conflicting boneType ({getattr(otherSkel, boneName)} is not a "
+                          f"instance of {type(self)})!")
             return
         valuesCache[boneName] = copy.deepcopy(otherSkel.valuesCache.get(boneName, None))
 
