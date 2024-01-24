@@ -125,14 +125,14 @@ class Tree(SkelModule):
 
     def cloneSkel(self, skelType: SkelType, *args, **kwargs) -> SkeletonInstance:
         """
-        Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
+        Retrieve a new :class:`viur.core.skeleton.SkeletonInstance` that is used by the application
         for cloning an existing entry of the tree.
 
-        The default is a Skeleton instance returned by :func:`~baseSkel`.
+        The default is a SkeletonInstance returned by :func:`~baseSkel`.
 
         .. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`~baseSkel`
 
-        :return: Returns a Skeleton instance for cloning an entry.
+        :return: Returns a SkeletonInstance for cloning an entry.
         """
         return self.baseSkel(skelType, *args, **kwargs)
 
@@ -601,7 +601,6 @@ class Tree(SkelModule):
         :raises: :exc:`viur.core.errors.NotAcceptable`, when no valid *skelType* was provided.
         :raises: :exc:`viur.core.errors.NotFound`, when no *entry* to clone from was found.
         :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
-        :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
 
         if not (skelType := self._checkSkelType(skelType)):
@@ -915,15 +914,15 @@ class Tree(SkelModule):
 
     def onClone(self, skelType: SkelType, skel: SkeletonInstance, src_skel: SkeletonInstance):
         """
-            Hook function that is called before cloning an entry.
+        Hook function that is called before cloning an entry.
 
-            It can be overwritten to a module-specific behavior.
+        It can be overwritten to a module-specific behavior.
 
-            :param skelType: Defines the type of the node that is cloned.
-            :param skel: The new Skeleton that is being created.
-            :param src_skel: The source Skeleton `skel` is cloned from.
+        :param skelType: Defines the type of the node that is cloned.
+        :param skel: The new SkeletonInstance that is being created.
+        :param src_skel: The source SkeletonInstance `skel` is cloned from.
 
-            .. seealso:: :func:`clone`, :func:`onCloned`
+        .. seealso:: :func:`clone`, :func:`onCloned`
         """
         pass
 
@@ -968,20 +967,20 @@ class Tree(SkelModule):
 
     def onCloned(self, skelType: SkelType, skel: SkeletonInstance, src_skel: SkeletonInstance):
         """
-            Hook function that is called after cloning an entry.
+        Hook function that is called after cloning an entry.
 
-            It can be overwritten to a module-specific behavior.
+        It can be overwritten to a module-specific behavior.
 
-            By default, when cloning a "node", this function calls :func:`_clone_recursive`
-            which recursively clones the entire structure below this node in the background.
-            If this is not wanted, or wanted by a specific setting, overwrite this function
-            without a super-call.
+        By default, when cloning a "node", this function calls :func:`_clone_recursive`
+        which recursively clones the entire structure below this node in the background.
+        If this is not wanted, or wanted by a specific setting, overwrite this function
+        without a super-call.
 
-            :param skelType: Defines the type of the node that is cloned.
-            :param skel: The new Skeleton that was created.
-            :param src_skel: The source Skeleton `skel` was cloned from.
+        :param skelType: Defines the type of the node that is cloned.
+        :param skel: The new SkeletonInstance that was created.
+        :param src_skel: The source SkeletonInstance `skel` was cloned from.
 
-            .. seealso:: :func:`clone`, :func:`onClone`
+        .. seealso:: :func:`clone`, :func:`onClone`
         """
         logging.info(f"""Entry cloned: {skel["key"]!r} ({skelType!r})""")
         flushCache(kind=skel.kindName)

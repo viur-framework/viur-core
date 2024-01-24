@@ -75,18 +75,18 @@ class List(SkelModule):
 
     def cloneSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
-            Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
-            for cloning an existing entry from the list.
+        Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
+        for cloning an existing entry from the list.
 
-            The default is a Skeleton instance returned by :func:`~baseSkel`.
+        The default is a SkeletonInstance returned by :func:`~baseSkel`.
 
-            Like in :func:`viewSkel`, the skeleton can be post-processed. Bones that are being removed aren't visible
-            and cannot be set, but it's also possible to just set a bone to readOnly (revealing it's value to the user,
-            but preventing any modification.
+        Like in :func:`viewSkel`, the skeleton can be post-processed. Bones that are being removed aren't visible
+        and cannot be set, but it's also possible to just set a bone to readOnly (revealing it's value to the user,
+        but preventing any modification.
 
-            .. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`~baseSkel`
+        .. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`~baseSkel`
 
-            :return: Returns a Skeleton instance for editing an entry.
+        :return: Returns a SkeletonInstance for editing an entry.
         """
         return self.baseSkel(*args, **kwargs)
 
@@ -342,7 +342,6 @@ class List(SkelModule):
         :raises: :exc:`viur.core.errors.NotAcceptable`, when no valid *skelType* was provided.
         :raises: :exc:`viur.core.errors.NotFound`, when no *entry* to clone from was found.
         :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
-        :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
 
         skel = self.cloneSkel()
@@ -638,27 +637,27 @@ class List(SkelModule):
 
     def onClone(self, skel: SkeletonInstance, src_skel: SkeletonInstance):
         """
-            Hook function that is called before cloning an entry.
+        Hook function that is called before cloning an entry.
 
-            It can be overwritten to a module-specific behavior.
+        It can be overwritten to a module-specific behavior.
 
-            :param skel: The new Skeleton that is being created.
-            :param src_skel: The source Skeleton `skel` is cloned from.
+        :param skel: The new SkeletonInstance that is being created.
+        :param src_skel: The source SkeletonInstance `skel` is cloned from.
 
-            .. seealso:: :func:`clone`, :func:`onCloned`
+        .. seealso:: :func:`clone`, :func:`onCloned`
         """
         pass
 
     def onCloned(self, skel: SkeletonInstance, src_skel: SkeletonInstance):
         """
-            Hook function that is called after cloning an entry.
+        Hook function that is called after cloning an entry.
 
-            It can be overwritten to a module-specific behavior.
+        It can be overwritten to a module-specific behavior.
 
-            :param skel: The new Skeleton that was created.
-            :param src_skel: The source Skeleton `skel` was cloned from.
+        :param skel: The new SkeletonInstance that was created.
+        :param src_skel: The source SkeletonInstance `skel` was cloned from.
 
-            .. seealso:: :func:`clone`, :func:`onClone`
+        .. seealso:: :func:`clone`, :func:`onClone`
         """
         logging.info(f"""Entry cloned: {skel["key"]!r}""")
         flushCache(kind=skel.kindName)
