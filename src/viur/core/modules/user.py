@@ -24,7 +24,6 @@ from viur.core import (
 from viur.core.decorators import *
 from viur.core.bones import *
 from viur.core.bones.password import PBKDF2_DEFAULT_ITERATIONS, encode_password
-from viur.core.i18n import translate
 from viur.core.prototypes.list import List
 from viur.core.ratelimit import RateLimit
 from viur.core.securityheaders import extendCsp
@@ -232,39 +231,16 @@ class UserPassword(UserAuthentication):
     verifyFailedTemplate = "user_verify_failed"
     passwordRecoveryTemplate = "user_passwordrecover"
     passwordRecoveryMail = "user_password_recovery"
-    passwordRecoveryAlreadySendTemplate = "user_passwordrecover_already_sent"
     passwordRecoverySuccessTemplate = "user_passwordrecover_success"
-    passwordRecoveryInvalidTokenTemplate = "user_passwordrecover_invalid_token"
-    passwordRecoveryInstructionsSentTemplate = "user_passwordrecover_mail_sent"
     passwordRecoveryStep1Template = "user_passwordrecover_step1"
     passwordRecoveryStep2Template = "user_passwordrecover_step2"
-    passwordRecoveryFailedTemplate = "user_passwordrecover_failed"
+    passwordRecoveryStep3Template = "user_passwordrecover_step3"
+
     # The default rate-limit for password recovery (10 tries each 15 minutes)
     passwordRecoveryRateLimit = RateLimit("user.passwordrecovery", 10, 15, "ip")
+
     # Limit (invalid) login-retries to once per 5 seconds
     loginRateLimit = RateLimit("user.login", 12, 1, "ip")
-
-    # Default translations for password recovery
-    passwordRecoveryKeyExpired = i18n.translate(
-        key="viur.modules.user.passwordrecovery.keyexpired",
-        defaultText="The key is expired. Please try again",
-        hint="Shown when the user needs more than 10 minutes to paste the key"
-    )
-    passwordRecoveryKeyInvalid = i18n.translate(
-        key="viur.modules.user.passwordrecovery.keyinvalid",
-        defaultText="The key is invalid. Please try again",
-        hint="Shown when the user supplies an invalid key"
-    )
-    passwordRecoveryUserNotFound = i18n.translate(
-        key="viur.modules.user.passwordrecovery.usernotfound",
-        defaultText="There is no account with this name",
-        hint="We cant find an account with that name (Should never happen)"
-    )
-    passwordRecoveryAccountLocked = i18n.translate(
-        key="viur.modules.user.passwordrecovery.accountlocked",
-        defaultText="This account is currently locked. You cannot change it's password.",
-        hint="Attempted password recovery on a locked account"
-    )
 
     @classmethod
     def getAuthMethodName(*args, **kwargs):
@@ -280,8 +256,23 @@ class UserPassword(UserAuthentication):
     class LostPasswordStep2Skel(skeleton.RelSkel):
         recovery_key = StringBone(
             descr="Recovery Key",
-            visible=False,
+            required=True,
+            params={
+                "tooltip": i18n.translate(
+                    key="viur.modules.user.userpassword.lostpasswordstep2.recoverykey",
+                    defaultText="The key is expired. Please try again",
+                    hint="Shown when the user needs more than 15 minutes to paste the key"
+                )
+            }
         )
+
+    class LostPasswordStep3Skel(skeleton.RelSkel):
+        recovery_key = StringBone(
+            descr="Recovery Key",
+            visible=False,
+            readOnly=True,
+        )
+
         password = PasswordBone(
             descr="New Password",
             required=True,
@@ -396,18 +387,30 @@ class UserPassword(UserAuthentication):
                 skel["name"], recovery_key, current_request.request.headers["User-Agent"]
             )
 
-            return self._user_module.render.view(None, tpl=self.passwordRecoveryInstructionsSentTemplate)
+            # step 2 is only an action-skel, and can be ignored by a direct link in the
+            # e-mail previously sent. It depends on the implementation of the specific project.
+            return self._user_module.render.edit(
+                self.LostPasswordStep2Skel(),
+                tpl=self.passwordRecoveryStep2Template,
+                params={
+                    "message": i18n.translate(
+                        key="viur.modules.user.userpassword.pwrecover.recoverykey",
+                        defaultText="Please enter the recovery key you should have received to your "
+                            "e-mail address, along with your new password.",
+                        hint="Provide a hint for the user to wait for recovery key and enter new password"
+                    ),
+                }
+            )
 
-        # in step 2
-        skel = self.LostPasswordStep2Skel()
-
-        # check for any input; Render input-form when incomplete.
+        # in step 3
+        skel = self.LostPasswordStep3Skel()
         skel["recovery_key"] = recovery_key
+
+        # check for any input; Render input-form again when incomplete.
         if not skel.fromClient(kwargs) or not current_request.isPostRequest:
             return self._user_module.render.edit(
                 skel=skel,
-                tpl=self.passwordRecoveryStep2Template,
-                recovery_key=recovery_key
+                tpl=self.passwordRecoveryStep3Template,
             )
 
         # validate security key
@@ -415,10 +418,13 @@ class UserPassword(UserAuthentication):
             raise errors.PreconditionFailed()
 
         if not (recovery_request := securitykey.validate(recovery_key, session_bound=False)):
-            return self._user_module.render.view(
-                skel=None,
-                tpl=self.passwordRecoveryFailedTemplate,
-                reason=self.passwordRecoveryKeyExpired)
+            raise errors.PreconditionFailed(
+                i18n.translate(
+                    key="viur.modules.user.passwordrecovery.keyexpired",
+                    defaultText="The key is expired. Please try again",
+                    hint="Shown when the user needs more than 15 minutes to paste the key"
+                )
+            )
 
         self.passwordRecoveryRateLimit.decrementQuota()
 
@@ -426,24 +432,38 @@ class UserPassword(UserAuthentication):
         user_skel = self._user_module.viewSkel().all().filter("name.idx =", recovery_request["user_name"]).getSkel()
 
         if not user_skel:
-            # This *should* never happen - if we don't have a matching account we'll not send the key.
-            return self._user_module.render.view(
-                skel=None,
-                tpl=self.passwordRecoveryFailedTemplate,
-                reason=self.passwordRecoveryUserNotFound)
+            raise errors.NotFound(
+                i18n.translate(
+                    key="viur.modules.user.passwordrecovery.usernotfound",
+                    defaultText="There is no account with this name",
+                    hint="We cant find an account with that name (Should never happen)"
+                )
+            )
 
         if user_skel["status"] != Status.ACTIVE:  # The account is locked or not yet validated. Abort the process.
-            return self._user_module.render.view(
-                skel=None,
-                tpl=self.passwordRecoveryFailedTemplate,
-                reason=self.passwordRecoveryAccountLocked
+            raise errors.NotFound(
+                i18n.translate(
+                    key="viur.modules.user.passwordrecovery.accountlocked",
+                    defaultText="This account is currently locked. You cannot change it's password.",
+                    hint="Attempted password recovery on a locked account"
+                )
             )
 
         # Update the password, save the user, reset his session and show the success-template
         user_skel["password"] = skel["password"]
         user_skel.toDB(update_relations=False)
 
-        return self._user_module.render.view(None, tpl=self.passwordRecoverySuccessTemplate)
+        return self._user_module.render.view(
+            None,
+            tpl=self.passwordRecoverySuccessTemplate,
+            params={
+                "message": i18n.translate(
+                    key="viur.modules.user.userpassword.pwrecover.successful",
+                    defaultText="Your account has been recovered successfully, you can now login.",
+                    hint="This is the message to be shown when the recovery was successfull."
+                ),
+            }
+        )
 
     @tasks.CallDeferred
     def sendUserPasswordRecoveryCode(self, user_name: str, recovery_key: str, user_agent: str) -> None:
@@ -740,7 +760,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         return self._user_module.render.edit(
             self.OtpSkel(),
             params={
-                "name": translate(self.NAME),
+                "name": i18n.translate(self.NAME),
                 "action_name": self.ACTION_NAME,
                 "action_url": f"{self.modulePath}/{self.ACTION_NAME}",
             },
@@ -784,7 +804,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
             return self._user_module.render.edit(
                 skel,
-                name=translate(self.NAME),
+                name=i18n.translate(self.NAME),
                 action_name=self.ACTION_NAME,
                 action_url=f"{self.modulePath}/{self.ACTION_NAME}",
                 tpl=self.second_factor_login_template
@@ -916,7 +936,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             return self._user_module.render.second_factor_add(
                 tpl=self.second_factor_add_template,
                 action_name=self.ACTION_NAME,
-                name=translate(self.NAME),
+                name=i18n.translate(self.NAME),
                 add_url=self.add_url,
                 otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))
         else:
@@ -924,7 +944,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
                 return self._user_module.render.second_factor_add(
                     tpl=self.second_factor_add_template,
                     action_name=self.ACTION_NAME,
-                    name=translate(self.NAME),
+                    name=i18n.translate(self.NAME),
                     add_url=self.add_url,
                     otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))  # to add errors
 
@@ -932,7 +952,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             AuthenticatorOTP.set_otp_app_secret(otp_app_secret)
             return self._user_module.render.second_factor_add_success(
                 action_name=self.ACTION_NAME,
-                name=translate(self.NAME),
+                name=i18n.translate(self.NAME),
             )
 
     def can_handle(self, possible_user: db.Entity) -> bool:
@@ -999,7 +1019,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         return self._user_module.render.edit(
             TimeBasedOTP.OtpSkel(),
             params={
-                "name": translate(self.NAME),
+                "name": i18n.translate(self.NAME),
                 "action_name": self.ACTION_NAME,
                 "action_url": self.action_url,
             },
@@ -1038,7 +1058,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
         return self._user_module.render.edit(
             skel,
-            name=translate(self.NAME),
+            name=i18n.translate(self.NAME),
             action_name=self.ACTION_NAME,
             action_url=self.action_url,
             tpl=self.second_factor_login_template,
