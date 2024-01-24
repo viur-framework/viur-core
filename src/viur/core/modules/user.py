@@ -261,7 +261,7 @@ class UserPassword(UserAuthentication):
                 "tooltip": i18n.translate(
                     key="viur.modules.user.userpassword.lostpasswordstep2.recoverykey",
                     defaultText="The key is expired. Please try again",
-                    hint="Shown when the user needs more than 10 minutes to paste the key"
+                    hint="Shown when the user needs more than 15 minutes to paste the key"
                 )
             }
         )
@@ -422,7 +422,7 @@ class UserPassword(UserAuthentication):
                 i18n.translate(
                     key="viur.modules.user.passwordrecovery.keyexpired",
                     defaultText="The key is expired. Please try again",
-                    hint="Shown when the user needs more than 10 minutes to paste the key"
+                    hint="Shown when the user needs more than 15 minutes to paste the key"
                 )
             )
 
