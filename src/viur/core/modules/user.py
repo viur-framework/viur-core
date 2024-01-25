@@ -281,13 +281,13 @@ class UserPassword(UserPrimaryAuthentication):
             params={
                 "tooltip": i18n.translate(
                     key="viur.modules.user.userpassword.lostpasswordstep2.recoverykey",
-                    defaultText="The key is expired. Please try again",
-                    hint="Shown when the user needs more than 15 minutes to paste the key"
-                )
+                    defaultText="Please enter the validation key you've received via e-mail.",
+                ),
             }
         )
 
     class LostPasswordStep3Skel(skeleton.RelSkel):
+        # send the recovery key again, in case the password is rejected by some reason.
         recovery_key = StringBone(
             descr="Recovery Key",
             visible=False,
@@ -297,6 +297,12 @@ class UserPassword(UserPrimaryAuthentication):
         password = PasswordBone(
             descr="New Password",
             required=True,
+            params={
+                "tooltip": i18n.translate(
+                    key="viur.modules.user.userpassword.lostpasswordstep3.password",
+                    defaultText="Please enter a new password for your account.",
+                ),
+            }
         )
 
     @exposed
@@ -413,19 +419,11 @@ class UserPassword(UserPrimaryAuthentication):
             return self._user_module.render.edit(
                 self.LostPasswordStep2Skel(),
                 tpl=self.passwordRecoveryStep2Template,
-                params={
-                    "message": i18n.translate(
-                        key="viur.modules.user.userpassword.pwrecover.recoverykey",
-                        defaultText="Please enter the recovery key you should have received to your "
-                            "e-mail address, along with your new password.",
-                        hint="Provide a hint for the user to wait for recovery key and enter new password"
-                    ),
-                }
             )
 
         # in step 3
         skel = self.LostPasswordStep3Skel()
-        skel["recovery_key"] = recovery_key
+        skel["recovery_key"] = recovery_key  # resend the recovery key again, in case the fromClient() fails.
 
         # check for any input; Render input-form again when incomplete.
         if not skel.fromClient(kwargs) or not current_request.isPostRequest:
@@ -442,8 +440,8 @@ class UserPassword(UserPrimaryAuthentication):
             raise errors.PreconditionFailed(
                 i18n.translate(
                     key="viur.modules.user.passwordrecovery.keyexpired",
-                    defaultText="The key is expired. Please try again",
-                    hint="Shown when the user needs more than 15 minutes to paste the key"
+                    defaultText="The recovery key is expired or invalid. Please start the recovery process again.",
+                    hint="Shown when the user needs more than 15 minutes to paste the key, or entered an invalid key."
                 )
             )
 
@@ -477,13 +475,6 @@ class UserPassword(UserPrimaryAuthentication):
         return self._user_module.render.view(
             None,
             tpl=self.passwordRecoverySuccessTemplate,
-            params={
-                "message": i18n.translate(
-                    key="viur.modules.user.userpassword.pwrecover.successful",
-                    defaultText="Your account has been recovered successfully, you can now login.",
-                    hint="This is the message to be shown when the recovery was successfull."
-                ),
-            }
         )
 
     @tasks.CallDeferred
