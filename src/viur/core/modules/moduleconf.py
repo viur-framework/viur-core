@@ -11,10 +11,9 @@ from viur.core.prototypes import List
 class ModuleConfSkel(Skeleton):
     kindName = "viur-module-conf"
 
-    _valid_tags = ['b', 'a', 'i', 'u', 'span', 'div', 'p', 'ol', 'ul', 'li', 'abbr', 'sub', 'sup', 'h1', 'h2', 'h3',
-                   'h4', 'h5', 'h6', 'br', 'hr', 'strong', 'blockquote', 'em']
-    _valid_html = _defaultTags.copy()
-    _valid_html["validTags"] = _valid_tags
+    _VALID_TAGS = "b a i u span div p ol ul li abbr sub sup h1 h2 h3 h4 h5 h6 br hr strong blockquote em"
+    _VALID_HTML = _defaultTags.copy()
+    _VALID_HTML["validTags"] = _VALID_TAGS.split()
 
     name = StringBone(
         descr=translate("modulename"),
@@ -23,17 +22,17 @@ class ModuleConfSkel(Skeleton):
 
     help_text = TextBone(
         descr=translate("module helptext"),
-        validHtml=_valid_html,
+        validHtml=_VALID_HTML,
     )
 
     help_text_add = TextBone(
         descr=translate("add helptext"),
-        validHtml=_valid_html,
+        validHtml=_VALID_HTML,
     )
 
     help_text_edit = TextBone(
         descr=translate("edit helptext"),
-        validHtml=_valid_html,
+        validHtml=_VALID_HTML,
     )
 
 

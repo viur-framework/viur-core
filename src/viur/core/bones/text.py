@@ -13,12 +13,14 @@ import typing as t
 from viur.core import db, utils
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
-_defaultTags = {
-    "validTags": [  # List of HTML-Tags which are valid
-        'b', 'a', 'i', 'u', 'span', 'div', 'p', 'img', 'ol', 'ul', 'li', 'abbr', 'sub', 'sup',
-        'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'br',
-        'hr', 'strong', 'blockquote', 'em'],
-    "validAttrs": {  # Mapping of valid parameters for each tag (if a tag is not listed here: no parameters allowed)
+_DEFAULTTAGS = {
+    # List of HTML-Tags which are valid
+    "validTags": (
+        "b a i u span div p img ol ul li abbr sub sup h1 h2 h3 h4 h5 h6 table thead tbody "
+        "tfoot tr td th br hr strong blockquote em"
+    ).split(),
+    # Mapping of valid parameters for each tag (if a tag is not listed here: no parameters allowed)
+    "validAttrs": {
         "a": ["href", "target", "title"],
         "abbr": ["title"],
         "span": ["title"],
@@ -27,11 +29,14 @@ _defaultTags = {
         "p": ["data-indent"],
         "blockquote": ["cite"]
     },
+    # List of CSS-Directives we allow
     "validStyles": [
         "color"
-    ],  # List of CSS-Directives we allow
-    "validClasses": ["vitxt-*", "viur-txt-*"],  # List of valid class-names that are valid
-    "singleTags": ["br", "img", "hr"]  # List of tags, which don't have a corresponding end tag
+    ],
+    # List of valid class-names that are valid
+    "validClasses": ["vitxt-*", "viur-txt-*"],
+    # List of tags, which don't have a corresponding end tag
+    "singleTags": ["br", "img", "hr"]
 }
 """
 A dictionary containing default configurations for handling HTML content in TextBone instances.
@@ -122,8 +127,8 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
          "\0": ""})
 
     def __init__(self, tags=None, leaf_tags=None, attrs=None, styles=None, classes=None, src_set=None):
-        global _defaultTags
         super().__init__()
+
         self.result = ""  # The final result that will be returned
         self.openTagsList = []  # List of tags that still need to be closed
         self.tagCache = []  # Tuple of tags that have been processed but not written yet
@@ -352,7 +357,7 @@ class TextBone(BaseBone):
     srcset for embedded images.
 
     :param Union[None, Dict] validHtml: A dictionary containing allowed HTML tags and their attributes. Defaults
-        to _defaultTags. Must be a structured like :prop:_defaultTags
+        to _DEFAULTTAGS. Must be a structured like :prop:_DEFAULTTAGS
     :param int max_length: The maximum allowed length for the content. Defaults to 200000.
     :param languages: If set, this bone can store a different content for each language
     :param Dict[str, List] srcSet: An optional dictionary containing width and height for srcset generation.
@@ -376,7 +381,7 @@ class TextBone(BaseBone):
         **kwargs
     ):
         """
-            :param validHtml: If set, must be a structure like :prop:_defaultTags
+            :param validHtml: If set, must be a structure like :prop:_DEFAULTTAGS
             :param languages: If set, this bone can store a different content for each language
             :param max_length: Limit content to max_length bytes
             :param indexed: Must not be set True, unless you limit max_length accordingly
@@ -390,8 +395,8 @@ class TextBone(BaseBone):
         super().__init__(indexed=indexed, **kwargs)
 
         if validHtml == TextBone.__undefinedC__:
-            global _defaultTags
-            validHtml = _defaultTags
+            global _DEFAULTTAGS
+            validHtml = _DEFAULTTAGS
 
         self.validHtml = validHtml
         self.max_length = max_length
