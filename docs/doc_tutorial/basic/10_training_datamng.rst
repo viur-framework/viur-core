@@ -10,9 +10,9 @@ Let's start again with the skeleton storing personal data, introduced in the pre
 
 .. code-block:: python
 
-    class personSkel(Skeleton):
-        name = stringBone(descr="Name")
-        age = numericBone(descr="Age")
+    class PersonSkel(Skeleton):
+        name = StringBone(descr="Name")
+        age = NumericBone(descr="Age")
 
 In ViUR, skeletons should be named after modules or usages they are used for. To easily connect a skeleton class with a module, the naming-convention with the trailing "Skel" - like above - should be used, so this is done automatically by the system. Under some circumstances, the name may differ, and can be referenced from the module otherwise, but this is not covered here right now.
 
@@ -41,7 +41,7 @@ To add a data entity with the above skeleton, it first needs to be instantiated.
 .. code-block:: python
 
     # get instance
-    skel = personSkel()
+    skel = PersonSkel()
 
     # set values
     skel["name"] = "Vicky"
@@ -67,7 +67,7 @@ To read an entity directly from the datastore, its key must be known. To do so, 
         return
 
     # change something
-    logging.info("Current age of %s is %d" % (skel["name"], skel["age"]))
+    logging.info(f"Current age of {skel['name']} is {skel['age']}")
     skel["age"] = 33
 
     # write entity back again
@@ -97,7 +97,7 @@ To make bones usable within a query, the ``indexed`` attribute of the particular
 .. code-block:: python
    :caption: skeletons/company.py
 
-   class personSkel(Skeleton):
+   class PersonSkel(Skeleton):
       name = stringBone(descr="Name", required=True, indexed=True)
       age = numericBone(descr="Age", indexed=True)
 
@@ -106,7 +106,7 @@ A query can be created from a skeleton using the :meth:`all<core.skeleton.Skelet
 .. code-block:: python
 
     # create the query
-    query = personSkel().all()
+    query = PersonSkel().all()
     query.filter("age >", 30)
 
     # how many result are expected?
@@ -114,7 +114,7 @@ A query can be created from a skeleton using the :meth:`all<core.skeleton.Skelet
 
     # fetch the skeletons
     for skel in query.fetch():
-        logging.info("%s is %d years old" % (skel["name"], skel["age"]))
+        logging.info(f"{skel['name']} is {skel['age']} years old")
 
 
 Indexes
@@ -126,10 +126,10 @@ Doing so in the following snippet:
 
 .. code-block:: python
 
-    query = personSkel().all().order("name", "age")
+    query = PersonSkel().all().order("name", "age")
 
     for skel in query.fetch():
-        logging.info("%s is %d years old" % (skel["name"].value, skel["age"].value))
+        logging.info(f"{skel['name']} is {skel['age']} years old")
 
 When executed, this yields in the following index definition in the ``index.yaml`` file. The function :meth:`order<core.db.Query.order>`, that was used above, allows to add an ordering on one ore multiple attributes to a query.
 
@@ -157,11 +157,11 @@ The following piece of code is an example for a function that works exactly on t
     @CallDeferred
     def fetchAllPersons(cursor = None):
         # create the query
-        query = personSkel().all().filter("age >", 30).cursor(cursor)
+        query = PersonSkel().all().filter("age >", 30).cursor(cursor)
 
         # fetch the skeletons
         for skel in query.fetch():
-            logging.info("%s is %d years old" % (skel["name"], skel["age"]))
+            logging.info(f"{skel['name']} is {skel['age']} years old")
 
         # if entities where fetched, take the next chunk
         if query.count():
@@ -195,7 +195,7 @@ Let's connect the persons to companies. The figure above shows a classic 1:N rel
 .. code-block:: python
    :caption: skeletons/company.py
 
-    class companySkel(Skeleton):
+    class CompanySkel(Skeleton):
         name = stringBone(descr="Company name", required=True, indexed=True)
 
 To administrate companies also with ViUR, a new module-stub needs to be created.
@@ -205,7 +205,7 @@ Then, the entity kind is connected to the person using a :class:`relationalBone<
 .. code-block:: python
    :caption: skeletons/person.py
 
-    class personSkel(Skeleton):
+    class PersonSkel(Skeleton):
         name = stringBone(descr="Name", required=True, indexed=True)
         age = numericBone(descr="Age", indexed=True)
         company = relationalBone(kind="company", descr="Employed at", required=True)
@@ -214,4 +214,4 @@ This configures the data model to require for a company assignment, so that enti
 
 [screenshot missing]
 
-Althought the datastore is non-relational, offering relations is a fairly complex task. To maintain quick response times, ViUR doesn't immediatelly search and update relations when an entry is updated. Instead, a deferred executed task is kicked off on data changing, which updates all of these relations in the background. Through depending on the current load of the web application, these tasks usually catches up within a few seconds. Within this time, a search by such a relation might return stale results.
+Although the datastore is non-relational, offering relations is a fairly complex task. To maintain quick response times, ViUR doesn't immediatelly search and update relations when an entry is updated. Instead, a deferred executed task is kicked off on data changing, which updates all of these relations in the background. Through depending on the current load of the web application, these tasks usually catches up within a few seconds. Within this time, a search by such a relation might return stale results.

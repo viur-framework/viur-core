@@ -9,13 +9,13 @@ If you have any questions, please `contact us <https://www.viur.dev/community>`_
 
 .. toctree::
    :maxdepth: 1
-   :glob:
    :caption: ViUR Core
+   :glob:
 
-   doc_start/index
-   doc_guide/index
-   doc_tutorial/index
-   *
+   doc_start/index.rst
+   doc_guide/index.rst
+   doc_tutorial/index.rst
+
 
 .. Indices and tables
    ==================

@@ -1,12 +1,11 @@
-/*.pyc
 *.pyc
 *.bak
-.idea/
-/docs/build/
+.idea
+.vscode
 dist
 viur_core.egg-info
 .env
-/tests/htmlcov/
-/tests/.coverage
+tests/htmlcov
+tests/.coverage
 .pypirc
 build

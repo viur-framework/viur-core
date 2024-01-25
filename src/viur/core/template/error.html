@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="{{ getLanguage() }}">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ status }} - {{ reason }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style nonce="{{ nonce }}">
+        * {
+            -webkit-box-sizing: border-box;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            line-height: normal;
+            background-color: #f1f1f1;
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            font-size: 16px;
+        }
+
+        .wrapper {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            overflow: hidden;
+            min-height: 100vh;
+            width: 90%;
+            max-width: {% if traceback -%}1200{%- else -%}900{%- endif -%}px;
+            margin: 0 auto;
+            padding-top: 30px;
+            background-color: #fff;
+        }
+
+        .bind {
+            text-align: center;
+        }
+
+        .logo {
+            width: 7em;
+            max-width: 200px;
+            margin: 0 auto;
+        }
+
+        .logo img {
+            width: 100%;
+        }
+
+        .logo .st0 {
+            fill: #eeeeee;
+        }
+
+        .logo .st1 {
+            fill: #e3e3e3;
+        }
+
+        .error-title {
+            font-size: 2.9em;
+            line-height: 1.2;
+            font-weight: 900;
+            margin: 0 40px;
+            padding: 30px 0 0 0;
+        }
+
+        .error-descr {
+            padding: 15px;
+            margin: 10px 40px 5px 40px;
+            line-height: normal;
+            text-wrap: balance;
+            color: #777;
+        }
+
+        .error-traceback {
+            overflow: auto;
+            max-height: 100%;
+            padding: 20px 25px;
+            margin: 40px;
+            word-break: break-all;
+            text-align: left;
+            font-size: .95em;
+            background-color: #f7f7f7;
+            border: 1px solid #ddd;
+        }
+
+        a.btn {
+            display: inline-block;
+            font-size: 1em;
+            font-weight: 700;
+            text-decoration: none;
+            letter-spacing: .03em;
+            padding: .6em .9em;
+            margin: 10px;
+            background: linear-gradient(to top right, #cc0000 0%, #db6d23 100%);
+            color: #fff;
+            border-radius: 5px;
+            transition: all ease .3s;
+        }
+
+        a.btn:hover {
+            opacity: 0.9;
+        }
+
+        @media (max-width: 700px) {
+            .error-title {
+                font-size: 2.5em;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .wrapper {
+                width: 100%;
+            }
+
+            .error-descr {
+                margin: 20px 20px 30px 20px;
+            }
+        }
+
+        @media (max-width: 1024px) {
+            body {
+                font-size: 14px;
+            }
+        }
+
+        @media (min-width: 1920px) {
+            body {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="wrapper">
+    <div class="bind">
+        <div class="logo">
+            {% if logo -%}
+                <img loading="lazy" alt="Logo" src="{{ logo }}">
+            {%- else -%}
+                <svg xml:space="preserve" viewBox="0 0 300 200">
+                    <path d="m172.172 39.796-43.017 158.38h46.927l37.151-195.53-41.061 37.15z" class="st0"></path>
+                    <path d="m147.3 131.1-26.8-60.9-34.3 30.3 43.2 97.1zM176.5 198h.3l-.2-.5z" class="st1"></path>
+                </svg>
+            {%- endif %}
+        </div>
+        <div class="error-title">{{ status }} {{ title }}</div>
+        <div class="error-descr">{{ descr }}</div>
+        <a href="/" class="btn home-btn">{% translate "core.error.home", "Home" %}</a>
+
+        {% if traceback -%}
+            <div class="error-traceback">
+                <pre>{{ traceback|escape }}</pre>
+            </div>
+        {%- endif %}
+    </div>
+</div>
+</body>
+</html>

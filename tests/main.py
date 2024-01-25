@@ -27,7 +27,8 @@ def monkey_patch():
                     "google.cloud.tasks_v2",
                     "google.cloud.tasks_v2.services",
                     "google.cloud.tasks_v2.services.cloud_tasks.transports",
-                    "google.cloud.exceptions"]
+                    "google.cloud.exceptions",
+                    "google.appengine.api"]
 
     for mod_name in MOCK_MODULES:
         sys.modules[mod_name] = mock.Mock()
@@ -56,7 +57,7 @@ def monkey_patch():
         "keyHelper", "fixUnindexableProperties", "GetOrInsert", "Query",
         "QueryDefinition", "IsInTransaction",
         "acquireTransactionSuccessMarker", "RunInTransaction",
-        "startDataAccessLog", "endDataAccessLog"
+        "startDataAccessLog", "endDataAccessLog", "Count", "cache"
     ]  # \ "config"
     viur_datastore = mock.Mock()
     for attr in db_attr:
@@ -81,8 +82,7 @@ def monkey_patch():
     sys.modules[m.__name__] = m
 
     # Import the ViUR-core into the viur package
-    spec = importlib.util.spec_from_file_location(
-        "viur.core", f"{tld}/core/__init__.py")
+    spec = importlib.util.spec_from_file_location("viur.core", f"{tld}/src/viur/core/__init__.py")
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)

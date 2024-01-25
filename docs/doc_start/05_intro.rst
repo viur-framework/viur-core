@@ -31,7 +31,7 @@ ViUR is made for agile software development. The data model can be entirely chan
 
 The system is not only intended to be used by developers. With the use of `Jinja`_ as its template engine for HTML, ViUR is also interesting for designers. A lot of build-in functions, a clear template implementation concept and a collection of macros for data rendering and dynamic input form creation help to connect their creative visions and ideas with a powerful software development framework.
 
-.. _Jinja: http://jinja.pocoo.org/
+.. _Jinja: https://jinja.palletsprojects.com/
 
 =================
 Who created ViUR?
@@ -51,9 +51,5 @@ Where to find more information?
 
 This manual is intended to be the official documentation and reference manual for ViUR, and should be a place to start with. But don't be afraid to talk to us and our community if you have questions or encounter problems.
 
-For individual questions or help, please visit our community landing page on `viur.dev/community`_. There you can find links to our Twitter account, IRC-channel or the Google Community page. We also refer to the `ViUR server wiki <https://github.com/viur-framework/server/wiki>`_ located at `GitHub <https://github.com/viur-framework>`_ for problem-oriented help.
+Bugs or feature requests can be submitted to the different ViUR components and their maintainers on `GitHub <https://github.com/viur-framework>`_.
 
-Bugs or feature requests can be submitted to the different ViUR components and their maintainers. Links and contacts can be found on `viur.dev/development`_.
-
-.. _viur.dev/community: https://www.viur.dev/community
-.. _viur.dev/development: https://www.viur.dev/development

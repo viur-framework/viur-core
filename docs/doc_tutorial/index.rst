@@ -9,5 +9,5 @@ It serves as a training guide to get familiar with all ViUR-related features tha
 	:maxdepth: 1
 	:caption: advanced
 
-	basic/index
-	advanced/index
+	basic/index.rst
+	advanced/index.rst
