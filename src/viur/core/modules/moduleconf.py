@@ -11,12 +11,18 @@ from viur.core.prototypes import List
 class ScriptRelSkel(RelSkel):
 
     name = StringBone(
-        descr="Name",
+        descr="Label",
         required=True,
+        params={
+            "tooltip": "Label for the action button displayed."
+        },
     )
 
     icon = StringBone(
         descr="Icon",
+        params={
+            "tooltip": "Shoelace-conforming icon identifier."
+        },
     )
 
     capable = SelectBone(
@@ -24,10 +30,15 @@ class ScriptRelSkel(RelSkel):
         required=True,
         defaultValue="none",
         values={
-            "none": "No arguments, always executable",
-            "single": "Run script with single entry key as argument",
-            "multiple": "Run script with list of entity keys as argument",
-        }
+            "none": "none: No arguments, always executable",
+            "single": "single: Run script with single entry key as argument",
+            "multiple": "multiple: Run script with list of entity keys as argument",
+        },
+        params={
+            "tooltip":
+                "Describes the behavior in the admin, "
+                "if and how selected entries from the module are being processed."
+        },
     )
 
     access = SelectBone(
@@ -37,6 +48,11 @@ class ScriptRelSkel(RelSkel):
             for right in sorted(conf["viur.accessRights"])
         },
         multiple=True,
+        params={
+            "tooltip":
+                "To whom the button should be displayed in the admin. "
+                "In addition, the admin checks whether all rights of the script are also fulfilled.",
+        },
     )
 
 
