@@ -26,7 +26,7 @@ def _preprocess_json_object(obj):
     """
     if isinstance(obj, db.Key):
         return {".__key__": db.encodeKey(obj)}
-    elif isinstance(obj, datetime):
+    elif isinstance(obj, datetime.datetime):
         return {".__datetime__": obj.astimezone(pytz.UTC).isoformat()}
     elif isinstance(obj, bytes):
         return {".__bytes__": base64.b64encode(obj).decode("ASCII")}
