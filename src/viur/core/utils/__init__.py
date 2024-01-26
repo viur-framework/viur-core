@@ -31,7 +31,6 @@ def getCurrentUser() -> t.Optional["SkeletonInstance"]:
     return current.user.get()
 
 
-
 def seoUrlToEntry(module: str,
                   entry: t.Optional["SkeletonInstance"] = None,
                   skelType: t.Optional[str] = None,
