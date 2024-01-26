@@ -16,19 +16,22 @@ def monkey_patch():
     """Monkey patch libs to work without google cloud environment"""
     import sys
 
-    MOCK_MODULES = ["google.cloud.logging",
-                    "google.cloud.logging_v2",
-                    "google.cloud.logging.resource",
-                    "google",
-                    "google.cloud",
-                    "google.protobuf",
-                    "google.auth",
-                    "google.auth.default",
-                    "google.cloud.tasks_v2",
-                    "google.cloud.tasks_v2.services",
-                    "google.cloud.tasks_v2.services.cloud_tasks.transports",
-                    "google.cloud.exceptions",
-                    "google.appengine.api"]
+    MOCK_MODULES = (
+        "google.appengine.api"
+        "google.auth.default",
+        "google.auth",
+        "google.cloud.exceptions",
+        "google.cloud.logging_v2",
+        "google.cloud.logging.resource",
+        "google.cloud.logging",
+        "google.cloud.tasks_v2.services.cloud_tasks.transports",
+        "google.cloud.tasks_v2.services",
+        "google.cloud.tasks_v2",
+        "google.cloud",
+        "google.oauth2",
+        "google.protobuf",
+        "google",
+    )
 
     for mod_name in MOCK_MODULES:
         sys.modules[mod_name] = mock.Mock()
