@@ -16,6 +16,9 @@ def monkey_patch():
     """Monkey patch libs to work without google cloud environment"""
     import sys
 
+    # Skip the skeleton folder check
+    sys.viur_doc_build = True
+
     MOCK_MODULES = (
         # order matters!
         "google.cloud.logging",
