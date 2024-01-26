@@ -617,7 +617,7 @@ def CallDeferred(func: t.Callable) -> t.Callable:
             logging.info(f"Created task {func.__name__}.{func.__module__} with {args=} {kwargs=} {env=}")
 
     global _deferred_tasks
-    _deferred_tasks[f"{func.__name__,}.{func.__module__}"] = func
+    _deferred_tasks[f"{func.__name__}.{func.__module__}"] = func
 
     @wraps(func)
     def wrapper(*args, **kwargs):

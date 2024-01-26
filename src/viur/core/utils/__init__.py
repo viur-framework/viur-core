@@ -144,7 +144,7 @@ def srcSetFor(fileObj: dict, expires: t.Optional[int], width: t.Optional[int] = 
         if width and customData.get("width") in width:
             resList.append(f"""{downloadUrlFor(fileObj["dlkey"], fileName, True, expires)} {customData["width"]}w""")
         if height and customData.get("height") in height:
-            resList.append(f"""downloadUrlFor(fileObj["dlkey"], fileName, True, expires) {customData["height"]}h""")
+            resList.append(f"""{downloadUrlFor(fileObj["dlkey"], fileName, True, expires)} {customData["height"]}h""")
     return ", ".join(resList)
 
 
