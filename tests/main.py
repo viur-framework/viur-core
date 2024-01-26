@@ -17,7 +17,7 @@ def monkey_patch():
     import sys
 
     MOCK_MODULES = (
-        "google.appengine.api"
+        "google.appengine.api",
         "google.auth.default",
         "google.auth",
         "google.cloud.exceptions",
