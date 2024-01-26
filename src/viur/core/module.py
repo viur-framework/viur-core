@@ -525,7 +525,7 @@ class Module:
         for key in dir(self):
             if key[0] == "_":
                 continue
-            if not hasattr(self, key):
+            if isinstance(getattr(self.__class__, key, None), property):
                 continue
 
             prop = getattr(self, key)

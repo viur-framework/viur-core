@@ -218,9 +218,9 @@ class Router:
         # Check if we should process or abort the request
         for validator, reqValidatorResult in [(x, x.validate(self)) for x in self.requestValidators]:
             if reqValidatorResult is not None:
-                logging.warning("Request rejected by validator %s" % validator.name)
+                logging.warning(f"Request rejected by validator {validator.name}")
                 statusCode, statusStr, statusDescr = reqValidatorResult
-                self.response.status = '%d %s' % (statusCode, statusStr)
+                self.response.status = f"{statusCode} {statusStr}"
                 self.response.write(statusDescr)
                 return
 
@@ -246,7 +246,7 @@ class Router:
             if mode in ["deny", "sameorigin"]:
                 self.response.headers["X-Frame-Options"] = mode
             elif mode == "allow-from":
-                self.response.headers["X-Frame-Options"] = "allow-from %s" % uri
+                self.response.headers["X-Frame-Options"] = f"allow-from {uri}"
         if conf.security.x_permitted_cross_domain_policies is not None:
             self.response.headers["X-Permitted-Cross-Domain-Policies"] = conf.security.x_permitted_cross_domain_policies
         if conf.security.referrer_policy:
@@ -278,7 +278,7 @@ class Router:
                 host = self.request.host_url.lower()
                 host = host[host.find("://") + 3:].strip(" /")  # strip http(s)://
                 self.response.status = "302 Found"
-                self.response.headers['Location'] = "https://%s/" % host
+                self.response.headers['Location'] = f"https://{host}/"
                 return
         if path.startswith("/_ah/warmup"):
             self.response.write("okay")
@@ -301,7 +301,7 @@ class Router:
             if conf.debug.trace_exceptions:
                 logging.warning("""conf.debug.trace_exceptions is set, won't handle this exception""")
                 raise
-            self.response.status = '%d %s' % (e.status, e.name)
+            self.response.status = f"{e.status} {e.name}"
             url = e.url
             if url.startswith(('.', '/')):
                 url = str(urljoin(self.request.url, url))
@@ -314,7 +314,7 @@ class Router:
             self.response.body = b""
             if isinstance(e, errors.HTTPException):
                 logging.info(f"[{e.status}] {e.name}: {e.descr}", exc_info=conf.debug.trace)
-                self.response.status = '%d %s' % (e.status, e.name)
+                self.response.status = f"{e.status} {e.name}"
                 # Set machine-readable x-viur-error response header in case there is an exception description.
                 if e.descr:
                     self.response.headers["x-viur-error"] = e.descr.replace("\n", "")
