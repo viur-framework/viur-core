@@ -67,7 +67,8 @@ class ModuleConf(List):
 
 @StartupTask
 def read_all_modules():
-    db_module_names = [m["name"] for m in db.Query("viur-module-conf").run(999)]
+    skel = conf.main_app._moduleconf.addSkel()
+    db_module_names = [m["name"] for m in db.Query(skel.kindName).run(999)]
     visited_modules = set()
 
     def collect_modules(parent, depth: int = 0, prefix: str = "") -> None:
@@ -88,14 +89,14 @@ def read_all_modules():
                     logging.debug(f"Already visited and added {module=}")
                 continue
             visited_modules.add(module)
+            module_path = f"{prefix}{module_name}"
             if module_name not in db_module_names:
-                skel = conf.main_app._moduleconf.addSkel()
-                skel["key"] = db.Key("viur-module-conf", f"{prefix}{module_name}")
-                skel["name"] = f"{prefix}{module_name}"
+                skel["key"] = db.Key(skel.kindName, module_path)
+                skel["name"] = module_path
                 skel.toDB()
 
             # Collect children
-            collect_modules(module, depth=depth + 1, prefix=f"{prefix}{module_name}.")
+            collect_modules(module, depth=depth + 1, prefix=f"{module_path}.")
 
     collect_modules(conf.main_app.vi)
 
