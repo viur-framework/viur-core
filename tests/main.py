@@ -16,6 +16,9 @@ def monkey_patch():
     """Monkey patch libs to work without google cloud environment"""
     import sys
 
+    # Skip the skeleton folder check
+    sys.viur_doc_build = True
+
     MOCK_MODULES = (
         "google.appengine.api",
         "google.auth.default",
@@ -82,8 +85,7 @@ def monkey_patch():
 
     viur_datastore = mock.Mock()
     for attr in db_attr:
-        setattr(viur_datastore, attr, mock.Mock())
-
+        setattr(viur_datastore, attr, mock.MagicMock())
     viur_datastore.config = {}
     sys.modules["viur.datastore"] = viur_datastore
 
