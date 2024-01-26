@@ -93,7 +93,7 @@ if not conf.instance.is_dev_server or os.getenv("TASKS_EMULATOR") is None:
     taskClient = tasks_v2.CloudTasksClient()
 else:
     taskClient = tasks_v2.CloudTasksClient(
-        transport=tasks_v2.services.cloud_tasks.transports(channel=grpc.insecure_channel(os.getenv("TASKS_EMULATOR")))
+        transport=tasks_v2.services.cloud_tasks.transports.CloudTasksGrpcTransport(channel=grpc.insecure_channel(os.getenv("TASKS_EMULATOR")))
     )
     queueRegion = "local"
 
