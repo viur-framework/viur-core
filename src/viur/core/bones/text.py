@@ -217,7 +217,12 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
                             # getReferencedBlobs will catch it, build it, and we're going to be re-called afterwards.
                             fileObj = db.Query("file").filter("dlkey =", blobKey) \
                                 .order(("creationdate", db.SortOrder.Ascending)).getEntry()
-                            srcSet = file.create_src_set(fileObj, None, self.srcSet.get("width"), self.srcSet.get("height"))
+                            srcSet = file.create_src_set(
+                                fileObj,
+                                None,
+                                self.srcSet.get("width"),
+                                self.srcSet.get("height")
+                            )
                             cacheTagStart += f' srcSet="{srcSet}"'
                 if not tag in self.validHtml["validAttrs"].keys() or not k in self.validHtml["validAttrs"][tag]:
                     # That attribute is not valid on this tag
