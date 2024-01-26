@@ -14,7 +14,7 @@ import string
 import typing as t
 from urllib.parse import quote as urlquote
 from urllib.request import urlopen
-from google.cloud import storage, iam_credentials_v1
+from google.cloud import storage
 from viur.core import conf, current, db, errors, utils
 from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
 from viur.core.decorators import *
@@ -738,7 +738,7 @@ class File(Tree):
         else:
             fileName = sanitize_filename(blob.name.split("/")[-1])
             contentDisposition = f"filename={fileName}"
-        if isinstance(_credentials, google.oauth2.service_account.Credentials):
+        if isinstance(_credentials, ServiceAccountCredentials):
             expiresAt = datetime.datetime.now() + datetime.timedelta(seconds=60)
             signedUrl = blob.generate_signed_url(expiresAt, response_disposition=contentDisposition, version="v4")
             raise errors.Redirect(signedUrl)
