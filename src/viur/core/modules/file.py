@@ -215,7 +215,7 @@ def thumbnailer(fileSkel, existingFiles, params):
         outData = io.BytesIO()
         try:
             img = PIL.Image.open(fileData)
-        except PIL.Image.UnidentifiedImageError:  # We can't load this image; so there's no need to try other resolutions
+        except PIL.Image.UnidentifiedImageError:  # Can't load this image; so there's no need to try other resolutions
             return []
         iccProfile = img.info.get('icc_profile')
         if iccProfile:
