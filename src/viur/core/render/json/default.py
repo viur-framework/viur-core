@@ -5,6 +5,7 @@ from viur.core import bones, utils, db, current
 from viur.core.skeleton import SkeletonInstance
 from viur.core.i18n import translate
 from viur.core.config import conf
+from viur.core.modules import file
 from datetime import datetime
 import typing as t
 
@@ -130,12 +131,18 @@ class DefaultRender(object):
             return None
         elif isinstance(skel, dict):
             return skel
+
         res = {}
+
         for key, bone in skel.items():
             res[key] = self.renderBoneValue(bone, skel, key)
+
         if injectDownloadURL and "dlkey" in skel and "name" in skel:
-            res["downloadUrl"] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False,
-                                                      expires=conf.render_json_download_url_expiration)
+            res["downloadUrl"] = file.create_download_url(
+                skel["dlkey"],
+                skel["name"],
+                expires=conf.render_json_download_url_expiration
+            )
         return res
 
     def renderEntry(self, skel: SkeletonInstance, actionName, params=None):
