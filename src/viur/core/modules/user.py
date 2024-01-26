@@ -282,6 +282,7 @@ class UserPassword(UserPrimaryAuthentication):
                 "tooltip": i18n.translate(
                     key="viur.modules.user.userpassword.lostpasswordstep2.recoverykey",
                     defaultText="Please enter the validation key you've received via e-mail.",
+                    hint="Shown when the user needs more than 15 minutes to paste the key",
                 ),
             }
         )
