@@ -125,7 +125,11 @@ def create_src_set(
 
     from viur.core.skeleton import SkeletonInstance  # avoid circular imports
 
-    if not isinstance(fileObj, (SkeletonInstance, dict)) or not "dlkey" in fileObj or "derived" not in fileObj:
+    if not (
+        isinstance(fileObj, (SkeletonInstance, dict))
+        and "dlkey" in fileObj
+        and "derived" in fileObj
+    ):
         logging.error("Invalid fileObj supplied")
         return ""
 
@@ -136,10 +140,17 @@ def create_src_set(
     resList = []
     for fileName, derivate in fileObj["derived"]["files"].items():
         customData = derivate.get("customData", {})
+
         if width and customData.get("width") in width:
-            resList.append(f"""{create_download_url(fileObj["dlkey"], fileName, True, expires)} {customData["width"]}w""")
+            resList.append(
+                f"""{create_download_url(fileObj["dlkey"], fileName, True, expires)} {customData["width"]}w"""
+            )
+
         if height and customData.get("height") in height:
-            resList.append(f"""{create_download_url(fileObj["dlkey"], fileName, True, expires)} {customData["height"]}h""")
+            resList.append(
+                f"""{create_download_url(fileObj["dlkey"], fileName, True, expires)} {customData["height"]}h"""
+            )
+
     return ", ".join(resList)
 
 
