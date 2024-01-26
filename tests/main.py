@@ -17,20 +17,21 @@ def monkey_patch():
     import sys
 
     MOCK_MODULES = (
-        "google.appengine.api",
-        "google.auth.default",
-        "google.auth",
-        "google.cloud.exceptions",
+        # order matters!
+        "google.cloud.logging",
         "google.cloud.logging_v2",
         "google.cloud.logging.resource",
-        "google.cloud.logging",
-        "google.cloud.tasks_v2.services.cloud_tasks.transports",
-        "google.cloud.tasks_v2.services",
-        "google.cloud.tasks_v2",
-        "google.cloud",
-        "google.oauth2",
-        "google.protobuf",
         "google",
+        "google.cloud",
+        "google.protobuf",
+        "google.auth",
+        "google.auth.default",
+        "google.oauth2",
+        "google.cloud.tasks_v2",
+        "google.cloud.tasks_v2.services",
+        "google.cloud.tasks_v2.services.cloud_tasks.transports",
+        "google.cloud.exceptions",
+        "google.appengine.api",
     )
 
     for mod_name in MOCK_MODULES:
