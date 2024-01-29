@@ -215,7 +215,7 @@ class UserPassword(UserPrimaryAuthentication):
         """
         Modifies the UserSkel to be equipped by a PasswordBone.
         """
-        skel = skel.clone()  # todo: is this equal to ensure_is_cloned, or does it always clone again??
+        skel = skel.ensure_is_cloned()
 
         skel.password = PasswordBone(
             readOnly=True,
@@ -565,7 +565,7 @@ class GoogleAccount(UserPrimaryAuthentication):
         """
         Modifies the UserSkel to be equipped by a bones required by Google Auth
         """
-        skel = skel.clone()  # todo: is this equal to ensure_is_cloned, or does it always clone again??
+        skel = skel.ensure_is_cloned()
 
         skel.uid = StringBone(
             descr="Google UserID",
@@ -722,7 +722,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         """
         Modifies the UserSkel to be equipped by a bones required by Timebased OTP
         """
-        skel = skel.clone()  # todo: is this equal to ensure_is_cloned, or does it always clone again??
+        skel = skel.ensure_is_cloned()
 
         # One-Time Password Verification
         skel.otp_serial = StringBone(
@@ -1002,7 +1002,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         """
         Modifies the UserSkel to be equipped by bones required by Authenticator App
         """
-        skel = skel.clone()  # todo: is this equal to ensure_is_cloned, or does it always clone again??
+        skel = skel.ensure_is_cloned()
 
         # Authenticator OTP Apps (like Authy)
         skel.otp_app_secret = CredentialBone(
