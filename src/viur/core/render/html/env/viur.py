@@ -707,6 +707,7 @@ def downloadUrlFor(
         return ""
 
     if derived and ("derived" not in fileObj or not isinstance(fileObj["derived"], dict)):
+        logging.error("No derivation for this fileObj")
         return ""
 
     if derived:
