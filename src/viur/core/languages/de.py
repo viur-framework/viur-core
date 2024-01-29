@@ -353,6 +353,7 @@ de = {
     "module helptext": "Modul Hilfetext",
     "add helptext": "Hinzufügen Hilfetext",
     "edit helptext": "Editieren Hilfetext",
+    "scriptor scripts": "Scripte",
 
     # translation
     "translations": "Übersetzungen",

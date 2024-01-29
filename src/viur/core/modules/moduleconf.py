@@ -1,11 +1,59 @@
 import logging
-from viur.core.bones import StringBone, TextBone
+from viur.core.bones import StringBone, TextBone, SelectBone, TreeLeafBone
 from viur.core.bones.text import _defaultTags
 from viur.core.tasks import StartupTask
 from viur.core import Module, conf, db
 from viur.core.i18n import translate
-from viur.core.skeleton import Skeleton, SkeletonInstance
+from viur.core.skeleton import Skeleton, SkeletonInstance, RelSkel
 from viur.core.prototypes import List
+
+
+class ScriptRelSkel(RelSkel):
+
+    name = StringBone(
+        descr="Label",
+        required=True,
+        params={
+            "tooltip": "Label for the action button displayed."
+        },
+    )
+
+    icon = StringBone(
+        descr="Icon",
+        params={
+            "tooltip": "Shoelace-conforming icon identifier."
+        },
+    )
+
+    capable = SelectBone(
+        descr="Arguments",
+        required=True,
+        defaultValue="none",
+        values={
+            "none": "none: No arguments, always executable",
+            "single": "single: Run script with single entry key as argument",
+            "multiple": "multiple: Run script with list of entity keys as argument",
+        },
+        params={
+            "tooltip":
+                "Describes the behavior in the admin, "
+                "if and how selected entries from the module are being processed."
+        },
+    )
+
+    access = SelectBone(
+        descr="Required access rights",
+        values=lambda: {
+            right: translate(f"server.modules.user.accessright.{right}", defaultText=right)
+            for right in sorted(conf["viur.accessRights"])
+        },
+        multiple=True,
+        params={
+            "tooltip":
+                "To whom the button should be displayed in the admin. "
+                "In addition, the admin checks whether all rights of the script are also fulfilled.",
+        },
+    )
 
 
 class ModuleConfSkel(Skeleton):
@@ -34,6 +82,19 @@ class ModuleConfSkel(Skeleton):
     help_text_edit = TextBone(
         descr=translate("edit helptext"),
         validHtml=_valid_html,
+    )
+
+    scripts = TreeLeafBone(
+        descr=translate("scriptor scripts"),
+        module="script",
+        kind="viur-script-leaf",
+        using=ScriptRelSkel,
+        refKeys=[
+            "key",
+            "name",
+            "access",
+        ],
+        multiple=True,
     )
 
 

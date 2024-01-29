@@ -28,8 +28,13 @@ def timestamp(*args, **kwargs):
 def getStructure(module):
     """
     Returns all available skeleton structures for a given module.
+
+    To access the structure of a nested module, separate the path with dots (.).
     """
-    moduleObj = getattr(conf.main_app.vi, module, None)
+    path = module.split(".")
+    moduleObj = conf.main_app.vi
+    while path:
+        moduleObj = getattr(moduleObj, path.pop(0), None)
     if not isinstance(moduleObj, Module) or not moduleObj.describe():
         return json.dumps(None)
 
