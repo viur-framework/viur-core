@@ -1,11 +1,14 @@
 import logging
-import warnings
-import typing as t
-
+import numbers
 import sys
+import typing as t
+import warnings
 
 from viur.core import db
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
+
+if t.TYPE_CHECKING:
+    from viur.core.skeleton import SkeletonInstance
 
 # Constants for Mne (MIN/MAX-never-exceed)
 MIN = -(sys.maxsize - 1)
@@ -137,7 +140,7 @@ class NumericBone(BaseBone):
     def buildDBFilter(
         self,
         name: str,
-        skel: 'viur.core.skeleton.SkeletonInstance',
+        skel: "SkeletonInstance",
         dbFilter: db.Query,
         rawFilter: dict,
         prefix: t.Optional[str] = None
@@ -162,7 +165,7 @@ class NumericBone(BaseBone):
 
         return super().buildDBFilter(name, skel, dbFilter, updatedFilter, prefix)
 
-    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
+    def getSearchTags(self, skel: "SkeletonInstance", name: str) -> set[str]:
         """
         This method generates a set of search tags based on the numeric values stored in the NumericBone
         instance. It iterates through the bone values and adds the string representation of each value
@@ -191,7 +194,7 @@ class NumericBone(BaseBone):
             # First convert to float then to int to support "42.5" (str)
             return int(float(value))
 
-    def refresh(self, skel: 'viur.core.skeleton.SkeletonInstance', boneName: str) -> None:
+    def refresh(self, skel: "SkeletonInstance", boneName: str) -> None:
         """Ensure the value is numeric or None.
 
         This ensures numeric values, for example after changing
@@ -219,6 +222,15 @@ class NumericBone(BaseBone):
         elif not self.languages:
             # just the value(s) with None language
             skel[boneName] = new_value.get(None, [] if self.multiple else self.getEmptyValue())
+
+    def iter_bone_value(
+        self, skel: "SkeletonInstance", name: str
+    ) -> t.Iterator[tuple[t.Optional[int], t.Optional[str], t.Any]]:
+        value = skel[name]
+        if not value and isinstance(value, numbers.Number):
+            # 0 and 0.0 are falsy, but can be valid numeric values and should be kept
+            yield None, None, value
+        yield from super().iter_bone_value(skel, name)
 
     def structure(self) -> dict:
         return super().structure() | {
