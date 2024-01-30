@@ -1,8 +1,8 @@
 import json
+import warnings
 from enum import Enum
-
-from viur.core import bones, utils, db, current
-from viur.core.skeleton import SkeletonInstance
+from viur.core import db, current, logging
+from viur.core.skeleton import SkelList, SkeletonInstance
 from viur.core.i18n import translate
 from viur.core.config import conf
 from datetime import datetime
@@ -68,87 +68,17 @@ class DefaultRender(object):
 
         return structure
 
-    def renderSingleBoneValue(self, value: t.Any,
-                              bone: bones.BaseBone,
-                              skel: SkeletonInstance,
-                              key
-                              ) -> dict | str | None:
-        """
-        Renders the value of a bone.
-
-        It can be overridden and super-called from a custom renderer.
-
-        :param bone: The bone which value should be rendered.
-        :type bone: Any bone that inherits from :class:`server.bones.base.BaseBone`.
-
-        :return: A dict containing the rendered attributes.
-        """
-        if isinstance(bone, bones.RelationalBone):
-            if isinstance(value, dict):
-                return {
-                    "dest": self.renderSkelValues(value["dest"], injectDownloadURL=isinstance(bone, bones.FileBone)),
-                    "rel": (self.renderSkelValues(value["rel"], injectDownloadURL=isinstance(bone, bones.FileBone))
-                            if value["rel"] else None),
-                }
-        elif isinstance(bone, bones.RecordBone):
-            return self.renderSkelValues(value)
-        elif isinstance(bone, bones.PasswordBone):
-            return ""
-        else:
-            return value
-        return None
-
-    def renderBoneValue(self, bone: bones.BaseBone, skel: SkeletonInstance, key: str) -> list | dict | None:
-        boneVal = skel[key]
-        if bone.languages and bone.multiple:
-            res = {}
-            for language in bone.languages:
-                if boneVal and language in boneVal and boneVal[language]:
-                    res[language] = [self.renderSingleBoneValue(v, bone, skel, key) for v in boneVal[language]]
-                else:
-                    res[language] = []
-        elif bone.languages:
-            res = {}
-            for language in bone.languages:
-                if boneVal and language in boneVal and boneVal[language]:
-                    res[language] = self.renderSingleBoneValue(boneVal[language], bone, skel, key)
-                else:
-                    res[language] = None
-        elif bone.multiple:
-            res = [self.renderSingleBoneValue(v, bone, skel, key) for v in boneVal] if boneVal else None
-        else:
-            res = self.renderSingleBoneValue(boneVal, bone, skel, key)
-        return res
-
-    def renderSkelValues(self, skel: SkeletonInstance, injectDownloadURL: bool = False) -> t.Optional[dict]:
-        """
-        Prepares values of one :class:`viur.core.skeleton.Skeleton` or a list of skeletons for output.
-
-        :param skel: Skeleton which contents will be processed.
-        """
-        if skel is None:
-            return None
-        elif isinstance(skel, dict):
-            return skel
-        res = {}
-        for key, bone in skel.items():
-            res[key] = self.renderBoneValue(bone, skel, key)
-        if injectDownloadURL and "dlkey" in skel and "name" in skel:
-            res["downloadUrl"] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False,
-                                                      expires=conf.render_json_download_url_expiration)
-        return res
-
-    def renderEntry(self, skel: SkeletonInstance, actionName, params=None):
+    def renderEntry(self, skel: SkeletonInstance | list[SkeletonInstance], actionName, params=None):
         structure = None
         errors = None
 
         if isinstance(skel, list):
-            vals = [self.renderSkelValues(x) for x in skel]
+            vals = [_skel.render_bone_values() for _skel in skel]
             if isinstance(skel[0], SkeletonInstance):
                 structure = DefaultRender.render_structure(skel[0].structure())
 
         elif isinstance(skel, SkeletonInstance):
-            vals = self.renderSkelValues(skel)
+            vals = skel.render_bone_values()
             structure = DefaultRender.render_structure(skel.structure())
             errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage,
                        "invalidatedFields": x.invalidatedFields} for x in skel.errors]
@@ -170,7 +100,8 @@ class DefaultRender(object):
     def view(self, skel: SkeletonInstance, action: str = "view", params=None, **kwargs):
         return self.renderEntry(skel, action, params)
 
-    def list(self, skellist, action: str = "list", params=None, **kwargs):
+    def list(self, skellist: SkelList, action: str = "list", params=None, **kwargs):
+
         # Rendering the structure in lists is flagged as deprecated
         structure = None
         cursor = None
@@ -184,7 +115,7 @@ class DefaultRender(object):
                 cursor = skellist.getCursor()
                 orders = skellist.get_orders()
 
-            skellist = [self.renderSkelValues(skel) for skel in skellist]
+            skellist = [skel.render_bone_values() for skel in skellist]
         else:
             skellist = []
 
