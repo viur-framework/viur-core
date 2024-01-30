@@ -11,6 +11,7 @@ from html.parser import HTMLParser
 import typing as t
 
 from viur.core import db, utils
+from viur.core.modules import file
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 _defaultTags = {
@@ -63,7 +64,7 @@ def parseDownloadUrl(urlStr: str) -> tuple[t.Optional[str], t.Optional[bool], t.
         return None, None, None
     dataStr, sig = urlStr[15:].split("?")  # Strip /file/download/ and split on ?
     sig = sig[4:]  # Strip sig=
-    if not utils.hmacVerify(dataStr.encode("ASCII"), sig):
+    if not file.hmac_verify(dataStr, sig):
         # Invalid signature, bail out
         return None, None, None
     # Split the blobKey into the individual fields it should contain
@@ -216,7 +217,12 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
                             # getReferencedBlobs will catch it, build it, and we're going to be re-called afterwards.
                             fileObj = db.Query("file").filter("dlkey =", blobKey) \
                                 .order(("creationdate", db.SortOrder.Ascending)).getEntry()
-                            srcSet = utils.srcSetFor(fileObj, None, self.srcSet.get("width"), self.srcSet.get("height"))
+                            srcSet = file.create_src_set(
+                                fileObj,
+                                None,
+                                self.srcSet.get("width"),
+                                self.srcSet.get("height")
+                            )
                             cacheTagStart += f' srcSet="{srcSet}"'
                 if not tag in self.validHtml["validAttrs"].keys() or not k in self.validHtml["validAttrs"][tag]:
                     # That attribute is not valid on this tag
