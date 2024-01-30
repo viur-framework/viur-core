@@ -1,7 +1,6 @@
 import base64
 import datetime
 import google.auth
-import google.oauth2
 import hashlib
 import hmac
 import html
@@ -15,6 +14,7 @@ import typing as t
 from urllib.parse import quote as urlquote
 from urllib.request import urlopen
 from google.cloud import storage
+from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from viur.core import conf, current, db, errors, utils
 from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
 from viur.core.decorators import *
