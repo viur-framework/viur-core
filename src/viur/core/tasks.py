@@ -1,24 +1,24 @@
 import base64
-import json
+import grpc
 import logging
 import os
-import sys
-import traceback
-import grpc
 import pytz
 import requests
+import sys
+import traceback
 from datetime import datetime, timedelta
 from functools import wraps
-from time import sleep
-from typing import Any, Callable, Dict, Optional, Tuple
+import typing as t
 from google.cloud import tasks_v2
 from google.cloud.tasks_v2.services.cloud_tasks.transports import CloudTasksGrpcTransport
 from google.protobuf import timestamp_pb2
+from time import sleep
+
+import json
 from viur.core import current, db, errors, utils
 from viur.core.config import conf
-from viur.core.module import Module
 from viur.core.decorators import exposed, skey
-from viur.core.utils import parse_bool
+from viur.core.module import Module
 
 
 # class JsonKeyEncoder(json.JSONEncoder):
@@ -95,7 +95,7 @@ else:
     )
     queueRegion = "local"
 
-_periodicTasks: Dict[str, Dict[Callable, int]] = {}
+_periodicTasks: dict[str, dict[t.Callable, int]] = {}
 _callableTasks = {}
 _deferred_tasks = {}
 _startupTasks = []
@@ -107,7 +107,7 @@ class PermanentTaskFailure(Exception):
     pass
 
 
-def removePeriodicTask(task: Callable) -> None:
+def removePeriodicTask(task: t.Callable) -> None:
     """
     Removes a periodic task from the queue. Useful to unqueue an task
     that has been inherited from an overridden module.
@@ -159,18 +159,18 @@ class TaskHandler(Module):
     adminInfo = None
     retryCountWarningThreshold = 25
 
-    def findBoundTask(self, task: Callable, obj: object = None, depth: int = 0) -> Optional[Tuple[Callable, object]]:
+    def findBoundTask(self, task: t.Callable, obj: object, depth: int = 0) -> t.Optional[tuple[t.Callable, object]]:
+
         """
             Tries to locate the instance, this function belongs to.
             If it succeeds in finding it, it returns the function and its instance (-> its "self").
             Otherwise, None is returned.
             :param task: A callable decorated with @PeriodicTask
-            :param obj: Object, which will be scanned in the current iteration. None means start at conf.main_app.
+            :param obj: Object, which will be scanned in the current iteration.
             :param depth: Current iteration depth.
         """
-        if depth > 3 or not "periodicTaskName" in dir(task):  # Limit the maximum amount of recursions
+        if depth > 3 or "periodicTaskName" not in dir(task):  # Limit the maximum amount of recursions
             return None
-        obj = obj or conf.main_app
         for attr in dir(obj):
             if attr.startswith("_"):
                 continue
@@ -191,17 +191,11 @@ class TaskHandler(Module):
         """
             This processes one chunk of a queryIter (see below).
         """
-        global _deferred_tasks, _appengineServiceIPs
         req = current.request.get().request
-        if 'X-AppEngine-TaskName' not in req.headers:
-            logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
-            raise errors.Forbidden()
-        if req.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs:
-            logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
-            raise errors.Forbidden()
+        self._validate_request()
         data = json.loads(req.body, object_hook=jsonDecodeObjectHook)
         if data["classID"] not in MetaQueryIter._classCache:
-            logging.error("Could not continue queryIter - %s not known on this instance" % data["classID"])
+            logging.error(f"""Could not continue queryIter - {data["classID"]} not known on this instance""")
         MetaQueryIter._classCache[data["classID"]]._qryStep(data)
 
     @exposed
@@ -209,16 +203,8 @@ class TaskHandler(Module):
         """
             This catches one deferred call and routes it to its destination
         """
-        global _deferred_tasks, _appengineServiceIPs
         req = current.request.get().request
-        if 'X-AppEngine-TaskName' not in req.headers:
-            logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
-            raise errors.Forbidden()
-        if req.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs:
-            if not conf.instance.is_dev_server or os.getenv("TASKS_EMULATOR") is None:
-                logging.critical('Detected an attempted XSRF attack. This request did not originate from Task Queue.')
-            raise errors.Forbidden()
-
+        self._validate_request()
         # Check if the retry count exceeds our warning threshold
         retryCount = req.headers.get("X-Appengine-Taskretrycount", None)
         if retryCount and int(retryCount) == self.retryCountWarningThreshold:
@@ -240,10 +226,10 @@ class TaskHandler(Module):
             if "transactionMarker" in env:
                 marker = db.Get(db.Key("viur-transactionmarker", env["transactionMarker"]))
                 if not marker:
-                    logging.info("Dropping task, transaction %s did not apply" % env["transactionMarker"])
+                    logging.info(f"""Dropping task, transaction {env["transactionMarker"]} did not apply""")
                     return
                 else:
-                    logging.info("Executing task, transaction %s did succeed" % env["transactionMarker"])
+                    logging.info(f"""Executing task, transaction {env["transactionMarker"]} did succeed""")
             if "custom" in env and conf.tasks_custom_environment_handler:
                 # Check if we need to restore additional environmental data
                 assert isinstance(conf.tasks_custom_environment_handler, tuple) \
@@ -256,8 +242,7 @@ class TaskHandler(Module):
             pathlist = [x for x in funcPath.split("/") if x]
             for currpath in pathlist:
                 if currpath not in dir(caller):
-                    logging.error("ViUR missed a deferred task! Could not resolve the path %s. "
-                                  "Failed segment was %s", funcPath, currpath)
+                    logging.error(f"Could not resolve {funcPath=} (failed part was {currpath!r})")
                     return
                 caller = getattr(caller, currpath)
             try:
@@ -269,7 +254,7 @@ class TaskHandler(Module):
                 raise errors.RequestTimeout()  # Task-API should retry
         elif cmd == "unb":
             if not funcPath in _deferred_tasks:
-                logging.error("ViUR missed a deferred task! %s(%s,%s)", funcPath, args, kwargs)
+                logging.error(f"Missed deferred task {funcPath=} ({args=},{kwargs=})")
             # We call the deferred function *directly* (without walking through the mkDeferred lambda), so ensure
             # that any hit to another deferred function will defer again
 
@@ -284,17 +269,11 @@ class TaskHandler(Module):
 
     @exposed
     def cron(self, cronName="default", *args, **kwargs):
-        global _callableTasks, _periodicTasks, _appengineServiceIPs
         req = current.request.get()
         if not conf.instance.is_dev_server:
-            if 'X-Appengine-Cron' not in req.request.headers:
-                logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Cron" was not set.')
-                raise errors.Forbidden()
-            if req.request.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs:
-                logging.critical('Detected an attempted XSRF attack. This request did not originate from Cron.')
-                raise errors.Forbidden()
+            self._validate_request(require_cron=True, require_taskname=False)
         if cronName not in _periodicTasks:
-            logging.warning("Got Cron request '%s' which doesn't have any tasks" % cronName)
+            logging.warning(f"Cron request {cronName} doesn't have any tasks")
         # We must defer from cron, as tasks will interpret it as a call originating from task-queue - causing deferred
         # functions to be called directly, wich causes calls with _countdown etc set to fail.
         req.DEFERRED_TASK_CALLED = True
@@ -303,19 +282,19 @@ class TaskHandler(Module):
             if interval:  # Ensure this task doesn't get called to often
                 lastCall = db.Get(db.Key("viur-task-interval", periodicTaskName))
                 if lastCall and utils.utcNow() - lastCall["date"] < timedelta(minutes=interval):
-                    logging.debug("Skipping task %s - Has already run recently." % periodicTaskName)
+                    logging.debug(f"Task {periodicTaskName!r} has already run recently - skipping.")
                     continue
-            res = self.findBoundTask(task)
+            res = self.findBoundTask(task, conf.main_app)
             try:
                 if res:  # Its bound, call it this way :)
                     res[0]()
                 else:
                     task()  # It seems it wasn't bound - call it as a static method
             except Exception as e:
-                logging.error("Error calling periodic task %s", periodicTaskName)
+                logging.error(f"Error calling periodic task {periodicTaskName}")
                 logging.exception(e)
             else:
-                logging.debug("Successfully called task %s", periodicTaskName)
+                logging.debug(f"Successfully called task {periodicTaskName}")
             if interval:
                 # Update its last-call timestamp
                 entry = db.Entity(db.Key("viur-task-interval", periodicTaskName))
@@ -337,6 +316,35 @@ class TaskHandler(Module):
                     logging.error("Error executing Task")
                     logging.exception(e)
         logging.debug("Scheduled tasks complete")
+
+    def _validate_request(
+        self,
+        *,
+        require_cron: bool = False,
+        require_taskname: bool = True,
+    ) -> None:
+        """
+        Validate the header and metadata of a request
+
+        If the request is valid, None will be returned.
+        Otherwise, an exception will be raised.
+
+        :param require_taskname: Require "X-AppEngine-TaskName" header
+        :param require_cron: Require "X-Appengine-Cron" header
+        """
+        req = current.request.get().request
+        if (
+            req.environ.get("HTTP_X_APPENGINE_USER_IP") not in _appengineServiceIPs
+            and (not conf.instance.is_dev_server or os.getenv("TASKS_EMULATOR") is None)
+        ):
+            logging.critical("Detected an attempted XSRF attack. This request did not originate from Task Queue.")
+            raise errors.Forbidden()
+        if require_cron and "X-Appengine-Cron" not in req.request.headers:
+            logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Cron" was not set.')
+            raise errors.Forbidden()
+        if require_taskname and "X-AppEngine-TaskName" not in req.headers:
+            logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
+            raise errors.Forbidden()
 
     @exposed
     def list(self, *args, **kwargs):
@@ -365,7 +373,7 @@ class TaskHandler(Module):
         if not task.canCall():
             raise errors.Unauthorized()
         skel = task.dataSkel()
-        if not kwargs or not skel.fromClient(kwargs) or parse_bool(kwargs.get("bounce")):
+        if not kwargs or not skel.fromClient(kwargs) or utils.parse.bool(kwargs.get("bounce")):
             return self.render.add(skel)
         task.execute(**skel.accessedValues)
         return self.render.addSuccess(skel)
@@ -379,7 +387,7 @@ TaskHandler.html = True
 ## Decorators ##
 
 def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
-                  tpl: None | str = None) -> Callable:
+                  tpl: None | str = None) -> t.Callable:
     """
     Wrapper for deferred tasks to limit the amount of retries
 
@@ -399,7 +407,11 @@ def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
     def outer_wrapper(func):
         @wraps(func)
         def inner_wrapper(*args, **kwargs):
-            retry_count = int(current.request.get().request.headers.get("X-Appengine-Taskretrycount", -1))
+            try:
+                retry_count = int(current.request.get().request.headers.get("X-Appengine-Taskretrycount", -1))
+            except AttributeError:
+                # During warmup current.request is None (at least on local devserver)
+                retry_count = -1
             try:
                 return func(*args, **kwargs)
             except Exception as exc:
@@ -448,7 +460,7 @@ def noRetry(f):
     return retry_n_times(0)(f)
 
 
-def CallDeferred(func: Callable) -> Callable:
+def CallDeferred(func: t.Callable) -> t.Callable:
     """
     This is a decorator, which always calls the wrapped method deferred.
 
@@ -486,8 +498,8 @@ def CallDeferred(func: Callable) -> Callable:
     def make_deferred(func, self=__undefinedFlag_, *args, **kwargs):
         # Extract possibly provided task flags from kwargs
         queue = kwargs.pop("_queue", "default")
-        if "eta" in kwargs and "countdown" in kwargs:
-            raise ValueError("You cannot set the countdown and eta argument together!")
+        if "_eta" in kwargs and "_countdown" in kwargs:
+            raise ValueError("You cannot set the _countdown and _eta argument together!")
         taskargs = {k: kwargs.pop(f"_{k}", None) for k in ("countdown", "eta", "name", "target_version")}
 
         logging.debug(f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, {queue=}, {taskargs=}")
@@ -528,12 +540,12 @@ def CallDeferred(func: Callable) -> Callable:
                 if self.__class__.__name__ == "index":
                     funcPath = func.__name__
                 else:
-                    funcPath = "%s/%s" % (self.modulePath, func.__name__)
+                    funcPath = f"{self.modulePath}/{func.__name__}"
 
                 command = "rel"
 
             except:
-                funcPath = "%s.%s" % (func.__name__, func.__module__)
+                funcPath = f"{func.__name__}.{func.__module__}"
 
                 if self is not __undefinedFlag_:
                     args = (self,) + args  # Re-append self to args, as this function is (hopefully) unbound
@@ -605,7 +617,7 @@ def CallDeferred(func: Callable) -> Callable:
             logging.info(f"Created task {func.__name__}.{func.__module__} with {args=} {kwargs=} {env=}")
 
     global _deferred_tasks
-    _deferred_tasks["%s.%s" % (func.__name__, func.__module__)] = func
+    _deferred_tasks[f"{func.__name__}.{func.__module__}"] = func
 
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -627,7 +639,7 @@ def callDeferred(func):
     return CallDeferred(func)
 
 
-def PeriodicTask(interval: int = 0, cronName: str = "default") -> Callable:
+def PeriodicTask(interval: int = 0, cronName: str = "default") -> t.Callable:
     """
         Decorator to call a function periodic during maintenance.
         Interval defines a lower bound for the call-frequency for this task;
@@ -645,13 +657,13 @@ def PeriodicTask(interval: int = 0, cronName: str = "default") -> Callable:
         if not cronName in _periodicTasks:
             _periodicTasks[cronName] = {}
         _periodicTasks[cronName][fn] = interval
-        fn.periodicTaskName = ("%s_%s" % (fn.__module__, fn.__qualname__)).replace(".", "_").lower()
+        fn.periodicTaskName = f"{fn.__module__}_{fn.__qualname__}".replace(".", "_").lower()
         return fn
 
     return mkDecorator
 
 
-def CallableTask(fn: Callable) -> Callable:
+def CallableTask(fn: t.Callable) -> t.Callable:
     """Marks a Class as representing a user-callable Task.
     It *should* extend CallableTaskBase and *must* provide
     its API
@@ -661,7 +673,7 @@ def CallableTask(fn: Callable) -> Callable:
     return fn
 
 
-def StartupTask(fn: Callable) -> Callable:
+def StartupTask(fn: t.Callable) -> t.Callable:
     """
         Functions decorated with this are called shortly at instance startup.
         It's *not* guaranteed that they actually run on the instance that just started up!
@@ -709,7 +721,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
     queueName = "default"  # Name of the taskqueue we will run on
 
     @classmethod
-    def startIterOnQuery(cls, query: db.Query, customData: Any = None) -> None:
+    def startIterOnQuery(cls, query: db.Query, customData: t.Any = None) -> None:
         """
             Starts iterating the given query on this class. Will return immediately, the first batch will already
             run deferred.
@@ -736,7 +748,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
         cls._requeueStep(qryDict)
 
     @classmethod
-    def _requeueStep(cls, qryDict: Dict[str, Any]) -> None:
+    def _requeueStep(cls, qryDict: dict[str, t.Any]) -> None:
         """
             Internal use only. Pushes a new step defined in qryDict to either the taskqueue or append it to
             the current request    if we are on the local development server.
@@ -762,7 +774,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
         ))
 
     @classmethod
-    def _qryStep(cls, qryDict: Dict[str, Any]) -> None:
+    def _qryStep(cls, qryDict: dict[str, t.Any]) -> None:
         """
             Internal use only. Processes one block of five entries from the query defined in qryDict and
             reschedules the next block.
@@ -790,7 +802,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
                     try:
                         doCont = cls.handleError(item, qryDict["customData"], e)
                     except Exception as e:
-                        logging.error("handleError failed on %s - bailing out" % item)
+                        logging.error(f"handleError failed on {item} - bailing out")
                         logging.exception(e)
                         doCont = False
                     if not doCont:
@@ -813,14 +825,14 @@ class QueryIter(object, metaclass=MetaQueryIter):
             Warning: If your query has an sortOrder other than __key__ and you modify that property here
             it is possible to encounter that object later one *again* (as it may jump behind the current cursor).
         """
-        logging.debug("handleEntry called on %s with %s." % (cls, entry))
+        logging.debug(f"handleEntry called on {cls} with {entry}.")
 
     @classmethod
     def handleFinish(cls, totalCount: int, customData):
         """
             Overridable hook that indicates the current run has been finished.
         """
-        logging.debug("handleFinish called on %s with %s total Entries processed" % (cls, totalCount))
+        logging.debug(f"handleFinish called on {cls} with {totalCount} total Entries processed")
 
     @classmethod
     def handleError(cls, entry, customData, exception) -> bool:
@@ -828,9 +840,10 @@ class QueryIter(object, metaclass=MetaQueryIter):
             Handle a error occurred in handleEntry.
             If this function returns True, the queryIter continues, otherwise it breaks and prints the current cursor.
         """
-        logging.debug("handleError called on %s with %s." % (cls, entry))
+        logging.debug(f"handleError called on {cls} with {entry}.")
         logging.exception(exception)
         return True
+
 
 class DeleteEntitiesIter(QueryIter):
     """

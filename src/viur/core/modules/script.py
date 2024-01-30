@@ -2,6 +2,7 @@ from viur.core.bones import *
 from viur.core.prototypes.tree import Tree, TreeSkel
 from viur.core import db, conf, current, skeleton, tasks
 from viur.core.prototypes.tree import Tree
+from viur.core.i18n import translate
 import re
 
 
@@ -68,6 +69,15 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
     script = RawBone(
         descr="Code",
         indexed=False
+    )
+
+    access = SelectBone(
+        descr="Required access rights to run this Script",
+        values=lambda: {
+            right: translate("server.modules.user.accessright.%s" % right, defaultText=right)
+            for right in sorted(conf["viur.accessRights"])
+        },
+        multiple=True,
     )
 
 

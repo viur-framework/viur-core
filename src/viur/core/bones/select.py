@@ -1,17 +1,25 @@
 import enum
 from collections import OrderedDict
 from numbers import Number
-from typing import Callable, Dict, List, Tuple, Union
+import typing as t
 
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.i18n import translate
 
-SelectBoneValue = Union[str, Number, enum.Enum]
+try:
+    from typing import Self  # only py>=3.11
+except ImportError:
+    Self = BaseBone  # SelectBone is not defined here and Self is not available
+
+if t.TYPE_CHECKING:
+    from viur.core.skeleton import SkeletonInstance
+
+SelectBoneValue = t.Union[str, Number, enum.Enum]
 """
 Type alias of possible values in a SelectBone. SelectBoneValue can be either a string (str) or a number (Number)
 """
 
-SelectBoneMultiple = List[SelectBoneValue]
+SelectBoneMultiple = list[SelectBoneValue]
 """ SelectBoneMultiple is a list of SelectBoneValue elements."""
 
 
@@ -29,12 +37,13 @@ class SelectBone(BaseBone):
     def __init__(
         self,
         *,
-        defaultValue: Union[
+        defaultValue: t.Union[
             SelectBoneValue,
             SelectBoneMultiple,
-            Dict[str, Union[SelectBoneMultiple, SelectBoneValue]],
+            t.Dict[str, t.Union[SelectBoneMultiple, SelectBoneValue]],
+            t.Callable[["SkeletonInstance", Self], t.Any],
         ] = None,
-        values: Union[Dict, List, Tuple, Callable, enum.EnumMeta] = (),
+        values: dict | list | tuple | t.Callable | enum.EnumMeta = (),
         **kwargs
     ):
 

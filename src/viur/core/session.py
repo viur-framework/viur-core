@@ -4,7 +4,7 @@ import time
 from viur.core.tasks import DeleteEntitiesIter
 from viur.core.config import conf  # this import has to stay alone due partial import
 from viur.core import db, utils, tasks
-from typing import Any, Optional, Union
+import typing as t
 
 """
     Provides the session implementation for the Google AppEngine™ based on the datastore.
@@ -108,7 +108,7 @@ class Session:
         dbSession["static_security_key"] = self.static_security_key
         dbSession["lastseen"] = time.time()
         dbSession["user"] = str(user_key)  # allow filtering for users
-        dbSession.exclude_from_indexes = ["data"]
+        dbSession.exclude_from_indexes = {"data"}
 
         db.Put(dbSession)
 
@@ -116,8 +116,8 @@ class Session:
         flags = (
             "Path=/",
             "HttpOnly",
-            f"SameSite={self.same_site}" if self.same_site else None,
-            "Secure",
+            f"SameSite={self.same_site}" if self.same_site and not conf.instance.is_dev_server else None,
+            "Secure" if not conf.instance.is_dev_server else None,
             f"Max-Age={conf.user.session_life_time}" if not self.use_session_cookie else None,
         )
 
@@ -140,7 +140,7 @@ class Session:
         del self.session[key]
         self.changed = True
 
-    def __getitem__(self, key) -> Any:
+    def __getitem__(self, key) -> t.Any:
         """
             Returns the value stored under the given *key*.
 
@@ -155,7 +155,7 @@ class Session:
         self.session |= other
         return self
 
-    def get(self, key: str, default: Any = None) -> Any:
+    def get(self, key: str, default: t.Any = None) -> t.Any:
         """
             Returns the value stored under the given key.
 
@@ -164,7 +164,7 @@ class Session:
         """
         return self.session.get(key, default)
 
-    def __setitem__(self, key: str, item: Any):
+    def __setitem__(self, key: str, item: t.Any):
         """
             Stores a new value under the given key.
 
@@ -196,8 +196,8 @@ class Session:
             from viur.core import securitykey
             securitykey.clear_session_skeys(self.cookie_key)
 
-        self.cookie_key = utils.generateRandomString(42)
-        self.static_security_key = utils.generateRandomString(13)
+        self.cookie_key = utils.string.random(42)
+        self.static_security_key = utils.string.random(13)
         self.session.clear()
         self.changed = True
 
@@ -209,7 +209,7 @@ class Session:
 
 
 @tasks.CallDeferred
-def killSessionByUser(user: Optional[Union[str, db.Key]] = None):
+def killSessionByUser(user: t.Optional[t.Union[str, "db.Key", None]] = None):
     """
         Invalidates all active sessions for the given *user*.
 

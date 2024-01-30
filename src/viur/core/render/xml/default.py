@@ -1,4 +1,4 @@
-from typing import Any, Dict
+import typing as t
 
 from viur.core.bones import *
 from viur.core import db
@@ -44,7 +44,7 @@ def serializeXML(data):
                 element.setAttribute('ViurDataType', 'none')
                 data = ""
             else:
-                raise NotImplementedError("Type %s is not supported!" % type(data))
+                raise NotImplementedError(f"Type {type(data)} is not supported!")
             element.appendChild(doc.createTextNode(str(data)))
         return element
 
@@ -89,7 +89,7 @@ class DefaultRender(object):
             res = self.renderSingleBoneValue(boneVal, bone, skel, key)
         return res
 
-    def renderSingleBoneValue(self, value: Any, bone: baseBone, skel: SkeletonInstance, key: str) -> Dict:
+    def renderSingleBoneValue(self, value: t.Any, bone: baseBone, skel: SkeletonInstance, key: str) -> dict:
         """
         Renders the value of a bone.
 

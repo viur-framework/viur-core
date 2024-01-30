@@ -3,11 +3,13 @@ import json
 import logging
 import os
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, List, Union
+import typing as t
 from urllib import request
 
 import requests
 
+if t.TYPE_CHECKING:
+    from viur.core.skeleton import SkeletonInstance
 from viur.core import db, utils
 from viur.core.config import conf
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
@@ -44,9 +46,9 @@ class EmailTransport(ABC):
 
     @staticmethod
     @abstractmethod
-    def deliverEmail(*, sender: str, dests: List[str], cc: List[str], bcc: List[str], subject: str, body: str,
-                     headers: Dict[str, str], attachments: List[Dict[str, bytes]],
-                     customData: Union[dict, None], **kwargs):
+    def deliverEmail(*, sender: str, dests: list[str], cc: list[str], bcc: list[str], subject: str, body: str,
+                     headers: dict[str, str], attachments: list[dict[str, bytes]],
+                     customData: dict | None, **kwargs):
         """
             The actual email delivery must be implemented here. All email-adresses can be either in the form of
             "mm@example.com" or "Max Musterman <mm@example.com>". If the delivery was successful, this method
@@ -89,7 +91,7 @@ def sendEmailDeferred(emailKey: db.Key):
         Callback from the Taskqueue to send the given Email
         :param emailKey: Database-Key of the email we should send
     """
-    logging.debug("Sending deferred email: %s" % str(emailKey))
+    logging.debug(f"Sending deferred e-mail {emailKey!r}")
     queueEntity = db.Get(emailKey)
     assert queueEntity, "Email queue object went missing!"
     if queueEntity["isSend"]:
@@ -124,7 +126,7 @@ def sendEmailDeferred(emailKey: db.Key):
         logging.exception(e)
 
 
-def normalize_to_list(value: Union[None, Any, List[Any], Callable[[], List]]) -> List[Any]:
+def normalize_to_list(value: None | t.Any | list[t.Any] | t.Callable[[], list]) -> list[t.Any]:
     """
     Convert the given value to a list.
 
@@ -142,14 +144,14 @@ def normalize_to_list(value: Union[None, Any, List[Any], Callable[[], List]]) ->
 def sendEMail(*,
               tpl: str = None,
               stringTemplate: str = None,
-              skel: Union[None, Dict, "SkeletonInstance", List["SkeletonInstance"]] = None,
+              skel: t.Union[None, dict, "SkeletonInstance", list["SkeletonInstance"]] = None,
               sender: str = None,
-              dests: Union[str, List[str]] = None,
-              cc: Union[str, List[str]] = None,
-              bcc: Union[str, List[str]] = None,
-              headers: Dict[str, str] = None,
-              attachments: List[Dict[str, Any]] = None,
-              context: Union[db.DATASTORE_BASE_TYPES, List[db.DATASTORE_BASE_TYPES], db.Entity] = None,
+              dests: str | list[str] = None,
+              cc: str | list[str] = None,
+              bcc: str | list[str] = None,
+              headers: dict[str, str] = None,
+              attachments: list[dict[str, t.Any]] = None,
+              context: db.DATASTORE_BASE_TYPES | list[db.DATASTORE_BASE_TYPES] | db.Entity = None,
               **kwargs) -> bool:
     """
     General purpose function for sending e-mail.
@@ -209,7 +211,7 @@ def sendEMail(*,
         assert all(["filename" in x for x in attachments]), "Attachment is missing the filename key"
     # If conf.email.recipient_override is set we'll redirect any email to these address(es)
     if conf.email.recipient_override:
-        logging.warning("Overriding destination %s with %s", dests, conf.email.recipient_override)
+        logging.warning(f"Overriding destination {dests!r} with {conf.email.recipient_override!r}")
         oldDests = dests
         newDests = normalize_to_list(conf.email.recipient_override)
         dests = []
@@ -242,13 +244,13 @@ def sendEMail(*,
     queueEntity["headers"] = headers
     queueEntity["attachments"] = attachments
     queueEntity["context"] = context
-    queueEntity.exclude_from_indexes = ["body", "attachments", "context"]
+    queueEntity.exclude_from_indexes = {"body", "attachments", "context"}
     transportClass.validateQueueEntity(queueEntity)  # Will raise an exception if the entity is not valid
     if conf.instance.is_dev_server and not conf.email.send_from_local_development_server:
         logging.info("Not sending email from local development server")
-        logging.info("Subject: %s", queueEntity["subject"])
-        logging.info("Body: %s", queueEntity["body"])
-        logging.info("Recipients: %s", queueEntity["dests"])
+        logging.info(f"""Subject: {queueEntity["subject"]}""")
+        logging.info(f"""Body: {queueEntity["body"]}""")
+        logging.info(f"""Recipients: {queueEntity["dests"]}""")
         return False
     db.Put(queueEntity)
     sendEmailDeferred(queueEntity.key, _queue="viur-emails")
@@ -287,8 +289,7 @@ def sendEMailToAdmins(subject: str, body: str, *args, **kwargs) -> bool:
     finally:
         if not success:
             logging.critical("Cannot send mail to Admins.")
-            logging.critical("Subject of mail: %s", subject)
-            logging.critical("Content of mail: %s", body)
+            logging.debug(f"{subject = }, {body = }")
 
     return False
 
@@ -302,7 +303,7 @@ class EmailTransportSendInBlue(EmailTransport):
                          "xls", "xlsx", "ppt", "tar", "ez"}
 
     @staticmethod
-    def splitAddress(address: str) -> Dict[str, str]:
+    def splitAddress(address: str) -> dict[str, str]:
         """
             Splits an Name/Address Pair as "Max Musterman <mm@example.com>" into a dict
             {"name": "Max Mustermann", "email": "mm@example.com"}
@@ -313,14 +314,14 @@ class EmailTransportSendInBlue(EmailTransport):
         posGt = address.rfind(">")
         if -1 < posLt < posGt:
             email = address[posLt + 1:posGt]
-            sname = address.replace("<%s>" % email, "", 1).strip()
+            sname = address.replace(f"<{email}>", "", 1).strip()
             return {"name": sname, "email": email}
         else:
             return {"email": address}
 
     @staticmethod
-    def deliverEmail(*, sender: str, dests: List[str], cc: List[str], bcc: List[str], subject: str, body: str,
-                     headers: Dict[str, str], attachments: List[Dict[str, bytes]], **kwargs):
+    def deliverEmail(*, sender: str, dests: list[str], cc: list[str], bcc: list[str], subject: str, body: str,
+                     headers: dict[str, str], attachments: list[dict[str, bytes]], **kwargs):
         """
             Internal function for delivering Emails using Send in Blue. This function requires the
             conf.email.sendinblue_api_key to be set.
@@ -382,7 +383,7 @@ class EmailTransportSendInBlue(EmailTransport):
         for attachment in entity.get("attachments") or []:
             ext = attachment["filename"].split(".")[-1].lower()
             if ext not in EmailTransportSendInBlue.allowedExtensions:
-                raise ValueError("The file-extension %s cannot be send using Send in Blue" % ext)
+                raise ValueError(f"The file-extension {ext} cannot be send using Send in Blue")
 
     @PeriodicTask(60 * 60)
     @staticmethod
@@ -429,7 +430,7 @@ class EmailTransportSendInBlue(EmailTransport):
         entity["credits"] = credits
         entity["email"] = data["email"]
 
-        thresholds = sorted(conf.email_sendinblue_thresholds, reverse=True)
+        thresholds = sorted(conf.email.sendinblue_thresholds, reverse=True)
         for idx, limit in list(enumerate(thresholds, 1))[::-1]:
             if credits < limit:
                 if entity["latest_warning_for"] == limit:

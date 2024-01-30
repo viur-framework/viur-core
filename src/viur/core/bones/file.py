@@ -7,7 +7,7 @@ metadata.
 
 from hashlib import sha256
 from time import time
-from typing import Any, Dict, List, Set, Union
+import typing as t
 from viur.core import conf, db
 from viur.core.bones.treeleaf import TreeLeafBone
 from viur.core.tasks import CallDeferred
@@ -16,7 +16,7 @@ import logging
 
 
 @CallDeferred
-def ensureDerived(key: db.Key, srcKey, deriveMap: Dict[str, Any], refreshKey: db.Key = None):
+def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refreshKey: db.Key = None):
     r"""
     The function is a deferred function that ensures all pending thumbnails or other derived files
     are built. It takes the following parameters:
@@ -24,7 +24,7 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: Dict[str, Any], refreshKey: db
     :param db.key key: The database key of the file-object that needs to have its derivation map
         updated.
     :param str srcKey: A prefix for a stable key to prevent rebuilding derived files repeatedly.
-    :param Dict[str,Any] deriveMap: A list of DeriveDicts that need to be built or updated.
+    :param dict[str,Any] deriveMap: A list of DeriveDicts that need to be built or updated.
     :param db.Key refreshKey: If set, the function fetches and refreshes the skeleton after
         building new derived files.
 
@@ -48,11 +48,11 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: Dict[str, Any], refreshKey: db
     skel["derived"]["files"] = skel["derived"].get("files") or {}
     resDict = {}  # Will contain new or updated resultDicts that will be merged into our file
     for calleeKey, params in deriveMap.items():
-        fullSrcKey = "%s_%s" % (srcKey, calleeKey)
+        fullSrcKey = f"{srcKey}_{calleeKey}"
         paramsHash = sha256(str(params).encode("UTF-8")).hexdigest()  # Hash over given params (dict?)
         if skel["derived"]["deriveStatus"].get(fullSrcKey) != paramsHash:
             if calleeKey not in deriveFuncMap:
-                logging.warning("File-Deriver %s not found - skipping!" % calleeKey)
+                logging.warning(f"File-Deriver {calleeKey} not found - skipping!")
                 continue
             callee = deriveFuncMap[calleeKey]
             callRes = callee(skel, skel["derived"]["files"], params)
@@ -139,9 +139,9 @@ class FileBone(TreeLeafBone):
     def __init__(
         self,
         *,
-        derive: Union[None, Dict[str, Any]] = None,
-        maxFileSize: Union[None, int] = None,
-        validMimeTypes: Union[None, List[str]] = None,
+        derive: None | dict[str, t.Any] = None,
+        maxFileSize: None | int = None,
+        validMimeTypes: None | list[str] = None,
         **kwargs
     ):
         r"""
@@ -221,7 +221,7 @@ class FileBone(TreeLeafBone):
             if isinstance(values, dict):
                 values = [values]
             for val in values:  # Ensure derives getting build for each file referenced in this relation
-                ensureDerived(val["dest"]["key"], "%s_%s" % (skel.kindName, boneName), self.derive)
+                ensureDerived(val["dest"]["key"], f"{skel.kindName}_{boneName}", self.derive)
 
         values = skel[boneName]
         if self.derive and values:
@@ -231,7 +231,7 @@ class FileBone(TreeLeafBone):
             else:
                 handleDerives(values)
 
-    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         r"""
         Retrieves the referenced blobs in the FileBone.
 
