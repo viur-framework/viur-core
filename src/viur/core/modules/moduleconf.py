@@ -67,8 +67,8 @@ class ModuleConf(List):
 
 @StartupTask
 def read_all_modules():
-    skel = conf.main_app._moduleconf.addSkel()
-    db_module_names = [m["name"] for m in db.Query(skel.kindName).run(999)]
+    kind_name = conf.main_app._moduleconf.viewSkel().kindName
+    db_module_names = [m["name"] for m in db.Query(kind_name).run(999)]
     visited_modules = set()
 
     def collect_modules(parent, depth: int = 0, prefix: str = "") -> None:
@@ -91,7 +91,8 @@ def read_all_modules():
             visited_modules.add(module)
             module_path = f"{prefix}{module_name}"
             if module_name not in db_module_names:
-                skel["key"] = db.Key(skel.kindName, module_path)
+                skel = conf.main_app._moduleconf.addSkel()
+                skel["key"] = db.Key(kind_name, module_path)
                 skel["name"] = module_path
                 skel.toDB()
 
