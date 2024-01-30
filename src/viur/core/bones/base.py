@@ -15,6 +15,7 @@ from enum import Enum
 import typing as t
 from viur.core import db, utils
 from viur.core.config import conf
+from viur.core.skeleton import RefSkel
 
 __system_initialized = False
 """
