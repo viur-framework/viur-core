@@ -408,6 +408,7 @@ class FileLeafSkel(TreeSkel):
         descr="Download-Key",
         readOnly=True
     )
+
     name = StringBone(
         descr="Filename",
         caseSensitive=False,
@@ -499,6 +500,8 @@ class FileNodeSkel(TreeSkel):
 
 
 class File(Tree):
+    PENDING_POSTFIX = " (pending)"
+
     leafSkelCls = FileLeafSkel
     nodeSkelCls = FileNodeSkel
 
@@ -584,60 +587,41 @@ class File(Tree):
             if skel.fromDB(d.key):
                 skel.delete()
 
-    def initializeUpload(self,
-                         fileName: str,
-                         mimeType: str,
-                         node: str | None,
-                         size: int | None = None) -> tuple[str, str]:
-        """
-        Internal helper that registers a new upload. Will create the pending fileSkel entry (needed to remove any
-        started uploads from GCS if that file isn't used) and creates a resumable (and signed) uploadURL for that.
-        :param fileName: Name of the file that will be uploaded
-        :param mimeType: Mimetype of said file
-        :param node: If set (to a string-key representation of a file-node) the upload will be written to this directory
-        :param size: The *exact* filesize we're accepting in Bytes. Used to enforce a filesize limit by getUploadURL
-        :return: Str-Key of the new file-leaf entry, the signed upload-url
-        """
-        global bucket
-        fileName = sanitize_filename(fileName)
-
-        targetKey = utils.string.random()
-        blob = bucket.blob(f"{targetKey}/source/{fileName}")
-        uploadUrl = blob.create_resumable_upload_session(content_type=mimeType, size=size, timeout=60)
-        # Create a corresponding file-lock object early, otherwise we would have to ensure that the file-lock object
-        # the user creates matches the file he had uploaded
-        fileSkel = self.addSkel("leaf")
-        fileSkel["name"] = "pending"
-        fileSkel["size"] = 0
-        fileSkel["mimetype"] = "application/octetstream"
-        fileSkel["dlkey"] = targetKey
-        fileSkel["parentdir"] = None
-        fileSkel["pendingparententry"] = db.keyHelper(node, self.addSkel("node").kindName) if node else None
-        fileSkel["pending"] = True
-        fileSkel["weak"] = True
-        fileSkel["width"] = 0
-        fileSkel["height"] = 0
-        fileSkel.toDB()
-        # Mark that entry dirty as we might never receive an add
-        self.mark_for_deletion(targetKey)
-        return db.encodeKey(fileSkel["key"]), uploadUrl
-
     @exposed
     @skey
-    def getUploadURL(self, fileName: str, mimeType: str, size: int = None, *args, **kwargs):
-        node = kwargs.get("node")
-        authData = kwargs.get("authData")
-        authSig = kwargs.get("authSig")
+    def getUploadURL(
+        self,
+        fileName: str,
+        mimeType: str,
+        size: t.Optional[int] = None,
+        node: t.Optional[str | db.Key] = None,
+        authData: t.Optional[str] = None,
+        authSig: t.Optional[str] = None
+    ):
+        # Validate the filename from the client seems legit
+        # This applies the rules defined by sanitize_filename(),
+        # to allow for "secure" filenames only.
+        filename = fileName.strip()
 
-        # Validate the contentType from the client seems legit
-        mimeType = mimeType.strip().lower()
         if not (
-            mimeType
-            and mimeType.count("/") == 1
-            and all(ch in string.ascii_letters + string.digits + "/-.+" for ch in mimeType)
+            filename
+            and len(filename) <= 100
+            and all(ch not in filename for ch in "\0'\"<>\n;$&?#:;/\\")
+            and filename[0] != "."
+            and filename[-1] != "."
         ):
-            raise errors.UnprocessableEntity(f"Invalid mime-type {mimeType} provided")
+            raise errors.UnprocessableEntity(f"Invalid filename provided")
 
+        # Validate the mimetype from the client seems legit
+        mimetype = mimeType.strip().lower()
+        if not (
+            mimetype
+            and mimetype.count("/") == 1
+            and all(ch in string.ascii_letters + string.digits + "/-.+" for ch in mimetype)
+        ):
+            raise errors.UnprocessableEntity(f"Invalid mime-type {mimetype!r} provided")
+
+        # Validate authentication data
         if authData and authSig:
             # First, validate the signature, otherwise we don't need to proceed further
             if not hmac_verify(authData, authSig):
@@ -650,11 +634,13 @@ class File(Tree):
 
             if authData["validMimeTypes"]:
                 for validMimeType in authData["validMimeTypes"]:
-                    if validMimeType == mimeType or (
-                        validMimeType.endswith("*") and mimeType.startswith(validMimeType[:-1])):
+                    if (
+                        validMimeType == mimetype
+                        or (validMimeType.endswith("*") and mimetype.startswith(validMimeType[:-1]))
+                    ):
                         break
                 else:
-                    raise errors.UnprocessableEntity(f"Invalid mime-type {mimeType} provided")
+                    raise errors.UnprocessableEntity(f"Invalid mime-type {mimetype} provided")
 
             node = authData["node"]
             maxSize = authData["maxSize"]
@@ -676,24 +662,50 @@ class File(Tree):
         else:
             size = None
 
-        targetKey, uploadUrl = self.initializeUpload(fileName, mimeType, node, size)
+        # Create upload-URL and download key
+        global bucket
 
-        resDict = {
-            "uploadUrl": uploadUrl,
-            "uploadKey": targetKey,
-        }
+        dlkey = utils.string.random()  # let's roll a random key
+        blob = bucket.blob(f"{dlkey}/source/{filename}")
+        upload_url = blob.create_resumable_upload_session(content_type=mimeType, size=size, timeout=60)
 
+        # Create a corresponding file-lock object early, otherwise we would have to ensure that the file-lock object
+        # the user creates matches the file he had uploaded
+        file_skel = self.addSkel("leaf")
+
+        file_skel["name"] = filename + self.PENDING_POSTFIX
+        file_skel["size"] = 0
+        file_skel["mimetype"] = "application/octetstream"
+        file_skel["dlkey"] = dlkey
+        file_skel["parentdir"] = None
+        file_skel["pendingparententry"] = db.keyHelper(node, self.addSkel("node").kindName) if node else None
+        file_skel["pending"] = True
+        file_skel["weak"] = True
+        file_skel["width"] = 0
+        file_skel["height"] = 0
+
+        key = db.encodeKey(file_skel.toDB())
+
+        # Mark that entry dirty as we might never receive an add
+        self.mark_for_deletion(dlkey)
+
+        # In this case, we'd have to store the key in the users session so he can call add() later on
         if authData and authSig:
-            # In this case, we'd have to store the key in the users session so he can call add() later on
             session = current.session.get()
-            if not "pendingFileUploadKeys" in session:
+
+            if "pendingFileUploadKeys" not in session:
                 session["pendingFileUploadKeys"] = []
-            session["pendingFileUploadKeys"].append(targetKey)
+
+            session["pendingFileUploadKeys"].append(key)
+
             # Clamp to the latest 50 pending uploads
             session["pendingFileUploadKeys"] = session["pendingFileUploadKeys"][-50:]
             session.markChanged()
 
-        return self.render.view(resDict)
+        return self.render.view({
+            "uploadUrl": upload_url,
+            "uploadKey": key,
+        })
 
     @exposed
     def download(self, blobKey: str, fileName: str = "", download: str = "", sig: str = "", *args, **kwargs):
@@ -773,22 +785,25 @@ class File(Tree):
     @force_post
     @skey(allow_empty=True)
     def add(self, skelType: SkelType, node: db.Key | int | str | None = None, *args, **kwargs):
-        ## We can't add files directly (they need to be uploaded
-        # if skelType != "node":
-        #    raise errors.NotAcceptable()
+        # We can't add files directly (they need to be uploaded
         if skelType == "leaf":  # We need to handle leafs separately here
             targetKey = kwargs.get("key")
             skel = self.addSkel("leaf")
+
             if not skel.fromDB(targetKey):
                 raise errors.NotFound()
+
             if not skel["pending"]:
                 raise errors.PreconditionFailed()
+
             skel["pending"] = False
             skel["parententry"] = skel["pendingparententry"]
+
             if skel["parententry"]:
                 rootNode = self.getRootNode(skel["parententry"])
             else:
                 rootNode = None
+
             if not self.canAdd("leaf", rootNode):
                 # Check for a marker in this session (created if using a signed upload URL)
                 session = current.session.get()
@@ -796,20 +811,26 @@ class File(Tree):
                     raise errors.Forbidden()
                 session["pendingFileUploadKeys"].remove(targetKey)
                 session.markChanged()
+
             blobs = list(bucket.list_blobs(prefix=f"""{skel["dlkey"]}/"""))
             if len(blobs) != 1:
                 logging.error("Invalid number of blobs in folder")
                 logging.error(targetKey)
                 raise errors.PreconditionFailed()
+
             blob = blobs[0]
             skel["mimetype"] = utils.string.escape(blob.content_type)
-            if any([x in blob.name for x in "$<>'\""]):  # Prevent these Characters from being used in a fileName
+
+            if any([ch in blob.name for ch in "$<>'\""]):  # Prevent these Characters from being used in a fileName
                 raise errors.PreconditionFailed()
-            skel["name"] = utils.string.escape(blob.name.replace(f"""{skel["dlkey"]}/source/""", ""))
+
+            skel["name"] = skel["name"].removesuffix(self.PENDING_POSTFIX)
             skel["size"] = blob.size
             skel["parentrepo"] = rootNode["key"] if rootNode else None
             skel["weak"] = rootNode is None
+
             skel.toDB()
+
             # Add updated download-URL as the auto-generated isn't valid yet
             skel["downloadUrl"] = create_download_url(skel["dlkey"], skel["name"])
             return self.render.addSuccess(skel)
@@ -823,13 +844,15 @@ class File(Tree):
 
         if old_skel["name"] == skel["name"]:  # name not changed we can return
             return
+
         # Move Blob to new name
         # https://cloud.google.com/storage/docs/copying-renaming-moving-objects
         old_path = f"{skel['dlkey']}/source/{html.unescape(old_skel['name'])}"
         new_path = f"{skel['dlkey']}/source/{html.unescape(skel['name'])}"
-        old_blob = bucket.get_blob(old_path)
-        if not old_blob:
+
+        if not (old_blob := bucket.get_blob(old_path)):
             raise errors.Gone()
+
         bucket.copy_blob(old_blob, bucket, new_path, if_generation_match=0)
         bucket.delete_blob(old_path)
 
