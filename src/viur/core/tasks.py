@@ -341,7 +341,7 @@ class TaskHandler(Module):
         ):
             logging.critical("Detected an attempted XSRF attack. This request did not originate from Task Queue.")
             raise errors.Forbidden()
-        if require_cron and "X-Appengine-Cron" not in req.request.headers:
+        if require_cron and "X-Appengine-Cron" not in req.headers:
             logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Cron" was not set.')
             raise errors.Forbidden()
         if require_taskname and "X-AppEngine-TaskName" not in req.headers:
