@@ -423,32 +423,38 @@ class File(Tree):
     @staticmethod
     def create_download_url(
         dlkey: str,
-        fileName: str,
+        filename: str,
         derived: bool = False,
-        expires: t.Optional[datetime.timedelta] = datetime.timedelta(hours=1),
-        downloadFileName: t.Optional[str] = None
+        expires: t.Optional[datetime.timedelta | int] = datetime.timedelta(hours=1),
+        download_filename: t.Optional[str] = None
     ) -> str:
         """
             Utility function that creates a signed download-url for the given folder/filename combination
 
             :param folder: The GCS-Folder (= the download-key) for that file
-            :param fileName: The name of that file. Either the original filename as uploaded or the name of a dervived file
+            :param filename: The name of the file. Either the original filename or the name of a derived file.
             :param derived: True, if it points to a derived file, False if it points to the original uploaded file
             :param expires:
                 None if the file is supposed to be public (which causes it to be cached on the google ede caches),
                 otherwise a datetime.timedelta of how long that link should be valid
-            :param downloadFileName: If set, we'll force to browser to download this blob with the given filename
-            :return: THe signed download-url relative to the current domain (eg /download/...)
+            :param download_filename: If set, browser is enforced to download this blob with the given alternate
+                filename
+            :return: The signed download-url relative to the current domain (eg /download/...)
         """
+        if isinstance(expires, int):
+            expires = datetime.timedelta(minutes=expires)
+
         # Undo escaping on ()= performed on fileNames
-        fileName = fileName.replace("&#040;", "(").replace("&#041;", ")").replace("&#061;", "=")
-        filePath = f"""{dlkey}/{"derived" if derived else "source"}/{fileName}"""
-        downloadFileName = File.sanitize_filename(downloadFileName) if downloadFileName else ""
-        expires = ((datetime.datetime.now() + expires).strftime("%Y%m%d%H%M") if expires else 0)
-        sigStr = f"{filePath}\0{expires}\0{downloadFileName}"
-        sigStr = base64.urlsafe_b64encode(sigStr.encode("UTF-8"))
-        resstr = File.hmac_sign(sigStr)
-        return f"""{File.DOWNLOAD_URL_PREFIX}{sigStr.decode("ASCII")}?sig={resstr}"""
+        filename = filename.replace("&#040;", "(").replace("&#041;", ")").replace("&#061;", "=")
+        filepath = f"""{dlkey}/{"derived" if derived else "source"}/{filename}"""
+        download_filename = File.sanitize_filename(download_filename) if download_filename else ""
+
+        expires = (datetime.datetime.now() + expires).strftime("%Y%m%d%H%M") if expires else 0
+
+        data = base64.urlsafe_b64encode(f"{filepath}\0{expires}\0{download_filename}".encode("UTF-8"))
+        sig = File.hmac_sign(data)
+
+        return f"""{File.DOWNLOAD_URL_PREFIX}{data.decode("ASCII")}?sig={sig}"""
 
     @staticmethod
     def parse_download_url(url) -> t.Optional[FilePath]:
@@ -498,19 +504,19 @@ class File(Tree):
     def create_src_set(
         self,
         file: t.Union["SkeletonInstance", dict, str],
-        expires: t.Optional[datetime.timedelta] = datetime.timedelta(hours=1),
+        expires: t.Optional[datetime.timedelta | int] = datetime.timedelta(hours=1),
         width: t.Optional[int] = None,
         height: t.Optional[int] = None
     ) -> str:
         """
             Generates a string suitable for use as the srcset tag in html. This functionality provides the browser
-            with a list of images in different sizes and allows it to choose the smallest file that will fill it's viewport
-            without upscaling.
+            with a list of images in different sizes and allows it to choose the smallest file that will fill it's
+            viewport without upscaling.
 
             :param file: The file skeleton (or if multiple=True a single value from it) to generate the srcset.
             :param expires:
-                None if the file is supposed to be public (which causes it to be cached on the google edecaches), otherwise
-                it's lifetime in seconds
+                None if the file is supposed to be public (which causes it to be cached on the google edecaches),
+                otherwise it's lifetime in seconds
             :param width:
                 A list of widths that should be included in the srcset.
                 If a given width is not available, it will be skipped.
@@ -531,9 +537,6 @@ class File(Tree):
         if "dlkey" not in file and "dest" in file:
             file = file["dest"]
 
-        if expires:
-            expires = datetime.timedelta(minutes=expires)
-
         from viur.core.skeleton import SkeletonInstance  # avoid circular imports
 
         if not (
@@ -549,17 +552,17 @@ class File(Tree):
             return ""
 
         src_set = []
-        for fileName, derivate in file["derived"]["files"].items():
+        for filename, derivate in file["derived"]["files"].items():
             customData = derivate.get("customData", {})
 
             if width and customData.get("width") in width:
                 src_set.append(
-                    f"""{File.create_download_url(file["dlkey"], fileName, True, expires)} {customData["width"]}w"""
+                    f"""{File.create_download_url(file["dlkey"], filename, True, expires)} {customData["width"]}w"""
                 )
 
             if height and customData.get("height") in height:
                 src_set.append(
-                    f"""{File.create_download_url(file["dlkey"], fileName, True, expires)} {customData["height"]}h"""
+                    f"""{File.create_download_url(file["dlkey"], filename, True, expires)} {customData["height"]}h"""
                 )
 
         return ", ".join(src_set)

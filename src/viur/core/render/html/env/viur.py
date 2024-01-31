@@ -713,17 +713,17 @@ def downloadUrlFor(
     if derived:
         return file.create_download_url(
             fileObj["dlkey"],
-            fileName=derived,
+            filename=derived,
             derived=True,
             expires=expires,
-            downloadFileName=downloadFileName,
+            download_filename=downloadFileName,
         )
 
     return file.create_download_url(
         fileObj["dlkey"],
-        fileName=fileObj["name"],
+        filename=fileObj["name"],
         expires=expires,
-        downloadFileName=downloadFileName
+        download_filename=downloadFileName
     )
 
 
