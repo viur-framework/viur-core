@@ -506,8 +506,7 @@ class RelationalBone(BaseBone):
         for newLock in newRelationalLocks - oldRelationalLocks:
             # Lock new Entry
             if referencedObj := db.Get(newLock):
-                if not referencedObj.get("viur_incomming_relational_locks"):
-                    referencedObj["viur_incomming_relational_locks"] = []
+                referencedOb.setdefault("viur_incomming_relational_locks", [])
 
                 if skel["key"] not in referencedObj["viur_incomming_relational_locks"]:
                     referencedObj["viur_incomming_relational_locks"].append(skel["key"])
