@@ -11,6 +11,7 @@ import PIL
 import requests
 import string
 import typing as t
+from collections import namedtuple
 from urllib.parse import quote as urlquote
 from urllib.request import urlopen
 from google.cloud import storage
@@ -29,130 +30,8 @@ _credentials, __project_id = google.auth.default()
 client = storage.Client(__project_id, _credentials)
 bucket = client.lookup_bucket(f"""{__project_id}.appspot.com""")
 
-
-# Helper functions currently resist here
-
-def sanitize_filename(filename: str) -> str:
-    """
-        Sanitize the filename so it can be safely downloaded or be embedded into html
-    """
-    filename = filename[:100]  # Limit to 100 Chars max
-    filename = "".join(ch for ch in filename if ch not in "\0'\"<>\n;$&?#:;/\\")  # Remove invalid Chars
-    filename = filename.strip(".")  # Ensure the filename does not start or end with a dot
-    filename = urlquote(filename)  # Finally quote any non-ASCII characters
-    return filename
-
-
-def hmac_sign(data: t.Any) -> str:
-    assert conf.file_hmac_key is not None, "No hmac-key set!"
-    if not isinstance(data, bytes):
-        data = str(data).encode("UTF-8")
-    return hmac.new(conf.file_hmac_key, msg=data, digestmod=hashlib.sha3_384).hexdigest()
-
-
-def hmac_verify(data: t.Any, signature: str) -> bool:
-    return hmac.compare_digest(hmac_sign(data.encode("ASCII")), signature)
-
-
-def create_download_url(
-    dlkey: str,
-    fileName: str,
-    derived: bool = False,
-    expires: t.Optional[datetime.timedelta] = datetime.timedelta(hours=1),
-    downloadFileName: t.Optional[str] = None
-) -> str:
-    """
-        Utility function that creates a signed download-url for the given folder/filename combination
-
-        :param folder: The GCS-Folder (= the download-key) for that file
-        :param fileName: The name of that file. Either the original filename as uploaded or the name of a dervived file
-        :param derived: True, if it points to a derived file, False if it points to the original uploaded file
-        :param expires:
-            None if the file is supposed to be public (which causes it to be cached on the google ede caches),
-            otherwise a datetime.timedelta of how long that link should be valid
-        :param downloadFileName: If set, we'll force to browser to download this blob with the given filename
-        :return: THe signed download-url relative to the current domain (eg /download/...)
-    """
-    # Undo escaping on ()= performed on fileNames
-    fileName = fileName.replace("&#040;", "(").replace("&#041;", ")").replace("&#061;", "=")
-    if derived:
-        filePath = f"{dlkey}/derived/{fileName}"
-    else:
-        filePath = f"{dlkey}/source/{fileName}"
-    if downloadFileName:
-        downloadFileName = sanitize_filename(downloadFileName)
-    else:
-        downloadFileName = ""
-    expires = ((datetime.datetime.now() + expires).strftime("%Y%m%d%H%M") if expires else 0)
-    sigStr = f"{filePath}\0{expires}\0{downloadFileName}"
-    sigStr = base64.urlsafe_b64encode(sigStr.encode("UTF-8"))
-    resstr = hmac_sign(sigStr)
-    return f"""/file/download/{sigStr.decode("ASCII")}?sig={resstr}"""
-
-
-def create_src_set(
-    self,
-    fileObj: dict,
-    expires: t.Optional[datetime.timedelta] = datetime.timedelta(hours=1),
-    width: t.Optional[int] = None,
-    height: t.Optional[int] = None
-) -> str:
-    """
-        Generates a string suitable for use as the srcset tag in html. This functionality provides the browser
-        with a list of images in different sizes and allows it to choose the smallest file that will fill it's viewport
-        without upscaling.
-
-        :param fileObj: The file-bone (or if multiple=True a single value from it) to generate the srcset.
-        :param expires:
-            None if the file is supposed to be public (which causes it to be cached on the google edecaches), otherwise
-            it's lifetime in seconds
-        :param width:
-            A list of widths that should be included in the srcset.
-            If a given width is not available, it will be skipped.
-        :param height: A list of heights that should be included in the srcset. If a given height is not available,
-            it will be skipped.
-        :return: The srctag generated or an empty string if a invalid file object was supplied
-    """
-    if not width and not height:
-        logging.error("Neither width or height supplied")
-        return ""
-
-    if "dlkey" not in fileObj and "dest" in fileObj:
-        fileObj = fileObj["dest"]
-
-    if expires:
-        expires = datetime.timedelta(minutes=expires)
-
-    from viur.core.skeleton import SkeletonInstance  # avoid circular imports
-
-    if not (
-        isinstance(fileObj, (SkeletonInstance, dict))
-        and "dlkey" in fileObj
-        and "derived" in fileObj
-    ):
-        logging.error("Invalid fileObj supplied")
-        return ""
-
-    if not isinstance(fileObj["derived"], dict):
-        logging.error("No derives available")
-        return ""
-
-    resList = []
-    for fileName, derivate in fileObj["derived"]["files"].items():
-        customData = derivate.get("customData", {})
-
-        if width and customData.get("width") in width:
-            resList.append(
-                f"""{create_download_url(fileObj["dlkey"], fileName, True, expires)} {customData["width"]}w"""
-            )
-
-        if height and customData.get("height") in height:
-            resList.append(
-                f"""{create_download_url(fileObj["dlkey"], fileName, True, expires)} {customData["height"]}h"""
-            )
-
-    return ", ".join(resList)
-
+# FilePath is a descriptor for ViUR file components
+FilePath = namedtuple("FilePath", ("dlkey", "is_derived", "filename"))
 
 def importBlobFromViur2(dlKey, fileName):
     if not conf.viur2import_blobsource:
@@ -196,7 +75,7 @@ def importBlobFromViur2(dlKey, fileName):
     marker["success"] = True
     marker["old_src_key"] = dlKey
     marker["old_src_name"] = fileName
-    marker["dlurl"] = create_download_url(dlKey, fileName, False, None)
+    marker["dlurl"] = File.create_download_url(dlKey, fileName, False, None)
     db.Put(marker)
     return marker["dlurl"]
 
@@ -286,7 +165,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
 
     def getsignedurl():
         if conf.instance.is_dev_server:
-            signedUrl = create_download_url(fileSkel["dlkey"], fileSkel["name"])
+            signedUrl = File.create_download_url(fileSkel["dlkey"], fileSkel["name"])
         else:
             path = f"""{fileSkel["dlkey"]}/source/{file_name}"""
             if not (blob := bucket.get_blob(path)):
@@ -306,7 +185,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
     def make_request():
         headers = {"Content-Type": "application/json"}
         data_str = base64.b64encode(json.dumps(dataDict).encode("UTF-8"))
-        sig = hmac_sign(data_str)
+        sig = File.hmac_sign(data_str)
         datadump = json.dumps({"dataStr": data_str.decode('ASCII'), "sign": sig})
         resp = requests.post(conf.file_thumbnailer_url, data=datadump, headers=headers, allow_redirects=False)
         if resp.status_code != 200:  # Error Handling
@@ -353,7 +232,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
 
     uploadUrls = {}
     for data in derivedData["values"]:
-        fileName = sanitize_filename(data["name"])
+        fileName = File.sanitize_filename(data["name"])
         blob = bucket.blob(f"""{fileSkel["dlkey"]}/derived/{fileName}""")
         uploadUrls[fileSkel["dlkey"] + fileName] = blob.create_resumable_upload_session(timeout=60,
                                                                                         content_type=data["mimeType"])
@@ -385,10 +264,11 @@ class DownloadUrlBone(BaseBone):
 
     def unserialize(self, skel, name):
         if "dlkey" in skel.dbEntity and "name" in skel.dbEntity:
-            skel.accessedValues[name] = create_download_url(
+            skel.accessedValues[name] = File.create_download_url(
                 skel["dlkey"], skel["name"], expires=conf.render_json_download_url_expiration
             )
             return True
+
         return False
 
 
@@ -499,6 +379,8 @@ class FileNodeSkel(TreeSkel):
 
 
 class File(Tree):
+    DOWNLOAD_URL_PREFIX = "/file/download/"
+
     leafSkelCls = FileLeafSkel
     nodeSkelCls = FileNodeSkel
 
@@ -513,6 +395,174 @@ class File(Tree):
         "editor": ("add", "edit"),
         "admin": "*",
     }
+
+    # Helper functions currently resist here
+
+    @staticmethod
+    def sanitize_filename(filename: str) -> str:
+        """
+            Sanitize the filename so it can be safely downloaded or be embedded into html
+        """
+        filename = filename[:100]  # Limit to 100 Chars max
+        filename = "".join(ch for ch in filename if ch not in "\0'\"<>\n;$&?#:;/\\")  # Remove invalid Chars
+        filename = filename.strip(".")  # Ensure the filename does not start or end with a dot
+        filename = urlquote(filename)  # Finally quote any non-ASCII characters
+        return filename
+
+    @staticmethod
+    def hmac_sign(data: t.Any) -> str:
+        assert conf.file_hmac_key is not None, "No hmac-key set!"
+        if not isinstance(data, bytes):
+            data = str(data).encode("UTF-8")
+        return hmac.new(conf.file_hmac_key, msg=data, digestmod=hashlib.sha3_384).hexdigest()
+
+    @staticmethod
+    def hmac_verify(data: t.Any, signature: str) -> bool:
+        return hmac.compare_digest(File.hmac_sign(data.encode("ASCII")), signature)
+
+    @staticmethod
+    def create_download_url(
+        dlkey: str,
+        fileName: str,
+        derived: bool = False,
+        expires: t.Optional[datetime.timedelta] = datetime.timedelta(hours=1),
+        downloadFileName: t.Optional[str] = None
+    ) -> str:
+        """
+            Utility function that creates a signed download-url for the given folder/filename combination
+
+            :param folder: The GCS-Folder (= the download-key) for that file
+            :param fileName: The name of that file. Either the original filename as uploaded or the name of a dervived file
+            :param derived: True, if it points to a derived file, False if it points to the original uploaded file
+            :param expires:
+                None if the file is supposed to be public (which causes it to be cached on the google ede caches),
+                otherwise a datetime.timedelta of how long that link should be valid
+            :param downloadFileName: If set, we'll force to browser to download this blob with the given filename
+            :return: THe signed download-url relative to the current domain (eg /download/...)
+        """
+        # Undo escaping on ()= performed on fileNames
+        fileName = fileName.replace("&#040;", "(").replace("&#041;", ")").replace("&#061;", "=")
+        filePath = f"""{dlkey}/{"derived" if derived else "source"}/{fileName}"""
+        downloadFileName = File.sanitize_filename(downloadFileName) if downloadFileName else ""
+        expires = ((datetime.datetime.now() + expires).strftime("%Y%m%d%H%M") if expires else 0)
+        sigStr = f"{filePath}\0{expires}\0{downloadFileName}"
+        sigStr = base64.urlsafe_b64encode(sigStr.encode("UTF-8"))
+        resstr = File.hmac_sign(sigStr)
+        return f"""{File.DOWNLOAD_URL_PREFIX}{sigStr.decode("ASCII")}?sig={resstr}"""
+
+    @staticmethod
+    def parse_download_url(url) -> t.Optional[FilePath]:
+        """
+        Parses a file download URL in the format `/file/download/xxxx?sig=yyyy` into its FilePath.
+
+        If the URL cannot be parsed, the function returns None.
+
+        :param url: The file download URL to be parsed.
+        :return: A FilePath on success, None otherwise.
+        """
+        if not url.startswith(File.DOWNLOAD_URL_PREFIX) or "?" not in url:
+            return None
+
+        data, sig = url.removeprefix(File.DOWNLOAD_URL_PREFIX).split("?", 1)  # Strip "/file/download/" and split on "?"
+        sig = sig.removeprefix("sig=")
+
+        if not File.hmac_verify(data, sig):
+            # Invalid signature
+            return None
+
+        # Split the blobKey into the individual fields it should contain
+        data = base64.urlsafe_b64decode(data).decode("UTF-8")
+
+        match data.count("\0"):
+            case 3:
+                dlpath, valid_until, _ = data.split("\0")
+            case 2:
+                # It's the old format, without an downloadFileName
+                dlpath, valid_until = data.split("\0")
+            case _:
+                # Invalid path
+                return None
+
+        if valid_until != "0" and datetime.strptime(valid_until, "%Y%m%d%H%M") < datetime.now():
+            # Signature expired
+            return None
+
+        if dlpath.count("/") != 3:
+            # Invalid path
+            return None
+
+        dlkey, derived, filename = dlpath.split("/", 3)
+        return FilePath(dlkey, derived != "source", filename)
+
+    @staticmethod
+    def create_src_set(
+        self,
+        file: t.Union["SkeletonInstance", dict, str],
+        expires: t.Optional[datetime.timedelta] = datetime.timedelta(hours=1),
+        width: t.Optional[int] = None,
+        height: t.Optional[int] = None
+    ) -> str:
+        """
+            Generates a string suitable for use as the srcset tag in html. This functionality provides the browser
+            with a list of images in different sizes and allows it to choose the smallest file that will fill it's viewport
+            without upscaling.
+
+            :param file: The file skeleton (or if multiple=True a single value from it) to generate the srcset.
+            :param expires:
+                None if the file is supposed to be public (which causes it to be cached on the google edecaches), otherwise
+                it's lifetime in seconds
+            :param width:
+                A list of widths that should be included in the srcset.
+                If a given width is not available, it will be skipped.
+            :param height: A list of heights that should be included in the srcset. If a given height is not available,
+                it will be skipped.
+            :return: The srctag generated or an empty string if a invalid file object was supplied
+        """
+        if not width and not height:
+            logging.error("Neither width or height supplied")
+            return ""
+
+        if isinstance(file, str):
+            file = db.Query("file").filter("dlkey =", file).order(("creationdate", db.SortOrder.Ascending)).getEntry()
+
+        if not file:
+            return ""
+
+        if "dlkey" not in file and "dest" in file:
+            file = file["dest"]
+
+        if expires:
+            expires = datetime.timedelta(minutes=expires)
+
+        from viur.core.skeleton import SkeletonInstance  # avoid circular imports
+
+        if not (
+            isinstance(file, (SkeletonInstance, dict))
+            and "dlkey" in file
+            and "derived" in file
+        ):
+            logging.error("Invalid file supplied")
+            return ""
+
+        if not isinstance(file["derived"], dict):
+            logging.error("No derives available")
+            return ""
+
+        src_set = []
+        for fileName, derivate in file["derived"]["files"].items():
+            customData = derivate.get("customData", {})
+
+            if width and customData.get("width") in width:
+                src_set.append(
+                    f"""{File.create_download_url(file["dlkey"], fileName, True, expires)} {customData["width"]}w"""
+                )
+
+            if height and customData.get("height") in height:
+                src_set.append(
+                    f"""{File.create_download_url(file["dlkey"], fileName, True, expires)} {customData["height"]}h"""
+                )
+
+        return ", ".join(src_set)
 
     def write(self, filename: str, content: t.Any, mimetype: str = "text/plain", width: int = None,
               height: int = None) -> db.Key:
@@ -599,7 +649,7 @@ class File(Tree):
         :return: Str-Key of the new file-leaf entry, the signed upload-url
         """
         global bucket
-        fileName = sanitize_filename(fileName)
+        fileName = self.sanitize_filename(fileName)
 
         targetKey = utils.string.random()
         blob = bucket.blob(f"{targetKey}/source/{fileName}")
@@ -640,7 +690,7 @@ class File(Tree):
 
         if authData and authSig:
             # First, validate the signature, otherwise we don't need to proceed further
-            if not hmac_verify(authData, authSig):
+            if not self.hmac_verify(authData, authSig):
                 raise errors.Unauthorized()
 
             authData = json.loads(base64.b64decode(authData.encode("ASCII")).decode("UTF-8"))
@@ -717,7 +767,7 @@ class File(Tree):
         else:
             # We got an request including a signature (probably a guest or a user without file-view access)
             # First, validate the signature, otherwise we don't need to proceed any further
-            if not hmac_verify(blobKey, sig):
+            if not self.hmac_verify(blobKey, sig):
                 raise errors.Forbidden()
             # Split the blobKey into the individual fields it should contain
             try:
@@ -733,10 +783,10 @@ class File(Tree):
         if downloadFilename:
             contentDisposition = f"attachment; filename={downloadFilename}"
         elif download:
-            fileName = sanitize_filename(blob.name.split("/")[-1])
+            fileName = self.sanitize_filename(blob.name.split("/")[-1])
             contentDisposition = f"attachment; filename={fileName}"
         else:
-            fileName = sanitize_filename(blob.name.split("/")[-1])
+            fileName = self.sanitize_filename(blob.name.split("/")[-1])
             contentDisposition = f"filename={fileName}"
         if isinstance(_credentials, ServiceAccountCredentials):
             expiresAt = datetime.datetime.now() + datetime.timedelta(seconds=60)
@@ -811,7 +861,7 @@ class File(Tree):
             skel["weak"] = rootNode is None
             skel.toDB()
             # Add updated download-URL as the auto-generated isn't valid yet
-            skel["downloadUrl"] = create_download_url(skel["dlkey"], skel["name"])
+            skel["downloadUrl"] = self.create_download_url(skel["dlkey"], skel["name"])
             return self.render.addSuccess(skel)
 
         return super().add(skelType, node, *args, **kwargs)

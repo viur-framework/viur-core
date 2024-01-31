@@ -683,7 +683,7 @@ def downloadUrlFor(
 ) -> str:
     """
     Constructs a signed download-url for the given file-bone. Mostly a wrapper around
-        :meth:`file.create_download_url`.
+        :meth:`file.File.create_download_url`.
 
         :param render: The jinja renderer instance
         :param fileObj: The file-bone (eg. skel["file"])
