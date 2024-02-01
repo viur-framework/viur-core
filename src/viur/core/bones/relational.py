@@ -533,7 +533,7 @@ class RelationalBone(BaseBone):
         :raises Warning: If a referenced entry is missing despite the lock.
         """
         if skel.dbEntity.get(f"{name}_outgoingRelationalLocks"):
-            for refKey in skel.dbEntity[f"_outgoingRelationalLocks" % name]:
+            for refKey in skel.dbEntity[f"{name}_outgoingRelationalLocks"]:
                 referencedEntry = db.Get(refKey)
                 if not referencedEntry:
                     logging.warning(f"Programming error detected: Entry {refKey} is gone despite lock")
