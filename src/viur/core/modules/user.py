@@ -203,8 +203,7 @@ class UserPrimaryAuthentication(UserAuthentication, abc.ABC):
         ...
 
     @abc.abstractmethod
-    def getAuthMethodName(self, *args, **kwargs) -> str:
-        ...
+    def getAuthMethodName(self, *args, **kwargs) -> str: pass
 
 
 class UserPassword(UserPrimaryAuthentication):
