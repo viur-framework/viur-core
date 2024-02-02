@@ -168,8 +168,8 @@ class RelationalBone(BaseBone):
         format: str = "$(dest.name)",
         kind: str = None,
         module: t.Optional[str] = None,
-        parentKeys: t.Optional[list[str]] = None,
-        refKeys: t.Optional[list[str]] = None,
+        parentKeys: t.Optional[t.Iterable[str]] = None,
+        refKeys: t.Optional[t.Iterable[str]] = None,
         updateLevel: RelationalUpdateLevel = RelationalUpdateLevel.Always,
         using: t.Optional['viur.core.skeleton.RelSkel'] = None,
         **kwargs
@@ -183,11 +183,11 @@ class RelationalBone(BaseBone):
                 Name of the module which should be used to select entities of kind "type". If not set,
                 the value of "type" will be used (the kindName must match the moduleName)
             :param refKeys:
-                A list of properties to include from the referenced property. These properties will be
+                An iterable of properties to include from the referenced property. These properties will be
                 available in the template without having to fetch the referenced property. Filtering is also only possible
                 by properties named here!
             :param parentKeys:
-                A list of properties from the current skeleton to include. If mixing filtering by
+                An iterable of properties from the current skeleton to include. If mixing filtering by
                 relational properties and properties of the class itself, these must be named here.
             :param multiple:
                 If True, allow referencing multiple Elements of the given class. (Eg. n:n-relation).
@@ -266,16 +266,20 @@ class RelationalBone(BaseBone):
             raise NotImplementedError("Type and Module of RelationalBone must not be None")
 
         if refKeys:
-            if not "key" in refKeys:
-                refKeys.append("key")
-            self.refKeys = refKeys
+            if "key" not in refKeys:
+                self.refKeys = ("key", ) + tuple(refKeys)
+            else:
+                self.refKeys = tuple(refKeys)
 
         if parentKeys:
-            if not "key" in parentKeys:
-                parentKeys.append("key")
-            self.parentKeys = parentKeys
+            if "key" not in parentKeys:
+                self.parentKeys = ("key", ) + tuple(parentKeys)
+            else:
+                self.parentKeys = tuple(parentKeys)
 
         self.using = using
+
+        # FIXME: Remove in VIUR4!!
         if isinstance(updateLevel, int):
             msg = f"parameter updateLevel={updateLevel} in RelationalBone is deprecated. " \
                   f"Please use the RelationalUpdateLevel enum instead"
