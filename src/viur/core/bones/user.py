@@ -1,3 +1,4 @@
+import typing as t
 from viur.core import current
 from viur.core.bones.relational import RelationalBone
 
@@ -5,19 +6,28 @@ from viur.core.bones.relational import RelationalBone
 class UserBone(RelationalBone):
     """
     A specialized relational bone for handling user references. Extends the functionality of
-    :class:`viur.core.bones.relational.RelationalBone` to include support for creation and update magic.
+    :class:`viur.core.bones.relational.RelationalBone` to include support for creation and update magic,
+    and comes with a predefined descr, format, kind and refKeys setting.
 
-    :param bool creationMagic: If True, the bone will automatically store the creating user when a new entry is added.
-    :param bool updateMagic: If True, the bone will automatically store the last user who updated the entry.
-    :param bool visible: If True, the bone will be visible in the skeleton.
-    :param bool readOnly: If True, the bone will be read-only and its value cannot be changed through user input.
-    :param dict kwargs: Additional keyword arguments passed to the parent class constructor.
-    :raises ValueError: If the bone has multiple set to True and a creation/update magic is set.
+    :param creationMagic: If True, the bone will automatically store the creating user when a new entry is added.
+    :param updateMagic: If True, the bone will automatically store the last user who updated the entry.
+
+    :raises ValueError: If the bone is multiple=True and creation/update magic is set.
     """
-    kind = "user"
-    datafields = ["name"]
 
-    def __init__(self, *, creationMagic=False, updateMagic=False, visible=None, readOnly=False, **kwargs):
+    def __init__(
+        self,
+        *,
+        creationMagic: bool = False,
+        descr: str = ="User",
+        format: str = ="$(dest.lastname), $(dest.firstname) ($(dest.name))",
+        kind: str = "user",
+        readOnly: bool = False,
+        refKeys: t.Iterable[str] = ("key", "name", "firstname", "lastname"),
+        updateMagic: bool = False,
+        visible: t.Optional[bool] = None,
+        **kwargs
+    ):
         if creationMagic or updateMagic:
             readOnly = False
             if visible is None:
@@ -25,7 +35,15 @@ class UserBone(RelationalBone):
         elif visible is None:
             visible = True
 
-        super().__init__(visible=visible, readOnly=readOnly, **kwargs)
+        super().__init__(
+            kind=kind,
+            descr=descr,
+            format=format,
+            refKeys=refKeys,
+            visible=visible,
+            readOnly=readOnly,
+            **kwargs
+        )
 
         self.creationMagic = creationMagic
         self.updateMagic = updateMagic
@@ -51,5 +69,6 @@ class UserBone(RelationalBone):
         if self.updateMagic or (self.creationMagic and isAdd):
             if user := current.user.get():
                 return self.setBoneValue(skel, key, user["key"], False)
+
             skel[key] = None
             return True
