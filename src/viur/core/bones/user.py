@@ -8,11 +8,6 @@ class UserBone(RelationalBone):
     A specialized relational bone for handling user references. Extends the functionality of
     :class:`viur.core.bones.relational.RelationalBone` to include support for creation and update magic,
     and comes with a predefined descr, format, kind and refKeys setting.
-
-    :param creationMagic: If True, the bone will automatically store the creating user when a new entry is added.
-    :param updateMagic: If True, the bone will automatically store the last user who updated the entry.
-
-    :raises ValueError: If the bone is multiple=True and creation/update magic is set.
     """
 
     def __init__(
@@ -28,6 +23,14 @@ class UserBone(RelationalBone):
         visible: t.Optional[bool] = None,
         **kwargs
     ):
+        """
+        Initializes a new UserBone.
+
+        :param creationMagic: If True, the bone will automatically store the creating user when a new entry is added.
+        :param updateMagic: If True, the bone will automatically store the last user who updated the entry.
+
+        :raises ValueError: If the bone is multiple=True and creation/update magic is set.
+        """
         if creationMagic or updateMagic:
             readOnly = False
             if visible is None:
