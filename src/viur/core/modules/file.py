@@ -1,37 +1,37 @@
 import base64
+import datetime
+import google.auth
+import hashlib
+import hmac
 import html
 import io
 import json
-import string
-from base64 import urlsafe_b64decode
-from datetime import datetime, timedelta
-from io import BytesIO
-from quopri import decodestring
-import typing as t
-from urllib.request import urlopen
-
-import email.header
-import google.auth
-from PIL import Image, ImageCms
-from google.auth import compute_engine
-from google.auth.transport import requests
-from google.cloud import iam_credentials_v1, storage
-from google.oauth2.service_account import Credentials as ServiceAccountCredentials
-
 import logging
+import PIL
+import requests
+import string
+import typing as t
+from collections import namedtuple
+from urllib.parse import quote as urlquote
+from urllib.request import urlopen
+from google.cloud import storage
+from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from viur.core import conf, current, db, errors, utils
 from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
 from viur.core.decorators import *
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import SkeletonInstance, skeletonByKind
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
-from viur.core.utils import sanitizeFileName
 
-credentials, project = google.auth.default()
-client = storage.Client(project, credentials)
-bucket = client.lookup_bucket(f"""{conf.instance.project_id}.appspot.com""")
-iamClient = iam_credentials_v1.IAMCredentialsClient()
 
+# Globals for connectivity
+
+_credentials, __project_id = google.auth.default()
+client = storage.Client(__project_id, _credentials)
+bucket = client.lookup_bucket(f"""{__project_id}.appspot.com""")
+
+# FilePath is a descriptor for ViUR file components
+FilePath = namedtuple("FilePath", ("dlkey", "is_derived", "filename"))
 
 def importBlobFromViur2(dlKey, fileName):
     if not conf.viur2import_blobsource:
@@ -75,20 +75,9 @@ def importBlobFromViur2(dlKey, fileName):
     marker["success"] = True
     marker["old_src_key"] = dlKey
     marker["old_src_name"] = fileName
-    marker["dlurl"] = utils.downloadUrlFor(dlKey, fileName, False, None)
+    marker["dlurl"] = File.create_download_url(dlKey, fileName, False, None)
     db.Put(marker)
     return marker["dlurl"]
-
-
-class InjectStoreURLBone(BaseBone):
-
-    def unserialize(self, skel, name):
-        if "dlkey" in skel.dbEntity and "name" in skel.dbEntity:
-            skel.accessedValues[name] = utils.downloadUrlFor(
-                skel["dlkey"], skel["name"], derived=False, expires=conf.render_json_download_url_expiration
-            )
-            return True
-        return False
 
 
 def thumbnailer(fileSkel, existingFiles, params):
@@ -97,25 +86,25 @@ def thumbnailer(fileSkel, existingFiles, params):
     if not blob:
         logging.warning(f"""Blob {fileSkel["dlkey"]}/source/{file_name} is missing from cloud storage!""")
         return
-    fileData = BytesIO()
+    fileData = io.BytesIO()
     blob.download_to_file(fileData)
     resList = []
     for sizeDict in params:
         fileData.seek(0)
-        outData = BytesIO()
+        outData = io.BytesIO()
         try:
-            img = Image.open(fileData)
-        except Image.UnidentifiedImageError:  # We can't load this image; so there's no need to try other resolutions
+            img = PIL.Image.open(fileData)
+        except PIL.Image.UnidentifiedImageError:  # Can't load this image; so there's no need to try other resolutions
             return []
         iccProfile = img.info.get('icc_profile')
         if iccProfile:
             # JPEGs might be encoded with a non-standard color-profile; we need to compensate for this if we convert
             # to WEBp as we'll loose this color-profile information
-            f = BytesIO(iccProfile)
-            src_profile = ImageCms.ImageCmsProfile(f)
-            dst_profile = ImageCms.createProfile('sRGB')
+            f = io.BytesIO(iccProfile)
+            src_profile = PIL.ImageCms.ImageCmsProfile(f)
+            dst_profile = PIL.ImageCms.createProfile('sRGB')
             try:
-                img = ImageCms.profileToProfile(
+                img = PIL.ImageCms.profileToProfile(
                     img,
                     inputProfile=src_profile,
                     outputProfile=dst_profile,
@@ -135,7 +124,7 @@ def thumbnailer(fileSkel, existingFiles, params):
         else:  # No default fallback - ignore
             continue
         mimeType = sizeDict.get("mimeType", "image/webp")
-        img = img.resize((width, height), Image.LANCZOS)
+        img = img.resize((width, height), PIL.Image.LANCZOS)
         img.save(outData, fileExtension)
         outSize = outData.tell()
         outData.seek(0)
@@ -176,15 +165,15 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
 
     def getsignedurl():
         if conf.instance.is_dev_server:
-            signedUrl = utils.downloadUrlFor(fileSkel["dlkey"], fileSkel["name"])
+            signedUrl = File.create_download_url(fileSkel["dlkey"], fileSkel["name"])
         else:
             path = f"""{fileSkel["dlkey"]}/source/{file_name}"""
             if not (blob := bucket.get_blob(path)):
                 logging.warning(f"Blob {path} is missing from cloud storage!")
                 return None
-            authRequest = requests.Request()
-            expiresAt = datetime.now() + timedelta(seconds=60)
-            signing_credentials = compute_engine.IDTokenCredentials(authRequest, "")
+            authRequest = google.auth.transport.requests.Request()
+            expiresAt = datetime.datetime.now() + datetime.timedelta(seconds=60)
+            signing_credentials = google.auth.compute_engine.IDTokenCredentials(authRequest, "")
             contentDisposition = f"""filename={fileSkel["name"]}"""
             signedUrl = blob.generate_signed_url(
                 expiresAt,
@@ -194,12 +183,11 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
         return signedUrl
 
     def make_request():
-        import requests as _requests
         headers = {"Content-Type": "application/json"}
         data_str = base64.b64encode(json.dumps(dataDict).encode("UTF-8"))
-        sig = utils.hmacSign(data_str)
+        sig = File.hmac_sign(data_str)
         datadump = json.dumps({"dataStr": data_str.decode('ASCII'), "sign": sig})
-        resp = _requests.post(conf.file_thumbnailer_url, data=datadump, headers=headers, allow_redirects=False)
+        resp = requests.post(conf.file_thumbnailer_url, data=datadump, headers=headers, allow_redirects=False)
         if resp.status_code != 200:  # Error Handling
             match resp.status_code:
                 case 302:
@@ -244,7 +232,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
 
     uploadUrls = {}
     for data in derivedData["values"]:
-        fileName = sanitizeFileName(data["name"])
+        fileName = File.sanitize_filename(data["name"])
         blob = bucket.blob(f"""{fileSkel["dlkey"]}/derived/{fileName}""")
         uploadUrls[fileSkel["dlkey"] + fileName] = blob.create_resumable_upload_session(timeout=60,
                                                                                         content_type=data["mimeType"])
@@ -269,7 +257,22 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
     return reslist
 
 
-class FileBaseSkel(TreeSkel):
+class DownloadUrlBone(BaseBone):
+    """
+    This bone is used to inject a freshly signed download url into a FileSkel.
+    """
+
+    def unserialize(self, skel, name):
+        if "dlkey" in skel.dbEntity and "name" in skel.dbEntity:
+            skel.accessedValues[name] = File.create_download_url(
+                skel["dlkey"], skel["name"], expires=conf.render_json_download_url_expiration
+            )
+            return True
+
+        return False
+
+
+class FileLeafSkel(TreeSkel):
     """
         Default file leaf skeleton.
     """
@@ -320,7 +323,7 @@ class FileBaseSkel(TreeSkel):
         searchable=True
     )
 
-    downloadUrl = InjectStoreURLBone(
+    downloadUrl = DownloadUrlBone(
         descr="Download-URL",
         readOnly=True,
         visible=False
@@ -361,7 +364,7 @@ class FileNodeSkel(TreeSkel):
     """
         Default file node skeleton.
     """
-    kindName = "file_rootNode"
+    kindName = "file_rootNode"  # FIXME: VIUR4, don't use "_rootNode" kindname
 
     name = StringBone(
         descr="Name",
@@ -370,37 +373,16 @@ class FileNodeSkel(TreeSkel):
     )
 
     rootNode = BooleanBone(
-        descr="Is RootNode"
+        descr="Is RootNode",
+        defaultValue=False,
     )
 
 
-def decodeFileName(name):
-    # http://code.google.com/p/googleappengine/issues/detail?id=2749
-    # Open since Sept. 2010, claimed to be fixed in Version 1.7.2 (September 18, 2012)
-    # and still totally broken
-    try:
-        if name.startswith("=?"):  # RFC 2047
-            return str(email.Header.make_header(email.Header.decode_header(name + "\n")))
-        elif "=" in name and not name.endswith("="):  # Quoted Printable
-            return decodestring(name.encode("ascii")).decode("UTF-8")
-        else:  # Maybe base64 encoded
-            return urlsafe_b64decode(name.encode("ascii")).decode("UTF-8")
-    except:  # Sorry - I cant guess whats happend here
-        if isinstance(name, str) and not isinstance(name, str):
-            try:
-                return name.decode("UTF-8", "ignore")
-            except:
-                pass
-
-        return name
-
-
 class File(Tree):
-    leafSkelCls = FileBaseSkel
-    nodeSkelCls = FileNodeSkel
+    DOWNLOAD_URL_PREFIX = "/file/download/"
 
-    maxuploadsize = None
-    uploadHandler = []
+    leafSkelCls = FileLeafSkel
+    nodeSkelCls = FileNodeSkel
 
     handler = "tree.simple.file"
     adminInfo = {
@@ -414,7 +396,176 @@ class File(Tree):
         "admin": "*",
     }
 
-    blobCacheTime = 60 * 60 * 24  # Requests to file/download will be served with cache-control: public, max-age=blobCacheTime if set
+    # Helper functions currently resist here
+
+    @staticmethod
+    def sanitize_filename(filename: str) -> str:
+        """
+            Sanitize the filename so it can be safely downloaded or be embedded into html
+        """
+        filename = filename[:100]  # Limit to 100 Chars max
+        filename = "".join(ch for ch in filename if ch not in "\0'\"<>\n;$&?#:;/\\")  # Remove invalid Chars
+        filename = filename.strip(".")  # Ensure the filename does not start or end with a dot
+        filename = urlquote(filename)  # Finally quote any non-ASCII characters
+        return filename
+
+    @staticmethod
+    def hmac_sign(data: t.Any) -> str:
+        assert conf.file_hmac_key is not None, "No hmac-key set!"
+        if not isinstance(data, bytes):
+            data = str(data).encode("UTF-8")
+        return hmac.new(conf.file_hmac_key, msg=data, digestmod=hashlib.sha3_384).hexdigest()
+
+    @staticmethod
+    def hmac_verify(data: t.Any, signature: str) -> bool:
+        return hmac.compare_digest(File.hmac_sign(data.encode("ASCII")), signature)
+
+    @staticmethod
+    def create_download_url(
+        dlkey: str,
+        filename: str,
+        derived: bool = False,
+        expires: t.Optional[datetime.timedelta | int] = datetime.timedelta(hours=1),
+        download_filename: t.Optional[str] = None
+    ) -> str:
+        """
+            Utility function that creates a signed download-url for the given folder/filename combination
+
+            :param folder: The GCS-Folder (= the download-key) for that file
+            :param filename: The name of the file. Either the original filename or the name of a derived file.
+            :param derived: True, if it points to a derived file, False if it points to the original uploaded file
+            :param expires:
+                None if the file is supposed to be public (which causes it to be cached on the google ede caches),
+                otherwise a datetime.timedelta of how long that link should be valid
+            :param download_filename: If set, browser is enforced to download this blob with the given alternate
+                filename
+            :return: The signed download-url relative to the current domain (eg /download/...)
+        """
+        if isinstance(expires, int):
+            expires = datetime.timedelta(minutes=expires)
+
+        # Undo escaping on ()= performed on fileNames
+        filename = filename.replace("&#040;", "(").replace("&#041;", ")").replace("&#061;", "=")
+        filepath = f"""{dlkey}/{"derived" if derived else "source"}/{filename}"""
+        download_filename = File.sanitize_filename(download_filename) if download_filename else ""
+
+        expires = (datetime.datetime.now() + expires).strftime("%Y%m%d%H%M") if expires else 0
+
+        data = base64.urlsafe_b64encode(f"{filepath}\0{expires}\0{download_filename}".encode("UTF-8"))
+        sig = File.hmac_sign(data)
+
+        return f"""{File.DOWNLOAD_URL_PREFIX}{data.decode("ASCII")}?sig={sig}"""
+
+    @staticmethod
+    def parse_download_url(url) -> t.Optional[FilePath]:
+        """
+        Parses a file download URL in the format `/file/download/xxxx?sig=yyyy` into its FilePath.
+
+        If the URL cannot be parsed, the function returns None.
+
+        :param url: The file download URL to be parsed.
+        :return: A FilePath on success, None otherwise.
+        """
+        if not url.startswith(File.DOWNLOAD_URL_PREFIX) or "?" not in url:
+            return None
+
+        data, sig = url.removeprefix(File.DOWNLOAD_URL_PREFIX).split("?", 1)  # Strip "/file/download/" and split on "?"
+        sig = sig.removeprefix("sig=")
+
+        if not File.hmac_verify(data, sig):
+            # Invalid signature
+            return None
+
+        # Split the blobKey into the individual fields it should contain
+        data = base64.urlsafe_b64decode(data).decode("UTF-8")
+
+        match data.count("\0"):
+            case 3:
+                dlpath, valid_until, _ = data.split("\0")
+            case 2:
+                # It's the old format, without an downloadFileName
+                dlpath, valid_until = data.split("\0")
+            case _:
+                # Invalid path
+                return None
+
+        if valid_until != "0" and datetime.strptime(valid_until, "%Y%m%d%H%M") < datetime.now():
+            # Signature expired
+            return None
+
+        if dlpath.count("/") != 3:
+            # Invalid path
+            return None
+
+        dlkey, derived, filename = dlpath.split("/", 3)
+        return FilePath(dlkey, derived != "source", filename)
+
+    @staticmethod
+    def create_src_set(
+        self,
+        file: t.Union["SkeletonInstance", dict, str],
+        expires: t.Optional[datetime.timedelta | int] = datetime.timedelta(hours=1),
+        width: t.Optional[int] = None,
+        height: t.Optional[int] = None
+    ) -> str:
+        """
+            Generates a string suitable for use as the srcset tag in html. This functionality provides the browser
+            with a list of images in different sizes and allows it to choose the smallest file that will fill it's
+            viewport without upscaling.
+
+            :param file: The file skeleton (or if multiple=True a single value from it) to generate the srcset.
+            :param expires:
+                None if the file is supposed to be public (which causes it to be cached on the google edecaches),
+                otherwise it's lifetime in seconds
+            :param width:
+                A list of widths that should be included in the srcset.
+                If a given width is not available, it will be skipped.
+            :param height: A list of heights that should be included in the srcset. If a given height is not available,
+                it will be skipped.
+            :return: The srctag generated or an empty string if a invalid file object was supplied
+        """
+        if not width and not height:
+            logging.error("Neither width or height supplied")
+            return ""
+
+        if isinstance(file, str):
+            file = db.Query("file").filter("dlkey =", file).order(("creationdate", db.SortOrder.Ascending)).getEntry()
+
+        if not file:
+            return ""
+
+        if "dlkey" not in file and "dest" in file:
+            file = file["dest"]
+
+        from viur.core.skeleton import SkeletonInstance  # avoid circular imports
+
+        if not (
+            isinstance(file, (SkeletonInstance, dict))
+            and "dlkey" in file
+            and "derived" in file
+        ):
+            logging.error("Invalid file supplied")
+            return ""
+
+        if not isinstance(file["derived"], dict):
+            logging.error("No derives available")
+            return ""
+
+        src_set = []
+        for filename, derivate in file["derived"]["files"].items():
+            customData = derivate.get("customData", {})
+
+            if width and customData.get("width") in width:
+                src_set.append(
+                    f"""{File.create_download_url(file["dlkey"], filename, True, expires)} {customData["width"]}w"""
+                )
+
+            if height and customData.get("height") in height:
+                src_set.append(
+                    f"""{File.create_download_url(file["dlkey"], filename, True, expires)} {customData["height"]}h"""
+                )
+
+        return ", ".join(src_set)
 
     def write(self, filename: str, content: t.Any, mimetype: str = "text/plain", width: int = None,
               height: int = None) -> db.Key:
@@ -432,7 +583,7 @@ class File(Tree):
         dl_key = utils.string.random()
 
         blob = bucket.blob(f"{dl_key}/source/{filename}")
-        blob.upload_from_file(BytesIO(content), content_type=mimetype)
+        blob.upload_from_file(io.BytesIO(content), content_type=mimetype)
 
         skel = self.addSkel("leaf")
         skel["name"] = filename
@@ -455,7 +606,7 @@ class File(Tree):
         :param key: Key of the LeafSkel that contains the "dlkey" and the "name".
         :param path: The path of the file in the Cloud Storage Bucket.
 
-        :return: Returns the file as a BytesIO buffer and the content-type
+        :return: Returns the file as a io.BytesIO buffer and the content-type
         """
         if not key and not path:
             raise ValueError("Please provide a key or a path")
@@ -474,7 +625,7 @@ class File(Tree):
     def deleteRecursive(self, parentKey):
         files = db.Query(self.leafSkelCls().kindName).filter("parentdir =", parentKey).iter()
         for fileEntry in files:
-            utils.markFileForDeletion(fileEntry["dlkey"])
+            self.mark_for_deletion(fileEntry["dlkey"])
             skel = self.leafSkelCls()
 
             if skel.fromDB(str(fileEntry.key())):
@@ -485,36 +636,6 @@ class File(Tree):
             skel = self.nodeSkelCls()
             if skel.fromDB(d.key):
                 skel.delete()
-
-    def signUploadURL(self, mimeTypes: list[str] | None = None, maxSize: int | None = None,
-                      node:  str | None = None):
-        """
-        Internal helper that will create a signed upload-url that can be used to retrieve an uploadURL from
-        getUploadURL for guests / users without having file/add permissions. This URL is valid for an hour and can
-        be used to upload multiple files.
-        :param mimeTypes:
-        A list of valid mimetypes that can be uploaded (wildcards like "image/*" are supported) or
-        None (no restriction on filetypes)
-        :param maxSize: The maximum filesize in bytes or None for no limit
-        :param node: The (string encoded) key of a file-leaf (=directory) where this file will be uploaded into or
-        None (the file will then not show up in the filebrowser).
-
-        .. warning::
-            If node is set it's the callers responsibility to ensure node is a valid key and that the user has
-            the permission to upload into that directory. ViUR does *not* enforce any canAccess restrictions for
-            keys passed to this function!
-
-        :return: authData and authSig for the getUploadURL function below
-        """
-        dataDict = {
-            "validUntil": (datetime.now() + timedelta(hours=1)).strftime("%Y%m%d%H%M"),
-            "validMimeTypes": [x.lower() for x in mimeTypes] if mimeTypes else None,
-            "maxSize": maxSize,
-            "node": node,
-        }
-        dataStr = base64.b64encode(json.dumps(dataDict).encode("UTF-8"))
-        sig = utils.hmacSign(dataStr)
-        return dataStr.decode("ASCII"), sig
 
     def initializeUpload(self,
                          fileName: str,
@@ -531,10 +652,10 @@ class File(Tree):
         :return: Str-Key of the new file-leaf entry, the signed upload-url
         """
         global bucket
-        fileName = sanitizeFileName(fileName)
+        fileName = self.sanitize_filename(fileName)
 
         targetKey = utils.string.random()
-        blob = bucket.blob(f"{targetKey}/source/{filename}")
+        blob = bucket.blob(f"{targetKey}/source/{fileName}")
         uploadUrl = blob.create_resumable_upload_session(content_type=mimeType, size=size, timeout=60)
         # Create a corresponding file-lock object early, otherwise we would have to ensure that the file-lock object
         # the user creates matches the file he had uploaded
@@ -551,7 +672,7 @@ class File(Tree):
         fileSkel["height"] = 0
         fileSkel.toDB()
         # Mark that entry dirty as we might never receive an add
-        utils.markFileForDeletion(targetKey)
+        self.mark_for_deletion(targetKey)
         return db.encodeKey(fileSkel["key"]), uploadUrl
 
     @exposed
@@ -572,12 +693,12 @@ class File(Tree):
 
         if authData and authSig:
             # First, validate the signature, otherwise we don't need to proceed further
-            if not utils.hmacVerify(authData.encode("ASCII"), authSig):
+            if not self.hmac_verify(authData, authSig):
                 raise errors.Unauthorized()
 
             authData = json.loads(base64.b64decode(authData.encode("ASCII")).decode("UTF-8"))
 
-            if datetime.strptime(authData["validUntil"], "%Y%m%d%H%M") < datetime.now():
+            if datetime.datetime.strptime(authData["validUntil"], "%Y%m%d%H%M") < datetime.datetime.now():
                 raise errors.Gone("The upload URL has expired")
 
             if authData["validMimeTypes"]:
@@ -635,7 +756,7 @@ class File(Tree):
         :param fileName: Optional filename to provide in the header.
         :param download: Set header to attachment retrival, set explictly to "1" if download is wanted.
         """
-        global credentials, bucket
+        global _credentials, bucket
         if not sig:
             # Check if the current user has the right to download *any* blob present in this application.
             # blobKey is then the path inside cloudstore - not a base64 encoded tuple
@@ -649,15 +770,15 @@ class File(Tree):
         else:
             # We got an request including a signature (probably a guest or a user without file-view access)
             # First, validate the signature, otherwise we don't need to proceed any further
-            if not utils.hmacVerify(blobKey.encode("ASCII"), sig):
+            if not self.hmac_verify(blobKey, sig):
                 raise errors.Forbidden()
             # Split the blobKey into the individual fields it should contain
             try:
-                dlPath, validUntil, downloadFilename = urlsafe_b64decode(blobKey).decode("UTF-8").split("\0")
+                dlPath, validUntil, downloadFilename = base64.urlsafe_b64decode(blobKey).decode("UTF-8").split("\0")
             except:  # It's the old format, without an downloadFileName
-                dlPath, validUntil = urlsafe_b64decode(blobKey).decode("UTF-8").split("\0")
+                dlPath, validUntil = base64.urlsafe_b64decode(blobKey).decode("UTF-8").split("\0")
                 downloadFilename = ""
-            if validUntil != "0" and datetime.strptime(validUntil, "%Y%m%d%H%M") < datetime.now():
+            if validUntil != "0" and datetime.datetime.strptime(validUntil, "%Y%m%d%H%M") < datetime.datetime.now():
                 raise errors.Gone()
             blob = bucket.get_blob(dlPath)
         if not blob:
@@ -665,13 +786,13 @@ class File(Tree):
         if downloadFilename:
             contentDisposition = f"attachment; filename={downloadFilename}"
         elif download:
-            fileName = sanitizeFileName(blob.name.split("/")[-1])
+            fileName = self.sanitize_filename(blob.name.split("/")[-1])
             contentDisposition = f"attachment; filename={fileName}"
         else:
-            fileName = sanitizeFileName(blob.name.split("/")[-1])
+            fileName = self.sanitize_filename(blob.name.split("/")[-1])
             contentDisposition = f"filename={fileName}"
-        if isinstance(credentials, ServiceAccountCredentials):  # We run locally with an service-account.json
-            expiresAt = datetime.now() + timedelta(seconds=60)
+        if isinstance(_credentials, ServiceAccountCredentials):
+            expiresAt = datetime.datetime.now() + datetime.timedelta(seconds=60)
             signedUrl = blob.generate_signed_url(expiresAt, response_disposition=contentDisposition, version="v4")
             raise errors.Redirect(signedUrl)
         elif conf.instance.is_dev_server:  # No Service-Account to sign with - Serve everything directly
@@ -690,9 +811,9 @@ class File(Tree):
                         response.headers["Content-Disposition"] = contentDisposition
                     return blob.download_as_bytes()
             # Default fallback - create a signed URL and redirect
-            authRequest = requests.Request()
-            expiresAt = datetime.now() + timedelta(seconds=60)
-            signing_credentials = compute_engine.IDTokenCredentials(authRequest, "")
+            authRequest = google.auth.transport.requests.Request()
+            expiresAt = datetime.datetime.now() + datetime.timedelta(seconds=60)
+            signing_credentials = google.auth.compute_engine.IDTokenCredentials(authRequest, "")
             signedUrl = blob.generate_signed_url(
                 expiresAt,
                 credentials=signing_credentials,
@@ -743,7 +864,7 @@ class File(Tree):
             skel["weak"] = rootNode is None
             skel.toDB()
             # Add updated download-URL as the auto-generated isn't valid yet
-            skel["downloadUrl"] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False)
+            skel["downloadUrl"] = self.create_download_url(skel["dlkey"], skel["name"])
             return self.render.addSuccess(skel)
 
         return super().add(skelType, node, *args, **kwargs)
@@ -767,6 +888,28 @@ class File(Tree):
 
     def onItemUploaded(self, skel):
         pass
+
+    def mark_for_deletion(self, dlkey: str) -> None:
+        """
+        Adds a marker to the datastore that the file specified as *dlkey* can be deleted.
+
+        Once the mark has been set, the data store is checked four times (default: every 4 hours)
+        if the file is in use somewhere. If it is still in use, the mark goes away, otherwise
+        the mark and the file are removed from the datastore. These delayed checks are necessary
+        due to database inconsistency.
+
+        :param dlkey: Unique download-key of the file that shall be marked for deletion.
+        """
+        fileObj = db.Query("viur-deleted-files").filter("dlkey", dlkey).getEntry()
+
+        if fileObj:  # Its allready marked
+            return
+
+        fileObj = db.Entity(db.Key("viur-deleted-files"))
+        fileObj["itercount"] = 0
+        fileObj["dlkey"] = str(dlkey)
+
+        db.Put(fileObj)
 
 
 File.json = True
@@ -863,7 +1006,7 @@ def start_delete_pending_files():
     Start deletion of pending FileSkels that are older than 7 days.
     """
     DeleteEntitiesIter.startIterOnQuery(
-        FileBaseSkel().all()
+        FileLeafSkel().all()
         .filter("pending =", True)
-        .filter("creationdate <", utils.utcNow() - timedelta(days=7))
+        .filter("creationdate <", utils.utcNow() - datetime.timedelta(days=7))
     )

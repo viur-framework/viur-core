@@ -13,7 +13,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 import typing as t
-
 from viur.core import db, utils
 from viur.core.config import conf
 
@@ -1200,7 +1199,13 @@ class BaseBone(object):
         compute_fn_parameters = inspect.signature(self.compute.fn).parameters
         compute_fn_args = {}
         if "skel" in compute_fn_parameters:
-            cloned_skel = skel.clone()
+            from viur.core.skeleton import skeletonByKind, RefSkel  # noqa: E402 # import works only here because circular imports
+
+            if issubclass(skel.skeletonCls, RefSkel):  # we have a ref skel we must load the complete skeleton
+                cloned_skel = skeletonByKind(skel.kindName)()
+                cloned_skel.fromDB(skel["key"])
+            else:
+                cloned_skel = skel.clone()
             cloned_skel[bone_name] = None  # remove value form accessedValues to avoid endless recursion
             compute_fn_args["skel"] = cloned_skel
 

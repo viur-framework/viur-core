@@ -128,17 +128,39 @@ class ModuleConf(List):
 
 @StartupTask
 def read_all_modules():
-    db_module_names = [m["name"] for m in db.Query("viur-module-conf").run(999)]
-    module_names = dir(conf.main_app.vi)
+    kind_name = conf.main_app._moduleconf.viewSkel().kindName
+    db_module_names = [m["name"] for m in db.Query(kind_name).run(999)]
+    visited_modules = set()
 
-    for module_name in module_names:
-        module = getattr(conf.main_app.vi, module_name)
-        if isinstance(module, Module):
+    def collect_modules(parent, depth: int = 0, prefix: str = "") -> None:
+        """Recursively collects all routable modules for the vi renderer"""
+        if depth > 10:
+            logging.warning(f"Reached maximum recursion limit of {depth} at {parent=}")
+            return
+
+        for module_name in dir(parent):
+            module = getattr(parent, module_name, None)
+            if not isinstance(module, Module):
+                continue
+            if module in visited_modules:
+                # Some modules reference other modules as parents, this will
+                # lead to infinite recursion. We can avoid reaching the
+                # maximum recursion limit by remembering already seen modules.
+                if conf.debug.trace:
+                    logging.debug(f"Already visited and added {module=}")
+                continue
+            visited_modules.add(module)
+            module_path = f"{prefix}{module_name}"
             if module_name not in db_module_names:
                 skel = conf.main_app._moduleconf.addSkel()
-                skel["key"] = db.Key("viur-module-conf", module_name)
-                skel["name"] = module_name
+                skel["key"] = db.Key(kind_name, module_path)
+                skel["name"] = module_path
                 skel.toDB()
+
+            # Collect children
+            collect_modules(module, depth=depth + 1, prefix=f"{module_path}.")
+
+    collect_modules(conf.main_app.vi)
 
 
 ModuleConf.json = True

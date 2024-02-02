@@ -17,6 +17,7 @@ from viur.core.i18n import translate as translate_class
 from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
 from viur.core.request import TEMPLATE_STYLE_KEY
 from viur.core.skeleton import RelSkel, SkeletonInstance
+from viur.core.modules import file
 from ..default import Render
 
 
@@ -673,14 +674,16 @@ def embedSvg(render: Render, name: str, classes: list[str] | None = None, **kwar
 
 
 @jinjaGlobalFunction
-def downloadUrlFor(render: Render,
-                   fileObj: dict,
-                   expires: None | int = conf.render_html_download_url_expiration,
-                   derived: t.Optional[str] = None,
-                   downloadFileName: t.Optional[str] = None) -> t.Optional[str]:
+def downloadUrlFor(
+    render: Render,
+    fileObj: dict,
+    expires: t.Optional[int] = conf.render_html_download_url_expiration,
+    derived: t.Optional[str] = None,
+    downloadFileName: t.Optional[str] = None
+) -> str:
     """
     Constructs a signed download-url for the given file-bone. Mostly a wrapper around
-        :meth:`viur.core.utils.downloadUrlFor`.
+        :meth:`file.File.create_download_url`.
 
         :param render: The jinja renderer instance
         :param fileObj: The file-bone (eg. skel["file"])
@@ -695,23 +698,43 @@ def downloadUrlFor(render: Render,
     """
     if "dlkey" not in fileObj and "dest" in fileObj:
         fileObj = fileObj["dest"]
+
     if expires:
         expires = timedelta(minutes=expires)
+
     if not isinstance(fileObj, (SkeletonInstance, dict)) or "dlkey" not in fileObj or "name" not in fileObj:
-        return None
+        logging.error("Invalid fileObj supplied")
+        return ""
+
     if derived and ("derived" not in fileObj or not isinstance(fileObj["derived"], dict)):
-        return None
+        logging.error("No derivation for this fileObj")
+        return ""
+
     if derived:
-        return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=derived, derived=True, expires=expires,
-                                    downloadFileName=downloadFileName)
-    else:
-        return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=fileObj["name"], derived=False, expires=expires,
-                                    downloadFileName=downloadFileName)
+        return file.create_download_url(
+            fileObj["dlkey"],
+            filename=derived,
+            derived=True,
+            expires=expires,
+            download_filename=downloadFileName,
+        )
+
+    return file.create_download_url(
+        fileObj["dlkey"],
+        filename=fileObj["name"],
+        expires=expires,
+        download_filename=downloadFileName
+    )
 
 
 @jinjaGlobalFunction
-def srcSetFor(render: Render, fileObj: dict, expires: t.Optional[int],
-              width: t.Optional[int] = None, height: t.Optional[int] = None) -> str:
+def srcSetFor(
+    render: Render,
+    fileObj: dict,
+    expires: t.Optional[int] = conf.render_html_download_url_expiration,
+    width: t.Optional[int] = None,
+    height: t.Optional[int] = None
+) -> str:
     """
     Generates a string suitable for use as the srcset tag in html. This functionality provides the browser with a list
     of images in different sizes and allows it to choose the smallest file that will fill it's viewport without
@@ -730,7 +753,7 @@ def srcSetFor(render: Render, fileObj: dict, expires: t.Optional[int],
 
     :return: The srctag generated or an empty string if a invalid file object was supplied
     """
-    return utils.srcSetFor(fileObj, expires, width, height)
+    return file.create_src_set(fileObj, expires, width, height)
 
 
 @jinjaGlobalFunction
