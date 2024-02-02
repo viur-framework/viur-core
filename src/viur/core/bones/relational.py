@@ -148,16 +148,6 @@ class RelationalBone(BaseBone):
                 B references C also with CascadeDeletion; if C gets deleted, both B and A will be deleted as well.
 
     """
-    refKeys = ["key", "name"]  # todo: turn into a tuple, as it should not be mutable.
-    """
-    A list of properties to include from the referenced property. These properties will be available in the template
-    without having to fetch the referenced property. Filtering is also only possible by properties named here!
-    """
-    parentKeys = ["key", "name"]  # todo: turn into a tuple, as it should not be mutable.
-    """
-    A list of properties from the current skeleton to include. If mixing filtering by relational properties and
-    properties of the class itself, these must be named here.
-    """
     type = "relational"
     kind = None
 
@@ -168,8 +158,8 @@ class RelationalBone(BaseBone):
         format: str = "$(dest.name)",
         kind: str = None,
         module: t.Optional[str] = None,
-        parentKeys: t.Optional[t.Iterable[str]] = None,
-        refKeys: t.Optional[t.Iterable[str]] = None,
+        parentKeys: t.Optional[t.Iterable[str]] = {"name"},
+        refKeys: t.Optional[t.Iterable[str]] = {"name"},
         updateLevel: RelationalUpdateLevel = RelationalUpdateLevel.Always,
         using: t.Optional['viur.core.skeleton.RelSkel'] = None,
         **kwargs
@@ -184,8 +174,8 @@ class RelationalBone(BaseBone):
                 the value of "type" will be used (the kindName must match the moduleName)
             :param refKeys:
                 An iterable of properties to include from the referenced property. These properties will be
-                available in the template without having to fetch the referenced property. Filtering is also only possible
-                by properties named here!
+                available in the template without having to fetch the referenced property. Filtering is also only
+                possible by properties named here!
             :param parentKeys:
                 An iterable of properties from the current skeleton to include. If mixing filtering by
                 relational properties and properties of the class itself, these must be named here.
@@ -265,17 +255,15 @@ class RelationalBone(BaseBone):
         if self.kind is None or self.module is None:
             raise NotImplementedError("Type and Module of RelationalBone must not be None")
 
+        # Referenced keys
+        self.refKeys = {"key"}
         if refKeys:
-            if "key" not in refKeys:
-                self.refKeys = ("key", ) + tuple(refKeys)
-            else:
-                self.refKeys = tuple(refKeys)
+            self.refKeys += set(refKeys)
 
+        # Parent keys
+        self.parentKeys = {"key"}
         if parentKeys:
-            if "key" not in parentKeys:
-                self.parentKeys = ("key", ) + tuple(parentKeys)
-            else:
-                self.parentKeys = tuple(parentKeys)
+            self.parentKeys += set(parentKeys)
 
         self.using = using
 
@@ -604,7 +592,7 @@ class RelationalBone(BaseBone):
                 dbObj["viur_delayed_update_tag"] = time()
                 dbObj["viur_relational_updateLevel"] = self.updateLevel.value
                 dbObj["viur_relational_consistency"] = self.consistency.value
-                dbObj["viur_foreign_keys"] = self.refKeys
+                dbObj["viur_foreign_keys"] = tuple(self.refKeys)
                 dbObj["viurTags"] = srcEntity.get("viurTags")  # Copy tags over so we can still use our searchengine
                 db.Put(dbObj)
                 values.remove(data)
@@ -623,7 +611,7 @@ class RelationalBone(BaseBone):
             dbObj["viur_dest_kind"] = self.kind
             dbObj["viur_relational_updateLevel"] = self.updateLevel.value
             dbObj["viur_relational_consistency"] = self.consistency.value
-            dbObj["viur_foreign_keys"] = self.refKeys
+            dbObj["viur_foreign_keys"] = tuple(self.refKeys)
             db.Put(dbObj)
 
     def postDeletedHandler(self, skel, boneName, key):
