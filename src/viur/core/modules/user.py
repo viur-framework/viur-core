@@ -119,6 +119,23 @@ class UserSkel(skeleton.Skeleton):
         visible=False
     )
 
+    def __new__(cls):
+        """
+        Constructor for the UserSkel-class, with the capability
+        to dynamically add bones required for the configured
+        authentication methods.
+        """
+        for provider in conf.main_app.user.authenticationProviders:
+            assert issubclass(provider, UserPrimaryAuthentication)
+            provider.patch_user_skel(cls)
+
+        for provider in conf.main_app.user.secondFactorProviders:
+            assert issubclass(provider, UserSecondFactorAuthentication)
+            provider.patch_user_skel(cls)
+
+        cls.__boneMap__ = skeleton.MetaBaseSkel.generate_bonemap(cls)
+        return super().__new__(cls)
+
     @classmethod
     def toDB(cls, skel, *args, **kwargs):
         # Roles
@@ -168,8 +185,13 @@ class UserAuthentication(Module, abc.ABC):
         return True
 
     @classmethod
-    def patch_user_skel(cls, skel: skeleton.SkeletonInstance):
-        return skel
+    def patch_user_skel(cls, skel_cls: skeleton.Skeleton):
+        """
+        Allows for an UserAuthentication to patch the UserSkel
+        class with additional bones which are required for
+        the implemented authentication method.
+        """
+        ...
 
 
 class UserPrimaryAuthentication(UserAuthentication, abc.ABC):
@@ -211,21 +233,17 @@ class UserPassword(UserPrimaryAuthentication):
         return "X-VIUR-AUTH-User-Password"
 
     @classmethod
-    def patch_user_skel(cls, skel):
+    def patch_user_skel(cls, skel_cls):
         """
         Modifies the UserSkel to be equipped by a PasswordBone.
         """
-        skel = skel.ensure_is_cloned()
-
-        skel.password = PasswordBone(
+        skel_cls.password = PasswordBone(
             readOnly=True,
             visible=False,
             params={
                 "category": "Authentication",
             }
         )
-
-        return skel
 
     class LoginSkel(skeleton.RelSkel):
         name = EmailBone(
@@ -561,13 +579,11 @@ class GoogleAccount(UserPrimaryAuthentication):
         return "X-VIUR-AUTH-Google-Account"
 
     @classmethod
-    def patch_user_skel(cls, skel):
+    def patch_user_skel(cls, skel_cls):
         """
         Modifies the UserSkel to be equipped by a bones required by Google Auth
         """
-        skel = skel.ensure_is_cloned()
-
-        skel.uid = StringBone(
+        skel_cls.uid = StringBone(
             descr="Google UserID",
             required=False,
             readOnly=True,
@@ -577,7 +593,7 @@ class GoogleAccount(UserPrimaryAuthentication):
             }
         )
 
-        skel.sync = BooleanBone(
+        skel_cls.sync = BooleanBone(
             descr="Sync user data with OAuth-based services",
             defaultValue=True,
             params={
@@ -588,8 +604,6 @@ class GoogleAccount(UserPrimaryAuthentication):
                     "(e.g. Google Login)."
             }
         )
-
-        return skel
 
     @exposed
     @force_ssl
@@ -718,14 +732,12 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         return "X-VIUR-2FACTOR-TimeBasedOTP"
 
     @classmethod
-    def patch_user_skel(cls, skel):
+    def patch_user_skel(cls, skel_cls):
         """
         Modifies the UserSkel to be equipped by a bones required by Timebased OTP
         """
-        skel = skel.ensure_is_cloned()
-
         # One-Time Password Verification
-        skel.otp_serial = StringBone(
+        skel_cls.otp_serial = StringBone(
             descr="OTP serial",
             searchable=True,
             params={
@@ -733,7 +745,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             }
         )
 
-        skel.otp_secret = CredentialBone(
+        skel_cls.otp_secret = CredentialBone(
             descr="OTP secret",
             params={
                 "category": "Second Factor Authentication",
@@ -998,21 +1010,17 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         return "X-VIUR-2FACTOR-AuthenticatorOTP"
 
     @classmethod
-    def patch_user_skel(cls, skel):
+    def patch_user_skel(cls, skel_cls):
         """
         Modifies the UserSkel to be equipped by bones required by Authenticator App
         """
-        skel = skel.ensure_is_cloned()
-
         # Authenticator OTP Apps (like Authy)
-        skel.otp_app_secret = CredentialBone(
+        skel_cls.otp_app_secret = CredentialBone(
             descr="OTP Secret (App-Key)",
             params={
                 "category": "Second Factor Authentication",
             }
         )
-
-        return skel
 
     @classmethod
     def set_otp_app_secret(cls, otp_app_secret=None):
@@ -1218,22 +1226,6 @@ class User(List):
             return {"admin"}
 
         return set()
-
-    def baseSkel(self):
-        """
-        Generates the baseSkel patched by the configured authentication methods.
-        """
-        skel = super().baseSkel()
-
-        for provider in self.authenticationProviders:
-            assert issubclass(provider, UserPrimaryAuthentication)
-            skel = provider.patch_user_skel(skel)
-
-        for provider in self.secondFactorProviders:
-            assert issubclass(provider, UserSecondFactorAuthentication)
-            skel = provider.patch_user_skel(skel)
-
-        return skel
 
     def addSkel(self):
         skel = super().addSkel().clone()
