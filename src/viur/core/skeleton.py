@@ -408,10 +408,11 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
         bone = getattr(skelValues, boneName, None)
         if not isinstance(bone, BaseBone):
             raise ValueError(f"{boneName} is no valid bone on this skeleton ({skelValues})")
-        skelValues[boneName]  # FIXME, ensure this bone is unserialized first
         if value is None:
             skelValues[boneName] = None
             return True
+
+        _ = skelValues[boneName]  # ensure the bone is being unserialized first
         return bone.setBoneValue(skelValues, boneName, value, append, language)
 
     @classmethod
