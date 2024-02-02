@@ -258,12 +258,12 @@ class RelationalBone(BaseBone):
         # Referenced keys
         self.refKeys = {"key"}
         if refKeys:
-            self.refKeys += set(refKeys)
+            self.refKeys |= set(refKeys)
 
         # Parent keys
         self.parentKeys = {"key"}
         if parentKeys:
-            self.parentKeys += set(parentKeys)
+            self.parentKeys |= set(parentKeys)
 
         self.using = using
 

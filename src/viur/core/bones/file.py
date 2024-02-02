@@ -172,9 +172,7 @@ class FileBone(TreeLeafBone):
         """
         super().__init__(**kwargs)
 
-        if "dlkey" not in self.refKeys:
-            self.refKeys.append("dlkey")
-
+        self.refKeys.add("dlkey")
         self.derive = derive
         self.validMimeTypes = validMimeTypes
         self.maxFileSize = maxFileSize
