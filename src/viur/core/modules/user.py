@@ -1346,8 +1346,8 @@ class User(List):
     @exposed
     def login(self, *args, **kwargs):
         return self.render.loginChoices([
-            (primary.METHOD_NAME, primary.METHOD_NAME if second else None)
-            for primary, second in self.validAuthenticationMethods
+            (primary.METHOD_NAME, secondary.METHOD_NAME if secondary else None)
+            for primary, secondary in self.validAuthenticationMethods
         ])
 
     def onLogin(self, skel: skeleton.SkeletonInstance):
@@ -1431,8 +1431,8 @@ class User(List):
         logging.warning("DEPRECATED!!! Use of 'User.getAuthMethods' is deprecated! Use 'User.login'-method instead!")
 
         res = [
-            (primary.METHOD_NAME, primary.METHOD_NAME if second else None)
-            for primary, second in self.validAuthenticationMethods
+            (primary.METHOD_NAME, secondary.METHOD_NAME if secondary else None)
+            for primary, secondary in self.validAuthenticationMethods
         ]
 
         return json.dumps(res)
