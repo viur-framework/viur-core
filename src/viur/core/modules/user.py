@@ -185,7 +185,7 @@ class UserAuthentication(Module, abc.ABC):
         return True
 
     @classmethod
-    def patch_user_skel(cls, skel_cls: skeleton.Skeleton) -> skeleton.Skeleton:
+    def patch_user_skel(cls, skel_cls: skeleton.Skeleton):
         """
         Allows for an UserAuthentication to patch the UserSkel
         class with additional bones which are required for
@@ -759,8 +759,6 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
                 "category": "Second Factor Authentication",
             }
         )
-
-        return skel_cls
 
     def get_config(self, user: db.Entity) -> OtpConfig | None:
         """
