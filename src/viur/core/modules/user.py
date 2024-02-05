@@ -751,7 +751,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             }
         )
 
-        skel.otp_timedrift = NumericBone(
+        skel_cls.otp_timedrift = NumericBone(
             descr="OTP time drift",
             readOnly=True,
             defaultValue=0,
@@ -760,7 +760,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             }
         )
 
-        return skel
+        return skel_cls
 
     def get_config(self, user: db.Entity) -> OtpConfig | None:
         """
