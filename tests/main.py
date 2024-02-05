@@ -32,6 +32,7 @@ def monkey_patch():
         "google.cloud.tasks_v2",
         "google.cloud",
         "google.oauth2",
+        "google.oauth2.service_account",
         "google.protobuf",
         "google",
     )

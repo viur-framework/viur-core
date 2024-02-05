@@ -486,35 +486,39 @@ class RelationalBone(BaseBone):
             else:
                 usingData = None
             res = {"rel": usingData, "dest": refData}
+
         skel.dbEntity[name] = res
+
         # Ensure our indexed flag is up2date
         if indexed and name in skel.dbEntity.exclude_from_indexes:
             skel.dbEntity.exclude_from_indexes.discard(name)
         elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
             skel.dbEntity.exclude_from_indexes.add(name)
+
         # Ensure outgoing Locks are up2date
         if self.consistency != RelationalConsistency.PreventDeletion:
             # We don't need to lock anything, but may delete old locks held
             newRelationalLocks = set()
+
         # We should always run inside a transaction so we can safely get+put
         skel.dbEntity[f"{name}_outgoingRelationalLocks"] = list(newRelationalLocks)
+
         for newLock in newRelationalLocks - oldRelationalLocks:
             # Lock new Entry
-            referencedObj = db.Get(newLock)
-            assert referencedObj, "Programming error detected?"
-            if not referencedObj.get("viur_incomming_relational_locks"):
-                referencedObj["viur_incomming_relational_locks"] = []
-            assert skel["key"] not in referencedObj["viur_incomming_relational_locks"]
-            referencedObj["viur_incomming_relational_locks"].append(skel["key"])
-            db.Put(referencedObj)
+            if referencedObj := db.Get(newLock):
+                referencedObj.setdefault("viur_incomming_relational_locks", [])
+
+                if skel["key"] not in referencedObj["viur_incomming_relational_locks"]:
+                    referencedObj["viur_incomming_relational_locks"].append(skel["key"])
+                    db.Put(referencedObj)
+
         for oldLock in oldRelationalLocks - newRelationalLocks:
             # Remove Lock
-            referencedObj = db.Get(oldLock)
-            assert referencedObj, "Programming error detected?"
-            assert isinstance(referencedObj.get("viur_incomming_relational_locks"), list), "Programming error detected?"
-            assert skel["key"] in referencedObj["viur_incomming_relational_locks"], "Programming error detected?"
-            referencedObj["viur_incomming_relational_locks"].remove(skel["key"])
-            db.Put(referencedObj)
+            if referencedObj := db.Get(oldLock):
+                if skel["key"] in referencedObj["viur_incomming_relational_locks"]:
+                    referencedObj["viur_incomming_relational_locks"].remove(skel["key"])
+                    db.Put(referencedObj)
+
         return True
 
     def delete(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
@@ -529,7 +533,7 @@ class RelationalBone(BaseBone):
         :raises Warning: If a referenced entry is missing despite the lock.
         """
         if skel.dbEntity.get(f"{name}_outgoingRelationalLocks"):
-            for refKey in skel.dbEntity[f"_outgoingRelationalLocks" % name]:
+            for refKey in skel.dbEntity[f"{name}_outgoingRelationalLocks"]:
                 referencedEntry = db.Get(refKey)
                 if not referencedEntry:
                     logging.warning(f"Programming error detected: Entry {refKey} is gone despite lock")
@@ -1292,7 +1296,6 @@ class RelationalBone(BaseBone):
         for idx, lang, value in self.iter_bone_value(skel, name):
             if value is None:
                 continue
-            logging.debug((idx, lang, value, name))
             for key, bone_ in value["dest"].items():
                 result.update(bone_.getReferencedBlobs(value["dest"], key))
             if value["rel"]:

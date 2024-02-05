@@ -1,24 +1,48 @@
+import abc
 import base64
-import grpc
+import json
 import logging
 import os
-import pytz
-import requests
 import sys
 import traceback
+import typing as t
 from datetime import datetime, timedelta
 from functools import wraps
-import typing as t
+from time import sleep
+from typing import TypeVar
+
+import grpc
+import pytz
+import requests
 from google.cloud import tasks_v2
 from google.cloud.tasks_v2.services.cloud_tasks.transports import CloudTasksGrpcTransport
 from google.protobuf import timestamp_pb2
-from time import sleep
-
-import json
 from viur.core import current, db, errors, utils
 from viur.core.config import conf
 from viur.core.decorators import exposed, skey
 from viur.core.module import Module
+
+CUSTOM_OBJ = TypeVar("CUSTOM_OBJ")  # A JSON serializable object
+
+
+class CustomEnvironmentHandler(abc.ABC):
+    @abc.abstractmethod
+    def serialize(self) -> CUSTOM_OBJ:
+        """Serialize custom environment data
+
+        This function must not require any parameters and must
+        return a JSON serializable object with the desired information.
+        """
+        ...
+
+    @abc.abstractmethod
+    def restore(self, obj: CUSTOM_OBJ) -> None:
+        """Restore custom environment data
+
+        This function will receive the object from :meth:`serialize` and should write
+        the information it contains to the environment of the deferred request.
+        """
+        ...
 
 
 # class JsonKeyEncoder(json.JSONEncoder):
@@ -232,11 +256,7 @@ class TaskHandler(Module):
                     logging.info(f"""Executing task, transaction {env["transactionMarker"]} did succeed""")
             if "custom" in env and conf.tasks_custom_environment_handler:
                 # Check if we need to restore additional environmental data
-                assert isinstance(conf.tasks_custom_environment_handler, tuple) \
-                       and len(conf.tasks_custom_environment_handler) == 2 \
-                       and callable(conf.tasks_custom_environment_handler[1]), \
-                    "Your customEnvironmentHandler must be a tuple of two callable if set!"
-                conf.tasks_custom_environment_handler[1](env["custom"])
+                conf.tasks_custom_environment_handler.restore(env["custom"])
         if cmd == "rel":
             caller = conf.main_app
             pathlist = [x for x in funcPath.split("/") if x]
@@ -339,7 +359,7 @@ class TaskHandler(Module):
         ):
             logging.critical("Detected an attempted XSRF attack. This request did not originate from Task Queue.")
             raise errors.Forbidden()
-        if require_cron and "X-Appengine-Cron" not in req.request.headers:
+        if require_cron and "X-Appengine-Cron" not in req.headers:
             logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Cron" was not set.')
             raise errors.Forbidden()
         if require_taskname and "X-AppEngine-TaskName" not in req.headers:
@@ -579,11 +599,7 @@ def CallDeferred(func: t.Callable) -> t.Callable:
 
             if conf.tasks_custom_environment_handler:
                 # Check if this project relies on additional environmental variables and serialize them too
-                assert isinstance(conf.tasks_custom_environment_handler, tuple) \
-                       and len(conf.tasks_custom_environment_handler) == 2 \
-                       and callable(conf.tasks_custom_environment_handler[0]), \
-                    "Your customEnvironmentHandler must be a tuple of two callable if set!"
-                env["custom"] = conf.tasks_custom_environment_handler[0]()
+                env["custom"] = conf.tasks_custom_environment_handler.serialize()
 
             # Create task description
             task = tasks_v2.Task(
