@@ -409,7 +409,12 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
         if not isinstance(bone, BaseBone):
             raise ValueError(f"{boneName} is no valid bone on this skeleton ({skelValues})")
         if value is None:
-            skelValues[boneName] = None
+            if append:
+                raise ValueError("Can not append None")
+            if language:
+                skelValues[boneName][language] = None
+            else:
+                skelValues[boneName] = None
             return True
 
         _ = skelValues[boneName]  # ensure the bone is being unserialized first
