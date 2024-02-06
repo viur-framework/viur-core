@@ -391,30 +391,49 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                 bone.setSystemInitialized()
 
     @classmethod
-    def setBoneValue(cls, skelValues: t.Any, boneName: str, value: t.Any,
-                     append: bool = False, language: t.Optional[str] = None) -> bool:
+    def setBoneValue(
+        cls,
+        skelValues: SkeletonInstance,
+        boneName: str,
+        value: t.Any,
+        append: bool = False,
+        language: t.Optional[str] = None
+    ) -> bool:
         """
-            Allow setting a bones value without calling fromClient or assigning to valuesCache directly.
-            Santy-Checks are performed; if the value is invalid, that bone flips back to its original
+            Allows for setting a bones value without calling fromClient or assigning a value directly.
+            Sanity-Checks are performed; if the value is invalid, that bone flips back to its original
             (default) value and false is returned.
 
-            :param boneName: The Bone which should be modified
+            :param boneName: The name of the bone to be modified
             :param value: The value that should be assigned. It's type depends on the type of that bone
-            :param append: If true, the given value is appended to the values of that bone instead of
+            :param append: If True, the given value is appended to the values of that bone instead of
                 replacing it. Only supported on bones with multiple=True
-            :param language: Set/append which language
+            :param language: Language to set
+
             :return: Wherever that operation succeeded or not.
         """
         bone = getattr(skelValues, boneName, None)
+
         if not isinstance(bone, BaseBone):
-            raise ValueError(f"{boneName} is no valid bone on this skeleton ({skelValues})")
+            raise ValueError(f"{boneName!r} is no valid bone on this skeleton ({skelValues!r})")
+
         if value is None:
             if append:
-                raise ValueError("Can not append None")
+                if bone.multiple:
+                    return True  # Just do nothing
+
+                raise ValueError("Cannot append to non-multiple bone {boneName!r}")
+
             if language:
+                if not bone.languages:
+                    raise ValueError("The bone {boneName!r} has no language setting")
+                elif language not in bone.languages:
+                    raise ValueError("The language {language!r} is not available for bone {boneName!r}")
+
                 skelValues[boneName][language] = None
             else:
                 skelValues[boneName] = None
+
             return True
 
         _ = skelValues[boneName]  # ensure the bone is being unserialized first
