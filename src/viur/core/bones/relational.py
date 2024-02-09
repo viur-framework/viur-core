@@ -592,7 +592,7 @@ class RelationalBone(BaseBone):
                 dbObj["viur_delayed_update_tag"] = time()
                 dbObj["viur_relational_updateLevel"] = self.updateLevel.value
                 dbObj["viur_relational_consistency"] = self.consistency.value
-                dbObj["viur_foreign_keys"] = tuple(self.refKeys)
+                dbObj["viur_foreign_keys"] = list(self.refKeys)
                 dbObj["viurTags"] = srcEntity.get("viurTags")  # Copy tags over so we can still use our searchengine
                 db.Put(dbObj)
                 values.remove(data)
@@ -611,7 +611,7 @@ class RelationalBone(BaseBone):
             dbObj["viur_dest_kind"] = self.kind
             dbObj["viur_relational_updateLevel"] = self.updateLevel.value
             dbObj["viur_relational_consistency"] = self.consistency.value
-            dbObj["viur_foreign_keys"] = tuple(self.refKeys)
+            dbObj["viur_foreign_keys"] = list(self.refKeys)
             db.Put(dbObj)
 
     def postDeletedHandler(self, skel, boneName, key):
