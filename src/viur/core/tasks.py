@@ -6,18 +6,19 @@ import grpc
 import json
 import logging
 import os
+import pytz
+import requests
 import sys
 import time
-import requests
 import traceback
-import pytz
 import typing as t
-from google.cloud import tasks_v2
 from google import protobuf
+from google.cloud import tasks_v2
 from viur.core import current, db, errors, utils
 from viur.core.config import conf
 from viur.core.decorators import exposed, skey
 from viur.core.module import Module
+
 
 CUSTOM_OBJ = t.TypeVar("CUSTOM_OBJ")  # A JSON serializable object
 
