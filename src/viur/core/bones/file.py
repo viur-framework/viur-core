@@ -130,11 +130,6 @@ class FileBone(TreeLeafBone):
     """The kind of this bone is 'file'"""
     type = "relational.tree.leaf.file"
     """The type of this bone is 'relational.tree.leaf.file'."""
-    refKeys = ["name", "key", "mimetype", "dlkey", "size", "width", "height", "derived"]
-    """
-    The list of reference keys for this bone includes "name", "key", "mimetype", "dlkey", "size", "width",
-    "height", and "derived".
-    """
 
     def __init__(
         self,
@@ -142,6 +137,7 @@ class FileBone(TreeLeafBone):
         derive: None | dict[str, t.Any] = None,
         maxFileSize: None | int = None,
         validMimeTypes: None | list[str] = None,
+        refKeys: t.Optional[t.Iterable[str]] = ("name", "mimetype", "size", "width", "height", "derived"),
         **kwargs
     ):
         r"""
@@ -170,7 +166,7 @@ class FileBone(TreeLeafBone):
                 validMimeTypes=["application/pdf", "image/*"]
 
         """
-        super().__init__(**kwargs)
+        super().__init__(refKeys=refKeys, **kwargs)
 
         self.refKeys.add("dlkey")
         self.derive = derive
