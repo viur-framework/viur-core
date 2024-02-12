@@ -1271,11 +1271,9 @@ class User(List):
         return getattr(self, f"f2_{cls.__name__.lower()}")
 
     def getCurrentUser(self):
-        # May be a deferred task
-        if not (session := current.session.get()):
-            return None
+        session = current.session.get()
 
-        if user := session.get("user"):
+        if session and (user := session.get("user")):
             skel = self.baseSkel()
             skel.setEntity(user)
             return skel

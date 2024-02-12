@@ -245,6 +245,10 @@ class TaskHandler(Module):
         if env:
             if "user" in env and env["user"]:
                 current.session.get()["user"] = env["user"]
+
+                # Load current user into context variable if user module is there.
+                if user_mod := getattr(conf.main_app, "user", None):
+                    current.user.set(user_mod.getCurrentUser())
             if "lang" in env and env["lang"]:
                 current.language.set(env["lang"])
             if "transactionMarker" in env:
