@@ -130,12 +130,23 @@ class DefaultRender(object):
             return None
         elif isinstance(skel, dict):
             return skel
+
         res = {}
+
         for key, bone in skel.items():
             res[key] = self.renderBoneValue(bone, skel, key)
-        if injectDownloadURL and "dlkey" in skel and "name" in skel:
-            res["downloadUrl"] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False,
-                                                      expires=conf.render_json_download_url_expiration)
+
+        if (
+            injectDownloadURL
+            and (file := getattr(conf.main_app, "file", None))
+            and "dlkey" in skel
+            and "name" in skel
+        ):
+            res["downloadUrl"] = file.create_download_url(
+                skel["dlkey"],
+                skel["name"],
+                expires=conf.render_json_download_url_expiration
+            )
         return res
 
     def renderEntry(self, skel: SkeletonInstance, actionName, params=None):

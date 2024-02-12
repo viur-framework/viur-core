@@ -55,8 +55,8 @@ class Status(enum.Enum):
 
 
 class UserSkel(skeleton.Skeleton):
-    kindName = "user"
-    # Properties required by google and custom auth
+    kindName = "user"  # this assignment is required, as this Skeleton is defined in viur-core (see #604)
+
     name = EmailBone(
         descr="E-Mail",
         required=True,
@@ -75,38 +75,6 @@ class UserSkel(skeleton.Skeleton):
         descr="Lastname",
         searchable=True,
     )
-
-    # Properties required by custom auth
-    password = PasswordBone(
-        readOnly=True,
-        visible=False,
-    )
-
-    # Properties required by google auth
-    uid = StringBone(
-        descr="Google's UserID",
-        required=False,
-        readOnly=True,
-        unique=UniqueValue(UniqueLockMethod.SameValue, False, "UID already in use"),
-    )
-
-    sync = BooleanBone(
-        descr="Sync user data with OAuth-based services",
-        defaultValue=True,
-        params={
-            "tooltip":
-                "If set, user data like firstname and lastname is automatically kept synchronous with the information "
-                "stored at the OAuth service provider (e.g. Google Login)."
-        }
-    )
-
-    gaeadmin = BooleanBone(
-        descr="Is GAE Admin",
-        defaultValue=False,
-        readOnly=True,
-    )
-
-    # Generic properties
 
     roles = SelectBone(
         descr=i18n.translate("viur.user.bone.roles", defaultText="Roles"),
@@ -146,31 +114,27 @@ class UserSkel(skeleton.Skeleton):
         readOnly=True,
     )
 
-    # One-Time Password Verification
-    otp_serial = StringBone(
-        descr="OTP serial",
-        searchable=True,
-    )
-
-    otp_secret = CredentialBone(
-        descr="OTP secret",
-    )
-
-    otp_timedrift = NumericBone(
-        descr="OTP time drift",
-        readOnly=True,
-        defaultValue=0,
-    )
-    # Authenticator OTP Apps (like Authy)
-    otp_app_secret = CredentialBone(
-        descr="OTP Secret (App-Key)",
-
-    )
-
     admin_config = JsonBone(  # This bone stores settings from the vi
         descr="Config for the User",
         visible=False
     )
+
+    def __new__(cls):
+        """
+        Constructor for the UserSkel-class, with the capability
+        to dynamically add bones required for the configured
+        authentication methods.
+        """
+        for provider in conf.main_app.user.authenticationProviders:
+            assert issubclass(provider, UserPrimaryAuthentication)
+            provider.patch_user_skel(cls)
+
+        for provider in conf.main_app.user.secondFactorProviders:
+            assert issubclass(provider, UserSecondFactorAuthentication)
+            provider.patch_user_skel(cls)
+
+        cls.__boneMap__ = skeleton.MetaBaseSkel.generate_bonemap(cls)
+        return super().__new__(cls)
 
     @classmethod
     def toDB(cls, skel, *args, **kwargs):
@@ -212,13 +176,22 @@ class UserSkel(skeleton.Skeleton):
         return super().toDB(skel, *args, **kwargs)
 
 
-class UserAuthentication(Module):
+class UserAuthentication(Module, abc.ABC):
     def __init__(self, moduleName, modulePath, userModule):
         super().__init__(moduleName, modulePath)
         self._user_module = userModule
 
     def can_handle(self, user: db.Entity) -> bool:
         return True
+
+    @classmethod
+    def patch_user_skel(cls, skel_cls: skeleton.Skeleton):
+        """
+        Allows for an UserAuthentication to patch the UserSkel
+        class with additional bones which are required for
+        the implemented authentication method.
+        """
+        ...
 
 
 class UserPrimaryAuthentication(UserAuthentication, abc.ABC):
@@ -257,6 +230,19 @@ class UserPassword(UserPrimaryAuthentication):
     @classmethod
     def getAuthMethodName(*args, **kwargs):
         return "X-VIUR-AUTH-User-Password"
+
+    @classmethod
+    def patch_user_skel(cls, skel_cls):
+        """
+        Modifies the UserSkel to be equipped by a PasswordBone.
+        """
+        skel_cls.password = PasswordBone(
+            readOnly=True,
+            visible=False,
+            params={
+                "category": "Authentication",
+            }
+        )
 
     class LoginSkel(skeleton.RelSkel):
         name = EmailBone(
@@ -591,6 +577,33 @@ class GoogleAccount(UserPrimaryAuthentication):
     def getAuthMethodName(*args, **kwargs):
         return "X-VIUR-AUTH-Google-Account"
 
+    @classmethod
+    def patch_user_skel(cls, skel_cls):
+        """
+        Modifies the UserSkel to be equipped by a bones required by Google Auth
+        """
+        skel_cls.uid = StringBone(
+            descr="Google UserID",
+            required=False,
+            readOnly=True,
+            unique=UniqueValue(UniqueLockMethod.SameValue, False, "UID already in use"),
+            params={
+                "category": "Authentication",
+            }
+        )
+
+        skel_cls.sync = BooleanBone(
+            descr="Sync user data with OAuth-based services",
+            defaultValue=True,
+            params={
+                "category": "Authentication",
+                "tooltip":
+                    "If set, user data like firstname and lastname is automatically kept"
+                    "synchronous with the information stored at the OAuth service provider"
+                    "(e.g. Google Login)."
+            }
+        )
+
     @exposed
     @force_ssl
     @skey(allow_empty=True)
@@ -643,7 +656,6 @@ class GoogleAccount(UserPrimaryAuthentication):
 
         # Take user information from Google, if wanted!
         if userSkel["sync"]:
-
             for target, source in {
                 "name": email,
                 "firstname": userInfo.get("given_name"),
@@ -655,15 +667,6 @@ class GoogleAccount(UserPrimaryAuthentication):
                     update = True
 
         if update:
-            # TODO: Get access from IAM or similar
-            # if users.is_current_user_admin():
-            #    if not userSkel["access"]:
-            #        userSkel["access"] = []
-            #    if not "root" in userSkel["access"]:
-            #        userSkel["access"].append("root")
-            #    userSkel["gaeadmin"] = True
-            # else:
-            #    userSkel["gaeadmin"] = False
             assert userSkel.toDB()
 
         return self._user_module.continueAuthenticationFlow(self, userSkel["key"])
@@ -726,6 +729,36 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
     @classmethod
     def get2FactorMethodName(*args, **kwargs):  # fixme: What is the purpose of this function? Why not just a member?
         return "X-VIUR-2FACTOR-TimeBasedOTP"
+
+    @classmethod
+    def patch_user_skel(cls, skel_cls):
+        """
+        Modifies the UserSkel to be equipped by a bones required by Timebased OTP
+        """
+        # One-Time Password Verification
+        skel_cls.otp_serial = StringBone(
+            descr="OTP serial",
+            searchable=True,
+            params={
+                "category": "Second Factor Authentication",
+            }
+        )
+
+        skel_cls.otp_secret = CredentialBone(
+            descr="OTP secret",
+            params={
+                "category": "Second Factor Authentication",
+            }
+        )
+
+        skel_cls.otp_timedrift = NumericBone(
+            descr="OTP time drift",
+            readOnly=True,
+            defaultValue=0,
+            params={
+                "category": "Second Factor Authentication",
+            }
+        )
 
     def get_config(self, user: db.Entity) -> OtpConfig | None:
         """
@@ -974,6 +1007,19 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         return "X-VIUR-2FACTOR-AuthenticatorOTP"
 
     @classmethod
+    def patch_user_skel(cls, skel_cls):
+        """
+        Modifies the UserSkel to be equipped by bones required by Authenticator App
+        """
+        # Authenticator OTP Apps (like Authy)
+        skel_cls.otp_app_secret = CredentialBone(
+            descr="OTP Secret (App-Key)",
+            params={
+                "category": "Second Factor Authentication",
+            }
+        )
+
+    @classmethod
     def set_otp_app_secret(cls, otp_app_secret=None):
         """
         Write a new OTP Token in the current user entry.
@@ -1158,7 +1204,7 @@ class User(List):
 
     def __init__(self, moduleName, modulePath):
         for provider in self.authenticationProviders:
-            assert issubclass(provider, UserAuthentication)
+            assert issubclass(provider, UserPrimaryAuthentication)
             name = f"auth_{provider.__name__.lower()}"
             setattr(self, name, provider(name, f"{modulePath}/{name}", self))
 
@@ -1179,7 +1225,7 @@ class User(List):
         return set()
 
     def addSkel(self):
-        skel = super(User, self).addSkel().clone()
+        skel = super().addSkel().clone()
         user = current.user.get()
         if not (user and user["access"] and (f"{self.moduleName}-add" in user["access"] or "root" in user["access"])):
             skel.status.readOnly = True
@@ -1205,7 +1251,7 @@ class User(List):
         return skel
 
     def editSkel(self, *args, **kwargs):
-        skel = super(User, self).editSkel().clone()
+        skel = super().editSkel().clone()
 
         if "password" in skel:
             skel.password.required = False
@@ -1225,11 +1271,9 @@ class User(List):
         return getattr(self, f"f2_{cls.__name__.lower()}")
 
     def getCurrentUser(self):
-        # May be a deferred task
-        if not (session := current.session.get()):
-            return None
+        session = current.session.get()
 
-        if user := session.get("user"):
+        if session and (user := session.get("user")):
             skel = self.baseSkel()
             skel.setEntity(user)
             return skel

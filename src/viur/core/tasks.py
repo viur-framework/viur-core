@@ -1,3 +1,4 @@
+import abc
 import base64
 import datetime
 import functools
@@ -5,11 +6,11 @@ import grpc
 import json
 import logging
 import os
-import pytz
-import requests
 import sys
 import time
+import requests
 import traceback
+import pytz
 import typing as t
 from google.cloud import tasks_v2
 from google import protobuf
@@ -17,6 +18,28 @@ from viur.core import current, db, errors, utils
 from viur.core.config import conf
 from viur.core.decorators import exposed, skey
 from viur.core.module import Module
+
+CUSTOM_OBJ = t.TypeVar("CUSTOM_OBJ")  # A JSON serializable object
+
+
+class CustomEnvironmentHandler(abc.ABC):
+    @abc.abstractmethod
+    def serialize(self) -> CUSTOM_OBJ:
+        """Serialize custom environment data
+
+        This function must not require any parameters and must
+        return a JSON serializable object with the desired information.
+        """
+        ...
+
+    @abc.abstractmethod
+    def restore(self, obj: CUSTOM_OBJ) -> None:
+        """Restore custom environment data
+
+        This function will receive the object from :meth:`serialize` and should write
+        the information it contains to the environment of the deferred request.
+        """
+        ...
 
 
 def _preprocess_json_object(obj):
@@ -93,7 +116,9 @@ if not conf.instance.is_dev_server or os.getenv("TASKS_EMULATOR") is None:
     taskClient = tasks_v2.CloudTasksClient()
 else:
     taskClient = tasks_v2.CloudTasksClient(
-        transport=tasks_v2.services.cloud_tasks.transports.CloudTasksGrpcTransport(channel=grpc.insecure_channel(os.getenv("TASKS_EMULATOR")))
+        transport=tasks_v2.services.cloud_tasks.transports.CloudTasksGrpcTransport(
+            channel=grpc.insecure_channel(os.getenv("TASKS_EMULATOR"))
+        )
     )
     queueRegion = "local"
 
@@ -149,7 +174,7 @@ class CallableTaskBase:
         """
             The actual code that should be run goes here.
         """
-        raise NotImplemented()
+        raise NotImplementedError()
 
 
 class TaskHandler(Module):
@@ -223,6 +248,10 @@ class TaskHandler(Module):
         if env:
             if "user" in env and env["user"]:
                 current.session.get()["user"] = env["user"]
+
+                # Load current user into context variable if user module is there.
+                if user_mod := getattr(conf.main_app, "user", None):
+                    current.user.set(user_mod.getCurrentUser())
             if "lang" in env and env["lang"]:
                 current.language.set(env["lang"])
             if "transactionMarker" in env:
@@ -234,11 +263,7 @@ class TaskHandler(Module):
                     logging.info(f"""Executing task, transaction {env["transactionMarker"]} did succeed""")
             if "custom" in env and conf.tasks_custom_environment_handler:
                 # Check if we need to restore additional environmental data
-                assert isinstance(conf.tasks_custom_environment_handler, tuple) \
-                       and len(conf.tasks_custom_environment_handler) == 2 \
-                       and callable(conf.tasks_custom_environment_handler[1]), \
-                    "Your customEnvironmentHandler must be a tuple of two callable if set!"
-                conf.tasks_custom_environment_handler[1](env["custom"])
+                conf.tasks_custom_environment_handler.restore(env["custom"])
         if cmd == "rel":
             caller = conf.main_app
             pathlist = [x for x in funcPath.split("/") if x]
@@ -255,7 +280,7 @@ class TaskHandler(Module):
                 logging.exception(e)
                 raise errors.RequestTimeout()  # Task-API should retry
         elif cmd == "unb":
-            if not funcPath in _deferred_tasks:
+            if funcPath not in _deferred_tasks:
                 logging.error(f"Missed deferred task {funcPath=} ({args=},{kwargs=})")
             # We call the deferred function *directly* (without walking through the mkDeferred lambda), so ensure
             # that any hit to another deferred function will defer again
@@ -341,7 +366,7 @@ class TaskHandler(Module):
         ):
             logging.critical("Detected an attempted XSRF attack. This request did not originate from Task Queue.")
             raise errors.Forbidden()
-        if require_cron and "X-Appengine-Cron" not in req.request.headers:
+        if require_cron and "X-Appengine-Cron" not in req.headers:
             logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Cron" was not set.')
             raise errors.Forbidden()
         if require_taskname and "X-AppEngine-TaskName" not in req.headers:
@@ -386,7 +411,7 @@ TaskHandler.vi = True
 TaskHandler.html = True
 
 
-## Decorators ##
+# Decorators
 
 def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
                   tpl: None | str = None) -> t.Callable:
@@ -458,7 +483,7 @@ def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
 
 def noRetry(f):
     """Prevents a deferred Function from being called a second time"""
-    logging.warning(f"Use of `@noRetry` is deprecated; Use `@retry_n_times(0)` instead!", stacklevel=2)
+    logging.warning("Use of `@noRetry` is deprecated; Use `@retry_n_times(0)` instead!", stacklevel=2)
     return retry_n_times(0)(f)
 
 
@@ -581,11 +606,7 @@ def CallDeferred(func: t.Callable) -> t.Callable:
 
             if conf.tasks_custom_environment_handler:
                 # Check if this project relies on additional environmental variables and serialize them too
-                assert isinstance(conf.tasks_custom_environment_handler, tuple) \
-                       and len(conf.tasks_custom_environment_handler) == 2 \
-                       and callable(conf.tasks_custom_environment_handler[0]), \
-                    "Your customEnvironmentHandler must be a tuple of two callable if set!"
-                env["custom"] = conf.tasks_custom_environment_handler[0]()
+                env["custom"] = conf.tasks_custom_environment_handler.serialize()
 
             # Create task description
             task = tasks_v2.Task(
@@ -619,7 +640,7 @@ def CallDeferred(func: t.Callable) -> t.Callable:
             logging.info(f"Created task {func.__name__}.{func.__module__} with {args=} {kwargs=} {env=}")
 
     global _deferred_tasks
-    _deferred_tasks[f"{func.__name__,}.{func.__module__}"] = func
+    _deferred_tasks[f"{func.__name__}.{func.__module__}"] = func
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -634,7 +655,7 @@ def callDeferred(func):
     """
     import logging, warnings
 
-    msg = f"Use of @callDeferred is deprecated, use @CallDeferred instead."
+    msg = "Use of @callDeferred is deprecated, use @CallDeferred instead."
     logging.warning(msg, stacklevel=3)
     warnings.warn(msg, stacklevel=3)
 
@@ -656,7 +677,7 @@ def PeriodicTask(interval: int = 0, cronName: str = "default") -> t.Callable:
         if fn.__name__.startswith("_"):
             raise RuntimeError("Periodic called methods cannot start with an underscore! "
                                f"Please rename {fn.__name__!r}")
-        if not cronName in _periodicTasks:
+        if cronName not in _periodicTasks:
             _periodicTasks[cronName] = {}
         _periodicTasks[cronName][fn] = interval
         fn.periodicTaskName = f"{fn.__module__}_{fn.__qualname__}".replace(".", "_").lower()

@@ -16,19 +16,26 @@ def monkey_patch():
     """Monkey patch libs to work without google cloud environment"""
     import sys
 
-    MOCK_MODULES = ["google.cloud.logging",
-                    "google.cloud.logging_v2",
-                    "google.cloud.logging.resource",
-                    "google",
-                    "google.cloud",
-                    "google.protobuf",
-                    "google.auth",
-                    "google.auth.default",
-                    "google.cloud.tasks_v2",
-                    "google.cloud.tasks_v2.services",
-                    "google.cloud.tasks_v2.services.cloud_tasks.transports",
-                    "google.cloud.exceptions",
-                    "google.appengine.api"]
+    # Skip the skeleton folder check
+    sys.viur_doc_build = True
+
+    MOCK_MODULES = (
+        "google.appengine.api",
+        "google.auth.default",
+        "google.auth",
+        "google.cloud.exceptions",
+        "google.cloud.logging_v2",
+        "google.cloud.logging.resource",
+        "google.cloud.logging",
+        "google.cloud.tasks_v2.services.cloud_tasks.transports",
+        "google.cloud.tasks_v2.services",
+        "google.cloud.tasks_v2",
+        "google.cloud",
+        "google.oauth2",
+        "google.oauth2.service_account",
+        "google.protobuf",
+        "google",
+    )
 
     for mod_name in MOCK_MODULES:
         sys.modules[mod_name] = mock.Mock()
@@ -51,17 +58,35 @@ def monkey_patch():
     sys.modules["google.cloud.logging_v2.handlers.handlers"] = tmp = mock.Mock()
     tmp.EXCLUDED_LOGGER_DEFAULTS = []
 
-    db_attr = [
-        "KEY_SPECIAL_PROPERTY", "DATASTORE_BASE_TYPES", "SortOrder", "Entity",
-        "Key", "KeyClass", "Put", "Get", "Delete", "AllocateIDs", "CollisionError",
-        "keyHelper", "fixUnindexableProperties", "GetOrInsert", "Query",
-        "QueryDefinition", "IsInTransaction",
-        "acquireTransactionSuccessMarker", "RunInTransaction",
-        "startDataAccessLog", "endDataAccessLog", "Count", "cache"
-    ]  # \ "config"
+    db_attr = (
+        "acquireTransactionSuccessMarker",
+        "AllocateIDs",
+        "cache",
+        "CollisionError",
+        "Count",
+        "DATASTORE_BASE_TYPES",
+        "Delete",
+        "endDataAccessLog",
+        "Entity",
+        "fixUnindexableProperties",
+        "Get",
+        "GetOrInsert",
+        "IsInTransaction",
+        "KEY_SPECIAL_PROPERTY",
+        "Key",
+        "KeyClass",
+        "keyHelper",
+        "Put",
+        "Query",
+        "QueryDefinition",
+        "RunInTransaction",
+        "SortOrder",
+        "startDataAccessLog",
+    )
+
     viur_datastore = mock.Mock()
     for attr in db_attr:
-        setattr(viur_datastore, attr, mock.Mock())
+        setattr(viur_datastore, attr, mock.MagicMock())
     viur_datastore.config = {}
     sys.modules["viur.datastore"] = viur_datastore
 
