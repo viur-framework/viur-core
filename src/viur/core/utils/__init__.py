@@ -151,4 +151,4 @@ def __getattr__(attr):
         logging.warning(msg, stacklevel=3)
         return replace[1]
 
-    return super(__import__(__name__).__class__).__getattr__(attr)
+    return super(__import__(__name__).__class__).__getattribute__(attr)
