@@ -2,6 +2,20 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.5.14]
+
+- fix: `current.user` unset in deferred task calls (#1067)
+
+## [3.5.13]
+
+- fix: `RelationalBone` locking bug (#1052)
+- fix:  `_validate_request` in `tasks` (#1051)
+
+## [3.5.12]
+
+- feat: Provide script configuration in `ModuleConf` (#1034)
+- fix: Make `UserPassword.pwrecover` ready for action-skels (#1033)
+
 ## [3.5.11]
 
 - fix: Improve and refactor `BaseSkel.fromClient()` to handle empty/unset data (#1023)

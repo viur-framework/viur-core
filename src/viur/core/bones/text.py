@@ -10,7 +10,7 @@ from html import entities as htmlentitydefs
 from html.parser import HTMLParser
 import typing as t
 
-from viur.core import db, utils
+from viur.core import db, conf
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 _defaultTags = {
@@ -49,36 +49,6 @@ A dictionary containing default configurations for handling HTML content in Text
 """
 
 
-def parseDownloadUrl(urlStr: str) -> tuple[t.Optional[str], t.Optional[bool], t.Optional[str]]:
-    """
-    Parses a file download URL in the format `/file/download/xxxx?sig=yyyy` into its components: blobKey, derived,
-    and filename. If the URL cannot be parsed, the function returns None for each component.
-
-    :param str urlStr: The file download URL to be parsed.
-    :return: A tuple containing the parsed components: (blobKey, derived, filename).
-            Each component will be None if the URL could not be parsed.
-    :rtype: Tuple[Optional[str], Optional[bool], Optional[str]]
-    """
-    if not urlStr.startswith("/file/download/") or "?" not in urlStr:
-        return None, None, None
-    dataStr, sig = urlStr[15:].split("?")  # Strip /file/download/ and split on ?
-    sig = sig[4:]  # Strip sig=
-    if not utils.hmacVerify(dataStr.encode("ASCII"), sig):
-        # Invalid signature, bail out
-        return None, None, None
-    # Split the blobKey into the individual fields it should contain
-    try:
-        dlPath, validUntil, _ = urlsafe_b64decode(dataStr).decode("UTF-8").split("\0")
-    except:  # It's the old format, without an downloadFileName
-        dlPath, validUntil = urlsafe_b64decode(dataStr).decode("UTF-8").split("\0")
-    if validUntil != "0" and datetime.strptime(validUntil, "%Y%m%d%H%M") < datetime.now():
-        # Signature expired, bail out
-        return None, None, None
-    blobkey, derived, fileName = dlPath.split("/")
-    derived = derived != "source"
-    return blobkey, derived, fileName
-
-
 class CollectBlobKeys(HTMLParser):
     """
     A custom HTML parser that extends the HTMLParser class to collect blob keys found in the "src" attribute
@@ -100,9 +70,9 @@ class CollectBlobKeys(HTMLParser):
         if tag in ["a", "img"]:
             for k, v in attrs:
                 if k == "src":
-                    blobKey, _, _ = parseDownloadUrl(v)
-                    if blobKey:
-                        self.blobs.add(blobKey)
+                    file = getattr(conf.main_app, "file", None)
+                    if file and (filepath := file.parse_download_url(v)):
+                        self.blobs.add(filepath.dlkey)
 
 
 class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
@@ -208,15 +178,25 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
                     checker = v.lower()
                     if not (checker.startswith("http://") or checker.startswith("https://") or checker.startswith("/")):
                         continue
-                    blobKey, derived, fileName = parseDownloadUrl(v)
-                    if blobKey:
-                        v = utils.downloadUrlFor(blobKey, fileName, derived, expires=None)
+
+                    file = getattr(conf.main_app, "file", None)
+                    if file and (filepath := file.parse_download_url(v)):
+                        v = file.create_download_url(
+                            filepath.dlkey,
+                            filepath.filename,
+                            filepath.is_derived,
+                            expires=None
+                        )
+
                         if self.srcSet:
                             # Build the src set with files already available. If a derived file is not yet build,
                             # getReferencedBlobs will catch it, build it, and we're going to be re-called afterwards.
-                            fileObj = db.Query("file").filter("dlkey =", blobKey) \
-                                .order(("creationdate", db.SortOrder.Ascending)).getEntry()
-                            srcSet = utils.srcSetFor(fileObj, None, self.srcSet.get("width"), self.srcSet.get("height"))
+                            srcSet = file.create_src_set(
+                                filepath.dlkey,
+                                None,
+                                self.srcSet.get("width"),
+                                self.srcSet.get("height")
+                            )
                             cacheTagStart += f' srcSet="{srcSet}"'
                 if not tag in self.validHtml["validAttrs"].keys() or not k in self.validHtml["validAttrs"][tag]:
                     # That attribute is not valid on this tag

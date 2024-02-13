@@ -148,16 +148,6 @@ class RelationalBone(BaseBone):
                 B references C also with CascadeDeletion; if C gets deleted, both B and A will be deleted as well.
 
     """
-    refKeys = ["key", "name"]  # todo: turn into a tuple, as it should not be mutable.
-    """
-    A list of properties to include from the referenced property. These properties will be available in the template
-    without having to fetch the referenced property. Filtering is also only possible by properties named here!
-    """
-    parentKeys = ["key", "name"]  # todo: turn into a tuple, as it should not be mutable.
-    """
-    A list of properties from the current skeleton to include. If mixing filtering by relational properties and
-    properties of the class itself, these must be named here.
-    """
     type = "relational"
     kind = None
 
@@ -168,8 +158,8 @@ class RelationalBone(BaseBone):
         format: str = "$(dest.name)",
         kind: str = None,
         module: t.Optional[str] = None,
-        parentKeys: t.Optional[list[str]] = None,
-        refKeys: t.Optional[list[str]] = None,
+        parentKeys: t.Optional[t.Iterable[str]] = {"name"},
+        refKeys: t.Optional[t.Iterable[str]] = {"name"},
         updateLevel: RelationalUpdateLevel = RelationalUpdateLevel.Always,
         using: t.Optional['viur.core.skeleton.RelSkel'] = None,
         **kwargs
@@ -183,11 +173,11 @@ class RelationalBone(BaseBone):
                 Name of the module which should be used to select entities of kind "type". If not set,
                 the value of "type" will be used (the kindName must match the moduleName)
             :param refKeys:
-                A list of properties to include from the referenced property. These properties will be
-                available in the template without having to fetch the referenced property. Filtering is also only possible
-                by properties named here!
+                An iterable of properties to include from the referenced property. These properties will be
+                available in the template without having to fetch the referenced property. Filtering is also only
+                possible by properties named here!
             :param parentKeys:
-                A list of properties from the current skeleton to include. If mixing filtering by
+                An iterable of properties from the current skeleton to include. If mixing filtering by
                 relational properties and properties of the class itself, these must be named here.
             :param multiple:
                 If True, allow referencing multiple Elements of the given class. (Eg. n:n-relation).
@@ -265,17 +255,19 @@ class RelationalBone(BaseBone):
         if self.kind is None or self.module is None:
             raise NotImplementedError("Type and Module of RelationalBone must not be None")
 
+        # Referenced keys
+        self.refKeys = {"key"}
         if refKeys:
-            if not "key" in refKeys:
-                refKeys.append("key")
-            self.refKeys = refKeys
+            self.refKeys |= set(refKeys)
 
+        # Parent keys
+        self.parentKeys = {"key"}
         if parentKeys:
-            if not "key" in parentKeys:
-                parentKeys.append("key")
-            self.parentKeys = parentKeys
+            self.parentKeys |= set(parentKeys)
 
         self.using = using
+
+        # FIXME: Remove in VIUR4!!
         if isinstance(updateLevel, int):
             msg = f"parameter updateLevel={updateLevel} in RelationalBone is deprecated. " \
                   f"Please use the RelationalUpdateLevel enum instead"
@@ -486,35 +478,39 @@ class RelationalBone(BaseBone):
             else:
                 usingData = None
             res = {"rel": usingData, "dest": refData}
+
         skel.dbEntity[name] = res
+
         # Ensure our indexed flag is up2date
         if indexed and name in skel.dbEntity.exclude_from_indexes:
             skel.dbEntity.exclude_from_indexes.discard(name)
         elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
             skel.dbEntity.exclude_from_indexes.add(name)
+
         # Ensure outgoing Locks are up2date
         if self.consistency != RelationalConsistency.PreventDeletion:
             # We don't need to lock anything, but may delete old locks held
             newRelationalLocks = set()
+
         # We should always run inside a transaction so we can safely get+put
         skel.dbEntity[f"{name}_outgoingRelationalLocks"] = list(newRelationalLocks)
+
         for newLock in newRelationalLocks - oldRelationalLocks:
             # Lock new Entry
-            referencedObj = db.Get(newLock)
-            assert referencedObj, "Programming error detected?"
-            if not referencedObj.get("viur_incomming_relational_locks"):
-                referencedObj["viur_incomming_relational_locks"] = []
-            assert skel["key"] not in referencedObj["viur_incomming_relational_locks"]
-            referencedObj["viur_incomming_relational_locks"].append(skel["key"])
-            db.Put(referencedObj)
+            if referencedObj := db.Get(newLock):
+                referencedObj.setdefault("viur_incomming_relational_locks", [])
+
+                if skel["key"] not in referencedObj["viur_incomming_relational_locks"]:
+                    referencedObj["viur_incomming_relational_locks"].append(skel["key"])
+                    db.Put(referencedObj)
+
         for oldLock in oldRelationalLocks - newRelationalLocks:
             # Remove Lock
-            referencedObj = db.Get(oldLock)
-            assert referencedObj, "Programming error detected?"
-            assert isinstance(referencedObj.get("viur_incomming_relational_locks"), list), "Programming error detected?"
-            assert skel["key"] in referencedObj["viur_incomming_relational_locks"], "Programming error detected?"
-            referencedObj["viur_incomming_relational_locks"].remove(skel["key"])
-            db.Put(referencedObj)
+            if referencedObj := db.Get(oldLock):
+                if skel["key"] in referencedObj["viur_incomming_relational_locks"]:
+                    referencedObj["viur_incomming_relational_locks"].remove(skel["key"])
+                    db.Put(referencedObj)
+
         return True
 
     def delete(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
@@ -529,7 +525,7 @@ class RelationalBone(BaseBone):
         :raises Warning: If a referenced entry is missing despite the lock.
         """
         if skel.dbEntity.get(f"{name}_outgoingRelationalLocks"):
-            for refKey in skel.dbEntity[f"_outgoingRelationalLocks" % name]:
+            for refKey in skel.dbEntity[f"{name}_outgoingRelationalLocks"]:
                 referencedEntry = db.Get(refKey)
                 if not referencedEntry:
                     logging.warning(f"Programming error detected: Entry {refKey} is gone despite lock")
@@ -596,7 +592,7 @@ class RelationalBone(BaseBone):
                 dbObj["viur_delayed_update_tag"] = time()
                 dbObj["viur_relational_updateLevel"] = self.updateLevel.value
                 dbObj["viur_relational_consistency"] = self.consistency.value
-                dbObj["viur_foreign_keys"] = self.refKeys
+                dbObj["viur_foreign_keys"] = list(self.refKeys)
                 dbObj["viurTags"] = srcEntity.get("viurTags")  # Copy tags over so we can still use our searchengine
                 db.Put(dbObj)
                 values.remove(data)
@@ -615,7 +611,7 @@ class RelationalBone(BaseBone):
             dbObj["viur_dest_kind"] = self.kind
             dbObj["viur_relational_updateLevel"] = self.updateLevel.value
             dbObj["viur_relational_consistency"] = self.consistency.value
-            dbObj["viur_foreign_keys"] = self.refKeys
+            dbObj["viur_foreign_keys"] = list(self.refKeys)
             db.Put(dbObj)
 
     def postDeletedHandler(self, skel, boneName, key):
@@ -1292,7 +1288,6 @@ class RelationalBone(BaseBone):
         for idx, lang, value in self.iter_bone_value(skel, name):
             if value is None:
                 continue
-            logging.debug((idx, lang, value, name))
             for key, bone_ in value["dest"].items():
                 result.update(bone_.getReferencedBlobs(value["dest"], key))
             if value["rel"]:

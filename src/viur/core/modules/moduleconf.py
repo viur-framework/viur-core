@@ -1,11 +1,59 @@
 import logging
-from viur.core.bones import StringBone, TextBone
+from viur.core.bones import StringBone, TextBone, SelectBone, TreeLeafBone
 from viur.core.bones.text import _defaultTags
 from viur.core.tasks import StartupTask
 from viur.core import Module, conf, db
 from viur.core.i18n import translate
-from viur.core.skeleton import Skeleton, SkeletonInstance
+from viur.core.skeleton import Skeleton, SkeletonInstance, RelSkel
 from viur.core.prototypes import List
+
+
+class ScriptRelSkel(RelSkel):
+
+    name = StringBone(
+        descr="Label",
+        required=True,
+        params={
+            "tooltip": "Label for the action button displayed."
+        },
+    )
+
+    icon = StringBone(
+        descr="Icon",
+        params={
+            "tooltip": "Shoelace-conforming icon identifier."
+        },
+    )
+
+    capable = SelectBone(
+        descr="Arguments",
+        required=True,
+        defaultValue="none",
+        values={
+            "none": "none: No arguments, always executable",
+            "single": "single: Run script with single entry key as argument",
+            "multiple": "multiple: Run script with list of entity keys as argument",
+        },
+        params={
+            "tooltip":
+                "Describes the behavior in the admin, "
+                "if and how selected entries from the module are being processed."
+        },
+    )
+
+    access = SelectBone(
+        descr="Required access rights",
+        values=lambda: {
+            right: translate(f"server.modules.user.accessright.{right}", defaultText=right)
+            for right in sorted(conf["viur.accessRights"])
+        },
+        multiple=True,
+        params={
+            "tooltip":
+                "To whom the button should be displayed in the admin. "
+                "In addition, the admin checks whether all rights of the script are also fulfilled.",
+        },
+    )
 
 
 class ModuleConfSkel(Skeleton):
@@ -34,6 +82,19 @@ class ModuleConfSkel(Skeleton):
     help_text_edit = TextBone(
         descr=translate("edit helptext"),
         validHtml=_valid_html,
+    )
+
+    scripts = TreeLeafBone(
+        descr=translate("scriptor scripts"),
+        module="script",
+        kind="viur-script-leaf",
+        using=ScriptRelSkel,
+        refKeys=[
+            "key",
+            "name",
+            "access",
+        ],
+        multiple=True,
     )
 
 
@@ -67,17 +128,39 @@ class ModuleConf(List):
 
 @StartupTask
 def read_all_modules():
-    db_module_names = [m["name"] for m in db.Query("viur-module-conf").run(999)]
-    module_names = dir(conf.main_app.vi)
+    kind_name = conf.main_app._moduleconf.viewSkel().kindName
+    db_module_names = [m["name"] for m in db.Query(kind_name).run(999)]
+    visited_modules = set()
 
-    for module_name in module_names:
-        module = getattr(conf.main_app.vi, module_name)
-        if isinstance(module, Module):
+    def collect_modules(parent, depth: int = 0, prefix: str = "") -> None:
+        """Recursively collects all routable modules for the vi renderer"""
+        if depth > 10:
+            logging.warning(f"Reached maximum recursion limit of {depth} at {parent=}")
+            return
+
+        for module_name in dir(parent):
+            module = getattr(parent, module_name, None)
+            if not isinstance(module, Module):
+                continue
+            if module in visited_modules:
+                # Some modules reference other modules as parents, this will
+                # lead to infinite recursion. We can avoid reaching the
+                # maximum recursion limit by remembering already seen modules.
+                if conf.debug.trace:
+                    logging.debug(f"Already visited and added {module=}")
+                continue
+            visited_modules.add(module)
+            module_path = f"{prefix}{module_name}"
             if module_name not in db_module_names:
                 skel = conf.main_app._moduleconf.addSkel()
-                skel["key"] = db.Key("viur-module-conf", module_name)
-                skel["name"] = module_name
+                skel["key"] = db.Key(kind_name, module_path)
+                skel["name"] = module_path
                 skel.toDB()
+
+            # Collect children
+            collect_modules(module, depth=depth + 1, prefix=f"{module_path}.")
+
+    collect_modules(conf.main_app.vi)
 
 
 ModuleConf.json = True
