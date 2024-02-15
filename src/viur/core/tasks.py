@@ -41,9 +41,6 @@ class CustomEnvironmentHandler(abc.ABC):
         ...
 
 
-
-
-
 _gaeApp = os.environ.get("GAE_APPLICATION")
 
 queueRegion = None
