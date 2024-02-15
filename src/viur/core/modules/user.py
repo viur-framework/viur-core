@@ -1149,7 +1149,7 @@ class User(List):
     secondFactorTimeWindow = datetime.timedelta(minutes=10)
 
     adminInfo = {
-        "icon": "users",
+        "icon": "person-fill",
         "actions": [
             "trigger_kick",
             "trigger_takeover",
@@ -1161,7 +1161,7 @@ class User(List):
                     defaultText="Kick user",
                     hint="Title of the kick user function"
                 ),
-                "icon": "trash",
+                "icon": "trash2-fill",
                 "access": ["root"],
                 "action": "fetch",
                 "url": "/vi/{{module}}/trigger/kick/{{key}}?skey={{skey}}",
@@ -1180,7 +1180,7 @@ class User(List):
                     defaultText="Take-over user",
                     hint="Title of the take user over function"
                 ),
-                "icon": "interface",
+                "icon": "file-person-fill",
                 "access": ["root"],
                 "action": "fetch",
                 "url": "/vi/{{module}}/trigger/takeover/{{key}}?skey={{skey}}",

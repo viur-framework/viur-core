@@ -386,7 +386,7 @@ class File(Tree):
 
     handler = "tree.simple.file"
     adminInfo = {
-        "icon": "file-system",
+        "icon": "folder-fill",
         "handler": handler,  # fixme: Use static handler; Remove with VIUR4!
     }
 

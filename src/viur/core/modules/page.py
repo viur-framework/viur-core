@@ -23,7 +23,7 @@ class Page(Tree):
     adminInfo = {
         "name": "Pages",
         "handler": "tree.nodeonly.page",
-        "icon": "cloud",
+        "icon": "cloud-fill",
         "columns": ["name", "language", "isactive"],
         "preview": {
             "Web": "/{{module}}/view/{{key}}"
