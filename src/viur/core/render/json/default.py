@@ -217,8 +217,8 @@ class DefaultRender(object):
     def addSuccess(self, skel: SkeletonInstance, action: str = "addSuccess", params=None, **kwargs):
         return self.renderEntry(skel, action, params)
 
-    def deleteSuccess(self, skel: SkeletonInstance, params=None, *args, **kwargs):
-        return json.dumps("OKAY")
+    def deleteSuccess(self, skel: SkeletonInstance,action: str = "deleteSuccess", params=None, *args, **kwargs):
+        return json.dumps({"action":action,"params":params})
 
     def listRootNodes(self, rootNodes, *args, **kwargs):
         for rn in rootNodes:
