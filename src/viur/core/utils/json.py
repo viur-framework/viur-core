@@ -31,11 +31,11 @@ def _preprocess_json_object(obj: t.Any) -> t.Any:
     return obj
 
 
-def dumps(obj: t.Any) -> str:
+def dumps(obj: t.Any, *args, **kwargs) -> str:
     """
     Wrapper for json.dumps() which converts additional ViUR datatypes.
     """
-    return json.dumps(_preprocess_json_object(obj))
+    return json.dumps(_preprocess_json_object(obj), *args, **kwargs)
 
 
 def _decode_object_hook(obj: t.Any):
