@@ -667,5 +667,4 @@ class List(SkelModule):
 
 
 List.admin = True
-List.html = True
 List.vi = True

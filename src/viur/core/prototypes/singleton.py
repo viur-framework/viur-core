@@ -293,5 +293,4 @@ class Singleton(SkelModule):
 
 
 Singleton.admin = True
-Singleton.html = True
 Singleton.vi = True
