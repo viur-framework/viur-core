@@ -113,7 +113,7 @@ class ModuleConf(List):
     def canAdd(self):
         return False
 
-    def canDelete(self, _skel):
+    def canDelete(self, skel):
         return False
 
     def canEdit(self, skel):
@@ -164,7 +164,7 @@ class ModuleConf(List):
                     skel["name"] = module_name
                     skel.toDB()
 
-        # TODO: Remove entries from viur-module-conf which are not
+        # TODO: Remove entries from viur-module-conf which are in db_module_names but not in ModuleConf.MODULES
 
 
 ModuleConf.json = True
