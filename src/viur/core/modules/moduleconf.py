@@ -139,7 +139,7 @@ class ModuleConf(List):
 
     @classmethod
     def get_by_module_name(cls, module_name: str) -> None | skeleton.SkeletonInstance:
-        db_key = db.Key("viur-module-conf", module_name)
+        db_key = db.Key(MODULECONF_KINDNAME, module_name)
         skel = conf["viur.mainApp"]._moduleconf.viewSkel()
         if not skel.fromDB(db_key):
             logging.error(f"module({module_name}) not found")
@@ -160,11 +160,11 @@ class ModuleConf(List):
 
                 if module_name not in db_module_names:
                     skel = conf["viur.mainApp"]._moduleconf.addSkel()
-                    skel["key"] = db.Key("viur-module-conf", module_name)
+                    skel["key"] = db.Key(MODULECONF_KINDNAME, module_name)
                     skel["name"] = module_name
                     skel.toDB()
 
-        # TODO: Remove entries from viur-module-conf which are in db_module_names but not in ModuleConf.MODULES
+        # TODO: Remove entries from MODULECONF_KINDNAME which are in db_module_names but not in ModuleConf.MODULES
 
 
 ModuleConf.json = True
