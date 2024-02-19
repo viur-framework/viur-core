@@ -1,14 +1,14 @@
 import logging
+from viur.core import Module, conf, db, current, i18n, tasks, skeleton
 from viur.core.bones import StringBone, TextBone, SelectBone, TreeLeafBone
 from viur.core.bones.text import _defaultTags
-from viur.core.tasks import StartupTask
-from viur.core import Module, conf, db
-from viur.core.i18n import translate
-from viur.core.skeleton import Skeleton, SkeletonInstance, RelSkel
 from viur.core.prototypes import List
 
 
-class ScriptRelSkel(RelSkel):
+MODULECONF_KINDNAME = "viur-module-conf"
+
+
+class ModuleConfScriptSkel(skeleton.RelSkel):
 
     name = StringBone(
         descr="Label",
@@ -44,7 +44,7 @@ class ScriptRelSkel(RelSkel):
     access = SelectBone(
         descr="Required access rights",
         values=lambda: {
-            right: translate(f"server.modules.user.accessright.{right}", defaultText=right)
+            right: i18n.translate(f"server.modules.user.accessright.{right}", defaultText=right)
             for right in sorted(conf["viur.accessRights"])
         },
         multiple=True,
@@ -56,8 +56,8 @@ class ScriptRelSkel(RelSkel):
     )
 
 
-class ModuleConfSkel(Skeleton):
-    kindName = "viur-module-conf"
+class ModuleConfSkel(skeleton.Skeleton):
+    kindName = MODULECONF_KINDNAME
 
     _valid_tags = ['b', 'a', 'i', 'u', 'span', 'div', 'p', 'ol', 'ul', 'li', 'abbr', 'sub', 'sup', 'h1', 'h2', 'h3',
                    'h4', 'h5', 'h6', 'br', 'hr', 'strong', 'blockquote', 'em']
@@ -65,30 +65,30 @@ class ModuleConfSkel(Skeleton):
     _valid_html["validTags"] = _valid_tags
 
     name = StringBone(
-        descr=translate("modulename"),
+        descr=i18n.translate("modulename"),
         readOnly=True,
     )
 
     help_text = TextBone(
-        descr=translate("module helptext"),
+        descr=i18n.translate("module helptext"),
         validHtml=_valid_html,
     )
 
     help_text_add = TextBone(
-        descr=translate("add helptext"),
+        descr=i18n.translate("add helptext"),
         validHtml=_valid_html,
     )
 
     help_text_edit = TextBone(
-        descr=translate("edit helptext"),
+        descr=i18n.translate("edit helptext"),
         validHtml=_valid_html,
     )
 
     scripts = TreeLeafBone(
-        descr=translate("scriptor scripts"),
+        descr=i18n.translate("scriptor scripts"),
         module="script",
         kind="viur-script-leaf",
-        using=ScriptRelSkel,
+        using=ModuleConfScriptSkel,
         refKeys=[
             "key",
             "name",
@@ -103,7 +103,8 @@ class ModuleConf(List):
         This module is for ViUR internal purposes only.
         It lists all other modules to be able to provide them with help texts.
     """
-    kindName = "viur-module-conf"
+    MODULES = set()  # will be filled by read_all_modules
+    kindName = MODULECONF_KINDNAME
     accessRights = ["edit"]
 
     def adminInfo(self):
@@ -112,33 +113,58 @@ class ModuleConf(List):
     def canAdd(self):
         return False
 
-    def canDelete(self, skel: SkeletonInstance) -> bool:
+    def canDelete(self, skel):
         return False
 
+    def canEdit(self, skel):
+        if super().canEdit(skel):
+            return True
+
+        # Check for "manage"-flag on current user
+        return (cuser := current.user.get()) and f"""{skel["name"]}-manage""" in cuser["access"]
+
+    def listFilter(self, query):
+        original_query = query
+
+        # when super-call does not satisfy...
+        if not (query := super().listFilter(query)):
+            if cuser := current.user.get():
+                # ... then, list modules the user is allowed to use!
+                user_modules = set(right.split("-", 1)[0] for right in cuser["access"] if "-" in right)
+
+                query = original_query
+                query.filter("name IN", tuple(user_modules))
+
+        return query
+
     @classmethod
-    def get_by_module_name(cls, module_name: str) -> None | SkeletonInstance:
-        db_key = db.Key("viur-module-conf", module_name)
+    def get_by_module_name(cls, module_name: str) -> None | skeleton.SkeletonInstance:
+        db_key = db.Key(MODULECONF_KINDNAME, module_name)
         skel = conf["viur.mainApp"]._moduleconf.viewSkel()
         if not skel.fromDB(db_key):
-            logging.error(f"module({module_name}) not found in viur-module-conf")
+            logging.error(f"module({module_name}) not found")
             return None
 
         return skel
 
+    @tasks.StartupTask
+    @staticmethod
+    def read_all_modules():
+        db_module_names = (m["name"] for m in db.Query(MODULECONF_KINDNAME).run(999))
+        module_names = dir(conf["viur.mainApp"].vi)
 
-@StartupTask
-def read_all_modules():
-    db_module_names = [m["name"] for m in db.Query("viur-module-conf").run(999)]
-    module_names = dir(conf["viur.mainApp"].vi)
+        for module_name in module_names:
+            module = getattr(conf["viur.mainApp"].vi, module_name)
+            if isinstance(module, Module):
+                ModuleConf.MODULES.add(module_name)
 
-    for module_name in module_names:
-        module = getattr(conf["viur.mainApp"].vi, module_name)
-        if isinstance(module, Module):
-            if module_name not in db_module_names:
-                skel = conf["viur.mainApp"]._moduleconf.addSkel()
-                skel["key"] = db.Key("viur-module-conf", module_name)
-                skel["name"] = module_name
-                skel.toDB()
+                if module_name not in db_module_names:
+                    skel = conf["viur.mainApp"]._moduleconf.addSkel()
+                    skel["key"] = db.Key(MODULECONF_KINDNAME, module_name)
+                    skel["name"] = module_name
+                    skel.toDB()
+
+        # TODO: Remove entries from MODULECONF_KINDNAME which are in db_module_names but not in ModuleConf.MODULES
 
 
 ModuleConf.json = True
