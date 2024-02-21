@@ -125,11 +125,11 @@ class UserSkel(skeleton.Skeleton):
         to dynamically add bones required for the configured
         authentication methods.
         """
-        for provider in conf.main_app.user.authenticationProviders:
+        for provider in conf.main_app.vi.user.authenticationProviders:
             assert issubclass(provider, UserPrimaryAuthentication)
             provider.patch_user_skel(cls)
 
-        for provider in conf.main_app.user.secondFactorProviders:
+        for provider in conf.main_app.vi.user.secondFactorProviders:
             assert issubclass(provider, UserSecondFactorAuthentication)
             provider.patch_user_skel(cls)
 
@@ -1522,7 +1522,7 @@ def createNewUserIfNotExists():
     """
         Create a new Admin user, if the userDB is empty
     """
-    userMod = getattr(conf.main_app, "user", None)
+    userMod = getattr(conf.main_app.vi, "user", None)
     if (userMod  # We have a user module
         and isinstance(userMod, User)
         and "addSkel" in dir(userMod)
