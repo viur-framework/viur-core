@@ -151,6 +151,7 @@ class ModuleConf(List):
     @staticmethod
     def read_all_modules():
         db_module_names = (m["name"] for m in db.Query(MODULECONF_KINDNAME).run(999))
+        visited_modules = set()
 
         def collect_modules(parent, depth: int = 0, prefix: str = "") -> None:
             """Recursively collects all routable modules for the vi renderer"""
@@ -162,18 +163,24 @@ class ModuleConf(List):
                 module = getattr(parent, module_name, None)
                 if not isinstance(module, Module):
                     continue
-
+                if module in visited_modules:
+                    # Some modules reference other modules as parents, this will
+                    # lead to infinite recursion. We can avoid reaching the
+                    # maximum recursion limit by remembering already seen modules.
+                    if conf.debug.trace:
+                        logging.debug(f"Already visited and added {module=}")
+                    continue
                 module_name = f"{prefix}{module_name}"
-
+                visited_modules.add(module)
                 ModuleConf.MODULES.add(module_name)
                 if module_name not in db_module_names:
-                    skel = conf.main_app._moduleconf.addSkel()
+                    skel = conf.main_app.vi._moduleconf.addSkel()
                     skel["key"] = db.Key(MODULECONF_KINDNAME, module_name)
                     skel["name"] = module_name
                     skel.toDB()
 
-            # Collect children
-            collect_modules(module, depth=depth + 1, prefix=f"{module_name}.")
+                # Collect children
+                collect_modules(module, depth=depth + 1, prefix=f"{module_name}.")
 
         collect_modules(conf.main_app.vi)
         # TODO: Remove entries from MODULECONF_KINDNAME which are in db_module_names but not in ModuleConf.MODULES
