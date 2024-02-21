@@ -288,7 +288,7 @@ class Router:
             current.session.get().load(self)
 
             # Load current user into context variable if user module is there.
-            if user_mod := getattr(conf.main_app, "user", None):
+            if user_mod := getattr(conf.main_app.vi, "user", None):
                 current.user.set(user_mod.getCurrentUser())
 
             path = self._select_language(path)[1:]
