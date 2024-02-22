@@ -1148,6 +1148,8 @@ class User(List):
 
     secondFactorTimeWindow = datetime.timedelta(minutes=10)
 
+    default_order = "name.idx"
+
     adminInfo = {
         "icon": "person-fill",
         "actions": [
