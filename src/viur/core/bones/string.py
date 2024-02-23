@@ -209,59 +209,14 @@ class StringBone(BaseBone):
         self,
         name: str,
         skel: 'viur.core.skeleton.SkeletonInstance',
-        dbFilter: db.Query,
-        rawFilter: dict
+        query: db.Query,
+        params: dict,
+        postfix: str = "",
     ) -> t.Optional[db.Query]:
-        """
-        Build a DB sort based on the specified name and a raw filter.
-
-        :param name: The name of the attribute to sort by.
-        :param skel: A SkeletonInstance object.
-        :param dbFilter: A Query object representing the current DB filter.
-        :param rawFilter: A dictionary containing the raw filter.
-        :return: The Query object with the specified sort applied.
-        :rtype: Optional[google.cloud.ndb.query.Query]
-        """
-        if ((orderby := rawFilter.get("orderby"))
-            and (orderby == name
-                 or (isinstance(orderby, str) and orderby.startswith(f"{name}.") and self.languages))):
-            if self.languages:
-                lang = None
-                if orderby.startswith(f"{name}."):
-                    lng = orderby.replace(f"{name}.", "")
-                    if lng in self.languages:
-                        lang = lng
-                if lang is None:
-                    lang = current.language.get()
-                    if not lang or lang not in self.languages:
-                        lang = self.languages[0]
-                prop = f"{name}.{lang}"
-            else:
-                prop = name
-            if self.natural_sorting:
-                prop += ".sort_idx"
-            elif not self.caseSensitive:
-                prop += ".idx"
-
-            # fixme: VIUR4 replace theses stupid numbers defining a sort-order by a meaningful keys
-            sorting = {
-                "1": db.SortOrder.Descending,
-                "2": db.SortOrder.InvertedAscending,
-                "3": db.SortOrder.InvertedDescending,
-            }.get(rawFilter.get("orderdir"), db.SortOrder.Ascending)
-            order = (prop, sorting)
-            inEqFilter = [x for x in dbFilter.queries.filters.keys()  # FIXME: This will break on multi queries
-                          if (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
-            if inEqFilter:
-                inEqFilter = inEqFilter[0][: inEqFilter[0].find(" ")]
-                if inEqFilter != order[0]:
-                    logging.warning(f"I fixed you query! Impossible ordering changed to {inEqFilter}, {order[0]}")
-                    dbFilter.order(inEqFilter, order)
-                else:
-                    dbFilter.order(order)
-            else:
-                dbFilter.order(order)
-        return dbFilter
+        return super().buildDBSort(
+            name, skel, query, params,
+            postfix=".sort_idx" if self.natural_sorting else ".idx" if not self.caseSensitive else postfix
+        )
 
     def natural_sorting(self, value: str | None) -> str | None:
         """Implements a default natural sorting transformer.
