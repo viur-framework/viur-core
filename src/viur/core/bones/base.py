@@ -959,7 +959,7 @@ class BaseBone(object):
                     )
                     prop = orderby_prop
 
-            query.order((prop, utils.parse.sortorder(params.get("orderdir"))))
+            query.order((prop + postfix, utils.parse.sortorder(params.get("orderdir"))))
 
         return query
 
