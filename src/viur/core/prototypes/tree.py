@@ -6,7 +6,7 @@ from viur.core.bones import KeyBone, SortIndexBone
 from viur.core.cache import flushCache
 from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.tasks import CallDeferred
-from .skelmodule import SkelModule
+from .skelmodule import SkelModule, ORDER_TYPE
 
 
 SkelType = t.Literal["node", "leaf"]
@@ -47,7 +47,7 @@ class Tree(SkelModule):
     nodeSkelCls = None
     leafSkelCls = None
 
-    default_order: str | tuple[str, db.SortOrder] | None = "sortindex"
+    default_order: ORDER_TYPE | t.Callable[[db.Query], ORDER_TYPE] = "sortindex"
     """
     Allows to specify a default order for this module, which is applied when no other order is specified.
 
@@ -295,7 +295,11 @@ class Tree(SkelModule):
         if query := self.listFilter(self.viewSkel(skelType).all().mergeExternalFilter(kwargs)):
             # Apply default order when specified
             if self.default_order and not query.queries.orders and not current.request.get().kwargs.get("search"):
-                query.order(self.default_order)
+                if callable(default_order := self.default_order):
+                    default_order = default_order(query)
+
+                if default_order:
+                    query.order(default_order)
 
             return self.render.list(query.fetch())
 

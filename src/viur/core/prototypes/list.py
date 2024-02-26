@@ -4,7 +4,7 @@ from viur.core import current, db, errors, utils
 from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
-from .skelmodule import SkelModule
+from .skelmodule import SkelModule, ORDER_TYPE
 
 
 class List(SkelModule):
@@ -18,7 +18,9 @@ class List(SkelModule):
     """
     handler = "list"
     accessRights = ("add", "edit", "view", "delete", "manage")
-    default_order: str | tuple[str, db.SortOrder] | None = None
+
+    default_order: ORDER_TYPE | t.Callable[[db.Query], ORDER_TYPE] = \
+        lambda _self, query: next((prop for prop in ("sortindex", "name") if prop in query.srcSkel), None)
     """
     Allows to specify a default order for this module, which is applied when no other order is specified.
 
@@ -185,7 +187,11 @@ class List(SkelModule):
         if query := self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs)):
             # Apply default order when specified
             if self.default_order and not query.queries.orders and not current.request.get().kwargs.get("search"):
-                query.order(self.default_order)
+                if callable(default_order := self.default_order):
+                    default_order = default_order(query)
+
+                if default_order:
+                    query.order(default_order)
 
             return self.render.list(query.fetch())
 
