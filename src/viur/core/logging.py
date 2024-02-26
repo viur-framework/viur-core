@@ -97,6 +97,8 @@ class ViURLocalFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         # truncate the pathname
+        # print(f"{record = }")
+        # print(f"{vars(record) = }")
         if "/deploy" in record.pathname:
             pathname = record.pathname.split("/deploy/")[1]
         else:
@@ -111,6 +113,7 @@ class ViURLocalFormatter(logging.Formatter):
                 pathname = "/".join(parts)
 
         record.pathname = pathname
+        record.name = record.name.removeprefix(f"{LOGGER.name}.").removesuffix(f'.{record.filename.split(".", 1)[0]}')
 
         # Select colorization mode
         match (os.getenv(f"VIUR_LOGGING_COLORIZATION") or "FULL").upper():
@@ -140,17 +143,21 @@ requestLoggingRessource = Resource(
     }
 )
 
+# logger = logging.getLogger("viur.shop").getChild(__name__)
+LOGGER = logging.getLogger(conf.instance.project_id)#.getChild("viur.core")
+LOGGER.setLevel(logging.DEBUG)
+# logger.propagate = False
+
 logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
 
 # Calling getLogger(name) ensures that any placeholder loggers held by loggerDict are fully initialized
 # (https://stackoverflow.com/a/53250066)
-for name, level in {
-    k: v.getEffectiveLevel()
-    for k, v in logging.root.manager.loggerDict.items()
-    if isinstance(v, logging.Logger)
-}.items():
-    logging.getLogger(name).setLevel(level)
+# for name, level in {
+#     k: v.getEffectiveLevel()
+#     for k, v in logging.root.manager.loggerDict.items()
+#     if isinstance(v, logging.Logger)
+# }.items():
+#     logging.getLogger(name).setLevel(level)
 
 # Remove any existing handler from logger
 for handler in logger.handlers[:]:
@@ -170,7 +177,12 @@ if not conf.instance.is_dev_server:
 
 else:
     # Use ViURLocalFormatter for local debug message formatting
-    formatter = ViURLocalFormatter(f"[%(asctime)s] %(pathname)s:%(lineno)d [%(levelname)s] %(message)s")
+    # formatter = ViURLocalFormatter(f"[%(asctime)s] %(pathname)s|%(name)s|%(module)s:%(lineno)d [%(levelname)s] %(message)s")
+    formatter = ViURLocalFormatter(f"[%(asctime)s] %(name)s %(filename)s:%(lineno)d [%(levelname)s] %(message)s")
     sh = logging.StreamHandler()
     sh.setFormatter(formatter)
     logger.addHandler(sh)
+
+
+print(f"{logger.handlers = }")
+print(f"{logger = }")

@@ -24,8 +24,11 @@ from viur.core.config import conf
 from viur.core.logging import client as loggingClient, requestLogger, requestLoggingRessource
 from viur.core.securityheaders import extendCsp
 from viur.core.tasks import _appengineServiceIPs
+from viur.core.logging import LOGGER
 
 TEMPLATE_STYLE_KEY = "style"
+
+logger = LOGGER.getChild(__name__)
 
 
 class RequestValidator(ABC):
@@ -150,7 +153,7 @@ class Router:
         import warnings
         msg = "Use of `isDevServer` is deprecated; Use `conf.instance.is_dev_server` instead!"
         warnings.warn(msg, DeprecationWarning, stacklevel=2)
-        logging.warning(msg)
+        logger.warning(msg)
         return conf.instance.is_dev_server
 
     def _select_language(self, path: str) -> str:
@@ -205,7 +208,7 @@ class Router:
 
     def _process(self):
         if self.method not in ("get", "post", "head"):
-            logging.error(f"{self.method=} not supported")
+            logger.error(f"{self.method=} not supported")
             return
 
         if self.request.headers.get("X-AppEngine-TaskName", None) is not None:  # Check if we run in the appengine
@@ -218,7 +221,7 @@ class Router:
         # Check if we should process or abort the request
         for validator, reqValidatorResult in [(x, x.validate(self)) for x in self.requestValidators]:
             if reqValidatorResult is not None:
-                logging.warning(f"Request rejected by validator {validator.name}")
+                logger.warning(f"Request rejected by validator {validator.name}")
                 statusCode, statusStr, statusDescr = reqValidatorResult
                 self.response.status = f"{statusCode} {statusStr}"
                 self.response.write(statusDescr)
@@ -299,7 +302,7 @@ class Router:
 
         except errors.Redirect as e:
             if conf.debug.trace_exceptions:
-                logging.warning("""conf.debug.trace_exceptions is set, won't handle this exception""")
+                logger.warning("""conf.debug.trace_exceptions is set, won't handle this exception""")
                 raise
             self.response.status = f"{e.status} {e.name}"
             url = e.url
@@ -309,27 +312,27 @@ class Router:
 
         except Exception as e:
             if conf.debug.trace_exceptions:
-                logging.warning("""conf.debug.trace_exceptions is set, won't handle this exception""")
+                logger.warning("""conf.debug.trace_exceptions is set, won't handle this exception""")
                 raise
             self.response.body = b""
             if isinstance(e, errors.HTTPException):
-                logging.info(f"[{e.status}] {e.name}: {e.descr}", exc_info=conf.debug.trace)
+                logger.info(f"[{e.status}] {e.name}: {e.descr}", exc_info=conf.debug.trace)
                 self.response.status = f"{e.status} {e.name}"
                 # Set machine-readable x-viur-error response header in case there is an exception description.
                 if e.descr:
                     self.response.headers["x-viur-error"] = e.descr.replace("\n", "")
             else:
                 self.response.status = 500
-                logging.error("ViUR has caught an unhandled exception!")
-                logging.exception(e)
+                logger.error("ViUR has caught an unhandled exception!")
+                logger.exception(e)
 
             res = None
             if conf.error_handler:
                 try:
                     res = conf.error_handler(e)
                 except Exception as newE:
-                    logging.error("viur.error_handler failed!")
-                    logging.exception(newE)
+                    logger.error("viur.error_handler failed!")
+                    logger.exception(newE)
                     res = None
             if not res:
                 descr = "The server encountered an unexpected error and is unable to process your request."
@@ -417,11 +420,11 @@ class Router:
 
             while self.pendingTasks:
                 task = self.pendingTasks.pop()
-                logging.debug(f"Deferred task emulation, executing {task=}")
+                logger.debug(f"Deferred task emulation, executing {task=}")
                 try:
                     task()
                 except Exception:  # noqa
-                    logging.exception(f"Deferred Task emulation {task} failed")
+                    logger.exception(f"Deferred Task emulation {task} failed")
 
     def _route(self, path: str) -> None:
         """
@@ -532,7 +535,7 @@ class Router:
         if self.request.headers.get("X-Viur-Disable-Cache"):
             # No cache requested, check if the current user is allowed to do so
             if (user := current.user.get()) and "root" in user["access"]:
-                logging.debug("Caching disabled by X-Viur-Disable-Cache header")
+                logger.debug("Caching disabled by X-Viur-Disable-Cache header")
                 self.disableCache = True
 
         # Destill context as self.context, if available
@@ -546,7 +549,7 @@ class Router:
 
         if ((self.internalRequest and conf.debug.trace_internal_call_routing)
                 or conf.debug.trace_external_call_routing):
-            logging.debug(
+            logger.debug(
                 f"Calling {caller._func!r} with args={self.args!r}, {kwargs=} within context={self.context!r}"
             )
 
