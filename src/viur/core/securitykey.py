@@ -44,7 +44,7 @@ def create(
         The custom data (given as **custom_data) that can be stored with the key.
         Any data provided must be serializable by the datastore.
 
-        :param duration: Make this CSRF-token valid for a fixed timeframe of seconds.
+        :param duration: Make this CSRF-token valid for a fixed timeframe.
         :param session_bound: Bind this CSRF-token to the current session.
         :param indexed: Indexes all values stored with the security-key (default), set False to not index.
         :param custom_data: Any other data is stored with the CSRF-token, for later re-use.
