@@ -33,7 +33,7 @@ that the session key from the headers should be used."""
 
 
 def create(
-        duration: None | int = None,
+        duration: None | int | datetime.timedelta = None,
         session_bound: bool = True,
         key_length: int = 13,
         indexed: bool = True,
@@ -56,14 +56,17 @@ def create(
 
     if not duration:
         duration = conf.user.session_life_time if session_bound else SECURITYKEY_DURATION
-
     key = utils.string.random(key_length)
 
     entity = db.Entity(db.Key(SECURITYKEY_KINDNAME, key))
     entity |= custom_data
 
     entity["viur_session"] = current.session.get().cookie_key if session_bound else None
-    entity["viur_until"] = utils.utcNow() + datetime.timedelta(seconds=int(duration))
+    if isinstance(duration, datetime.timedelta):
+        entity["viur_until"] = utils.utcNow() + duration
+    else:
+        entity["viur_until"] = utils.utcNow() + datetime.timedelta(seconds=int(duration))
+
 
     if not indexed:
         entity.exclude_from_indexes = [k for k in entity.keys() if not k.startswith("viur_")]
