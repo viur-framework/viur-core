@@ -4,7 +4,7 @@ from viur.core import current, db, errors, utils
 from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
-from .skelmodule import SkelModule, ORDER_TYPE
+from .skelmodule import SkelModule, DEFAULT_ORDER_TYPE
 
 
 class List(SkelModule):
@@ -19,7 +19,7 @@ class List(SkelModule):
     handler = "list"
     accessRights = ("add", "edit", "view", "delete", "manage")
 
-    default_order: ORDER_TYPE | t.Callable[[db.Query], ORDER_TYPE] = \
+    default_order: DEFAULT_ORDER_TYPE = \
         lambda _self, query: next((prop for prop in ("sortindex", "name") if prop in query.srcSkel), None)
     """
     Allows to specify a default order for this module, which is applied when no other order is specified.
