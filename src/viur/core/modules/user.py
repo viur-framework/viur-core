@@ -125,11 +125,11 @@ class UserSkel(skeleton.Skeleton):
         to dynamically add bones required for the configured
         authentication methods.
         """
-        for provider in conf.main_app.user.authenticationProviders:
+        for provider in conf.main_app.vi.user.authenticationProviders:
             assert issubclass(provider, UserPrimaryAuthentication)
             provider.patch_user_skel(cls)
 
-        for provider in conf.main_app.user.secondFactorProviders:
+        for provider in conf.main_app.vi.user.secondFactorProviders:
             assert issubclass(provider, UserSecondFactorAuthentication)
             provider.patch_user_skel(cls)
 
@@ -193,7 +193,7 @@ class UserAuthentication(Module, abc.ABC):
         return True
 
     @classmethod
-    def patch_user_skel(cls, skel_cls: skeleton.Skeleton) -> skeleton.Skeleton:
+    def patch_user_skel(cls, skel_cls: skeleton.Skeleton):
         """
         Allows for an UserAuthentication to patch the UserSkel
         class with additional bones which are required for
@@ -747,7 +747,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             }
         )
 
-        skel.otp_timedrift = NumericBone(
+        skel_cls.otp_timedrift = NumericBone(
             descr="OTP time drift",
             readOnly=True,
             defaultValue=0,
@@ -755,8 +755,6 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
                 "category": "Second Factor Authentication",
             }
         )
-
-        return skel
 
     def get_config(self, user: db.Entity) -> OtpConfig | None:
         """
@@ -1148,7 +1146,7 @@ class User(List):
     secondFactorTimeWindow = datetime.timedelta(minutes=10)
 
     adminInfo = {
-        "icon": "users",
+        "icon": "person-fill",
         "actions": [
             "trigger_kick",
             "trigger_takeover",
@@ -1160,7 +1158,7 @@ class User(List):
                     defaultText="Kick user",
                     hint="Title of the kick user function"
                 ),
-                "icon": "trash",
+                "icon": "trash2-fill",
                 "access": ["root"],
                 "action": "fetch",
                 "url": "/vi/{{module}}/trigger/kick/{{key}}?skey={{skey}}",
@@ -1179,7 +1177,7 @@ class User(List):
                     defaultText="Take-over user",
                     hint="Title of the take user over function"
                 ),
-                "icon": "interface",
+                "icon": "file-person-fill",
                 "access": ["root"],
                 "action": "fetch",
                 "url": "/vi/{{module}}/trigger/takeover/{{key}}?skey={{skey}}",
@@ -1270,11 +1268,9 @@ class User(List):
         return getattr(self, f"f2_{cls.__name__.lower()}")
 
     def getCurrentUser(self):
-        # May be a deferred task
-        if not (session := current.session.get()):
-            return None
+        session = current.session.get()
 
-        if user := session.get("user"):
+        if session and (user := session.get("user")):
             skel = self.baseSkel()
             skel.setEntity(user)
             return skel
@@ -1528,7 +1524,7 @@ def createNewUserIfNotExists():
     """
         Create a new Admin user, if the userDB is empty
     """
-    userMod = getattr(conf.main_app, "user", None)
+    userMod = getattr(conf.main_app.vi, "user", None)
     if (userMod  # We have a user module
         and isinstance(userMod, User)
         and "addSkel" in dir(userMod)
