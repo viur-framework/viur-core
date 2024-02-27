@@ -6,7 +6,7 @@ from viur.core.bones import KeyBone, SortIndexBone
 from viur.core.cache import flushCache
 from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.tasks import CallDeferred
-from .skelmodule import SkelModule
+from .skelmodule import SkelModule, DEFAULT_ORDER_TYPE
 
 
 SkelType = t.Literal["node", "leaf"]
@@ -46,6 +46,14 @@ class Tree(SkelModule):
 
     nodeSkelCls = None
     leafSkelCls = None
+
+    default_order: DEFAULT_ORDER_TYPE = "sortindex"
+    """
+    Allows to specify a default order for this module, which is applied when no other order is specified.
+
+    Setting a default_order might result in the requirement of additional indexes, which are being raised
+    and must be specified.
+    """
 
     def __init__(self, moduleName, modulePath, *args, **kwargs):
         assert self.nodeSkelCls, f"Need to specify at least nodeSkelCls for {self.__class__.__name__!r}"
@@ -281,13 +289,21 @@ class Tree(SkelModule):
         :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
         if not (skelType := self._checkSkelType(skelType)):
-            raise errors.NotAcceptable(f"Invalid skelType provided.")
-        skel = self.viewSkel(skelType)
-        query = self.listFilter(skel.all().mergeExternalFilter(kwargs))  # Access control
-        if query is None:
-            raise errors.Unauthorized()
-        res = query.fetch()
-        return self.render.list(res)
+            raise errors.NotAcceptable("Invalid skelType provided.")
+
+        # The general access control is made via self.listFilter()
+        if query := self.listFilter(self.viewSkel(skelType).all().mergeExternalFilter(kwargs)):
+            # Apply default order when specified
+            if self.default_order and not query.queries.orders and not current.request.get().kwargs.get("search"):
+                if callable(default_order := self.default_order):
+                    default_order = default_order(query)
+
+                if default_order:
+                    query.order(default_order)
+
+            return self.render.list(query.fetch())
+
+        raise errors.Unauthorized()
 
     @exposed
     def structure(self, skelType: SkelType, *args, **kwargs) -> t.Any:

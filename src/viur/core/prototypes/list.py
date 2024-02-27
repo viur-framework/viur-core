@@ -4,7 +4,7 @@ from viur.core import current, db, errors, utils
 from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
-from .skelmodule import SkelModule
+from .skelmodule import SkelModule, DEFAULT_ORDER_TYPE
 
 
 class List(SkelModule):
@@ -14,10 +14,19 @@ class List(SkelModule):
         The list module prototype handles datasets in a flat list. It can be extended to filters and views to provide
         various use-cases.
 
-        Definitely, it is the mostly-used prototype in any ViUR project.
+        It is undoubtedly the most frequently used prototype in any ViUR project.
     """
     handler = "list"
     accessRights = ("add", "edit", "view", "delete", "manage")
+
+    default_order: DEFAULT_ORDER_TYPE = \
+        lambda _self, query: next((prop for prop in ("sortindex", "name") if prop in query.srcSkel), None)
+    """
+    Allows to specify a default order for this module, which is applied when no other order is specified.
+
+    Setting a default_order might result in the requirement of additional indexes, which are being raised
+    and must be specified.
+    """
 
     def viewSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -174,11 +183,19 @@ class List(SkelModule):
 
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
-        query = self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs))  # Access control
-        if query is None:
-            raise errors.Unauthorized()
-        res = query.fetch()
-        return self.render.list(res)
+        # The general access control is made via self.listFilter()
+        if query := self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs)):
+            # Apply default order when specified
+            if self.default_order and not query.queries.orders and not current.request.get().kwargs.get("search"):
+                if callable(default_order := self.default_order):
+                    default_order = default_order(query)
+
+                if default_order:
+                    query.order(default_order)
+
+            return self.render.list(query.fetch())
+
+        raise errors.Unauthorized()
 
     @force_ssl
     @exposed

@@ -396,6 +396,8 @@ class File(Tree):
         "admin": "*",
     }
 
+    default_order = "name"
+
     # Helper functions currently resist here
 
     @staticmethod
