@@ -428,9 +428,9 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                 raise ValueError("Cannot append None-value to bone {boneName!r}")
 
             if language:
-                skelValues[boneName][language] = None
+                skelValues[boneName][language] = [] if bone.multiple else None
             else:
-                skelValues[boneName] = None
+                skelValues[boneName] = [] if bone.multiple else None
 
             return True
 
