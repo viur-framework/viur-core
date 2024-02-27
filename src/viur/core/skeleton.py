@@ -417,19 +417,17 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
         if not isinstance(bone, BaseBone):
             raise ValueError(f"{boneName!r} is no valid bone on this skeleton ({skelValues!r})")
 
+        if language:
+            if not bone.languages:
+                raise ValueError("The bone {boneName!r} has no language setting")
+            elif language not in bone.languages:
+                raise ValueError("The language {language!r} is not available for bone {boneName!r}")
+
         if value is None:
             if append:
-                if bone.multiple:
-                    return True  # Just do nothing
-
-                raise ValueError("Cannot append to non-multiple bone {boneName!r}")
+                raise ValueError("Cannot append None-value to bone {boneName!r}")
 
             if language:
-                if not bone.languages:
-                    raise ValueError("The bone {boneName!r} has no language setting")
-                elif language not in bone.languages:
-                    raise ValueError("The language {language!r} is not available for bone {boneName!r}")
-
                 skelValues[boneName][language] = None
             else:
                 skelValues[boneName] = None
