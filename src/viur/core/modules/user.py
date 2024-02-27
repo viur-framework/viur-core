@@ -995,7 +995,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
                 name=i18n.translate(self.NAME),
             )
 
-    def can_handle(self, skel: skeleton.SkeletinInstance) -> bool:
+    def can_handle(self, skel: skeleton.SkeletonInstance) -> bool:
         """
         We can only handle the second factor if we have stored an otp_app_secret before.
         """
