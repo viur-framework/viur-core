@@ -12,22 +12,25 @@ class ViURJsonEncoder(json.JSONEncoder):
     into a special dict with JSON-serializable values.
     """
     def default(self, obj: t.Any) -> t.Any:
-        if isinstance(obj, db.Key):
-            return {".__key__": db.encodeKey(obj)}
+        if isinstance(obj, bytes):
+            return {".__bytes__": base64.b64encode(obj).decode("ASCII")}
         elif isinstance(obj, datetime.datetime):
             return {".__datetime__": obj.astimezone(pytz.UTC).isoformat()}
-        elif isinstance(obj, bytes):
-            return {".__bytes__": base64.b64encode(obj).decode("ASCII")}
+        elif isinstance(obj, datetime.timedelta):
+            return {".__timedelta__": obj / datetime.timedelta(microseconds=1)}
+        elif isinstance(obj, set):
+            return {".__set__": list(obj)}
+        elif hasattr(obj, "__iter__"):
+            return tuple(obj)
+        # cannot be tested in tests...
+        elif isinstance(obj, db.Key):
+            return {".__key__": db.encodeKey(obj)}
         elif isinstance(obj, db.Entity):
             # TODO: Handle SkeletonInstance as well?
             return {
-                ".__entity__": self.default(dict(obj)),
+                ".__entity__": dict(obj),
                 ".__key__": db.encodeKey(obj.key) if obj.key else None
             }
-        elif isinstance(obj, dict):
-            return {self.default(key): self.default(value) for key, value in obj.items()}
-        elif isinstance(obj, (list, tuple, set)):
-            return (self.default(item) for item in obj)
 
         return super().default(obj)
 
@@ -45,14 +48,16 @@ def _decode_object_hook(obj: t.Any):
         Check if the object matches a custom ViUR type and recreate it accordingly.
     """
     if len(obj) == 1:
-        if key := obj.get(".__key__"):
-            return db.Key.from_legacy_urlsafe(key)
-
-        if date := obj.get(".__datetime__"):
-            return datetime.datetime.fromisoformat(date)
-
         if buf := obj.get(".__bytes__"):
             return base64.b64decode(buf)
+        elif date := obj.get(".__datetime__"):
+            return datetime.datetime.fromisoformat(date)
+        elif microseconds := obj.get(".__timedelta__"):
+            return datetime.timedelta(microseconds=microseconds)
+        elif key := obj.get(".__key__"):
+            return db.Key.from_legacy_urlsafe(key)
+        elif items := obj.get(".__set__"):
+            return set(items)
 
     elif len(obj) == 2 and all(k in obj for k in (".__entity__", ".__key__")):
         # TODO: Handle SkeletonInstance as well?
