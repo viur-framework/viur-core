@@ -397,7 +397,17 @@ class Security(ConfigType):
 
     password_recovery_key_length: int = 42
     """Length of the Password recovery key"""
+    closed_system: bool = False
 
+    closed_system_allowed_paths: list[str] = [
+        "",
+        "vi",
+        "settings",
+        "skey",
+        "user/auth_googleaccount/login",
+        "user/auth_userpassword/login",
+        "user/getAuthMethods"
+    ]
     _mapping = {
         "contentSecurityPolicy": "content_security_policy",
         "referrerPolicy": "referrer_policy",

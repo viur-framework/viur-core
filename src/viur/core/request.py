@@ -292,6 +292,20 @@ class Router:
                 current.user.set(user_mod.getCurrentUser())
 
             path = self._select_language(path)[1:]
+            # Check for closed system
+            if conf.security.closed_system:
+                if path.startswith("vi/"):
+                    check_path = path[3:]
+                elif path.startswith("json/"):
+                    check_path = path[5:]
+                else:
+                    check_path = path
+                if check_path.startswith("_tasks/"):
+                    pass  # Skip more checks
+                elif check_path not in conf.security.closed_system_allowed_paths \
+                        and not current.session.get().get("user"):
+                    raise errors.Unauthorized()
+
             if conf.request_preprocessor:
                 path = conf.request_preprocessor(path)
 
