@@ -2,22 +2,15 @@
 This module contains the RelationalBone to create and manage relationships between skeletons
 and enums to parameterize it.
 """
+import json
 import logging
+import typing as t
 import warnings
 from enum import Enum
-import typing as t
-
 from itertools import chain
 from time import time
-
 from viur.core import db, utils
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
-
-try:
-    import extjson
-except ImportError:
-    # FIXME: That json will not read datetime objects
-    import json as extjson
 
 
 class RelationalConsistency(Enum):
@@ -363,7 +356,7 @@ class RelationalBone(BaseBone):
 
         if isinstance(val, str):  # ViUR2 compatibility
             try:
-                value = extjson.loads(val)
+                value = json.loads(val)
                 if isinstance(value, list):
                     value = [fixFromDictToEntry(x) for x in value]
                 elif isinstance(value, dict):
