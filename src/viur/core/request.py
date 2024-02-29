@@ -5,7 +5,7 @@
     Additionally, this module defines the RequestValidator interface which provides a very early hook into the
     request processing (useful for global ratelimiting, DDoS prevention or access control).
 """
-
+import fnmatch
 import json
 import logging
 import os
