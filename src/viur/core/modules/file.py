@@ -386,7 +386,7 @@ class File(Tree):
 
     handler = "tree.simple.file"
     adminInfo = {
-        "icon": "file-system",
+        "icon": "folder-fill",
         "handler": handler,  # fixme: Use static handler; Remove with VIUR4!
     }
 
@@ -395,6 +395,8 @@ class File(Tree):
         "editor": ("add", "edit"),
         "admin": "*",
     }
+
+    default_order = "name"
 
     # Helper functions currently resist here
 
@@ -502,7 +504,6 @@ class File(Tree):
 
     @staticmethod
     def create_src_set(
-        self,
         file: t.Union["SkeletonInstance", dict, str],
         expires: t.Optional[datetime.timedelta | int] = datetime.timedelta(hours=1),
         width: t.Optional[int] = None,

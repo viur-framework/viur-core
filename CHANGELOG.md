@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.5.15]
+
+- fix: Several improvements on `ModuleConf` (#1073)
+
 ## [3.5.14]
 
 - fix: `current.user` unset in deferred task calls (#1067)

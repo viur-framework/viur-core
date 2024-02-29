@@ -9,7 +9,7 @@ import typing as t
 from urllib.parse import quote
 from viur.core import current, db
 from viur.core.config import conf
-from . import string, parse
+from . import string, parse, json
 
 
 def utcNow() -> datetime:

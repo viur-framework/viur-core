@@ -271,7 +271,7 @@ class Admin(ConfigType):
     """secondary color for viur-admin"""
 
     module_groups: dict[str, dict[t.Literal["name", "icon", "sortindex"], str | int]] = {}
-    """Module Groups for the VI
+    """Module Groups for the admin tool
 
     Group modules in the sidebar in categories (groups).
 
@@ -279,12 +279,12 @@ class Admin(ConfigType):
         conf.admin.module_groups = {
             "content": {
                 "name": "Content",
-                "icon": "text-file",
+                "icon": "file-text-fill",
                 "sortindex": 10,
             },
             "shop": {
                 "name": "Shop",
-                "icon": "cart",
+                "icon": "cart-fill",
                 "sortindex": 20,
             },
         }
@@ -654,13 +654,13 @@ class Conf(ConfigType):
     """Upper limit of the amount of parameters we accept per request. Prevents Hash-Collision-Attacks"""
 
     moduleconf_admin_info: dict[str, t.Any] = {
-        "icon": "icon-settings",
+        "icon": "gear-fill",
         "display": "hidden",
     }
     """Describing the internal ModuleConfig-module"""
 
     script_admin_info: dict[str, t.Any] = {
-        "icon": "icon-hashtag",
+        "icon": "file-code-fill",
         "display": "hidden",
     }
     """Describing the Script module"""

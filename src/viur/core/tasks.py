@@ -1,12 +1,10 @@
 import abc
-import base64
 import datetime
 import functools
 import grpc
 import json
 import logging
 import os
-import pytz
 import requests
 import sys
 import time
@@ -41,52 +39,6 @@ class CustomEnvironmentHandler(abc.ABC):
         the information it contains to the environment of the deferred request.
         """
         ...
-
-
-def _preprocess_json_object(obj):
-    """
-        Add support for db.Key, datetime, bytes and db.Entity in deferred tasks,
-        and converts the provided obj into a special dict with JSON-serializable values.
-    """
-    if isinstance(obj, db.Key):
-        return {".__key__": db.encodeKey(obj)}
-    elif isinstance(obj, datetime.datetime):
-        return {".__datetime__": obj.astimezone(pytz.UTC).isoformat()}
-    elif isinstance(obj, bytes):
-        return {".__bytes__": base64.b64encode(obj).decode("ASCII")}
-    elif isinstance(obj, db.Entity):
-        # TODO: Support Skeleton instances as well?
-        return {
-            ".__entity__": _preprocess_json_object(dict(obj)),
-            ".__ekey__": db.encodeKey(obj.key) if obj.key else None
-        }
-    elif isinstance(obj, dict):
-        return {_preprocess_json_object(k): _preprocess_json_object(v) for k, v in obj.items()}
-    elif isinstance(obj, (list, tuple, set)):
-        return [_preprocess_json_object(x) for x in obj]
-
-    return obj
-
-
-def _decode_object_hook(obj):
-    """
-        Inverse for _preprocess_json_object, which is an object-hook for json.loads.
-        Check if the object matches a custom ViUR type and recreate it accordingly.
-    """
-    if len(obj) == 1:
-        if key := obj.get(".__key__"):
-            return db.Key.from_legacy_urlsafe(key)
-        elif date := obj.get(".__datetime__"):
-            return datetime.datetime.fromisoformat(date)
-        elif buf := obj.get(".__bytes__"):
-            return base64.b64decode(buf)
-
-    elif len(obj) == 2 and ".__entity__" in obj and ".__ekey__" in obj:
-        entity = db.Entity(db.Key.from_legacy_urlsafe(obj[".__ekey__"]) if obj[".__ekey__"] else None)
-        entity.update(obj[".__entity__"])
-        return entity
-
-    return obj
 
 
 _gaeApp = os.environ.get("GAE_APPLICATION")
@@ -221,7 +173,7 @@ class TaskHandler(Module):
         """
         req = current.request.get().request
         self._validate_request()
-        data = json.loads(req.body, object_hook=_decode_object_hook)
+        data = utils.json.loads(req.body)
         if data["classID"] not in MetaQueryIter._classCache:
             logging.error(f"""Could not continue queryIter - {data["classID"]} not known on this instance""")
         MetaQueryIter._classCache[data["classID"]]._qryStep(data)
@@ -242,7 +194,7 @@ class TaskHandler(Module):
                 f"""Task {req.headers.get("X-Appengine-Taskname", "")} is retried for the {retryCount}th time."""
             )
 
-        cmd, data = json.loads(req.body, object_hook=_decode_object_hook)
+        cmd, data = utils.json.loads(req.body)
         funcPath, args, kwargs, env = data
         logging.debug(f"Call task {funcPath} with {cmd=} {args=} {kwargs=} {env=}")
 
@@ -251,7 +203,7 @@ class TaskHandler(Module):
                 current.session.get()["user"] = env["user"]
 
                 # Load current user into context variable if user module is there.
-                if user_mod := getattr(conf.main_app, "user", None):
+                if user_mod := getattr(conf.main_app.vi, "user", None):
                     current.user.set(user_mod.getCurrentUser())
             if "lang" in env and env["lang"]:
                 current.language.set(env["lang"])
@@ -612,7 +564,7 @@ def CallDeferred(func: t.Callable) -> t.Callable:
             # Create task description
             task = tasks_v2.Task(
                 app_engine_http_request=tasks_v2.AppEngineHttpRequest(
-                    body=json.dumps(_preprocess_json_object((command, (funcPath, args, kwargs, env)))).encode("UTF-8"),
+                    body=utils.json.dumps((command, (funcPath, args, kwargs, env))).encode(),
                     http_method=tasks_v2.HttpMethod.POST,
                     relative_uri=taskargs["url"],
                     app_engine_routing=tasks_v2.AppEngineRouting(
@@ -787,7 +739,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
             parent=taskClient.queue_path(conf.instance.project_id, queueRegion, cls.queueName),
             task=tasks_v2.Task(
                 app_engine_http_request=tasks_v2.AppEngineHttpRequest(
-                    body=json.dumps(_preprocess_json_object(qryDict)).encode("UTF-8"),
+                    body=utils.json.dumps(qryDict).encode(),
                     http_method=tasks_v2.HttpMethod.POST,
                     relative_uri="/_tasks/queryIter",
                     app_engine_routing=tasks_v2.AppEngineRouting(

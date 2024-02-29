@@ -272,8 +272,8 @@ def sendEMailToAdmins(subject: str, body: str, *args, **kwargs) -> bool:
         users = []
         if conf.email.admin_recipients is not None:
             users = normalize_to_list(conf.email.admin_recipients)
-        elif "user" in dir(conf.main_app):
-            for user_skel in conf.main_app.user.viewSkel().all().filter("access =", "root").fetch():
+        elif "user" in dir(conf.main_app.vi):
+            for user_skel in conf.main_app.vi.user.viewSkel().all().filter("access =", "root").fetch():
                 users.append(user_skel["name"])
 
         # Prefix the instance's project_id to subject
