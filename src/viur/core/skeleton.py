@@ -1363,6 +1363,7 @@ class RefSkel(RelSkel):
         """
         newClass = type("RefSkelFor" + kindName, (RefSkel,), {})
         fromSkel = skeletonByKind(kindName)
+        newClass.kindName = kindName
         bone_map = {}
         for arg in args:
             if arg[-1] == "*":  # we have a wild card prefix
