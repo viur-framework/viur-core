@@ -392,7 +392,7 @@ class UserPassword(UserPrimaryAuthentication):
             self.passwordRecoveryRateLimit.decrementQuota()
 
             recovery_key = securitykey.create(
-                duration=15 * 60,
+                duration=datetime.timedelta(minutes=15),
                 key_length=conf.security.password_recovery_key_length,
                 user_name=skel["name"].lower(),
                 session_bound=False,
@@ -563,7 +563,7 @@ class UserPassword(UserPrimaryAuthentication):
         skel.toDB()
         if self.registrationEmailVerificationRequired and skel["status"] == Status.WAITING_FOR_EMAIL_VERIFICATION:
             # The user will have to verify his email-address. Create a skey and send it to his address
-            skey = securitykey.create(duration=60 * 60 * 24 * 7, session_bound=False,
+            skey = securitykey.create(duration=datetime.timedelta(days=7), session_bound=False,
                                       user_key=utils.normalizeKey(skel["key"]),
                                       name=skel["name"])
             skel.skey = BaseBone(descr="Skey")
