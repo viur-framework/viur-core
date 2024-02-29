@@ -1157,30 +1157,26 @@ class RelationalBone(BaseBone):
         relation data.
 
         :param Union[str, db.Key] key: The database key of the entity for which a relSkel instance is to be created.
-        :param Union[dict, None]rel: Optional relation data to be included in the resulting dictionary. Default is None.
 
         :return: A dictionary containing a reference skeleton and optional relation data.
         :rtype: dict
         """
 
-        key_list = [db.keyHelper(value[0], self.kind) for value in key_rel_list]
-        db_objs = db.Get(key_list)
-
-        if not all(db_objs):
+        if not all(db_objs := db.Get([db.keyHelper(value[0], self.kind) for value in key_rel_list])):
             return None
         res_rel_skels = []
         for i, db_obj in enumerate(db_objs):
-            relSkel = self._refSkelCache()
-            relSkel.unserialize(db_obj)
-            for k in relSkel.keys():
+            dest_skel = self._refSkelCache()
+            dest_skel.unserialize(db_obj)
+            for k in dest_skel.keys():
                 # Unserialize all bones from refKeys, then drop dbEntity - otherwise all properties will be copied
-                _ = relSkel[k]
-            relSkel.dbEntity = None
+                _ = dest_skel[k]
+            dest_skel.dbEntity = None
             res_rel_skels.append(
-            {
-                "dest": relSkel,
-                "rel": key_rel_list[i][1] or None
-            }
+                {
+                    "dest": dest_skel,
+                    "rel": key_rel_list[i][1] or None
+                }
             )
         return res_rel_skels
 
@@ -1263,10 +1259,7 @@ class RelationalBone(BaseBone):
                 else:
                     if boneName not in skel or not isinstance(skel[boneName], list):
                         skel[boneName] = []
-                    logging.debug(f"ske old {skel=}")
-                    logging.debug(f"append {rel_list=}")
                     skel[boneName].extend(rel_list)
-                    logging.debug(f"{skel=}")
             else:
                 if language:
                     if boneName not in skel or not isinstance(skel[boneName], dict):
