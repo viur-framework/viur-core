@@ -2,7 +2,7 @@
 ViUR utility functions regarding parsing.
 """
 import typing as t
-from datetime import timedelta as td
+import datetime
 
 
 def bool(value: t.Any, truthy_values: t.Iterable[str] = ("true", "yes", "1")) -> bool:
@@ -20,7 +20,7 @@ def bool(value: t.Any, truthy_values: t.Iterable[str] = ("true", "yes", "1")) ->
     return str(value).strip().lower() in truthy_values
 
 
-def timedelta(value: td | int | float | str) -> td:
+def timedelta(value: datetime.timedelta | int | float | str) -> datetime.timedelta:
     """
     Parse a value into a timedelta object.
 
@@ -29,8 +29,8 @@ def timedelta(value: td | int | float | str) -> td:
     :param value: The value to be parsed into a timedelta.
     :returns: A timedelta object.
     """
-    if isinstance(value, td):
+    if isinstance(value, datetime.timedelta):
         return value
     if isinstance(value, str):
         value = float(value)
-    return td(seconds=value)
+    return datetime.timedelta(seconds=value)
