@@ -401,76 +401,55 @@ class RelationalBone(BaseBone):
         """
         oldRelationalLocks = set(skel.dbEntity.get(f"{name}_outgoingRelationalLocks") or [])
         newRelationalLocks = set()
+
+        def serialize_dest_rel(in_value):
+            if not in_value:
+                return None, None
+            if dest_val := in_value.get("dest"):
+                ref_data_serialized = dest_val.serialize(parentIndexed=indexed)
+                newRelationalLocks.add(dest_val["key"])
+            else:
+                ref_data_serialized = None
+            if rel_data := in_value.get("rel"):
+                using_data_serialized = rel_data.serialize(parentIndexed=indexed)
+            else:
+                using_data_serialized = None
+            return ref_data_serialized, using_data_serialized
+
         # Clean old properties from entry (prevent name collision)
-        for k in list(skel.dbEntity.keys()):
+        for k in skel.dbEntity.keys():
             if k.startswith(f"{name}."):
                 del skel.dbEntity[k]
         indexed = self.indexed and parentIndexed
-        if name not in skel.accessedValues:
-            return
-        elif not skel.accessedValues[name]:
-            res = None
-        elif self.languages and self.multiple:
-            res = {"_viurLanguageWrapper_": True}
-            newVals = skel.accessedValues[name]
-            for language in self.languages:
-                res[language] = []
-                if language in newVals:
-                    for val in newVals[language]:
-                        if val["dest"]:
-                            refData = val["dest"].serialize(parentIndexed=indexed)
-                            newRelationalLocks.add(val["dest"]["key"])
-                        else:
-                            refData = None
-                        if val["rel"]:
-                            usingData = val["rel"].serialize(parentIndexed=indexed)
-                        else:
-                            usingData = None
-                        r = {"rel": usingData, "dest": refData}
-                        res[language].append(r)
+        if not (new_vals := skel.accessedValues.get(name)):
+            return None
         elif self.languages:
             res = {"_viurLanguageWrapper_": True}
-            newVals = skel.accessedValues[name]
-            for language in self.languages:
-                res[language] = []
-                if language in newVals:
-                    val = newVals[language]
-                    if val and val["dest"]:
-                        refData = val["dest"].serialize(parentIndexed=indexed)
-                        newRelationalLocks.add(val["dest"]["key"])
-                        if val["rel"]:
-                            usingData = val["rel"].serialize(parentIndexed=indexed)
+            if self.multiple:
+                for language in self.languages:
+                    res[language] = []
+                    if language in new_vals:
+                        for val in new_vals[language]:
+                            using_data, ref_data = serialize_dest_rel(val)
+                            res[language].append({"rel": using_data, "dest": ref_data})
+            else:
+                for language in self.languages:
+                    res[language] = []
+                    if language in new_vals:
+                        val = new_vals[language]
+                        if val and val["dest"]:
+                            using_data, ref_data = serialize_dest_rel(val)
+                            res[language] = {"rel": using_data, "dest": ref_data}
                         else:
-                            usingData = None
-                        r = {"rel": usingData, "dest": refData}
-                        res[language] = r
-                    else:
-                        res[language] = None
+                            res[language] = None
         elif self.multiple:
             res = []
-            for val in skel.accessedValues[name]:
-                if val["dest"]:
-                    refData = val["dest"].serialize(parentIndexed=indexed)
-                    newRelationalLocks.add(val["dest"]["key"])
-                else:
-                    refData = None
-                if val["rel"]:
-                    usingData = val["rel"].serialize(parentIndexed=indexed)
-                else:
-                    usingData = None
-                r = {"rel": usingData, "dest": refData}
-                res.append(r)
+            for val in new_vals:
+                using_data, ref_data = serialize_dest_rel(val)
+                res.append({"rel": using_data, "dest": ref_data})
         else:
-            if skel.accessedValues[name]["dest"]:
-                refData = skel.accessedValues[name]["dest"].serialize(parentIndexed=indexed)
-                newRelationalLocks.add(skel.accessedValues[name]["dest"]["key"])
-            else:
-                refData = None
-            if skel.accessedValues[name]["rel"]:
-                usingData = skel.accessedValues[name]["rel"].serialize(parentIndexed=indexed)
-            else:
-                usingData = None
-            res = {"rel": usingData, "dest": refData}
+            using_data, ref_data = serialize_dest_rel(new_vals)
+            res = {"rel": using_data, "dest": ref_data}
 
         skel.dbEntity[name] = res
 
@@ -487,7 +466,7 @@ class RelationalBone(BaseBone):
 
         # We should always run inside a transaction so we can safely get+put
         skel.dbEntity[f"{name}_outgoingRelationalLocks"] = list(newRelationalLocks)
-
+        incomming_locks = []
         for newLock in newRelationalLocks - oldRelationalLocks:
             # Lock new Entry
             if referencedObj := db.Get(newLock):
@@ -495,15 +474,16 @@ class RelationalBone(BaseBone):
 
                 if skel["key"] not in referencedObj["viur_incomming_relational_locks"]:
                     referencedObj["viur_incomming_relational_locks"].append(skel["key"])
-                    db.Put(referencedObj)
+                    incomming_locks.append(referencedObj)
 
         for oldLock in oldRelationalLocks - newRelationalLocks:
             # Remove Lock
             if referencedObj := db.Get(oldLock):
+                referencedObj.setdefault("viur_incomming_relational_locks", [])
                 if skel["key"] in referencedObj["viur_incomming_relational_locks"]:
                     referencedObj["viur_incomming_relational_locks"].remove(skel["key"])
-                    db.Put(referencedObj)
-
+                    incomming_locks.append(referencedObj)
+        db.Put(incomming_locks)
         return True
 
     def delete(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
