@@ -399,15 +399,16 @@ class Security(ConfigType):
     """Length of the Password recovery key"""
     closed_system: bool = False
 
-    closed_system_allowed_paths: list[str] = [
-        "",
-        "vi",
-        "settings",
-        "skey",
-        "user/auth_googleaccount/login",
-        "user/auth_userpassword/login",
-        "user/getAuthMethods"
-    ]
+    closed_system_allowed_paths: t.Iterable[str] = (
+        "",  # index site
+        "json/skey",
+        "json/user/auth_*",
+        "json/user/getAuthMethods",
+        "vi/settings",
+        "vi/skey",
+        "vi/user/auth_*",
+        "vi/user/getAuthMethods",
+    )
     _mapping = {
         "contentSecurityPolicy": "content_security_policy",
         "referrerPolicy": "referrer_policy",
