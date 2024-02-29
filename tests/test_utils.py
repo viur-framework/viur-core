@@ -1,3 +1,4 @@
+from datetime import timedelta as td
 import unittest
 
 S = "Mein Kumpel aus 's-Hertogenbosch, meinte:\n" \
@@ -69,3 +70,12 @@ class TestUtils(unittest.TestCase):
         # self.assertEqual(example, o)
         for k, v in example.items():
             self.assertEqual(o[k], v)
+
+    def test_parse_timedelta(self):
+        from viur.core import utils
+        self.assertEqual(td(seconds=60), utils.parse.timedelta(td(seconds=60)))
+        self.assertEqual(td(seconds=60), utils.parse.timedelta(60))
+        self.assertEqual(td(seconds=60), utils.parse.timedelta(60.0))
+        self.assertEqual(td(seconds=60), utils.parse.timedelta("60"))
+        self.assertEqual(td(seconds=60), utils.parse.timedelta("60.0"))
+        self.assertNotEquals(td(seconds=0), utils.parse.timedelta(60.0))
