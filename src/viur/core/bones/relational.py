@@ -2,6 +2,7 @@
 This module contains the RelationalBone to create and manage relationships between skeletons
 and enums to parameterize it.
 """
+import json
 import logging
 import typing as t
 import warnings
@@ -355,14 +356,14 @@ class RelationalBone(BaseBone):
 
         if isinstance(val, str):  # ViUR2 compatibility
             try:
-                value = extjson.loads(val)
+                value = json.loads(val)
                 if isinstance(value, list):
                     value = [fixFromDictToEntry(x) for x in value]
                 elif isinstance(value, dict):
                     value = fixFromDictToEntry(value)
                 else:
                     value = None
-            except:
+            except ValueError:
                 value = None
         else:
             value = val

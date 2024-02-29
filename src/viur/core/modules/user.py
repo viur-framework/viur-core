@@ -125,11 +125,11 @@ class UserSkel(skeleton.Skeleton):
         to dynamically add bones required for the configured
         authentication methods.
         """
-        for provider in conf.main_app.user.authenticationProviders:
+        for provider in conf.main_app.vi.user.authenticationProviders:
             assert issubclass(provider, UserPrimaryAuthentication)
             provider.patch_user_skel(cls)
 
-        for provider in conf.main_app.user.secondFactorProviders:
+        for provider in conf.main_app.vi.user.secondFactorProviders:
             assert issubclass(provider, UserSecondFactorAuthentication)
             provider.patch_user_skel(cls)
 
@@ -177,6 +177,14 @@ class UserSkel(skeleton.Skeleton):
 
 
 class UserAuthentication(Module, abc.ABC):
+    @property
+    @abc.abstractstaticmethod
+    def METHOD_NAME() -> str:
+        """
+        Define a unique method name for this authentication.
+        """
+        ...
+
     def __init__(self, moduleName, modulePath, userModule):
         super().__init__(moduleName, modulePath)
         self._user_module = userModule
@@ -202,11 +210,9 @@ class UserPrimaryAuthentication(UserAuthentication, abc.ABC):
     def login(self, *args, kwargs):
         ...
 
-    @abc.abstractmethod
-    def getAuthMethodName(self, *args, **kwargs) -> str: pass
-
 
 class UserPassword(UserPrimaryAuthentication):
+    METHOD_NAME = "X-VIUR-AUTH-User-Password"
 
     registrationEmailVerificationRequired = True
     registrationAdminVerificationRequired = True
@@ -226,10 +232,6 @@ class UserPassword(UserPrimaryAuthentication):
 
     # Limit (invalid) login-retries to once per 5 seconds
     loginRateLimit = RateLimit("user.login", 12, 1, "ip")
-
-    @classmethod
-    def getAuthMethodName(*args, **kwargs):
-        return "X-VIUR-AUTH-User-Password"
 
     @classmethod
     def patch_user_skel(cls, skel_cls):
@@ -572,10 +574,7 @@ class UserPassword(UserPrimaryAuthentication):
 
 
 class GoogleAccount(UserPrimaryAuthentication):
-
-    @classmethod
-    def getAuthMethodName(*args, **kwargs):
-        return "X-VIUR-AUTH-Google-Account"
+    METHOD_NAME = "X-VIUR-AUTH-Google-Account"
 
     @classmethod
     def patch_user_skel(cls, skel_cls):
@@ -698,6 +697,7 @@ class UserSecondFactorAuthentication(UserAuthentication, abc.ABC):
 
 
 class TimeBasedOTP(UserSecondFactorAuthentication):
+    METHOD_NAME = "X-VIUR-2FACTOR-TimeBasedOTP"
     WINDOW_SIZE = 5
     ACTION_NAME = "otp"
     NAME = "Time based Otp"
@@ -725,10 +725,6 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             max=999999,
             min=0,
         )
-
-    @classmethod
-    def get2FactorMethodName(*args, **kwargs):  # fixme: What is the purpose of this function? Why not just a member?
-        return "X-VIUR-2FACTOR-TimeBasedOTP"
 
     @classmethod
     def patch_user_skel(cls, skel_cls):
@@ -949,10 +945,14 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
     """
     This class handles the second factor for apps like authy and so on
     """
+    METHOD_NAME = "X-VIUR-2FACTOR-AuthenticatorOTP"
+
     second_factor_add_template = "user_secondfactor_add"
     """Template to configure (add) a new TOPT"""
+
     ACTION_NAME = "authenticator_otp"
     """Action name provided for *otp_template* on login"""
+
     NAME = "Authenticator App"
 
     @exposed
@@ -1002,9 +1002,6 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         """
         return bool(user.get("otp_app_secret", ""))
 
-    @classmethod
-    def get2FactorMethodName(*args, **kwargs) -> str:
-        return "X-VIUR-2FACTOR-AuthenticatorOTP"
 
     @classmethod
     def patch_user_skel(cls, skel_cls):
@@ -1147,6 +1144,8 @@ class User(List):
     msg_missing_second_factor = "Second factor required but not configured for this user."
 
     secondFactorTimeWindow = datetime.timedelta(minutes=10)
+
+    default_order = "name.idx"
 
     adminInfo = {
         "icon": "person-fill",
@@ -1392,9 +1391,10 @@ class User(List):
 
     @exposed
     def login(self, *args, **kwargs):
-        authMethods = [(x.getAuthMethodName(), y.get2FactorMethodName() if y else None)
-                       for x, y in self.validAuthenticationMethods]
-        return self.render.loginChoices(authMethods)
+        return self.render.loginChoices([
+            (primary.METHOD_NAME, secondary.METHOD_NAME if secondary else None)
+            for primary, secondary in self.validAuthenticationMethods
+        ])
 
     def onLogin(self, skel: skeleton.SkeletonInstance):
         """
@@ -1472,10 +1472,14 @@ class User(List):
     @exposed
     def getAuthMethods(self, *args, **kwargs):
         """Inform tools like Viur-Admin which authentication to use"""
-        res = []
+        # FIXME: This is the same code as in index()...
+        # FIXME: VIUR4: The entire function should be removed!
+        logging.warning("DEPRECATED!!! Use of 'User.getAuthMethods' is deprecated! Use 'User.login'-method instead!")
 
-        for auth, secondFactor in self.validAuthenticationMethods:
-            res.append([auth.getAuthMethodName(), secondFactor.get2FactorMethodName() if secondFactor else None])
+        res = [
+            (primary.METHOD_NAME, secondary.METHOD_NAME if secondary else None)
+            for primary, secondary in self.validAuthenticationMethods
+        ]
 
         return json.dumps(res)
 
@@ -1522,7 +1526,7 @@ def createNewUserIfNotExists():
     """
         Create a new Admin user, if the userDB is empty
     """
-    userMod = getattr(conf.main_app, "user", None)
+    userMod = getattr(conf.main_app.vi, "user", None)
     if (userMod  # We have a user module
         and isinstance(userMod, User)
         and "addSkel" in dir(userMod)

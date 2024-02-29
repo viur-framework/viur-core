@@ -396,6 +396,8 @@ class File(Tree):
         "admin": "*",
     }
 
+    default_order = "name"
+
     # Helper functions currently resist here
 
     @staticmethod
@@ -502,7 +504,6 @@ class File(Tree):
 
     @staticmethod
     def create_src_set(
-        self,
         file: t.Union["SkeletonInstance", dict, str],
         expires: t.Optional[datetime.timedelta | int] = datetime.timedelta(hours=1),
         width: t.Optional[int] = None,

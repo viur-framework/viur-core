@@ -203,7 +203,7 @@ class TaskHandler(Module):
                 current.session.get()["user"] = env["user"]
 
                 # Load current user into context variable if user module is there.
-                if user_mod := getattr(conf.main_app, "user", None):
+                if user_mod := getattr(conf.main_app.vi, "user", None):
                     current.user.set(user_mod.getCurrentUser())
             if "lang" in env and env["lang"]:
                 current.language.set(env["lang"])
