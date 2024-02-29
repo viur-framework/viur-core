@@ -417,6 +417,7 @@ class Security(ConfigType):
         "vi/user/getAuthMethods",
     ]
     """List of URLs that are accessible without authentication in a closed system"""
+
     _mapping = {
         "contentSecurityPolicy": "content_security_policy",
         "referrerPolicy": "referrer_policy",
