@@ -1211,8 +1211,6 @@ class RelationalBone(BaseBone):
                         and isinstance(in_value[0], (str, int, db.Key))
                         and isinstance(in_value[1], self._skeletonInstanceClassRef))
 
-        parsed_value: tuple | list[tuple] = []
-
         if not self.multiple and not self.using:
             if not isinstance(value, (str, int, db.Key)):
                 raise ValueError(f"You must supply exactly one Database-Key str or int to {boneName}")
@@ -1237,23 +1235,22 @@ class RelationalBone(BaseBone):
             else:
                 parsed_value = [value]
 
+        if boneName not in skel:
+            skel[boneName] = {}
+            if language:
+                skel[boneName].setdefault(language, [])
+
         if self.multiple:
             rel_list = self.createRelSkelFromKey(parsed_value)
             if append:
                 if language:
-                    if boneName not in skel or not isinstance(skel[boneName], dict):
-                        skel[boneName] = {}
-                    if not isinstance(skel[boneName].get(language), list):
-                        skel[boneName][language] = []
                     skel[boneName][language].extend(rel_list)
                 else:
-                    if boneName not in skel or not isinstance(skel[boneName], list):
+                    if not isinstance(skel[boneName], list):
                         skel[boneName] = []
                     skel[boneName].extend(rel_list)
             else:
                 if language:
-                    if boneName not in skel or not isinstance(skel[boneName], dict):
-                        skel[boneName] = {}
                     skel[boneName][language] = rel_list
                 else:
                     skel[boneName] = rel_list
@@ -1261,8 +1258,6 @@ class RelationalBone(BaseBone):
             if not (rel := self.createRelSkelFromKey([parsed_value[0], parsed_value[1]])):
                 return False
             if language:
-                if boneName not in skel or not isinstance(skel[boneName], dict):
-                    skel[boneName] = {}
                 skel[boneName][language] = rel[0]
             else:
                 skel[boneName] = rel[0]
