@@ -1367,7 +1367,6 @@ class RefSkel(RelSkel):
         for arg in args:
             if arg[-1] == "*":  # we have a wild card prefix
                 prefix = arg[:-1]
-                logging.debug(f"{fromSkel.__boneMap__.items()=}")
                 bone_map |= {k: v for k, v in fromSkel.__boneMap__.items() if k.startswith(prefix)}
             else:
                 if bone := fromSkel.__boneMap__.get(arg):

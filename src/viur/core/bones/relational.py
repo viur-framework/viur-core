@@ -287,7 +287,6 @@ class RelationalBone(BaseBone):
             self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
             self._skeletonInstanceClassRef = SkeletonInstance
             self._ref_keys = list(self._refSkelCache.__boneMap__.keys())
-            logging.debug(f"{self._ref_keys}")
     def setSystemInitialized(self):
         """
         Set the system initialized for the current class and cache the RefSkel and SkeletonInstance.
@@ -303,7 +302,6 @@ class RelationalBone(BaseBone):
         self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
         self._skeletonInstanceClassRef = SkeletonInstance
         self._ref_keys = list(self._refSkelCache.__boneMap__.keys())
-        logging.debug(f"{self._ref_keys=}")
     # from viur.core.skeleton import RefSkel, skeletonByKind
     # self._refSkelCache = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
     # self._usingSkelCache = self.using() if self.using else None
@@ -930,7 +928,7 @@ class RelationalBone(BaseBone):
             except:
                 return dbFilter  # We cant parse that
             # Ensure that the relational-filter is in refKeys
-            if _type == "dest" and not param in self._ref_keys:
+            if _type == "dest" and param not in self._ref_keys:
                 logging.warning(f"Invalid filtering! {param} is not in refKeys of RelationalBone {name}!")
                 raise RuntimeError()
             if _type == "rel" and (self.using is None or param not in self.using()):
