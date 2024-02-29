@@ -403,7 +403,7 @@ class Security(ConfigType):
     closed_system_allowed_paths: t.Iterable[str] = [
         "",  # index site
         "json/skey",
-        "user/login"
+        "user/login",
         "user/auth_*",
         "user/getAuthMethods",
         "json/user/login"
