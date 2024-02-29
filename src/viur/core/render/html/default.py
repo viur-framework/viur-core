@@ -189,6 +189,8 @@ class Render(object):
             return KeyValueWrapper(boneValue, get_label(boneValue))
 
         elif bone.type == "relational" or bone.type.startswith("relational."):
+            # FIXME: Here, the RelationalBone.expand feature could be implemented,
+            # FIXME: in case this ugly, outdated piece of renderer is entirely refactored before.
             if isinstance(boneValue, list):
                 tmpList = []
                 for k in boneValue:
