@@ -189,7 +189,7 @@ class UserAuthentication(Module, abc.ABC):
         super().__init__(moduleName, modulePath)
         self._user_module = userModule
 
-    def can_handle(self, user: db.Entity) -> bool:
+    def can_handle(self, skel: skeleton.SkeletonInstance) -> bool:
         return True
 
     @classmethod
@@ -207,8 +207,16 @@ class UserPrimaryAuthentication(UserAuthentication, abc.ABC):
     registrationEnabled = False
 
     @abc.abstractmethod
-    def login(self, *args, kwargs):
+    def login(self, *args, **kwargs):
         ...
+
+    def next_or_finish(self, skel: skeleton.SkeletonInstance):
+        """
+        Hook that is called whenever a part of the authentication was successful.
+        It allows to perform further steps in custom authentications,
+        e.g. change a password after first login.
+        """
+        return self._user_module.continueAuthenticationFlow(self, skel["key"])
 
 
 class UserPassword(UserPrimaryAuthentication):
@@ -306,56 +314,43 @@ class UserPassword(UserPrimaryAuthentication):
 
         self.loginRateLimit.assertQuotaIsAvailable()
 
+        # query for the username. The query might find another user, but the name is being checked for equality below
         name = name.lower().strip()
-        query = db.Query(self._user_module.viewSkel().kindName)
-        user_entry = query.filter("name.idx >=", name).getEntry() or {}  # might find another user; always keep a dict
+        user_skel = self._user_module.baseSkel()
+        user_skel = user_skel.all().filter("name.idx >=", name).getSkel() or user_skel
 
-        password_data = user_entry.get("password") or {}
-        # old password hashes used 1001 iterations
-        iterations = password_data.get("iterations", 1001)
-        passwd = encode_password(password, password_data.get("salt", "-invalid-"), iterations)["pwhash"]
+        # extract password hash from raw database entity (skeleton access blocks it)
+        password_data = (user_skel.dbEntity and user_skel.dbEntity.get("password")) or {}
+        iterations = password_data.get("iterations", 1001)  # remember iterations; old password hashes used 1001
+        password_hash = encode_password(password, password_data.get("salt", "-invalid-"), iterations)["pwhash"]
 
-        # Check if the username matches
-        stored_user_name = (user_entry.get("name") or {}).get("idx") or ""
-        is_okay = secrets.compare_digest(stored_user_name, name)
+        # now check if the username matches
+        is_okay = secrets.compare_digest((user_skel["name"] or "").lower().strip(), name)
 
-        # Check if the password matches
-        stored_password_hash = password_data.get("pwhash", b"-invalid-")
-        is_okay &= secrets.compare_digest(stored_password_hash, passwd)
+        # next, check if the password hash matches
+        is_okay &= secrets.compare_digest(password_data.get("pwhash", b"-invalid-"), password_hash)
 
-        status = None
-
-        # Verify that this account isn't blocked
-        if (user_entry.get("status") or 0) < Status.ACTIVE.value:
-            if is_okay:
-                # The username and password is valid, in this case we can inform that user about his account status
-                # (ie account locked or email verification pending)
-                status = user_entry["status"]
-
-            is_okay = False
+        # next, check if the user account is active
+        is_okay &= (user_skel["status"] or 0) >= Status.ACTIVE.value
 
         if not is_okay:
             self.loginRateLimit.decrementQuota()  # Only failed login attempts will count to the quota
             skel = self.LoginSkel()
-            return self._user_module.render.login(skel, loginFailed=True, accountStatus=status)
+            return self._user_module.render.login(
+                skel,
+                loginFailed=True,  # FIXME: Is this still being used?
+                accountStatus=user_skel["status"]  # FIXME: Is this still being used?
+            )
 
+        # check if iterations are below current security standards, and update if necessary.
         if iterations < PBKDF2_DEFAULT_ITERATIONS:
             logging.info(f"Update password hash for user {name}.")
             # re-hash the password with more iterations
-            skel = self._user_module.editSkel()
-            skel.setEntity(user_entry)
-            skel["key"] = user_entry.key
-            skel["password"] = password  # will be hashed on serialize
-            skel.toDB(update_relations=False)
+            # FIXME: This must be done within a transaction!
+            user_skel["password"] = password  # will be hashed on serialize
+            user_skel.toDB(update_relations=False)
 
-        return self.on_login(user_entry)
-
-    def on_login(self, user_entry: db.Entity):
-        """
-        Hook that is called whenever the password authentication was successful.
-        It allows to perform further steps in custom UserPassword authentications.
-        """
-        return self._user_module.continueAuthenticationFlow(self, user_entry.key)
+        return self.next_or_finish(user_skel)
 
     @exposed
     def pwrecover(self, recovery_key: str | None = None, skey: str | None = None, *args, **kwargs):
@@ -610,65 +605,68 @@ class GoogleAccount(UserPrimaryAuthentication):
         # FIXME: Check if already logged in
         if not conf.user.google_client_id:
             raise errors.PreconditionFailed("Please configure conf.user.google_client_id!")
+
         if not token:
             request = current.request.get()
             request.response.headers["Content-Type"] = "text/html"
             if request.response.headers.get("cross-origin-opener-policy") == "same-origin":
                 # We have to allow popups here
                 request.response.headers["cross-origin-opener-policy"] = "same-origin-allow-popups"
-            # Fixme: Render with Jinja2?
-            with (conf.instance.core_base_path
-                  .joinpath("viur/core/template/vi_user_google_login.html")
-                  .open() as tpl_file):
-                tplStr = tpl_file.read()
-            tplStr = tplStr.replace("{{ clientID }}", conf.user.google_client_id)
-            extendCsp({"script-src": ["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
-                       "style-src": ["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]})
-            return tplStr
-        userInfo = id_token.verify_oauth2_token(token, requests.Request(), conf.user.google_client_id)
-        if userInfo['iss'] not in {'accounts.google.com', 'https://accounts.google.com'}:
-            raise ValueError('Wrong issuer.')
+
+            file_path = conf.instance.core_base_path.joinpath("viur/core/template/vi_user_google_login.html")
+            with open(file_path) as file:
+                tpl_string = file.read()
+
+            # FIXME: Use Jinja2 for rendering?
+            tpl_string = tpl_string.replace("{{ clientID }}", conf.user.google_client_id)
+            extendCsp({
+                "script-src": ["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
+                "style-src": ["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]
+            })
+            return tpl_string
+
+        user_info = id_token.verify_oauth2_token(token, requests.Request(), conf.user.google_client_id)
+        if user_info["iss"] not in {"accounts.google.com", "https://accounts.google.com"}:
+            raise ValueError("Invalid issuer")
+
         # Token looks valid :)
-        uid = userInfo['sub']
-        email = userInfo['email']
+        uid = user_info["sub"]
+        email = user_info["email"]
 
-        # fixme: use self._user_module.baseSkel() for this later
-        addSkel = skeleton.skeletonByKind(self._user_module.addSkel().kindName)  # Ensure that we have the full skeleton
-
+        base_skel = self._user_module.baseSkel()
         update = False
-        if not (userSkel := addSkel().all().filter("uid =", uid).getSkel()):
+        if not (user_skel := base_skel.all().filter("uid =", uid).getSkel()):
             # We'll try again - checking if there's already an user with that email
-            if not (userSkel := addSkel().all().filter("name.idx =", email.lower()).getSkel()):
+            if not (user_skel := base_skel.all().filter("name.idx =", email.lower()).getSkel()):
                 # Still no luck - it's a completely new user
                 if not self.registrationEnabled:
-                    if (domain := userInfo.get("hd")) and domain in conf.user.google_gsuite_domains:
+                    if (domain := user_info.get("hd")) and domain in conf.user.google_gsuite_domains:
                         logging.debug(f"Google user is from allowed {domain} - adding account")
                     else:
                         logging.debug(f"Google user is from {domain} - denying registration")
                         raise errors.Forbidden("Registration for new users is disabled")
 
-                userSkel = addSkel()  # We'll add a new user
-
-            userSkel["uid"] = uid
-            userSkel["name"] = email
-            update = True
+                user_skel = base_skel
+                user_skel["uid"] = uid
+                user_skel["name"] = email
+                update = True
 
         # Take user information from Google, if wanted!
-        if userSkel["sync"]:
+        if user_skel["sync"]:
             for target, source in {
                 "name": email,
-                "firstname": userInfo.get("given_name"),
-                "lastname": userInfo.get("family_name"),
+                "firstname": user_info.get("given_name"),
+                "lastname": user_info.get("family_name"),
             }.items():
 
-                if userSkel[target] != source:
-                    userSkel[target] = source
+                if user_skel[target] != source:
+                    user_skel[target] = source
                     update = True
 
         if update:
-            assert userSkel.toDB()
+            assert user_skel.toDB()
 
-        return self._user_module.continueAuthenticationFlow(self, userSkel["key"])
+        return self.next_or_finish(user_skel)
 
 
 class UserSecondFactorAuthentication(UserAuthentication, abc.ABC):
@@ -756,22 +754,22 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             }
         )
 
-    def get_config(self, user: db.Entity) -> OtpConfig | None:
+    def get_config(self, skel: skeleton.SkeletonInstance) -> OtpConfig | None:
         """
         Returns an instance of self.OtpConfig with a provided token configuration,
         or None when there is no appropriate configuration of this second factor handler available.
         """
 
-        if user.get("otp_secret"):
-            return self.OtpConfig(secret=user["otp_secret"], timedrift=user.get("otp_timedrift") or 0)
+        if otp_secret := skel.dbEntity.get("otp_secret"):
+            return self.OtpConfig(secret=otp_secret, timedrift=skel.dbEntity.get("otp_timedrift") or 0)
 
         return None
 
-    def can_handle(self, user: db.Entity) -> bool:
+    def can_handle(self, skel: skeleton.SkeletonInstance) -> bool:
         """
         Specified whether the second factor authentication can be handled by the given user or not.
         """
-        return bool(self.get_config(user))
+        return bool(self.get_config(skel))
 
     @exposed
     def start(self):
@@ -996,11 +994,11 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
                 name=i18n.translate(self.NAME),
             )
 
-    def can_handle(self, user: db.Entity) -> bool:
+    def can_handle(self, skel: skeleton.SkeletonInstance) -> bool:
         """
         We can only handle the second factor if we have stored an otp_app_secret before.
         """
-        return bool(user.get("otp_app_secret", ""))
+        return bool(skel.dbEntity.get("otp_app_secret", ""))
 
 
     @classmethod
@@ -1283,10 +1281,12 @@ class User(List):
         """
         Continue authentication flow when primary authentication succeeded.
         """
-        if not (possible_user := db.Get(user_key)):
+        skel = self.baseSkel()
+
+        if not skel.fromDB(user_key):
             raise errors.NotFound("User was not found.")
 
-        if not provider.can_handle(possible_user):
+        if not provider.can_handle(skel):
             raise errors.Forbidden("User is not allowed to use this primary login method.")
 
         session = current.session.get()
@@ -1300,7 +1300,7 @@ class User(List):
             if isinstance(provider, auth_provider):
                 if second_factor is not None:
                     second_factor_provider_instance = self.secondFactorProviderByClass(second_factor)
-                    if second_factor_provider_instance.can_handle(possible_user):
+                    if second_factor_provider_instance.can_handle(skel):
                         second_factor_providers.append(second_factor_provider_instance)
                 else:
                     second_factor_providers.append(None)
