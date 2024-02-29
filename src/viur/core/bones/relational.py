@@ -363,7 +363,7 @@ class RelationalBone(BaseBone):
                     value = fixFromDictToEntry(value)
                 else:
                     value = None
-            except:
+            except ValueError:
                 value = None
         else:
             value = val

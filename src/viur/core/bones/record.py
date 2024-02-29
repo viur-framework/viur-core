@@ -48,7 +48,7 @@ class RecordBone(BaseBone):
         if isinstance(val, str):
             try:
                 value = json.loads(val)
-            except Exception:
+            except ValueError:
                 value = None
         else:
             value = val
