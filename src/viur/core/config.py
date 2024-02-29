@@ -398,6 +398,7 @@ class Security(ConfigType):
     password_recovery_key_length: int = 42
     """Length of the Password recovery key"""
     closed_system: bool = False
+    """If `True` Activates a mode in which only logged-in users can access all routes"""
 
     closed_system_allowed_paths: t.Iterable[str] = (
         "",  # index site
@@ -409,6 +410,7 @@ class Security(ConfigType):
         "vi/user/auth_*",
         "vi/user/getAuthMethods",
     )
+    """List of Urls that are allowed  without a user in a closed system"""
     _mapping = {
         "contentSecurityPolicy": "content_security_policy",
         "referrerPolicy": "referrer_policy",
