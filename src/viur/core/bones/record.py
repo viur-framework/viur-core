@@ -1,4 +1,3 @@
-from typing import List, Set
 
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
@@ -63,7 +62,7 @@ class RecordBone(BaseBone):
             return None
         elif isinstance(value, list) and value:
             value = value[0]
-        assert isinstance(value, dict), "Read something from the datastore thats not a dict: %s" % str(type(value))
+        assert isinstance(value, dict), f"Read something from the datastore thats not a dict: {type(value)}"
         usingSkel = self.using()
         usingSkel.unserialize(value)
         return usingSkel
@@ -92,13 +91,13 @@ class RecordBone(BaseBone):
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
         usingSkel = self.using()
-        if not usingSkel.fromClient(value, not (self.required or self.multiple)):
+        if not usingSkel.fromClient(value):
             usingSkel.errors.append(
                 ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Incomplete data")
             )
         return usingSkel, usingSkel.errors
 
-    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
         Collects search tags from the 'using' skeleton instance for the given bone.
 
@@ -143,11 +142,11 @@ class RecordBone(BaseBone):
             return res
         uskel = self.using()
         for idx, val in enumerate(value):
-            getValues(res, uskel, val, "%s%s_%s" % (prefix, name, str(idx)))
+            getValues(res, uskel, val, f"{prefix}{name}_{idx}")
 
         return res
 
-    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
         Retrieves a set of referenced blobs for the given skeleton instance and name.
 
@@ -170,7 +169,7 @@ class RecordBone(BaseBone):
 
         return result
 
-    def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
+    def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> list[str]:
         """
         This method is intentionally not implemented as it's not possible to determine how to derive
         a key from the related skeleton being used (i.e., which fields to include and how).

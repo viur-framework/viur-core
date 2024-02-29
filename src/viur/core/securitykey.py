@@ -17,23 +17,23 @@
 
         Therefor that header is prefixed with "Sec-" - so it cannot be read or set using JavaScript.
 """
-import typing
+import typing as t
 import datetime
 import hmac
 from viur.core import conf, utils, current, db, tasks
 
 SECURITYKEY_KINDNAME = "viur-securitykey"
 SECURITYKEY_DURATION = 24 * 60 * 60  # one day
-SECURITYKEY_STATIC_HEADER: typing.Final[str] = "Sec-X-ViUR-StaticSessionKey"
+SECURITYKEY_STATIC_HEADER: t.Final[str] = "Sec-X-ViUR-StaticSessionKey"
 """The name of the header in which the static session key is provided at login
 and must be specified in requests that require a skey."""
-SECURITYKEY_STATIC_SKEY: typing.Final[str] = "STATIC_SESSION_KEY"
+SECURITYKEY_STATIC_SKEY: t.Final[str] = "STATIC_SESSION_KEY"
 """Value that must be used as a marker in the payload (key: skey) to indicate
 that the session key from the headers should be used."""
 
 
 def create(
-        duration: typing.Union[None, int] = None,
+        duration: None | int | datetime.timedelta = None,
         session_bound: bool = True,
         key_length: int = 13,
         indexed: bool = True,
@@ -44,7 +44,7 @@ def create(
         The custom data (given as **custom_data) that can be stored with the key.
         Any data provided must be serializable by the datastore.
 
-        :param duration: Make this CSRF-token valid for a fixed timeframe of seconds.
+        :param duration: Make this CSRF-token valid for a fixed timeframe.
         :param session_bound: Bind this CSRF-token to the current session.
         :param indexed: Indexes all values stored with the security-key (default), set False to not index.
         :param custom_data: Any other data is stored with the CSRF-token, for later re-use.
@@ -56,14 +56,17 @@ def create(
 
     if not duration:
         duration = conf.user.session_life_time if session_bound else SECURITYKEY_DURATION
-
     key = utils.string.random(key_length)
 
     entity = db.Entity(db.Key(SECURITYKEY_KINDNAME, key))
     entity |= custom_data
 
     entity["viur_session"] = current.session.get().cookie_key if session_bound else None
-    entity["viur_until"] = utils.utcNow() + datetime.timedelta(seconds=int(duration))
+    if isinstance(duration, datetime.timedelta):
+        entity["viur_until"] = utils.utcNow() + duration
+    else:
+        entity["viur_until"] = utils.utcNow() + datetime.timedelta(seconds=int(duration))
+
 
     if not indexed:
         entity.exclude_from_indexes = [k for k in entity.keys() if not k.startswith("viur_")]
@@ -73,7 +76,7 @@ def create(
     return key
 
 
-def validate(key: str, session_bound: bool = True) -> typing.Union[bool, db.Entity]:
+def validate(key: str, session_bound: bool = True) -> bool | db.Entity:
     """
         Validates a CSRF-security-key.
 

@@ -1,7 +1,7 @@
 import warnings
 
 import logging
-from typing import Callable, Dict, List, Optional, Set
+import typing as t
 
 from viur.core import current, db, utils
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
@@ -19,7 +19,7 @@ class StringBone(BaseBone):
         caseSensitive: bool = True,
         max_length: int | None = 254,
         min_length: int | None = None,
-        natural_sorting: bool | Callable = False,
+        natural_sorting: bool | t.Callable = False,
         **kwargs
     ):
         """
@@ -142,8 +142,8 @@ class StringBone(BaseBone):
         name: str,
         skel: 'viur.core.skeleton.SkeletonInstance',
         dbFilter: db.Query,
-        rawFilter: Dict,
-        prefix: Optional[str] = None
+        rawFilter: dict,
+        prefix: t.Optional[str] = None
     ) -> db.Query:
         """
         Builds and returns a database filter for this data field based on the provided raw filter data.
@@ -165,8 +165,8 @@ class StringBone(BaseBone):
         else:
             lang = None
             for key in rawFilter.keys():
-                if key.startswith("%s." % name):
-                    langStr = key.replace("%s." % name, "")
+                if key.startswith(f"{name}."):
+                    langStr = key.replace(f"{name}.", "")
                     if langStr in self.languages:
                         lang = langStr
                         break
@@ -174,7 +174,7 @@ class StringBone(BaseBone):
                 lang = current.language.get()  # currentSession.getLanguage()
                 if not lang or not lang in self.languages:
                     lang = self.languages[0]
-            namefilter = "%s.%s" % (name, lang)
+            namefilter = f"{name}.{lang}"
 
         if name + "$lk" in rawFilter:  # Do a prefix-match
             if not self.caseSensitive:
@@ -210,8 +210,8 @@ class StringBone(BaseBone):
         name: str,
         skel: 'viur.core.skeleton.SkeletonInstance',
         dbFilter: db.Query,
-        rawFilter: Dict
-    ) -> Optional[db.Query]:
+        rawFilter: dict
+    ) -> t.Optional[db.Query]:
         """
         Build a DB sort based on the specified name and a raw filter.
 
@@ -255,7 +255,7 @@ class StringBone(BaseBone):
             if inEqFilter:
                 inEqFilter = inEqFilter[0][: inEqFilter[0].find(" ")]
                 if inEqFilter != order[0]:
-                    logging.warning("I fixed you query! Impossible ordering changed to %s, %s" % (inEqFilter, order[0]))
+                    logging.warning(f"I fixed you query! Impossible ordering changed to {inEqFilter}, {order[0]}")
                     dbFilter.order(inEqFilter, order)
                 else:
                     dbFilter.order(order)
@@ -286,7 +286,7 @@ class StringBone(BaseBone):
             "ẞ": "SS",
         }))
 
-    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
         Returns a set of lowercased words that represent searchable tags for the given bone.
 
@@ -305,7 +305,7 @@ class StringBone(BaseBone):
                     result.add(word.lower())
         return result
 
-    def getUniquePropertyIndexValues(self, skel, name: str) -> List[str]:
+    def getUniquePropertyIndexValues(self, skel, name: str) -> list[str]:
         """
         Returns a list of unique index values for a given property name.
 

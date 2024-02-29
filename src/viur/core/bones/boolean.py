@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Union
+import typing as t
 
 from viur.core import conf, db, utils
 from viur.core.bones.base import BaseBone
@@ -18,11 +18,7 @@ class BooleanBone(BaseBone):
     def __init__(
         self,
         *,
-        defaultValue: Union[
-            bool,
-            List[bool],
-            Dict[str, Union[List[bool], bool]],
-        ] = None,
+        defaultValue: bool | list[bool] | dict[str, list[bool] | bool] = None,
         **kwargs
     ):
         if defaultValue is None:
@@ -56,7 +52,7 @@ class BooleanBone(BaseBone):
         """
         return False
 
-    def isEmpty(self, value: Any):
+    def isEmpty(self, value: t.Any):
         """
         Checks if the given boolean value is empty.
 
@@ -85,8 +81,8 @@ class BooleanBone(BaseBone):
         name: str,
         skel: 'viur.core.skeleton.SkeletonInstance',
         dbFilter: db.Query,
-        rawFilter: Dict,
-        prefix: Optional[str] = None
+        rawFilter: dict,
+        prefix: t.Optional[str] = None
     ) -> db.Query:
         """
         Builds a database filter based on the boolean value.

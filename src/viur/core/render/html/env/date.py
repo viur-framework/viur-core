@@ -1,4 +1,4 @@
-from typing import Type
+import typing as t
 
 from datetime import date as date_orig, datetime as datetime_orig, time as time_orig, timedelta as timedelta_orig
 
@@ -7,7 +7,7 @@ from ..default import Render
 
 
 @jinjaGlobalFunction
-def dateTime(render: Render) -> Type[datetime_orig]:
+def dateTime(render: Render) -> t.Type[datetime_orig]:
     """
     Jinja2 global: Returns the datetime class
 
@@ -17,7 +17,7 @@ def dateTime(render: Render) -> Type[datetime_orig]:
 
 
 @jinjaGlobalFunction
-def date(render: Render) -> Type[date_orig]:
+def date(render: Render) -> t.Type[date_orig]:
     """
     Jinja2 global: Returns the date class
 
@@ -27,7 +27,7 @@ def date(render: Render) -> Type[date_orig]:
 
 
 @jinjaGlobalFunction
-def time(render: Render) -> Type[time_orig]:
+def time(render: Render) -> t.Type[time_orig]:
     """
     Jinja2 global: Returns the time class
 
@@ -37,7 +37,7 @@ def time(render: Render) -> Type[time_orig]:
 
 
 @jinjaGlobalFunction
-def timedelta(render: Render) -> Type[timedelta_orig]:
+def timedelta(render: Render) -> t.Type[timedelta_orig]:
     """
     Jinja2 global: Returns the timedelta class
 

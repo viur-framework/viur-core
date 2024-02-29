@@ -3,7 +3,7 @@ import os
 from datetime import timedelta
 from functools import wraps
 from hashlib import sha512
-from typing import Callable, Dict, List, Tuple, Union
+import typing as t
 
 from viur.core import Method, current, db, tasks, utils
 from viur.core.config import conf
@@ -29,8 +29,8 @@ from viur.core.config import conf
 viurCacheName = "viur-cache"
 
 
-def keyFromArgs(f: Callable, userSensitive: int, languageSensitive: bool, evaluatedArgs: List[str], path: str,
-                args: Tuple, kwargs: Dict) -> str:
+def keyFromArgs(f: t.Callable, userSensitive: int, languageSensitive: bool, evaluatedArgs: list[str], path: str,
+                args: tuple, kwargs: dict) -> str:
     """
         Utility function to derive a unique but stable string-key that can be used in a datastore-key
         for the given wrapped function f, the parameter *args and **kwargs it has been called with,
@@ -69,7 +69,7 @@ def keyFromArgs(f: Callable, userSensitive: int, languageSensitive: bool, evalua
     for k, v in kwargs.items():
         if k in evaluatedArgs:
             if k in setArgs:
-                raise AssertionError("Got dupplicate arguments for %s" % k)
+                raise AssertionError(f"Got duplicate arguments for {k}")
             res[k] = v
     if userSensitive:
         user = current.user.get()
@@ -110,8 +110,8 @@ def keyFromArgs(f: Callable, userSensitive: int, languageSensitive: bool, evalua
     return mysha512.hexdigest()
 
 
-def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool,
-                 evaluatedArgs: List[str], maxCacheTime: int):
+def wrapCallable(f, urls: list[str], userSensitive: int, languageSensitive: bool,
+                 evaluatedArgs: list[str], maxCacheTime: int):
     """
         Does the actual work of wrapping a callable.
         Use the decorator enableCache instead of calling this directly.
@@ -123,7 +123,7 @@ def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool
         f = f._func
 
     @wraps(f)
-    def wrapF(self, *args, **kwargs) -> Union[str, bytes]:
+    def wrapF(self, *args, **kwargs) -> str | bytes:
         currReq = current.request.get()
         if conf.debug.disable_cache or currReq.disableCache:
             # Caching disabled
@@ -135,7 +135,7 @@ def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool
         path = "/" + "/".join(currReq.path_list[: offset])
         if not path in urls:
             # This path (possibly a sub-render) should not be cached
-            logging.debug("Not caching for %s" % path)
+            logging.info(f"No caching for {path}")
             return f(self, *args, **kwargs)
         key = keyFromArgs(f, userSensitive, languageSensitive, evaluatedArgs, path, args, kwargs)
         if not key:
@@ -174,8 +174,8 @@ def wrapCallable(f, urls: List[str], userSensitive: int, languageSensitive: bool
         return method
 
 
-def enableCache(urls: List[str], userSensitive: int = 0, languageSensitive: bool = False,
-                evaluatedArgs: Union[List[str], None] = None, maxCacheTime: Union[int, None] = None):
+def enableCache(urls: list[str], userSensitive: int = 0, languageSensitive: bool = False,
+                evaluatedArgs: list[str] | None = None, maxCacheTime: int | None = None):
     """
         Decorator to wrap this cache around a function. In order for this to function correctly, you must provide
         additional information so ViUR can determine in which situations it's possible to re-use an already cached
@@ -211,7 +211,7 @@ def enableCache(urls: List[str], userSensitive: int = 0, languageSensitive: bool
 
 
 @tasks.CallDeferred
-def flushCache(prefix: str = None, key: Union[db.Key, None] = None, kind: Union[str, None] = None):
+def flushCache(prefix: str = None, key: db.Key | None = None, kind:  str | None = None):
     """
         Flushes the cache. Its possible the flush only a part of the cache by specifying
         the path-prefix. The path is equal to the url that caused it to be cached (eg /page/view) and must be one
@@ -240,22 +240,22 @@ def flushCache(prefix: str = None, key: Union[db.Key, None] = None, kind: Union[
                 .iter()
             for item in items:
                 db.Delete(item)
-        logging.debug("Flushing cache succeeded. Everything matching \"%s\" is gone." % prefix)
+        logging.debug(f"Flushing cache succeeded. Everything matching {prefix=} is gone.")
     if key is not None:
         items = db.Query(viurCacheName).filter("accessedEntries =", key).iter()
         for item in items:
-            logging.info("Deleted cache entry %s", item["path"])
+            logging.info(f"""Deleted cache entry {item["path"]!r}""")
             db.Delete(item.key)
         if not isinstance(key, db.Key):
             key = db.Key.from_legacy_urlsafe(key)  # hopefully is a string
         items = db.Query(viurCacheName).filter("accessedEntries =", key.kind).iter()
         for item in items:
-            logging.info("Deleted cache entry %s", item["path"])
+            logging.info(f"""Deleted cache entry {item["path"]!r}""")
             db.Delete(item.key)
     if kind is not None:
         items = db.Query(viurCacheName).filter("accessedEntries =", kind).iter()
         for item in items:
-            logging.info("Deleted cache entry %s", item["path"])
+            logging.info(f"""Deleted cache entry {item["path"]!r}""")
             db.Delete(item.key)
 
 

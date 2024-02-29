@@ -14,8 +14,8 @@
 
    I N F O R M A T I O N    S Y S T E M
 
- ViUR core
- Copyright (C) 2012-2023 by Mausbrand Informationssysteme GmbH
+ viur-core
+ Copyright © 2012-2024 by Mausbrand Informationssysteme GmbH
 
  ViUR is a free software development framework for the Google App Engine™.
  More about ViUR can be found at https://www.viur.dev.
@@ -34,11 +34,11 @@ if sys.argv[0].endswith("viur-core-migrate-config"):
 import inspect
 import warnings
 from types import ModuleType
-from typing import Callable, Dict, Union, List
+import typing as t
 from google.appengine.api import wrap_wsgi_app
 import yaml
+
 from viur.core import i18n, request, utils
-from viur.core.config import conf
 from viur.core.config import conf
 from viur.core.decorators import *
 from viur.core.decorators import access, exposed, force_post, force_ssl, internal_exposed, skey
@@ -84,7 +84,8 @@ __all__ = [
 # Show DeprecationWarning from the viur-core
 warnings.filterwarnings("always", category=DeprecationWarning, module=r"viur\.core.*")
 
-def load_indexes_from_file() -> Dict[str, List]:
+
+def load_indexes_from_file() -> dict[str, list]:
     """
         Loads all indexes from the index.yaml and stores it in a dictionary  sorted by the module(kind)
         :return A dictionary of indexes per module
@@ -127,7 +128,7 @@ def setDefaultDomainLanguage(domain: str, lang: str):
     conf.i18n.domain_language_mapping[host] = lang.lower()
 
 
-def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Dict], default: str = None) -> Module:
+def buildApp(modules: ModuleType | object, renderers: ModuleType | object, default: str = None) -> Module:
     """
         Creates the application-context for the current instance.
 
@@ -166,10 +167,12 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
     # assign ViUR system modules
     from viur.core.modules.moduleconf import ModuleConf  # noqa: E402 # import works only here because circular imports
     from viur.core.modules.script import Script  # noqa: E402 # import works only here because circular imports
+    from viur.core.modules.translation import Translation  # noqa: E402 # import works only here because circular imports
     from viur.core.prototypes.instanced_module import InstancedModule  # noqa: E402 # import works only here because circular imports
 
     modules._tasks = TaskHandler
     modules._moduleconf = ModuleConf
+    modules._translation = Translation
     modules.script = Script
 
     # create module mappings
@@ -234,7 +237,7 @@ def buildApp(modules: Union[ModuleType, object], renderers: Union[ModuleType, Di
     return root
 
 
-def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = None, default: str = "html"):
+def setup(modules:  ModuleType | object, render:  ModuleType | object = None, default: str = "html"):
     """
         Define whats going to be served by this instance.
 
@@ -307,10 +310,36 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
             db.Put(obj)
 
         conf.file_hmac_key = bytes(obj["hmacKey"], "utf-8")
+
+    if conf.instance.is_dev_server:
+        WIDTH = 80  # defines the standard width
+        FILL = "#"  # define sthe fill char (must be len(1)!)
+        PYTHON_VERSION = (sys.version_info.major, sys.version_info.minor, sys.version_info.micro)
+
+        # define lines to show
+        lines = (
+            " LOCAL DEVELOPMENT SERVER IS UP AND RUNNING ",  # title line
+            f"""project = \033[1;31m{conf.instance.project_id}\033[0m""",
+            f"""python = \033[1;32m{".".join((str(i) for i in PYTHON_VERSION))}\033[0m""",
+            f"""viur = \033[1;32m{".".join((str(i) for i in conf.version))}\033[0m""",
+            ""  # empty line
+        )
+
+        # first and last line are shown with a cool line made of FILL
+        first_last = (0, len(lines) - 1)
+
+        # dump to console
+        for i, line in enumerate(lines):
+            print(
+                f"""\033[0m{FILL}{line:{
+                    FILL if i in first_last else " "}^{(WIDTH - 2) + (11 if i not in first_last else 0)
+                }}{FILL}"""
+            )
+
     return wrap_wsgi_app(app)
 
 
-def app(environ: dict, start_response: Callable):
+def app(environ: dict, start_response: t.Callable):
     return request.Router(environ).response(environ, start_response)
 
 

@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+import typing as t
 from viur.core import db, current, utils, errors
 from viur.core.decorators import *
 from viur.core.cache import flushCache
@@ -25,7 +25,7 @@ class Singleton(SkelModule):
 
         :returns: Current context DB-key
         """
-        return "%s-modulekey" % self.editSkel().kindName
+        return f"{self.editSkel().kindName}-modulekey"
 
     def viewSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -57,7 +57,7 @@ class Singleton(SkelModule):
 
     @exposed
     @skey
-    def preview(self, *args, **kwargs) -> Any:
+    def preview(self, *args, **kwargs) -> t.Any:
         """
         Renders data for the entry, without reading it from the database.
         This function allows to preview the entry without writing it to the database.
@@ -77,7 +77,7 @@ class Singleton(SkelModule):
         return self.render.view(skel)
 
     @exposed
-    def structure(self, *args, **kwargs) -> Any:
+    def structure(self, *args, **kwargs) -> t.Any:
         """
         :returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
             in each bone.
@@ -90,7 +90,7 @@ class Singleton(SkelModule):
         return self.render.view(skel)
 
     @exposed
-    def view(self, *args, **kwargs) -> Any:
+    def view(self, *args, **kwargs) -> t.Any:
         """
         Prepares and renders the singleton entry for viewing.
 
@@ -119,7 +119,7 @@ class Singleton(SkelModule):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def edit(self, *args, **kwargs) -> Any:
+    def edit(self, *args, **kwargs) -> t.Any:
         """
         Modify the existing entry, and render the entry, eventually with error notes on incorrect data.
 
@@ -192,7 +192,7 @@ class Singleton(SkelModule):
         if user["access"] and "root" in user["access"]:
             return True
 
-        if user["access"] and "%s-edit" % self.viewSkel.kindName in user["access"]:
+        if user["access"] and f"{self.moduleName}-edit" in user["access"]:
             return True
 
         return False
@@ -220,7 +220,7 @@ class Singleton(SkelModule):
         if user["access"] and "root" in user["access"]:
             return True
 
-        if user["access"] and "%s-edit" % self.moduleName in user["access"]:
+        if user["access"] and f"{self.moduleName}-edit" in user["access"]:
             return True
 
         return False
@@ -246,7 +246,7 @@ class Singleton(SkelModule):
             return False
         if user["access"] and "root" in user["access"]:
             return True
-        if user["access"] and "%s-view" % self.moduleName in user["access"]:
+        if user["access"] and f"{self.moduleName}-view" in user["access"]:
             return True
         return False
 
@@ -273,10 +273,10 @@ class Singleton(SkelModule):
 
         .. seealso:: :func:`edit`, :func:`onEdit`
         """
-        logging.info("Entry changed: %s" % skel["key"])
+        logging.info(f"""Entry changed: {skel["key"]!r}""")
         flushCache(key=skel["key"])
         if user := current.user.get():
-            logging.info("User: %s (%s)" % (user["name"], user["key"]))
+            logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
     def onView(self, skel: SkeletonInstance):
         """
@@ -293,5 +293,4 @@ class Singleton(SkelModule):
 
 
 Singleton.admin = True
-Singleton.html = True
 Singleton.vi = True
