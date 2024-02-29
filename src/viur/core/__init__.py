@@ -50,9 +50,12 @@ from .tasks import (DeleteEntitiesIter, PeriodicTask, QueryIter, StartupTask,
                     TaskHandler, callDeferred, retry_n_times, runStartupTasks)
 
 # noinspection PyUnresolvedReferences
-from viur.core import logging as viurLogging  # unused import, must exist, initializes request logging
+from viur.core import logging as viur_logging  # unused import, must exist, initializes request logging
 
 import logging  # this import has to stay here, see #571
+
+logger = viur_logging.LOGGER.getChild(__name__)
+
 
 __all__ = [
     # basics from this __init__
@@ -100,7 +103,7 @@ def load_indexes_from_file() -> dict[str, list]:
                 indexes_dict.setdefault(index["kind"], []).append(index)
 
     except FileNotFoundError:
-        logging.warning("index.yaml not found")
+        logger.warning("index.yaml not found")
         return {}
 
     return indexes_dict
@@ -232,7 +235,7 @@ def buildApp(modules: ModuleType | object, renderers: ModuleType | object, defau
     # This might be useful for debugging, please keep it for now.
     if conf.debug.trace:
         import pprint
-        logging.debug(pprint.pformat(resolver))
+        logger.debug(pprint.pformat(resolver))
 
     return root
 
@@ -271,7 +274,7 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
                 "ViUR just started a new Instance with call tracing enabled! This might log sensitive information!"
             )
         except Exception as exc:  # OverQuota, whatever
-            logging.exception(exc)
+            logger.exception(exc)
     # Ensure that our Content Security Policy Header Cache gets build
     from viur.core import securityheaders
     securityheaders._rebuildCspHeaderCache()
@@ -301,11 +304,11 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
         from viur.core import db
         key = db.Key("viur-conf", "viur-conf")
         if not (obj := db.Get(key)):  # create a new "viur-conf"?
-            logging.info("Creating new viur-conf")
+            logger.info("Creating new viur-conf")
             obj = db.Entity(key)
 
         if "hmacKey" not in obj:  # create a new hmacKey
-            logging.info("Creating new hmacKey")
+            logger.info("Creating new hmacKey")
             obj["hmacKey"] = utils.string.random(length=20)
             db.Put(obj)
 
@@ -358,7 +361,7 @@ def __getattr__(attr: str) -> object:
         func = entry[1]
         msg = f"@{attr} was replaced by @{entry[0]}"
         warnings.warn(msg, DeprecationWarning, stacklevel=2)
-        logging.warning(msg, stacklevel=2)
+        logger.warning(msg, stacklevel=2)
         return func
 
     return super(__import__(__name__).__class__).__getattr__(attr)
