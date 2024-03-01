@@ -5,7 +5,7 @@
     Additionally, this module defines the RequestValidator interface which provides a very early hook into the
     request processing (useful for global ratelimiting, DDoS prevention or access control).
 """
-
+import fnmatch
 import json
 import logging
 import os
@@ -292,6 +292,13 @@ class Router:
                 current.user.set(user_mod.getCurrentUser())
 
             path = self._select_language(path)[1:]
+
+            # Check for closed system
+            if conf.security.closed_system:
+                if not current.user.get():
+                    if not any(fnmatch.fnmatch(path, pat) for pat in conf.security.closed_system_allowed_paths):
+                        raise errors.Unauthorized()
+
             if conf.request_preprocessor:
                 path = conf.request_preprocessor(path)
 

@@ -397,6 +397,26 @@ class Security(ConfigType):
 
     password_recovery_key_length: int = 42
     """Length of the Password recovery key"""
+    closed_system: bool = False
+    """If `True` it activates a mode in which only authenticated users can access all routes."""
+
+    closed_system_allowed_paths: t.Iterable[str] = [
+        "",  # index site
+        "json/skey",
+        "json/user/auth_*",
+        "json/user/getAuthMethods",
+        "json/user/login",
+        "user/auth_*",
+        "user/getAuthMethods",
+        "user/login",
+        "vi",
+        "vi/settings",
+        "vi/skey",
+        "vi/user/auth_*",
+        "vi/user/getAuthMethods",
+        "vi/user/login",
+    ]
+    """List of URLs that are accessible without authentication in a closed system"""
 
     _mapping = {
         "contentSecurityPolicy": "content_security_policy",
