@@ -85,8 +85,10 @@ def monkey_patch():
     )
 
     viur_datastore = mock.Mock()
+
     for attr in db_attr:
         setattr(viur_datastore, attr, mock.MagicMock())
+
     viur_datastore.config = {}
     sys.modules["viur.datastore"] = viur_datastore
 

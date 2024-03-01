@@ -14,6 +14,7 @@ if t.TYPE_CHECKING:  # pragma: no cover
     from viur.core.email import EmailTransport
     from viur.core.skeleton import SkeletonInstance
     from viur.core.module import Module
+    from viur.core.tasks import CustomEnvironmentHandler
 
 # Construct an alias with a generic type to be able to write Multiple[str]
 # TODO: Backward compatible implementation, refactor when viur-core
@@ -270,7 +271,7 @@ class Admin(ConfigType):
     """secondary color for viur-admin"""
 
     module_groups: dict[str, dict[t.Literal["name", "icon", "sortindex"], str | int]] = {}
-    """Module Groups for the VI
+    """Module Groups for the admin tool
 
     Group modules in the sidebar in categories (groups).
 
@@ -278,12 +279,12 @@ class Admin(ConfigType):
         conf.admin.module_groups = {
             "content": {
                 "name": "Content",
-                "icon": "text-file",
+                "icon": "file-text-fill",
                 "sortindex": 10,
             },
             "shop": {
                 "name": "Shop",
-                "icon": "cart",
+                "icon": "cart-fill",
                 "sortindex": 20,
             },
         }
@@ -396,6 +397,26 @@ class Security(ConfigType):
 
     password_recovery_key_length: int = 42
     """Length of the Password recovery key"""
+    closed_system: bool = False
+    """If `True` it activates a mode in which only authenticated users can access all routes."""
+
+    closed_system_allowed_paths: t.Iterable[str] = [
+        "",  # index site
+        "json/skey",
+        "json/user/auth_*",
+        "json/user/getAuthMethods",
+        "json/user/login",
+        "user/auth_*",
+        "user/getAuthMethods",
+        "user/login",
+        "vi",
+        "vi/settings",
+        "vi/skey",
+        "vi/user/auth_*",
+        "vi/user/getAuthMethods",
+        "vi/user/login",
+    ]
+    """List of URLs that are accessible without authentication in a closed system"""
 
     _mapping = {
         "contentSecurityPolicy": "content_security_policy",
@@ -653,13 +674,13 @@ class Conf(ConfigType):
     """Upper limit of the amount of parameters we accept per request. Prevents Hash-Collision-Attacks"""
 
     moduleconf_admin_info: dict[str, t.Any] = {
-        "icon": "icon-settings",
+        "icon": "gear-fill",
         "display": "hidden",
     }
     """Describing the internal ModuleConfig-module"""
 
     script_admin_info: dict[str, t.Any] = {
-        "icon": "icon-hashtag",
+        "icon": "file-code-fill",
         "display": "hidden",
     }
     """Describing the Script module"""
@@ -683,17 +704,39 @@ class Conf(ConfigType):
     ]
     """Priority, in which skeletons are loaded"""
 
-    tasks_custom_environment_handler: tuple[t.Callable[[], t.Any], t.Callable[[t.Any], None]] = None
-    """
-    Preserve additional environment in deferred tasks.
+    _tasks_custom_environment_handler: t.Optional["CustomEnvironmentHandler"] = None
 
-    If set, it must be a tuple of two functions (serialize_env, restore_env)
-    for serializing/restoring environment data.
-    The `serialize_env` function must not require any parameters and must
-    return a JSON serializable object with the desired information.
-    The function `restore_env` will receive this object and should write
-    the information it contains to the environment of the deferred request.
-    """
+    @property
+    def tasks_custom_environment_handler(self) -> t.Optional["CustomEnvironmentHandler"]:
+        """
+        Preserve additional environment in deferred tasks.
+
+        If set, it must be an instance of CustomEnvironmentHandler
+        for serializing/restoring environment data.
+        """
+        return self._tasks_custom_environment_handler
+
+    @tasks_custom_environment_handler.setter
+    def tasks_custom_environment_handler(self, value: "CustomEnvironmentHandler") -> None:
+        from .tasks import CustomEnvironmentHandler
+        if isinstance(value, CustomEnvironmentHandler) or value is None:
+            self._tasks_custom_environment_handler = value
+        elif isinstance(value, tuple):
+            if len(value) != 2:
+                raise ValueError(f"Expected a (serialize_env_func, restore_env_func) pair")
+            warnings.warn(
+                f"tuple is deprecated, please provide a CustomEnvironmentHandler object!",
+                DeprecationWarning, stacklevel=2,
+            )
+            # Construct an CustomEnvironmentHandler class on the fly to be backward compatible
+            cls = type("ProjectCustomEnvironmentHandler", (CustomEnvironmentHandler,),
+                       # serialize and restore will be bound methods.
+                       # Therefore, consume the self argument with lambda.
+                       {"serialize": lambda self: value[0](),
+                        "restore": lambda self, obj: value[1](obj)})
+            self._tasks_custom_environment_handler = cls()
+        else:
+            raise ValueError(f"Invalid type {type(value)}. Expected a CustomEnvironmentHandler object.")
 
     valid_application_ids: list[str] = []
     """Which application-ids we're supposed to run on"""

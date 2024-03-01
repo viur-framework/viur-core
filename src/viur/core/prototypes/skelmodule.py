@@ -1,6 +1,17 @@
-from viur.core import Module
+from viur.core import Module, db
 from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
 import typing as t
+
+
+ORDER_TYPE = str | tuple[str, db.SortOrder] | None
+"""
+Type for sort order definitions.
+"""
+
+DEFAULT_ORDER_TYPE = ORDER_TYPE | t.Callable[[db.Query], ORDER_TYPE]
+"""
+Type for default sort order definitions.
+"""
 
 
 class SkelModule(Module):

@@ -2,22 +2,15 @@
 This module contains the RelationalBone to create and manage relationships between skeletons
 and enums to parameterize it.
 """
+import json
 import logging
+import typing as t
 import warnings
 from enum import Enum
-import typing as t
-
 from itertools import chain
 from time import time
-
 from viur.core import db, utils
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
-
-try:
-    import extjson
-except ImportError:
-    # FIXME: That json will not read datetime objects
-    import json as extjson
 
 
 class RelationalConsistency(Enum):
@@ -148,16 +141,6 @@ class RelationalBone(BaseBone):
                 B references C also with CascadeDeletion; if C gets deleted, both B and A will be deleted as well.
 
     """
-    refKeys = ["key", "name"]  # todo: turn into a tuple, as it should not be mutable.
-    """
-    A list of properties to include from the referenced property. These properties will be available in the template
-    without having to fetch the referenced property. Filtering is also only possible by properties named here!
-    """
-    parentKeys = ["key", "name"]  # todo: turn into a tuple, as it should not be mutable.
-    """
-    A list of properties from the current skeleton to include. If mixing filtering by relational properties and
-    properties of the class itself, these must be named here.
-    """
     type = "relational"
     kind = None
 
@@ -168,8 +151,8 @@ class RelationalBone(BaseBone):
         format: str = "$(dest.name)",
         kind: str = None,
         module: t.Optional[str] = None,
-        parentKeys: t.Optional[list[str]] = None,
-        refKeys: t.Optional[list[str]] = None,
+        parentKeys: t.Optional[t.Iterable[str]] = {"name"},
+        refKeys: t.Optional[t.Iterable[str]] = {"name"},
         updateLevel: RelationalUpdateLevel = RelationalUpdateLevel.Always,
         using: t.Optional['viur.core.skeleton.RelSkel'] = None,
         **kwargs
@@ -183,11 +166,11 @@ class RelationalBone(BaseBone):
                 Name of the module which should be used to select entities of kind "type". If not set,
                 the value of "type" will be used (the kindName must match the moduleName)
             :param refKeys:
-                A list of properties to include from the referenced property. These properties will be
-                available in the template without having to fetch the referenced property. Filtering is also only possible
-                by properties named here!
+                An iterable of properties to include from the referenced property. These properties will be
+                available in the template without having to fetch the referenced property. Filtering is also only
+                possible by properties named here!
             :param parentKeys:
-                A list of properties from the current skeleton to include. If mixing filtering by
+                An iterable of properties from the current skeleton to include. If mixing filtering by
                 relational properties and properties of the class itself, these must be named here.
             :param multiple:
                 If True, allow referencing multiple Elements of the given class. (Eg. n:n-relation).
@@ -265,17 +248,19 @@ class RelationalBone(BaseBone):
         if self.kind is None or self.module is None:
             raise NotImplementedError("Type and Module of RelationalBone must not be None")
 
+        # Referenced keys
+        self.refKeys = {"key"}
         if refKeys:
-            if not "key" in refKeys:
-                refKeys.append("key")
-            self.refKeys = refKeys
+            self.refKeys |= set(refKeys)
 
+        # Parent keys
+        self.parentKeys = {"key"}
         if parentKeys:
-            if not "key" in parentKeys:
-                parentKeys.append("key")
-            self.parentKeys = parentKeys
+            self.parentKeys |= set(parentKeys)
 
         self.using = using
+
+        # FIXME: Remove in VIUR4!!
         if isinstance(updateLevel, int):
             msg = f"parameter updateLevel={updateLevel} in RelationalBone is deprecated. " \
                   f"Please use the RelationalUpdateLevel enum instead"
@@ -371,14 +356,14 @@ class RelationalBone(BaseBone):
 
         if isinstance(val, str):  # ViUR2 compatibility
             try:
-                value = extjson.loads(val)
+                value = json.loads(val)
                 if isinstance(value, list):
                     value = [fixFromDictToEntry(x) for x in value]
                 elif isinstance(value, dict):
                     value = fixFromDictToEntry(value)
                 else:
                     value = None
-            except:
+            except ValueError:
                 value = None
         else:
             value = val
@@ -533,7 +518,7 @@ class RelationalBone(BaseBone):
         :raises Warning: If a referenced entry is missing despite the lock.
         """
         if skel.dbEntity.get(f"{name}_outgoingRelationalLocks"):
-            for refKey in skel.dbEntity[f"_outgoingRelationalLocks" % name]:
+            for refKey in skel.dbEntity[f"{name}_outgoingRelationalLocks"]:
                 referencedEntry = db.Get(refKey)
                 if not referencedEntry:
                     logging.warning(f"Programming error detected: Entry {refKey} is gone despite lock")
@@ -600,7 +585,7 @@ class RelationalBone(BaseBone):
                 dbObj["viur_delayed_update_tag"] = time()
                 dbObj["viur_relational_updateLevel"] = self.updateLevel.value
                 dbObj["viur_relational_consistency"] = self.consistency.value
-                dbObj["viur_foreign_keys"] = self.refKeys
+                dbObj["viur_foreign_keys"] = list(self.refKeys)
                 dbObj["viurTags"] = srcEntity.get("viurTags")  # Copy tags over so we can still use our searchengine
                 db.Put(dbObj)
                 values.remove(data)
@@ -619,7 +604,7 @@ class RelationalBone(BaseBone):
             dbObj["viur_dest_kind"] = self.kind
             dbObj["viur_relational_updateLevel"] = self.updateLevel.value
             dbObj["viur_relational_consistency"] = self.consistency.value
-            dbObj["viur_foreign_keys"] = self.refKeys
+            dbObj["viur_foreign_keys"] = list(self.refKeys)
             db.Put(dbObj)
 
     def postDeletedHandler(self, skel, boneName, key):
