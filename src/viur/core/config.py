@@ -403,18 +403,18 @@ class Security(ConfigType):
     closed_system_allowed_paths: t.Iterable[str] = [
         "",  # index site
         "json/skey",
-        "user/login",
-        "user/auth_*",
-        "user/getAuthMethods",
-        "json/user/login"
         "json/user/auth_*",
         "json/user/getAuthMethods",
+        "json/user/login",
+        "user/auth_*",
+        "user/getAuthMethods",
+        "user/login",
         "vi",
         "vi/settings",
         "vi/skey",
-        "vi/user/login",
         "vi/user/auth_*",
         "vi/user/getAuthMethods",
+        "vi/user/login",
     ]
     """List of URLs that are accessible without authentication in a closed system"""
 
