@@ -6,13 +6,13 @@
     request processing (useful for global ratelimiting, DDoS prevention or access control).
 """
 import fnmatch
+import inspect
 import json
 import logging
 import os
 import time
 import traceback
 import typing as t
-import inspect
 import unicodedata
 import webob
 from abc import ABC, abstractmethod
@@ -111,6 +111,7 @@ class Router:
         self._traceID = \
             self.request.headers.get("X-Cloud-Trace-Context", "").split("/")[0] or utils.string.random()
         self.is_deferred = False
+        self.path = ""
         self.path_list = ()
 
         self.skey_checked = False  # indicates whether @skey-decorator-check has already performed within a request
@@ -438,6 +439,7 @@ class Router:
 
         # Parse the URL
         if path := parse.urlparse(path).path:
+            self.path = path
             self.path_list = tuple(unicodedata.normalize("NFC", parse.unquote(part))
                                    for part in path.strip("/").split("/"))
 
