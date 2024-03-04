@@ -33,9 +33,9 @@ VALID_FILENAME_REGEX = re.compile(
     re.IGNORECASE
 )
 
-_credentials, __project_id = google.auth.default()
-client = storage.Client(__project_id, _credentials)
-bucket = client.lookup_bucket(f"""{__project_id}.appspot.com""")
+_CREDENTIALS, __PROJECT_ID = google.auth.default()
+GOOGLE_STORAGE_CLIENT = storage.Client(__PROJECT_ID, _CREDENTIALS)
+GOOGLE_STORAGE_BUCKET = GOOGLE_STORAGE_CLIENT.lookup_bucket(f"""{__PROJECT_ID}.appspot.com""")
 
 # FilePath is a descriptor for ViUR file components
 FilePath = namedtuple("FilePath", ("dlkey", "is_derived", "filename"))
@@ -66,11 +66,11 @@ def importBlobFromViur2(dlKey, fileName):
             return False
         importData = json.loads(importDataReq.read())
         oldBlobName = conf.viur2import_blobsource["gsdir"] + "/" + importData["key"]
-        srcBlob = storage.Blob(bucket=bucket,
+        srcBlob = storage.Blob(bucket=GOOGLE_STORAGE_BUCKET,
                                name=conf.viur2import_blobsource["gsdir"] + "/" + importData["key"])
     else:
         oldBlobName = conf.viur2import_blobsource["gsdir"] + "/" + dlKey
-        srcBlob = storage.Blob(bucket=bucket, name=conf.viur2import_blobsource["gsdir"] + "/" + dlKey)
+        srcBlob = storage.Blob(bucket=GOOGLE_STORAGE_BUCKET, name=conf.viur2import_blobsource["gsdir"] + "/" + dlKey)
     if not srcBlob.exists():
         marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
         marker["success"] = False
@@ -78,7 +78,7 @@ def importBlobFromViur2(dlKey, fileName):
         marker["oldBlobName"] = oldBlobName
         db.Put(marker)
         return False
-    bucket.rename_blob(srcBlob, f"{dlKey}/source/{fileName}")
+    GOOGLE_STORAGE_BUCKET.rename_blob(srcBlob, f"{dlKey}/source/{fileName}")
     marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
     marker["success"] = True
     marker["old_src_key"] = dlKey
@@ -90,7 +90,7 @@ def importBlobFromViur2(dlKey, fileName):
 
 def thumbnailer(fileSkel, existingFiles, params):
     file_name = html.unescape(fileSkel["name"])
-    blob = bucket.get_blob(f"""{fileSkel["dlkey"]}/source/{file_name}""")
+    blob = GOOGLE_STORAGE_BUCKET.get_blob(f"""{fileSkel["dlkey"]}/source/{file_name}""")
     if not blob:
         logging.warning(f"""Blob {fileSkel["dlkey"]}/source/{file_name} is missing from cloud storage!""")
         return
@@ -136,7 +136,7 @@ def thumbnailer(fileSkel, existingFiles, params):
         img.save(outData, fileExtension)
         outSize = outData.tell()
         outData.seek(0)
-        targetBlob = bucket.blob(f"""{fileSkel["dlkey"]}/derived/{targetName}""")
+        targetBlob = GOOGLE_STORAGE_BUCKET.blob(f"""{fileSkel["dlkey"]}/derived/{targetName}""")
         targetBlob.upload_from_file(outData, content_type=mimeType)
         resList.append((targetName, outSize, mimeType, {"mimetype": mimeType, "width": width, "height": height}))
     return resList
@@ -176,7 +176,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
             signedUrl = File.create_download_url(fileSkel["dlkey"], fileSkel["name"])
         else:
             path = f"""{fileSkel["dlkey"]}/source/{file_name}"""
-            if not (blob := bucket.get_blob(path)):
+            if not (blob := GOOGLE_STORAGE_BUCKET.get_blob(path)):
                 logging.warning(f"Blob {path} is missing from cloud storage!")
                 return None
             authRequest = google.auth.transport.requests.Request()
@@ -241,7 +241,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
     uploadUrls = {}
     for data in derivedData["values"]:
         fileName = File.sanitize_filename(data["name"])
-        blob = bucket.blob(f"""{fileSkel["dlkey"]}/derived/{fileName}""")
+        blob = GOOGLE_STORAGE_BUCKET.blob(f"""{fileSkel["dlkey"]}/derived/{fileName}""")
         uploadUrls[fileSkel["dlkey"] + fileName] = blob.create_resumable_upload_session(timeout=60,
                                                                                         content_type=data["mimeType"])
 
@@ -289,66 +289,67 @@ class FileLeafSkel(TreeSkel):
     size = StringBone(
         descr="Size",
         readOnly=True,
-        searchable=True
+        searchable=True,
     )
 
     dlkey = StringBone(
         descr="Download-Key",
-        readOnly=True
+        readOnly=True,
     )
 
     name = StringBone(
         descr="Filename",
         caseSensitive=False,
         searchable=True,
-        vfunc=lambda val: None if File.valid_filename(val) else "Invalid name provided"
+        vfunc=lambda val: None if File.valid_filename(val) else "Invalid filename provided",
     )
 
     mimetype = StringBone(
-        descr="Mime-Info",
-        readOnly=True
+        descr="MIME-Type",
+        readOnly=True,
     )
 
     weak = BooleanBone(
         descr="Weak reference",
         readOnly=True,
-        visible=False
+        visible=False,
     )
+
     pending = BooleanBone(
         descr="Pending upload",
         readOnly=True,
         visible=False,
-        defaultValue=False
+        defaultValue=False,
     )
 
     width = NumericBone(
         descr="Width",
         readOnly=True,
-        searchable=True
+        searchable=True,
     )
 
     height = NumericBone(
         descr="Height",
         readOnly=True,
-        searchable=True
+        searchable=True,
     )
 
     downloadUrl = DownloadUrlBone(
         descr="Download-URL",
         readOnly=True,
-        visible=False
+        visible=False,
     )
 
     derived = BaseBone(
         descr="Derived Files",
         readOnly=True,
-        visible=False
+        visible=False,
     )
 
     pendingparententry = KeyBone(
         descr="Pending key Reference",
         readOnly=True,
-        visible=False
+        visible=False,
     )
 
     def preProcessBlobLocks(self, locks):
@@ -602,7 +603,7 @@ class File(Tree):
 
         dl_key = utils.string.random()
 
-        blob = bucket.blob(f"{dl_key}/source/{filename}")
+        blob = GOOGLE_STORAGE_BUCKET.blob(f"{dl_key}/source/{filename}")
         blob.upload_from_file(io.BytesIO(content), content_type=mimetype)
 
         skel = self.addSkel("leaf")
@@ -638,7 +639,7 @@ class File(Tree):
             else:
                 path = f"""{skel["dlkey"]}/source/{skel["name"]}"""
 
-        blob = bucket.blob(path)
+        blob = GOOGLE_STORAGE_BUCKET.blob(path)
         return io.BytesIO(blob.download_as_bytes()), blob.content_type
 
     @CallDeferred
@@ -724,10 +725,10 @@ class File(Tree):
             size = None
 
         # Create upload-URL and download key
-        global bucket
+        global GOOGLE_STORAGE_BUCKET
 
         dlkey = utils.string.random()  # let's roll a random key
-        blob = bucket.blob(f"{dlkey}/source/{filename}")
+        blob = GOOGLE_STORAGE_BUCKET.blob(f"{dlkey}/source/{filename}")
         upload_url = blob.create_resumable_upload_session(content_type=mimeType, size=size, timeout=60)
 
         # Create a corresponding file-lock object early, otherwise we would have to ensure that the file-lock object
@@ -776,7 +777,7 @@ class File(Tree):
         :param fileName: Optional filename to provide in the header.
         :param download: Set header to attachment retrival, set explictly to "1" if download is wanted.
         """
-        global _credentials, bucket
+        global _CREDENTIALS, GOOGLE_STORAGE_BUCKET
 
         if filename := fileName.strip():
             if not File.valid_filename(filename):
@@ -792,7 +793,7 @@ class File(Tree):
             if "root" not in usr["access"] and "file-view" not in usr["access"]:
                 raise errors.Forbidden()
             validUntil = "-1"  # Prevent this from being cached down below
-            blob = bucket.get_blob(blobKey)
+            blob = GOOGLE_STORAGE_BUCKET.get_blob(blobKey)
 
         else:
             # We got an request including a signature (probably a guest or a user without file-view access)
@@ -808,7 +809,7 @@ class File(Tree):
             if validUntil != "0" and datetime.datetime.strptime(validUntil, "%Y%m%d%H%M") < datetime.datetime.now():
                 blob = None
             else:
-                blob = bucket.get_blob(dlPath)
+                blob = GOOGLE_STORAGE_BUCKET.get_blob(dlPath)
 
         if not blob:
             raise errors.Gone("The requested blob has expired.")
@@ -823,7 +824,7 @@ class File(Tree):
             ) if item
         )
 
-        if isinstance(_credentials, ServiceAccountCredentials):
+        if isinstance(_CREDENTIALS, ServiceAccountCredentials):
             expiresAt = datetime.datetime.now() + datetime.timedelta(seconds=60)
             signedUrl = blob.generate_signed_url(expiresAt, response_disposition=content_disposition, version="v4")
             raise errors.Redirect(signedUrl)
@@ -888,7 +889,7 @@ class File(Tree):
                 session["pendingFileUploadKeys"].remove(targetKey)
                 session.markChanged()
 
-            blobs = list(bucket.list_blobs(prefix=f"""{skel["dlkey"]}/"""))
+            blobs = list(GOOGLE_STORAGE_BUCKET.list_blobs(prefix=f"""{skel["dlkey"]}/"""))
             if len(blobs) != 1:
                 logging.error("Invalid number of blobs in folder")
                 logging.error(targetKey)
@@ -926,11 +927,11 @@ class File(Tree):
         old_path = f"{skel['dlkey']}/source/{html.unescape(old_skel['name'])}"
         new_path = f"{skel['dlkey']}/source/{html.unescape(skel['name'])}"
 
-        if not (old_blob := bucket.get_blob(old_path)):
+        if not (old_blob := GOOGLE_STORAGE_BUCKET.get_blob(old_path)):
             raise errors.Gone()
 
-        bucket.copy_blob(old_blob, bucket, new_path, if_generation_match=0)
-        bucket.delete_blob(old_path)
+        GOOGLE_STORAGE_BUCKET.copy_blob(old_blob, GOOGLE_STORAGE_BUCKET, new_path, if_generation_match=0)
+        GOOGLE_STORAGE_BUCKET.delete_blob(old_path)
 
     def mark_for_deletion(self, dlkey: str) -> None:
         """
@@ -1027,7 +1028,7 @@ def doCleanupDeletedFiles(cursor=None):
         else:
             if file["itercount"] > maxIterCount:
                 logging.info(f"""Finally deleting, {file["dlkey"]}""")
-                blobs = bucket.list_blobs(prefix=f"""{file["dlkey"]}/""")
+                blobs = GOOGLE_STORAGE_BUCKET.list_blobs(prefix=f"""{file["dlkey"]}/""")
                 for blob in blobs:
                     blob.delete()
                 db.Delete(file.key)
