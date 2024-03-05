@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import fnmatch
 import inspect
 import os
 import string
@@ -1367,8 +1368,7 @@ class RefSkel(RelSkel):
         bone_map = {}
         for arg in args:
             if arg[-1] == "*":  # we have a wild card prefix
-                prefix = arg[:-1]
-                bone_map |= {k: v for k, v in fromSkel.__boneMap__.items() if k.startswith(prefix)}
+                bone_map |= {k: v for k, v in fromSkel.__boneMap__.items() if fnmatch.fnmatch(k, arg)}
             else:
                 if bone := fromSkel.__boneMap__.get(arg):
                     bone_map[arg] = bone

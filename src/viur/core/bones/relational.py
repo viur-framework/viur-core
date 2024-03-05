@@ -286,7 +286,7 @@ class RelationalBone(BaseBone):
             from viur.core.skeleton import RefSkel, SkeletonInstance
             self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
             self._skeletonInstanceClassRef = SkeletonInstance
-            self._ref_keys = list(self._refSkelCache.__boneMap__.keys())
+            self._ref_keys = set(self._refSkelCache.__boneMap__.keys())
     def setSystemInitialized(self):
         """
         Set the system initialized for the current class and cache the RefSkel and SkeletonInstance.
@@ -301,7 +301,7 @@ class RelationalBone(BaseBone):
         from viur.core.skeleton import RefSkel, SkeletonInstance
         self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
         self._skeletonInstanceClassRef = SkeletonInstance
-        self._ref_keys = list(self._refSkelCache.__boneMap__.keys())
+        self._ref_keys = set(self._refSkelCache.__boneMap__.keys())
     # from viur.core.skeleton import RefSkel, skeletonByKind
     # self._refSkelCache = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
     # self._usingSkelCache = self.using() if self.using else None
