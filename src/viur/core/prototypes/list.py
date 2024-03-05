@@ -5,7 +5,7 @@ from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
 from .skelmodule import SkelModule, DEFAULT_ORDER_TYPE
-from ..decorators import on_action, on_add, on_added, on_edit, on_edited
+from ..decorators import OnAction, on_add, on_added, on_clone, on_cloned, on_edit, on_edited
 
 
 class List(SkelModule):
@@ -669,6 +669,7 @@ class List(SkelModule):
         .. seealso:: :func:`clone`, :func:`onCloned`
         """
         pass
+        on_clone.dispatch(self, skel)
 
     def onCloned(self, skel: SkeletonInstance, src_skel: SkeletonInstance):
         """
@@ -686,6 +687,7 @@ class List(SkelModule):
 
         if user := utils.getCurrentUser():
             logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
+        on_cloned.dispatch(self, skel)
 
 
 List.admin = True
