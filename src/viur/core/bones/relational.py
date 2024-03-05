@@ -1206,7 +1206,7 @@ class RelationalBone(BaseBone):
         assert not (bool(self.languages) ^ bool(language)), "Language is required or not supported"
         assert not append or self.multiple, "Can't append - bone is not multiple"
 
-        def tuple_check(in_value):
+        def tuple_check(in_value: tuple | None = None):
             return not (isinstance(in_value, tuple) and len(in_value) == 2
                         and isinstance(in_value[0], (str, int, db.Key))
                         and isinstance(in_value[1], self._skeletonInstanceClassRef))
