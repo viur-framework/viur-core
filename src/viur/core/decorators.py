@@ -181,7 +181,7 @@ class OnAction(abc.ABC):
                     logging.exception(f"Calling {handler=} with {args=} and {kwargs=} failed: {exc}")
 
     @classmethod
-    def create(cls, action_name: str) -> t.Self:
+    def create(cls, action_name: str) -> "t.Self":
         return type(f"{action_name}Action", (cls,), {"action_name": action_name})
 
 
