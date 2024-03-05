@@ -1,4 +1,7 @@
+import abc
+import collections
 import typing as t
+
 from viur.core.module import Method
 
 __all__ = [
@@ -142,3 +145,67 @@ def skey(
         return decorator
 
     return decorator(func)
+
+
+class action_meta(type):
+
+    def __init__(cls, name, bases, attr):
+        print(f"call init {(name, bases, attr) = }")
+        super().__init__(name, bases, attr)
+
+    def __new__(cls, name, bases, dict_):
+        print("Creating class %s%s with attributes %s" % (name, bases, dict_))
+        # return type.__new__(cls, name, bases, dict_)
+        for attrname, cls_attr in dict_.items():
+            mangled_attr = "_{0}__set_name".format(cls_attr.__class__.__name__)
+            if hasattr(cls_attr, mangled_attr):
+                setattr(cls_attr, 'name', attrname)
+        return super().__new__(cls, name, bases, dict_)
+
+
+class on_action(abc.ABC):
+    @property
+    @abc.abstractmethod
+    def action_name(self) -> str:
+        ...
+
+    # def __init__(self, action_name):
+    #     print(f"__init__ {action_name = }")
+    #     self.action_name = action_name
+    #
+    def __call__(self, *args, **kwargs):
+        print(f"__call__  {self} {args = } {    kwargs = }")
+        return self.fn(*args, **kwargs)
+        # self.fn = fn
+
+    def __init__(self, fn: t.Callable):
+        print(f"__init__ {fn = }")
+        self.fn = fn
+
+    def __set_name__(self, owner, name):
+        print(f"decorating {self.fn} and using {owner=}")
+        self.fn.class_name = owner.__name__
+
+        if not hasattr(owner, "on_handlers"):
+            owner.on_handlers: dict[str, list[t.Callable]] = collections.defaultdict(list)
+        owner.on_handlers[self.action_name].append(self.fn)
+
+        # then replace ourself with the original method
+        # setattr(owner, name, self.fn)
+
+    @classmethod
+    def dispatch(cls, caller, *args, **kwargs):
+        print(f"dispatch  {cls=} {caller = } with {args=} & {kwargs=}")
+        for handler in caller.on_handlers[cls.action_name]:
+            print(f"{handler = }")
+            handler(caller, *args, **kwargs)
+
+    @classmethod
+    def create(cls, action_name: str) -> t.Self:
+        return type(f"{action_name}Action", (cls,), {"action_name": action_name})
+
+
+on_add = on_action.create("add")
+on_added = on_action.create("added")
+on_edit = on_action.create("edit")
+on_edited = on_action.create("edited")

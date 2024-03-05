@@ -5,6 +5,7 @@ from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
 from .skelmodule import SkelModule, DEFAULT_ORDER_TYPE
+from ..decorators import on_action, on_add, on_added, on_edit, on_edited
 
 
 class List(SkelModule):
@@ -565,6 +566,7 @@ class List(SkelModule):
 
             .. seealso:: :func:`add`, :func:`onAdded`
         """
+        on_add.dispatch(self, skel)
         pass
 
     def onAdded(self, skel: SkeletonInstance):
@@ -582,6 +584,7 @@ class List(SkelModule):
         flushCache(kind=skel.kindName)
         if user := current.user.get():
             logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
+        on_added.dispatch(self, skel)
 
     def onEdit(self, skel: SkeletonInstance):
         """
@@ -593,6 +596,7 @@ class List(SkelModule):
 
             .. seealso:: :func:`edit`, :func:`onEdited`
         """
+        on_edit.dispatch(self, skel)
         pass
 
     def onEdited(self, skel: SkeletonInstance):
@@ -610,6 +614,7 @@ class List(SkelModule):
         flushCache(key=skel["key"])
         if user := current.user.get():
             logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
+        on_edited.dispatch(self, skel)
 
     def onView(self, skel: SkeletonInstance):
         """
