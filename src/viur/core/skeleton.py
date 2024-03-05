@@ -1367,11 +1367,7 @@ class RefSkel(RelSkel):
         newClass.kindName = kindName
         bone_map = {}
         for arg in args:
-            if arg[-1] == "*":  # we have a wild card prefix
-                bone_map |= {k: v for k, v in fromSkel.__boneMap__.items() if fnmatch.fnmatch(k, arg)}
-            else:
-                if bone := fromSkel.__boneMap__.get(arg):
-                    bone_map[arg] = bone
+            bone_map |= {k: fromSkel.__boneMap__[k] for k in fnmatch.filter(fromSkel.__boneMap__.keys(), arg)}
         newClass.__boneMap__ = bone_map
         return newClass
 
