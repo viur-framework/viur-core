@@ -3,7 +3,6 @@ import collections
 import logging
 import typing as t
 
-from viur.core import conf
 from viur.core.module import Method
 
 __all__ = [
@@ -169,6 +168,7 @@ class OnAction(abc.ABC):
 
     @classmethod
     def dispatch(cls, caller, *args, raise_error: bool = True, **kwargs):
+        from viur.core import conf
         for handler in caller.on_handlers[cls.action_name]:
             if conf.debug.trace:
                 logging.debug(f"Calling {handler=} with {args=} and {kwargs=}")
