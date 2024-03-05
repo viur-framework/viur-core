@@ -402,7 +402,7 @@ class RelationalBone(BaseBone):
         oldRelationalLocks = set(skel.dbEntity.get(f"{name}_outgoingRelationalLocks") or [])
         newRelationalLocks = set()
 
-        def serialize_dest_rel(in_value):
+        def serialize_dest_rel(in_value: dict | None = None):
             if not in_value:
                 return None, None
             if dest_val := in_value.get("dest"):
