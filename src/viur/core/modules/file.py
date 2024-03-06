@@ -301,7 +301,7 @@ class FileLeafSkel(TreeSkel):
         descr="Filename",
         caseSensitive=False,
         searchable=True,
-        vfunc=lambda val: None if File.valid_filename(val) else "Invalid filename provided",
+        vfunc=lambda val: None if File.is_valid_filename(val) else "Invalid filename provided",
     )
 
     mimetype = StringBone(
@@ -392,6 +392,7 @@ class FileNodeSkel(TreeSkel):
 class File(Tree):
     PENDING_POSTFIX = " (pending)"
     DOWNLOAD_URL_PREFIX = "/file/download/"
+    MAX_FILENAME_LEN = 256
 
     leafSkelCls = FileLeafSkel
     nodeSkelCls = FileNodeSkel
@@ -413,14 +414,19 @@ class File(Tree):
     # Helper functions currently resist here
 
     @staticmethod
-    def valid_filename(filename: str) -> bool:
+    def is_valid_filename(filename: str) -> bool:
         """
-        Verifies for a valid filename.
+        Verifies a valid filename.
+
         The filename should be valid on Linux, Mac OS and Windows.
+        It should not be longer than MAX_FILENAME_LEN chars.
 
         Rule set: https://stackoverflow.com/a/31976060/3749896
         Regex test: https://regex101.com/r/iBYpoC/1
         """
+        if len(filename) > File.MAX_FILENAME_LEN:
+            return False
+
         return bool(re.match(VALID_FILENAME_REGEX, filename))
 
     @staticmethod
@@ -463,7 +469,7 @@ class File(Tree):
         filepath = f"""{dlkey}/{"derived" if derived else "source"}/{filename}"""
 
         if download_filename:
-            if not File.valid_filename(download_filename):
+            if not File.is_valid_filename(download_filename):
                 raise errors.UnprocessableEntity(f"Invalid download_filename {download_filename!r} provided")
 
             download_filename = urlquote(download_filename)
@@ -598,7 +604,7 @@ class File(Tree):
 
         :return: Returns the key of the file object written. This can be associated e.g. with a FileBone.
         """
-        if not File.valid_filename(filename):
+        if not File.is_valid_filename(filename):
             raise ValueError(f"{filename=} is invalid")
 
         dl_key = utils.string.random()
@@ -671,7 +677,7 @@ class File(Tree):
     ):
         filename = fileName.strip()  # VIUR4 FIXME: just for compatiblity of the parameter names
 
-        if not File.valid_filename(filename):
+        if not File.is_valid_filename(filename):
             raise errors.UnprocessableEntity(f"Invalid filename {filename!r} provided")
 
         # Validate the mimetype from the client seems legit
@@ -780,7 +786,7 @@ class File(Tree):
         global _CREDENTIALS, GOOGLE_STORAGE_BUCKET
 
         if filename := fileName.strip():
-            if not File.valid_filename(filename):
+            if not File.is_valid_filename(filename):
                 raise errors.UnprocessableEntityf(f"The provided filename {filename!r} is invalid!")
 
         download_filename = ""
