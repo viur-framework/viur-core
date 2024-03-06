@@ -8,9 +8,9 @@ from base64 import urlsafe_b64decode
 from datetime import datetime
 from html import entities as htmlentitydefs
 from html.parser import HTMLParser
-from typing import Dict, List, Optional, Set, Tuple, Union
+import typing as t
 
-from viur.core import db, utils
+from viur.core import db, conf
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 _defaultTags = {
@@ -49,36 +49,6 @@ A dictionary containing default configurations for handling HTML content in Text
 """
 
 
-def parseDownloadUrl(urlStr: str) -> Tuple[Optional[str], Optional[bool], Optional[str]]:
-    """
-    Parses a file download URL in the format `/file/download/xxxx?sig=yyyy` into its components: blobKey, derived,
-    and filename. If the URL cannot be parsed, the function returns None for each component.
-
-    :param str urlStr: The file download URL to be parsed.
-    :return: A tuple containing the parsed components: (blobKey, derived, filename).
-            Each component will be None if the URL could not be parsed.
-    :rtype: Tuple[Optional[str], Optional[bool], Optional[str]]
-    """
-    if not urlStr.startswith("/file/download/") or "?" not in urlStr:
-        return None, None, None
-    dataStr, sig = urlStr[15:].split("?")  # Strip /file/download/ and split on ?
-    sig = sig[4:]  # Strip sig=
-    if not utils.hmacVerify(dataStr.encode("ASCII"), sig):
-        # Invalid signature, bail out
-        return None, None, None
-    # Split the blobKey into the individual fields it should contain
-    try:
-        dlPath, validUntil, _ = urlsafe_b64decode(dataStr).decode("UTF-8").split("\0")
-    except:  # It's the old format, without an downloadFileName
-        dlPath, validUntil = urlsafe_b64decode(dataStr).decode("UTF-8").split("\0")
-    if validUntil != "0" and datetime.strptime(validUntil, "%Y%m%d%H%M") < datetime.now():
-        # Signature expired, bail out
-        return None, None, None
-    blobkey, derived, fileName = dlPath.split("/")
-    derived = derived != "source"
-    return blobkey, derived, fileName
-
-
 class CollectBlobKeys(HTMLParser):
     """
     A custom HTML parser that extends the HTMLParser class to collect blob keys found in the "src" attribute
@@ -100,9 +70,9 @@ class CollectBlobKeys(HTMLParser):
         if tag in ["a", "img"]:
             for k, v in attrs:
                 if k == "src":
-                    blobKey, _, _ = parseDownloadUrl(v)
-                    if blobKey:
-                        self.blobs.add(blobKey)
+                    file = getattr(conf.main_app.vi, "file", None)
+                    if file and (filepath := file.parse_download_url(v)):
+                        self.blobs.add(filepath.dlkey)
 
 
 class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
@@ -150,7 +120,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
         :param str name: The name of the character reference.
         """
         self.flushCache()
-        self.result += "&#%s;" % (name)
+        self.result += f"&#{name};"
 
     def handle_entityref(self, name):  # FIXME
         """
@@ -160,7 +130,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
         """
         if name in htmlentitydefs.entitydefs.keys():
             self.flushCache()
-            self.result += "&%s;" % (name)
+            self.result += f"&{name};"
 
     def flushCache(self):
         """
@@ -208,21 +178,31 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
                     checker = v.lower()
                     if not (checker.startswith("http://") or checker.startswith("https://") or checker.startswith("/")):
                         continue
-                    blobKey, derived, fileName = parseDownloadUrl(v)
-                    if blobKey:
-                        v = utils.downloadUrlFor(blobKey, fileName, derived, expires=None)
+
+                    file = getattr(conf.main_app.vi, "file", None)
+                    if file and (filepath := file.parse_download_url(v)):
+                        v = file.create_download_url(
+                            filepath.dlkey,
+                            filepath.filename,
+                            filepath.is_derived,
+                            expires=None
+                        )
+
                         if self.srcSet:
                             # Build the src set with files already available. If a derived file is not yet build,
                             # getReferencedBlobs will catch it, build it, and we're going to be re-called afterwards.
-                            fileObj = db.Query("file").filter("dlkey =", blobKey) \
-                                .order(("creationdate", db.SortOrder.Ascending)).getEntry()
-                            srcSet = utils.srcSetFor(fileObj, None, self.srcSet.get("width"), self.srcSet.get("height"))
-                            cacheTagStart += ' srcSet="%s"' % srcSet
+                            srcSet = file.create_src_set(
+                                filepath.dlkey,
+                                None,
+                                self.srcSet.get("width"),
+                                self.srcSet.get("height")
+                            )
+                            cacheTagStart += f' srcSet="{srcSet}"'
                 if not tag in self.validHtml["validAttrs"].keys() or not k in self.validHtml["validAttrs"][tag]:
                     # That attribute is not valid on this tag
                     continue
                 if k.lower()[0:2] != 'on' and v.lower()[0:10] != 'javascript':
-                    cacheTagStart += ' %s="%s"' % (k, v)
+                    cacheTagStart += f' {k}="{v}"'
                 if tag == "a" and k == "target" and v.lower() == "_blank":
                     isBlankTarget = True
             if styles:
@@ -241,8 +221,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
                            [(x in value) for x in ["\"", ":", ";"]]):
                         syleRes[style] = value
                 if len(syleRes.keys()):
-                    cacheTagStart += " style=\"%s\"" % "; ".join(
-                        [("%s: %s" % (k, v)) for (k, v) in syleRes.items()])
+                    cacheTagStart += f""" style=\"{"; ".join([(f"{k}: {v}") for k, v in syleRes.items()])}\""""
             if classes:
                 validClasses = []
                 for currentClass in classes:
@@ -264,7 +243,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
                     if isOkay:
                         validClasses.append(currentClass)
                 if validClasses:
-                    cacheTagStart += " class=\"%s\"" % " ".join(validClasses)
+                    cacheTagStart += f""" class=\"{" ".join(validClasses)}\""""
             if isBlankTarget:
                 # Add rel tag to prevent the browser to pass window.opener around
                 cacheTagStart += " rel=\"noopener noreferrer\""
@@ -299,7 +278,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
                 # Close all currently open Tags until we reach the current one. If no one is found,
                 # we just close everything and ignore the tag that should have been closed
                 for endTag in self.openTagsList[:]:
-                    self.result += "</%s>" % endTag
+                    self.result += f"</{endTag}>"
                     self.openTagsList.remove(endTag)
                     if endTag == tag:
                         break
@@ -308,7 +287,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
         """ Append missing closing tags to the result."""
         self.flushCache()
         for tag in self.openTagsList:
-            endTag = '</%s>' % tag
+            endTag = f'</{tag}>'
             self.result += endTag
 
     def sanitize(self, instr):
@@ -351,9 +330,9 @@ class TextBone(BaseBone):
     def __init__(
         self,
         *,
-        validHtml: Union[None, Dict] = __undefinedC__,
+        validHtml: None | dict = __undefinedC__,
         max_length: int = 200000,
-        srcSet: Optional[Dict[str, List]] = None,
+        srcSet: t.Optional[dict[str, list]] = None,
         indexed: bool = False,
         **kwargs
     ):
@@ -422,7 +401,7 @@ class TextBone(BaseBone):
         if len(value) > self.max_length:
             return "Maximum length exceeded"
 
-    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
         Extracts and returns the blob keys of referenced files in the HTML content of the TextBone instance.
 
@@ -457,7 +436,7 @@ class TextBone(BaseBone):
                 file_obj = db.Query("file").filter("dlkey =", blob_key) \
                     .order(("creationdate", db.SortOrder.Ascending)).getEntry()
                 if file_obj:
-                    ensureDerived(file_obj.key, "%s_%s" % (skel.kindName, name), derive_dict, skel["key"])
+                    ensureDerived(file_obj.key, f"{skel.kindName}_{name}", derive_dict, skel["key"])
 
         return blob_keys
 
@@ -479,7 +458,7 @@ class TextBone(BaseBone):
             elif not self.languages and isinstance(val, str):
                 skel[boneName] = self.singleValueFromClient(val, skel, boneName, None)[0]
 
-    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> Set[str]:
+    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
         Extracts search tags from the text content of a TextBone.
 
@@ -500,7 +479,7 @@ class TextBone(BaseBone):
                     result.add(word.lower())
         return result
 
-    def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> List[str]:
+    def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> list[str]:
         """
         Retrieves the unique property index values for the TextBone.
 

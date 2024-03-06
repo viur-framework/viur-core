@@ -1,4 +1,4 @@
-from typing import Callable
+import typing as t
 from viur.core.module import Method
 
 __all__ = [
@@ -11,7 +11,7 @@ __all__ = [
 ]
 
 
-def exposed(func: Callable) -> Method:
+def exposed(func: t.Callable) -> Method:
     """
     Decorator, which marks a function as exposed.
 
@@ -23,7 +23,7 @@ def exposed(func: Callable) -> Method:
         seo_language_map = func
 
         # We received said dictionary:
-        def expose_with_translations(func: Callable) -> Method:
+        def expose_with_translations(func: t.Callable) -> Method:
             func = Method.ensure(func)
             func.exposed = True
             func.seo_language_map = seo_language_map
@@ -36,7 +36,7 @@ def exposed(func: Callable) -> Method:
     return func
 
 
-def internal_exposed(func: Callable) -> Method:
+def internal_exposed(func: t.Callable) -> Method:
     """
     Decorator, which marks a function as internal exposed.
     """
@@ -45,7 +45,7 @@ def internal_exposed(func: Callable) -> Method:
     return func
 
 
-def force_ssl(func: Callable) -> Method:
+def force_ssl(func: t.Callable) -> Method:
     """
     Decorator, which enforces usage of an encrypted channel for a given resource.
     Has no effect on development-servers.
@@ -55,7 +55,7 @@ def force_ssl(func: Callable) -> Method:
     return func
 
 
-def force_post(func: Callable) -> Method:
+def force_post(func: t.Callable) -> Method:
     """
     Decorator, which enforces usage of a http post request.
     """
@@ -65,10 +65,10 @@ def force_post(func: Callable) -> Method:
 
 
 def access(
-    *access: str | list[str] | tuple[str] | set[str] | Callable,
+    *access: str | list[str] | tuple[str] | set[str] | t.Callable,
     offer_login: bool | str = False,
     message: str | None = None,
-) -> Callable:
+) -> t.Callable:
     """
     Decorator, which performs an authentication and authorization check primarily based on the current user's access,
     which is defined via the `UserSkel.access`-bone. Additionally, a callable for individual access checking can be
@@ -106,13 +106,13 @@ def access(
 
 
 def skey(
-    func: Callable = None,
+    func: t.Callable = None,
     *,
-    allow_empty: bool | list[str] | tuple[str] | Callable = False,
+    allow_empty: bool | list[str] | tuple[str] | t.Callable = False,
     forward_payload: str | None = None,
     message: str = None,
     name: str = "skey",
-    validate: Callable | None = None,
+    validate: t.Callable | None = None,
     **extra_kwargs: dict,
 ) -> Method:
     """

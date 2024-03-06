@@ -42,7 +42,7 @@ setting the corresponding class-level variables on class:`Session<viur.core.sess
 from viur.core.config import conf
 from viur.core import current
 import logging
-from typing import Literal, Optional, List
+import typing as t
 
 
 def addCspRule(objectType: str, srcOrDirective: str, enforceMode: str = "monitor"):
@@ -119,7 +119,7 @@ def _rebuildCspHeaderCache():
                 if value in {"self", "unsafe-inline", "unsafe-eval", "script", "none"} or \
                     any([value.startswith(x) for x in ["sha256-", "sha384-", "sha512-"]]):
                     # We don't permit nonce- in project wide config as this will be reused on multiple requests
-                    resStr += "'%s'" % value
+                    resStr += f"'{value}'"
                 else:
                     resStr += value
             resStr += "; "
@@ -165,7 +165,7 @@ def extendCsp(additionalRules: dict = None, overrideRules: dict = None) -> None:
             resStr += " "
             if value in {"self", "unsafe-inline", "unsafe-eval", "script", "none"} or \
                 any([value.startswith(x) for x in ["nonce-", "sha256-", "sha384-", "sha512-"]]):
-                resStr += "'%s'" % value
+                resStr += f"'{value}'"
             else:
                 resStr += value
         resStr += "; "
@@ -182,14 +182,14 @@ def enableStrictTransportSecurity(maxAge: int = 365 * 24 * 60 * 60,
         :param includeSubDomains: If this parameter is set, this rule applies to all of the site's subdomains as well.
         :param preload: If set, we'll issue a hint that preloading would be appreciated.
     """
-    conf.security.strict_transport_security = "max-age=%s" % maxAge
+    conf.security.strict_transport_security = f"max-age={maxAge}"
     if includeSubDomains:
         conf.security.strict_transport_security += "; includeSubDomains"
     if preload:
         conf.security.strict_transport_security += "; preload"
 
 
-def setXFrameOptions(action: str, uri: Optional[str] = None) -> None:
+def setXFrameOptions(action: str, uri: t.Optional[str] = None) -> None:
     """
         Sets X-Frame-Options to prevent click-jacking attacks.
         :param action: off | deny | sameorigin | allow-from
@@ -205,7 +205,7 @@ def setXFrameOptions(action: str, uri: Optional[str] = None) -> None:
         conf.security.x_frame_options = (action, uri)
 
 
-def setXXssProtection(enable: Optional[bool]) -> None:
+def setXXssProtection(enable: t.Optional[bool]) -> None:
     """
         Sets X-XSS-Protection header. If set, mode will always be block.
         :param enable: Enable the protection or not. Set to None to drop this header
@@ -250,7 +250,7 @@ def setReferrerPolicy(policy: str):  # fixme: replace str with literal[validrefe
     """
         :param policy: The referrer policy to send
     """
-    assert policy in validReferrerPolicies, "Policy must be one of %s" % validReferrerPolicies
+    assert policy in validReferrerPolicies, f"Policy must be one of {validReferrerPolicies}"
     conf.security.referrer_policy = policy
 
 
@@ -265,7 +265,7 @@ def _rebuildPermissionHeaderCache() -> None:
     ])
 
 
-def setPermissionPolicyDirective(directive: str, allowList: Optional[List[str]]) -> None:
+def setPermissionPolicyDirective(directive: str, allowList: t.Optional[list[str]]) -> None:
     """
         Set the permission policy.
             :param directive: The directive to set.
