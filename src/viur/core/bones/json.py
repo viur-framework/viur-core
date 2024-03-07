@@ -38,23 +38,12 @@ class JsonBone(RawBone):
         jsonschema.validators.validator_for(False).check_schema(schema)
         self.schema = schema
 
-    def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
-        if name in skel.accessedValues:
-            skel.dbEntity[name] = utils.json.dumps(skel.accessedValues[name])
+    def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+        return utils.json.dumps(skel.accessedValues[name])
 
-            # Ensure this bone is NOT indexed!
-            skel.dbEntity.exclude_from_indexes.add(name)
+    def singleValueUnserialize(self, val):
+        return utils.json.loads(val)
 
-            return True
-
-        return False
-
-    def unserialize(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> bool:
-        if data := skel.dbEntity.get(name):
-            skel.accessedValues[name] = utils.json.loads(data)
-            return True
-
-        return False
 
     def singleValueFromClient(self, value: str | list | dict, skel, bone_name, client_data):
         if value:
