@@ -1217,11 +1217,10 @@ class BaseBone(object):
 
         ret = self.compute.fn(**compute_fn_args)
 
-        def unserialize_raw_value(value: list[dict] | dict | None):
+        def unserialize_raw_value(raw_value: list[dict] | dict | None):
             if self.multiple:
-                return [self.singleValueUnserialize(value)
-                        for value in ret]
-            return self.singleValueUnserialize(ret)
+                return [self.singleValueUnserialize(inner_value) for inner_value in raw_value]
+            return self.singleValueUnserialize(raw_value)
 
         if self.compute.raw:
             if self.languages:
