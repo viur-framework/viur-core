@@ -397,26 +397,34 @@ class Security(ConfigType):
 
     password_recovery_key_length: int = 42
     """Length of the Password recovery key"""
+
     closed_system: bool = False
     """If `True` it activates a mode in which only authenticated users can access all routes."""
 
-    closed_system_allowed_paths: t.Iterable[str] = [
+    admin_allowed_paths: t.Iterable[str] = [
+        "vi",
+        "vi/skey",
+        "vi/settings",
+        "vi/user/auth_*",
+        "vi/user/f2_*",
+        "vi/user/getAuthMethods",  # FIXME: deprecated, use `login` for this
+        "vi/user/login",
+    ]
+    """Specifies admin tool paths which are being accessible without authenticated user."""
+
+    closed_system_allowed_paths: t.Iterable[str] = admin_allowed_paths + [
         "",  # index site
         "json/skey",
         "json/user/auth_*",
-        "json/user/getAuthMethods",
+        "json/user/f2_*",
+        "json/user/getAuthMethods",  # FIXME: deprecated, use `login` for this
         "json/user/login",
         "user/auth_*",
-        "user/getAuthMethods",
+        "user/f2_*",
+        "user/getAuthMethods",  # FIXME: deprecated, use `login` for this
         "user/login",
-        "vi",
-        "vi/settings",
-        "vi/skey",
-        "vi/user/auth_*",
-        "vi/user/getAuthMethods",
-        "vi/user/login",
     ]
-    """List of URLs that are accessible without authentication in a closed system"""
+    """Paths that are accessible without authentication in a closed system, see `closed_system` for details."""
 
     _mapping = {
         "contentSecurityPolicy": "content_security_policy",
