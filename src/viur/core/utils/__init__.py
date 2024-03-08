@@ -120,7 +120,7 @@ __UTILS_NAME_REPLACEMENT = {
     "getCurrentUser": ("current.user.get", current.user.get),
     "is_prefix": ("utils.string.is_prefix", string.is_prefix),
     "parse_bool": ("utils.parse.bool", parse.bool),
-    "srcSetFor": ("modules.file.File.create_src_set", "viur.core.modules.file.File.create_download_url"),
+    "srcSetFor": ("modules.file.File.create_src_set", "viur.core.modules.file.File.create_src_set"),
 }
 
 
