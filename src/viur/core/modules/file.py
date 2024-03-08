@@ -731,8 +731,6 @@ class File(Tree):
             size = None
 
         # Create upload-URL and download key
-        global GOOGLE_STORAGE_BUCKET
-
         dlkey = utils.string.random()  # let's roll a random key
         blob = GOOGLE_STORAGE_BUCKET.blob(f"{dlkey}/source/{filename}")
         upload_url = blob.create_resumable_upload_session(content_type=mimeType, size=size, timeout=60)
@@ -783,8 +781,6 @@ class File(Tree):
         :param fileName: Optional filename to provide in the header.
         :param download: Set header to attachment retrival, set explictly to "1" if download is wanted.
         """
-        global _CREDENTIALS, GOOGLE_STORAGE_BUCKET
-
         if filename := fileName.strip():
             if not File.is_valid_filename(filename):
                 raise errors.UnprocessableEntityf(f"The provided filename {filename!r} is invalid!")
