@@ -1583,4 +1583,4 @@ def __getattr__(attr: str) -> object:
         logging.warning(msg, stacklevel=2)
         return func
 
-    return super(__import__(__name__).__class__).__getattr__(attr)
+    return super(__import__(__name__).__class__).__getattribute__(attr)
