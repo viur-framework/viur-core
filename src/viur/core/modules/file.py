@@ -900,8 +900,6 @@ class File(Tree):
             # only one item is allowed here!
             blob = blobs[0]
 
-            print(blob.name)
-
             # update the corresponding file skeleton
             skel["name"] = skel["name"].removesuffix(self.PENDING_POSTFIX)
             skel["mimetype"] = utils.string.escape(blob.content_type)
