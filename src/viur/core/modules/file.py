@@ -904,7 +904,7 @@ class File(Tree):
             blob = blobs[0]
             skel["mimetype"] = utils.string.escape(blob.content_type)
 
-            if any([ch in blob.name for ch in "$<>'\""]):  # Prevent these Characters from being used in a fileName
+            if not self.is_valid_filename(blob.name):
                 raise errors.PreconditionFailed()
 
             skel["name"] = skel["name"].removesuffix(self.PENDING_POSTFIX)
