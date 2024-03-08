@@ -1317,7 +1317,6 @@ class RelSkel(BaseSkeleton):
         # FIXME: is this a good idea? Any other way to ensure only bones present in refKeys are serialized?
         return self.dbEntity
 
-    # return {k: v for k, v in self.valuesCache.entity.items() if k in self.__boneNames__}
 
     def unserialize(self, values: db.Entity | dict):
         """
@@ -1333,22 +1332,6 @@ class RelSkel(BaseSkeleton):
 
         self.accessedValues = {}
         self.renderAccessedValues = {}
-        # self.valuesCache = {"entity": values, "changedValues": {}, "cachedRenderValues": {}}
-        return
-        for bkey, _bone in self.items():
-            if isinstance(_bone, BaseBone):
-                if bkey == "key":
-                    try:
-                        # Reading the value from db.Entity
-                        self.valuesCache[bkey] = str(values.key())
-                    except:
-                        # Is it in the dict?
-                        if "key" in values:
-                            self.valuesCache[bkey] = str(values["key"])
-                        else:  # Ingore the key value
-                            pass
-                else:
-                    _bone.unserialize(self.valuesCache, bkey, values)
 
 
 class RefSkel(RelSkel):
