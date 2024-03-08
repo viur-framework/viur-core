@@ -714,13 +714,12 @@ class File(Tree):
             maxSize = authData["maxSize"]
 
         else:
+            rootNode = None
             if node:
                 rootNode = self.getRootNode(node)
-                if not self.canAdd("leaf", rootNode):
-                    raise errors.Forbidden()
-            else:
-                if not self.canAdd("leaf", None):
-                    raise errors.Forbidden()
+
+            if not self.canAdd("leaf", rootNode):
+                raise errors.Forbidden()
 
             maxSize = None  # The user has some file/add permissions, don't restrict fileSize
 
@@ -891,19 +890,21 @@ class File(Tree):
                 session["pendingFileUploadKeys"].remove(targetKey)
                 session.markChanged()
 
+            # Now read the blob from the dlkey folder
             blobs = list(GOOGLE_STORAGE_BUCKET.list_blobs(prefix=f"""{skel["dlkey"]}/"""))
             if len(blobs) != 1:
                 logging.error("Invalid number of blobs in folder")
                 logging.error(targetKey)
                 raise errors.PreconditionFailed()
 
+            # only one item is allowed here!
             blob = blobs[0]
-            skel["mimetype"] = utils.string.escape(blob.content_type)
 
-            if not self.is_valid_filename(blob.name):
-                raise errors.PreconditionFailed()
+            print(blob.name)
 
+            # update the corresponding file skeleton
             skel["name"] = skel["name"].removesuffix(self.PENDING_POSTFIX)
+            skel["mimetype"] = utils.string.escape(blob.content_type)
             skel["size"] = blob.size
             skel["parentrepo"] = rootNode["key"] if rootNode else None
             skel["weak"] = rootNode is None
