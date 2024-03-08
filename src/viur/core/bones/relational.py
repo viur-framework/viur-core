@@ -279,7 +279,7 @@ class RelationalBone(BaseBone):
             from viur.core.skeleton import RefSkel, SkeletonInstance
             self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
             self._skeletonInstanceClassRef = SkeletonInstance
-
+            self._ref_keys = set(self._refSkelCache.__boneMap__.keys())
     def setSystemInitialized(self):
         """
         Set the system initialized for the current class and cache the RefSkel and SkeletonInstance.
@@ -294,7 +294,7 @@ class RelationalBone(BaseBone):
         from viur.core.skeleton import RefSkel, SkeletonInstance
         self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
         self._skeletonInstanceClassRef = SkeletonInstance
-
+        self._ref_keys = set(self._refSkelCache.__boneMap__.keys())
     # from viur.core.skeleton import RefSkel, skeletonByKind
     # self._refSkelCache = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
     # self._usingSkelCache = self.using() if self.using else None
@@ -604,7 +604,7 @@ class RelationalBone(BaseBone):
             dbObj["viur_dest_kind"] = self.kind
             dbObj["viur_relational_updateLevel"] = self.updateLevel.value
             dbObj["viur_relational_consistency"] = self.consistency.value
-            dbObj["viur_foreign_keys"] = list(self.refKeys)
+            dbObj["viur_foreign_keys"] = list(self._ref_keys)
             db.Put(dbObj)
 
     def postDeletedHandler(self, skel, boneName, key):
@@ -843,7 +843,7 @@ class RelationalBone(BaseBone):
                 if _type == "dest":
 
                     # Ensure that the relational-filter is in refKeys
-                    if checkKey not in self.refKeys:
+                    if checkKey not in self._ref_keys:
                         logging.warning(f"Invalid filtering! {key} is not in refKeys of RelationalBone {name}!")
                         raise RuntimeError()
 
@@ -921,7 +921,7 @@ class RelationalBone(BaseBone):
             except:
                 return dbFilter  # We cant parse that
             # Ensure that the relational-filter is in refKeys
-            if _type == "dest" and not param in self.refKeys:
+            if _type == "dest" and param not in self._ref_keys:
                 logging.warning(f"Invalid filtering! {param} is not in refKeys of RelationalBone {name}!")
                 raise RuntimeError()
             if _type == "rel" and (self.using is None or param not in self.using()):
@@ -973,7 +973,7 @@ class RelationalBone(BaseBone):
             refKey = param.replace(f"{name}.", "")
             if " " in refKey:  # Strip >, < or = params
                 refKey = refKey[:refKey.find(" ")]
-            if refKey not in self.refKeys:
+            if refKey not in self._ref_keys:
                 logging.warning(f"Invalid filtering! {refKey} is not in refKeys of RelationalBone {name}!")
                 raise RuntimeError()
             if self.multiple:
@@ -1036,7 +1036,7 @@ class RelationalBone(BaseBone):
                 continue
             if orderKey.startswith(f"{name}."):
                 k = orderKey.replace(f"{name}.", "")
-                if k not in self.refKeys:
+                if k not in self._ref_keys:
                     logging.warning(f"Invalid ordering! {k} is not in refKeys of RelationalBone {name}!")
                     raise RuntimeError()
                 if not self.multiple:
@@ -1086,7 +1086,7 @@ class RelationalBone(BaseBone):
             if newValues is None:
                 logging.info(f"""The key {relDict["dest"]["key"]} does not exist""")
                 return
-            for boneName in self.refKeys:
+            for boneName in self._ref_keys:
                 if boneName != "key" and boneName in newValues:
                     relDict["dest"].dbEntity[boneName] = newValues[boneName]
 

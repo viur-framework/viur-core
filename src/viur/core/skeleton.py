@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import fnmatch
 import inspect
 import os
 import string
@@ -1346,8 +1347,11 @@ class RefSkel(RelSkel):
         """
         newClass = type("RefSkelFor" + kindName, (RefSkel,), {})
         fromSkel = skeletonByKind(kindName)
-        newClass.__boneMap__ = {k: v for k, v in fromSkel.__boneMap__.items() if k in args}
         newClass.kindName = kindName
+        bone_map = {}
+        for arg in args:
+            bone_map |= {k: fromSkel.__boneMap__[k] for k in fnmatch.filter(fromSkel.__boneMap__.keys(), arg)}
+        newClass.__boneMap__ = bone_map
         return newClass
 
 
