@@ -23,6 +23,7 @@ class TranslationSkel(Skeleton):
             "Translation key",
         ),
         searchable=True,
+        required=True,
         unique=UniqueValue(UniqueLockMethod.SameValue, False,
                            "This translation key exist already"),
     )
@@ -109,10 +110,14 @@ class TranslationSkel(Skeleton):
     )
 
     @classmethod
-    def toDB(cls, skelValues: SkeletonInstance, **kwargs) -> db.Key:
+    def toDB(cls, skel: SkeletonInstance, **kwargs) -> db.Key:
         # Ensure we have only lowercase keys
-        skelValues["tr_key"] = skelValues["tr_key"].lower()
-        return super().toDB(skelValues, **kwargs)
+        if not skel["tr_key"] and skel["key"]:
+            skel["tr_key"] = skel["key"].id_or_name
+        else:
+            skel["tr_key"] = skel["tr_key"].lower()
+
+        return super().toDB(skel, **kwargs)
 
     @classmethod
     def preProcessSerializedData(cls, skelValues: SkeletonInstance, entity: db.Entity) -> db.Entity:
