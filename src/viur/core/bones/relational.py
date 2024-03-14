@@ -280,6 +280,7 @@ class RelationalBone(BaseBone):
             self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
             self._skeletonInstanceClassRef = SkeletonInstance
             self._ref_keys = set(self._refSkelCache.__boneMap__.keys())
+
     def setSystemInitialized(self):
         """
         Set the system initialized for the current class and cache the RefSkel and SkeletonInstance.

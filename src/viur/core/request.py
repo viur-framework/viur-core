@@ -6,7 +6,6 @@
     request processing (useful for global ratelimiting, DDoS prevention or access control).
 """
 import fnmatch
-import inspect
 import json
 import logging
 import os
@@ -19,9 +18,9 @@ from abc import ABC, abstractmethod
 from urllib import parse
 from urllib.parse import unquote, urljoin, urlparse
 from viur.core import current, db, errors, session, utils
-from viur.core.module import Method
 from viur.core.config import conf
 from viur.core.logging import client as loggingClient, requestLogger, requestLoggingRessource
+from viur.core.module import Method
 from viur.core.securityheaders import extendCsp
 from viur.core.tasks import _appengineServiceIPs
 
@@ -33,7 +32,8 @@ class RequestValidator(ABC):
         RequestValidators can be used to validate a request very early on. If the validate method returns a tuple,
         the request is aborted. Can be used to block requests from bots.
 
-        To register a new validator, append it to :attr: viur.core.request.BrowseHandler.requestValidators
+        To register or remove a validator, access it in main.py through
+        :attr: viur.core.request.Router.requestValidators
     """
     # Internal name to trace which validator aborted the request
     name = "RequestValidator"
