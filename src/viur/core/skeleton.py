@@ -524,6 +524,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 
             _ = skel[key]  # Ensure value gets loaded
             bone.refresh(skel, key)
+
     @classmethod
     def readonly(cls, skel: SkeletonInstance):
         """
