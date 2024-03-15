@@ -242,7 +242,7 @@ class SkeletonInstance:
         # Load a @classmethod from the Skeleton class and bound this SkeletonInstance
         elif item in {"fromDB", "toDB", "all", "unserialize", "serialize", "fromClient", "getCurrentSEOKeys",
                       "preProcessSerializedData", "preProcessBlobLocks", "postSavedHandler", "setBoneValue",
-                      "delete", "postDeletedHandler", "refresh"}:
+                      "delete", "postDeletedHandler", "refresh", "readonly"}:
             return partial(getattr(self.skeletonCls, item), self)
         # Load a @property from the Skeleton class
         try:
@@ -524,6 +524,15 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 
             _ = skel[key]  # Ensure value gets loaded
             bone.refresh(skel, key)
+    @classmethod
+    def readonly(cls, skel: SkeletonInstance):
+        """
+            Set all bones to readonly in the Skeleton.
+        """
+        for bone in skel.values():
+            if not isinstance(bone, BaseBone):
+                continue
+            bone.readOnly = True
 
     def __new__(cls, *args, **kwargs) -> SkeletonInstance:
         return SkeletonInstance(cls, *args, **kwargs)
