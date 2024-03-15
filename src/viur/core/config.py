@@ -195,6 +195,9 @@ conf = Conf({
     # Upper limit of the amount of parameters we accept per request. Prevents Hash-Collision-Attacks
     "viur.maxPostParamsCount": 250,
 
+    # Function which decides if a request param should be used or filtered out
+    "viur.paramFilterFunction": lambda key, value: key.startswith("_"),
+
     # Describing the internal ModuleConfig-module
     "viur.moduleconf.admin_info": {
         "icon": "icon-settings",
