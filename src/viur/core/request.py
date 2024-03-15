@@ -450,6 +450,10 @@ class Router:
                 f" of {conf.max_post_params_count} allowed arguments per request"
             )
 
+        param_filter = conf.param_filter_function
+        if param_filter and not callable(param_filter):
+            raise ValueError(f"""{param_filter=} is not callable""")
+
         for key, value in self.request.params.items():
             try:
                 key = unicodedata.normalize("NFC", key)
@@ -459,7 +463,7 @@ class Router:
                 # someone tries to exploit unicode normalisation bugs)
                 raise errors.BadRequest()
 
-            if key.startswith("_"):  # Ignore keys starting with _ (like VI's _unused_time_stamp)
+            if param_filter and param_filter(key, value):
                 continue
 
             if key == TEMPLATE_STYLE_KEY:

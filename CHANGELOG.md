@@ -103,6 +103,12 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - feat: Implement `__all__` in root's `__init__` and `decorators` to support easier imports (#859)
 - feat: Add missing type hints for `current` module (#871)
 
+## [3.5.16]
+
+- chore: Dependency updates
+- fix: Improvement `conf["viur.paramFilterFunction"]` (#1106)
+- fix: User roles: Automatic "view" right when "edit" or "delete" is provided (#1102)
+
 ## [3.5.15]
 
 - fix: Several improvements on `ModuleConf` (#1073)
