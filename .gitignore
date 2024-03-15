@@ -1,7 +1,7 @@
-/*.pyc
 *.pyc
 *.bak
-.idea/
+.idea
+.vscode
 /docs/build/
 dist
 viur_core.egg-info
