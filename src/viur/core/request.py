@@ -435,6 +435,7 @@ class Router:
                 f" of {conf['viur.maxPostParamsCount']} allowed arguments per request"
             )
 
+        param_filter = conf["viur.paramFilterFunction"]
         for key, value in self.request.params.items():
             try:
                 key = unicodedata.normalize("NFC", key)
@@ -444,7 +445,7 @@ class Router:
                 # someone tries to exploit unicode normalisation bugs)
                 raise errors.BadRequest()
 
-            if key.startswith("_"):  # Ignore keys starting with _ (like VI's _unused_time_stamp)
+            if not param_filter(key, value):
                 continue
 
             if key == TEMPLATE_STYLE_KEY:
