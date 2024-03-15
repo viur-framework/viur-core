@@ -249,11 +249,11 @@ class BaseBone(object):
         if self.languages:
             if not isinstance(defaultValue, dict):
                 self.defaultValue = {lang: defaultValue for lang in self.languages}
+            elif "__default__" in defaultValue:
+                self.defaultValue = {lang: defaultValue.get(lang, defaultValue["__default__"])
+                                     for lang in self.languages}
             else:
-                if "__default__" in defaultValue:
-                    self.defaultValue = {lang: defaultValue.get(lang, defaultValue["__default__"]) for lang in self.languages}
-                else:
-                    self.defaultValue = defaultValue
+                self.defaultValue = defaultValue
 
         elif defaultValue is None and self.multiple:
             self.defaultValue = []
