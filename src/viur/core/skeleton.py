@@ -311,8 +311,6 @@ class SkeletonInstance:
 
         return self
 
-
-
     def clone(self):
         """
         Clones a SkeletonInstance into a modificable, stand-alone instance.
