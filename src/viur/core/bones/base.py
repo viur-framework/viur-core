@@ -743,7 +743,7 @@ class BaseBone(object):
 
                     if not last_update or last_update + self.compute.interval.lifetime <= now:
                         # if so, recompute and refresh updated value
-                        value = self._compute(skel, name)
+                        skel.accessedValues[name] = value = self._compute(skel, name)
 
                         def transact():
                             db_obj = db.Get(skel["key"])
@@ -751,8 +751,10 @@ class BaseBone(object):
                             db_obj[name] = value
                             db.Put(db_obj)
 
-                        db.RunInTransaction(transact)
-                        skel.accessedValues[name] = value
+                        if db.IsInTransaction():
+                            transact()
+                        else:
+                            db.RunInTransaction(transact)
 
                         return True
 
