@@ -743,7 +743,17 @@ class BaseBone(object):
 
                     if not last_update or last_update + self.compute.interval.lifetime <= now:
                         # if so, recompute and refresh updated value
-                        skel.accessedValues[name] = self._compute(skel, name)
+                        value = self._compute(skel, name)
+
+                        def transact():
+                            db_obj = db.Get(skel["key"])
+                            db_obj[f"_viur_compute_{name}_"] = now
+                            db_obj[name] = value
+                            db.Put(db_obj)
+
+                        db.RunInTransaction(transact)
+                        skel.accessedValues[name] = value
+
                         return True
 
                 # Compute on every deserialization
