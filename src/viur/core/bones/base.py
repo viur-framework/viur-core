@@ -251,8 +251,7 @@ class BaseBone(object):
                 self.defaultValue = {lang: defaultValue for lang in self.languages}
             else:
                 if "__default__" in defaultValue:
-                    self.defaultValue = {lang: defaultValue["__default__"] for lang in self.languages}
-                    self.defaultValue |= {lang: defaultValue[lang] for lang in self.languages if lang in defaultValue}
+                    self.defaultValue = {lang: defaultValue.get(lang, defaultValue["__default__"]) for lang in self.languages}
                 else:
                     self.defaultValue = defaultValue
 
