@@ -210,6 +210,10 @@ class UserSkel(skeleton.Skeleton):
                             if right in module.accessRights:
                                 access.add(f"{name}-{right}")
 
+                                # special case: "edit" and "delete" actions require "view" as well!
+                                if right in ("edit", "delete") and "view" in module.accessRights:
+                                    access.add(f"{name}-view")
+
             skel["access"] = list(access)
 
         return super().toDB(skel, *args, **kwargs)
