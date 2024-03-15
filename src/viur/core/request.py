@@ -438,6 +438,7 @@ class Router:
         param_filter = conf["viur.paramFilterFunction"]
         if param_filter and not callable(param_filter):
            raise ValueError(f"""{param_filter=} is not callable""")
+
         for key, value in self.request.params.items():
             try:
                 key = unicodedata.normalize("NFC", key)
