@@ -2,8 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.6.0.rc1]
+## [3.6.0.rc3]
 
+- fix: file module typo `UnprocessableEntity` (#1105)
+- feat: Allow `None` as defaultValue in BooleanBone (#988)
 - feat: Support `*`-wildcard postfix in `refKeys` for `RelationalBones` (#1022)
 - feat: Implement `utils.parse.timedelta` (#1086)
 - refactor: `File.getUploadURL()` (#1050)
