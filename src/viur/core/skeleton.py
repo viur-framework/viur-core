@@ -201,7 +201,7 @@ class SkeletonInstance:
 
         return self[item]
 
-    def update(self, *args, **kwargs):
+    def update(self, *args, **kwargs) -> None:
         self.__or__(dict(*args, **kwargs))
 
     def __setitem__(self, key, value):
@@ -302,14 +302,12 @@ class SkeletonInstance:
     def __len__(self) -> int:
         return len(self.boneMap)
 
-    def __or__(self, other):
+    def __ior__self, other: dict) -> None:
         if not isinstance(other, dict):
             raise ValueError("Only dictonarys are allowed.")
 
         for key, value in other.items():
             self.setBoneValue(key, value)
-
-        return self
 
     def clone(self):
         """
