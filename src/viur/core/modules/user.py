@@ -305,7 +305,7 @@ class UserPassword(UserAuthentication):
 
         # Check if the username matches
         stored_user_name = (user_entry.get("name") or {}).get("idx") or ""
-        is_okay = secrets.compare_digest(stored_user_name, name)
+        is_okay = secrets.compare_digest(stored_user_name.encode(), name.encode())
 
         # Check if the password matches
         stored_password_hash = password_data.get("pwhash", b"-invalid-")
