@@ -329,7 +329,7 @@ class UserPassword(UserPrimaryAuthentication):
         password_hash = encode_password(password, password_data.get("salt", "-invalid-"), iterations)["pwhash"]
 
         # now check if the username matches
-        is_okay = secrets.compare_digest((user_skel["name"] or "").lower().strip(), name)
+        is_okay = secrets.compare_digest((user_skel["name"] or "").lower().strip().encode(), name.encode())
 
         # next, check if the password hash matches
         is_okay &= secrets.compare_digest(password_data.get("pwhash", b"-invalid-"), password_hash)
