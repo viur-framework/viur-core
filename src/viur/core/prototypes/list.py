@@ -187,6 +187,7 @@ class List(SkelModule):
         if query := self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs)):
             # Apply default order when specified
             if self.default_order and not query.queries.orders and not current.request.get().kwargs.get("search"):
+                # TODO: refactor: Duplicate code in prototypes.Tree
                 if callable(default_order := self.default_order):
                     default_order = default_order(query)
 
