@@ -266,6 +266,7 @@ class UserPassword(UserPrimaryAuthentication):
         )
         password = PasswordBone(
             required=True,
+            test_threshold=0,
         )
 
     class LostPasswordStep1Skel(skeleton.RelSkel):
@@ -314,7 +315,7 @@ class UserPassword(UserPrimaryAuthentication):
             return self._user_module.render.loginSucceeded()
 
         if not name or not password:
-            return self._user_module.render.login(self.LoginSkel())
+            return self._user_module.render.login(self.LoginSkel(), action="login")
 
         self.loginRateLimit.assertQuotaIsAvailable()
 
@@ -342,6 +343,7 @@ class UserPassword(UserPrimaryAuthentication):
             skel = self.LoginSkel()
             return self._user_module.render.login(
                 skel,
+                action="login",
                 loginFailed=True,  # FIXME: Is this still being used?
                 accountStatus=user_skel["status"]  # FIXME: Is this still being used?
             )
