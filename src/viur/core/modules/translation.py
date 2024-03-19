@@ -128,6 +128,7 @@ class Translation(List):
     def adminInfo(self):
         admin_info = {
             "name": translate("translations"),
+            "icon": "translate",
             "views": [
                 {
                     "name": translate("core.translations.view.missing",
