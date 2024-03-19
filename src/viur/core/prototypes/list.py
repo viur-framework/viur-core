@@ -190,11 +190,20 @@ class List(SkelModule):
                 if callable(default_order := self.default_order):
                     default_order = default_order(query)
 
-                if isinstance(default_order, tuple | list) and all(isinstance(pair, tuple) and len(pair) == 2
-                                                                   for pair in default_order):
-                    query.order(*default_order)
-                elif default_order:
-                    query.order(default_order)
+                if default_order:
+                    # FIXME: This ugly test can be removed when there is type that abstracts SortOrders
+                    if (
+                        isinstance(default_order, str)
+                        or (
+                            isinstance(default_order, tuple)
+                            and len(default_order) == 2
+                            and isinstance(default_order[0], str)
+                            and isinstance(default_order[1], db.SortOrder)
+                        )
+                    ):
+                        query.order(default_order)
+                    else:
+                        query.order(*default_order)
 
             return self.render.list(query.fetch())
 
