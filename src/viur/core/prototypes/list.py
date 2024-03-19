@@ -187,11 +187,24 @@ class List(SkelModule):
         if query := self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs)):
             # Apply default order when specified
             if self.default_order and not query.queries.orders and not current.request.get().kwargs.get("search"):
+                # TODO: refactor: Duplicate code in prototypes.Tree
                 if callable(default_order := self.default_order):
                     default_order = default_order(query)
 
                 if default_order:
-                    query.order(default_order)
+                    # FIXME: This ugly test can be removed when there is type that abstracts SortOrders
+                    if (
+                        isinstance(default_order, str)
+                        or (
+                            isinstance(default_order, tuple)
+                            and len(default_order) == 2
+                            and isinstance(default_order[0], str)
+                            and isinstance(default_order[1], db.SortOrder)
+                        )
+                    ):
+                        query.order(default_order)
+                    else:
+                        query.order(*default_order)
 
             return self.render.list(query.fetch())
 

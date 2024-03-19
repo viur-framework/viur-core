@@ -3,9 +3,14 @@ from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
 import typing as t
 
 
-ORDER_TYPE = str | tuple[str, db.SortOrder] | None
+SINGLE_ORDER_TYPE = str | tuple[str, db.SortOrder]
 """
-Type for sort order definitions.
+Type for exactly one sort order definitions.
+"""
+
+ORDER_TYPE = SINGLE_ORDER_TYPE | tuple[SINGLE_ORDER_TYPE] | list[SINGLE_ORDER_TYPE] | None
+"""
+Type for sort order definitions (any amount of single order definitions).
 """
 
 DEFAULT_ORDER_TYPE = ORDER_TYPE | t.Callable[[db.Query], ORDER_TYPE]
