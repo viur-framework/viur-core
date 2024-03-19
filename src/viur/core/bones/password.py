@@ -45,7 +45,7 @@ class PasswordBone(StringBone):
     """A string representing the bone type, which is "password" in this case."""
     saltLength = 13
 
-    tests: t.Iterable[type((str, str, bool))] = (
+    tests: t.Iterable[t.Iterable[t.Tuple[str, str, bool]]] = (
         (r"^.*[A-Z].*$", translate("core.bones.password.no_capital_letters",
                                    defaultText="The password entered has no capital letters."), False),
         (r"^.*[a-z].*$", translate("core.bones.password.no_lowercase_letters",
@@ -64,7 +64,7 @@ class PasswordBone(StringBone):
         *,
         descr: str = "Password",
         test_threshold: int = 4,
-        tests: t.Iterable[type((str, str, bool))] = tests,
+        tests: t.Iterable[t.Iterable[t.Tuple[str, str, bool]]] = tests,
         **kwargs
     ):
         """
