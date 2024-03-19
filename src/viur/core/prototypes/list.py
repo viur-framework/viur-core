@@ -190,7 +190,7 @@ class List(SkelModule):
                 if callable(default_order := self.default_order):
                     default_order = default_order(query)
 
-                if isinstance(default_order, tuple) and all(isinstance(pair, tuple) for pair in default_order):
+                if isinstance(default_order, tuple | list) and all(isinstance(pair, tuple) and len(pair) == 2 for pair in default_order):
                     query.order(*default_order)
                 elif default_order:
                     query.order(default_order)
