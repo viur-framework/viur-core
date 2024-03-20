@@ -57,7 +57,7 @@ class PasswordBone(StringBone):
         (r"^.{8,}$", translate("core.bones.password.too_short",
                                defaultText="The password is too short. It requires for at least 8 characters."), True),
     )
-    """Provides tests based on regular expressions to test the password stength.
+    """Provides tests based on regular expressions to test the password strength.
 
     Note: The provided regular expressions have to produce exactly the same results in Python and JavaScript.
           This requires that some feature either cannot be used, or must be rewritten to match on both engines.
