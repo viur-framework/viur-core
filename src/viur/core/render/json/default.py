@@ -1,4 +1,5 @@
 import json
+import logging
 from enum import Enum
 
 from viur.core import bones, utils, db, current
@@ -110,7 +111,7 @@ class DefaultRender(object):
         elif bone.languages:
             res = {}
             for language in bone.languages:
-                if boneVal and language in boneVal and boneVal[language]:
+                if boneVal and language in boneVal and boneVal[language] is not None:
                     res[language] = self.renderSingleBoneValue(boneVal[language], bone, skel, key)
                 else:
                     res[language] = None
