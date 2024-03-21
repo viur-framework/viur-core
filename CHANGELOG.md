@@ -2,8 +2,14 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.6.0.rc3]
+## [3.6.0]
 
+- fix: Add `is None`-check for bone values with languages (#1120)
+- feat: Provide `LoginSkel` on `UserPassword.login` (#1118)
+- feat: `default_order` should support multiple orders as well (#1109)
+- fix: Add `_prevent_compute` for computed bones (#1111)
+- feat: Set icon in admin_info of translation module (#1113)
+- fix: Handle non-ASCII characters in username comparison (#1112)
 - fix: file module typo `UnprocessableEntity` (#1105)
 - feat: Allow `None` as defaultValue in BooleanBone (#988)
 - feat: Support `*`-wildcard postfix in `refKeys` for `RelationalBones` (#1022)
