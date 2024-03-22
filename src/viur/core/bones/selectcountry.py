@@ -748,7 +748,7 @@ ISO2TOISO3 = {v: k for k, v in ISO3TOISO2.items()}  # Build the invert map
 
 
 class SelectCountryBone(SelectBone):
-     """
+    """
     A bone representing a country selection input field in a web application or form.
 
     The SelectCountryBone is designed to provide a user-friendly way to select a country from a predefined list of
@@ -756,7 +756,8 @@ class SelectCountryBone(SelectBone):
     such as displaying country names and handling country codes (e.g., ISO 3166-1 alpha-2 or alpha-3).
 
     :params str codes: Parameter to switch between ISO 3166-1 alpha-2 and alpha-3. Represented as 2 or 3. (default 2)
-    :params dict countries: Dictionary with subset of countries from ISO 3166-1 list. Represented as {'de':'Germany', 'en':'English'}
+    :params dict countries: Dictionary with subset of countries from ISO 3166-1 list. 
+    Represented as {'de':'Germany', 'en':'English'}
     """
     type = "select.country"
     ISO2 = 2
