@@ -748,14 +748,15 @@ ISO2TOISO3 = {v: k for k, v in ISO3TOISO2.items()}  # Build the invert map
 
 
 class SelectCountryBone(SelectBone):
-    """
+     """
     A bone representing a country selection input field in a web application or form.
 
     The SelectCountryBone is designed to provide a user-friendly way to select a country from a predefined list of
     countries. It inherits from the BaseBone class and extends it to support country-specific functionalities,
     such as displaying country names and handling country codes (e.g., ISO 3166-1 alpha-2 or alpha-3).
 
-    :params List[str] countries: A list of countries supported by the bone, typically represented by their codes.
+    :params str codes: Parameter to switch between ISO 3166-1 alpha-2 and alpha-3. Represented as 2 or 3. (default 2)
+    :params dict countries: Dictionary with subset of countries from ISO 3166-1 list. Represented as {'de':'Germany', 'en':'English'}
     """
     type = "select.country"
     ISO2 = 2
@@ -764,13 +765,19 @@ class SelectCountryBone(SelectBone):
     def __init__(self, *, codes=ISO2, values=None, **kwargs):
         global ISO2CODES, ISO3CODES
         assert codes in [self.ISO2, self.ISO3]
-        assert values is None
+       assert values is None or isinstance(values, dict)
+
+        if values is None:
+            values = OrderedDict(sorted((ISO2CODES if codes == self.ISO2 else ISO3CODES).items(), key=lambda i: i[1]))
+        else:
+            assert set(values).issubset(
+                set(ISO2CODES if codes == self.ISO2 else ISO3CODES)), 'Value not recognized, should be in ISO 3166-1'
+            values = OrderedDict(values)
 
         super().__init__(
-            values=OrderedDict(sorted((ISO2CODES if codes == self.ISO2 else ISO3CODES).items(), key=lambda i: i[1])),
+            values=values,
             **kwargs
         )
-
         self.codes = codes
 
     def singleValueUnserialize(self, val):
