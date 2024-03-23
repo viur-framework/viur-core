@@ -201,6 +201,9 @@ class SkeletonInstance:
 
         return self[item]
 
+    def update(self, *args, **kwargs) -> None:
+        self.__ior__(dict(*args, **kwargs))
+
     def __setitem__(self, key, value):
         assert self.renderPreparation is None, "Cannot modify values while rendering"
         if isinstance(value, BaseBone):
@@ -298,6 +301,30 @@ class SkeletonInstance:
 
     def __len__(self) -> int:
         return len(self.boneMap)
+
+    def __ior__(self, other: dict | SkeletonInstance | db.Entity) -> SkeletonInstance:
+        if isinstance(other, dict):
+            for key, value in other.items():
+                self.setBoneValue(key, value)
+        elif isinstance(other, db.Entity):
+            new_entity = self.dbEntity or db.Entity()
+            # We're not overriding the key
+            for key, value in other.items():
+                new_entity[key] = value
+            self.setEntity(new_entity)
+        elif isinstance(other, SkeletonInstance):
+            new_entity = self.dbEntity or db.Entity()
+            # We're not overriding the key
+            for key, value in other.dbEntity.items():
+                new_entity[key] = value
+            self.setEntity(new_entity)
+        else:
+            raise ValueError("Unsupported Type")
+        return self
+
+
+
+
 
     def clone(self):
         """
