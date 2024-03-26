@@ -126,12 +126,14 @@ class UserSkel(skeleton.Skeleton):
         authentication methods.
         """
         for provider in conf.main_app.vi.user.authenticationProviders:
-            assert issubclass(provider, UserPrimaryAuthentication)
-            provider.patch_user_skel(cls)
+            if provider:
+                assert issubclass(provider, UserPrimaryAuthentication)
+                provider.patch_user_skel(cls)
 
         for provider in conf.main_app.vi.user.secondFactorProviders:
-            assert issubclass(provider, UserSecondFactorAuthentication)
-            provider.patch_user_skel(cls)
+            if provider:
+                assert issubclass(provider, UserSecondFactorAuthentication)
+                provider.patch_user_skel(cls)
 
         cls.__boneMap__ = skeleton.MetaBaseSkel.generate_bonemap(cls)
         return super().__new__(cls)
@@ -189,9 +191,9 @@ class UserAuthentication(Module, abc.ABC):
         """
         ...
 
-    def __init__(self, moduleName, modulePath, userModule):
+    def __init__(self, moduleName, modulePath, user_moduleule):
         super().__init__(moduleName, modulePath)
-        self._user_module = userModule
+        self._user_module = user_moduleule
 
     def can_handle(self, skel: skeleton.SkeletonInstance) -> bool:
         return True
@@ -1128,22 +1130,41 @@ class User(List):
     verifyEmailAddressMail = "user_verify_address"
     passwordRecoveryMail = "user_password_recovery"
 
-    authenticationProviders: list[UserAuthentication] = [
+    authenticationProviders: t.Iterable[UserPrimaryAuthentication] = (
         UserPassword,
-        GoogleAccount
-    ]
+        conf.user.google_client_id and GoogleAccount,
+    )
+    """
+    Specifies primary authentication providers that are made available
+    as sub-modules under `user/auth_<classname>`. They might require
+    customization or configuration.
+    """
 
-    secondFactorProviders: list[UserSecondFactorAuthentication] = [
+    secondFactorProviders: t.Iterable[UserSecondFactorAuthentication] = (
         TimeBasedOTP,
-        AuthenticatorOTP
-    ]
+        AuthenticatorOTP,
+    )
+    """
+    Specifies secondary authentication providers that are made available
+    as sub-modules under `user/f2_<classname>`. They might require
+    customization or configuration, which is determined during the
+    login-process depending on the user that wants to login.
+    """
 
-    validAuthenticationMethods = [
+    validAuthenticationMethods = (
         (UserPassword, AuthenticatorOTP),
         (UserPassword, TimeBasedOTP),
         (UserPassword, None),
-        (GoogleAccount, None),
-    ]
+        (conf.user.google_client_id and GoogleAccount, None),
+    )
+    """
+    Specifies the possible combinations of primary- and secondary factor
+    login methos.
+
+    GoogleLogin defaults to no second factor, as the Google Account can be
+    secured by a secondary factor. AuthenticatorOTP and TimeBasedOTP are only
+    handled when there is a user-dependent configuration available.
+    """
 
     msg_missing_second_factor = "Second factor required but not configured for this user."
 
@@ -1207,14 +1228,16 @@ class User(List):
 
     def __init__(self, moduleName, modulePath):
         for provider in self.authenticationProviders:
-            assert issubclass(provider, UserPrimaryAuthentication)
-            name = f"auth_{provider.__name__.lower()}"
-            setattr(self, name, provider(name, f"{modulePath}/{name}", self))
+            if provider:
+                assert issubclass(provider, UserPrimaryAuthentication)
+                name = f"auth_{provider.__name__.lower()}"
+                setattr(self, name, provider(name, f"{modulePath}/{name}", self))
 
         for provider in self.secondFactorProviders:
-            assert issubclass(provider, UserSecondFactorAuthentication)
-            name = f"f2_{provider.__name__.lower()}"
-            setattr(self, name, provider(name, f"{modulePath}/{name}", self))
+            if provider:
+                assert issubclass(provider, UserSecondFactorAuthentication)
+                name = f"f2_{provider.__name__.lower()}"
+                setattr(self, name, provider(name, f"{modulePath}/{name}", self))
 
         super().__init__(moduleName, modulePath)
 
@@ -1399,7 +1422,7 @@ class User(List):
     def login(self, *args, **kwargs):
         return self.render.loginChoices([
             (primary.METHOD_NAME, secondary.METHOD_NAME if secondary else None)
-            for primary, secondary in self.validAuthenticationMethods
+            for primary, secondary in self.validAuthenticationMethods if primary
         ])
 
     def onLogin(self, skel: skeleton.SkeletonInstance):
@@ -1478,13 +1501,14 @@ class User(List):
     @exposed
     def getAuthMethods(self, *args, **kwargs):
         """Inform tools like Viur-Admin which authentication to use"""
-        # FIXME: This is the same code as in index()...
+        # FIXME: This is almost the same code as in index()...
         # FIXME: VIUR4: The entire function should be removed!
-        logging.warning("DEPRECATED!!! Use of 'User.getAuthMethods' is deprecated! Use 'User.login'-method instead!")
+        # TODO: Align result with index(), so that primary and secondary login is presented.
+        # logging.warning("DEPRECATED!!! Use of 'User.getAuthMethods' is deprecated! Use 'User.login'-method instead!")
 
         res = [
             (primary.METHOD_NAME, secondary.METHOD_NAME if secondary else None)
-            for primary, secondary in self.validAuthenticationMethods
+            for primary, secondary in self.validAuthenticationMethods if primary
         ]
 
         return json.dumps(res)
@@ -1532,15 +1556,19 @@ def createNewUserIfNotExists():
     """
         Create a new Admin user, if the userDB is empty
     """
-    userMod = getattr(conf.main_app.vi, "user", None)
-    if (userMod  # We have a user module
-        and isinstance(userMod, User)
-        and "addSkel" in dir(userMod)
-        and "validAuthenticationMethods" in dir(userMod)  # Its our user module :)
-        and any([issubclass(x[0], UserPassword) for x in
-                 userMod.validAuthenticationMethods])):  # It uses UserPassword login
-        if not db.Query(userMod.addSkel().kindName).getEntry():  # There's currently no user in the database
-            addSkel = skeleton.skeletonByKind(userMod.addSkel().kindName)()  # Ensure we have the full skeleton
+    if (
+        (user_module := getattr(conf.main_app.vi, "user", None))
+        and isinstance(user_module, User)
+        and "addSkel" in dir(user_module)
+        and "validAuthenticationMethods" in dir(user_module)
+        # UserPassword must be one of the primary login methods
+        and any(
+            issubclass(provider[0], UserPassword)
+            for provider in user_module.validAuthenticationMethods if provider
+        )
+    ):
+        if not db.Query(user_module.addSkel().kindName).getEntry():  # There's currently no user in the database
+            addSkel = skeleton.skeletonByKind(user_module.addSkel().kindName)()  # Ensure we have the full skeleton
             uname = f"""admin@{conf.instance.project_id}.appspot.com"""
             pw = utils.string.random(13)
             addSkel["name"] = uname
