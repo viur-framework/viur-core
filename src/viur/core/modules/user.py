@@ -191,9 +191,9 @@ class UserAuthentication(Module, abc.ABC):
         """
         ...
 
-    def __init__(self, moduleName, modulePath, user_moduleule):
+    def __init__(self, moduleName, modulePath, userModule):
         super().__init__(moduleName, modulePath)
-        self._user_module = user_moduleule
+        self._user_module = userModule
 
     def can_handle(self, skel: skeleton.SkeletonInstance) -> bool:
         return True
