@@ -943,6 +943,8 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             :return:
         """
 
+        # FIXME: The callback in viur-core must be improved, to accept user_skel
+
         def transaction(user_key, idx):
             user = db.Get(user_key)
             if not isinstance(user.get("otp_timedrift"), float):
