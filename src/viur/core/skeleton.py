@@ -99,9 +99,9 @@ class MetaBaseSkel(type):
         return map
 
     def __setattr__(self, key, value):
-        # print(f"MetaSkeleton.__setattr__({key}) {self=} {value=}")
         super().__setattr__(key, value)
         if isinstance(value, BaseBone):
+            # Call BaseBone.__set_name__ manually for bones that are assigned at runtime
             value.__set_name__(self, key)
 
 
@@ -289,7 +289,6 @@ class SkeletonInstance:
     def __setattr__(self, key, value):
         if key in self.boneMap or isinstance(value, BaseBone):
             self.boneMap[key] = value
-            # value.__set_name__(self, key)
         elif key == "renderPreparation":
             super().__setattr__(key, value)
             self.renderAccessedValues.clear()
@@ -1298,10 +1297,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         # Inform the custom DB Adapter
         if skel.customDatabaseAdapter:
             skel.customDatabaseAdapter.deleteEntry(dbObj, skel)
-    #
-    # def __setattr__(self, key, value):
-    #     print(f"Skeleton.__setattr__({key})")
-    #     super().__setattr__(key, value)
 
 
 class RelSkel(BaseSkeleton):

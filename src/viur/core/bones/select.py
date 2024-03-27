@@ -1,7 +1,7 @@
 import enum
+import typing as t
 from collections import OrderedDict
 from numbers import Number
-import typing as t
 
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.i18n import translate
@@ -20,21 +20,18 @@ Type alias of possible values in a SelectBone. SelectBoneValue can be either a s
 """
 
 SelectBoneMultiple = list[SelectBoneValue]
-""" SelectBoneMultiple is a list of SelectBoneValue elements."""
+"""Type alias for values of a multiple SelectBone."""
 
 
 def translation_key_prefix_skeleton_bonename(bones_instance: BaseBone) -> str:
     """Generate a translation key prefix based on the skeleton name"""
-    # print(f"{bones_instance = }")
-    # print(f"{vars(bones_instance) = }")
     return f'skeleton.{bones_instance._owner.__name__.lower().removesuffix("skel")}.{bones_instance._name}.'
 
 
 def translation_key_prefix_bonename(bones_instance: BaseBone) -> str:
     """Generate a translation key prefix based on the skeleton and bone name"""
-    # print(f"{bones_instance = }")
-    # print(f"{vars(bones_instance) = }")
     return f'skeleton.{bones_instance._owner.__name__.lower().removesuffix("skel")}.{bones_instance._name}.'
+
 
 class SelectBone(BaseBone):
     """
@@ -104,7 +101,6 @@ class SelectBone(BaseBone):
                 )
                 for key, label in values.items()
             }
-            print(f"{values = }")
 
             return values
 
