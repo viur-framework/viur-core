@@ -35,12 +35,8 @@ def translation_key_prefix_bonename(bones_instance: BaseBone) -> str:
 
 class SelectBone(BaseBone):
     """
-    A SelectBone is a bone which can take a value from a certain list of values..
+    A SelectBone is a bone which can take a value from a certain list of values.
     Inherits from the BaseBone class. The `type` attribute is set to "select".
-
-    :param defaultValue: key(s) of the values which will be checked by default.
-    :param values: dict of key->value pairs from which the user can choose from.
-    :param kwargs: Additional keyword arguments that will be passed to the superclass' __init__ method.
     """
     type = "select"
 
@@ -57,6 +53,17 @@ class SelectBone(BaseBone):
         translation_key_prefix: str | t.Callable[[Self], str] = "",
         **kwargs
     ):
+        """
+        Initializes a new SelectBone.
+
+        :param defaultValue: key(s) of the values which will be checked by default.
+        :param values: dict of key->value pairs from which the user can choose from
+            -- or a callable that returns a dict.
+        :param translation_key_prefix: A prefix for the key of the translation object.
+            It is empty by default, so that only the label (dict value) from the values is used.
+            A static string or dynamic method can be used (like `translation_key_prefix_bonename`).
+        :param kwargs: Additional keyword arguments that will be passed to the superclass' __init__ method.
+        """
         super().__init__(defaultValue=defaultValue, **kwargs)
         self.translation_key_prefix = translation_key_prefix
 
