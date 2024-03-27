@@ -788,8 +788,16 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         """
         session = current.session.get()
 
-        user_key = db.Key(self._user_module.kindName, session["possible_user_key"])
-        if not (otp_user_conf := self.get_config(db.Get(user_key))):
+        if not (user_key := session.get("possible_user_key")):
+            raise errors.PreconditionFailed(
+                "Second factor can only be triggered after successful primary authentication."
+            )
+
+        user_skel = self._user_module.baseSkel()
+        if not user_skel.fromDB(user_key):
+            raise errors.NotFound("The previously authenticated user is gone.")
+
+        if not (otp_user_conf := self.get_config(user_skel)):
             raise errors.PreconditionFailed("This second factor is not available for the user")
 
         otp_user_conf = {
@@ -936,6 +944,8 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             :param idx: How many steps before/behind was that token
             :return:
         """
+
+        # FIXME: The callback in viur-core must be improved, to accept user_skel
 
         def transaction(user_key, idx):
             user = db.Get(user_key)
