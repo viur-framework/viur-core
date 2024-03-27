@@ -3,17 +3,16 @@ from __future__ import annotations
 import copy
 import fnmatch
 import inspect
+import logging
 import os
 import string
-import typing as t
 import sys
+import typing as t
 import warnings
 from functools import partial
 from itertools import chain
 from time import time
 
-
-import logging
 from viur.core import conf, current, db, email, errors, translate, utils
 from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, RelationalUpdateLevel, SelectBone, StringBone
 from viur.core.bones.base import Compute, ComputeInterval, ComputeMethod, ReadFromClientError, \
@@ -98,6 +97,12 @@ class MetaBaseSkel(type):
                 del map[key]
 
         return map
+
+    def __setattr__(self, key, value):
+        # print(f"MetaSkeleton.__setattr__({key}) {self=} {value=}")
+        super().__setattr__(key, value)
+        if isinstance(value, BaseBone):
+            value.__set_name__(self, key)
 
 
 def skeletonByKind(kindName: str) -> t.Type[Skeleton]:
@@ -284,6 +289,7 @@ class SkeletonInstance:
     def __setattr__(self, key, value):
         if key in self.boneMap or isinstance(value, BaseBone):
             self.boneMap[key] = value
+            # value.__set_name__(self, key)
         elif key == "renderPreparation":
             super().__setattr__(key, value)
             self.renderAccessedValues.clear()
@@ -1292,6 +1298,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         # Inform the custom DB Adapter
         if skel.customDatabaseAdapter:
             skel.customDatabaseAdapter.deleteEntry(dbObj, skel)
+    #
+    # def __setattr__(self, key, value):
+    #     print(f"Skeleton.__setattr__({key})")
+    #     super().__setattr__(key, value)
 
 
 class RelSkel(BaseSkeleton):
@@ -1317,7 +1327,6 @@ class RelSkel(BaseSkeleton):
         #    dbObj["key"] = self["key"]
         # FIXME: is this a good idea? Any other way to ensure only bones present in refKeys are serialized?
         return self.dbEntity
-
 
     def unserialize(self, values: db.Entity | dict):
         """
@@ -1612,7 +1621,6 @@ def processVacuumRelationsChunk(
 
 # Forward our references to SkelInstance to the database (needed for queries)
 db.config["SkeletonInstanceRef"] = SkeletonInstance
-
 
 # DEPRECATED ATTRIBUTES HANDLING
 

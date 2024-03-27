@@ -23,6 +23,19 @@ SelectBoneMultiple = list[SelectBoneValue]
 """ SelectBoneMultiple is a list of SelectBoneValue elements."""
 
 
+def translation_key_prefix_skeleton_bonename(bones_instance: BaseBone) -> str:
+    """Generate a translation key prefix based on the skeleton name"""
+    # print(f"{bones_instance = }")
+    # print(f"{vars(bones_instance) = }")
+    return f'skeleton.{bones_instance._owner.__name__.lower().removesuffix("skel")}.{bones_instance._name}.'
+
+
+def translation_key_prefix_bonename(bones_instance: BaseBone) -> str:
+    """Generate a translation key prefix based on the skeleton and bone name"""
+    # print(f"{bones_instance = }")
+    # print(f"{vars(bones_instance) = }")
+    return f'skeleton.{bones_instance._owner.__name__.lower().removesuffix("skel")}.{bones_instance._name}.'
+
 class SelectBone(BaseBone):
     """
     A SelectBone is a bone which can take a value from a certain list of values..
@@ -44,14 +57,15 @@ class SelectBone(BaseBone):
             t.Callable[["SkeletonInstance", Self], t.Any],
         ] = None,
         values: dict | list | tuple | t.Callable | enum.EnumMeta = (),
+        translation_key_prefix: str | t.Callable[[Self], str] = "",
         **kwargs
     ):
-
         super().__init__(defaultValue=defaultValue, **kwargs)
+        self.translation_key_prefix = translation_key_prefix
 
         # handle list/tuple as dicts
         if isinstance(values, (list, tuple)):
-            values = {i: translate(i) for i in values}
+            values = {value: value for value in values}
 
         assert isinstance(values, (dict, OrderedDict)) or callable(values)
         self._values = values
@@ -69,15 +83,28 @@ class SelectBone(BaseBone):
         if item == "values":
             values = self._values
             if isinstance(values, enum.EnumMeta):
-                values = {value.value: translate(value.name) for value in values}
+                values = {value.value: value.name for value in values}
             elif callable(values):
                 values = values()
 
                 # handle list/tuple as dicts
                 if isinstance(values, (list, tuple)):
-                    values = {i: translate(i) for i in values}
+                    values = {value: value for value in values}
 
                 assert isinstance(values, (dict, OrderedDict))
+
+            prefix = self.translation_key_prefix
+            if callable(prefix):
+                prefix = prefix(self)
+
+            values = {
+                key: label if isinstance(label, translate) else translate(
+                    f"{prefix}{label}", str(label),
+                    f"value {key} for {self._name}<{type(self).__name__}> in {self._owner.__name__} in {self._owner}"
+                )
+                for key, label in values.items()
+            }
+            print(f"{values = }")
 
             return values
 

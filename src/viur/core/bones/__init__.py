@@ -25,7 +25,11 @@ from .raw import RawBone
 from .record import RecordBone
 from .relational import RelationalBone, RelationalConsistency, RelationalUpdateLevel
 from .selectcountry import SelectCountryBone
-from .select import SelectBone
+from .select import (
+    SelectBone,
+    translation_key_prefix_skeleton_bonename,
+    translation_key_prefix_bonename,
+)
 from .sortindex import SortIndexBone
 from .spatial import SpatialBone
 from .string import StringBone
@@ -71,6 +75,8 @@ __all = [
     "UniqueLockMethod",
     "UniqueValue",
     "UserBone",
+    "translation_key_prefix_bonename",
+    "translation_key_prefix_skeleton_bonename",
 ]
 
 for __cls_name, __cls in locals().copy().items():
