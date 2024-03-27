@@ -187,6 +187,12 @@ class BaseBone(object):
     type = "hidden"
     isClonedInstance = False
 
+    _owner = None
+    """Skeleton class to which this bone instance belongs"""
+
+    _name = None
+    """Name of this bone (attribute name in the skeletons containing this bone)"""
+
     def __init__(
         self,
         *,
@@ -293,6 +299,10 @@ class BaseBone(object):
             self._prevent_compute = False
 
         self.compute = compute
+
+    def __set_name__(self, owner: t.Any, name: str) -> None:
+        self._owner = owner
+        self._name = name
 
     def setSystemInitialized(self):
         """
