@@ -1016,7 +1016,6 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         """
         return bool(skel.dbEntity.get("otp_app_secret", ""))
 
-
     @classmethod
     def patch_user_skel(cls, skel_cls):
         """
@@ -1138,22 +1137,45 @@ class User(List):
     verifyEmailAddressMail = "user_verify_address"
     passwordRecoveryMail = "user_password_recovery"
 
-    authenticationProviders: list[UserAuthentication] = [
-        UserPassword,
-        GoogleAccount
-    ]
+    authenticationProviders: t.Iterable[UserPrimaryAuthentication] = tuple(filter(
+        None, (
+            UserPassword,
+            conf.user.google_client_id and GoogleAccount,
+        )
+    ))
+    """
+    Specifies primary authentication providers that are made available
+    as sub-modules under `user/auth_<classname>`. They might require
+    customization or configuration.
+    """
 
-    secondFactorProviders: list[UserSecondFactorAuthentication] = [
+    secondFactorProviders: t.Iterable[UserSecondFactorAuthentication] = (
         TimeBasedOTP,
-        AuthenticatorOTP
-    ]
+        AuthenticatorOTP,
+    )
+    """
+    Specifies secondary authentication providers that are made available
+    as sub-modules under `user/f2_<classname>`. They might require
+    customization or configuration, which is determined during the
+    login-process depending on the user that wants to login.
+    """
 
-    validAuthenticationMethods = [
-        (UserPassword, AuthenticatorOTP),
-        (UserPassword, TimeBasedOTP),
-        (UserPassword, None),
-        (GoogleAccount, None),
-    ]
+    validAuthenticationMethods = tuple(filter(
+        None, (
+            (UserPassword, AuthenticatorOTP),
+            (UserPassword, TimeBasedOTP),
+            (UserPassword, None),
+            (GoogleAccount, None) if conf.user.google_client_id else None,
+        )
+    ))
+    """
+    Specifies the possible combinations of primary- and secondary factor
+    login methos.
+
+    GoogleLogin defaults to no second factor, as the Google Account can be
+    secured by a secondary factor. AuthenticatorOTP and TimeBasedOTP are only
+    handled when there is a user-dependent configuration available.
+    """
 
     msg_missing_second_factor = "Second factor required but not configured for this user."
 
@@ -1488,9 +1510,10 @@ class User(List):
     @exposed
     def getAuthMethods(self, *args, **kwargs):
         """Inform tools like Viur-Admin which authentication to use"""
-        # FIXME: This is the same code as in index()...
+        # FIXME: This is almost the same code as in index()...
         # FIXME: VIUR4: The entire function should be removed!
-        logging.warning("DEPRECATED!!! Use of 'User.getAuthMethods' is deprecated! Use 'User.login'-method instead!")
+        # TODO: Align result with index(), so that primary and secondary login is presented.
+        # logging.warning("DEPRECATED!!! Use of 'User.getAuthMethods' is deprecated! Use 'User.login'-method instead!")
 
         res = [
             (primary.METHOD_NAME, secondary.METHOD_NAME if secondary else None)
@@ -1542,15 +1565,19 @@ def createNewUserIfNotExists():
     """
         Create a new Admin user, if the userDB is empty
     """
-    userMod = getattr(conf.main_app.vi, "user", None)
-    if (userMod  # We have a user module
-        and isinstance(userMod, User)
-        and "addSkel" in dir(userMod)
-        and "validAuthenticationMethods" in dir(userMod)  # Its our user module :)
-        and any([issubclass(x[0], UserPassword) for x in
-                 userMod.validAuthenticationMethods])):  # It uses UserPassword login
-        if not db.Query(userMod.addSkel().kindName).getEntry():  # There's currently no user in the database
-            addSkel = skeleton.skeletonByKind(userMod.addSkel().kindName)()  # Ensure we have the full skeleton
+    if (
+        (user_module := getattr(conf.main_app.vi, "user", None))
+        and isinstance(user_module, User)
+        and "addSkel" in dir(user_module)
+        and "validAuthenticationMethods" in dir(user_module)
+        # UserPassword must be one of the primary login methods
+        and any(
+            issubclass(provider[0], UserPassword)
+            for provider in user_module.validAuthenticationMethods
+        )
+    ):
+        if not db.Query(user_module.addSkel().kindName).getEntry():  # There's currently no user in the database
+            addSkel = skeleton.skeletonByKind(user_module.addSkel().kindName)()  # Ensure we have the full skeleton
             uname = f"""admin@{conf.instance.project_id}.appspot.com"""
             pw = utils.string.random(13)
             addSkel["name"] = uname
