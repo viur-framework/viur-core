@@ -1574,7 +1574,7 @@ def createNewUserIfNotExists():
         # UserPassword must be one of the primary login methods
         and any(
             issubclass(provider[0], UserPassword)
-            for provider in user_module.validAuthenticationMethods if provider
+            for provider in user_module.validAuthenticationMethods
         )
     ):
         if not db.Query(user_module.addSkel().kindName).getEntry():  # There's currently no user in the database
