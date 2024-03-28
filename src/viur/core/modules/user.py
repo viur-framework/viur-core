@@ -126,14 +126,12 @@ class UserSkel(skeleton.Skeleton):
         authentication methods.
         """
         for provider in conf.main_app.vi.user.authenticationProviders:
-            if provider:
-                assert issubclass(provider, UserPrimaryAuthentication)
-                provider.patch_user_skel(cls)
+            assert issubclass(provider, UserPrimaryAuthentication)
+            provider.patch_user_skel(cls)
 
         for provider in conf.main_app.vi.user.secondFactorProviders:
-            if provider:
-                assert issubclass(provider, UserSecondFactorAuthentication)
-                provider.patch_user_skel(cls)
+            assert issubclass(provider, UserSecondFactorAuthentication)
+            provider.patch_user_skel(cls)
 
         cls.__boneMap__ = skeleton.MetaBaseSkel.generate_bonemap(cls)
         return super().__new__(cls)
@@ -1130,10 +1128,12 @@ class User(List):
     verifyEmailAddressMail = "user_verify_address"
     passwordRecoveryMail = "user_password_recovery"
 
-    authenticationProviders: t.Iterable[UserPrimaryAuthentication] = (
-        UserPassword,
-        conf.user.google_client_id and GoogleAccount,
-    )
+    authenticationProviders: t.Iterable[UserPrimaryAuthentication] = tuple(filter(
+        None, (
+            UserPassword,
+            conf.user.google_client_id and GoogleAccount,
+        )
+    ))
     """
     Specifies primary authentication providers that are made available
     as sub-modules under `user/auth_<classname>`. They might require
@@ -1151,12 +1151,14 @@ class User(List):
     login-process depending on the user that wants to login.
     """
 
-    validAuthenticationMethods = (
-        (UserPassword, AuthenticatorOTP),
-        (UserPassword, TimeBasedOTP),
-        (UserPassword, None),
-        (conf.user.google_client_id and GoogleAccount, None),
-    )
+    validAuthenticationMethods = tuple(filter(
+        None, (
+            (UserPassword, AuthenticatorOTP),
+            (UserPassword, TimeBasedOTP),
+            (UserPassword, None),
+            (GoogleAccount, None) if conf.user.google_client_id else None,
+        )
+    ))
     """
     Specifies the possible combinations of primary- and secondary factor
     login methos.
@@ -1228,16 +1230,14 @@ class User(List):
 
     def __init__(self, moduleName, modulePath):
         for provider in self.authenticationProviders:
-            if provider:
-                assert issubclass(provider, UserPrimaryAuthentication)
-                name = f"auth_{provider.__name__.lower()}"
-                setattr(self, name, provider(name, f"{modulePath}/{name}", self))
+            assert issubclass(provider, UserPrimaryAuthentication)
+            name = f"auth_{provider.__name__.lower()}"
+            setattr(self, name, provider(name, f"{modulePath}/{name}", self))
 
         for provider in self.secondFactorProviders:
-            if provider:
-                assert issubclass(provider, UserSecondFactorAuthentication)
-                name = f"f2_{provider.__name__.lower()}"
-                setattr(self, name, provider(name, f"{modulePath}/{name}", self))
+            assert issubclass(provider, UserSecondFactorAuthentication)
+            name = f"f2_{provider.__name__.lower()}"
+            setattr(self, name, provider(name, f"{modulePath}/{name}", self))
 
         super().__init__(moduleName, modulePath)
 
@@ -1422,7 +1422,7 @@ class User(List):
     def login(self, *args, **kwargs):
         return self.render.loginChoices([
             (primary.METHOD_NAME, secondary.METHOD_NAME if secondary else None)
-            for primary, secondary in self.validAuthenticationMethods if primary
+            for primary, secondary in self.validAuthenticationMethods
         ])
 
     def onLogin(self, skel: skeleton.SkeletonInstance):
@@ -1508,7 +1508,7 @@ class User(List):
 
         res = [
             (primary.METHOD_NAME, secondary.METHOD_NAME if secondary else None)
-            for primary, secondary in self.validAuthenticationMethods if primary
+            for primary, secondary in self.validAuthenticationMethods
         ]
 
         return json.dumps(res)
