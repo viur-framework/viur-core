@@ -1016,7 +1016,6 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         """
         return bool(skel.dbEntity.get("otp_app_secret", ""))
 
-
     @classmethod
     def patch_user_skel(cls, skel_cls):
         """
