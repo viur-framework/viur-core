@@ -300,7 +300,7 @@ class BaseBone(object):
 
         self.compute = compute
 
-    def __set_name__(self, owner: t.Any, name: str) -> None:
+    def __set_name__(self, owner: Skeleton, name: str) -> None:
         self._owner = owner
         self._name = name
 
