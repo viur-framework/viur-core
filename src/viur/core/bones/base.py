@@ -16,6 +16,9 @@ import typing as t
 from viur.core import db, utils
 from viur.core.config import conf
 
+if t.TYPE_CHECKING:
+    from ..skeleton import Skeleton
+
 __system_initialized = False
 """
 Initializes the global variable __system_initialized
@@ -187,10 +190,10 @@ class BaseBone(object):
     type = "hidden"
     isClonedInstance = False
 
-    _owner = None
+    skel_cls = None
     """Skeleton class to which this bone instance belongs"""
 
-    _name = None
+    name = None
     """Name of this bone (attribute name in the skeletons containing this bone)"""
 
     def __init__(
@@ -300,9 +303,9 @@ class BaseBone(object):
 
         self.compute = compute
 
-    def __set_name__(self, owner: Skeleton, name: str) -> None:
-        self._owner = owner
-        self._name = name
+    def __set_name__(self, owner: "Skeleton", name: str) -> None:
+        self.skel_cls = owner
+        self.name = name
 
     def setSystemInitialized(self):
         """

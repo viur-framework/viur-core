@@ -25,12 +25,12 @@ SelectBoneMultiple = list[SelectBoneValue]
 
 def translation_key_prefix_skeleton_bonename(bones_instance: BaseBone) -> str:
     """Generate a translation key prefix based on the skeleton name"""
-    return f'skeleton.{bones_instance._owner.__name__.lower().removesuffix("skel")}.{bones_instance._name}.'
+    return f'skeleton.{bones_instance.skel_cls.__name__.lower().removesuffix("skel")}.{bones_instance.name}.'
 
 
 def translation_key_prefix_bonename(bones_instance: BaseBone) -> str:
     """Generate a translation key prefix based on the skeleton and bone name"""
-    return f'skeleton.{bones_instance._owner.__name__.lower().removesuffix("skel")}.{bones_instance._name}.'
+    return f'skeleton.{bones_instance.skel_cls.__name__.lower().removesuffix("skel")}.{bones_instance.name}.'
 
 
 class SelectBone(BaseBone):
@@ -104,7 +104,7 @@ class SelectBone(BaseBone):
             values = {
                 key: label if isinstance(label, translate) else translate(
                     f"{prefix}{label}", str(label),
-                    f"value {key} for {self._name}<{type(self).__name__}> in {self._owner.__name__} in {self._owner}"
+                    f"value {key} for {self.name}<{type(self).__name__}> in {self.skel_cls.__name__} in {self.skel_cls}"
                 )
                 for key, label in values.items()
             }
