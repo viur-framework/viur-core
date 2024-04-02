@@ -1,22 +1,23 @@
 import abc
 import datetime
 import functools
-import grpc
 import json
 import logging
 import os
-import requests
 import sys
 import time
 import traceback
 import typing as t
+
+import grpc
+import requests
 from google import protobuf
 from google.cloud import tasks_v2
+
 from viur.core import current, db, errors, utils
 from viur.core.config import conf
 from viur.core.decorators import exposed, skey
 from viur.core.module import Module
-
 
 CUSTOM_OBJ = t.TypeVar("CUSTOM_OBJ")  # A JSON serializable object
 
@@ -466,6 +467,23 @@ def CallDeferred(func: t.Callable) -> t.Callable:
     _target_version: Specify a version on which to run this task.
         By default, a task will be run on the same version where the wrapped method has been called.
 
+    _call_deferred: Calls the @CallDeferred decorated method directly.
+        This is for example necessary, to call a super method which is decorated with @CallDeferred.
+
+    ..  code-block:: python
+
+        # Example for use of the _call_deferred-parameter
+        class A(Module):
+            @CallDeferred
+            def task(self):
+                ...
+
+        class B(A):
+            @CallDeferred
+            def task(self):
+                super().task(_call_deferred=False)  # avoid secondary deferred call
+                ...
+
     See also:
         https://cloud.google.com/python/docs/reference/cloudtasks/latest/google.cloud.tasks_v2.types.Task
         https://cloud.google.com/python/docs/reference/cloudtasks/latest/google.cloud.tasks_v2.types.CreateTaskRequest
@@ -478,11 +496,12 @@ def CallDeferred(func: t.Callable) -> t.Callable:
     def make_deferred(func, self=__undefinedFlag_, *args, **kwargs):
         # Extract possibly provided task flags from kwargs
         queue = kwargs.pop("_queue", "default")
+        call_deferred = kwargs.pop("_call_deferred", True)
         if "_eta" in kwargs and "_countdown" in kwargs:
             raise ValueError("You cannot set the _countdown and _eta argument together!")
         taskargs = {k: kwargs.pop(f"_{k}", None) for k in ("countdown", "eta", "name", "target_version")}
 
-        logging.debug(f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, {queue=}, {taskargs=}")
+        logging.debug(f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, {queue=}, {call_deferred=}, {taskargs=}")
 
         try:
             req = current.request.get()
@@ -508,7 +527,11 @@ def CallDeferred(func: t.Callable) -> t.Callable:
 
             return  # Ensure no result gets passed back
 
-        if req and req.request.headers.get("X-Appengine-Taskretrycount") and "DEFERRED_TASK_CALLED" not in dir(req):
+        # It's the deferred method which is called from the task queue, this has to be called directly
+        call_deferred &= not (req and req.request.headers.get("X-Appengine-Taskretrycount")
+                              and "DEFERRED_TASK_CALLED" not in dir(req))
+
+        if not call_deferred:
             if self is __undefinedFlag_:
                 return func(*args, **kwargs)
 
