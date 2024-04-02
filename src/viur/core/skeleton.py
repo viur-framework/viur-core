@@ -3,17 +3,16 @@ from __future__ import annotations
 import copy
 import fnmatch
 import inspect
+import logging
 import os
 import string
-import typing as t
 import sys
+import typing as t
 import warnings
 from functools import partial
 from itertools import chain
 from time import time
 
-
-import logging
 from viur.core import conf, current, db, email, errors, translate, utils
 from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, RelationalUpdateLevel, SelectBone, StringBone
 from viur.core.bones.base import Compute, ComputeInterval, ComputeMethod, ReadFromClientError, \
@@ -98,6 +97,12 @@ class MetaBaseSkel(type):
                 del map[key]
 
         return map
+
+    def __setattr__(self, key, value):
+        super().__setattr__(key, value)
+        if isinstance(value, BaseBone):
+            # Call BaseBone.__set_name__ manually for bones that are assigned at runtime
+            value.__set_name__(self, key)
 
 
 def skeletonByKind(kindName: str) -> t.Type[Skeleton]:
@@ -1318,7 +1323,6 @@ class RelSkel(BaseSkeleton):
         # FIXME: is this a good idea? Any other way to ensure only bones present in refKeys are serialized?
         return self.dbEntity
 
-
     def unserialize(self, values: db.Entity | dict):
         """
             Loads 'values' into this skeleton.
@@ -1612,7 +1616,6 @@ def processVacuumRelationsChunk(
 
 # Forward our references to SkelInstance to the database (needed for queries)
 db.config["SkeletonInstanceRef"] = SkeletonInstance
-
 
 # DEPRECATED ATTRIBUTES HANDLING
 
