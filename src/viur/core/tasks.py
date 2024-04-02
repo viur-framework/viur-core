@@ -470,6 +470,20 @@ def CallDeferred(func: t.Callable) -> t.Callable:
     _call_deferred: Calls the @CallDeferred decorated method directly.
         This is for example necessary, to call a super method which is decorated with @CallDeferred.
 
+    ..  code-block:: python
+
+        # Example for use of the _call_deferred-parameter
+        class A(Module):
+            @CallDeferred
+            def task(self):
+                ...
+
+        class B(A):
+            @CallDeferred
+            def task(self):
+                super().task(_call_deferred=False)  # avoid secondary deferred call
+                ...
+
     See also:
         https://cloud.google.com/python/docs/reference/cloudtasks/latest/google.cloud.tasks_v2.types.Task
         https://cloud.google.com/python/docs/reference/cloudtasks/latest/google.cloud.tasks_v2.types.CreateTaskRequest
