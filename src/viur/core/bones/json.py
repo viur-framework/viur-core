@@ -30,7 +30,7 @@ class JsonBone(RawBone):
         schema: t.Mapping = {},
         *args, **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, indexed=indexed, multiple=multiple, languages=languages, **kwargs)
         assert not multiple
         assert not languages
         assert not indexed
