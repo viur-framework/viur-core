@@ -2,6 +2,15 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.1]
+
+- fix: Add `_call_deferred`-parameter for super-calls (#1128)
+- feat: Implement `translation_key_prefix` for `SelectBone` values (#1126)
+- fix: Pass arguments in `JsonBone.__init__()` to `super()` call (#1129)
+- fix: Improving several `User` auth method handling (#1125)
+- fix: `TimeBasedOTP.start()` should use UserSkel (#1124)
+- fix: Broken access to methods in `File` class by refactoring (#1122)
+
 ## [3.6.0]
 
 - fix: Add `is None`-check for bone values with languages (#1120)
