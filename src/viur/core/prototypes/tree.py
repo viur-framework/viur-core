@@ -300,6 +300,8 @@ class Tree(SkelModule):
                     default_order = default_order(query)
 
                 if default_order:
+                    logging.debug(f"Applying {default_order=}")
+
                     # FIXME: This ugly test can be removed when there is type that abstracts SortOrders
                     if (
                         isinstance(default_order, str)
