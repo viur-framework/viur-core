@@ -2,6 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.2]
+
+- fix: Remove comma in f-string (#1135)
+- fix: target_version was always `None` (used the default version) (#1134)
+- fix: Improve `List.default_order` to respect languages config (#1132)
+
 ## [3.6.1]
 
 - fix: Add `_call_deferred`-parameter for super-calls (#1128)
