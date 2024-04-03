@@ -1025,7 +1025,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     for old_unique_value in old_unique_values:
                         # Try to delete the old lock
 
-                        old_lock_key = db.Key(f"{skel.kindName,}_{bone_name}_uniquePropertyIndex", old_unique_value)
+                        old_lock_key = db.Key(f"{skel.kindName}_{bone_name}_uniquePropertyIndex", old_unique_value)
                         if old_lock_obj := db.Get(old_lock_key):
                             if old_lock_obj["references"] != db_obj.key.id_or_name:
 
