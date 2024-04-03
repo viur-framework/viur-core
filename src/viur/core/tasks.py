@@ -497,11 +497,15 @@ def CallDeferred(func: t.Callable) -> t.Callable:
         # Extract possibly provided task flags from kwargs
         queue = kwargs.pop("_queue", "default")
         call_deferred = kwargs.pop("_call_deferred", True)
+        target_version = kwargs.pop("_target_version", conf.instance.app_version)
         if "_eta" in kwargs and "_countdown" in kwargs:
             raise ValueError("You cannot set the _countdown and _eta argument together!")
-        taskargs = {k: kwargs.pop(f"_{k}", None) for k in ("countdown", "eta", "name", "target_version")}
+        taskargs = {k: kwargs.pop(f"_{k}", None) for k in ("countdown", "eta", "name")}
 
-        logging.debug(f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, {queue=}, {call_deferred=}, {taskargs=}")
+        logging.debug(
+            f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, "
+            f"{queue=}, {call_deferred=}, {target_version=}, {taskargs=}"
+        )
 
         try:
             req = current.request.get()
@@ -591,7 +595,7 @@ def CallDeferred(func: t.Callable) -> t.Callable:
                     http_method=tasks_v2.HttpMethod.POST,
                     relative_uri=taskargs["url"],
                     app_engine_routing=tasks_v2.AppEngineRouting(
-                        version=taskargs.get("target_version", conf.instance.app_version),
+                        version=target_version,
                     ),
                 ),
             )
