@@ -1,4 +1,5 @@
 import base64
+import datetime
 import json
 import logging
 import os
@@ -33,7 +34,7 @@ from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
 """
 
 
-@PeriodicTask(interval=60 * 24)
+@PeriodicTask(interval=datetime.timedelta(days=1))
 def cleanOldEmailsFromLog(*args, **kwargs):
     """Start the QueryIter DeleteOldEmailsFromLog to remove old, successfully send emails from the queue"""
     qry = db.Query("viur-emails").filter("isSend =", True) \
@@ -385,7 +386,7 @@ class EmailTransportSendInBlue(EmailTransport):
             if ext not in EmailTransportSendInBlue.allowedExtensions:
                 raise ValueError(f"The file-extension {ext} cannot be send using Send in Blue")
 
-    @PeriodicTask(60 * 60)
+    @PeriodicTask(interval=datetime.timedelta(hours=60))
     @staticmethod
     def check_sib_quota() -> None:
         """Periodically checks the remaining SendInBlue email quota.

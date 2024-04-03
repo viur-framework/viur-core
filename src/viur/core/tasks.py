@@ -638,7 +638,7 @@ def callDeferred(func):
     return CallDeferred(func)
 
 
-def PeriodicTask(interval: int = 0, cronName: str = "default") -> t.Callable:
+def PeriodicTask(interval: datetime.timedelta | int = 0, cronName: str = "default") -> t.Callable:
     """
         Decorator to call a function periodic during maintenance.
         Interval defines a lower bound for the call-frequency for this task;
@@ -655,7 +655,11 @@ def PeriodicTask(interval: int = 0, cronName: str = "default") -> t.Callable:
                                f"Please rename {fn.__name__!r}")
         if cronName not in _periodicTasks:
             _periodicTasks[cronName] = {}
-        _periodicTasks[cronName][fn] = interval
+        if isinstance(interval, datetime.timedelta):
+            # convert seconds to minutes
+            _periodicTasks[cronName][fn] = int(interval.total_seconds() / 60)
+        else:
+            _periodicTasks[cronName][fn] = interval
         fn.periodicTaskName = f"{fn.__module__}_{fn.__qualname__}".replace(".", "_").lower()
         return fn
 
