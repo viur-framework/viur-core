@@ -659,7 +659,7 @@ def PeriodicTask(interval: datetime.timedelta | int = 0, cronName: str = "defaul
             # convert seconds to minutes
             _periodicTasks[cronName][fn] = int(interval.total_seconds() / 60)
         else:
-            _periodicTasks[cronName][fn] = interval
+            _periodicTasks[cronName][fn] = int(interval)
         fn.periodicTaskName = f"{fn.__module__}_{fn.__qualname__}".replace(".", "_").lower()
         return fn
 
