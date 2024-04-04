@@ -655,11 +655,13 @@ def PeriodicTask(interval: datetime.timedelta | int = 0, cronName: str = "defaul
                                f"Please rename {fn.__name__!r}")
         if cronName not in _periodicTasks:
             _periodicTasks[cronName] = {}
-        if isinstance(interval, datetime.timedelta):
-            # convert seconds to minutes
-            _periodicTasks[cronName][fn] = int(interval.total_seconds() / 60)
-        else:
-            _periodicTasks[cronName][fn] = int(interval)
+        if isinstance(interval, int):
+            logging.warning(
+                f"Assuming {interval=} minutes here. This will change into seconds in future. Please use `datetime.timedelta` for clarification."
+             )
+             interval *= 60
+
+        _periodicTasks[cronName][fn] = utils.parse.timedelta(interval)
         fn.periodicTaskName = f"{fn.__module__}_{fn.__qualname__}".replace(".", "_").lower()
         return fn
 
