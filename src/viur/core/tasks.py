@@ -76,7 +76,7 @@ else:
     )
     queueRegion = "local"
 
-_periodicTasks: dict[str, dict[t.Callable, int]] = {}
+_periodicTasks: dict[str, dict[t.Callable, datetime.timedelta]] = {}
 _callableTasks = {}
 _deferred_tasks = {}
 _startupTasks = []
@@ -260,9 +260,9 @@ class TaskHandler(Module):
         req.DEFERRED_TASK_CALLED = True
         for task, interval in _periodicTasks[cronName].items():  # Call all periodic tasks bound to that queue
             periodicTaskName = task.periodicTaskName.lower()
-            if interval:  # Ensure this task doesn't get called to often
+            if interval.total_seconds():  # Ensure this task doesn't get called to often
                 lastCall = db.Get(db.Key("viur-task-interval", periodicTaskName))
-                if lastCall and utils.utcNow() - lastCall["date"] < datetime.timedelta(minutes=interval):
+                if lastCall and utils.utcNow() - lastCall["date"] < interval:
                     logging.debug(f"Task {periodicTaskName!r} has already run recently - skipping.")
                     continue
             res = self.findBoundTask(task, conf.main_app)
@@ -276,7 +276,7 @@ class TaskHandler(Module):
                 logging.exception(e)
             else:
                 logging.debug(f"Successfully called task {periodicTaskName}")
-            if interval:
+            if interval.total_seconds():
                 # Update its last-call timestamp
                 entry = db.Entity(db.Key("viur-task-interval", periodicTaskName))
                 entry["date"] = utils.utcNow()
@@ -647,7 +647,7 @@ def PeriodicTask(interval: datetime.timedelta | int = 0, cronName: str = "defaul
 
         :param interval: Call at most every interval minutes. 0 means call as often as possible.
     """
-
+    args = locals()
     def mkDecorator(fn):
         global _periodicTasks
         if fn.__name__.startswith("_"):
@@ -655,13 +655,14 @@ def PeriodicTask(interval: datetime.timedelta | int = 0, cronName: str = "defaul
                                f"Please rename {fn.__name__!r}")
         if cronName not in _periodicTasks:
             _periodicTasks[cronName] = {}
+
         if isinstance(interval, int):
             logging.warning(
-                f"Assuming {interval=} minutes here. This will change into seconds in future. Please use `datetime.timedelta` for clarification."
-             )
-             interval *= 60
-
-        _periodicTasks[cronName][fn] = utils.parse.timedelta(interval)
+                f"Assuming {interval=} minutes here. This will change into seconds in future. "
+                f"Please use `datetime.timedelta` for clarification."
+            )
+            args["interval"] *= 60
+        _periodicTasks[cronName][fn] = utils.parse.timedelta(args["interval"])
         fn.periodicTaskName = f"{fn.__module__}_{fn.__qualname__}".replace(".", "_").lower()
         return fn
 
