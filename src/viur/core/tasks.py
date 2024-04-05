@@ -260,7 +260,7 @@ class TaskHandler(Module):
         req.DEFERRED_TASK_CALLED = True
         for task, interval in _periodicTasks[cronName].items():  # Call all periodic tasks bound to that queue
             periodicTaskName = task.periodicTaskName.lower()
-            if interval.total_seconds():  # Ensure this task doesn't get called to often
+            if interval:  # Ensure this task doesn't get called to often
                 lastCall = db.Get(db.Key("viur-task-interval", periodicTaskName))
                 if lastCall and utils.utcNow() - lastCall["date"] < interval:
                     logging.debug(f"Task {periodicTaskName!r} has already run recently - skipping.")
@@ -276,7 +276,7 @@ class TaskHandler(Module):
                 logging.exception(e)
             else:
                 logging.debug(f"Successfully called task {periodicTaskName}")
-            if interval.total_seconds():
+            if interval:
                 # Update its last-call timestamp
                 entry = db.Entity(db.Key("viur-task-interval", periodicTaskName))
                 entry["date"] = utils.utcNow()
