@@ -20,6 +20,7 @@ from viur.core.bones.base import Compute, ComputeInterval, ComputeMethod, ReadFr
 from viur.core.tasks import CallDeferred, CallableTask, CallableTaskBase, QueryIter
 
 _undefined = object()
+ABSTRACT_SKEL_CLS_SUFFIX = "AbstractSkel"
 
 
 class MetaBaseSkel(type):
@@ -66,7 +67,7 @@ class MetaBaseSkel(type):
     def __init__(cls, name, bases, dct):
         cls.__boneMap__ = MetaBaseSkel.generate_bonemap(cls)
 
-        if not getSystemInitialized():
+        if not getSystemInitialized() and not cls.__name__.endswith(ABSTRACT_SKEL_CLS_SUFFIX):
             MetaBaseSkel._allSkelClasses.add(cls)
 
         super(MetaBaseSkel, cls).__init__(name, bases, dct)
@@ -542,7 +543,7 @@ class MetaSkel(MetaBaseSkel):
             .replace(str(conf.instance.core_base_path), "")
 
         # Check if we have an abstract skeleton
-        if cls.__name__.endswith("AbstractSkel"):
+        if cls.__name__.endswith(ABSTRACT_SKEL_CLS_SUFFIX):
             # Ensure that it doesn't have a kindName
             assert cls.kindName is _undefined or cls.kindName is None, "Abstract Skeletons can't have a kindName"
             # Prevent any further processing by this class; it has to be sub-classed before it can be used
