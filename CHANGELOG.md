@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.3]
+
+- fix: Avoid `*AbstractSkel`s from being initialized (#1136)
+- fix: Replace old dict `conf` access with attribute access (#1137)
+
 ## [3.6.2]
 
 - fix: Remove comma in f-string (#1135)
