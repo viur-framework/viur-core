@@ -21,8 +21,7 @@ class UidBone(BaseBone):
         *,
         length: int | None = 13,
         pattern: str | None = "*",
-        generate_fn: t.Callable | None = None,
-        unique=UniqueValue(UniqueLockMethod.SameValue, False,"Unique Value already in use"),
+        unique=UniqueValue(UniqueLockMethod.SameValue, False, "Unique Value already in use"),
         **kwargs
     ):
         """
@@ -44,7 +43,6 @@ class UidBone(BaseBone):
 
         self.length = length
         self.pattern = pattern
-        self.generate_fn = generate_fn
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
         logging.error("seri")
