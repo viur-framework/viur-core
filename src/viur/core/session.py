@@ -207,7 +207,12 @@ class Session:
         """
         return self.session.items()
 
-
+    def setdefault(self, key: str, value: t.Any) -> t.Any:
+        """
+            Set a default value in the current session
+        """
+        self.session.setdefault(key, value)
+        return value
 @tasks.CallDeferred
 def killSessionByUser(user: t.Optional[t.Union[str, "db.Key", None]] = None):
     """
