@@ -17,6 +17,7 @@ class StringBone(BaseBone):
         self,
         *,
         caseSensitive: bool = True,
+        charset: str = "",
         max_length: int | None = 254,
         min_length: int | None = None,
         natural_sorting: bool | t.Callable = False,
@@ -26,6 +27,7 @@ class StringBone(BaseBone):
         Initializes a new StringBone.
 
         :param caseSensitive: When filtering for values in this bone, should it be case-sensitive?
+        :param charset: The allowed charset for this bone. If it's empty all chars are allowed.
         :param max_length: The maximum length allowed for values of this bone. Set to None for no limitation.
         :param min_length: The minimum length allowed for values of this bone. Set to None for no limitation.
         :param natural_sorting: Allows a more natural sorting
@@ -52,6 +54,7 @@ class StringBone(BaseBone):
         self.caseSensitive = caseSensitive
         self.max_length = max_length
         self.min_length = min_length
+        self.charset = charset
         if callable(natural_sorting):
             self.natural_sorting = natural_sorting
         elif not isinstance(natural_sorting, bool):
@@ -123,6 +126,10 @@ class StringBone(BaseBone):
             return "Maximum length exceeded"
         if self.min_length is not None and len(value) < self.min_length:
             return "Minimum length not reached"
+
+        if self.charset:
+            if not all([char in self.charset for char in value]):
+                return "Not all letters are available in the charset"
         return None
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
@@ -325,6 +332,7 @@ class StringBone(BaseBone):
     def structure(self) -> dict:
         ret = super().structure() | {
             "maxlength": self.max_length,
-            "minlength": self.min_length
+            "minlength": self.min_length,
+            "charset": self.charset,
         }
         return ret
