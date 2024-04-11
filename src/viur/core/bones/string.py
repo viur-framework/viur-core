@@ -131,7 +131,7 @@ class StringBone(BaseBone):
         this bone, otherwise the empty value and an error-message.
         """
 
-        if not (err := self.isInvalid(value)):
+        if not (err := self.isInvalid(str(value))):
             return utils.string.escape(value, self.max_length), None
 
         return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
