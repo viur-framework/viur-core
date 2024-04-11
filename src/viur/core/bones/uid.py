@@ -47,8 +47,7 @@ class UidBone(BaseBone):
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
         logging.error("seri")
         logging.error(skel.accessedValues[name])
-
-        if super().serialize(skel, name, parentIndexed):
+        if super().serialize(skel, name, parentIndexed) and skel.accessedValues[name]:
             return True
         else:
             logging.error("generate new id")
@@ -64,6 +63,7 @@ class UidBone(BaseBone):
             skel.accessedValues[name] = self.generate_uid()
 
         return True
+
 
     def generate_uid(self):
         if "*" in self.pattern and "?" not in self.pattern and "#" not in self.pattern:
