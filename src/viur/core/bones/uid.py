@@ -6,8 +6,26 @@ import logging
 import typing as t
 
 from viur.core import current, db, utils
-from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity, UniqueValue, \
+from viur.core.bones.base import BaseBone, Compute, ComputeInterval, ComputeMethod, ReadFromClientError, \
+    ReadFromClientErrorSeverity, \
+    UniqueValue, \
     UniqueLockMethod
+
+
+def generate_uid(bone):
+    if "*" in bone.pattern and "?" not in bone.pattern and "#" not in bone.pattern:
+        return bone.pattern.replace("*", utils.string.random(bone.length))
+    res = bone.pattern
+    remaining_chars = bone.length
+    if "?" in bone.pattern:
+        while "?" in res:
+            remaining_chars -= 1
+            res = res.replace("?", utils.string.random(1), 1)
+    if "#" in bone.pattern:
+        while "#" in res:
+            remaining_chars -= 1
+            res = res.replace("#", secrets.choice(string.digits), 1)
+    return res.replace("*", utils.string.random(remaining_chars))
 
 
 class UidBone(BaseBone):
@@ -21,6 +39,7 @@ class UidBone(BaseBone):
         *,
         length: int | None = 13,
         pattern: str | None = "*",
+        compute: Compute = Compute(fn=generate_uid, interval=ComputeInterval(ComputeMethod.Once)),
         unique=UniqueValue(UniqueLockMethod.SameValue, False, "Unique Value already in use"),
         **kwargs
     ):
@@ -33,7 +52,7 @@ class UidBone(BaseBone):
         """
         # fixme: Remove in viur-core >= 4
 
-        super().__init__(unique=unique, **kwargs)
+        super().__init__(compute=compute, unique=unique, **kwargs)
 
         if self.multiple or self.languages:
             raise ValueError("UidBone cannot be multiple or translated")
@@ -43,42 +62,6 @@ class UidBone(BaseBone):
 
         self.length = length
         self.pattern = pattern
-
-    def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
-        logging.error("seri")
-        logging.error(skel.accessedValues[name])
-        if super().serialize(skel, name, parentIndexed) and skel.accessedValues[name]:
-            return True
-        else:
-            logging.error("generate new id")
-            skel.dbEntity[name] = self.generate_uid()
-            return True
-
-    def unserialize(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> bool:
-        logging.error("unseri")
-        logging.error(skel.dbEntity[name])
-        if name in skel.dbEntity:
-            skel.accessedValues[name] = skel.dbEntity[name]
-        else:
-            skel.accessedValues[name] = self.generate_uid()
-
-        return True
-
-
-    def generate_uid(self):
-        if "*" in self.pattern and "?" not in self.pattern and "#" not in self.pattern:
-            return self.pattern.replace("*", utils.string.random(self.length))
-        res = self.pattern
-        remaining_chars = self.length
-        if "?" in self.pattern:
-            while "?" in res:
-                remaining_chars -= 1
-                res = res.replace("?", utils.string.random(1), 1)
-        if "#" in self.pattern:
-            while "#" in res:
-                remaining_chars -= 1
-                res = res.replace("#", secrets.choice(string.digits), 1)
-        return res.replace("*", utils.string.random(remaining_chars))
 
     def structure(self) -> dict:
         ret = super().structure() | {
