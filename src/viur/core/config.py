@@ -647,6 +647,7 @@ class Conf(ConfigType):
         "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
         "json.bone.structure.keytuples",  # use classic structure notation: `"structure = [["key", {...}] ...]` (#649)
         "json.bone.structure.inlists",  # dump skeleton structure with every JSON list response (#774 for details)
+        "tasks.periodic.useminutes",  # Use minutes instead of second for int/float value (#1133 for details)
     ]
     """Backward compatibility flags; Remove to enforce new layout."""
 
