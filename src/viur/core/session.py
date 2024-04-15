@@ -211,8 +211,7 @@ class Session:
         """
             Set a default value in the current session
         """
-        self.session.setdefault(key, value)
-        return value
+        return self.session.setdefault(key, value)
 
 
 @tasks.CallDeferred
