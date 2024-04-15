@@ -128,7 +128,7 @@ class StringBone(BaseBone):
             return "Minimum length not reached"
 
         if self.charset:
-            if not all([char in self.charset for char in value]):
+            if any(char not in self.charset for char in value):
                 return "Not all letters are available in the charset"
         return None
 
