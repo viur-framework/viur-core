@@ -638,7 +638,7 @@ def callDeferred(func):
     return CallDeferred(func)
 
 
-def PeriodicTask(interval: datetime.timedelta | int = 0, cronName: str = "default") -> t.Callable:
+def PeriodicTask(interval: datetime.timedelta | int | float = 0, cronName: str = "default") -> t.Callable:
     """
         Decorator to call a function periodic during maintenance.
         Interval defines a lower bound for the call-frequency for this task;
@@ -647,22 +647,21 @@ def PeriodicTask(interval: datetime.timedelta | int = 0, cronName: str = "defaul
 
         :param interval: Call at most every interval minutes. 0 means call as often as possible.
     """
-    args = locals()
     def mkDecorator(fn):
-        global _periodicTasks
+        nonlocal interval
         if fn.__name__.startswith("_"):
             raise RuntimeError("Periodic called methods cannot start with an underscore! "
                                f"Please rename {fn.__name__!r}")
         if cronName not in _periodicTasks:
             _periodicTasks[cronName] = {}
 
-        if isinstance(interval, int):
+        if isinstance(interval, (int, float)) and "tasks.periodic.useminutes" in conf.compatibility:
             logging.warning(
                 f"Assuming {interval=} minutes here. This will change into seconds in future. "
                 f"Please use `datetime.timedelta` for clarification."
             )
-            args["interval"] *= 60
-        _periodicTasks[cronName][fn] = utils.parse.timedelta(args["interval"])
+            interval *= 60
+        _periodicTasks[cronName][fn] = utils.parse.timedelta(interval)
         fn.periodicTaskName = f"{fn.__module__}_{fn.__qualname__}".replace(".", "_").lower()
         return fn
 
