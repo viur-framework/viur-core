@@ -39,36 +39,39 @@ def generate_uid(skel, bone):
 
 class UidBone(BaseBone):
     """
-    The "StringBone" represents a data field that contains text values.
+    The "UidBone" represents a data field that contains text values.
     """
-    type = "str"
+    type = "uid"
 
     def __init__(
         self,
         *,
+        generate_fn: t.Callable = generate_uid,
         fill_chars="",
-        length: int | None = 13,
+        length: int = 13,
         pattern: str | t.Callable | None = "*",
-        compute: Compute = Compute(fn=generate_uid, interval=ComputeInterval(ComputeMethod.Once)),
-        unique=UniqueValue(UniqueLockMethod.SameValue, False, "Unique Value already in use"),
         **kwargs
     ):
         """
         Initializes a new UidBone.
 
 
+        :param generate_fn: The compute function to calculate the unique value,
+        :param fill_chars: The chars that are filed in when the uid has not the length.
         :param length: The length allowed for values of this bone.
+        :param pattern: The pattern for this Bone. "*" will be replaced with the uid value.
         :param kwargs: Inherited arguments from the BaseBone.
         """
-        # fixme: Remove in viur-core >= 4
-
-        super().__init__(compute=compute, unique=unique, **kwargs)
+        super().__init__(
+            compute=Compute(fn=generate_fn, interval=ComputeInterval(ComputeMethod.Once)),
+            unique=UniqueValue(UniqueLockMethod.SameValue, False, "Unique Value already in use"),
+            **kwargs
+        )
 
         if self.multiple or self.languages:
             raise ValueError("UidBone cannot be multiple or translated")
         if not self.readOnly:
             self.readOnly = True
-            # raise ValueError("UidBone must be readOnly")
 
         self.fill_chars = str(fill_chars)
         self.length = length
@@ -80,6 +83,7 @@ class UidBone(BaseBone):
 
     def structure(self) -> dict:
         ret = super().structure() | {
+            "fill_chars": self.fill_chars,
             "length": self.length,
             "pattern": self.pattern
         }

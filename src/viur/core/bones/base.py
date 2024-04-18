@@ -283,7 +283,8 @@ class BaseBone(object):
         if compute:
             if not isinstance(compute, Compute):
                 raise TypeError("compute must be an instanceof of Compute")
-
+            if not isinstance(compute.fn, t.Callable):
+                raise ValueError("'compute.fn' must be callable")
             # When readOnly is None, handle flag automatically
             if readOnly is None:
                 self.readOnly = True
