@@ -1,27 +1,26 @@
-import secrets
-import string
-import warnings
-
-import logging
 import typing as t
 
-from viur.core import current, db, utils
-from viur.core.bones.base import BaseBone, Compute, ComputeInterval, ComputeMethod, ReadFromClientError, \
-    ReadFromClientErrorSeverity, \
-    UniqueValue, \
-    UniqueLockMethod
+from viur.core import db
+from viur.core.bones.base import BaseBone, Compute, ComputeInterval, ComputeMethod, UniqueValue, UniqueLockMethod
 
 
 def generate_uid(skel, bone):
     def transac(_key):
-
-        if db_obj := db.Get(_key):
-            db_obj["count"] += 1
-            db.Put(db_obj)
+        for i in range(3):
+            try:
+                if db_obj := db.Get(_key):
+                    db_obj["count"] += 1
+                    db.Put(db_obj)
+                else:
+                    db_obj = db.Entity(_key)
+                    db_obj["count"] = 0
+                    db.Put(db_obj)
+                break
+            except:  # recall the function
+                import time
+                time.sleep(i + 1)
         else:
-            db_obj = db.Entity(_key)
-            db_obj["count"] = 0
-            db.Put(db_obj)
+            raise ValueError("Can't not set the Uid")
         return db_obj["count"]
 
     db_key = db.Key("viur-uids", f"{skel.kindName}-{bone.name}-uid")
