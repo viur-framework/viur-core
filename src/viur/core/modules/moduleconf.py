@@ -45,7 +45,7 @@ class ModuleConfScriptSkel(skeleton.RelSkel):
         descr="Required access rights",
         values=lambda: {
             right: i18n.translate(f"server.modules.user.accessright.{right}", defaultText=right)
-            for right in sorted(conf["viur.accessRights"])
+            for right in sorted(conf.user.access_rights)
         },
         multiple=True,
         params={

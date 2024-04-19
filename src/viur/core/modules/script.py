@@ -75,7 +75,7 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
         descr="Required access rights to run this Script",
         values=lambda: {
             right: translate("server.modules.user.accessright.%s" % right, defaultText=right)
-            for right in sorted(conf["viur.accessRights"])
+            for right in sorted(conf.user.access_rights)
         },
         multiple=True,
     )

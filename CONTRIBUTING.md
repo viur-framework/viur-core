@@ -77,6 +77,7 @@ In case you have appropriate permissions, a release can be done this way:
   - todo: Changelog shall be generated automatically later.
 - Build and publish the package (ensure `pipenv install --dev` was run before and is up-to-date)
   - Ensure any old files are deleted by running `pipenv run clean`
+  - Check for known issues using `pipenv check`, fix dependencies if necessary (see previous section!)
   - Build the wheel using `pipenv run build`
   - Release the package `pipenv run release`
 - When all went well, commit and create a tag equally to the version number in `src/viur/core/version.py`

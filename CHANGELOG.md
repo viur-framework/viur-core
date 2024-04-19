@@ -2,8 +2,34 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.6.0.rc3]
+## [3.6.3]
 
+- fix: Avoid `*AbstractSkel`s from being initialized (#1136)
+- fix: Replace old dict `conf` access with attribute access (#1137)
+
+## [3.6.2]
+
+- fix: Remove comma in f-string (#1135)
+- fix: target_version was always `None` (used the default version) (#1134)
+- fix: Improve `List.default_order` to respect languages config (#1132)
+
+## [3.6.1]
+
+- fix: Add `_call_deferred`-parameter for super-calls (#1128)
+- feat: Implement `translation_key_prefix` for `SelectBone` values (#1126)
+- fix: Pass arguments in `JsonBone.__init__()` to `super()` call (#1129)
+- fix: Improving several `User` auth method handling (#1125)
+- fix: `TimeBasedOTP.start()` should use UserSkel (#1124)
+- fix: Broken access to methods in `File` class by refactoring (#1122)
+
+## [3.6.0]
+
+- fix: Add `is None`-check for bone values with languages (#1120)
+- feat: Provide `LoginSkel` on `UserPassword.login` (#1118)
+- feat: `default_order` should support multiple orders as well (#1109)
+- fix: Add `_prevent_compute` for computed bones (#1111)
+- feat: Set icon in admin_info of translation module (#1113)
+- fix: Handle non-ASCII characters in username comparison (#1112)
 - fix: file module typo `UnprocessableEntity` (#1105)
 - feat: Allow `None` as defaultValue in BooleanBone (#988)
 - feat: Support `*`-wildcard postfix in `refKeys` for `RelationalBones` (#1022)

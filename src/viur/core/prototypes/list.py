@@ -4,6 +4,7 @@ from viur.core import current, db, errors, utils
 from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
+from viur.core.bones import BaseBone
 from .skelmodule import SkelModule, DEFAULT_ORDER_TYPE
 
 
@@ -19,14 +20,28 @@ class List(SkelModule):
     handler = "list"
     accessRights = ("add", "edit", "view", "delete", "manage")
 
-    default_order: DEFAULT_ORDER_TYPE = \
-        lambda _self, query: next((prop for prop in ("sortindex", "name") if prop in query.srcSkel), None)
-    """
-    Allows to specify a default order for this module, which is applied when no other order is specified.
+    def default_order(self, query: db.Query, bone_order: t.Iterable[str] = ("sortindex", "name")) -> DEFAULT_ORDER_TYPE:
+        """
+        Allows to specify a default order for this module, which is applied when no other order is specified.
+        This can also be set to any DEFAULT_ORDER_TYPE directly.
 
-    Setting a default_order might result in the requirement of additional indexes, which are being raised
-    and must be specified.
-    """
+        Setting a default_order might result in the requirement of additional indexes, which are being raised
+        and must be specified.
+        """
+        for bone_name in bone_order:
+            bone = getattr(query.srcSkel, bone_name, None)
+            if isinstance(bone, BaseBone) and bone.indexed:
+                # In case the bone has a language setting, try to set default ordering to current language
+                if bone.languages:
+                    lang = current.language.get()
+                    if lang in bone.languages:
+                        return f"{bone_name}.{lang}"
+
+                    return f"{bone_name}.{bone.languages[0]}"
+
+                return bone_name
+
+        return None
 
     def viewSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -192,6 +207,8 @@ class List(SkelModule):
                     default_order = default_order(query)
 
                 if default_order:
+                    logging.debug(f"Applying {default_order=}")
+
                     # FIXME: This ugly test can be removed when there is type that abstracts SortOrders
                     if (
                         isinstance(default_order, str)
@@ -692,7 +709,7 @@ class List(SkelModule):
         logging.info(f"""Entry cloned: {skel["key"]!r}""")
         flushCache(kind=skel.kindName)
 
-        if user := utils.getCurrentUser():
+        if user := current.user.get():
             logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
 

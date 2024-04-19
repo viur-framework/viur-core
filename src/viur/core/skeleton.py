@@ -3,17 +3,16 @@ from __future__ import annotations
 import copy
 import fnmatch
 import inspect
+import logging
 import os
 import string
-import typing as t
 import sys
+import typing as t
 import warnings
 from functools import partial
 from itertools import chain
 from time import time
 
-
-import logging
 from viur.core import conf, current, db, email, errors, translate, utils
 from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, RelationalUpdateLevel, SelectBone, StringBone
 from viur.core.bones.base import Compute, ComputeInterval, ComputeMethod, ReadFromClientError, \
@@ -21,6 +20,7 @@ from viur.core.bones.base import Compute, ComputeInterval, ComputeMethod, ReadFr
 from viur.core.tasks import CallDeferred, CallableTask, CallableTaskBase, QueryIter
 
 _undefined = object()
+ABSTRACT_SKEL_CLS_SUFFIX = "AbstractSkel"
 
 
 class MetaBaseSkel(type):
@@ -67,7 +67,7 @@ class MetaBaseSkel(type):
     def __init__(cls, name, bases, dct):
         cls.__boneMap__ = MetaBaseSkel.generate_bonemap(cls)
 
-        if not getSystemInitialized():
+        if not getSystemInitialized() and not cls.__name__.endswith(ABSTRACT_SKEL_CLS_SUFFIX):
             MetaBaseSkel._allSkelClasses.add(cls)
 
         super(MetaBaseSkel, cls).__init__(name, bases, dct)
@@ -98,6 +98,12 @@ class MetaBaseSkel(type):
                 del map[key]
 
         return map
+
+    def __setattr__(self, key, value):
+        super().__setattr__(key, value)
+        if isinstance(value, BaseBone):
+            # Call BaseBone.__set_name__ manually for bones that are assigned at runtime
+            value.__set_name__(self, key)
 
 
 def skeletonByKind(kindName: str) -> t.Type[Skeleton]:
@@ -537,7 +543,7 @@ class MetaSkel(MetaBaseSkel):
             .replace(str(conf.instance.core_base_path), "")
 
         # Check if we have an abstract skeleton
-        if cls.__name__.endswith("AbstractSkel"):
+        if cls.__name__.endswith(ABSTRACT_SKEL_CLS_SUFFIX):
             # Ensure that it doesn't have a kindName
             assert cls.kindName is _undefined or cls.kindName is None, "Abstract Skeletons can't have a kindName"
             # Prevent any further processing by this class; it has to be sub-classed before it can be used
@@ -1020,7 +1026,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     for old_unique_value in old_unique_values:
                         # Try to delete the old lock
 
-                        old_lock_key = db.Key(f"{skel.kindName,}_{bone_name}_uniquePropertyIndex", old_unique_value)
+                        old_lock_key = db.Key(f"{skel.kindName}_{bone_name}_uniquePropertyIndex", old_unique_value)
                         if old_lock_obj := db.Get(old_lock_key):
                             if old_lock_obj["references"] != db_obj.key.id_or_name:
 
@@ -1318,7 +1324,6 @@ class RelSkel(BaseSkeleton):
         # FIXME: is this a good idea? Any other way to ensure only bones present in refKeys are serialized?
         return self.dbEntity
 
-
     def unserialize(self, values: db.Entity | dict):
         """
             Loads 'values' into this skeleton.
@@ -1612,7 +1617,6 @@ def processVacuumRelationsChunk(
 
 # Forward our references to SkelInstance to the database (needed for queries)
 db.config["SkeletonInstanceRef"] = SkeletonInstance
-
 
 # DEPRECATED ATTRIBUTES HANDLING
 
