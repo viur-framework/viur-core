@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-from unittest import mock
-
 import importlib.util
 import os
 import pathlib
 import sys
 import unittest
 from types import ModuleType
+from unittest import mock
 
 # top_level_dir is the parent-folder of "tests" and "core"
 tld = pathlib.Path(__file__).resolve().parent.parent
@@ -73,8 +72,8 @@ def monkey_patch():
         "GetOrInsert",
         "IsInTransaction",
         "KEY_SPECIAL_PROPERTY",
-        "Key",
-        "KeyClass",
+        # "Key",
+        # "KeyClass",
         "keyHelper",
         "Put",
         "Query",
@@ -90,6 +89,9 @@ def monkey_patch():
         setattr(viur_datastore, attr, mock.MagicMock())
 
     viur_datastore.config = {}
+    # classes must not be instances of MagicMock, otherwise isinstance checks does not work
+    viur_datastore.Key = mock.MagicMock
+    viur_datastore.KeyClass = mock.MagicMock
     sys.modules["viur.datastore"] = viur_datastore
 
     os.environ["GAE_VERSION"] = "v42"

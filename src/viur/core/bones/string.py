@@ -115,7 +115,7 @@ class StringBone(BaseBone):
             return serialized
         return value
 
-    def singleValueUnserialize(self, value: DB_TYPE_INDEXED) -> str:
+    def singleValueUnserialize(self, value: str | DB_TYPE_INDEXED) -> str:
         """
         Unserializes a single value of this data field from the database.
 
