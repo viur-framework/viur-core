@@ -72,9 +72,9 @@ class StringBone(BaseBone):
         Converts a value that is not a string into a string
         if a meaningful conversion is possible (simple data types only).
         """
-        if isinstance(Number, str):
+        if isinstance(value, str):
             return value
-        elif isinstance(Number, value):
+        elif isinstance(value, Number):
             return str(value)
         elif isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
             return value.isoformat()
