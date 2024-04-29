@@ -237,6 +237,8 @@ class BaseBone(object):
              and all([isinstance(x, str) for x in languages]))
         ):
             raise ValueError("languages must be None or a list of strings")
+        if languages and "__default__" in languages:
+            raise ValueError("__default__ is not supported as a language")
         if (
             not isinstance(required, bool)
             and (not isinstance(required, (tuple, list)) or any(not isinstance(value, str) for value in required))
@@ -253,8 +255,15 @@ class BaseBone(object):
         # Default value
         # Convert a None default-value to the empty container that's expected if the bone is
         # multiple or has languages
-        if defaultValue is None and self.languages:
-            self.defaultValue = {}
+        if self.languages:
+            if not isinstance(defaultValue, dict):
+                self.defaultValue = {lang: defaultValue for lang in self.languages}
+            elif "__default__" in defaultValue:
+                self.defaultValue = {lang: defaultValue.get(lang, defaultValue["__default__"])
+                                     for lang in self.languages}
+            else:
+                self.defaultValue = defaultValue
+
         elif defaultValue is None and self.multiple:
             self.defaultValue = []
         else:
