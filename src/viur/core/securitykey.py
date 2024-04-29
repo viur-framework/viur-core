@@ -112,7 +112,7 @@ def validate(key: str, session_bound: bool = True) -> bool | db.Entity:
     return entity or True
 
 
-@tasks.PeriodicTask(60 * 4)
+@tasks.PeriodicTask(interval=datetime.timedelta(hours=4))
 def periodic_clear_skeys():
     from viur.core import tasks
     """

@@ -76,7 +76,7 @@ else:
     )
     queueRegion = "local"
 
-_periodicTasks: dict[str, dict[t.Callable, int]] = {}
+_periodicTasks: dict[str, dict[t.Callable, datetime.timedelta]] = {}
 _callableTasks = {}
 _deferred_tasks = {}
 _startupTasks = []
@@ -262,7 +262,7 @@ class TaskHandler(Module):
             periodicTaskName = task.periodicTaskName.lower()
             if interval:  # Ensure this task doesn't get called to often
                 lastCall = db.Get(db.Key("viur-task-interval", periodicTaskName))
-                if lastCall and utils.utcNow() - lastCall["date"] < datetime.timedelta(minutes=interval):
+                if lastCall and utils.utcNow() - lastCall["date"] < interval:
                     logging.debug(f"Task {periodicTaskName!r} has already run recently - skipping.")
                     continue
             res = self.findBoundTask(task, conf.main_app)
@@ -639,7 +639,7 @@ def callDeferred(func):
     return CallDeferred(func)
 
 
-def PeriodicTask(interval: int = 0, cronName: str = "default") -> t.Callable:
+def PeriodicTask(interval: datetime.timedelta | int | float = 0, cronName: str = "default") -> t.Callable:
     """
         Decorator to call a function periodic during maintenance.
         Interval defines a lower bound for the call-frequency for this task;
@@ -648,15 +648,21 @@ def PeriodicTask(interval: int = 0, cronName: str = "default") -> t.Callable:
 
         :param interval: Call at most every interval minutes. 0 means call as often as possible.
     """
-
     def mkDecorator(fn):
-        global _periodicTasks
+        nonlocal interval
         if fn.__name__.startswith("_"):
             raise RuntimeError("Periodic called methods cannot start with an underscore! "
                                f"Please rename {fn.__name__!r}")
         if cronName not in _periodicTasks:
             _periodicTasks[cronName] = {}
-        _periodicTasks[cronName][fn] = interval
+
+        if isinstance(interval, (int, float)) and "tasks.periodic.useminutes" in conf.compatibility:
+            logging.warning(
+                f"Assuming {interval=} minutes here. This will change into seconds in future. "
+                f"Please use `datetime.timedelta` for clarification."
+            )
+            interval *= 60
+        _periodicTasks[cronName][fn] = utils.parse.timedelta(interval)
         fn.periodicTaskName = f"{fn.__module__}_{fn.__qualname__}".replace(".", "_").lower()
         return fn
 
