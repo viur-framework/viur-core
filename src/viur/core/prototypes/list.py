@@ -709,7 +709,7 @@ class List(SkelModule):
         logging.info(f"""Entry cloned: {skel["key"]!r}""")
         flushCache(kind=skel.kindName)
 
-        if user := utils.getCurrentUser():
+        if user := current.user.get():
             logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
 

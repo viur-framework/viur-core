@@ -2,6 +2,14 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.4]
+
+- fix: Enfore serialized values are always strings in the datastore (#1146)
+- fix: RelationalBone `serialize` add super call (#1119)
+- fix: Add missing import of `PIL.ImageCms` (#1144)
+- fix: Re-add `StringBone`s `max_length` check (#1142)
+- fix: Replace deprecated `utils.getCurrentUser` (#1139)
+
 ## [3.6.3]
 
 - fix: Avoid `*AbstractSkel`s from being initialized (#1136)

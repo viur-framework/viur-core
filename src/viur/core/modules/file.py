@@ -8,6 +8,7 @@ import io
 import json
 import logging
 import PIL
+import PIL.ImageCms
 import re
 import requests
 import string
