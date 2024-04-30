@@ -445,7 +445,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
         return bone.setBoneValue(skelValues, boneName, value, append, language)
 
     @classmethod
-    def fromClient(cls, skel: SkeletonInstance, data: dict[str, list[str] | str], amend: bool = False) -> bool:
+    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str], amend: bool = False) -> bool:
         """
             Load supplied *data* into Skeleton.
 
@@ -467,13 +467,13 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
             False otherwise (e.g. some required fields where missing or where invalid).
         """
         complete = True
-        skel.errors = []
+        skelValues.errors = []
 
-        for key, bone in skel.items():
+        for key, bone in skelValues.items():
             if bone.readOnly:
                 continue
 
-            if errors := bone.fromClient(skel, key, data):
+            if errors := bone.fromClient(skelValues, key, data):
                 for error in errors:
                     # insert current bone name into error's fieldPath
                     error.fieldPath.insert(0, str(key))
@@ -514,7 +514,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                                 f"""({error.severity}) {error.errorMessage}"""
                             )
 
-                skel.errors += errors
+                skelValues.errors += errors
 
         return complete
 
@@ -839,7 +839,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return db.Query(skelValues.kindName, srcSkelClass=skelValues, **kwargs)
 
     @classmethod
-    def fromClient(cls, skel: SkeletonInstance, data: dict[str, list[str] | str], amend: bool = False) -> bool:
+    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str], amend: bool = False) -> bool:
         """
             This function works similar to :func:`~viur.core.skeleton.Skeleton.setValues`, except that
             the values retrieved from *data* are checked against the bones and their validity checks.
@@ -858,34 +858,34 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             :returns: True if all data was successfully read and complete. \
             False otherwise (e.g. some required fields where missing or where invalid).
         """
-        assert skel.renderPreparation is None, "Cannot modify values while rendering"
+        assert skelValues.renderPreparation is None, "Cannot modify values while rendering"
 
         # Load data into this skeleton
-        complete = bool(data) and super().fromClient(skel, data, amend=amend)
+        complete = bool(data) and super().fromClient(skelValues, data, amend=amend)
 
         if (
             not data  # in case data is empty
             or (len(data) == 1 and "key" in data)
             or (utils.parse_bool(data.get("nomissing")))
         ):
-            skel.errors = []
+            skelValues.errors = []
 
         # Check if all unique values are available
-        for boneName, boneInstance in skel.items():
+        for boneName, boneInstance in skelValues.items():
             if boneInstance.unique:
-                lockValues = boneInstance.getUniquePropertyIndexValues(skel, boneName)
+                lockValues = boneInstance.getUniquePropertyIndexValues(skelValues, boneName)
                 for lockValue in lockValues:
-                    dbObj = db.Get(db.Key(f"{skel.kindName}_{boneName}_uniquePropertyIndex", lockValue))
-                    if dbObj and (not skel["key"] or dbObj["references"] != skel["key"].id_or_name):
+                    dbObj = db.Get(db.Key(f"{skelValues.kindName}_{boneName}_uniquePropertyIndex", lockValue))
+                    if dbObj and (not skelValues["key"] or dbObj["references"] != skelValues["key"].id_or_name):
                         # This value is taken (sadly, not by us)
                         complete = False
                         errorMsg = boneInstance.unique.message
-                        skel.errors.append(
+                        skelValues.errors.append(
                             ReadFromClientError(ReadFromClientErrorSeverity.Invalid, errorMsg, [boneName]))
 
         # Check inter-Bone dependencies
-        for checkFunc in skel.interBoneValidations:
-            errors = checkFunc(skel)
+        for checkFunc in skelValues.interBoneValidations:
+            errors = checkFunc(skelValues)
             if errors:
                 for error in errors:
                     if error.severity.value > 1:
@@ -893,7 +893,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                         if conf.debug.skeleton_from_client:
                             logging.debug(f"{cls.kindName}: {error.fieldPath}: {error.errorMessage!r}")
 
-                skel.errors.extend(errors)
+                skelValues.errors.extend(errors)
 
         return complete
 
