@@ -1,4 +1,8 @@
+import abc
+import collections
+import logging
 import typing as t
+
 from viur.core.module import Method
 
 __all__ = [
@@ -142,3 +146,50 @@ def skey(
         return decorator
 
     return decorator(func)
+
+
+class OnAction(abc.ABC):
+    @property
+    @abc.abstractmethod
+    def action_name(self) -> str:
+        ...
+
+    def __init__(self, fn: t.Callable):
+        self.fn = fn
+
+    def __call__(self, *args, **kwargs):
+        return self.fn(*args, **kwargs)
+
+    def __set_name__(self, owner, name):
+        self.fn.class_name = owner.__name__
+        if not hasattr(owner, "on_handlers"):
+            owner.on_handlers: dict[str, list[t.Callable]] = collections.defaultdict(list)
+        owner.on_handlers[self.action_name].append(self.fn)
+
+    @classmethod
+    def dispatch(cls, caller, *args, raise_error: bool = True, **kwargs):
+        from viur.core import conf
+        for handler in caller.on_handlers[cls.action_name]:
+            if conf.debug.trace:
+                logging.debug(f"Calling {handler=} with {args=} and {kwargs=}")
+            try:
+                handler(caller, *args, **kwargs)
+            except Exception as exc:
+                if raise_error:
+                    raise
+                else:
+                    logging.exception(f"Calling {handler=} with {args=} and {kwargs=} failed: {exc}")
+
+    @classmethod
+    def create(cls, action_name: str) -> "t.Self":
+        return type(f"{action_name}Action", (cls,), {"action_name": action_name})
+
+
+on_add = OnAction.create("add")
+on_added = OnAction.create("added")
+on_edit = OnAction.create("edit")
+on_edited = OnAction.create("edited")
+on_delete = OnAction.create("delete")
+on_deleted = OnAction.create("deleted")
+on_clone = OnAction.create("clone")
+on_cloned = OnAction.create("cloned")
