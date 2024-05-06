@@ -199,7 +199,8 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
         # The general access control is made via self.listFilter()
-        if query := self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs)):
+        query = self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs))
+        if query and query.queries:
             # Apply default order when specified
             if self.default_order and not query.queries.orders and not current.request.get().kwargs.get("search"):
                 # TODO: refactor: Duplicate code in prototypes.Tree

@@ -866,7 +866,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         if (
             not data  # in case data is empty
             or (len(data) == 1 and "key" in data)
-            or (utils.parse_bool(data.get("nomissing")))
+            or (utils.parse.bool(data.get("nomissing")))
         ):
             skelValues.errors = []
 

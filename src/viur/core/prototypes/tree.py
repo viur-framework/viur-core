@@ -292,7 +292,8 @@ class Tree(SkelModule):
             raise errors.NotAcceptable("Invalid skelType provided.")
 
         # The general access control is made via self.listFilter()
-        if query := self.listFilter(self.viewSkel(skelType).all().mergeExternalFilter(kwargs)):
+        query = self.listFilter(self.viewSkel(skelType).all().mergeExternalFilter(kwargs))
+        if query and query.queries:
             # Apply default order when specified
             if self.default_order and not query.queries.orders and not current.request.get().kwargs.get("search"):
                 # TODO: refactor: Duplicate code in prototypes.List
