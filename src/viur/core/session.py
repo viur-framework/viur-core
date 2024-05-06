@@ -25,7 +25,7 @@ import typing as t
 """
 
 
-class Session:
+class Session(db.Entity):
     """
         Store Sessions inside the datastore.
         The behaviour of this module can be customized in the following ways:
@@ -56,7 +56,6 @@ class Session:
         self.changed = False
         self.cookie_key = None
         self.static_security_key = None
-        self.session = db.Entity()
 
     def load(self, req):
         """
@@ -73,7 +72,10 @@ class Session:
                     return False
 
                 self.cookie_key = cookie_key
-                self.session = data["data"]
+                for key in self.keys():
+                    del self[key]
+                self.update(data["data"])
+
                 self.static_security_key = data.get("static_security_key") or data.get("staticSecurityKey")
 
                 if data["lastseen"] < time.time() - 5 * 60:  # Refresh every 5 Minutes
@@ -105,7 +107,7 @@ class Session:
 
         dbSession = db.Entity(db.Key(self.kindName, self.cookie_key))
 
-        dbSession["data"] = db.fixUnindexableProperties(self.session)
+        dbSession["data"] = db.fixUnindexableProperties(self)
         dbSession["static_security_key"] = self.static_security_key
         dbSession["lastseen"] = time.time()
         dbSession["user"] = str(user_key)  # allow filtering for users
@@ -126,45 +128,6 @@ class Session:
             ("Set-Cookie", f"{self.cookie_name}={self.cookie_key};{';'.join([f for f in flags if f])}")
         )
 
-    def __contains__(self, key: str) -> bool:
-        """
-            Returns True if the given *key* is set in the current session.
-        """
-        return key in self.session
-
-    def __delitem__(self, key: str) -> None:
-        """
-            Removes a *key* from the session.
-
-            This key must exist.
-        """
-        del self.session[key]
-        self.changed = True
-
-    def __getitem__(self, key) -> t.Any:
-        """
-            Returns the value stored under the given *key*.
-
-            The key must exist.
-        """
-        return self.session[key]
-
-    def __ior__(self, other: dict):
-        """
-        Merges the contents of a dict into the session.
-        """
-        self.session |= other
-        return self
-
-    def get(self, key: str, default: t.Any = None) -> t.Any:
-        """
-            Returns the value stored under the given key.
-
-            :param key: Key to retrieve from the session variables.
-            :param default: Default value to return when key does not exist.
-        """
-        return self.session.get(key, default)
-
     def __setitem__(self, key: str, item: t.Any):
         """
             Stores a new value under the given key.
@@ -172,7 +135,7 @@ class Session:
             If that key exists before, its value is
             overwritten.
         """
-        self.session[key] = item
+        super().__setitem__(key, item)
         self.changed = True
 
     def markChanged(self) -> None:
@@ -199,20 +162,8 @@ class Session:
 
         self.cookie_key = utils.string.random(42)
         self.static_security_key = utils.string.random(13)
-        self.session.clear()
+        self.clear()
         self.changed = True
-
-    def items(self) -> 'dict_items':
-        """
-            Returns all items in the current session.
-        """
-        return self.session.items()
-
-    def setdefault(self, key: str, value: t.Any) -> t.Any:
-        """
-            Set a default value in the current session
-        """
-        return self.session.setdefault(key, value)
 
 
 @tasks.CallDeferred
