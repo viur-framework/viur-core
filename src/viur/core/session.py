@@ -73,7 +73,7 @@ class Session(db.Entity):
 
                 self.cookie_key = cookie_key
                 self.clear()
-                self.update(data["data"])
+                self |= data["data"]
 
                 self.static_security_key = data.get("static_security_key") or data.get("staticSecurityKey")
 
