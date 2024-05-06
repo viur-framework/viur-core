@@ -2,6 +2,13 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.5]
+
+- feat: Implement `fromClient(amend=True)` feature (#1150)
+- chore: Update dependencies (fix for CVE-2024-28219) (#1151)
+- fix: Fix deprecated `parse_bool` call (#1149)
+- fix: `list` should handle unsatisfiable queries (#1148)
+
 ## [3.6.4]
 
 - fix: Enfore serialized values are always strings in the datastore (#1146)
