@@ -72,8 +72,7 @@ class Session(db.Entity):
                     return False
 
                 self.cookie_key = cookie_key
-                for key in self.keys():
-                    del self[key]
+                self.clear()
                 self.update(data["data"])
 
                 self.static_security_key = data.get("static_security_key") or data.get("staticSecurityKey")
