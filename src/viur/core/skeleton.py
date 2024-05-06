@@ -445,7 +445,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
         return bone.setBoneValue(skelValues, boneName, value, append, language)
 
     @classmethod
-    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str]) -> bool:
+    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str], amend: bool = False) -> bool:
         """
             Load supplied *data* into Skeleton.
 
@@ -458,10 +458,13 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
             So its possible to call :func:`~viur.core.skeleton.Skeleton.toDB` afterwards even if reading
             data with this function failed (through this might violates the assumed consistency-model).
 
+            :param skel: The skeleton instance to be filled.
             :param data: Dictionary from which the data is read.
+            :param amend: Defines whether content of data may be incomplete to amend the skel,
+                which is useful for edit-actions.
 
-            :returns: True if all data was successfully read and taken by the Skeleton's bones.\
-            False otherwise (eg. some required fields where missing or invalid).
+            :returns: True if all data was successfully read and complete. \
+            False otherwise (e.g. some required fields where missing or where invalid).
         """
         complete = True
         skelValues.errors = []
@@ -486,10 +489,11 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                             and (
                                 # bone is generally required
                                 bool(bone.required)
-                                # and value is either empty or not set
-                                and error.severity in (
-                                    ReadFromClientErrorSeverity.Empty,
-                                    ReadFromClientErrorSeverity.NotSet
+                                and (
+                                    # and value is either empty
+                                    error.severity == ReadFromClientErrorSeverity.Empty
+                                    # or when not amending, not set
+                                    or (not amend and error.severity == ReadFromClientErrorSeverity.NotSet)
                                 )
                             )
                         )
@@ -835,7 +839,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return db.Query(skelValues.kindName, srcSkelClass=skelValues, **kwargs)
 
     @classmethod
-    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str]) -> bool:
+    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str], amend: bool = False) -> bool:
         """
             This function works similar to :func:`~viur.core.skeleton.Skeleton.setValues`, except that
             the values retrieved from *data* are checked against the bones and their validity checks.
@@ -846,13 +850,18 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             So its possible to call :func:`~viur.core.skeleton.Skeleton.toDB` afterwards even if reading
             data with this function failed (through this might violates the assumed consistency-model).
 
-        :param data: Dictionary from which the data is read.
-        :return: True, if all values have been read correctly (without errors), False otherwise
+            :param skel: The skeleton instance to be filled.
+            :param data: Dictionary from which the data is read.
+            :param amend: Defines whether content of data may be incomplete to amend the skel,
+                which is useful for edit-actions.
+
+            :returns: True if all data was successfully read and complete. \
+            False otherwise (e.g. some required fields where missing or where invalid).
         """
         assert skelValues.renderPreparation is None, "Cannot modify values while rendering"
 
         # Load data into this skeleton
-        complete = bool(data) and super().fromClient(skelValues, data)
+        complete = bool(data) and super().fromClient(skelValues, data, amend=amend)
 
         if (
             not data  # in case data is empty

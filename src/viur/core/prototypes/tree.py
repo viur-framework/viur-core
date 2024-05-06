@@ -410,8 +410,8 @@ class Tree(SkelModule):
 
         if (
             not kwargs  # no data supplied
+            or not current.request.get().isPostRequest  # failure if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or not current.request.get().isPostRequest
             or utils.parse.bool(kwargs.get("bounce"))  # review before adding
         ):
             return self.render.add(skel)
@@ -456,8 +456,8 @@ class Tree(SkelModule):
 
         if (
             not kwargs  # no data supplied
-            or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or not current.request.get().isPostRequest
+            or not current.request.get().isPostRequest  # failure if not using POST-method
+            or not skel.fromClient(kwargs, amend=True)  # failure on reading into the bones
             or utils.parse.bool(kwargs.get("bounce"))  # review before adding
         ):
             return self.render.edit(skel)
