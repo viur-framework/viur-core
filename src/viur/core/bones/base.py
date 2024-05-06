@@ -344,7 +344,7 @@ class BaseBone(object):
         """
         return not bool(value)
 
-    def getDefaultValue(self, skeletonInstance):
+    def getDefaultValue(self, skel: 'SkeletonInstance'):
         """
         Retrieves the default value for the bone.
 
@@ -354,14 +354,33 @@ class BaseBone(object):
 
         :return: The default value of the bone, which can be of any data type.
     """
+        def check_default_value(value):
+            # Accept list/tuple only when bone is multiple
+            if isinstance(value, (list, tuple)) and not self.multiple:
+                raise ValueError("Multiple default values not accepted")
+
+            return value
+
         if callable(self.defaultValue):
-            return self.defaultValue(skeletonInstance, self)
+            value = self.defaultValue(skel, self)
         elif isinstance(self.defaultValue, list):
-            return self.defaultValue[:]
+            value = self.defaultValue.copy()
         elif isinstance(self.defaultValue, dict):
-            return self.defaultValue.copy()
+            value = self.defaultValue.copy()
         else:
-            return self.defaultValue
+            value = self.defaultValue
+
+        # TODO: Handle languages...
+        # if self.languages:
+        #     if not isinstance(value, dict):
+        #         raise ValueError("Expected dict of languages")
+        #
+        #     if any(k not in self.languages for k in value):
+        #         raise ValueError("Language provided which is not in the languages setting")
+        #
+        #     return {k: check_default_value(v) for k, v in value.items()}
+
+        return check_default_value(value)
 
     def getEmptyValue(self) -> t.Any:
         """
