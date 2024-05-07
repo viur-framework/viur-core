@@ -685,7 +685,7 @@ class BaseBone(object):
             return True
         return False
 
-    def serialize_compute(self, skel, name):
+    def serialize_compute(self, skel: "SkeletonInstance", name: str) -> None:
         # Handle compute on write
         if self.compute:
             match self.compute.interval.method:
@@ -819,7 +819,7 @@ class BaseBone(object):
         skel.accessedValues[name] = res
         return True
 
-    def unserialize_compute(self, skel, name, loaded_value):
+    def unserialize_compute(self, skel: "SkeletonInstance", name: str, loaded_value: t.Any) -> None:
         # Is this value computed?
         # In this case, check for configured compute method and if recomputation is required.
         # Otherwise, the value from the DB is used as is.
