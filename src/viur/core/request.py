@@ -493,11 +493,11 @@ class Router:
                 raise errors.Unauthorized()
 
             idx += 1
-            part = part.replace("-", "_")
+
+            # Turn part into a Python identifier, to allow mapping e.g. "sitemap.xml" to a `sitemap_xml` method.
+            part = part.replace("-", "_").replace(".", "_")
             if part not in caller:
                 part = "index"
-
-            # print(part, caller.get(part))
 
             if caller := caller.get(part):
                 if isinstance(caller, Method):
