@@ -1,6 +1,7 @@
 import re
+import typing as t
 from viur.core.bones import *
-from viur.core.prototypes.tree import Tree, TreeSkel
+from viur.core.prototypes.tree import Tree, TreeSkel, SkelType
 from viur.core import db, conf, current, skeleton, tasks, errors
 from viur.core.decorators import exposed
 from viur.core.i18n import translate
@@ -98,7 +99,7 @@ class Script(Tree):
         return [{"name": "Scripts", "key": self.ensureOwnModuleRootNode().key}]
 
     @exposed
-    def view(self, skelType, key, *args, **kwargs):
+    def view(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> t.Any:
         try:
             return super().view(skelType, key, *args, **kwargs)
         except errors.NotFound:
