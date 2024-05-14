@@ -5,6 +5,9 @@ import os
 from abc import ABC, abstractmethod
 import typing as t
 from urllib import request
+import mailjet_rest
+from base64 import b64encode
+import magic
 
 import requests
 
@@ -449,3 +452,57 @@ class EmailTransportSendInBlue(EmailTransport):
             entity["latest_warning_for"] = None
 
         db.Put(entity)
+
+class EmailTransportMailjet(EmailTransport):
+    @staticmethod
+    def splitAddress(address: str) -> dict[str, str]:
+        """
+            Splits a Name/Address Pair into a dict,
+            i.e. "Max Musterman <mm@example.com>" into
+            {"name": "Max Mustermann", "email": "mm@example.com"}
+            :param address: Name/Address pair
+            :return: split dict
+        """
+        posLt = address.rfind("<")
+        posGt = address.rfind(">")
+        if -1 < posLt < posGt:
+            email = address[posLt + 1:posGt]
+            sname = address.replace(f"<{email}>", "", 1).strip()
+            return {"name": sname, "email": email}
+        else:
+            return {"email": address}
+
+    @staticmethod
+    def deliverEmail(*, sender: str, dests: list[str], cc: list[str], bcc: list[str], subject: str, body: str,
+                     headers: dict[str, str], attachments: list[dict[str, bytes]], **kwargs):
+        data = {"messages": [{}]}
+        email = data['messages'][0]
+        email['from'] = EmailTransportMailjet.splitAddress(sender)
+        email['to'] = [EmailTransportMailjet.splitAddress(dest) for dest in dests]
+        email['htmlpart'] = body
+        email['subject'] = subject
+        if bcc:
+            email['bcc'] = [EmailTransportMailjet.splitAddress(b) for b in bcc]
+        if cc:
+            email['cc'] = [EmailTransportMailjet.splitAddress(c) for c in cc]
+        if headers:
+            email['headers'] = headers
+        if attachments:
+            atts = []
+            for att in attachments:
+                next_att = {
+                    "filename": att['filename'],
+                    "base64content": b64encode(att['content']).decode('ASCII')
+                }
+                if 'contenttype' in att:
+                    next_att['contenttype'] = att['contenttype']
+                else:
+                    next_att['contenttype'] = magic.detect_from_content(att['content']).mime_type
+                atts.append(next_att)
+            email['attachments'] = atts
+
+        mj_client = mailjet_rest.Client(auth=(conf.email.mailjet_api_key, conf.email.mailjet_api_secret),
+                                        version="v3.1")
+        result = mj_client.send.create(data=data)
+        assert 200 <= result.status_code < 300, "Received a non 2XX Status Code!"
+        return result.content.decode('UTF-8')
