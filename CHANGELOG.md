@@ -2,6 +2,13 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.6]
+
+- fix: Don't obfuscate any route with character replacements (#1161)
+- feat: View script by path (#1156)
+- fix: Make `Translation`-module `admin_info` configurable (#1158)
+- fix: Support `/deploy/admin` folder as well (#1159)
+
 ## [3.6.5]
 
 - feat: Implement `fromClient(amend=True)` feature (#1150)
