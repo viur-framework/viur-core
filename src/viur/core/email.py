@@ -2,10 +2,10 @@ import base64
 import json
 import logging
 import os
+import sys
 from abc import ABC, abstractmethod
 import typing as t
 from urllib import request
-import mailjet_rest
 from base64 import b64encode
 import magic
 
@@ -16,6 +16,11 @@ if t.TYPE_CHECKING:
 from viur.core import db, utils
 from viur.core.config import conf
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
+
+try:
+    import mailjet_rest
+except ModuleNotFoundError:
+    pass
 
 """
     This module implements an email delivery system for ViUR. Emails will be queued so that we don't overwhelm
@@ -455,38 +460,39 @@ class EmailTransportSendInBlue(EmailTransport):
         db.Put(entity)
 
 
-class EmailTransportMailjet(EmailTransport):
-    @staticmethod
-    def deliverEmail(*, sender: str, dests: list[str], cc: list[str], bcc: list[str], subject: str, body: str,
-                     headers: dict[str, str], attachments: list[dict[str, bytes]], **kwargs):
-        data = {"messages": [{}]}
-        email = data["messages"][0]
-        email["from"] = EmailTransportMailjet.splitAddress(sender)
-        email["to"] = [EmailTransportMailjet.splitAddress(dest) for dest in dests]
-        email["htmlpart"] = body
-        email["subject"] = subject
-        if bcc:
-            email["bcc"] = [EmailTransportMailjet.splitAddress(b) for b in bcc]
-        if cc:
-            email["cc"] = [EmailTransportMailjet.splitAddress(c) for c in cc]
-        if headers:
-            email["headers"] = headers
-        if attachments:
-            atts = []
-            for att in attachments:
-                next_att = {
-                    "filename": att["filename"],
-                    "base64content": b64encode(att["content"]).decode("ASCII")
-                }
-                if "mimetype" in att:
-                    next_att["contenttype"] = att["mimetype"]
-                else:
-                    next_att["contenttype"] = magic.detect_from_content(att["content"]).mime_type
-                atts.append(next_att)
-            email["attachments"] = atts
+if 'mailjet_rest' in sys.modules:
+    class EmailTransportMailjet(EmailTransport):
+        @staticmethod
+        def deliverEmail(*, sender: str, dests: list[str], cc: list[str], bcc: list[str], subject: str, body: str,
+                         headers: dict[str, str], attachments: list[dict[str, bytes]], **kwargs):
+            data = {"messages": [{}]}
+            email = data["messages"][0]
+            email["from"] = EmailTransportMailjet.splitAddress(sender)
+            email["to"] = [EmailTransportMailjet.splitAddress(dest) for dest in dests]
+            email["htmlpart"] = body
+            email["subject"] = subject
+            if bcc:
+                email["bcc"] = [EmailTransportMailjet.splitAddress(b) for b in bcc]
+            if cc:
+                email["cc"] = [EmailTransportMailjet.splitAddress(c) for c in cc]
+            if headers:
+                email["headers"] = headers
+            if attachments:
+                atts = []
+                for att in attachments:
+                    next_att = {
+                        "filename": att["filename"],
+                        "base64content": b64encode(att["content"]).decode("ASCII")
+                    }
+                    if "mimetype" in att:
+                        next_att["contenttype"] = att["mimetype"]
+                    else:
+                        next_att["contenttype"] = magic.detect_from_content(att["content"]).mime_type
+                    atts.append(next_att)
+                email["attachments"] = atts
 
-        mj_client = mailjet_rest.Client(auth=(conf.email.mailjet_api_key, conf.email.mailjet_api_secret),
-                                        version="v3.1")
-        result = mj_client.send.create(data=data)
-        assert 200 <= result.status_code < 300, "Received a non 2XX Status Code!"
-        return result.content.decode("UTF-8")
+            mj_client = mailjet_rest.Client(auth=(conf.email.mailjet_api_key, conf.email.mailjet_api_secret),
+                                            version="v3.1")
+            result = mj_client.send.create(data=data)
+            assert 200 <= result.status_code < 300, "Received a non 2XX Status Code!"
+            return result.content.decode("UTF-8")
