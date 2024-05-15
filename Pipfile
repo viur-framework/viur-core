@@ -32,13 +32,13 @@ urllib3 = "==1.26.18"  # for appengine-python-standard used by some projects (ht
 viur-datastore = "~=1.0"
 webob = "~=1.0"
 appengine-python-standard = "~=1.0"
-file-magic = "*"
-mailjet-rest = "*"
+file-magic = "~=0.4.1"
+mailjet-rest = "~=1.3.4"
 
 [dev-packages]
-build="*"
+build = "*"
 pycodestyle = "*"
-twine="*"
+twine = "*"
 
 [requires]
 python_version = "3.10"

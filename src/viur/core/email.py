@@ -87,6 +87,24 @@ class EmailTransport(ABC):
         """
         pass
 
+    @staticmethod
+    def splitAddress(address: str) -> dict[str, str]:
+        """
+            Splits a Name/Address Pair into a dict,
+            i.e. "Max Musterman <mm@example.com>" into
+            {"name": "Max Mustermann", "email": "mm@example.com"}
+            :param address: Name/Address pair
+            :return: split dict
+        """
+        posLt = address.rfind("<")
+        posGt = address.rfind(">")
+        if -1 < posLt < posGt:
+            email = address[posLt + 1:posGt]
+            sname = address.replace(f"<{email}>", "", 1).strip()
+            return {"name": sname, "email": email}
+        else:
+            return {"email": address}
+
 
 @CallDeferred
 def sendEmailDeferred(emailKey: db.Key):
@@ -306,23 +324,6 @@ class EmailTransportSendInBlue(EmailTransport):
                          "xls", "xlsx", "ppt", "tar", "ez"}
 
     @staticmethod
-    def splitAddress(address: str) -> dict[str, str]:
-        """
-            Splits an Name/Address Pair as "Max Musterman <mm@example.com>" into a dict
-            {"name": "Max Mustermann", "email": "mm@example.com"}
-            :param address: Name/Address pair
-            :return: Splitted dict
-        """
-        posLt = address.rfind("<")
-        posGt = address.rfind(">")
-        if -1 < posLt < posGt:
-            email = address[posLt + 1:posGt]
-            sname = address.replace(f"<{email}>", "", 1).strip()
-            return {"name": sname, "email": email}
-        else:
-            return {"email": address}
-
-    @staticmethod
     def deliverEmail(*, sender: str, dests: list[str], cc: list[str], bcc: list[str], subject: str, body: str,
                      headers: dict[str, str], attachments: list[dict[str, bytes]], **kwargs):
         """
@@ -453,56 +454,39 @@ class EmailTransportSendInBlue(EmailTransport):
 
         db.Put(entity)
 
-class EmailTransportMailjet(EmailTransport):
-    @staticmethod
-    def splitAddress(address: str) -> dict[str, str]:
-        """
-            Splits a Name/Address Pair into a dict,
-            i.e. "Max Musterman <mm@example.com>" into
-            {"name": "Max Mustermann", "email": "mm@example.com"}
-            :param address: Name/Address pair
-            :return: split dict
-        """
-        posLt = address.rfind("<")
-        posGt = address.rfind(">")
-        if -1 < posLt < posGt:
-            email = address[posLt + 1:posGt]
-            sname = address.replace(f"<{email}>", "", 1).strip()
-            return {"name": sname, "email": email}
-        else:
-            return {"email": address}
 
+class EmailTransportMailjet(EmailTransport):
     @staticmethod
     def deliverEmail(*, sender: str, dests: list[str], cc: list[str], bcc: list[str], subject: str, body: str,
                      headers: dict[str, str], attachments: list[dict[str, bytes]], **kwargs):
         data = {"messages": [{}]}
-        email = data['messages'][0]
-        email['from'] = EmailTransportMailjet.splitAddress(sender)
-        email['to'] = [EmailTransportMailjet.splitAddress(dest) for dest in dests]
-        email['htmlpart'] = body
-        email['subject'] = subject
+        email = data["messages"][0]
+        email["from"] = EmailTransportMailjet.splitAddress(sender)
+        email["to"] = [EmailTransportMailjet.splitAddress(dest) for dest in dests]
+        email["htmlpart"] = body
+        email["subject"] = subject
         if bcc:
-            email['bcc'] = [EmailTransportMailjet.splitAddress(b) for b in bcc]
+            email["bcc"] = [EmailTransportMailjet.splitAddress(b) for b in bcc]
         if cc:
-            email['cc'] = [EmailTransportMailjet.splitAddress(c) for c in cc]
+            email["cc"] = [EmailTransportMailjet.splitAddress(c) for c in cc]
         if headers:
-            email['headers'] = headers
+            email["headers"] = headers
         if attachments:
             atts = []
             for att in attachments:
                 next_att = {
-                    "filename": att['filename'],
-                    "base64content": b64encode(att['content']).decode('ASCII')
+                    "filename": att["filename"],
+                    "base64content": b64encode(att["content"]).decode("ASCII")
                 }
-                if 'contenttype' in att:
-                    next_att['contenttype'] = att['contenttype']
+                if "mimetype" in att:
+                    next_att["contenttype"] = att["mimetype"]
                 else:
-                    next_att['contenttype'] = magic.detect_from_content(att['content']).mime_type
+                    next_att["contenttype"] = magic.detect_from_content(att["content"]).mime_type
                 atts.append(next_att)
-            email['attachments'] = atts
+            email["attachments"] = atts
 
         mj_client = mailjet_rest.Client(auth=(conf.email.mailjet_api_key, conf.email.mailjet_api_secret),
                                         version="v3.1")
         result = mj_client.send.create(data=data)
         assert 200 <= result.status_code < 300, "Received a non 2XX Status Code!"
-        return result.content.decode('UTF-8')
+        return result.content.decode("UTF-8")
