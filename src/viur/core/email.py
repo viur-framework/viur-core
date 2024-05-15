@@ -2,12 +2,9 @@ import base64
 import json
 import logging
 import os
-import sys
 from abc import ABC, abstractmethod
 import typing as t
 from urllib import request
-from base64 import b64encode
-import magic
 
 import requests
 
@@ -17,10 +14,16 @@ from viur.core import db, utils
 from viur.core.config import conf
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
 
+mailjet_dependencies = True
 try:
     import mailjet_rest
 except ModuleNotFoundError:
-    pass
+    mailjet_dependencies = False
+
+try:
+    import magic
+except ModuleNotFoundError:
+    mailjet_dependencies = False
 
 """
     This module implements an email delivery system for ViUR. Emails will be queued so that we don't overwhelm
@@ -460,7 +463,7 @@ class EmailTransportSendInBlue(EmailTransport):
         db.Put(entity)
 
 
-if 'mailjet_rest' in sys.modules:
+if mailjet_dependencies:
     class EmailTransportMailjet(EmailTransport):
         @staticmethod
         def deliverEmail(*, sender: str, dests: list[str], cc: list[str], bcc: list[str], subject: str, body: str,
@@ -478,19 +481,11 @@ if 'mailjet_rest' in sys.modules:
             if headers:
                 email["headers"] = headers
             if attachments:
-                atts = []
-                for att in attachments:
-                    next_att = {
+                email["attachments"] = [{
                         "filename": att["filename"],
-                        "base64content": b64encode(att["content"]).decode("ASCII")
-                    }
-                    if "mimetype" in att:
-                        next_att["contenttype"] = att["mimetype"]
-                    else:
-                        next_att["contenttype"] = magic.detect_from_content(att["content"]).mime_type
-                    atts.append(next_att)
-                email["attachments"] = atts
-
+                        "base64content": base64.b64encode(att["content"]).decode("ASCII"),
+                        "mimetype": att["mimetype"] or magic.detect_from_content(att["content"]).mime_type
+                    } for att in attachments]
             mj_client = mailjet_rest.Client(auth=(conf.email.mailjet_api_key, conf.email.mailjet_api_secret),
                                             version="v3.1")
             result = mj_client.send.create(data=data)
