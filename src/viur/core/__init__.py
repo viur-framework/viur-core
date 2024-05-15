@@ -2,6 +2,7 @@
 ViUR-core
 Copyright © 2024 Mausbrand Informationssysteme GmbH
 
+https://core.docs.viur.dev
 Licensed under the MIT license. See LICENSE for more information.
 """
 
