@@ -72,8 +72,10 @@ class Session(db.Entity):
                     return False
 
                 self.cookie_key = cookie_key
-                self.clear()
-                self.update(data["data"])
+
+                # Here we have to use the pure db.Entity function to avoid changing the 'changed' flag
+                db.Entity.clear(self)
+                db.Entity.update(self, data["data"])
 
                 self.static_security_key = data.get("static_security_key") or data.get("staticSecurityKey")
 
