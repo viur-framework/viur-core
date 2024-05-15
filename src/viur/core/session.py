@@ -1,5 +1,5 @@
 import datetime
-import hmac
+import hmac  # is this necessary ?
 import logging
 import time
 from viur.core.tasks import DeleteEntitiesIter
@@ -73,7 +73,7 @@ class Session(db.Entity):
 
                 self.cookie_key = cookie_key
                 self.clear()
-                self |= data["data"]
+                self.update(data["data"])
 
                 self.static_security_key = data.get("static_security_key") or data.get("staticSecurityKey")
 
@@ -163,6 +163,29 @@ class Session(db.Entity):
         self.static_security_key = utils.string.random(13)
         self.clear()
         self.changed = True
+
+    def __delitem__(self, key: str) -> None:
+        """
+            Removes a *key* from the session.
+            This key must exist.
+        """
+        del self[key]
+        self.changed = True
+
+    def __ior__(self, other: dict) -> t.Self:
+        """
+        Merges the contents of a dict into the session.
+        """
+        super().__ior__(other)
+        self.changed = True
+        return self
+
+    def update(self, other: dict) -> None:
+        """
+        Merges the contents of a dict into the session.
+        """
+        self |= other
+
 
 
 @tasks.CallDeferred
