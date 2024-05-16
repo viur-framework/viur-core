@@ -1,5 +1,4 @@
 import datetime
-import hmac  # is this necessary ?
 import logging
 import time
 from viur.core.tasks import DeleteEntitiesIter
