@@ -1,11 +1,12 @@
 import logging
 import typing as t
+
 from viur.core import current, db, errors, utils
-from viur.core.decorators import *
+from viur.core.bones import BaseBone, StringBone
 from viur.core.cache import flushCache
+from viur.core.decorators import *
 from viur.core.skeleton import SkeletonInstance
-from viur.core.bones import BaseBone
-from .skelmodule import SkelModule, DEFAULT_ORDER_TYPE
+from .skelmodule import DEFAULT_ORDER_TYPE, SkelModule
 
 
 class List(SkelModule):
@@ -31,15 +32,20 @@ class List(SkelModule):
         for bone_name in bone_order:
             bone = getattr(query.srcSkel, bone_name, None)
             if isinstance(bone, BaseBone) and bone.indexed:
+                # not case-sensitive StringBone values are a nested Entity
+                suffix = ""
+                if isinstance(bone, StringBone) and not bone.caseSensitive:
+                    suffix = ".idx"
+
                 # In case the bone has a language setting, try to set default ordering to current language
                 if bone.languages:
                     lang = current.language.get()
                     if lang in bone.languages:
-                        return f"{bone_name}.{lang}"
+                        return f"{bone_name}.{lang}{suffix}"
 
-                    return f"{bone_name}.{bone.languages[0]}"
+                    return f"{bone_name}.{bone.languages[0]}{suffix}"
 
-                return bone_name
+                return f"{bone_name}{suffix}"
 
         return None
 
