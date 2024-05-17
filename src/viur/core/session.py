@@ -186,12 +186,23 @@ class Session(db.Entity):
         """
         self |= other
 
-    def pop(self, key: str) -> None:
+    def pop(self, key: str, *args, **kwargs) -> t.Any:
         """
-        Deletes a specified key from session
+        Deletes a specified key from the session.
+
+        Use 'default=YourValue' as a parameter to make sure,
+        that a default Value such as 'None' is returned and u dont run into Keyerrors.
         """
-        super().pop(key)
+        default = kwargs.get("default", None)
+
+        if default is None:
+            ret = super().pop(key)
+        else:
+            ret = super().pop(key, default)
+
         self.changed = True
+
+        return ret
 
 
 @tasks.CallDeferred
