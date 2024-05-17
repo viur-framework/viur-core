@@ -819,7 +819,7 @@ class BaseBone(object):
         skel.accessedValues[name] = res
         return True
 
-    def unserialize_compute(self, skel: "SkeletonInstance", name: str, loaded_value: t.Any) -> None:
+    def unserialize_compute(self, skel: "SkeletonInstance", name: str, loaded_value: t.Any) -> bool:
         # Is this value computed?
         # In this case, check for configured compute method and if recomputation is required.
         # Otherwise, the value from the DB is used as is.
