@@ -17,10 +17,6 @@ from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
 mailjet_dependencies = True
 try:
     import mailjet_rest
-except ModuleNotFoundError:
-    mailjet_dependencies = False
-
-try:
     import magic
 except ModuleNotFoundError:
     mailjet_dependencies = False
@@ -482,10 +478,10 @@ if mailjet_dependencies:
                 email["headers"] = headers
             if attachments:
                 email["attachments"] = [{
-                        "filename": att["filename"],
-                        "base64content": base64.b64encode(att["content"]).decode("ASCII"),
-                        "mimetype": att["mimetype"] or magic.detect_from_content(att["content"]).mime_type
-                    } for att in attachments]
+                    "filename": att["filename"],
+                    "base64content": base64.b64encode(att["content"]).decode("ASCII"),
+                    "mimetype": att["mimetype"] or magic.detect_from_content(att["content"]).mime_type
+                } for att in attachments]
             mj_client = mailjet_rest.Client(auth=(conf.email.mailjet_api_key, conf.email.mailjet_api_secret),
                                             version="v3.1")
             result = mj_client.send.create(data=data)
