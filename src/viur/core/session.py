@@ -72,9 +72,8 @@ class Session(db.Entity):
 
                 self.cookie_key = cookie_key
 
-                # Here we have to use the pure db.Entity function to avoid changing the 'changed' flag
-                db.Entity.clear(self)
-                db.Entity.update(self, data["data"])
+                super().clear()
+                super().update(data["data"])
 
                 self.static_security_key = data.get("static_security_key") or data.get("staticSecurityKey")
 
@@ -187,6 +186,12 @@ class Session(db.Entity):
         """
         self |= other
 
+    def pop(self, key: str) -> None:
+        """
+        Deletes a specified key from session
+        """
+        super().pop(key)
+        self.changed = True
 
 
 @tasks.CallDeferred
