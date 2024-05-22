@@ -41,7 +41,7 @@ jobs:
           pwd
 
       - name: Build Coverage
-        if: ${{ matrix.python == '3.11' && github.event_name == 'push' && github.ref_name == 'main' }}
+        if: ${{ matrix.python == '3.12' && github.event_name == 'push' && github.ref_name == 'main' }}
         working-directory: viur/tests/
         run: |
           # generate coverage
@@ -57,7 +57,7 @@ jobs:
 
       - name: Deploy Coverage
         uses: peaceiris/actions-gh-pages@v3
-        if: ${{ matrix.python == '3.11' && github.event_name == 'push' && github.ref_name == 'main' }}
+        if: ${{ matrix.python == '3.12' && github.event_name == 'push' && github.ref_name == 'main' }}
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./viur/tests/htmlcov
