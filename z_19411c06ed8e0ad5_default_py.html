@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_fbba8a17d36e225c___init___py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.5.1">coverage.py v7.5.1</a>,
-            created at 2024-05-21 18:45 +0000
+            created at 2024-05-22 15:02 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -178,7 +178,7 @@
     <p class="pln"><span class="n"><a id="t94" href="#t94">94</a></span><span class="t">            <span class="key">and</span> <span class="op">(</span><span class="nam">style</span> <span class="op">:=</span> <span class="nam">current</span><span class="op">.</span><span class="nam">request</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="op">)</span><span class="op">.</span><span class="nam">template_style</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t95" href="#t95">95</a></span><span class="t">            <span class="key">and</span> <span class="nam">all</span><span class="op">(</span><span class="nam">x</span> <span class="key">in</span> <span class="nam">validChars</span> <span class="key">for</span> <span class="nam">x</span> <span class="key">in</span> <span class="nam">style</span><span class="op">.</span><span class="nam">lower</span><span class="op">(</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t96" href="#t96">96</a></span><span class="t">        <span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t97" href="#t97">97</a></span><span class="t">            <span class="nam">style_postfix</span> <span class="op">=</span> <span class="str">f"_{style}"</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t97" href="#t97">97</a></span><span class="t">            <span class="nam">style_postfix</span> <span class="op">=</span> <span class="fst">f"</span><span class="fst">_</span><span class="op">{</span><span class="nam">style</span><span class="op">}</span><span class="fst">"</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t98" href="#t98">98</a></span><span class="t">        <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t99" href="#t99">99</a></span><span class="t">            <span class="nam">style_postfix</span> <span class="op">=</span> <span class="str">""</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t100" href="#t100">100</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -213,7 +213,7 @@
     <p class="mis show_mis"><span class="n"><a id="t129" href="#t129">129</a></span><span class="t">                <span class="key">if</span> <span class="nam">conf</span><span class="op">.</span><span class="nam">instance</span><span class="op">.</span><span class="nam">core_base_path</span><span class="op">.</span><span class="nam">joinpath</span><span class="op">(</span><span class="str">"viur"</span><span class="op">,</span> <span class="str">"core"</span><span class="op">,</span> <span class="str">"template"</span><span class="op">,</span> <span class="nam">filename</span><span class="op">)</span><span class="op">.</span><span class="nam">is_file</span><span class="op">(</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t130" href="#t130">130</a></span><span class="t">                    <span class="key">return</span> <span class="nam">filename</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t131" href="#t131">131</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t132" href="#t132">132</a></span><span class="t">        <span class="nam">msg</span> <span class="op">=</span> <span class="str">f"""Template {" or ".join((repr(tpl) for tpl in template))} not found."""</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t132" href="#t132">132</a></span><span class="t">        <span class="nam">msg</span> <span class="op">=</span> <span class="fst">f"""</span><span class="fst">Template </span><span class="op">{</span><span class="str">" or "</span><span class="op">.</span><span class="nam">join</span><span class="op">(</span><span class="op">(</span><span class="nam">repr</span><span class="op">(</span><span class="nam">tpl</span><span class="op">)</span> <span class="key">for</span> <span class="nam">tpl</span> <span class="key">in</span> <span class="nam">template</span><span class="op">)</span><span class="op">)</span><span class="op">}</span><span class="fst"> not found.</span><span class="fst">"""</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t133" href="#t133">133</a></span><span class="t">        <span class="key">if</span> <span class="nam">raise_exception</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t134" href="#t134">134</a></span><span class="t">            <span class="key">raise</span> <span class="nam">errors</span><span class="op">.</span><span class="nam">NotFound</span><span class="op">(</span><span class="nam">msg</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t135" href="#t135">135</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -619,7 +619,7 @@
             <a class="nav" href="z_fbba8a17d36e225c___init___py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.5.1">coverage.py v7.5.1</a>,
-            created at 2024-05-21 18:45 +0000
+            created at 2024-05-22 15:02 +0000
         </p>
     </div>
 </footer>

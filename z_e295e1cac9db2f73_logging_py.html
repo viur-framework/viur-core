@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for /home/runner/work/viur-core/viur-core/viur/src/viur/core/logging.py: 45%</title>
+    <title>Coverage for /home/runner/work/viur-core/viur-core/viur/src/viur/core/logging.py: 43%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_58284776.png">
     <link rel="stylesheet" href="style_cb_8e611ae1.css" type="text/css">
     <script src="coverage_html_cb_da166b87.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>/home/runner/work/viur-core/viur-core/viur/src/viur/core/logging.py</b>:
-            <span class="pc_cov">45%</span>
+            <span class="pc_cov">43%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_e295e1cac9db2f73_module_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.5.1">coverage.py v7.5.1</a>,
-            created at 2024-05-21 18:45 +0000
+            created at 2024-05-22 15:02 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -175,9 +175,9 @@
     <p class="pln"><span class="n"><a id="t91" href="#t91">91</a></span><span class="t"><span class="str">        Retrieving colors for given debug level, either from environment or by default.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t92" href="#t92">92</a></span><span class="t"><span class="str">        """</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t93" href="#t93">93</a></span><span class="t">        <span class="nam">level</span> <span class="op">=</span> <span class="nam">level</span><span class="op">.</span><span class="nam">upper</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t94" href="#t94">94</a></span><span class="t">        <span class="nam">color</span> <span class="op">=</span> <span class="nam">os</span><span class="op">.</span><span class="nam">getenv</span><span class="op">(</span><span class="str">f"VIUR_LOGGING_COLOR_{level}"</span><span class="op">)</span> <span class="key">or</span> <span class="nam">ViURLocalFormatter</span><span class="op">.</span><span class="nam">DEFAULTS</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="nam">level</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t94" href="#t94">94</a></span><span class="t">        <span class="nam">color</span> <span class="op">=</span> <span class="nam">os</span><span class="op">.</span><span class="nam">getenv</span><span class="op">(</span><span class="fst">f"</span><span class="fst">VIUR_LOGGING_COLOR_</span><span class="op">{</span><span class="nam">level</span><span class="op">}</span><span class="fst">"</span><span class="op">)</span> <span class="key">or</span> <span class="nam">ViURLocalFormatter</span><span class="op">.</span><span class="nam">DEFAULTS</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="nam">level</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t95" href="#t95">95</a></span><span class="t">        <span class="nam">color</span> <span class="op">=</span> <span class="nam">ViURLocalFormatter</span><span class="op">.</span><span class="nam">COLORS</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="nam">color</span><span class="op">.</span><span class="nam">upper</span><span class="op">(</span><span class="op">)</span><span class="op">,</span> <span class="num">1</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t96" href="#t96">96</a></span><span class="t">        <span class="key">return</span> <span class="str">f"\033[1;{color + 30}m{text}\033[0m"</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t96" href="#t96">96</a></span><span class="t">        <span class="key">return</span> <span class="fst">f"</span><span class="fst">\033[1;</span><span class="op">{</span><span class="nam">color</span> <span class="op">+</span> <span class="num">30</span><span class="op">}</span><span class="fst">m</span><span class="op">{</span><span class="nam">text</span><span class="op">}</span><span class="fst">\033[0m</span><span class="fst">"</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t97" href="#t97">97</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t98" href="#t98">98</a></span><span class="t">    <span class="key">def</span> <span class="nam">format</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">record</span><span class="op">:</span> <span class="nam">logging</span><span class="op">.</span><span class="nam">LogRecord</span><span class="op">)</span> <span class="op">-></span> <span class="nam">str</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t99" href="#t99">99</a></span><span class="t">        <span class="com"># truncate the pathname</span>&nbsp;</span><span class="r"></span></p>
@@ -197,7 +197,7 @@
     <p class="mis show_mis"><span class="n"><a id="t113" href="#t113">113</a></span><span class="t">        <span class="nam">record</span><span class="op">.</span><span class="nam">pathname</span> <span class="op">=</span> <span class="nam">pathname</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t114" href="#t114">114</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t115" href="#t115">115</a></span><span class="t">        <span class="com"># Select colorization mode</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t116" href="#t116">116</a></span><span class="t">        <span class="key">match</span> <span class="op">(</span><span class="nam">os</span><span class="op">.</span><span class="nam">getenv</span><span class="op">(</span><span class="str">f"VIUR_LOGGING_COLORIZATION"</span><span class="op">)</span> <span class="key">or</span> <span class="str">"FULL"</span><span class="op">)</span><span class="op">.</span><span class="nam">upper</span><span class="op">(</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t116" href="#t116">116</a></span><span class="t">        <span class="key">match</span> <span class="op">(</span><span class="nam">os</span><span class="op">.</span><span class="nam">getenv</span><span class="op">(</span><span class="fst">f"</span><span class="fst">VIUR_LOGGING_COLORIZATION</span><span class="fst">"</span><span class="op">)</span> <span class="key">or</span> <span class="str">"FULL"</span><span class="op">)</span><span class="op">.</span><span class="nam">upper</span><span class="op">(</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t117" href="#t117">117</a></span><span class="t">            <span class="key">case</span> <span class="str">"DECENT"</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t118" href="#t118">118</a></span><span class="t">                <span class="com"># In "decent" mode, just colorize the record level name</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t119" href="#t119">119</a></span><span class="t">                <span class="nam">record</span><span class="op">.</span><span class="nam">levelname</span> <span class="op">=</span> <span class="nam">ViURLocalFormatter</span><span class="op">.</span><span class="nam">colorize</span><span class="op">(</span><span class="nam">record</span><span class="op">.</span><span class="nam">levelname</span><span class="op">,</span> <span class="nam">record</span><span class="op">.</span><span class="nam">levelname</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -254,7 +254,7 @@
     <p class="pln"><span class="n"><a id="t170" href="#t170">170</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t171" href="#t171">171</a></span><span class="t"><span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t172" href="#t172">172</a></span><span class="t">    <span class="com"># Use ViURLocalFormatter for local debug message formatting</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t173" href="#t173">173</a></span><span class="t">    <span class="nam">formatter</span> <span class="op">=</span> <span class="nam">ViURLocalFormatter</span><span class="op">(</span><span class="str">f"[%(asctime)s] %(pathname)s:%(lineno)d [%(levelname)s] %(message)s"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t173" href="#t173">173</a></span><span class="t">    <span class="nam">formatter</span> <span class="op">=</span> <span class="nam">ViURLocalFormatter</span><span class="op">(</span><span class="fst">f"</span><span class="fst">[%(asctime)s] %(pathname)s:%(lineno)d [%(levelname)s] %(message)s</span><span class="fst">"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t174" href="#t174">174</a></span><span class="t">    <span class="nam">sh</span> <span class="op">=</span> <span class="nam">logging</span><span class="op">.</span><span class="nam">StreamHandler</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t175" href="#t175">175</a></span><span class="t">    <span class="nam">sh</span><span class="op">.</span><span class="nam">setFormatter</span><span class="op">(</span><span class="nam">formatter</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t176" href="#t176">176</a></span><span class="t">    <span class="nam">logger</span><span class="op">.</span><span class="nam">addHandler</span><span class="op">(</span><span class="nam">sh</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -267,7 +267,7 @@
             <a class="nav" href="z_e295e1cac9db2f73_module_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.5.1">coverage.py v7.5.1</a>,
-            created at 2024-05-21 18:45 +0000
+            created at 2024-05-22 15:02 +0000
         </p>
     </div>
 </footer>

@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_a0043e8911268dce_user_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.5.1">coverage.py v7.5.1</a>,
-            created at 2024-05-21 18:45 +0000
+            created at 2024-05-22 15:02 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -169,7 +169,7 @@
     <p class="mis show_mis"><span class="n"><a id="t85" href="#t85">85</a></span><span class="t">    <span class="key">def</span> <span class="nam">collect_modules</span><span class="op">(</span><span class="nam">parent</span><span class="op">,</span> <span class="nam">depth</span><span class="op">:</span> <span class="nam">int</span> <span class="op">=</span> <span class="num">0</span><span class="op">)</span> <span class="op">-></span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t86" href="#t86">86</a></span><span class="t">        <span class="str">"""Recursively collects all routable modules for the vi renderer"""</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t87" href="#t87">87</a></span><span class="t">        <span class="key">if</span> <span class="nam">depth</span> <span class="op">></span> <span class="num">10</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t88" href="#t88">88</a></span><span class="t">            <span class="nam">logging</span><span class="op">.</span><span class="nam">warning</span><span class="op">(</span><span class="str">f"Reached maximum recursion limit of {depth} at {parent=}"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t88" href="#t88">88</a></span><span class="t">            <span class="nam">logging</span><span class="op">.</span><span class="nam">warning</span><span class="op">(</span><span class="fst">f"</span><span class="fst">Reached maximum recursion limit of </span><span class="op">{</span><span class="nam">depth</span><span class="op">}</span><span class="fst"> at </span><span class="op">{</span><span class="nam">parent</span><span class="op">=</span><span class="op">}</span><span class="fst">"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t89" href="#t89">89</a></span><span class="t">            <span class="key">return</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t90" href="#t90">90</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t91" href="#t91">91</a></span><span class="t">        <span class="key">for</span> <span class="nam">key</span> <span class="key">in</span> <span class="nam">dir</span><span class="op">(</span><span class="nam">parent</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
@@ -181,7 +181,7 @@
     <p class="pln"><span class="n"><a id="t97" href="#t97">97</a></span><span class="t">                <span class="com"># lead to infinite recursion. We can avoid reaching the</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t98" href="#t98">98</a></span><span class="t">                <span class="com"># maximum recursion limit by remembering already seen modules.</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t99" href="#t99">99</a></span><span class="t">                <span class="key">if</span> <span class="nam">conf</span><span class="op">.</span><span class="nam">debug</span><span class="op">.</span><span class="nam">trace</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t100" href="#t100">100</a></span><span class="t">                    <span class="nam">logging</span><span class="op">.</span><span class="nam">debug</span><span class="op">(</span><span class="str">f"Already visited and added {module=}"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t100" href="#t100">100</a></span><span class="t">                    <span class="nam">logging</span><span class="op">.</span><span class="nam">debug</span><span class="op">(</span><span class="fst">f"</span><span class="fst">Already visited and added </span><span class="op">{</span><span class="nam">module</span><span class="op">=</span><span class="op">}</span><span class="fst">"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t101" href="#t101">101</a></span><span class="t">                <span class="key">continue</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t102" href="#t102">102</a></span><span class="t">            <span class="nam">visited_objects</span><span class="op">.</span><span class="nam">add</span><span class="op">(</span><span class="nam">module</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t103" href="#t103">103</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -249,7 +249,7 @@
     <p class="mis show_mis"><span class="n"><a id="t165" href="#t165">165</a></span><span class="t">        <span class="key">raise</span> <span class="nam">errors</span><span class="op">.</span><span class="nam">Redirect</span><span class="op">(</span><span class="str">"/vi/s/main.html"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t166" href="#t166">166</a></span><span class="t">    <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t167" href="#t167">167</a></span><span class="t">        <span class="nam">appVersion</span> <span class="op">=</span> <span class="nam">current</span><span class="op">.</span><span class="nam">request</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="op">)</span><span class="op">.</span><span class="nam">request</span><span class="op">.</span><span class="nam">host</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t168" href="#t168">168</a></span><span class="t">        <span class="key">raise</span> <span class="nam">errors</span><span class="op">.</span><span class="nam">Redirect</span><span class="op">(</span><span class="str">f"https://{appVersion}/vi/s/main.html"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t168" href="#t168">168</a></span><span class="t">        <span class="key">raise</span> <span class="nam">errors</span><span class="op">.</span><span class="nam">Redirect</span><span class="op">(</span><span class="fst">f"</span><span class="fst">https://</span><span class="op">{</span><span class="nam">appVersion</span><span class="op">}</span><span class="fst">/vi/s/main.html</span><span class="fst">"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t169" href="#t169">169</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t170" href="#t170">170</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t171" href="#t171">171</a></span><span class="t"><span class="op">@</span><span class="nam">exposed</span>&nbsp;</span><span class="r"></span></p>
@@ -287,7 +287,7 @@
             <a class="nav" href="z_a0043e8911268dce_user_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.5.1">coverage.py v7.5.1</a>,
-            created at 2024-05-21 18:45 +0000
+            created at 2024-05-22 15:02 +0000
         </p>
     </div>
 </footer>

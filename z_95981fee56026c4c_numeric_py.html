@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for /home/runner/work/viur-core/viur-core/viur/src/viur/core/bones/numeric.py: 38%</title>
+    <title>Coverage for /home/runner/work/viur-core/viur-core/viur/src/viur/core/bones/numeric.py: 39%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_58284776.png">
     <link rel="stylesheet" href="style_cb_8e611ae1.css" type="text/css">
     <script src="coverage_html_cb_da166b87.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>/home/runner/work/viur-core/viur-core/viur/src/viur/core/bones/numeric.py</b>:
-            <span class="pc_cov">38%</span>
+            <span class="pc_cov">39%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_95981fee56026c4c_password_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.5.1">coverage.py v7.5.1</a>,
-            created at 2024-05-21 18:45 +0000
+            created at 2024-05-22 15:02 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -158,7 +158,7 @@
     <p class="pln"><span class="n"><a id="t74" href="#t74">74</a></span><span class="t"><span class="str">        """</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t75" href="#t75">75</a></span><span class="t">        <span class="key">if</span> <span class="nam">key</span> <span class="key">in</span> <span class="op">(</span><span class="str">"min"</span><span class="op">,</span> <span class="str">"max"</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="par run show_par"><span class="n"><a id="t76" href="#t76">76</a></span><span class="t">            <span class="key">if</span> <span class="nam">value</span> <span class="op">&lt;</span> <span class="nam">MIN</span> <span class="key">or</span> <span class="nam">value</span> <span class="op">></span> <span class="nam">MAX</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">76&#x202F;&#x219B;&#x202F;77</span><span class="annotate long">line 76 didn't jump to line 77, because the condition on line 76 was never true</span></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t77" href="#t77">77</a></span><span class="t">                <span class="key">raise</span> <span class="nam">ValueError</span><span class="op">(</span><span class="str">f"{key} can only be set to something between {MIN} and {MAX}"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t77" href="#t77">77</a></span><span class="t">                <span class="key">raise</span> <span class="nam">ValueError</span><span class="op">(</span><span class="fst">f"</span><span class="op">{</span><span class="nam">key</span><span class="op">}</span><span class="fst"> can only be set to something between </span><span class="op">{</span><span class="nam">MIN</span><span class="op">}</span><span class="fst"> and </span><span class="op">{</span><span class="nam">MAX</span><span class="op">}</span><span class="fst">"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t78" href="#t78">78</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t79" href="#t79">79</a></span><span class="t">        <span class="key">return</span> <span class="nam">super</span><span class="op">(</span><span class="op">)</span><span class="op">.</span><span class="nam">__setattr__</span><span class="op">(</span><span class="nam">key</span><span class="op">,</span> <span class="nam">value</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t80" href="#t80">80</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -243,7 +243,7 @@
     <p class="mis show_mis"><span class="n"><a id="t159" href="#t159">159</a></span><span class="t">                        <span class="nam">paramValue</span> <span class="op">=</span> <span class="nam">float</span><span class="op">(</span><span class="nam">paramValue</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t160" href="#t160">160</a></span><span class="t">                <span class="key">except</span> <span class="nam">ValueError</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t161" href="#t161">161</a></span><span class="t">                    <span class="com"># The value we should filter by is garbage, cancel this query</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t162" href="#t162">162</a></span><span class="t">                    <span class="nam">logging</span><span class="op">.</span><span class="nam">warning</span><span class="op">(</span><span class="str">f"Invalid filtering! Unparsable int/float supplied to NumericBone {name}"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t162" href="#t162">162</a></span><span class="t">                    <span class="nam">logging</span><span class="op">.</span><span class="nam">warning</span><span class="op">(</span><span class="fst">f"</span><span class="fst">Invalid filtering! Unparsable int/float supplied to NumericBone </span><span class="op">{</span><span class="nam">name</span><span class="op">}</span><span class="fst">"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t163" href="#t163">163</a></span><span class="t">                    <span class="key">raise</span> <span class="nam">RuntimeError</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t164" href="#t164">164</a></span><span class="t">                <span class="nam">updatedFilter</span><span class="op">[</span><span class="nam">parmKey</span><span class="op">]</span> <span class="op">=</span> <span class="nam">paramValue</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t165" href="#t165">165</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -332,7 +332,7 @@
             <a class="nav" href="z_95981fee56026c4c_password_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.5.1">coverage.py v7.5.1</a>,
-            created at 2024-05-21 18:45 +0000
+            created at 2024-05-22 15:02 +0000
         </p>
     </div>
 </footer>
