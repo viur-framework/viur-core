@@ -5,23 +5,22 @@
     Additionally, this module defines the RequestValidator interface which provides a very early hook into the
     request processing (useful for global ratelimiting, DDoS prevention or access control).
 """
-
+import fnmatch
 import json
 import logging
 import os
 import time
 import traceback
 import typing as t
-import inspect
 import unicodedata
 import webob
 from abc import ABC, abstractmethod
 from urllib import parse
 from urllib.parse import unquote, urljoin, urlparse
 from viur.core import current, db, errors, session, utils
-from viur.core.module import Method
 from viur.core.config import conf
 from viur.core.logging import client as loggingClient, requestLogger, requestLoggingRessource
+from viur.core.module import Method
 from viur.core.securityheaders import extendCsp
 from viur.core.tasks import _appengineServiceIPs
 
@@ -33,7 +32,8 @@ class RequestValidator(ABC):
         RequestValidators can be used to validate a request very early on. If the validate method returns a tuple,
         the request is aborted. Can be used to block requests from bots.
 
-        To register a new validator, append it to :attr: viur.core.request.BrowseHandler.requestValidators
+        To register or remove a validator, access it in main.py through
+        :attr: viur.core.request.Router.requestValidators
     """
     # Internal name to trace which validator aborted the request
     name = "RequestValidator"
@@ -111,6 +111,7 @@ class Router:
         self._traceID = \
             self.request.headers.get("X-Cloud-Trace-Context", "").split("/")[0] or utils.string.random()
         self.is_deferred = False
+        self.path = ""
         self.path_list = ()
 
         self.skey_checked = False  # indicates whether @skey-decorator-check has already performed within a request
@@ -292,6 +293,13 @@ class Router:
                 current.user.set(user_mod.getCurrentUser())
 
             path = self._select_language(path)[1:]
+
+            # Check for closed system
+            if conf.security.closed_system:
+                if not current.user.get():
+                    if not any(fnmatch.fnmatch(path, pat) for pat in conf.security.closed_system_allowed_paths):
+                        raise errors.Unauthorized()
+
             if conf.request_preprocessor:
                 path = conf.request_preprocessor(path)
 
@@ -431,6 +439,7 @@ class Router:
 
         # Parse the URL
         if path := parse.urlparse(path).path:
+            self.path = path
             self.path_list = tuple(unicodedata.normalize("NFC", parse.unquote(part))
                                    for part in path.strip("/").split("/"))
 
@@ -441,6 +450,10 @@ class Router:
                 f" of {conf.max_post_params_count} allowed arguments per request"
             )
 
+        param_filter = conf.param_filter_function
+        if param_filter and not callable(param_filter):
+            raise ValueError(f"""{param_filter=} is not callable""")
+
         for key, value in self.request.params.items():
             try:
                 key = unicodedata.normalize("NFC", key)
@@ -450,7 +463,7 @@ class Router:
                 # someone tries to exploit unicode normalisation bugs)
                 raise errors.BadRequest()
 
-            if key.startswith("_"):  # Ignore keys starting with _ (like VI's _unused_time_stamp)
+            if param_filter and param_filter(key, value):
                 continue
 
             if key == TEMPLATE_STYLE_KEY:
@@ -480,11 +493,9 @@ class Router:
                 raise errors.Unauthorized()
 
             idx += 1
-            part = part.replace("-", "_")
+
             if part not in caller:
                 part = "index"
-
-            # print(part, caller.get(part))
 
             if caller := caller.get(part):
                 if isinstance(caller, Method):

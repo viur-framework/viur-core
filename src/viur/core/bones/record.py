@@ -1,11 +1,5 @@
-
+import json
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-
-try:
-    import extjson
-except ImportError:
-    # FIXME: That json will not read datetime objects
-    import json as extjson
 
 
 class RecordBone(BaseBone):
@@ -53,16 +47,20 @@ class RecordBone(BaseBone):
         """
         if isinstance(val, str):
             try:
-                value = extjson.loads(val)
-            except:
+                value = json.loads(val)
+            except ValueError:
                 value = None
         else:
             value = val
+
         if not value:
             return None
-        elif isinstance(value, list) and value:
+
+        if isinstance(value, list) and value:
             value = value[0]
+
         assert isinstance(value, dict), f"Read something from the datastore thats not a dict: {type(value)}"
+
         usingSkel = self.using()
         usingSkel.unserialize(value)
         return usingSkel

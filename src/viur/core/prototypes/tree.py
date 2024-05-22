@@ -6,7 +6,7 @@ from viur.core.bones import KeyBone, SortIndexBone
 from viur.core.cache import flushCache
 from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.tasks import CallDeferred
-from .skelmodule import SkelModule
+from .skelmodule import SkelModule, DEFAULT_ORDER_TYPE
 
 
 SkelType = t.Literal["node", "leaf"]
@@ -46,6 +46,14 @@ class Tree(SkelModule):
 
     nodeSkelCls = None
     leafSkelCls = None
+
+    default_order: DEFAULT_ORDER_TYPE = "sortindex"
+    """
+    Allows to specify a default order for this module, which is applied when no other order is specified.
+
+    Setting a default_order might result in the requirement of additional indexes, which are being raised
+    and must be specified.
+    """
 
     def __init__(self, moduleName, modulePath, *args, **kwargs):
         assert self.nodeSkelCls, f"Need to specify at least nodeSkelCls for {self.__class__.__name__!r}"
@@ -281,13 +289,37 @@ class Tree(SkelModule):
         :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
         if not (skelType := self._checkSkelType(skelType)):
-            raise errors.NotAcceptable(f"Invalid skelType provided.")
-        skel = self.viewSkel(skelType)
-        query = self.listFilter(skel.all().mergeExternalFilter(kwargs))  # Access control
-        if query is None:
-            raise errors.Unauthorized()
-        res = query.fetch()
-        return self.render.list(res)
+            raise errors.NotAcceptable("Invalid skelType provided.")
+
+        # The general access control is made via self.listFilter()
+        query = self.listFilter(self.viewSkel(skelType).all().mergeExternalFilter(kwargs))
+        if query and query.queries:
+            # Apply default order when specified
+            if self.default_order and not query.queries.orders and not current.request.get().kwargs.get("search"):
+                # TODO: refactor: Duplicate code in prototypes.List
+                if callable(default_order := self.default_order):
+                    default_order = default_order(query)
+
+                if default_order:
+                    logging.debug(f"Applying {default_order=}")
+
+                    # FIXME: This ugly test can be removed when there is type that abstracts SortOrders
+                    if (
+                        isinstance(default_order, str)
+                        or (
+                            isinstance(default_order, tuple)
+                            and len(default_order) == 2
+                            and isinstance(default_order[0], str)
+                            and isinstance(default_order[1], db.SortOrder)
+                        )
+                    ):
+                        query.order(default_order)
+                    else:
+                        query.order(*default_order)
+
+            return self.render.list(query.fetch())
+
+        raise errors.Unauthorized()
 
     @exposed
     def structure(self, skelType: SkelType, *args, **kwargs) -> t.Any:
@@ -378,8 +410,8 @@ class Tree(SkelModule):
 
         if (
             not kwargs  # no data supplied
+            or not current.request.get().isPostRequest  # failure if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or not current.request.get().isPostRequest
             or utils.parse.bool(kwargs.get("bounce"))  # review before adding
         ):
             return self.render.add(skel)
@@ -424,8 +456,8 @@ class Tree(SkelModule):
 
         if (
             not kwargs  # no data supplied
-            or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or not current.request.get().isPostRequest
+            or not current.request.get().isPostRequest  # failure if not using POST-method
+            or not skel.fromClient(kwargs, amend=True)  # failure on reading into the bones
             or utils.parse.bool(kwargs.get("bounce"))  # review before adding
         ):
             return self.render.edit(skel)
@@ -985,7 +1017,7 @@ class Tree(SkelModule):
         logging.info(f"""Entry cloned: {skel["key"]!r} ({skelType!r})""")
         flushCache(kind=skel.kindName)
 
-        if user := utils.getCurrentUser():
+        if user := current.user.get():
             logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
         # Clone entire structure below, in case this is a node.

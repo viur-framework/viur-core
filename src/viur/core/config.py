@@ -398,6 +398,34 @@ class Security(ConfigType):
     password_recovery_key_length: int = 42
     """Length of the Password recovery key"""
 
+    closed_system: bool = False
+    """If `True` it activates a mode in which only authenticated users can access all routes."""
+
+    admin_allowed_paths: t.Iterable[str] = [
+        "vi",
+        "vi/skey",
+        "vi/settings",
+        "vi/user/auth_*",
+        "vi/user/f2_*",
+        "vi/user/getAuthMethods",  # FIXME: deprecated, use `login` for this
+        "vi/user/login",
+    ]
+    """Specifies admin tool paths which are being accessible without authenticated user."""
+
+    closed_system_allowed_paths: t.Iterable[str] = admin_allowed_paths + [
+        "",  # index site
+        "json/skey",
+        "json/user/auth_*",
+        "json/user/f2_*",
+        "json/user/getAuthMethods",  # FIXME: deprecated, use `login` for this
+        "json/user/login",
+        "user/auth_*",
+        "user/f2_*",
+        "user/getAuthMethods",  # FIXME: deprecated, use `login` for this
+        "user/login",
+    ]
+    """Paths that are accessible without authentication in a closed system, see `closed_system` for details."""
+
     _mapping = {
         "contentSecurityPolicy": "content_security_policy",
         "referrerPolicy": "referrer_policy",
@@ -619,6 +647,8 @@ class Conf(ConfigType):
         "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
         "json.bone.structure.keytuples",  # use classic structure notation: `"structure = [["key", {...}] ...]` (#649)
         "json.bone.structure.inlists",  # dump skeleton structure with every JSON list response (#774 for details)
+        "tasks.periodic.useminutes",  # Interpret int/float values for @PeriodicTask as minutes
+        #                               instead of seconds (#1133 for details)
     ]
     """Backward compatibility flags; Remove to enforce new layout."""
 
@@ -652,6 +682,12 @@ class Conf(ConfigType):
 
     max_post_params_count: int = 250
     """Upper limit of the amount of parameters we accept per request. Prevents Hash-Collision-Attacks"""
+
+    param_filter_function: t.Callable[[str, str], bool] = lambda _, key, value: key.startswith("_")
+    """
+    Function which decides if a request parameter should be used or filtered out.
+    Returning True means to filter out.
+    """
 
     moduleconf_admin_info: dict[str, t.Any] = {
         "icon": "gear-fill",
