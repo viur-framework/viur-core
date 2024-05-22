@@ -195,7 +195,6 @@ class Session(db.Entity):
         If key is in the session, remove it and return its value, else return default.
         If default is not given and key is not in the session, a KeyError is raised.
         """
-        print(f"{_SENTINEL=}")
         if key in self or default is _SENTINEL:
             value = super().pop(key)
             self.changed = True
