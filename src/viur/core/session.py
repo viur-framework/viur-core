@@ -23,6 +23,8 @@ import typing as t
     It returns None instead of raising an Exception if the key is not found.
 """
 
+_SENTINEL: t.Final[object] = object()
+
 
 class Session(db.Entity):
     """
@@ -186,23 +188,21 @@ class Session(db.Entity):
         """
         self |= other
 
-    def pop(self, key: str, *args, **kwargs) -> t.Any:
+    def pop(self, key: str, default=_SENTINEL) -> t.Any:
         """
-        Deletes a specified key from the session.
+        Delete a specified key from the session.
 
-        Use 'default=YourValue' as a parameter to make sure,
-        that a default Value such as 'None' is returned and u dont run into Keyerrors.
+        If key is in the session, remove it and return its value, else return default.
+        If default is not given and key is not in the session, a KeyError is raised.
         """
-        default = kwargs.get("default", None)
+        print(f"{_SENTINEL=}")
+        if key in self or default is _SENTINEL:
+            value = super().pop(key)
+            self.changed = True
 
-        if default is None:
-            ret = super().pop(key)
-        else:
-            ret = super().pop(key, default)
+            return value
 
-        self.changed = True
-
-        return ret
+        return default
 
 
 @tasks.CallDeferred
