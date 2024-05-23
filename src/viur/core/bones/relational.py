@@ -934,7 +934,7 @@ class RelationalBone(BaseBone):
                 path = f"{name}.{_type}.{param}"
 
             order = utils.parse.sortorder(params.get("orderdir"))
-            query = query.order(path, order)
+            query = query.order((path, order))
 
             if self.multiple:
                 query.setFilterHook(lambda s, query, value: self.filterHook(name, s, query, value))
