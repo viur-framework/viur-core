@@ -300,7 +300,11 @@ class Tree(SkelModule):
                 if callable(default_order := self.default_order):
                     default_order = default_order(query)
 
-                if default_order:
+                if isinstance(default_order, dict):
+                    logging.debug(f"Applying filter {default_order=}")
+                    query.mergeExternalFilter(default_order)
+
+                elif default_order:
                     logging.debug(f"Applying {default_order=}")
 
                     # FIXME: This ugly test can be removed when there is type that abstracts SortOrders
