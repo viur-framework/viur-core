@@ -1,6 +1,5 @@
 import typing as t
-
-from viur.core import db
+from viur.core import db, logging
 from viur.core.bones.base import BaseBone, Compute, ComputeInterval, ComputeMethod, UniqueValue, UniqueLockMethod
 
 
@@ -16,11 +15,15 @@ def generate_uid(skel, bone):
                     db_obj["count"] = 0
                     db.Put(db_obj)
                 break
-            except:  # recall the function
+            except db.CollisionError:  # recall the function
                 import time
                 time.sleep(i + 1)
+            except Exception as e:
+                msg = f"Can't set the Uid. {e=}"
+                logging.error(msg)
+                raise Exception(msg)
         else:
-            raise ValueError("Can't not set the Uid")
+            raise ValueError("Can't set the Uid")
         return db_obj["count"]
 
     db_key = db.Key("viur-uids", f"{skel.kindName}-{bone.name}-uid")
