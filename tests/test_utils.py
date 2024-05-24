@@ -57,7 +57,7 @@ class TestUtils(unittest.TestCase):
         # check if string is as expected
         self.assertEqual(
             s,
-            """{"datetime": {".__datetime__": "2024-02-28T14:43:17.125207+00:00"}, "false": false, "float": 42.5, "generator": ["H", "e", "l", "l", "obj"], "int": 1337, "list": [1, 2, 3], "none": null, "set": {".__set__": [1, 2, 3]}, "str": "World", "timedelta": {".__timedelta__": 780000037.0}, "true": true, "tuple": [1, 2, 3]}""",  # noqa
+            """{"datetime": {".__datetime__": "2024-02-28T14:43:17.125207+00:00"}, "false": false, "float": 42.5, "generator": ["H", "e", "l", "l", "o"], "int": 1337, "list": [1, 2, 3], "none": null, "set": {".__set__": [1, 2, 3]}, "str": "World", "timedelta": {".__timedelta__": 780000037.0}, "true": true, "tuple": [1, 2, 3]}""",  # noqa
         )
 
         # deserialize string into object again
@@ -67,7 +67,7 @@ class TestUtils(unittest.TestCase):
         example["tuple"] = list(example["tuple"])
         example["generator"] = [x for x in "Hello"]
 
-        # self.assertEqual(example, obj)
+        # self.assertEqual(example, o)
         for k, v in example.items():
             self.assertEqual(o[k], v)
 
