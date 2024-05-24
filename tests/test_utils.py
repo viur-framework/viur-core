@@ -78,4 +78,4 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(td(seconds=60), utils.parse.timedelta(60.0))
         self.assertEqual(td(seconds=60), utils.parse.timedelta("60"))
         self.assertEqual(td(seconds=60), utils.parse.timedelta("60.0"))
-        self.assertNotEquals(td(seconds=0), utils.parse.timedelta(60.0))
+        self.assertNotEqual(td(seconds=0), utils.parse.timedelta(60.0))

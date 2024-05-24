@@ -647,6 +647,8 @@ class Conf(ConfigType):
         "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
         "json.bone.structure.keytuples",  # use classic structure notation: `"structure = [["key", {...}] ...]` (#649)
         "json.bone.structure.inlists",  # dump skeleton structure with every JSON list response (#774 for details)
+        "tasks.periodic.useminutes",  # Interpret int/float values for @PeriodicTask as minutes
+        #                               instead of seconds (#1133 for details)
     ]
     """Backward compatibility flags; Remove to enforce new layout."""
 
@@ -680,6 +682,12 @@ class Conf(ConfigType):
 
     max_post_params_count: int = 250
     """Upper limit of the amount of parameters we accept per request. Prevents Hash-Collision-Attacks"""
+
+    param_filter_function: t.Callable[[str, str], bool] = lambda _, key, value: key.startswith("_")
+    """
+    Function which decides if a request parameter should be used or filtered out.
+    Returning True means to filter out.
+    """
 
     moduleconf_admin_info: dict[str, t.Any] = {
         "icon": "gear-fill",

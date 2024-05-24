@@ -1,3 +1,4 @@
+import datetime
 import hmac
 import logging
 import time
@@ -207,6 +208,12 @@ class Session:
         """
         return self.session.items()
 
+    def setdefault(self, key: str, value: t.Any) -> t.Any:
+        """
+            Set a default value in the current session
+        """
+        return self.session.setdefault(key, value)
+
 
 @tasks.CallDeferred
 def killSessionByUser(user: t.Optional[t.Union[str, "db.Key", None]] = None):
@@ -227,7 +234,7 @@ def killSessionByUser(user: t.Optional[t.Union[str, "db.Key", None]] = None):
         db.Delete(obj.key)
 
 
-@tasks.PeriodicTask(60 * 4)
+@tasks.PeriodicTask(interval=datetime.timedelta(hours=4))
 def start_clear_sessions():
     """
         Removes old (expired) Sessions

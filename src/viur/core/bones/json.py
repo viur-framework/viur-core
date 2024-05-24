@@ -24,17 +24,21 @@ class JsonBone(RawBone):
 
     def __init__(
         self,
+        *,
         indexed: bool = False,
         multiple: bool = False,
         languages: bool = None,
         schema: t.Mapping = {},
-        *args, **kwargs
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        # JsonBone is bound to certain limits
         assert not multiple
         assert not languages
         assert not indexed
-        # Validate the schema, if it's invalid a SchemaError will be raised
+
+        super().__init__(indexed=indexed, multiple=multiple, languages=languages, **kwargs)
+
+        # Validate the schema; if it's invalid a SchemaError will be raised
         jsonschema.validators.validator_for(False).check_schema(schema)
         self.schema = schema
 
@@ -43,7 +47,6 @@ class JsonBone(RawBone):
 
     def singleValueUnserialize(self, val):
         return utils.json.loads(val)
-
 
     def singleValueFromClient(self, value: str | list | dict, skel, bone_name, client_data):
         if value:

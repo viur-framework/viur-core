@@ -171,6 +171,10 @@ class UserSkel(skeleton.Skeleton):
                             if right in module.accessRights:
                                 access.add(f"{name}-{right}")
 
+                                # special case: "edit" and "delete" actions require "view" as well!
+                                if right in ("edit", "delete") and "view" in module.accessRights:
+                                    access.add(f"{name}-view")
+
             skel["access"] = list(access)
 
         return super().toDB(skel, *args, **kwargs)
@@ -262,6 +266,7 @@ class UserPassword(UserPrimaryAuthentication):
         )
         password = PasswordBone(
             required=True,
+            test_threshold=0,
         )
 
     class LostPasswordStep1Skel(skeleton.RelSkel):
@@ -310,7 +315,7 @@ class UserPassword(UserPrimaryAuthentication):
             return self._user_module.render.loginSucceeded()
 
         if not name or not password:
-            return self._user_module.render.login(self.LoginSkel())
+            return self._user_module.render.login(self.LoginSkel(), action="login")
 
         self.loginRateLimit.assertQuotaIsAvailable()
 
@@ -325,7 +330,7 @@ class UserPassword(UserPrimaryAuthentication):
         password_hash = encode_password(password, password_data.get("salt", "-invalid-"), iterations)["pwhash"]
 
         # now check if the username matches
-        is_okay = secrets.compare_digest((user_skel["name"] or "").lower().strip(), name)
+        is_okay = secrets.compare_digest((user_skel["name"] or "").lower().strip().encode(), name.encode())
 
         # next, check if the password hash matches
         is_okay &= secrets.compare_digest(password_data.get("pwhash", b"-invalid-"), password_hash)
@@ -338,6 +343,7 @@ class UserPassword(UserPrimaryAuthentication):
             skel = self.LoginSkel()
             return self._user_module.render.login(
                 skel,
+                action="login",
                 loginFailed=True,  # FIXME: Is this still being used?
                 accountStatus=user_skel["status"]  # FIXME: Is this still being used?
             )
@@ -780,8 +786,16 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         """
         session = current.session.get()
 
-        user_key = db.Key(self._user_module.kindName, session["possible_user_key"])
-        if not (otp_user_conf := self.get_config(db.Get(user_key))):
+        if not (user_key := session.get("possible_user_key")):
+            raise errors.PreconditionFailed(
+                "Second factor can only be triggered after successful primary authentication."
+            )
+
+        user_skel = self._user_module.baseSkel()
+        if not user_skel.fromDB(user_key):
+            raise errors.NotFound("The previously authenticated user is gone.")
+
+        if not (otp_user_conf := self.get_config(user_skel)):
             raise errors.PreconditionFailed("This second factor is not available for the user")
 
         otp_user_conf = {
@@ -929,6 +943,8 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             :return:
         """
 
+        # FIXME: The callback in viur-core must be improved, to accept user_skel
+
         def transaction(user_key, idx):
             user = db.Get(user_key)
             if not isinstance(user.get("otp_timedrift"), float):
@@ -999,7 +1015,6 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         We can only handle the second factor if we have stored an otp_app_secret before.
         """
         return bool(skel.dbEntity.get("otp_app_secret", ""))
-
 
     @classmethod
     def patch_user_skel(cls, skel_cls):
@@ -1122,22 +1137,45 @@ class User(List):
     verifyEmailAddressMail = "user_verify_address"
     passwordRecoveryMail = "user_password_recovery"
 
-    authenticationProviders: list[UserAuthentication] = [
-        UserPassword,
-        GoogleAccount
-    ]
+    authenticationProviders: t.Iterable[UserPrimaryAuthentication] = tuple(filter(
+        None, (
+            UserPassword,
+            conf.user.google_client_id and GoogleAccount,
+        )
+    ))
+    """
+    Specifies primary authentication providers that are made available
+    as sub-modules under `user/auth_<classname>`. They might require
+    customization or configuration.
+    """
 
-    secondFactorProviders: list[UserSecondFactorAuthentication] = [
+    secondFactorProviders: t.Iterable[UserSecondFactorAuthentication] = (
         TimeBasedOTP,
-        AuthenticatorOTP
-    ]
+        AuthenticatorOTP,
+    )
+    """
+    Specifies secondary authentication providers that are made available
+    as sub-modules under `user/f2_<classname>`. They might require
+    customization or configuration, which is determined during the
+    login-process depending on the user that wants to login.
+    """
 
-    validAuthenticationMethods = [
-        (UserPassword, AuthenticatorOTP),
-        (UserPassword, TimeBasedOTP),
-        (UserPassword, None),
-        (GoogleAccount, None),
-    ]
+    validAuthenticationMethods = tuple(filter(
+        None, (
+            (UserPassword, AuthenticatorOTP),
+            (UserPassword, TimeBasedOTP),
+            (UserPassword, None),
+            (GoogleAccount, None) if conf.user.google_client_id else None,
+        )
+    ))
+    """
+    Specifies the possible combinations of primary- and secondary factor
+    login methos.
+
+    GoogleLogin defaults to no second factor, as the Google Account can be
+    secured by a secondary factor. AuthenticatorOTP and TimeBasedOTP are only
+    handled when there is a user-dependent configuration available.
+    """
 
     msg_missing_second_factor = "Second factor required but not configured for this user."
 
@@ -1472,9 +1510,10 @@ class User(List):
     @exposed
     def getAuthMethods(self, *args, **kwargs):
         """Inform tools like Viur-Admin which authentication to use"""
-        # FIXME: This is the same code as in index()...
+        # FIXME: This is almost the same code as in index()...
         # FIXME: VIUR4: The entire function should be removed!
-        logging.warning("DEPRECATED!!! Use of 'User.getAuthMethods' is deprecated! Use 'User.login'-method instead!")
+        # TODO: Align result with index(), so that primary and secondary login is presented.
+        # logging.warning("DEPRECATED!!! Use of 'User.getAuthMethods' is deprecated! Use 'User.login'-method instead!")
 
         res = [
             (primary.METHOD_NAME, secondary.METHOD_NAME if secondary else None)
@@ -1526,15 +1565,19 @@ def createNewUserIfNotExists():
     """
         Create a new Admin user, if the userDB is empty
     """
-    userMod = getattr(conf.main_app.vi, "user", None)
-    if (userMod  # We have a user module
-        and isinstance(userMod, User)
-        and "addSkel" in dir(userMod)
-        and "validAuthenticationMethods" in dir(userMod)  # Its our user module :)
-        and any([issubclass(x[0], UserPassword) for x in
-                 userMod.validAuthenticationMethods])):  # It uses UserPassword login
-        if not db.Query(userMod.addSkel().kindName).getEntry():  # There's currently no user in the database
-            addSkel = skeleton.skeletonByKind(userMod.addSkel().kindName)()  # Ensure we have the full skeleton
+    if (
+        (user_module := getattr(conf.main_app.vi, "user", None))
+        and isinstance(user_module, User)
+        and "addSkel" in dir(user_module)
+        and "validAuthenticationMethods" in dir(user_module)
+        # UserPassword must be one of the primary login methods
+        and any(
+            issubclass(provider[0], UserPassword)
+            for provider in user_module.validAuthenticationMethods
+        )
+    ):
+        if not db.Query(user_module.addSkel().kindName).getEntry():  # There's currently no user in the database
+            addSkel = skeleton.skeletonByKind(user_module.addSkel().kindName)()  # Ensure we have the full skeleton
             uname = f"""admin@{conf.instance.project_id}.appspot.com"""
             pw = utils.string.random(13)
             addSkel["name"] = uname

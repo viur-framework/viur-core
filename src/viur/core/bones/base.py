@@ -16,6 +16,9 @@ import typing as t
 from viur.core import db, utils
 from viur.core.config import conf
 
+if t.TYPE_CHECKING:
+    from ..skeleton import Skeleton
+
 __system_initialized = False
 """
 Initializes the global variable __system_initialized
@@ -187,6 +190,12 @@ class BaseBone(object):
     type = "hidden"
     isClonedInstance = False
 
+    skel_cls = None
+    """Skeleton class to which this bone instance belongs"""
+
+    name = None
+    """Name of this bone (attribute name in the skeletons containing this bone)"""
+
     def __init__(
         self,
         *,
@@ -228,6 +237,8 @@ class BaseBone(object):
              and all([isinstance(x, str) for x in languages]))
         ):
             raise ValueError("languages must be None or a list of strings")
+        if languages and "__default__" in languages:
+            raise ValueError("__default__ is not supported as a language")
         if (
             not isinstance(required, bool)
             and (not isinstance(required, (tuple, list)) or any(not isinstance(value, str) for value in required))
@@ -244,8 +255,15 @@ class BaseBone(object):
         # Default value
         # Convert a None default-value to the empty container that's expected if the bone is
         # multiple or has languages
-        if defaultValue is None and self.languages:
-            self.defaultValue = {}
+        if self.languages:
+            if not isinstance(defaultValue, dict):
+                self.defaultValue = {lang: defaultValue for lang in self.languages}
+            elif "__default__" in defaultValue:
+                self.defaultValue = {lang: defaultValue.get(lang, defaultValue["__default__"])
+                                     for lang in self.languages}
+            else:
+                self.defaultValue = defaultValue
+
         elif defaultValue is None and self.multiple:
             self.defaultValue = []
         else:
@@ -288,8 +306,15 @@ class BaseBone(object):
                 raise ValueError(
                     f"'compute' is configured as ComputeMethod.Lifetime, but {compute.interval.lifetime=} was specified"
                 )
+            # If a RelationalBone is computed and raw is False, the unserialize function is called recursively
+            # and the value is recalculated all the time. This parameter is to prevent this.
+            self._prevent_compute = False
 
         self.compute = compute
+
+    def __set_name__(self, owner: "Skeleton", name: str) -> None:
+        self.skel_cls = owner
+        self.name = name
 
     def setSystemInitialized(self):
         """
@@ -728,7 +753,7 @@ class BaseBone(object):
         # Is this value computed?
         # In this case, check for configured compute method and if recomputation is required.
         # Otherwise, the value from the DB is used as is.
-        if self.compute:
+        if self.compute and not self._prevent_compute:
             match self.compute.interval.method:
                 # Computation is bound to a lifetime?
                 case ComputeMethod.Lifetime:
@@ -1229,10 +1254,10 @@ class BaseBone(object):
                     for lang in self.languages
                 }
             return unserialize_raw_value(ret)
-
+        self._prevent_compute = True
         if errors := self.fromClient(skel, bone_name, {bone_name: ret}):
             raise ValueError(f"Computed value fromClient failed with {errors!r}")
-
+        self._prevent_compute = False
         return skel[bone_name]
 
     def structure(self) -> dict:

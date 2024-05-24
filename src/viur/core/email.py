@@ -1,4 +1,5 @@
 import base64
+import datetime
 import json
 import logging
 import os
@@ -13,6 +14,13 @@ if t.TYPE_CHECKING:
 from viur.core import db, utils
 from viur.core.config import conf
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
+
+mailjet_dependencies = True
+try:
+    import mailjet_rest
+    import magic
+except ModuleNotFoundError:
+    mailjet_dependencies = False
 
 """
     This module implements an email delivery system for ViUR. Emails will be queued so that we don't overwhelm
@@ -33,7 +41,7 @@ from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
 """
 
 
-@PeriodicTask(interval=60 * 24)
+@PeriodicTask(interval=datetime.timedelta(days=1))
 def cleanOldEmailsFromLog(*args, **kwargs):
     """Start the QueryIter DeleteOldEmailsFromLog to remove old, successfully send emails from the queue"""
     qry = db.Query("viur-emails").filter("isSend =", True) \
@@ -83,6 +91,24 @@ class EmailTransport(ABC):
             :param entity: The entity which has been send
         """
         pass
+
+    @staticmethod
+    def splitAddress(address: str) -> dict[str, str]:
+        """
+            Splits a Name/Address Pair into a dict,
+            i.e. "Max Musterman <mm@example.com>" into
+            {"name": "Max Mustermann", "email": "mm@example.com"}
+            :param address: Name/Address pair
+            :return: split dict
+        """
+        posLt = address.rfind("<")
+        posGt = address.rfind(">")
+        if -1 < posLt < posGt:
+            email = address[posLt + 1:posGt]
+            sname = address.replace(f"<{email}>", "", 1).strip()
+            return {"name": sname, "email": email}
+        else:
+            return {"email": address}
 
 
 @CallDeferred
@@ -303,23 +329,6 @@ class EmailTransportSendInBlue(EmailTransport):
                          "xls", "xlsx", "ppt", "tar", "ez"}
 
     @staticmethod
-    def splitAddress(address: str) -> dict[str, str]:
-        """
-            Splits an Name/Address Pair as "Max Musterman <mm@example.com>" into a dict
-            {"name": "Max Mustermann", "email": "mm@example.com"}
-            :param address: Name/Address pair
-            :return: Splitted dict
-        """
-        posLt = address.rfind("<")
-        posGt = address.rfind(">")
-        if -1 < posLt < posGt:
-            email = address[posLt + 1:posGt]
-            sname = address.replace(f"<{email}>", "", 1).strip()
-            return {"name": sname, "email": email}
-        else:
-            return {"email": address}
-
-    @staticmethod
     def deliverEmail(*, sender: str, dests: list[str], cc: list[str], bcc: list[str], subject: str, body: str,
                      headers: dict[str, str], attachments: list[dict[str, bytes]], **kwargs):
         """
@@ -385,7 +394,7 @@ class EmailTransportSendInBlue(EmailTransport):
             if ext not in EmailTransportSendInBlue.allowedExtensions:
                 raise ValueError(f"The file-extension {ext} cannot be send using Send in Blue")
 
-    @PeriodicTask(60 * 60)
+    @PeriodicTask(interval=datetime.timedelta(hours=60))
     @staticmethod
     def check_sib_quota() -> None:
         """Periodically checks the remaining SendInBlue email quota.
@@ -449,3 +458,33 @@ class EmailTransportSendInBlue(EmailTransport):
             entity["latest_warning_for"] = None
 
         db.Put(entity)
+
+
+if mailjet_dependencies:
+    class EmailTransportMailjet(EmailTransport):
+        @staticmethod
+        def deliverEmail(*, sender: str, dests: list[str], cc: list[str], bcc: list[str], subject: str, body: str,
+                         headers: dict[str, str], attachments: list[dict[str, bytes]], **kwargs):
+            data = {"messages": [{}]}
+            email = data["messages"][0]
+            email["from"] = EmailTransportMailjet.splitAddress(sender)
+            email["to"] = [EmailTransportMailjet.splitAddress(dest) for dest in dests]
+            email["htmlpart"] = body
+            email["subject"] = subject
+            if bcc:
+                email["bcc"] = [EmailTransportMailjet.splitAddress(b) for b in bcc]
+            if cc:
+                email["cc"] = [EmailTransportMailjet.splitAddress(c) for c in cc]
+            if headers:
+                email["headers"] = headers
+            if attachments:
+                email["attachments"] = [{
+                    "filename": att["filename"],
+                    "base64content": base64.b64encode(att["content"]).decode("ASCII"),
+                    "mimetype": att["mimetype"] or magic.detect_from_content(att["content"]).mime_type
+                } for att in attachments]
+            mj_client = mailjet_rest.Client(auth=(conf.email.mailjet_api_key, conf.email.mailjet_api_secret),
+                                            version="v3.1")
+            result = mj_client.send.create(data=data)
+            assert 200 <= result.status_code < 300, "Received a non 2XX Status Code!"
+            return result.content.decode("UTF-8")
