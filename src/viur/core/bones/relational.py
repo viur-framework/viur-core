@@ -296,7 +296,6 @@ class RelationalBone(BaseBone):
         self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
         self._skeletonInstanceClassRef = SkeletonInstance
         self._ref_keys = set(self._refSkelCache.__boneMap__.keys())
-
     # from viur.core.skeleton import RefSkel, skeletonByKind
     # self._refSkelCache = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
     # self._usingSkelCache = self.using() if self.using else None
