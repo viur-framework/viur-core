@@ -58,6 +58,9 @@ def monkey_patch():
     tmp.EXCLUDED_LOGGER_DEFAULTS = []
 
     db_attr = (
+        "!Entity",
+        "!Key",
+        "!KeyClass",
         "acquireTransactionSuccessMarker",
         "AllocateIDs",
         "cache",
@@ -66,14 +69,11 @@ def monkey_patch():
         "DATASTORE_BASE_TYPES",
         "Delete",
         "endDataAccessLog",
-        "Entity",
         "fixUnindexableProperties",
         "Get",
         "GetOrInsert",
         "IsInTransaction",
         "KEY_SPECIAL_PROPERTY",
-        # "Key",
-        # "KeyClass",
         "keyHelper",
         "Put",
         "Query",
@@ -86,12 +86,13 @@ def monkey_patch():
     viur_datastore = mock.Mock()
 
     for attr in db_attr:
-        setattr(viur_datastore, attr, mock.MagicMock())
+        # classes must not be instances of MagicMock, otherwise isinstance checks does not work
+        if attr.startswith("!"):
+            setattr(viur_datastore, attr[1:], mock.MagicMock)
+        else:
+            setattr(viur_datastore, attr, mock.MagicMock())
 
     viur_datastore.config = {}
-    # classes must not be instances of MagicMock, otherwise isinstance checks does not work
-    viur_datastore.Key = mock.MagicMock
-    viur_datastore.KeyClass = mock.MagicMock
     sys.modules["viur.datastore"] = viur_datastore
 
     os.environ["GAE_VERSION"] = "v42"
