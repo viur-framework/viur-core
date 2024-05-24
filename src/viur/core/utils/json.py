@@ -42,6 +42,12 @@ class ViURJsonEncoder(json.JSONEncoder):
 
 
 def rewrite_entity(obj: t.Any) -> t.Any:
+    """
+    Rewrite some ViUR types before passing them to JSONEncode
+
+    Currently only db.Entity, it's a subclass of dict and would
+    therefore be handled by the default json encoder like a normal dict.
+    """
     if isinstance(obj, (str, bytes, numbers.Number, type(None), datetime.datetime, datetime.timedelta, db.Key)):
         return obj
     elif isinstance(obj, set):
