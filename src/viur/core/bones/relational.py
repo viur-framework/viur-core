@@ -296,6 +296,7 @@ class RelationalBone(BaseBone):
         self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
         self._skeletonInstanceClassRef = SkeletonInstance
         self._ref_keys = set(self._refSkelCache.__boneMap__.keys())
+
     # from viur.core.skeleton import RefSkel, skeletonByKind
     # self._refSkelCache = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
     # self._usingSkelCache = self.using() if self.using else None
@@ -913,7 +914,7 @@ class RelationalBone(BaseBone):
         if origFilter is None or not "orderby" in rawFilter:  # This query is unsatisfiable or not sorted
             return dbFilter
         if "orderby" in rawFilter and isinstance(rawFilter["orderby"], str) and rawFilter["orderby"].startswith(
-                f"{name}."):
+            f"{name}."):
             if not dbFilter.getKind() == "viur-relations" and self.multiple:  # This query has not been rewritten (yet)
                 name, skel, dbFilter, rawFilter = self._rewriteQuery(name, skel, dbFilter, rawFilter)
             key = rawFilter["orderby"]
@@ -1208,12 +1209,12 @@ class RelationalBone(BaseBone):
         elif not self.multiple and self.using:
             if not isinstance(value, tuple) or len(value) != 2 or \
                 not (isinstance(value[0], str) or isinstance(value[0], db.Key)) or \
-                    not isinstance(value[1], self._skeletonInstanceClassRef):
+                not isinstance(value[1], self._skeletonInstanceClassRef):
                 raise ValueError(f"You must supply a tuple of (Database-Key, relSkel) to {boneName}")
             realValue = value
         elif self.multiple and not self.using:
             if not (isinstance(value, str) or isinstance(value, db.Key)) and not (isinstance(value, list)) \
-                    and all([isinstance(x, str) or isinstance(x, db.Key) for x in value]):
+                and all([isinstance(x, str) or isinstance(x, db.Key) for x in value]):
                 raise ValueError(f"You must supply a Database-Key or a list hereof to {boneName}")
             if isinstance(value, list):
                 realValue = [(x, None) for x in value]
@@ -1308,6 +1309,27 @@ class RelationalBone(BaseBone):
             return self._hashValueForUniquePropertyIndex(value["dest"]["key"])
         elif isinstance(value, list):
             return self._hashValueForUniquePropertyIndex([x["dest"]["key"] for x in value])
+
+    def getDefaultValue(self, skeletonInstance):
+        if callable(self.defaultValue):
+            key = self.defaultValue(skeletonInstance, self)
+        elif isinstance(self.defaultValue, list):
+            key = self.defaultValue
+        elif isinstance(self.defaultValue, dict):
+            return self.defaultValue.copy()
+        else:
+            key = self.defaultValue
+        if not key:
+            return None
+        if self.multiple:
+            if isinstance(key, list):
+                return [self.createRelSkelFromKey(k) for k in key]
+            else:
+                return [self.createRelSkelFromKey(key)]
+        else:
+            if isinstance(key, list):
+                key = key[0]
+            return self.createRelSkelFromKey(key)
 
     def structure(self) -> dict:
         return super().structure() | {
