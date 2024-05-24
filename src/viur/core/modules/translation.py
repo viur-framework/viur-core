@@ -126,14 +126,16 @@ class Translation(List):
     kindName = KINDNAME
 
     def adminInfo(self):
-        admin_info = {
+        return {
             "name": translate("translations"),
             "icon": "translate",
+            "display": "hidden" if len(conf.i18n.available_dialects) <= 1 else "default",
             "views": [
                 {
-                    "name": translate("core.translations.view.missing",
-                                      "Missing translations for {{lang}}",
-                                      )(lang=lang),
+                    "name": translate(
+                        "core.translations.view.missing",
+                        "Missing translations for {{lang}}",
+                    )(lang=lang),
                     "filter": {
                         "translations_missing": lang,
                     },
@@ -141,7 +143,6 @@ class Translation(List):
                 for lang in conf.i18n.available_dialects
             ],
         }
-        return admin_info
 
     roles = {
         "admin": "*",

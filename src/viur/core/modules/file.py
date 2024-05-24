@@ -8,6 +8,7 @@ import io
 import json
 import logging
 import PIL
+import PIL.ImageCms
 import re
 import requests
 import string
@@ -961,7 +962,7 @@ File.json = True
 File.html = True
 
 
-@PeriodicTask(60 * 4)
+@PeriodicTask(interval=datetime.timedelta(hours=4))
 def startCheckForUnreferencedBlobs():
     """
         Start searching for blob locks that have been recently freed
@@ -1045,7 +1046,7 @@ def doCleanupDeletedFiles(cursor=None):
         doCleanupDeletedFiles(newCursor)
 
 
-@PeriodicTask(60 * 4)
+@PeriodicTask(interval=datetime.timedelta(hours=4))
 def start_delete_pending_files():
     """
     Start deletion of pending FileSkels that are older than 7 days.

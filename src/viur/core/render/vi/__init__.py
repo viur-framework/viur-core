@@ -156,7 +156,10 @@ def canAccess(*args, **kwargs) -> bool:
 def index(*args, **kwargs):
     if args or kwargs:
         raise errors.NotFound()
-    if not conf.instance.project_base_path.joinpath("vi", "main.html").exists():
+    if (
+        not conf.instance.project_base_path.joinpath("vi", "main.html").exists()
+        and not conf.instance.project_base_path.joinpath("admin", "main.html").exists()
+    ):
         raise errors.NotFound()
     if conf.instance.is_dev_server or current.request.get().isSSLConnection:
         raise errors.Redirect("/vi/s/main.html")

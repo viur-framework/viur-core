@@ -292,7 +292,8 @@ class Tree(SkelModule):
             raise errors.NotAcceptable("Invalid skelType provided.")
 
         # The general access control is made via self.listFilter()
-        if query := self.listFilter(self.viewSkel(skelType).all().mergeExternalFilter(kwargs)):
+        query = self.listFilter(self.viewSkel(skelType).all().mergeExternalFilter(kwargs))
+        if query and query.queries:
             # Apply default order when specified
             if self.default_order and not query.queries.orders and not current.request.get().kwargs.get("search"):
                 # TODO: refactor: Duplicate code in prototypes.List
@@ -409,8 +410,8 @@ class Tree(SkelModule):
 
         if (
             not kwargs  # no data supplied
+            or not current.request.get().isPostRequest  # failure if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or not current.request.get().isPostRequest
             or utils.parse.bool(kwargs.get("bounce"))  # review before adding
         ):
             return self.render.add(skel)
@@ -455,8 +456,8 @@ class Tree(SkelModule):
 
         if (
             not kwargs  # no data supplied
-            or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or not current.request.get().isPostRequest
+            or not current.request.get().isPostRequest  # failure if not using POST-method
+            or not skel.fromClient(kwargs, amend=True)  # failure on reading into the bones
             or utils.parse.bool(kwargs.get("bounce"))  # review before adding
         ):
             return self.render.edit(skel)
@@ -1016,7 +1017,7 @@ class Tree(SkelModule):
         logging.info(f"""Entry cloned: {skel["key"]!r} ({skelType!r})""")
         flushCache(kind=skel.kindName)
 
-        if user := utils.getCurrentUser():
+        if user := current.user.get():
             logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
         # Clone entire structure below, in case this is a node.

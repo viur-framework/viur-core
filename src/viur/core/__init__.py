@@ -1,27 +1,9 @@
 """
-                 iii
-                iii
-               iii
+ViUR-core
+Copyright © 2024 Mausbrand Informationssysteme GmbH
 
-           vvv iii uu      uu rrrrrrrr
-          vvvv iii uu      uu rr     rr
-  v      vvvv  iii uu      uu rr     rr
-  vv    vvvv   iii uu      uu rr rrrrr
- vvvv  vvvv    iii uu      uu rr rrr
-  vvv vvvv     iii uu      uu rr  rrr
-   vvvvvv      iii  uu    uu  rr   rrr
-    vvvv       iii   uuuuuu   rr    rrr
-
-   I N F O R M A T I O N    S Y S T E M
-
- viur-core
- Copyright © 2012-2024 by Mausbrand Informationssysteme GmbH
-
- ViUR is a free software development framework for the Google App Engine™.
- More about ViUR can be found at https://www.viur.dev.
-
- Licensed under the GNU Lesser General Public License, version 3.
- See file LICENSE for more information.
+https://core.docs.viur.dev
+Licensed under the MIT license. See LICENSE for more information.
 """
 
 import os

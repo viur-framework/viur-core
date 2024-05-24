@@ -2,6 +2,28 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.6]
+
+- fix: Don't obfuscate any route with character replacements (#1161)
+- feat: View script by path (#1156)
+- fix: Make `Translation`-module `admin_info` configurable (#1158)
+- fix: Support `/deploy/admin` folder as well (#1159)
+
+## [3.6.5]
+
+- feat: Implement `fromClient(amend=True)` feature (#1150)
+- chore: Update dependencies (fix for CVE-2024-28219) (#1151)
+- fix: Fix deprecated `parse_bool` call (#1149)
+- fix: `list` should handle unsatisfiable queries (#1148)
+
+## [3.6.4]
+
+- fix: Enfore serialized values are always strings in the datastore (#1146)
+- fix: RelationalBone `serialize` add super call (#1119)
+- fix: Add missing import of `PIL.ImageCms` (#1144)
+- fix: Re-add `StringBone`s `max_length` check (#1142)
+- fix: Replace deprecated `utils.getCurrentUser` (#1139)
+
 ## [3.6.3]
 
 - fix: Avoid `*AbstractSkel`s from being initialized (#1136)
