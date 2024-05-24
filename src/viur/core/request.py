@@ -493,11 +493,9 @@ class Router:
                 raise errors.Unauthorized()
 
             idx += 1
-            part = part.replace("-", "_")
+
             if part not in caller:
                 part = "index"
-
-            # print(part, caller.get(part))
 
             if caller := caller.get(part):
                 if isinstance(caller, Method):
