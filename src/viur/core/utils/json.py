@@ -25,14 +25,18 @@ class ViURJsonEncoder(json.JSONEncoder):
         # cannot be tested in tests...
         elif isinstance(obj, db.Key):
             return {".__key__": db.encodeKey(obj)}
-        elif isinstance(obj, db.Entity):
+
+        return super().default(obj)
+
+    def encode(self, obj: t.Any) -> t.Any:
+        if isinstance(obj, db.Entity):
             # TODO: Handle SkeletonInstance as well?
-            return {
+            obj = {
                 ".__entity__": dict(obj),
                 ".__key__": db.encodeKey(obj.key) if obj.key else None
             }
 
-        return super().default(obj)
+        return super().encode(obj)
 
 
 def dumps(obj: t.Any, *, cls=ViURJsonEncoder, **kwargs) -> str:
