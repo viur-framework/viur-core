@@ -1,6 +1,7 @@
 import base64
 import datetime
 import json
+import logging
 import numbers
 import typing as t
 from pprint import pprint
@@ -17,7 +18,6 @@ class ViURJsonEncoder(json.JSONEncoder):
     """
 
     def default(self, obj: t.Any) -> t.Any:
-        print(f"{obj.__class__.__name__}: {obj}")
         if isinstance(obj, bytes):
             return {".__bytes__": base64.b64encode(obj).decode("ASCII")}
         elif isinstance(obj, datetime.datetime):
@@ -27,7 +27,6 @@ class ViURJsonEncoder(json.JSONEncoder):
         elif isinstance(obj, set):
             return {".__set__": list(obj)}
         elif hasattr(obj, "__iter__"):
-            print(f"iter {obj=}")
             return tuple(obj)
         # cannot be tested in tests...
         elif isinstance(obj, db.Key):
@@ -41,37 +40,32 @@ class ViURJsonEncoder(json.JSONEncoder):
 
         return super().default(obj)
 
-    def iterencode(self, o, _one_shot=False):
-        print(f"iterencode :: {o.__class__.__name__}: {o} {_one_shot=}")
-        return super().iterencode(o, _one_shot)
 
-
-def rewrite_entity(o):
-    if isinstance(o, (str, bytes, numbers.Number, type(None))):
-        return o
-    elif isinstance(o, set):
-        return set(rewrite_entity(x) for x in o)
-    elif isinstance(o, db.Entity):
+def rewrite_entity(obj: t.Any) -> t.Any:
+    if isinstance(obj, (str, bytes, numbers.Number, type(None), datetime.datetime, datetime.timedelta, db.Key)):
+        return obj
+    elif isinstance(obj, set):
+        return set(rewrite_entity(x) for x in obj)
+    elif isinstance(obj, db.Entity):
         return {
-            ".__entity__": rewrite_entity(dict(o)),
-            ".__key__": db.encodeKey(o.key) if o.key else None
+            ".__entity__": rewrite_entity(dict(obj)),
+            ".__key__": db.encodeKey(obj.key) if obj.key else None
         }
-    elif isinstance(o, dict):
-        return {rewrite_entity(k): rewrite_entity(v) for k, v in o.items()}
-    elif hasattr(o, "__iter__"):
-        return tuple(rewrite_entity(x) for x in o)
-    print(f"MIssing case for <{type(o)}>{o=}")
-    return o
+    elif isinstance(obj, dict):
+        return {rewrite_entity(k): rewrite_entity(v) for k, v in obj.items()}
+    elif hasattr(obj, "__iter__"):
+        return tuple(rewrite_entity(x) for x in obj)
+    logging.warning(
+        f"Missing case for <{type(obj)}>{obj=}. "
+        f"Probably this object is not JSON encode-able and will crash now"
+    )
+    return obj
 
 
 def dumps(obj: t.Any, *, cls=ViURJsonEncoder, **kwargs) -> str:
     """
     Wrapper for json.dumps() which converts additional ViUR datatypes.
     """
-    print(f"IN >>>")
-    pprint(obj)
-    print(f"OUT >>>")
-    pprint(rewrite_entity(obj))
     return json.dumps(rewrite_entity(obj), cls=cls, **kwargs)
 
 
