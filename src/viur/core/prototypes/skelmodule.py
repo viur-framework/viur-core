@@ -8,7 +8,7 @@ SINGLE_ORDER_TYPE = str | tuple[str, db.SortOrder]
 Type for exactly one sort order definitions.
 """
 
-ORDER_TYPE = SINGLE_ORDER_TYPE | tuple[SINGLE_ORDER_TYPE] | list[SINGLE_ORDER_TYPE] | None
+ORDER_TYPE = SINGLE_ORDER_TYPE | tuple[SINGLE_ORDER_TYPE] | list[SINGLE_ORDER_TYPE] | dict[str, str | int] | None
 """
 Type for sort order definitions (any amount of single order definitions).
 """

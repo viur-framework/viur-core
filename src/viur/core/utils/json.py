@@ -28,22 +28,33 @@ class ViURJsonEncoder(json.JSONEncoder):
 
         return super().default(obj)
 
-    def encode(self, obj: t.Any) -> t.Any:
+    @staticmethod
+    def preprocess(obj: t.Any) -> t.Any:
+        """
+        Needed to preprocess db.Entity as it subclasses dict.
+        There is currently no other way to integrate with JSONEncoder.
+        """
         if isinstance(obj, db.Entity):
             # TODO: Handle SkeletonInstance as well?
-            obj = {
-                ".__entity__": dict(obj),
+            return {
+                ".__entity__": ViURJsonEncoder.preprocess(dict(obj)),
                 ".__key__": db.encodeKey(obj.key) if obj.key else None
             }
+        elif isinstance(obj, dict):
+            return {
+                ViURJsonEncoder.preprocess(key): ViURJsonEncoder.preprocess(value) for key, value in obj.items()
+            }
+        elif isinstance(obj, (list, tuple)):
+            return tuple(ViURJsonEncoder.preprocess(value) for value in obj)
 
-        return super().encode(obj)
+        return obj
 
 
-def dumps(obj: t.Any, *, cls=ViURJsonEncoder, **kwargs) -> str:
+def dumps(obj: t.Any, *, cls: ViURJsonEncoder = ViURJsonEncoder, **kwargs) -> str:
     """
     Wrapper for json.dumps() which converts additional ViUR datatypes.
     """
-    return json.dumps(obj, cls=cls, **kwargs)
+    return json.dumps(cls.preprocess(obj), cls=cls, **kwargs)
 
 
 def _decode_object_hook(obj: t.Any):

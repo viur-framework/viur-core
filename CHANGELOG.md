@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.8]
+
+- fix: Allow dict-filters for `default_order` (#1169)
+- fix: Pre-process object for JSON encoding (#1174)
+
 ## [3.6.7]
 
 - fix: `ViURJsonEncoder` doesn't handle `db.Entity` (#1171)
