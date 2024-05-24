@@ -319,11 +319,8 @@ class SkeletonInstance:
                 new_entity[key] = value
             self.setEntity(new_entity)
         elif isinstance(other, SkeletonInstance):
-            new_entity = self.dbEntity or db.Entity()
-            # We're not overriding the key
-            for key, value in other.dbEntity.items():
-                new_entity[key] = value
-            self.setEntity(new_entity)
+            for key, value in other.accessedValues.items():
+                self.accessedValues[key] = value
         else:
             raise ValueError("Unsupported Type")
         return self
