@@ -711,7 +711,7 @@ def downloadUrlFor(
         return ""
 
     if derived:
-        return file.create_download_url(
+        return file.File.create_download_url(
             fileObj["dlkey"],
             filename=derived,
             derived=True,
@@ -719,7 +719,7 @@ def downloadUrlFor(
             download_filename=downloadFileName,
         )
 
-    return file.create_download_url(
+    return file.File.create_download_url(
         fileObj["dlkey"],
         filename=fileObj["name"],
         expires=expires,
@@ -753,7 +753,7 @@ def srcSetFor(
 
     :return: The srctag generated or an empty string if a invalid file object was supplied
     """
-    return file.create_src_set(fileObj, expires, width, height)
+    return file.File.create_src_set(fileObj, expires, width, height)
 
 
 @jinjaGlobalFunction

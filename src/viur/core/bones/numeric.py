@@ -209,6 +209,7 @@ class NumericBone(BaseBone):
                 return self._convert_to_numeric(value)
             return value
 
+        # TODO: duplicate code, this is the same iteration logic as in StringBone
         new_value = {}
         for _, lang, value in self.iter_bone_value(skel, boneName):
             new_value.setdefault(lang, []).append(refresh_single_value(value))

@@ -3,10 +3,9 @@ The PasswordBone class is a specialized version of the StringBone class designed
 data. It hashes the password data before saving it to the database and prevents it from being read
 directly. The class also includes various tests to determine the strength of the entered password.
 """
-
 import hashlib
 import re
-
+import typing as t
 from viur.core import conf, utils
 from viur.core.bones.string import StringBone
 from viur.core.i18n import translate
@@ -46,7 +45,7 @@ class PasswordBone(StringBone):
     """A string representing the bone type, which is "password" in this case."""
     saltLength = 13
 
-    tests: tuple[tuple[str, str, bool]] = (
+    tests: t.Iterable[t.Iterable[t.Tuple[str, str, bool]]] = (
         (r"^.*[A-Z].*$", translate("core.bones.password.no_capital_letters",
                                    defaultText="The password entered has no capital letters."), False),
         (r"^.*[a-z].*$", translate("core.bones.password.no_lowercase_letters",
@@ -58,22 +57,25 @@ class PasswordBone(StringBone):
         (r"^.{8,}$", translate("core.bones.password.too_short",
                                defaultText="The password is too short. It requires for at least 8 characters."), True),
     )
-    """Provides tests based on regular expressions to test the password stength."""
+    """Provides tests based on regular expressions to test the password strength.
+
+    Note: The provided regular expressions have to produce exactly the same results in Python and JavaScript.
+          This requires that some feature either cannot be used, or must be rewritten to match on both engines.
+    """
 
     def __init__(
         self,
         *,
         descr: str = "Password",
         test_threshold: int = 4,
-        tests: list[tuple] = tests,
+        tests: t.Iterable[t.Iterable[t.Tuple[str, str, bool]]] = tests,
         **kwargs
     ):
         """
             Initializes a new PasswordBone.
 
             :param test_threshold: The minimum number of tests the password must pass.
-            :param password_tests: A list of tuples. The tuple contains the test and a reason for the user if the test
-                    fails.
+            :param password_tests: Defines separate tests specified as tuples of regex, hint and required-flag.
         """
         super().__init__(descr=descr, **kwargs)
         self.test_threshold = test_threshold
@@ -193,6 +195,6 @@ class PasswordBone(StringBone):
 
     def structure(self) -> dict:
         return super().structure() | {
-            "tests": self.tests,
+            "tests": self.tests if self.test_threshold else (),
             "test_threshold": self.test_threshold,
         }
