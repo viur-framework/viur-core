@@ -1037,6 +1037,14 @@
         }
     },
     "develop": {
+        "backports.tarfile": {
+            "hashes": [
+                "sha256:73e0179647803d3726d82e76089d01d8549ceca9bace469953fcb4d97cf2d417",
+                "sha256:9c2ef9696cb73374f7164e17fc761389393ca76777036f5aad42e8b93fcd8009"
+            ],
+            "markers": "python_version < '3.12'",
+            "version": "==1.1.1"
+        },
         "build": {
             "hashes": [
                 "sha256:526263f4870c26f26c433545579475377b2b7588b6f1eac76a001e873ae3e19d",
@@ -1452,6 +1460,14 @@
             ],
             "markers": "sys_platform == 'linux'",
             "version": "==3.3.3"
+        },
+        "tomli": {
+            "hashes": [
+                "sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc",
+                "sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f"
+            ],
+            "markers": "python_version < '3.11'",
+            "version": "==2.0.1"
         },
         "twine": {
             "hashes": [
