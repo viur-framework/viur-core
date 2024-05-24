@@ -12,7 +12,7 @@ jobs:
   test:
     strategy:
       matrix:
-        python: [ "3.10", "3.11", "3.12" ]
+        python: [ "3.11", "3.12" ]
     runs-on: ubuntu-latest
 
     steps:
