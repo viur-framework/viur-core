@@ -923,7 +923,6 @@ class RelationalBone(BaseBone):
             if _type not in ("dest", "rel"):
                 logging.error("Invalid type {_type}")
                 return query
-            
 
             # Ensure that the relational-filter is in refKeys
             if _type == "dest" and param not in self._ref_keys:
