@@ -2,14 +2,8 @@ import enum
 import typing as t
 from collections import OrderedDict
 from numbers import Number
-
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.i18n import translate
-
-try:
-    from typing import Self  # only py>=3.11
-except ImportError:
-    Self = BaseBone  # SelectBone is not defined here and Self is not available
 
 if t.TYPE_CHECKING:
     from viur.core.skeleton import SkeletonInstance
@@ -47,10 +41,10 @@ class SelectBone(BaseBone):
             SelectBoneValue,
             SelectBoneMultiple,
             t.Dict[str, t.Union[SelectBoneMultiple, SelectBoneValue]],
-            t.Callable[["SkeletonInstance", Self], t.Any],
+            t.Callable[["SkeletonInstance", t.Self], t.Any],
         ] = None,
         values: dict | list | tuple | t.Callable | enum.EnumMeta = (),
-        translation_key_prefix: str | t.Callable[[Self], str] = "",
+        translation_key_prefix: str | t.Callable[[t.Self], str] = "",
         **kwargs
     ):
         """
