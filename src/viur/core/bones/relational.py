@@ -888,7 +888,7 @@ class RelationalBone(BaseBone):
     def buildDBSort(
         self,
         name: str,
-        skel: 'viur.core.skeleton.SkeletonInstance',
+        skel: "SkeletonInstance",
         query: db.Query,
         params: dict,
         postfix: str = "",
@@ -916,11 +916,14 @@ class RelationalBone(BaseBone):
                 name, skel, query, params = self._rewriteQuery(name, skel, query, params)
 
             try:
-                unused, _type, param = orderby.split(".")
-                assert _type in ("dest", "rel")
-            except Exception as e:
-                logging.exception(e)
+                _, _type, param = orderby.split(".")
+            except ValueError as e:
+                logging.exception(f"Invalid layout of {orderby=}: {e}")
                 return query
+            if _type not in ("dest", "rel"):
+                logging.error("Invalid type {_type}")
+                return query
+            
 
             # Ensure that the relational-filter is in refKeys
             if _type == "dest" and param not in self._ref_keys:
