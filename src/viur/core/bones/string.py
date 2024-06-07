@@ -14,16 +14,6 @@ if t.TYPE_CHECKING:
 
 DB_TYPE_INDEXED: t.TypeAlias = dict[t.Literal["val", "idx", "sort_idx"], str]
 
-#vfuncs
-
-def v_func_valid_chars(valid_chars=string.ascii_letters) -> t.Callable:
-    def v_func(valid_chars, value, *args, **kwargs):
-        if any(char not in valid_chars for char in value):
-            logging.error("out heree ??")
-            return "Not all letters are available in the charset"
-        return True
-
-    return functools.partial(v_func, valid_chars)
 
 
 class StringBone(BaseBone):
@@ -390,3 +380,10 @@ class StringBone(BaseBone):
             "minlength": self.min_length
         }
         return ret
+    @classmethod
+    def v_func_valid_chars(cls,valid_chars=string.printable) -> t.Callable:
+        def v_func(valid_chars_intern, value):
+            if any(char not in valid_chars_intern for char in value):
+                return "Not all letters are available in the charset"
+
+        return functools.partial(v_func, valid_chars)
