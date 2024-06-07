@@ -87,15 +87,15 @@ class TestTextBone_fromClient(unittest.TestCase):
         bone = TextBone()
         skel = {}
 
-        client_value = \
-            """<h1>Headline</h1>
-            <p>This is a&nbsp;paragraph<br>
-            Next line</p>
-            <script>alert('I am evil!')</script>
-            <img onload="alert('I am evil!')" src="/logo.png">
-            <div>A div</div>
-            <span>Opened, but never closed
-            """
+        client_value = """
+<h1>Headline</h1>
+<p>This is a&nbsp;paragraph<br>
+Next line</p>
+<script>alert('I am evil!')</script>
+<img onload="alert('I am evil!')" src="/logo.png">
+<div>A div</div>
+<span>Opened, but never closed
+"""
         res = bone.singleValueFromClient(client_value, skel, self.bone_name, None)
         escaped_value = (
             """<h1>Headline</h1><p>This is a&nbsp;paragraph<br>Next line</p> alert(&#39;I am evil!&#39;)"""
