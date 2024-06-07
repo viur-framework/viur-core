@@ -101,7 +101,10 @@ Next line</p>
 """
         res = bone.singleValueFromClient(client_value, skel, self.bone_name, None)
         escaped_value = (
-            """<h1>Headline</h1><p>This is a&nbsp;paragraph<br>Next line</p> alert(&#39;I am evil!&#39;)"""
+            """<h1>Headline</h1>"""
+            """<p>This is a&nbsp;paragraph<br>"""
+            """Next line</p>"""
+            """ alert(&#39;I am evil!&#39;)"""
             """<img src="/logo.png"><div>A div</div>"""
             """<div>    Another div    <span>Opened span, but never closed</span></div>"""
         )
