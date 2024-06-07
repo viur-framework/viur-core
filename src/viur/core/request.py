@@ -83,6 +83,7 @@ class Router:
         The basic control flow is
         - Setting up internal variables
         - Running the Request validators
+        - Check the Redirect Map
         - Emitting the headers (especially the security related ones)
         - Run the TLS check (ensure it's a secure connection or check if the URL is whitelisted)
         - Load or initialize a new session
@@ -226,6 +227,21 @@ class Router:
                 return
 
         path = self.request.path
+
+        if conf.redirect_map:
+            if conf.redirect_map_advanced_mode:
+                for k in conf.redirect_map.keys():
+                    if fnmatch.fnmatch(path, k):
+                        self.response.status = "302 Redirect"
+                        self.response.headers['Location'] = conf.redirect_map[k]
+                        self.response.write("Redirect")
+                        return
+
+            if redirect_url := conf.redirect_map.get(path):
+                self.response.status = "302 Redirect"
+                self.response.headers['Location'] = redirect_url
+                self.response.write("Redirect")
+                return
 
         # Add CSP headers early (if any)
         if conf.security.content_security_policy and conf.security.content_security_policy["_headerCache"]:
