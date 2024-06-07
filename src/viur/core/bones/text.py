@@ -91,7 +91,6 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
          "\n": "",
          "\0": ""})
 
-
     def __init__(self, validHtml=None, srcSet=None, convert_charrefs: bool = True):
         super().__init__(convert_charrefs=convert_charrefs)
         self.result = ""  # The final result that will be returned
