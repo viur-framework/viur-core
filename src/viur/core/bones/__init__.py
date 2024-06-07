@@ -32,7 +32,10 @@ from .select import (
 )
 from .sortindex import SortIndexBone
 from .spatial import SpatialBone
-from .string import StringBone
+from .string import (
+    StringBone,
+    v_func_valid_chars
+)
 from .text import TextBone
 from .treeleaf import TreeLeafBone
 from .treenode import TreeNodeBone
@@ -77,6 +80,7 @@ __all = [
     "UserBone",
     "translation_key_prefix_bonename",
     "translation_key_prefix_skeleton_bonename",
+"v_func_valid_chars",
 ]
 
 for __cls_name, __cls in locals().copy().items():

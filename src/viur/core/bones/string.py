@@ -1,5 +1,7 @@
 import datetime
+import functools
 import logging
+import string
 import typing as t
 import warnings
 from numbers import Number
@@ -11,6 +13,17 @@ if t.TYPE_CHECKING:
     from ..skeleton import SkeletonInstance
 
 DB_TYPE_INDEXED: t.TypeAlias = dict[t.Literal["val", "idx", "sort_idx"], str]
+
+#vfuncs
+
+def v_func_valid_chars(valid_chars=string.ascii_letters) -> t.Callable:
+    def v_func(valid_chars, value, *args, **kwargs):
+        if any(char not in valid_chars for char in value):
+            logging.error("out heree ??")
+            return "Not all letters are available in the charset"
+        return True
+
+    return functools.partial(v_func, valid_chars)
 
 
 class StringBone(BaseBone):
