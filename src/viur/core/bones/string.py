@@ -15,7 +15,6 @@ if t.TYPE_CHECKING:
 DB_TYPE_INDEXED: t.TypeAlias = dict[t.Literal["val", "idx", "sort_idx"], str]
 
 
-
 class StringBone(BaseBone):
     """
     The "StringBone" represents a data field that contains text values.
@@ -380,8 +379,9 @@ class StringBone(BaseBone):
             "minlength": self.min_length
         }
         return ret
+
     @classmethod
-    def v_func_valid_chars(cls,valid_chars=string.printable) -> t.Callable:
+    def v_func_valid_chars(cls, valid_chars=string.printable) -> t.Callable:
         def v_func(valid_chars_intern, value):
             if any(char not in valid_chars_intern for char in value):
                 return "Not all letters are available in the charset"
