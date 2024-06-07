@@ -321,6 +321,8 @@ class SkeletonInstance:
         elif isinstance(other, SkeletonInstance):
             for key, value in other.accessedValues.items():
                 self.accessedValues[key] = value
+            for key, value in other.dbEntity.items():
+                self.dbEntity[key] = value
         else:
             raise ValueError("Unsupported Type")
         return self
