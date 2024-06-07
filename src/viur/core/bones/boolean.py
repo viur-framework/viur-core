@@ -18,11 +18,13 @@ class BooleanBone(BaseBone):
     def __init__(
         self,
         *,
-        defaultValue: bool | list[bool] | dict[str, list[bool] | bool] = None,
+        defaultValue: bool | list[bool] | dict[str, list[bool] | bool] | t.Callable = None,
         **kwargs
     ):
         if defaultValue is not None:
             # We have given an explicit defaultValue and maybe a complex structure
+            if callable(defaultValue):
+                defaultValue = defaultValue()
             if not (kwargs.get("multiple") or kwargs.get("languages")) and not (isinstance(defaultValue, bool)):
                 raise TypeError("Only 'True', 'False' or 'None' can be provided as BooleanBone defaultValue")
             # TODO: missing validation for complex types, but in other bones too
