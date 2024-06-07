@@ -352,6 +352,14 @@ class FileLeafSkel(TreeSkel):
         readOnly=True,
         visible=False,
     )
+    crc32c_hash = StringBone(
+        descr="CRC32C hash for this File",
+        readOnly=True
+    )
+    md5_hash = StringBone(
+        descr="MD5 hash for this File",
+        readOnly=True
+    )
 
     def preProcessBlobLocks(self, locks):
         """
@@ -907,6 +915,8 @@ class File(Tree):
             skel["size"] = blob.size
             skel["parentrepo"] = rootNode["key"] if rootNode else None
             skel["weak"] = rootNode is None
+            skel["crc32c_hash"] = base64.b64decode(blob.crc32c).hex()
+            skel["md5_hash"] = base64.b64decode(blob.md5_hash).hex()
 
             skel.toDB()
 
