@@ -629,6 +629,8 @@ class File(Tree):
         skel["weak"] = True
         skel["width"] = width
         skel["height"] = height
+        skel["crc32c_hash"] = base64.b64decode(blob.crc32c).hex()
+        skel["md5_hash"] = base64.b64decode(blob.md5_hash).hex()
 
         return skel.toDB()
 
