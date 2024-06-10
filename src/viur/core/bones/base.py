@@ -138,6 +138,8 @@ class MultipleConstraints:  # Used to define constraints on multiple bones
     """An integer representing the upper bound of how many entries can be submitted (default: 0)."""
     preventDuplicates: bool = False  # Prevent the same value of being used twice
     """A boolean value indicating if the same value can be used twice (default: False)."""
+    sorted: bool | t.Callable = False
+    """A boolean value or a method indicating if the value must be sorted (default: False)."""
 
 
 class ComputeMethod(Enum):
@@ -557,6 +559,11 @@ class BaseBone(object):
                         filled_languages.add(language)
                         parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
                         res[language].append(parsedVal)
+                        if isinstance(self.multiple, MultipleConstraints) and self.multiple.sorted:
+                            if callable(self.multiple.sorted):
+                                res[language] = sorted(res[language], key=self.multiple.sorted)
+                            else:
+                                res[language] = sorted(res[language])
                         if parseErrors:
                             for parseError in parseErrors:
                                 parseError.fieldPath[:0] = [language, str(idx)]
@@ -585,10 +592,16 @@ class BaseBone(object):
                 isEmpty = False
                 parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
                 res.append(parsedVal)
+
                 if parseErrors:
                     for parseError in parseErrors:
                         parseError.fieldPath.insert(0, str(idx))
                     errors.extend(parseErrors)
+            if isinstance(self.multiple,MultipleConstraints) and self.multiple.sorted:
+                if callable(self.multiple.sorted):
+                    res=sorted(res,key=self.multiple.sorted)
+                else:
+                    res=sorted(res)
         else:  # No Languages, not multiple
             if self.isEmpty(parsedData):
                 res = self.getEmptyValue()
