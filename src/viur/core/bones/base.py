@@ -597,11 +597,11 @@ class BaseBone(object):
                     for parseError in parseErrors:
                         parseError.fieldPath.insert(0, str(idx))
                     errors.extend(parseErrors)
-            if isinstance(self.multiple,MultipleConstraints) and self.multiple.sorted:
+            if isinstance(self.multiple, MultipleConstraints) and self.multiple.sorted:
                 if callable(self.multiple.sorted):
-                    res=sorted(res,key=self.multiple.sorted)
+                    res = sorted(res, key=self.multiple.sorted)
                 else:
-                    res=sorted(res)
+                    res = sorted(res)
         else:  # No Languages, not multiple
             if self.isEmpty(parsedData):
                 res = self.getEmptyValue()
