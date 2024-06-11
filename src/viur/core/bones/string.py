@@ -383,9 +383,9 @@ class StringBone(BaseBone):
     @classmethod
     def v_func_valid_chars(cls, valid_chars: t.Iterable = string.printable) -> t.Callable:
         """
-        Returns a function that takes a string and check whether it contains valid characters.
-        If all characters are valid, it returns None.
-        If not all characters are valid, it returns an error Message.
+        Returns a function that takes a string and checks whether it contains valid characters.
+        If all characters of the string are valid, it returns None, and succeeds.
+        If invalid characters are present, it returns an appropriate error message.
 
         :param valid_chars: An iterable of valid characters.
         :return: A function that takes a string and check whether it contains valid characters.
