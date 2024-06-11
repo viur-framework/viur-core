@@ -381,7 +381,16 @@ class StringBone(BaseBone):
         return ret
 
     @classmethod
-    def v_func_valid_chars(cls, valid_chars=string.printable) -> t.Callable:
+    def v_func_valid_chars(cls, valid_chars: t.Iterable = string.printable) -> t.Callable:
+        """
+        Returns a function that takes a string and check whether it contains valid characters.
+        If all characters are valid, it returns None.
+        If not all characters are valid, it returns an error Message.
+
+        :param valid_chars: An iterable of valid characters.
+        :return: A function that takes a string and check whether it contains valid characters.
+        """
+
         def v_func(valid_chars_intern, value):
             if any(char not in valid_chars_intern for char in value):
                 return "Not all letters are available in the charset"
