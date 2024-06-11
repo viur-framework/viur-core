@@ -140,10 +140,10 @@ class MultipleConstraints:  # Used to define constraints on multiple bones
     """A boolean value indicating if the same value can be used twice (default: False)."""
     sorted: bool | t.Callable = False
     """A boolean value or a method indicating if the value must be sorted (default: False)."""
-    sorted_reversed: bool = False
+    reversed: bool = False
     """
-    A boolean value indicating if the value must be sorted reversed (default: False).
-    It is only considered if sorted is true.
+    A boolean value indicating if sorted values shall be sorted in reversed order (default: False).
+    It is only applied when the `sorted`-flag is set accordingly.
     """
 
 
@@ -569,10 +569,10 @@ class BaseBone(object):
                                 res[language] = sorted(
                                     res[language],
                                     key=self.multiple.sorted,
-                                    reverse=self.multiple.sorted_reversed
+                                    reverse=self.multiple.reversed,
                                 )
                             else:
-                                res[language] = sorted(res[language], reverse=self.multiple.sorted_reversed)
+                                res[language] = sorted(res[language], reverse=self.multiple.reversed)
                         if parseErrors:
                             for parseError in parseErrors:
                                 parseError.fieldPath[:0] = [language, str(idx)]
@@ -608,9 +608,9 @@ class BaseBone(object):
                     errors.extend(parseErrors)
             if isinstance(self.multiple, MultipleConstraints) and self.multiple.sorted:
                 if callable(self.multiple.sorted):
-                    res = sorted(res, key=self.multiple.sorted, reverse=self.multiple.sorted_reversed)
+                    res = sorted(res, key=self.multiple.sorted, reverse=self.multiple.reversed)
                 else:
-                    res = sorted(res, reverse=self.multiple.sorted_reversed)
+                    res = sorted(res, reverse=self.multiple.reversed)
         else:  # No Languages, not multiple
             if self.isEmpty(parsedData):
                 res = self.getEmptyValue()
