@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_e295e1cac9db2f73_ratelimit_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.5.3">coverage.py v7.5.3</a>,
-            created at 2024-06-11 23:04 +0000
+            created at 2024-06-12 13:56 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -377,7 +377,7 @@
     <p class="pln"><span class="n"><a id="t293" href="#t293">293</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t294" href="#t294">294</a></span><span class="t">        <span class="com"># The general access control is made via self.listFilter()</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t295" href="#t295">295</a></span><span class="t">        <span class="nam">query</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">listFilter</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">viewSkel</span><span class="op">(</span><span class="nam">skelType</span><span class="op">)</span><span class="op">.</span><span class="nam">all</span><span class="op">(</span><span class="op">)</span><span class="op">.</span><span class="nam">mergeExternalFilter</span><span class="op">(</span><span class="nam">kwargs</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t296" href="#t296">296</a></span><span class="t">        <span class="key">if</span> <span class="nam">query</span> <span class="key">and</span> <span class="nam">query</span><span class="op">.</span><span class="nam">queries</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t296" href="#t296">296</a></span><span class="t">        <span class="key">if</span> <span class="nam">query</span> <span class="key">and</span> <span class="nam">query</span><span class="op">.</span><span class="nam">queries</span> <span class="key">and</span> <span class="key">not</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">query</span><span class="op">.</span><span class="nam">queries</span><span class="op">,</span> <span class="nam">list</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t297" href="#t297">297</a></span><span class="t">            <span class="com"># Apply default order when specified</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t298" href="#t298">298</a></span><span class="t">            <span class="key">if</span> <span class="nam">self</span><span class="op">.</span><span class="nam">default_order</span> <span class="key">and</span> <span class="key">not</span> <span class="nam">query</span><span class="op">.</span><span class="nam">queries</span><span class="op">.</span><span class="nam">orders</span> <span class="key">and</span> <span class="key">not</span> <span class="nam">current</span><span class="op">.</span><span class="nam">request</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="op">)</span><span class="op">.</span><span class="nam">kwargs</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">"search"</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t299" href="#t299">299</a></span><span class="t">                <span class="com"># TODO: refactor: Duplicate code in prototypes.List</span>&nbsp;</span><span class="r"></span></p>
@@ -1127,7 +1127,7 @@
             <a class="nav" href="z_e295e1cac9db2f73_ratelimit_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.5.3">coverage.py v7.5.3</a>,
-            created at 2024-06-11 23:04 +0000
+            created at 2024-06-12 13:56 +0000
         </p>
     </div>
 </footer>
