@@ -389,6 +389,10 @@ class StringBone(BaseBone):
 
         :param valid_chars: An iterable of valid characters.
         :return: A function that takes a string and check whether it contains valid characters.
+
+        Example for digits only:
+        .. code-block:: python
+            str_bone = StringBone(vfunc=StringBone.v_func_valid_chars(string.digits))
         """
 
         def v_func(valid_chars_intern, value):
