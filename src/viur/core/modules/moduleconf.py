@@ -106,6 +106,7 @@ class ModuleConf(List):
     MODULES = set()  # will be filled by read_all_modules
     kindName = MODULECONF_KINDNAME
     accessRights = ["edit"]
+    default_order = None  # disable default ordering for ModuleConf
 
     def adminInfo(self):
         return conf.moduleconf_admin_info or {}
