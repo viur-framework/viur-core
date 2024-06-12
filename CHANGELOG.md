@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.9]
+
+- fix: `default_order` and `query.queries` can be a list (#1188)
+- fix: Keep HTML-entities in `HtmlSerializer` (#1184)
+
 ## [3.6.8]
 
 - fix: Allow dict-filters for `default_order` (#1169)
