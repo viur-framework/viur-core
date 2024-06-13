@@ -36,6 +36,7 @@ from .string import StringBone
 from .text import TextBone
 from .treeleaf import TreeLeafBone
 from .treenode import TreeNodeBone
+from .uid import UidBone
 from .user import UserBone
 
 # Expose only specific names
@@ -72,6 +73,7 @@ __all = [
     "TextBone",
     "TreeLeafBone",
     "TreeNodeBone",
+    "UidBone",
     "UniqueLockMethod",
     "UniqueValue",
     "UserBone",
