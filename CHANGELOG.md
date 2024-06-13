@@ -2,8 +2,77 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.6.0.rc1]
+## [3.6.9]
 
+- fix: `default_order` and `query.queries` can be a list (#1188)
+- fix: Keep HTML-entities in `HtmlSerializer` (#1184)
+
+## [3.6.8]
+
+- fix: Allow dict-filters for `default_order` (#1169)
+- fix: Pre-process object for JSON encoding (#1174)
+
+## [3.6.7]
+
+- fix: `ViURJsonEncoder` doesn't handle `db.Entity` (#1171)
+- fix: codecov
+- cicd: Enable tests for python 3.12 (#1167)
+- fix: More invalid replacements in `migrate_config.py` (#1166)
+- feat: Add `EmailTransportMailjet` to `email.py` (#1162)
+- Change of LICENSE from LGPL into MIT (#1164)
+
+## [3.6.6]
+
+- fix: Don't obfuscate any route with character replacements (#1161)
+- feat: View script by path (#1156)
+- fix: Make `Translation`-module `admin_info` configurable (#1158)
+- fix: Support `/deploy/admin` folder as well (#1159)
+
+## [3.6.5]
+
+- feat: Implement `fromClient(amend=True)` feature (#1150)
+- chore: Update dependencies (fix for CVE-2024-28219) (#1151)
+- fix: Fix deprecated `parse_bool` call (#1149)
+- fix: `list` should handle unsatisfiable queries (#1148)
+
+## [3.6.4]
+
+- fix: Enfore serialized values are always strings in the datastore (#1146)
+- fix: RelationalBone `serialize` add super call (#1119)
+- fix: Add missing import of `PIL.ImageCms` (#1144)
+- fix: Re-add `StringBone`s `max_length` check (#1142)
+- fix: Replace deprecated `utils.getCurrentUser` (#1139)
+
+## [3.6.3]
+
+- fix: Avoid `*AbstractSkel`s from being initialized (#1136)
+- fix: Replace old dict `conf` access with attribute access (#1137)
+
+## [3.6.2]
+
+- fix: Remove comma in f-string (#1135)
+- fix: target_version was always `None` (used the default version) (#1134)
+- fix: Improve `List.default_order` to respect languages config (#1132)
+
+## [3.6.1]
+
+- fix: Add `_call_deferred`-parameter for super-calls (#1128)
+- feat: Implement `translation_key_prefix` for `SelectBone` values (#1126)
+- fix: Pass arguments in `JsonBone.__init__()` to `super()` call (#1129)
+- fix: Improving several `User` auth method handling (#1125)
+- fix: `TimeBasedOTP.start()` should use UserSkel (#1124)
+- fix: Broken access to methods in `File` class by refactoring (#1122)
+
+## [3.6.0]
+
+- fix: Add `is None`-check for bone values with languages (#1120)
+- feat: Provide `LoginSkel` on `UserPassword.login` (#1118)
+- feat: `default_order` should support multiple orders as well (#1109)
+- fix: Add `_prevent_compute` for computed bones (#1111)
+- feat: Set icon in admin_info of translation module (#1113)
+- fix: Handle non-ASCII characters in username comparison (#1112)
+- fix: file module typo `UnprocessableEntity` (#1105)
+- feat: Allow `None` as defaultValue in BooleanBone (#988)
 - feat: Support `*`-wildcard postfix in `refKeys` for `RelationalBones` (#1022)
 - feat: Implement `utils.parse.timedelta` (#1086)
 - refactor: `File.getUploadURL()` (#1050)
@@ -102,6 +171,16 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - feat: `UserPrimaryAuthentication` with unified `can_handle()` (#878)
 - feat: Implement `__all__` in root's `__init__` and `decorators` to support easier imports (#859)
 - feat: Add missing type hints for `current` module (#871)
+
+## [3.5.17]
+
+- fix: Handle non-ASCII characters in username comparison (#1112)
+
+## [3.5.16]
+
+- chore: Dependency updates
+- fix: Improvement `conf["viur.paramFilterFunction"]` (#1106)
+- fix: User roles: Automatic "view" right when "edit" or "delete" is provided (#1102)
 
 ## [3.5.15]
 

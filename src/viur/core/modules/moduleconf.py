@@ -45,7 +45,7 @@ class ModuleConfScriptSkel(skeleton.RelSkel):
         descr="Required access rights",
         values=lambda: {
             right: i18n.translate(f"server.modules.user.accessright.{right}", defaultText=right)
-            for right in sorted(conf["viur.accessRights"])
+            for right in sorted(conf.user.access_rights)
         },
         multiple=True,
         params={
@@ -106,6 +106,7 @@ class ModuleConf(List):
     MODULES = set()  # will be filled by read_all_modules
     kindName = MODULECONF_KINDNAME
     accessRights = ["edit"]
+    default_order = None  # disable default ordering for ModuleConf
 
     def adminInfo(self):
         return conf.moduleconf_admin_info or {}

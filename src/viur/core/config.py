@@ -681,6 +681,12 @@ class Conf(ConfigType):
     max_post_params_count: int = 250
     """Upper limit of the amount of parameters we accept per request. Prevents Hash-Collision-Attacks"""
 
+    param_filter_function: t.Callable[[str, str], bool] = lambda _, key, value: key.startswith("_")
+    """
+    Function which decides if a request parameter should be used or filtered out.
+    Returning True means to filter out.
+    """
+
     moduleconf_admin_info: dict[str, t.Any] = {
         "icon": "gear-fill",
         "display": "hidden",

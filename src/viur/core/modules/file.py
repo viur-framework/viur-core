@@ -8,6 +8,7 @@ import io
 import json
 import logging
 import PIL
+import PIL.ImageCms
 import re
 import requests
 import string
@@ -782,7 +783,7 @@ class File(Tree):
         """
         if filename := fileName.strip():
             if not File.is_valid_filename(filename):
-                raise errors.UnprocessableEntityf(f"The provided filename {filename!r} is invalid!")
+                raise errors.UnprocessableEntity(f"The provided filename {filename!r} is invalid!")
 
         download_filename = ""
 

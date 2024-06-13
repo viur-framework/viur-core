@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-from unittest import mock
-
 import importlib.util
 import os
 import pathlib
 import sys
 import unittest
 from types import ModuleType
+from unittest import mock
 
 # top_level_dir is the parent-folder of "tests" and "core"
 tld = pathlib.Path(__file__).resolve().parent.parent
@@ -59,6 +58,9 @@ def monkey_patch():
     tmp.EXCLUDED_LOGGER_DEFAULTS = []
 
     db_attr = (
+        "!Entity",
+        "!Key",
+        "!KeyClass",
         "acquireTransactionSuccessMarker",
         "AllocateIDs",
         "cache",
@@ -67,14 +69,11 @@ def monkey_patch():
         "DATASTORE_BASE_TYPES",
         "Delete",
         "endDataAccessLog",
-        "Entity",
         "fixUnindexableProperties",
         "Get",
         "GetOrInsert",
         "IsInTransaction",
         "KEY_SPECIAL_PROPERTY",
-        "Key",
-        "KeyClass",
         "keyHelper",
         "Put",
         "Query",
@@ -87,7 +86,11 @@ def monkey_patch():
     viur_datastore = mock.Mock()
 
     for attr in db_attr:
-        setattr(viur_datastore, attr, mock.MagicMock())
+        # classes must not be instances of MagicMock, otherwise isinstance checks does not work
+        if attr.startswith("!"):
+            setattr(viur_datastore, attr[1:], mock.MagicMock)
+        else:
+            setattr(viur_datastore, attr, mock.MagicMock())
 
     viur_datastore.config = {}
     sys.modules["viur.datastore"] = viur_datastore

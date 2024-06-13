@@ -400,6 +400,7 @@ class RelationalBone(BaseBone):
 
         :raises AssertionError: If a programming error is detected.
         """
+        super().serialize(skel, name, parentIndexed)
         oldRelationalLocks = set(skel.dbEntity.get(f"{name}_outgoingRelationalLocks") or [])
         newRelationalLocks = set()
         # Clean old properties from entry (prevent name collision)
