@@ -293,7 +293,7 @@ class Tree(SkelModule):
 
         # The general access control is made via self.listFilter()
         query = self.listFilter(self.viewSkel(skelType).all().mergeExternalFilter(kwargs))
-        if query and query.queries:
+        if query and query.queries and not isinstance(query.queries, list):
             # Apply default order when specified
             if self.default_order and not query.queries.orders and not current.request.get().kwargs.get("search"):
                 # TODO: refactor: Duplicate code in prototypes.List
