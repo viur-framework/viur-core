@@ -189,7 +189,12 @@ class DefaultRender(object):
 
         if skellist:
             if isinstance(skellist[0], SkeletonInstance):
-                if "json.bone.structure.inlists" in conf.compatibility:
+                if (
+                        # either when no cursor was provided (first list request)
+                        not current.request.get().kwargs.get("cursor")
+                        # or when old compatibility mode is still active
+                        or "json.bone.structure.inlists" in conf.compatibility
+                ):
                     structure = DefaultRender.render_structure(skellist[0].structure())
 
                 cursor = skellist.getCursor()
