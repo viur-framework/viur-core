@@ -5,6 +5,7 @@ from viur.core import db
 from xml.dom import minidom
 from datetime import datetime, date, time
 
+from viur.core.render.abstract import AbstractRenderer
 from viur.core.skeleton import SkeletonInstance
 
 
@@ -54,7 +55,7 @@ def serializeXML(data):
     return recursiveSerializer(data, elem).toprettyxml(encoding="UTF-8")
 
 
-class DefaultRender(object):
+class DefaultRender(AbstractRenderer):
     kind = "xml"
 
     def __init__(self, parent=None, *args, **kwargs):
@@ -89,7 +90,7 @@ class DefaultRender(object):
             res = self.renderSingleBoneValue(boneVal, bone, skel, key)
         return res
 
-    def renderSingleBoneValue(self, value: t.Any, bone: baseBone, skel: SkeletonInstance, key: str) -> dict:
+    def renderSingleBoneValue(self, value: t.Any, bone: BaseBone, skel: SkeletonInstance, key: str) -> dict:
         """
         Renders the value of a bone.
 

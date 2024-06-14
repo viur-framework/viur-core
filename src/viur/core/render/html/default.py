@@ -13,12 +13,13 @@ from viur.core.bones import *
 from viur.core.i18n import LanguageWrapper, TranslationExtension
 from viur.core.skeleton import SkelList, SkeletonInstance
 from . import utils as jinjaUtils
+from ..abstract import AbstractRenderer
 from ..json.default import CustomJsonEncoder
 
 KeyValueWrapper = collections.namedtuple("KeyValueWrapper", ["key", "descr"])
 
 
-class Render(object):
+class Render(AbstractRenderer):
     """
         The core jinja2 render.
 
