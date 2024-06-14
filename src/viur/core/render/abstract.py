@@ -15,6 +15,7 @@ class AbstractRenderer(abc.ABC):
     @property
     @abc.abstractmethod
     def kind(self) -> str:
+        """Renderer type specifier"""
         ...
 
     @abc.abstractmethod

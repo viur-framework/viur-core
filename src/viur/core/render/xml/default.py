@@ -58,10 +58,6 @@ def serializeXML(data):
 class DefaultRender(AbstractRenderer):
     kind = "xml"
 
-    def __init__(self, parent=None, *args, **kwargs):
-        super(DefaultRender, self).__init__(*args, **kwargs)
-
-
     def renderTextExtension(self, ext):
         e = ext()
         return ({"name": e.name,

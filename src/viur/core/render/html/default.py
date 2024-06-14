@@ -56,14 +56,13 @@ class Render(AbstractRenderer):
 
     __haveEnvImported_ = False
 
-    def __init__(self, parent=None, *args, **kwargs):
-        super(Render, self).__init__(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         if not Render.__haveEnvImported_:
             # We defer loading our plugins to this point to avoid circular imports
             # noinspection PyUnresolvedReferences
             from . import env
             Render.__haveEnvImported_ = True
-        self.parent = parent
 
     def getTemplateFileName(
         self,
