@@ -468,7 +468,7 @@ class Tree(SkelModule):
             return self.render.edit(skel)
 
         self.onEdit(skelType, skel)
-        if super().check_for_changes(skel,old_db_entity):
+        if super().check_for_changes(skel, old_db_entity):
             skel.toDB()
         self.onEdited(skelType, skel)
 
