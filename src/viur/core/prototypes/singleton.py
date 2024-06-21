@@ -1,3 +1,4 @@
+import copy
 import logging
 import typing as t
 from viur.core import db, current, utils, errors
@@ -141,7 +142,7 @@ class Singleton(SkelModule):
         skel = self.editSkel()
         if not skel.fromDB(key):  # Its not there yet; we need to set the key again
             skel["key"] = key
-
+        old_db_entity = copy.copy(skel.dbEntity)
         if (
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
@@ -151,6 +152,8 @@ class Singleton(SkelModule):
             return self.render.edit(skel)
 
         self.onEdit(skel)
+        if super().check_for_changes(skel, old_db_entity):
+            skel.toDB()
         skel.toDB()
         self.onEdited(skel)
         return self.render.editSuccess(skel)

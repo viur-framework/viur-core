@@ -1,3 +1,4 @@
+import copy
 import logging
 import typing as t
 from viur.core import utils, errors, db, current
@@ -454,7 +455,7 @@ class Tree(SkelModule):
         skel = self.editSkel(skelType)
         if not skel.fromDB(key):
             raise errors.NotFound()
-
+        old_db_entity = copy.copy(skel.dbEntity)
         if not self.canEdit(skelType, skel):
             raise errors.Unauthorized()
 
@@ -467,7 +468,8 @@ class Tree(SkelModule):
             return self.render.edit(skel)
 
         self.onEdit(skelType, skel)
-        skel.toDB()
+        if super().check_for_changes(skel,old_db_entity):
+            skel.toDB()
         self.onEdited(skelType, skel)
 
         return self.render.editSuccess(skel)

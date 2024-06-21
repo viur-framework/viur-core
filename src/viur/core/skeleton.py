@@ -1003,22 +1003,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             # Move accessed Values from srcSkel over to skel
             skel.accessedValues = write_skel.accessedValues
             skel["key"] = db_key  # Ensure key stays set
+            skel.serialize()
             for bone_name, bone in skel.items():
                 if bone_name == "key":  # Explicitly skip key on top-level - this had been set above
                     continue
-
-                if not (bone_name in skel.accessedValues or bone.compute) and bone_name not in skel.dbEntity:
-                    _ = skel[bone_name]  # Ensure the datastore is filled with the default value
-                if (
-                    bone_name in skel.accessedValues or bone.compute  # We can have a computed value on store
-                    or bone_name not in skel.dbEntity  # It has not been written and is not in the database
-                ):
-                    # Serialize bone into entity
-                    try:
-                        bone.serialize(skel, bone_name, True)
-                    except Exception:
-                        logging.error(f"Failed to serialize {bone_name} {bone} {skel.accessedValues[bone_name]}")
-                        raise
 
                 # Obtain referenced blobs
                 blob_list.update(bone.getReferencedBlobs(skel, bone_name))
@@ -1333,6 +1321,23 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         # Inform the custom DB Adapter
         if skel.customDatabaseAdapter:
             skel.customDatabaseAdapter.deleteEntry(dbObj, skel)
+
+    @classmethod
+    def serialize(cls, skel: SkeletonInstance):
+        for bone_name, bone in skel.items():
+            if not (bone_name in skel.accessedValues or bone.compute) and bone_name not in skel.dbEntity:
+                _ = skel[bone_name]  # Ensure the datastore is filled with the default value
+            if (
+                bone_name in skel.accessedValues or bone.compute  # We can have a computed value on store
+                or bone_name not in skel.dbEntity  # It has not been written and is not in the database
+            ):
+                # Serialize bone into entity
+                try:
+                    bone.serialize(skel, bone_name, True)
+                except Exception:
+                    logging.error(f"Failed to serialize {bone_name} {bone} {skel.accessedValues[bone_name]}")
+                    raise
+        return True
 
 
 class RelSkel(BaseSkeleton):

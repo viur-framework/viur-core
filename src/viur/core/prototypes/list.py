@@ -1,3 +1,4 @@
+import copy
 import logging
 import typing as t
 from viur.core import current, db, errors, utils
@@ -247,10 +248,11 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
             :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
+
         skel = self.editSkel()
         if not skel.fromDB(key):
             raise errors.NotFound()
-
+        old_db_entity = copy.copy(skel.dbEntity)
         if not self.canEdit(skel):
             raise errors.Unauthorized()
 
@@ -264,7 +266,8 @@ class List(SkelModule):
             return self.render.edit(skel)
 
         self.onEdit(skel)
-        skel.toDB()  # write it!
+        if super().check_for_changes(skel, old_db_entity):
+            skel.toDB()
         self.onEdited(skel)
 
         return self.render.editSuccess(skel)
