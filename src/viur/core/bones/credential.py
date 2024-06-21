@@ -49,6 +49,7 @@ class CredentialBone(StringBone):
         :return: True if the value was updated in the database, False otherwise.
         :rtype: bool
         """
+        self.serialize_compute(skel, name)
         skel.dbEntity.exclude_from_indexes.add(name)  # Ensure we are never indexed
         if name in skel.accessedValues and skel.accessedValues[name]:
             skel.dbEntity[name] = skel.accessedValues[name]
