@@ -343,6 +343,16 @@ class SkeletonInstance:
         memodict[id(self)] = res
         return res
 
+    def read(self):
+        """
+        Read the full skel form the Database.
+        Can be used in the RelationalBone for reading the full Skeleton from a RefSkel
+        :raise AssertionError:  If the entry is no longer in the database.
+        """
+        skel = skeletonByKind(self["key"].kind)()
+        assert skel.fromDB(self["key"])
+        return skel
+
 
 class BaseSkeleton(object, metaclass=MetaBaseSkel):
     """
