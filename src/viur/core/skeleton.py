@@ -248,7 +248,7 @@ class SkeletonInstance:
         # Load a @classmethod from the Skeleton class and bound this SkeletonInstance
         elif item in {"fromDB", "toDB", "all", "unserialize", "serialize", "fromClient", "getCurrentSEOKeys",
                       "preProcessSerializedData", "preProcessBlobLocks", "postSavedHandler", "setBoneValue",
-                      "delete", "postDeletedHandler", "refresh"}:
+                      "delete", "postDeletedHandler", "refresh", "read"}:
             return partial(getattr(self.skeletonCls, item), self)
         # Load a @property from the Skeleton class
         try:
@@ -343,15 +343,6 @@ class SkeletonInstance:
         memodict[id(self)] = res
         return res
 
-    def read(self):
-        """
-        Read the full skel form the Database.
-        Can be used in the RelationalBone for reading the full Skeleton from a RefSkel
-        :raise AssertionError:  If the entry is no longer in the database.
-        """
-        skel = skeletonByKind(self["key"].kind)()
-        assert skel.fromDB(self["key"])
-        return skel
 
 
 class BaseSkeleton(object, metaclass=MetaBaseSkel):
@@ -1377,6 +1368,16 @@ class RefSkel(RelSkel):
             bone_map |= {k: fromSkel.__boneMap__[k] for k in fnmatch.filter(fromSkel.__boneMap__.keys(), arg)}
         newClass.__boneMap__ = bone_map
         return newClass
+
+    def read(self):
+        """
+        Read the full skel form the Database.
+        Can be used in the RelationalBone for reading the full Skeleton from a RefSkel
+        :raise AssertionError:  If the entry is no longer in the database.
+        """
+        skel = skeletonByKind(self["key"].kind)()
+        assert skel.fromDB(self["key"])
+        return skel
 
 
 class SkelList(list):
