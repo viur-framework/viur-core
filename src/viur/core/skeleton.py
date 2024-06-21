@@ -344,7 +344,6 @@ class SkeletonInstance:
         return res
 
 
-
 class BaseSkeleton(object, metaclass=MetaBaseSkel):
     """
         This is a container-object holding information about one database entity.
