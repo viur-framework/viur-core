@@ -2,6 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.10]
+
+- fix: Remove `default_order` fallback from `List` (#1195)
+- feat: store compute value on unserialize (#1107)
+- fix: Add `google.cloud.logging_v2.handlers.transports.background_thread` to the `EXCLUDED_LOGGER_DEFAULTS` (#1177)
+
 ## [3.6.9]
 
 - fix: `default_order` and `query.queries` can be a list (#1188)

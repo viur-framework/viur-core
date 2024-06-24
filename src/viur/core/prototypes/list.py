@@ -5,7 +5,7 @@ from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
 from viur.core.bones import BaseBone
-from .skelmodule import SkelModule, ORDER_TYPE
+from .skelmodule import SkelModule, DEFAULT_ORDER_TYPE
 
 
 class List(SkelModule):
@@ -20,22 +20,13 @@ class List(SkelModule):
     handler = "list"
     accessRights = ("add", "edit", "view", "delete", "manage")
 
-    def default_order(self, query: db.Query, bone_order: t.Iterable[str] = ("sortindex", "name")) -> ORDER_TYPE:
-        """
-        Allows to specify a default order for this module, which is applied when no other order is specified.
-        This can also be set to any DEFAULT_ORDER_TYPE directly.
+    default_order: DEFAULT_ORDER_TYPE = None
+    """
+    Allows to specify a default order for this module, which is applied when no other order is specified.
 
-        Setting a default_order might result in the requirement of additional indexes, which are being raised
-        and must be specified.
-        """
-        for bone_name in bone_order:
-            bone = getattr(query.srcSkel, bone_name, None)
-            if isinstance(bone, BaseBone) and bone.indexed:
-                return {
-                    "orderby": bone_name
-                }
-
-        return None
+    Setting a default_order might result in the requirement of additional indexes, which are being raised
+    and must be specified.
+    """
 
     def viewSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
