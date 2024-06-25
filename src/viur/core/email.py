@@ -2,15 +2,21 @@ import base64
 import json
 import logging
 import os
+import puremagic
+import requests
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Union
 from urllib import request
-
-import requests
-
 from viur.core import db, utils
 from viur.core.config import conf
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
+
+
+mailjet_dependencies = True
+try:
+    import mailjet_rest
+except ModuleNotFoundError:
+    mailjet_dependencies = False
 
 """
     This module implements an email delivery system for ViUR. Emails will be queued so that we don't overwhelm
@@ -81,6 +87,24 @@ class EmailTransport(ABC):
             :param entity: The entity which has been send
         """
         pass
+
+    @staticmethod
+    def splitAddress(address: str) -> dict[str, str]:
+        """
+            Splits a Name/Address Pair into a dict,
+            i.e. "Max Musterman <mm@example.com>" into
+            {"name": "Max Mustermann", "email": "mm@example.com"}
+            :param address: Name/Address pair
+            :return: split dict
+        """
+        posLt = address.rfind("<")
+        posGt = address.rfind(">")
+        if -1 < posLt < posGt:
+            email = address[posLt + 1:posGt]
+            sname = address.replace(f"<{email}>", "", 1).strip()
+            return {"name": sname, "email": email}
+        else:
+            return {"email": address}
 
 
 @CallDeferred
@@ -302,23 +326,6 @@ class EmailTransportSendInBlue(EmailTransport):
                          "xls", "xlsx", "ppt", "tar", "ez"}
 
     @staticmethod
-    def splitAddress(address: str) -> Dict[str, str]:
-        """
-            Splits an Name/Address Pair as "Max Musterman <mm@example.com>" into a dict
-            {"name": "Max Mustermann", "email": "mm@example.com"}
-            :param address: Name/Address pair
-            :return: Splitted dict
-        """
-        posLt = address.rfind("<")
-        posGt = address.rfind(">")
-        if -1 < posLt < posGt:
-            email = address[posLt + 1:posGt]
-            sname = address.replace("<%s>" % email, "", 1).strip()
-            return {"name": sname, "email": email}
-        else:
-            return {"email": address}
-
-    @staticmethod
     def deliverEmail(*, sender: str, dests: List[str], cc: List[str], bcc: List[str], subject: str, body: str,
                      headers: Dict[str, str], attachments: List[Dict[str, bytes]], **kwargs):
         """
@@ -448,3 +455,58 @@ class EmailTransportSendInBlue(EmailTransport):
             entity["latest_warning_for"] = None
 
         db.Put(entity)
+
+
+if mailjet_dependencies:
+    class EmailTransportMailjet(EmailTransport):
+        @staticmethod
+        def deliverEmail(*, sender: str, dests: list[str], cc: list[str], bcc: list[str], subject: str, body: str,
+                         headers: dict[str, str], attachments: list[dict[str, bytes]], **kwargs):
+            api_key = conf.get("viur.email.mailjet_api_key")
+            api_secret = conf.get("viur.email.mailjet_api_secret")
+
+            if not (api_key and api_secret):
+                raise RuntimeError("Mailjet config missing, check 'mailjet_api_key' and 'mailjet_api_secret'")
+
+            email = {
+                "from": EmailTransportMailjet.splitAddress(sender),
+                "htmlpart": body,
+                "subject": subject,
+                "to": [EmailTransportMailjet.splitAddress(dest) for dest in dests],
+            }
+
+            if bcc:
+                email["bcc"] = [EmailTransportMailjet.splitAddress(b) for b in bcc]
+
+            if cc:
+                email["cc"] = [EmailTransportMailjet.splitAddress(c) for c in cc]
+
+            if headers:
+                email["headers"] = headers
+
+            if attachments:
+                email["attachments"] = []
+
+                for att in attachments:
+                    mimetype = att["mimetype"]
+                    if not mimetype:
+                        # try to guess mimetype using puremagic
+                        try:
+                            mimetype = puremagic.from_string(att["content"], mime=True)
+                        except puremagic.PureError:
+                            mimetype = "application/octet-stream"
+
+                email["attachments"].append({
+                    "filename": att["filename"],
+                    "base64content": base64.b64encode(att["content"]).decode("ASCII"),
+                    "mimetype": mimetype
+                })
+
+            mj_client = mailjet_rest.Client(
+                auth=(api_key, api_secret),
+                version="v3.1"
+            )
+
+            result = mj_client.send.create(data={"messages": [email]})
+            assert 200 <= result.status_code < 300, "Received a non 2XX Status Code!"
+            return result.content.decode("UTF-8")
