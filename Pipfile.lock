@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "9f07c880accaf4667c655ffdcbc71014280f7158b29f8324e0724c01983bff3d"
+            "sha256": "1954164feb04536f9f06d9099df35cb9dd6913df26c3eee258f48f54e1f8412f"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -668,6 +668,14 @@
             "markers": "python_version >= '3.8'",
             "version": "==4.25.3"
         },
+        "puremagic": {
+            "hashes": [
+                "sha256:671c801158376c5f4a43c805edf7ef87d59337e243b03a8ce23d151a7a0e9c4d",
+                "sha256:b8f8731263505f19949002bb4b5506fe19b57d98582f3218fccb4bdd0124fd2d"
+            ],
+            "index": "pypi",
+            "version": "==1.25"
+        },
         "pyasn1": {
             "hashes": [
                 "sha256:3a35ab2c4b5ef98e17dfdec8ab074046fbda76e281c5a706ccd82328cfc8f64c",
@@ -1037,14 +1045,6 @@
         }
     },
     "develop": {
-        "backports.tarfile": {
-            "hashes": [
-                "sha256:77e284d754527b01fb1e6fa8a1afe577858ebe4e9dad8919e34c862cb399bc34",
-                "sha256:d75e02c268746e1b8144c278978b6e98e85de6ad16f8e4b0844a154557eca991"
-            ],
-            "markers": "python_version < '3.12'",
-            "version": "==1.2.0"
-        },
         "build": {
             "hashes": [
                 "sha256:526263f4870c26f26c433545579475377b2b7588b6f1eac76a001e873ae3e19d",
@@ -1460,14 +1460,6 @@
             ],
             "markers": "sys_platform == 'linux'",
             "version": "==3.3.3"
-        },
-        "tomli": {
-            "hashes": [
-                "sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc",
-                "sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f"
-            ],
-            "markers": "python_version < '3.11'",
-            "version": "==2.0.1"
         },
         "twine": {
             "hashes": [
