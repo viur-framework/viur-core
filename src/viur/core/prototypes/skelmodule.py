@@ -62,3 +62,15 @@ class SkelModule(Module):
         By default, baseSkel is used by :func:`~viewSkel`, :func:`~addSkel`, and :func:`~editSkel`.
         """
         return self._resolveSkelCls(*args, **kwargs)()
+
+    @classmethod
+    def check_for_changes(cls, skel: SkeletonInstance, old_db_entity: db.Entity) -> bool:
+        """
+        :param skel: SkeletonInstance for the check
+        :param old_db_entity: Old db.Entity that are now in the Datastore
+        """
+        skel.serialize()
+        for key, val in skel.dbEntity.items():
+            if old_db_entity[key] != val and key != "changedate":
+                return True
+        return False
