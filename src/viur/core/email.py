@@ -1,23 +1,23 @@
 import base64
+import datetime
 import json
 import logging
 import os
-from abc import ABC, abstractmethod
-import typing as t
-from urllib import request
-
+import puremagic
 import requests
-
-if t.TYPE_CHECKING:
-    from viur.core.skeleton import SkeletonInstance
+import typing as t
+from abc import ABC, abstractmethod
+from urllib import request
 from viur.core import db, utils
 from viur.core.config import conf
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
 
+if t.TYPE_CHECKING:
+    from viur.core.skeleton import SkeletonInstance
+
 mailjet_dependencies = True
 try:
     import mailjet_rest
-    import magic
 except ModuleNotFoundError:
     mailjet_dependencies = False
 
@@ -393,7 +393,7 @@ class EmailTransportSendInBlue(EmailTransport):
             if ext not in EmailTransportSendInBlue.allowedExtensions:
                 raise ValueError(f"The file-extension {ext} cannot be send using Send in Blue")
 
-    @PeriodicTask(60 * 60)
+    @PeriodicTask(interval=60 * 60)
     @staticmethod
     def check_sib_quota() -> None:
         """Periodically checks the remaining SendInBlue email quota.
@@ -464,26 +464,47 @@ if mailjet_dependencies:
         @staticmethod
         def deliverEmail(*, sender: str, dests: list[str], cc: list[str], bcc: list[str], subject: str, body: str,
                          headers: dict[str, str], attachments: list[dict[str, bytes]], **kwargs):
-            data = {"messages": [{}]}
-            email = data["messages"][0]
-            email["from"] = EmailTransportMailjet.splitAddress(sender)
-            email["to"] = [EmailTransportMailjet.splitAddress(dest) for dest in dests]
-            email["htmlpart"] = body
-            email["subject"] = subject
+            if not (conf.email.mailjet_api_key and conf.email.mailjet_api_secret):
+                raise RuntimeError("Mailjet config missing, check 'mailjet_api_key' and 'mailjet_api_secret'")
+
+            email = {
+                "from": EmailTransportMailjet.splitAddress(sender),
+                "htmlpart": body,
+                "subject": subject,
+                "to": [EmailTransportMailjet.splitAddress(dest) for dest in dests],
+            }
+
             if bcc:
                 email["bcc"] = [EmailTransportMailjet.splitAddress(b) for b in bcc]
+
             if cc:
                 email["cc"] = [EmailTransportMailjet.splitAddress(c) for c in cc]
+
             if headers:
                 email["headers"] = headers
+
             if attachments:
-                email["attachments"] = [{
+                email["attachments"] = []
+
+                for att in attachments:
+                    if not (mimetype := att["mimetype"]):
+                        # try to guess mimetype using puremagic
+                        try:
+                            mimetype = puremagic.from_string(att["content"], mime=True)
+                        except puremagic.PureError:
+                            mimetype = "application/octet-stream"
+
+                email["attachments"].append({
                     "filename": att["filename"],
                     "base64content": base64.b64encode(att["content"]).decode("ASCII"),
-                    "mimetype": att["mimetype"] or magic.detect_from_content(att["content"]).mime_type
-                } for att in attachments]
-            mj_client = mailjet_rest.Client(auth=(conf.email.mailjet_api_key, conf.email.mailjet_api_secret),
-                                            version="v3.1")
-            result = mj_client.send.create(data=data)
+                    "mimetype": mimetype
+                })
+
+            mj_client = mailjet_rest.Client(
+                auth=(conf.email.mailjet_api_key, conf.email.mailjet_api_secret),
+                version="v3.1"
+            )
+
+            result = mj_client.send.create(data={"messages": [email]})
             assert 200 <= result.status_code < 300, "Received a non 2XX Status Code!"
             return result.content.decode("UTF-8")

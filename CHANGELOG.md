@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.11]
+
+- fix: Changed `EmailTransportMailjet` mimetype detection to `puremagic` (#1196)
+
 ## [3.6.10]
 
 - fix: Remove `default_order` fallback from `List` (#1195)
