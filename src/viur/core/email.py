@@ -487,8 +487,7 @@ if mailjet_dependencies:
                 email["attachments"] = []
 
                 for att in attachments:
-                    mimetype = att["mimetype"]
-                    if not mimetype:
+                    if not (mimetype := att["mimetype"]):
                         # try to guess mimetype using puremagic
                         try:
                             mimetype = puremagic.from_string(att["content"], mime=True)
