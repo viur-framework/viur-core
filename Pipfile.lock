@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "26d45c9d8b0ef0180b44ec4fbb5219c1958805a26dd46ac9f33f4a4d929494d0"
+            "sha256": "43d4ea29274211e8e28e8015ac432894e9f490cf4cea983d0fbebce4b0c513d4"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -668,6 +668,14 @@
             "markers": "python_version >= '3.8'",
             "version": "==4.25.3"
         },
+        "puremagic": {
+            "hashes": [
+                "sha256:671c801158376c5f4a43c805edf7ef87d59337e243b03a8ce23d151a7a0e9c4d",
+                "sha256:b8f8731263505f19949002bb4b5506fe19b57d98582f3218fccb4bdd0124fd2d"
+            ],
+            "index": "pypi",
+            "version": "==1.25"
+        },
         "pyasn1": {
             "hashes": [
                 "sha256:3a35ab2c4b5ef98e17dfdec8ab074046fbda76e281c5a706ccd82328cfc8f64c",
@@ -1264,11 +1272,11 @@
         },
         "importlib-metadata": {
             "hashes": [
-                "sha256:509ecb2ab77071db5137c655e24ceb3eee66e7bbc6574165d0d114d9fc4bbe68",
-                "sha256:ffef94b0b66046dd8ea2d619b701fe978d9264d38f3998bc4c27ec3b146a87c8"
+                "sha256:15584cf2b1bf449d98ff8a6ff1abef57bf20f3ac6454f431736cd3e660921b2f",
+                "sha256:188bd24e4c346d3f0a933f275c2fec67050326a856b9a359881d7c2a697e8812"
             ],
             "markers": "python_version >= '3.8'",
-            "version": "==7.2.1"
+            "version": "==8.0.0"
         },
         "jaraco.classes": {
             "hashes": [
