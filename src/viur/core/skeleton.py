@@ -1,4 +1,4 @@
-from __future__ import annotations
+from __future__ import annotations  # noqa: required for pre-defined annotations
 
 import copy
 import fnmatch
@@ -12,11 +12,24 @@ import warnings
 from functools import partial
 from itertools import chain
 from time import time
-
 from viur.core import conf, current, db, email, errors, translate, utils
-from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, RelationalUpdateLevel, SelectBone, StringBone
-from viur.core.bones.base import Compute, ComputeInterval, ComputeMethod, ReadFromClientError, \
-    ReadFromClientErrorSeverity, getSystemInitialized
+from viur.core.bones import (
+    BaseBone,
+    DateBone,
+    KeyBone,
+    RelationalBone,
+    RelationalUpdateLevel,
+    SelectBone,
+    StringBone,
+)
+from viur.core.bones.base import (
+    Compute,
+    ComputeInterval,
+    ComputeMethod,
+    ReadFromClientError,
+    ReadFromClientErrorSeverity,
+    getSystemInitialized,
+)
 from viur.core.tasks import CallDeferred, CallableTask, CallableTaskBase, QueryIter
 
 _undefined = object()
@@ -104,32 +117,6 @@ class MetaBaseSkel(type):
         if isinstance(value, BaseBone):
             # Call BaseBone.__set_name__ manually for bones that are assigned at runtime
             value.__set_name__(self, key)
-
-
-def skeletonByKind(kindName: str) -> t.Type[Skeleton]:
-    """
-        Returns the Skeleton-Class for the given kindName. That skeleton must exist, otherwise an exception is raised.
-        :param kindName: The kindname to retreive the skeleton for
-        :return: The skeleton-class for that kind
-    """
-    assert kindName in MetaBaseSkel._skelCache, f"Unknown skeleton {kindName=}"
-    return MetaBaseSkel._skelCache[kindName]
-
-
-def listKnownSkeletons() -> list[str]:
-    """
-        :return: A list of all known kindnames (all kindnames for which a skeleton is defined)
-    """
-    return list(MetaBaseSkel._skelCache.keys())[:]
-
-
-def iterAllSkelClasses() -> t.Iterable["Skeleton"]:
-    """
-        :return: An iterator that yields each Skeleton-Class once. (Only top-level skeletons are returned, so no
-            RefSkel classes will be included)
-    """
-    for cls in list(MetaBaseSkel._allSkelClasses):  # We'll add new classes here during setSystemInitialized()
-        yield cls
 
 
 class SkeletonInstance:
@@ -245,21 +232,43 @@ class SkeletonInstance:
         """
         if item == "boneMap":
             return {}  # There are __setAttr__ calls before __init__ has run
+
         # Load attribute value from the Skeleton class
-        elif item in {"kindName", "interBoneValidations", "customDatabaseAdapter"}:
+        elif item in {
+            "customDatabaseAdapter",
+            "interBoneValidations",
+            "kindName",
+        }:
             return getattr(self.skeletonCls, item)
+
         # Load a @classmethod from the Skeleton class and bound this SkeletonInstance
-        elif item in {"fromDB", "toDB", "all", "unserialize", "serialize", "fromClient", "getCurrentSEOKeys",
-                      "preProcessSerializedData", "preProcessBlobLocks", "postSavedHandler", "setBoneValue",
-                      "delete", "postDeletedHandler", "refresh"}:
+        elif item in {
+            "all",
+            "delete",
+            "fromClient",
+            "fromDB",
+            "getCurrentSEOKeys",
+            "postDeletedHandler",
+            "postSavedHandler",
+            "preProcessBlobLocks",
+            "preProcessSerializedData",
+            "refresh",
+            "serialize",
+            "setBoneValue",
+            "toDB",
+            "unserialize",
+        }:
             return partial(getattr(self.skeletonCls, item), self)
+
         # Load a @property from the Skeleton class
         try:
             # Use try/except to save an if check
             class_value = getattr(self.skeletonCls, item)
+
         except AttributeError:
             # Not inside the Skeleton class, okay at this point.
             pass
+
         else:
             if isinstance(class_value, property):
                 # The attribute is a @property and can be called
@@ -326,10 +335,6 @@ class SkeletonInstance:
         else:
             raise ValueError("Unsupported Type")
         return self
-
-
-
-
 
     def clone(self):
         """
@@ -672,6 +677,31 @@ class CustomDatabaseAdapter:
         """
         raise NotImplementedError
 
+    def trigger(
+        self,
+        action: str,
+        old_skel: db.Entity | SkeletonInstance = None,
+        new_skel: SkeletonInstance = None,
+        change_list: t.Iterable[str] = (),
+        descr: t.Optional[str] = None,
+        user: t.Optional[SkeletonInstance] = None,
+        tags: t.Iterable[str] = (),
+        db_write: bool = False
+    ) -> str | None:
+        """
+        Universal action trigger for a CustomDatabaseAdapter.
+
+        :param action: Action identifier, e.g. "add", "edit", "delete"
+        :param old_skel: Old skeleton before the change
+        :param new_skel: New skeleton after the change
+        :param change_list: An optional list of changed bones.
+        :param descr: An optional description to be used.
+        :param user: An optional user to be used. If unset, the current user should be used.
+        :param tags: Additional tags for the history entry for identification or classification.
+        :param db_write: True in case the entry is created from a DB-related function.
+        """
+        # logging.debug(f"{action=} {old_skel=} {new_skel=} {change_list=} {descr=} {user=} {tags=} {db_write=}")
+
 
 class ViurTagsSearchAdapter(CustomDatabaseAdapter):
     """
@@ -783,9 +813,20 @@ class SeoKeyBone(StringBone):
 
 
 class Skeleton(BaseSkeleton, metaclass=MetaSkel):
-    kindName: str = _undefined  # To which kind we save our data to
-    customDatabaseAdapter: CustomDatabaseAdapter | None = _undefined
+    kindName: str = _undefined
+    """
+    Specifies the entity kind name this Skeleton is associated with.
+    Will be determined automatically when not explicitly set.
+    """
+
+    customDatabaseAdapter: CustomDatabaseAdapter | t.Iterable[CustomDatabaseAdapter] | None = _undefined
+    """
+    Custom database adapters.
+    Allows to hook special functionalities that during skeleton modifications.
+    """
+
     subSkels = {}  # List of pre-defined sub-skeletons of this type
+
     interBoneValidations: list[
         t.Callable[[Skeleton], list[ReadFromClientError]]] = []  # List of functions checking inter-bone dependencies
 
@@ -1132,8 +1173,11 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             db_obj = skel.preProcessSerializedData(db_obj)
 
             # Allow the custom DB Adapter to apply last minute changes to the object
-            if skel.customDatabaseAdapter:
-                db_obj = skel.customDatabaseAdapter.preprocessEntry(db_obj, skel, change_list, is_add)
+            for adapter in utils.ensure_iterable(skel.customDatabaseAdapter):
+                db_obj = adapter.preprocessEntry(db_obj, skel, change_list, is_add)  # FIXME: DEPRECATED.
+
+                if not is_add:
+                    adapter.trigger("edit", db_obj, skel, change_list, db_write=True)
 
             # ViUR2 import compatibility - remove properties containing. if we have a dict with the same name
             def fixDotNames(entity):
@@ -1220,8 +1264,11 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 updateRelations(key, time() + 1, None)
 
         # Inform the custom DB Adapter of the changes made to the entry
-        if skel.customDatabaseAdapter:
-            skel.customDatabaseAdapter.updateEntry(db_obj, skel, change_list, is_add)
+        for adapter in utils.ensure_iterable(skel.customDatabaseAdapter):
+            db_obj = adapter.updateEntry(db_obj, skel, change_list, is_add)  # FIXME: DEPRECATED.
+
+            if is_add:
+                adapter.trigger("add", None, skel, db_write=True)
 
         return key
 
@@ -1330,9 +1377,11 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         for boneName, _bone in skel.items():
             _bone.postDeletedHandler(skel, boneName, key)
         skel.postDeletedHandler(key)
+
         # Inform the custom DB Adapter
-        if skel.customDatabaseAdapter:
-            skel.customDatabaseAdapter.deleteEntry(dbObj, skel)
+        for adapter in utils.ensure_iterable(skel.customDatabaseAdapter):
+            adapter.deleteEntry(dbObj, skel)  # FIXME: DEPRECATED.
+            adapter.trigger("delete", skel, None, db_write=True)
 
 
 class RelSkel(BaseSkeleton):
@@ -1424,6 +1473,35 @@ class SkelList(list):
         self.get_orders = lambda: None
         self.renderPreparation = None
         self.customQueryInfo = {}
+
+
+# Module functions
+
+
+def skeletonByKind(kindName: str) -> t.Type[Skeleton]:
+    """
+        Returns the Skeleton-Class for the given kindName. That skeleton must exist, otherwise an exception is raised.
+        :param kindName: The kindname to retreive the skeleton for
+        :return: The skeleton-class for that kind
+    """
+    assert kindName in MetaBaseSkel._skelCache, f"Unknown skeleton {kindName=}"
+    return MetaBaseSkel._skelCache[kindName]
+
+
+def listKnownSkeletons() -> list[str]:
+    """
+        :return: A list of all known kindnames (all kindnames for which a skeleton is defined)
+    """
+    return list(MetaBaseSkel._skelCache.keys())[:]
+
+
+def iterAllSkelClasses() -> t.Iterable[Skeleton]:
+    """
+        :return: An iterator that yields each Skeleton-Class once. (Only top-level skeletons are returned, so no
+            RefSkel classes will be included)
+    """
+    for cls in list(MetaBaseSkel._allSkelClasses):  # We'll add new classes here during setSystemInitialized()
+        yield cls
 
 
 ### Tasks ###
