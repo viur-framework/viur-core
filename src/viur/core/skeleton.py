@@ -1475,7 +1475,7 @@ class SkelList(list):
         self.customQueryInfo = {}
 
 
-### Module functions ###
+# Module functions
 
 
 def skeletonByKind(kindName: str) -> t.Type[Skeleton]:
