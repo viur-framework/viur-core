@@ -19,7 +19,7 @@ from viur.core.bones import (
     RelationalBone,
     RelationalUpdateLevel,
     SelectBone,
-    StringBone
+    StringBone,
 )
 from viur.core.bones.base import (
     Compute,
@@ -27,7 +27,7 @@ from viur.core.bones.base import (
     ComputeMethod,
     ReadFromClientError,
     ReadFromClientErrorSeverity,
-    getSystemInitialized
+    getSystemInitialized,
 )
 from viur.core.tasks import CallDeferred, CallableTask, CallableTaskBase, QueryIter
 
