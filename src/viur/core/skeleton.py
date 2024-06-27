@@ -1,4 +1,5 @@
-import abc
+from __future__ import annotations  # noqa: required for pre-defined annotations
+
 import copy
 import fnmatch
 import inspect
@@ -116,32 +117,6 @@ class MetaBaseSkel(type):
         if isinstance(value, BaseBone):
             # Call BaseBone.__set_name__ manually for bones that are assigned at runtime
             value.__set_name__(self, key)
-
-
-def skeletonByKind(kindName: str) -> t.Type[Skeleton]:
-    """
-        Returns the Skeleton-Class for the given kindName. That skeleton must exist, otherwise an exception is raised.
-        :param kindName: The kindname to retreive the skeleton for
-        :return: The skeleton-class for that kind
-    """
-    assert kindName in MetaBaseSkel._skelCache, f"Unknown skeleton {kindName=}"
-    return MetaBaseSkel._skelCache[kindName]
-
-
-def listKnownSkeletons() -> list[str]:
-    """
-        :return: A list of all known kindnames (all kindnames for which a skeleton is defined)
-    """
-    return list(MetaBaseSkel._skelCache.keys())[:]
-
-
-def iterAllSkelClasses() -> t.Iterable["Skeleton"]:
-    """
-        :return: An iterator that yields each Skeleton-Class once. (Only top-level skeletons are returned, so no
-            RefSkel classes will be included)
-    """
-    for cls in list(MetaBaseSkel._allSkelClasses):  # We'll add new classes here during setSystemInitialized()
-        yield cls
 
 
 class SkeletonInstance:
@@ -1498,6 +1473,35 @@ class SkelList(list):
         self.get_orders = lambda: None
         self.renderPreparation = None
         self.customQueryInfo = {}
+
+
+### Module functions ###
+
+
+def skeletonByKind(kindName: str) -> t.Type[Skeleton]:
+    """
+        Returns the Skeleton-Class for the given kindName. That skeleton must exist, otherwise an exception is raised.
+        :param kindName: The kindname to retreive the skeleton for
+        :return: The skeleton-class for that kind
+    """
+    assert kindName in MetaBaseSkel._skelCache, f"Unknown skeleton {kindName=}"
+    return MetaBaseSkel._skelCache[kindName]
+
+
+def listKnownSkeletons() -> list[str]:
+    """
+        :return: A list of all known kindnames (all kindnames for which a skeleton is defined)
+    """
+    return list(MetaBaseSkel._skelCache.keys())[:]
+
+
+def iterAllSkelClasses() -> t.Iterable[Skeleton]:
+    """
+        :return: An iterator that yields each Skeleton-Class once. (Only top-level skeletons are returned, so no
+            RefSkel classes will be included)
+    """
+    for cls in list(MetaBaseSkel._allSkelClasses):  # We'll add new classes here during setSystemInitialized()
+        yield cls
 
 
 ### Tasks ###

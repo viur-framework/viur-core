@@ -102,7 +102,7 @@ def normalizeKey(key: t.Union[None, 'db.KeyClass']) -> t.Union[None, 'db.KeyClas
     return db.Key(key.kind, key.id_or_name, parent=parent)
 
 
-def ensure_iterable(obj: t.Any, test: t.Optional[t.Callable] = None) -> t.Iterable[t.Any]:
+def ensure_iterable(obj: t.Any, test: t.Optional[t.Callable[[t.Any], bool]] = None) -> t.Iterable[t.Any]:
     """
     Ensures an object to be iterable.
     An additional test can be provided to check additionally.
@@ -112,6 +112,9 @@ def ensure_iterable(obj: t.Any, test: t.Optional[t.Callable] = None) -> t.Iterab
     if isinstance(obj, Iterable):
         if test is None or test(obj):
             return obj  # return the obj, which is an iterable
+
+        return ()  # empty tuple
+
     elif obj is None:
         return ()  # empty tuple
 
