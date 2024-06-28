@@ -138,5 +138,5 @@ class SelectBone(BaseBone):
 
     def structure(self) -> dict:
         return super().structure() | {
-            "values": [(k, str(v)) for k, v in self.values.items()],
+            "values": {k: str(v) for k, v in self.values.items()},
         }
