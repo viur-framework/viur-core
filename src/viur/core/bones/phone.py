@@ -7,7 +7,6 @@ from viur.core.bones.string import StringBone
 class PhoneBone(StringBone):
     """
     The PhoneBone class is designed to store validated phone/fax numbers in configurable formats.
-
     This class provides a number validation method, ensuring that the given phone/fax number conforms to the
     required/configured format and structure.
     """
@@ -26,7 +25,6 @@ class PhoneBone(StringBone):
         """
         Initializes the PhoneBone with an optional custom regex for phone number validation, a default country code,
         and a flag to apply the default country code if none is provided.
-
         :param custom_regex: An optional custom regex pattern for phone number validation.
         :param default_country_code: The default country code to apply if none is provided.
         :param apply_default_country_code: Whether to apply the default country code if none is provided.
@@ -46,13 +44,10 @@ class PhoneBone(StringBone):
     def isInvalid(self, value: str) -> Optional[str]:
         """
         Checks if the provided phone number is valid or not.
-
         :param value: The phone number to be validated.
         :returns: An error message if the phone number is invalid or None if it is valid.
         :rtype: Optional[str]
-
         The method checks if the provided phone number is valid according to the following criteria:
-
         1. The phone number must not be empty.
         2. The phone number must match the provided or default phone number format.
         3. If the phone number has no country code and apply_default_country_code is True, 
@@ -72,7 +67,6 @@ class PhoneBone(StringBone):
         """
         Processes a single value from the client, applying the default country code if necessary and validating the
         phone number.
-
         :param value: The phone number provided by the client.
         :param skel: Skeleton data (not used in this method).
         :param bone_name: The name of the bone (not used in this method).
@@ -91,3 +85,4 @@ class PhoneBone(StringBone):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
         return value, None
+    
