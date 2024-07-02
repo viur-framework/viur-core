@@ -17,7 +17,7 @@ from viur.core import db, utils, current
 from viur.core.config import conf
 
 if t.TYPE_CHECKING:
-    from ..skeleton import Skeleton
+    from ..skeleton import Skeleton, SkeletonInstance
 
 __system_initialized = False
 """
@@ -973,7 +973,7 @@ class BaseBone(object):
             else:
                 in_eq_filter = [
                     key for key in query.queries.filters.keys()
-                    if any(key.rstrip().endswith(op) for op in ("<", ">", "!="))
+                    if key.rstrip().endswith(("<", ">", "!="))
                 ]
 
             if in_eq_filter:
