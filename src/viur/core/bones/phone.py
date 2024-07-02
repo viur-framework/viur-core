@@ -88,7 +88,7 @@ class PhoneBone(StringBone):
             client_data (Any): Additional client data (not used in this method).
 
         Returns:
-            Tuple[Optional[str], Optional[List[ReadFromClientError]]]: 
+            Tuple[Optional[str], Optional[List[ReadFromClientError]]]:
             A tuple containing the processed phone number and an optional list of errors.
         """
         # Apply default country code if none is provided and apply_default_country_code is True
@@ -113,4 +113,3 @@ class PhoneBone(StringBone):
         return super().structure() | {
             "phone_regex": self.phone_regex.pattern if self.phone_regex else ""
         }
-    
