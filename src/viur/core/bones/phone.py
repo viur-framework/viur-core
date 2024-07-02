@@ -15,10 +15,14 @@ class PhoneBone(StringBone):
     """
     A string representing the type of the bone, in this case "str.phone".
     """
-
+ # experimental and needs to be configurable
+    """
+    The maximum length of the phone number.
+    """
     def __init__(
         self,
         custom_regex: Optional[Pattern] = None,
+        max_length: int = 15, 
         default_country_code: str = "+49",
         apply_default_country_code: bool = False,
         **kwargs: Any
@@ -40,7 +44,7 @@ class PhoneBone(StringBone):
         self.default_country_code: str = default_country_code
         self.apply_default_country_code: bool = apply_default_country_code
 
-        super().__init__(**kwargs)
+        super().__init__(max_length=max_length, **kwargs)
 
     def isInvalid(self, value: str) -> Optional[str]:
         """
@@ -59,6 +63,11 @@ class PhoneBone(StringBone):
 
         if not self.phone_regex.match(value):
             return "Invalid phone number entered"
+        
+        is_invalid = super().isInvalid(value)
+        
+        if is_invalid:
+            return is_invalid
 
         return None
 
