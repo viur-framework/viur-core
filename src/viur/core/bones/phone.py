@@ -86,3 +86,8 @@ class PhoneBone(StringBone):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
         return value, None
+
+    def structure(self) -> dict:
+        return super().structure() | {
+            "phone_regex": self.phone_regex.pattern if self.phone_regex else ""
+        }
