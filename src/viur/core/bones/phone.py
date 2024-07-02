@@ -2,6 +2,7 @@ import re
 from typing import Optional, Pattern, Tuple, List, Any
 
 from viur.core.bones.string import StringBone
+from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
 
 
 class PhoneBone(StringBone):
