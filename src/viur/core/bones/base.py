@@ -138,6 +138,13 @@ class MultipleConstraints:  # Used to define constraints on multiple bones
     """An integer representing the upper bound of how many entries can be submitted (default: 0)."""
     preventDuplicates: bool = False  # Prevent the same value of being used twice
     """A boolean value indicating if the same value can be used twice (default: False)."""
+    sorted: bool | t.Callable = False
+    """A boolean value or a method indicating if the value must be sorted (default: False)."""
+    reversed: bool = False
+    """
+    A boolean value indicating if sorted values shall be sorted in reversed order (default: False).
+    It is only applied when the `sorted`-flag is set accordingly.
+    """
 
 
 class ComputeMethod(Enum):
@@ -237,6 +244,8 @@ class BaseBone(object):
              and all([isinstance(x, str) for x in languages]))
         ):
             raise ValueError("languages must be None or a list of strings")
+        if languages and "__default__" in languages:
+            raise ValueError("__default__ is not supported as a language")
         if (
             not isinstance(required, bool)
             and (not isinstance(required, (tuple, list)) or any(not isinstance(value, str) for value in required))
@@ -253,8 +262,15 @@ class BaseBone(object):
         # Default value
         # Convert a None default-value to the empty container that's expected if the bone is
         # multiple or has languages
-        if defaultValue is None and self.languages:
-            self.defaultValue = {}
+        if self.languages:
+            if not isinstance(defaultValue, dict):
+                self.defaultValue = {lang: defaultValue for lang in self.languages}
+            elif "__default__" in defaultValue:
+                self.defaultValue = {lang: defaultValue.get(lang, defaultValue["__default__"])
+                                     for lang in self.languages}
+            else:
+                self.defaultValue = defaultValue
+
         elif defaultValue is None and self.multiple:
             self.defaultValue = []
         else:
@@ -548,6 +564,15 @@ class BaseBone(object):
                         filled_languages.add(language)
                         parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
                         res[language].append(parsedVal)
+                        if isinstance(self.multiple, MultipleConstraints) and self.multiple.sorted:
+                            if callable(self.multiple.sorted):
+                                res[language] = sorted(
+                                    res[language],
+                                    key=self.multiple.sorted,
+                                    reverse=self.multiple.reversed,
+                                )
+                            else:
+                                res[language] = sorted(res[language], reverse=self.multiple.reversed)
                         if parseErrors:
                             for parseError in parseErrors:
                                 parseError.fieldPath[:0] = [language, str(idx)]
@@ -576,10 +601,16 @@ class BaseBone(object):
                 isEmpty = False
                 parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
                 res.append(parsedVal)
+
                 if parseErrors:
                     for parseError in parseErrors:
                         parseError.fieldPath.insert(0, str(idx))
                     errors.extend(parseErrors)
+            if isinstance(self.multiple, MultipleConstraints) and self.multiple.sorted:
+                if callable(self.multiple.sorted):
+                    res = sorted(res, key=self.multiple.sorted, reverse=self.multiple.reversed)
+                else:
+                    res = sorted(res, reverse=self.multiple.reversed)
         else:  # No Languages, not multiple
             if self.isEmpty(parsedData):
                 res = self.getEmptyValue()
