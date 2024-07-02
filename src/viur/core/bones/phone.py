@@ -91,6 +91,10 @@ class PhoneBone(StringBone):
             Tuple[Optional[str], Optional[List[ReadFromClientError]]]:
             A tuple containing the processed phone number and an optional list of errors.
         """
+        # Replace country code starting with 00 with +
+        if value.startswith('00'):
+            value = '+' + value[2:]
+
         # Apply default country code if none is provided and apply_default_country_code is True
         if self.apply_default_country_code and not value.startswith(('+', '00')):
             if value.startswith('0'):
