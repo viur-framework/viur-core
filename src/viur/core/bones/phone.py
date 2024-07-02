@@ -32,9 +32,12 @@ class PhoneBone(StringBone):
         :param apply_default_country_code: Whether to apply the default country code if none is provided.
         """
         self.custom_regex: Pattern = custom_regex or re.compile(
-            r'^(?:\+|00)?[1-9]\d{0,2}[-\s]?\d{1,4}[-\s]?\d{1,4}[-\s]?\d{1,4}$|^(0\d{1,4}[-\s]?\d{1,4}[-\s]?\d{1,4})$'
+            r'^(?:\+|00)?[1-9]\d{0,2}[-\s]?\d{1,4}[-\s]?\d{1,4}[-\s]?\d{1,4}$|'
+            r'^(0\d{1,4}[-\s]?\d{1,4}[-\s]?\d{1,4})$'
         )
-        self.phone_regex: Pattern = re.compile(self.custom_regex) if isinstance(self.custom_regex, str) else self.custom_regex
+        self.phone_regex: Pattern = (
+            re.compile(self.custom_regex) if isinstance(self.custom_regex, str) else self.custom_regex
+        )
         self.default_country_code: str = default_country_code
         self.apply_default_country_code: bool = apply_default_country_code
 
@@ -52,7 +55,8 @@ class PhoneBone(StringBone):
 
         1. The phone number must not be empty.
         2. The phone number must match the provided or default phone number format.
-        3. If the phone number has no country code and apply_default_country_code is True, the default country code is applied.
+        3. If the phone number has no country code and apply_default_country_code is True, 
+        the default country code is applied.
         """
         if not value:
             return "No value entered"
@@ -66,7 +70,8 @@ class PhoneBone(StringBone):
         self, value: str, skel: Any, bone_name: str, client_data: Any
     ) -> Tuple[Optional[str], Optional[List[Any]]]:
         """
-        Processes a single value from the client, applying the default country code if necessary and validating the phone number.
+        Processes a single value from the client, applying the default country code if necessary and validating the
+        phone number.
 
         :param value: The phone number provided by the client.
         :param skel: Skeleton data (not used in this method).
