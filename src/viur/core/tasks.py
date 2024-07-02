@@ -658,8 +658,9 @@ def PeriodicTask(interval: datetime.timedelta | int | float = 0, cronName: str =
 
         if isinstance(interval, (int, float)) and "tasks.periodic.useminutes" in conf.compatibility:
             logging.warning(
-                f"Assuming {interval=} minutes here. This will change into seconds in future. "
-                f"Please use `datetime.timedelta` for clarification."
+                f"PeriodicTask assuming {interval=} minutes here. This is changed into seconds in future. "
+                f"Please use `datetime.timedelta(minutes={interval})` for clarification.",
+                stacklevel=2,
             )
             interval *= 60
         _periodicTasks[cronName][fn] = utils.parse.timedelta(interval)

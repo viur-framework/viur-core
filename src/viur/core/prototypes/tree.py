@@ -293,14 +293,18 @@ class Tree(SkelModule):
 
         # The general access control is made via self.listFilter()
         query = self.listFilter(self.viewSkel(skelType).all().mergeExternalFilter(kwargs))
-        if query and query.queries:
+        if query and query.queries and not isinstance(query.queries, list):
             # Apply default order when specified
             if self.default_order and not query.queries.orders and not current.request.get().kwargs.get("search"):
                 # TODO: refactor: Duplicate code in prototypes.List
                 if callable(default_order := self.default_order):
                     default_order = default_order(query)
 
-                if default_order:
+                if isinstance(default_order, dict):
+                    logging.debug(f"Applying filter {default_order=}")
+                    query.mergeExternalFilter(default_order)
+
+                elif default_order:
                     logging.debug(f"Applying {default_order=}")
 
                     # FIXME: This ugly test can be removed when there is type that abstracts SortOrders

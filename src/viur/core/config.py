@@ -488,6 +488,12 @@ class Email(ConfigType):
     of choice. See email.py for more details
     """
 
+    mailjet_api_key: t.Optional[str] = None
+    """API Key for MailJet"""
+
+    mailjet_api_secret: t.Optional[str] = None
+    """API Secret for MailJet"""
+
     sendinblue_api_key: t.Optional[str] = None
     """API Key for SendInBlue (now Brevo) for the EmailTransportSendInBlue
     """
