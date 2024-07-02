@@ -50,7 +50,7 @@ class PhoneBone(StringBone):
         The method checks if the provided phone number is valid according to the following criteria:
         1. The phone number must not be empty.
         2. The phone number must match the provided or default phone number format.
-        3. If the phone number has no country code and apply_default_country_code is True, 
+        3. If the phone number has no country code and apply_default_country_code is True,
         the default country code is applied.
         """
         if not value:
@@ -85,4 +85,3 @@ class PhoneBone(StringBone):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
         return value, None
-    
