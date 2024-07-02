@@ -919,7 +919,7 @@ class BaseBone(object):
     def buildDBSort(
         self,
         name: str,
-        skel: 'viur.core.skeleton.SkeletonInstance',
+        skel: "SkeletonInstance",
         query: db.Query,
         params: dict,
         postfix: str = "",
@@ -963,7 +963,7 @@ class BaseBone(object):
                 for item in query.queries:
                     new_in_eq_filter = [
                         key for key in item.filters.keys()
-                        if any(key.rstrip().endswith(op) for op in ("<", ">", "!="))
+                        if key.rstrip().endswith(("<", ">", "!="))
                     ]
                     if in_eq_filter and new_in_eq_filter and in_eq_filter != new_in_eq_filter:
                         raise NotImplementedError("Impossible ordering!")
