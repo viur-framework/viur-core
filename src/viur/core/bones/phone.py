@@ -88,7 +88,8 @@ class PhoneBone(StringBone):
             client_data (Any): Additional client data (not used in this method).
 
         Returns:
-            Tuple[Optional[str], Optional[List[ReadFromClientError]]]: A tuple containing the processed phone number and an optional list of errors.
+            Tuple[Optional[str], Optional[List[ReadFromClientError]]]: 
+            A tuple containing the processed phone number and an optional list of errors.
         """
         # Apply default country code if none is provided and apply_default_country_code is True
         if self.apply_default_country_code and not value.startswith(('+', '00')):
