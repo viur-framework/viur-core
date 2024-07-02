@@ -20,6 +20,7 @@ from .json import JsonBone
 from .key import KeyBone
 from .numeric import NumericBone
 from .password import PasswordBone
+from .phone import PhoneBone
 from .randomslice import RandomSliceBone
 from .raw import RawBone
 from .record import RecordBone
@@ -56,6 +57,7 @@ __all = [
     "MultipleConstraints",
     "NumericBone",
     "PasswordBone",
+    "PhoneBone",
     "RandomSliceBone",
     "RawBone",
     "ReadFromClientError",
