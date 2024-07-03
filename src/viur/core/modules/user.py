@@ -1255,7 +1255,7 @@ class User(List):
         Returns a set of default access rights for a given role.
         """
         if role in ("viewer", "editor", "admin"):
-            return {"admin"}
+            return {"admin", "scriptor"}
 
         return set()
 
