@@ -276,10 +276,7 @@ class RelationalBone(BaseBone):
         self.consistency = consistency
 
         if getSystemInitialized():
-            from viur.core.skeleton import RefSkel, SkeletonInstance
-            self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
-            self._skeletonInstanceClassRef = SkeletonInstance
-            self._ref_keys = set(self._refSkelCache.__boneMap__.keys())
+            self.setSystemInitialized()
 
     def setSystemInitialized(self):
         """
@@ -296,9 +293,43 @@ class RelationalBone(BaseBone):
         self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
         self._skeletonInstanceClassRef = SkeletonInstance
         self._ref_keys = set(self._refSkelCache.__boneMap__.keys())
-    # from viur.core.skeleton import RefSkel, skeletonByKind
-    # self._refSkelCache = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
-    # self._usingSkelCache = self.using() if self.using else None
+
+    def getDefaultValue(self, skel: 'SkeletonInstance'):
+        """
+        Returns the default value of a RelationalBone.
+        Accepts that a default value can be
+        """
+        from viur.core.skeleton import SkeletonInstance
+
+        def rewrite_default_value(value):
+            # when there's no using skel, accept a directly provided key
+            if not self.using and isinstance(value, (db.Key, str, int)):
+                value = self.createRelSkelFromKey(value)
+
+            # this is awkward...
+            assert (
+                isinstance(value, dict)
+                and sorted(value.keys()) == ["dest", "rel"]
+                and isinstance(value["dest"], SkeletonInstance)
+                and value["dest"].kindName == self._refSkelCache.kindName
+                and (not self.using or isinstance(value["rel"], self.using))
+            )
+
+            return value
+
+        # first, obtain default value from super-call
+        value = super().getDefaultValue(skel)
+        if value is None:
+            return value
+
+        # handle list/tuple
+        if isinstance(value, (list, tuple)):
+            return [rewrite_default_value(val) for val in value]
+
+        # TODO: Handle languages.
+
+        # single value
+        return rewrite_default_value(value)
 
     def _getSkels(self):
         """
