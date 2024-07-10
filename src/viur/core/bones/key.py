@@ -81,7 +81,6 @@ class KeyBone(BaseBone):
         else:
             rval, err = self.singleValueFromClient(val)
             if err:
-                print(val)
                 raise ValueError(err[0].errorMessage)
 
         return rval
