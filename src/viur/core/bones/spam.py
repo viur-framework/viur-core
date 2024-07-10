@@ -58,7 +58,6 @@ class SpamBone(NumericBone):
 
         return i18n.translate(self.descr_template).translate(a=self.values[a - 1], b=self.values[b - 1])
 
-
     def isInvalid(self, value):
         session = current.session.get()
 
