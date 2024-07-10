@@ -171,7 +171,7 @@ class Session(db.Entity):
             Removes a *key* from the session.
             This key must exist.
         """
-        del self[key]
+        super().__delitem__(key)
         self.changed = True
 
     def __ior__(self, other: dict) -> t.Self:
