@@ -39,12 +39,8 @@ class SpamBone(NumericBone):
         self.values = tuple(values)
         self.msg_invalid = msg_invalid
 
-    def _dice(self):
-        num = 0
-        while num == 0:
-            num = int(random.random() * len(self.values) + 1)
-
-        return num
+    def _dice(self) -> int:
+        return random.randint(1, len(self.values))
 
     @property
     def descr(self):
@@ -62,9 +58,6 @@ class SpamBone(NumericBone):
 
         return i18n.translate(self.descr_template).translate(a=self.values[a - 1], b=self.values[b - 1])
 
-    @descr.setter
-    def descr(self, value):
-        pass
 
     def isInvalid(self, value):
         session = current.session.get()
