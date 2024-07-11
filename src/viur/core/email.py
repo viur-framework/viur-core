@@ -524,8 +524,6 @@ if mailjet_dependencies:
                 version="v3.1"
             )
 
-            print(email)
-
             result = mj_client.send.create(data={"messages": [email]})
             assert 200 <= result.status_code < 300, f"Received {result.status_code=} {result.reason=}"
             return result.content.decode("UTF-8")
