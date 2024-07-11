@@ -19,19 +19,18 @@ class SpamBone(NumericBone):
             for digit in ("one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
         ),
         required: bool = True,
-        precision: int = 0,
         msg_invalid: str = i18n.translate(
             "core.bones.spam.invalid",
             "Your answer was wrong! Please try again."
         ),
         **kwargs
     ):
-        if precision != 0:
+        if "precision" in kwargs:
             raise ValueError(f"Cannot use {self.__class__.__name__!r} with a precision")
 
         super().__init__(
             required=required,
-            precision=precision,
+            precision=0,
             **kwargs
         )
 
