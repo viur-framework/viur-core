@@ -33,8 +33,9 @@ class Method:
         # Attributes
         self.exposed = None  # None = unexposed, True = exposed, False = internal exposed
         self.ssl = False
-        self.methods = ("GET", "POST", "HEAD")
+        self.methods = ("GET", "POST", "HEAD", "OPTIONS")
         self.seo_language_map = None
+        self.cors_allow_headers = None
 
         # Inspection
         self.signature = inspect.signature(self._func)

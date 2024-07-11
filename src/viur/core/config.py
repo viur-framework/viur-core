@@ -2,9 +2,9 @@ import datetime
 import hashlib
 import logging
 import os
+import typing as t
 import warnings
 from pathlib import Path
-import typing as t
 
 import google.auth
 
@@ -374,7 +374,7 @@ class Security(ConfigType):
 
     x_frame_options: t.Optional[
         tuple[t.Literal["deny", "sameorigin", "allow-from"],
-              t.Optional[str]]] = ("sameorigin", None)
+        t.Optional[str]]] = ("sameorigin", None)
     """If set, ViUR will emit an X-Frame-Options header
 
     In case of allow-from, the second parameters must be the host-url.
@@ -425,6 +425,12 @@ class Security(ConfigType):
         "user/login",
     ]
     """Paths that are accessible without authentication in a closed system, see `closed_system` for details."""
+
+    cors_origins: t.Iterable[str] | t.Literal["*"] | None = None
+    cors_methods: t.Iterable[str] = ["get", "head", "post", "options"]  # , "put", "patch", "delete"]
+    cors_allow_headers: t.Iterable[str] | t.Literal["*"] | None = None
+    cors_supports_credentials : bool = False
+    cors_max_age : datetime.timedelta | None = None
 
     _mapping = {
         "contentSecurityPolicy": "content_security_policy",
