@@ -1,11 +1,10 @@
 import ast
 import json
-import typing as t
-
 import jsonschema
-
+import typing as t
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.bones.raw import RawBone
+from viur.core import utils
 
 
 class JsonBone(RawBone):
@@ -23,34 +22,31 @@ class JsonBone(RawBone):
 
     type = "raw.json"
 
-    def __init__(self, indexed: bool = False, multiple: bool = False, languages: bool = None, schema: t.Mapping = {},
-                 *args,
-                 **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        *,
+        indexed: bool = False,
+        multiple: bool = False,
+        languages: bool = None,
+        schema: t.Mapping = {},
+        **kwargs
+    ):
+        # JsonBone is bound to certain limits
         assert not multiple
         assert not languages
         assert not indexed
-        # Validate the schema, if it's invalid a SchemaError will be raised
+
+        super().__init__(indexed=indexed, multiple=multiple, languages=languages, **kwargs)
+
+        # Validate the schema; if it's invalid a SchemaError will be raised
         jsonschema.validators.validator_for(False).check_schema(schema)
         self.schema = schema
 
-    def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
-        if name in skel.accessedValues:
-            skel.dbEntity[name] = json.dumps(skel.accessedValues[name])
+    def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+        return utils.json.dumps(skel.accessedValues[name])
 
-            # Ensure this bone is NOT indexed!
-            skel.dbEntity.exclude_from_indexes.add(name)
-
-            return True
-
-        return False
-
-    def unserialize(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> bool:
-        if data := skel.dbEntity.get(name):
-            skel.accessedValues[name] = json.loads(data)
-            return True
-
-        return False
+    def singleValueUnserialize(self, val):
+        return utils.json.loads(val)
 
     def singleValueFromClient(self, value: str | list | dict, skel, bone_name, client_data):
         if value:
@@ -59,7 +55,7 @@ class JsonBone(RawBone):
 
                 # Try to parse a JSON string
                 try:
-                    value = json.loads(value)
+                    value = utils.json.loads(value)
 
                 except json.decoder.JSONDecodeError as e:
                     # Try to parse a Python dict as fallback
@@ -76,8 +72,11 @@ class JsonBone(RawBone):
                     jsonschema.validate(value, self.schema)
                 except (jsonschema.exceptions.ValidationError, jsonschema.exceptions.SchemaError) as e:
                     return self.getEmptyValue(), [
-                        ReadFromClientError(ReadFromClientErrorSeverity.Invalid,
-                                            f"Invalid JSON for schema supplied: {e!s}")]
+                        ReadFromClientError(
+                            ReadFromClientErrorSeverity.Invalid,
+                            f"Invalid JSON for schema supplied: {e!s}")
+                        ]
+
         return super().singleValueFromClient(value, skel, bone_name, client_data)
 
     def structure(self) -> dict:

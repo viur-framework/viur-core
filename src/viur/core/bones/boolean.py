@@ -21,17 +21,10 @@ class BooleanBone(BaseBone):
         defaultValue: bool | list[bool] | dict[str, list[bool] | bool] = None,
         **kwargs
     ):
-        if defaultValue is None:
-            if kwargs.get("multiple") or kwargs.get("languages"):
-                # BaseBone's __init__ will choose an empty container for this
-                defaultValue = None
-            else:
-                # We have a single bone which is False
-                defaultValue = False
-        else:
+        if defaultValue is not None:
             # We have given an explicit defaultValue and maybe a complex structure
-            if not (kwargs.get("multiple") or kwargs.get("languages")) and not isinstance(defaultValue, bool):
-                raise TypeError("Only 'True' or 'False' can be provided as BooleanBone defaultValue")
+            if not (kwargs.get("multiple") or kwargs.get("languages")) and not (isinstance(defaultValue, bool)):
+                raise TypeError("Only 'True', 'False' or 'None' can be provided as BooleanBone defaultValue")
             # TODO: missing validation for complex types, but in other bones too
 
         super().__init__(defaultValue=defaultValue, **kwargs)
@@ -75,6 +68,43 @@ class BooleanBone(BaseBone):
         """
         if not isinstance(skel[boneName], bool):
             skel[boneName] = utils.parse.bool(skel[boneName], conf.bone_boolean_str2true)
+
+    def setBoneValue(
+        self,
+        skel: 'SkeletonInstance',
+        boneName: str,
+        value: t.Any,
+        append: bool,
+        language: None | str = None
+    ) -> bool:
+        """
+        Sets the value of the bone to the provided 'value'.
+        Sanity checks are performed; if the value is invalid, the bone value will revert to its original
+        (default) value and the function will return False.
+
+        :param skel: Dictionary with the current values from the skeleton the bone belongs to
+        :param boneName: The name of the bone that should be modified
+        :param value: The value that should be assigned. Its type depends on the type of the bone
+        :param append: If True, the given value will be appended to the existing bone values instead of
+            replacing them. Only supported on bones with multiple=True
+        :param language: Optional, the language of the value if the bone is language-aware
+        :return: A boolean indicating whether the operation succeeded or not
+        :rtype: bool
+        """
+        if append:
+            raise ValueError(f"append is not possible on {self.type} bones")
+        skel[boneName] = utils.parse.bool(value)
+        return True
+
+    def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+        """
+            Serializes a single value of the bone for storage in the database.
+
+            Derived bone classes should overwrite this method to implement their own logic for serializing single
+            values.
+            The serialized value should be suitable for storage in the database.
+        """
+        return utils.parse.bool(value)
 
     def buildDBFilter(
         self,

@@ -10,7 +10,7 @@ from html import entities as htmlentitydefs
 from html.parser import HTMLParser
 import typing as t
 
-from viur.core import db, utils
+from viur.core import db, conf
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 _DEFAULTTAGS = {
@@ -54,36 +54,6 @@ A dictionary containing default configurations for handling HTML content in Text
 """
 
 
-def parseDownloadUrl(urlStr: str) -> tuple[t.Optional[str], t.Optional[bool], t.Optional[str]]:
-    """
-    Parses a file download URL in the format `/file/download/xxxx?sig=yyyy` into its components: blobKey, derived,
-    and filename. If the URL cannot be parsed, the function returns None for each component.
-
-    :param str urlStr: The file download URL to be parsed.
-    :return: A tuple containing the parsed components: (blobKey, derived, filename).
-            Each component will be None if the URL could not be parsed.
-    :rtype: Tuple[Optional[str], Optional[bool], Optional[str]]
-    """
-    if not urlStr.startswith("/file/download/") or "?" not in urlStr:
-        return None, None, None
-    dataStr, sig = urlStr[15:].split("?")  # Strip /file/download/ and split on ?
-    sig = sig[4:]  # Strip sig=
-    if not utils.hmacVerify(dataStr.encode("ASCII"), sig):
-        # Invalid signature, bail out
-        return None, None, None
-    # Split the blobKey into the individual fields it should contain
-    try:
-        dlPath, validUntil, _ = urlsafe_b64decode(dataStr).decode("UTF-8").split("\0")
-    except:  # It's the old format, without an downloadFileName
-        dlPath, validUntil = urlsafe_b64decode(dataStr).decode("UTF-8").split("\0")
-    if validUntil != "0" and datetime.strptime(validUntil, "%Y%m%d%H%M") < datetime.now():
-        # Signature expired, bail out
-        return None, None, None
-    blobkey, derived, fileName = dlPath.split("/")
-    derived = derived != "source"
-    return blobkey, derived, fileName
-
-
 class CollectBlobKeys(HTMLParser):
     """
     A custom HTML parser that extends the HTMLParser class to collect blob keys found in the "src" attribute
@@ -105,9 +75,9 @@ class CollectBlobKeys(HTMLParser):
         if tag in ["a", "img"]:
             for k, v in attrs:
                 if k == "src":
-                    blobKey, _, _ = parseDownloadUrl(v)
-                    if blobKey:
-                        self.blobs.add(blobKey)
+                    file = getattr(conf.main_app.vi, "file", None)
+                    if file and (filepath := file.parse_download_url(v)):
+                        self.blobs.add(filepath.dlkey)
 
 
 class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
@@ -126,8 +96,8 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
          "\n": "",
          "\0": ""})
 
-    def __init__(self, tags=None, leaf_tags=None, attrs=None, styles=None, classes=None, src_set=None):
-        super().__init__()
+    def __init__(self, tags=None, leaf_tags=None, attrs=None, styles=None, classes=None, src_set=None, convert_charrefs: bool = True):
+        super().__init__(convert_charrefs=convert_charrefs)
 
         self.result = ""  # The final result that will be returned
         self.openTagsList = []  # List of tags that still need to be closed
@@ -224,19 +194,28 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
             elif k == "src":
                 # We ensure that any src tag starts with an actual url
                 checker = v.lower()
-                if not any([checker.startswith(prefix) for prefix in ("/", "http://", "https://")]):
+                if not (checker.startswith("http://") or checker.startswith("https://") or checker.startswith("/")):
                     continue
 
-                blobKey, derived, fileName = parseDownloadUrl(v)
-                if blobKey:
-                    v = utils.downloadUrlFor(blobKey, fileName, derived, expires=None)
-                    if self.src_set:
+                file = getattr(conf.main_app.vi, "file", None)
+                if file and (filepath := file.parse_download_url(v)):
+                    v = file.create_download_url(
+                        filepath.dlkey,
+                        filepath.filename,
+                        filepath.is_derived,
+                        expires=None
+                    )
+
+                    if self.srcSet:
                         # Build the src set with files already available. If a derived file is not yet build,
                         # getReferencedBlobs will catch it, build it, and we're going to be re-called afterwards.
-                        fileObj = db.Query("file").filter("dlkey =", blobKey) \
-                            .order(("creationdate", db.SortOrder.Ascending)).getEntry()
-                        src_set = utils.srcSetFor(fileObj, None, self.src_set.get("width"), self.src_set.get("height"))
-                        cacheTagStart += f" srcSet=\"{src_set}\""
+                        srcSet = file.create_src_set(
+                            filepath.dlkey,
+                            None,
+                            self.srcSet.get("width"),
+                            self.srcSet.get("height")
+                        )
+                        cacheTagStart += f' srcSet="{srcSet}"'
 
             if k not in self.attrs.get(tag, ()):
                 # That attribute is not valid on this tag
@@ -261,6 +240,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
                 if value.lower().startswith("expression") or value.lower().startswith("import"):
                     # IE evaluates JS inside styles if the keyword expression is present
                     continue
+
                 if style in self.validHtml["validStyles"] and not any(
                     [(x in value) for x in ["\"", ":", ";"]]):
                     style_res[style] = value
