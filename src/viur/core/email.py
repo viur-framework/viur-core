@@ -1,5 +1,4 @@
 import base64
-import datetime
 import json
 import logging
 import os
@@ -11,6 +10,8 @@ from urllib import request
 from viur.core import db, utils
 from viur.core.config import conf
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
+from viur.core.bones.text import HtmlSerializer
+from google.appengine.api.mail import SendMail, Attachment
 
 if t.TYPE_CHECKING:
     from viur.core.skeleton import SkeletonInstance
@@ -508,3 +509,50 @@ if mailjet_dependencies:
             result = mj_client.send.create(data={"messages": [email]})
             assert 200 <= result.status_code < 300, "Received a non 2XX Status Code!"
             return result.content.decode("UTF-8")
+
+
+class EmailTransportAppengine(EmailTransport):
+    """
+    Abstraction of the Google AppEngine Mail API for email transportation.
+    """
+
+    @staticmethod
+    def deliverEmail(
+        *,
+        sender: str,
+        dests: list[str],
+        cc: list[str],
+        bcc: list[str],
+        subject: str,
+        body: str,
+        headers: dict[str, str],
+        attachments: list[dict[str, bytes]],
+        **kwargs,
+    ):
+        # need to build a silly dict because the google.appengine mail api doesn't accept None or empty values ...
+        params = {
+            "to": [EmailTransportAppengine.splitAddress(dest)["email"] for dest in dests],
+            "sender": sender,
+            "subject": subject,
+            "body": HtmlSerializer().sanitize(body),
+            "html": body,
+        }
+
+        if cc:
+            params["cc"] = [EmailTransportAppengine.splitAddress(c)["email"] for c in cc]
+
+        if bcc:
+            params["bcc"] = [EmailTransportAppengine.splitAddress(c)["email"] for c in bcc]
+
+        if attachments:
+            params["attachments"] = [
+                Attachment(attachment["filename"], attachment["content"])
+                for attachment in attachments
+            ]
+
+        SendMail(**params)
+
+
+# Set (limited, but free) Google AppEngine Mail API as default
+if conf.email.transport_class is None:
+    conf.email.transport_class = EmailTransportAppengine
