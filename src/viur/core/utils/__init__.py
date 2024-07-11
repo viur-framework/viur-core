@@ -109,7 +109,7 @@ def ensure_iterable(obj: t.Any, test: t.Optional[t.Callable[[t.Any], bool]] = No
 
     If the object is not considered to be iterable, a tuple with the object is returned.
     """
-    if isinstance(obj, t.Iterable):
+    if isinstance(obj, Iterable):  # uses collections.abc.Iterable
         if test is None or test(obj):
             return obj  # return the obj, which is an iterable
 
