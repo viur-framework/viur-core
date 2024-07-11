@@ -573,6 +573,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 class MetaSkel(MetaBaseSkel):
     def __init__(cls, name, bases, dct):
         super(MetaSkel, cls).__init__(name, bases, dct)
+
         relNewFileName = inspect.getfile(cls) \
             .replace(str(conf.instance.project_base_path), "") \
             .replace(str(conf.instance.core_base_path), "")
@@ -592,6 +593,7 @@ class MetaSkel(MetaBaseSkel):
                 cls.kindName = cls.__name__.lower()[:-4]
             else:
                 cls.kindName = cls.__name__.lower()
+
         # Try to determine which skeleton definition takes precedence
         if cls.kindName and cls.kindName is not _undefined and cls.kindName in MetaBaseSkel._skelCache:
             relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]) \
@@ -613,16 +615,22 @@ class MetaSkel(MetaBaseSkel):
                 MetaBaseSkel._skelCache[cls.kindName] = cls
             else:  # They seem to be from the same Package - raise as something is messed up
                 raise ValueError(f"Duplicate definition for {cls.kindName} in {relNewFileName} and {relOldFileName}")
+
         # Ensure that all skeletons are defined in folders listed in conf.skeleton_search_path
         if (not any([relNewFileName.startswith(x) for x in conf.skeleton_search_path])
             and not "viur_doc_build" in dir(sys)):  # Do not check while documentation build
             raise NotImplementedError(
                 f"""{relNewFileName} must be defined in a folder listed in {conf.skeleton_search_path}""")
+
         if cls.kindName and cls.kindName is not _undefined:
             MetaBaseSkel._skelCache[cls.kindName] = cls
+
         # Auto-Add ViUR Search Tags Adapter if the skeleton has no adapter attached
         if cls.customDatabaseAdapter is _undefined:
             cls.customDatabaseAdapter = ViurTagsSearchAdapter()
+
+        # Always ensure that customDatabaseAdapter is an iterable
+        cls.customDatabaseAdapter = utils.ensure_iterable(cls.customDatabaseAdapter)
 
 
 class CustomDatabaseAdapter:
@@ -1173,8 +1181,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             db_obj = skel.preProcessSerializedData(db_obj)
 
             # Allow the custom DB Adapter to apply last minute changes to the object
-            for adapter in utils.ensure_iterable(skel.customDatabaseAdapter):
-                db_obj = adapter.preprocessEntry(db_obj, skel, change_list, is_add)  # FIXME: DEPRECATED.
+            for adapter in skel.customDatabaseAdapter:
+                # FIXME: DEPRECATED: Superseeded by adapter.trigger.
+                db_obj = adapter.preprocessEntry(db_obj, skel, change_list, is_add)
 
                 if not is_add:
                     adapter.trigger("edit", db_obj, skel, change_list, db_write=True)
@@ -1264,8 +1273,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 updateRelations(key, time() + 1, None)
 
         # Inform the custom DB Adapter of the changes made to the entry
-        for adapter in utils.ensure_iterable(skel.customDatabaseAdapter):
-            adapter.updateEntry(db_obj, skel, change_list, is_add)  # FIXME: DEPRECATED.
+        for adapter in skel.customDatabaseAdapter:
+            adapter.updateEntry(db_obj, skel, change_list, is_add)  # FIXME: DEPRECATED: Superseeded by adapter.trigger.
 
             if is_add:
                 adapter.trigger("add", None, skel, db_write=True)
@@ -1379,8 +1388,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         skel.postDeletedHandler(key)
 
         # Inform the custom DB Adapter
-        for adapter in utils.ensure_iterable(skel.customDatabaseAdapter):
-            adapter.deleteEntry(dbObj, skel)  # FIXME: DEPRECATED.
+        for adapter in skel.customDatabaseAdapter:
+            adapter.deleteEntry(dbObj, skel)  # FIXME: DEPRECATED: Superseeded by adapter.trigger.
             adapter.trigger("delete", skel, None, db_write=True)
 
 
