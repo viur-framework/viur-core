@@ -1265,7 +1265,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         # Inform the custom DB Adapter of the changes made to the entry
         for adapter in utils.ensure_iterable(skel.customDatabaseAdapter):
-            db_obj = adapter.updateEntry(db_obj, skel, change_list, is_add)  # FIXME: DEPRECATED.
+            adapter.updateEntry(db_obj, skel, change_list, is_add)  # FIXME: DEPRECATED.
 
             if is_add:
                 adapter.trigger("add", None, skel, db_write=True)
