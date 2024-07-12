@@ -605,7 +605,7 @@ class Router:
                     if candidate.match(value):
                         return True
                 elif isinstance(candidate, str):
-                    if candidate == value:
+                    if candidate.lower() == str(value).lower():
                         return True
                 else:
                     raise TypeError(
@@ -679,15 +679,17 @@ class Router:
                 if conf.security.cors_allow_headers == "*":
                     # Every header is allowed
                     allow_headers = request_headers[:]
-                elif conf.security.cors_allow_headers is None:
-                    # There are generally no headers allowed, but the caller might have some allowed
-                    allow_headers = set(self.cors_headers).intersection(request_headers)
                 else:
-                    allow_headers = (
-                        set(self.cors_headers)  # caller specific
-                        .union(str(header).lower() for header in conf.security.cors_allow_headers)  # generally global
-                        .intersection(request_headers)
-                    )
+                    # There are generally headers allowed and/or from the caller
+                    allow_headers = [
+                        header
+                        for header in request_headers
+                        if test_candidates(
+                            header,
+                            *(self.cors_headers or ()),  # caller specific
+                            *(conf.security.cors_allow_headers or ())  # generally global
+                        )
+                    ]
                 if allow_headers:
                     self.response.headers["Access-Control-Allow-Headers"] = ", ".join(sorted(allow_headers))
 

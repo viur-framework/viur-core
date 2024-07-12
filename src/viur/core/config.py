@@ -432,6 +432,9 @@ class Security(ConfigType):
     cors_origins: t.Iterable[str | re.Pattern] | t.Literal["*"] | None = None
     """Allowed origins
     Access-Control-Allow-Origin
+
+    Pattern should be case-insensitive, for example:
+        >>> re.compile(r"^http:\/\/localhost:(\d{4,5})\/?$", flags=re.IGNORECASE)
     """
 
     cors_origins_use_wildcard: bool = False
@@ -443,7 +446,10 @@ class Security(ConfigType):
     cors_allow_headers: t.Iterable[str | re.Pattern] | t.Literal["*"] | None = None
     """Access-Control-Request-Headers
 
-    Can also be set for specific @exposed methods wiht the @cors decorator.
+    Can also be set for specific @exposed methods with the @cors decorator.
+
+    Pattern should be case-insensitive, for example:
+        >>> re.compile(r"^X-ViUR-.*$", flags=re.IGNORECASE)
     """
 
     cors_allow_credentials: bool = False
