@@ -434,8 +434,8 @@ class Security(ConfigType):
     Access-Control-Allow-Origin
 
     Pattern should be case-insensitive, for example:
-        >>> re.compile(r"^http:\/\/localhost:(\d{4,5})\/?$", flags=re.IGNORECASE)
-    """
+        >>> re.compile(r"^http://localhost:(\d{4,5})/?$", flags=re.IGNORECASE)
+    """ # noqa
 
     cors_origins_use_wildcard: bool = False
     """Use * for Access-Control-Allow-Origin -- if possible"""
