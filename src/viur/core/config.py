@@ -435,7 +435,7 @@ class Security(ConfigType):
 
     Pattern should be case-insensitive, for example:
         >>> re.compile(r"^http://localhost:(\d{4,5})/?$", flags=re.IGNORECASE)
-    """ # noqa
+    """  # noqa
 
     cors_origins_use_wildcard: bool = False
     """Use * for Access-Control-Allow-Origin -- if possible"""
