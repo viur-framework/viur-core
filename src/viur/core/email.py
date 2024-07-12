@@ -239,7 +239,7 @@ def sendEMail(
         # it from being indexed
         for _ in range(0, len(attachments)):
             attachment = attachments.pop(0)
-            assert all(att in attachment for att in ("filename", "content"))
+            assert "filename" in attachment
 
             if "mimetype" not in attachment:
                 attachment["mimetype"] = "application/octet-stream"
