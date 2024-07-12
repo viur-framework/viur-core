@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.5.20]
+
+- fix: Backport deferred task `target_version`-fix from v3.6 to v3.5
+
 ## [3.5.19]
 
 - fix: Also respect new `admin` path in vi-render

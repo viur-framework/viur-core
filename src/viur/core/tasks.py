@@ -500,9 +500,10 @@ def CallDeferred(func: Callable) -> Callable:
     def make_deferred(func, self=__undefinedFlag_, *args, **kwargs):
         # Extract possibly provided task flags from kwargs
         queue = kwargs.pop("_queue", "default")
+        target_version = kwargs.pop("_target_version", conf["viur.instance.app_version"])
         if "_eta" in kwargs and "_countdown" in kwargs:
             raise ValueError("You cannot set the _countdown and _eta argument together!")
-        taskargs = {k: kwargs.pop(f"_{k}", None) for k in ("countdown", "eta", "name", "target_version")}
+        taskargs = {k: kwargs.pop(f"_{k}", None) for k in ("countdown", "eta", "name")}
 
         logging.debug(f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, {queue=}, {taskargs=}")
 
@@ -594,7 +595,7 @@ def CallDeferred(func: Callable) -> Callable:
                     http_method=tasks_v2.HttpMethod.POST,
                     relative_uri=taskargs["url"],
                     app_engine_routing=tasks_v2.AppEngineRouting(
-                        version=taskargs.get("target_version", conf["viur.instance.app_version"]),
+                        version=target_version,
                     ),
                 ),
             )
