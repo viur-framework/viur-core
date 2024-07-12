@@ -10,6 +10,7 @@ import fnmatch
 import json
 import logging
 import os
+import re
 import time
 import traceback
 import typing as t
@@ -534,8 +535,12 @@ class Router:
         if caller.exposed is False and not self.internalRequest:
             raise errors.NotFound()
 
-        # Register method specify cors values
-        self.cors_headers = caller.cors_allow_headers
+        # Fill the Allow header of the response with the allowed HTTP methods
+        if self.method == "options":
+            self.response.headers["Allow"] = ", ".join(sorted(caller.methods)).upper()
+
+        # Register caller specific CORS headers
+        self.cors_headers = [str(header).lower() for header in caller.cors_allow_headers or ()]
 
         # Check for @force_ssl flag
         if not self.internalRequest \
@@ -573,65 +578,124 @@ class Router:
         # Now call the routed method!
         res = caller(*self.args, **kwargs)
 
+        if self.method == "options":
+            # OPTIONS request doesn't have a body
+            del self.response.app_iter
+            self.response.status = "204 No Content"
+            del self.response.content_type
+            return
+
         if not isinstance(res, bytes):  # Convert the result to bytes if it is not already!
             res = str(res).encode("UTF-8")
         self.response.write(res)
 
-    def _cors(self):
+    def _cors(self) -> None:
+        """
+        Set CORS headers to the HTTP response
+
+        See Also:
+            - https://fetch.spec.whatwg.org/#http-cors-protocol
+            - https://enable-cors.org/server.html
+            - https://www.html5rocks.com/static/images/cors_server_flowchart.png
+        """
+
+        def test_candidates(value: str, *candidates: str | re.Pattern) -> bool:
+            for candidate in candidates:
+                if isinstance(candidate, re.Pattern):
+                    if candidate.match(value):
+                        return True
+                elif isinstance(candidate, str):
+                    if candidate == value:
+                        return True
+                else:
+                    raise TypeError(
+                        f"Invalid setting {candidate}. "
+                        f"Expected a string or a compiled regex."
+                    )
+            return False
+
         logging.warning(self.request.headers)
         logging.warning(dict(self.request.headers))
 
-        # referer = current.request.get().request.referer
-        referer = current.request.get().request.headers.get("Origin")
+        origin = current.request.get().request.headers.get("Origin")
 
-        logging.debug(f"{referer = }")
-        if not referer:
-            logging.warning(f"Referer not set")
+        logging.debug(f"{origin = }")
+        if not origin:
+            logging.debug(f"Origin header is not set")
             return
 
-        if not (conf.security.cors_origins == "*" or referer in conf.security.cors_origins):
-            logging.warning(f"Referer not valid ({conf.security.cors_origins=})")
+        # Origin is set --> It's a CORS request
+        logging.debug(f"Got CORS request from {origin=}")
+
+        any_origin_allowed = (
+            conf.security.cors_origins == "*"
+            or any(_origin == "*" for _origin in conf.security.cors_origins)
+            or any(_origin.pattern == r".*"
+                   for _origin in conf.security.cors_origins
+                   if isinstance(_origin, re.Pattern))
+        )
+
+        if any_origin_allowed and conf.security.cors_origins_use_wildcard:
+            if conf.security.cors_allow_credentials:
+                raise RuntimeError(
+                    "Invalid CORS config: "
+                    "If credentials mode is \"include\", then `Access-Control-Allow-Origin` cannot be `*`. "
+                    "See https://fetch.spec.whatwg.org/#cors-protocol-and-credentials"
+                )
+            self.response.headers["Access-Control-Allow-Origin"] = "*"
+
+        elif test_candidates(origin, *conf.security.cors_origins):
+            self.response.headers["Access-Control-Allow-Origin"] = origin
+
+        else:
+            logging.warning(f"{origin=} not valid (must be one of {conf.security.cors_origins=})")
             return
 
-        self.response.headers["Access-Control-Allow-Origin"] = referer
-
-        if conf.security.cors_supports_credentials:
+        if conf.security.cors_allow_credentials:
             self.response.headers["Access-Control-Allow-Credentials"] = "true"
 
         if self.method == "options":
             method = (self.request.headers.get("Access-Control-Request-Method") or "").lower()
-            if method not in ("get", "post", "head", "options"):
-                self.response.status_code = 400
-                self.response.write(b"Invalid method")
-                logging.error(f"{method=} not in ...")
-                return
+
             if method in conf.security.cors_methods:
+                # It's a CORS-preflight request
+                # - MUST include Access-Control-Request-Method
+                # - CAN include Access-Control-Request-Headers
                 logging.debug(f"{method=} is in {conf.security.cors_methods=}")
+
+                # The response can be cached
                 if conf.security.cors_max_age is not None:
                     assert isinstance(conf.security.cors_max_age, datetime.timedelta)
-                    self.response.headers["Access-Control-Max-Age"] = str(
-                        int(conf.security.cors_max_age.total_seconds()))
-                # self.response.headers["Access-Control-Allow-Headers"] = str(int(conf.security.cors_max_age.total_seconds()))
-                # self.response.headers["Access-Control-Allow-Origin"] = str(int(conf.security.cors_max_age.total_seconds()))
-                self.response.headers["Access-Control-Allow-Methods"] = ",".join(conf.security.cors_methods)
+                    self.response.headers["Access-Control-Max-Age"] = \
+                        str(int(conf.security.cors_max_age.total_seconds()))
+
+                # Allowed methods
+                self.response.headers["Access-Control-Allow-Methods"] = ", ".join(
+                    sorted(conf.security.cors_methods)).upper()
+
+                # Allowed headers
                 request_headers = self.request.headers.get("Access-Control-Request-Headers")
                 request_headers = [h.strip().lower() for h in request_headers.split(",")]
-                self.cors_headers = [str(header).lower() for header in self.cors_headers]
                 if conf.security.cors_allow_headers == "*":
-                    headers = request_headers[:]
+                    # Every header is allowed
+                    allow_headers = request_headers[:]
                 elif conf.security.cors_allow_headers is None:
-                    headers = set(self.cors_headers).intersection(request_headers)
+                    # There are generally no headers allowed, but the caller might have some allowed
+                    allow_headers = set(self.cors_headers).intersection(request_headers)
                 else:
-                    headers = set(
-                        str(header).lower() for header in conf.security.cors_allow_headers
-                    ).union(self.cors_headers).intersection(request_headers)
-                if headers:
-                    self.response.headers["Access-Control-Allow-Headers"] = ", ".join(sorted(headers))
+                    allow_headers = (
+                        set(self.cors_headers)  # caller specific
+                        .union(str(header).lower() for header in conf.security.cors_allow_headers)  # generally global
+                        .intersection(request_headers)
+                    )
+                if allow_headers:
+                    self.response.headers["Access-Control-Allow-Headers"] = ", ".join(sorted(allow_headers))
+
             else:
-                logging.debug(f"{method=} is NOT in {conf.security.cors_methods=}")
-
-
-        logging.debug(dict(self.response.headers))
+                logging.warning(
+                    f"Access-Control-Request-Method: {method} is NOT a valid method of {conf.security.cors_methods=}. "
+                    f"Don't append CORS-preflight request headers"
+                )
 
     def saveSession(self) -> None:
         current.session.get().save(self)
