@@ -1372,7 +1372,7 @@ class RefSkel(RelSkel):
         """
         Read full skeleton instance of the RefSkel from the database.
         Can be used in the RelationalBone for reading the full Skeleton from a RefSkel
-        :raise AssertionError:  If the entry is no longer in the database.
+        :raise ValueError: If the entry is no longer in the database.
         """
         skel = skeletonByKind(self["key"].kind)()
         if not skel.fromDB(self["key"]):
