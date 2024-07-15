@@ -2,10 +2,12 @@ import base64
 import json
 import logging
 import os
-import requests
 import typing as t
 from abc import ABC, abstractmethod
 from urllib import request
+
+import requests
+
 from viur.core import db, utils
 from viur.core.config import conf
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
@@ -41,6 +43,22 @@ except ModuleNotFoundError:
 
 EMAIL_KINDNAME = "viur-emails"
 
+AttachmentInline = t.TypedDict("AttachmentInline", {
+    "filename": str,
+    "content": bytes,
+    "mimetype": str,
+})
+AttachmentViurFile = t.TypedDict("AttachmentViurFile", {
+    "filename": str,
+    "file_key": db.Key | str,
+})
+AttachmentGscFile = t.TypedDict("AttachmentGscFile", {
+    "filename": str,
+    "gcsfile": db.Key | str,
+})
+
+Attachment: t.TypeAlias = AttachmentInline | AttachmentViurFile | AttachmentGscFile
+
 
 @PeriodicTask(interval=60 * 24)
 def cleanOldEmailsFromLog(*args, **kwargs):
@@ -56,7 +74,7 @@ class EmailTransport(ABC):
     @staticmethod
     @abstractmethod
     def deliverEmail(*, sender: str, dests: list[str], cc: list[str], bcc: list[str], subject: str, body: str,
-                     headers: dict[str, str], attachments: list[dict[str, bytes]],
+                     headers: dict[str, str], attachments: list[Attachment],
                      customData: dict | None, **kwargs):
         """
             The actual email delivery must be implemented here. All email-adresses can be either in the form of
@@ -110,6 +128,42 @@ class EmailTransport(ABC):
             return {"name": sname, "email": email}
         else:
             return {"email": address}
+
+    @staticmethod
+    def validate_attachment(attachment: Attachment) -> None:
+        """Validate attachment before queueing the email"""
+        if not isinstance(attachment, dict):
+            raise TypeError(f"Attachment must be a dict, not {type(attachment)}")
+        if "filename" not in attachment:
+            raise ValueError(f"Attachment {attachment} must have a filename")
+        if not any(prop in attachment for prop in ("content", "file_key", "gcsfile")):
+            raise ValueError(f"Attachment {attachment} must have content, file_key or gcsfile")
+        if "content" in attachment and not isinstance(attachment["content"], bytes):
+            raise ValueError(f"Attachment content must be bytes, not {type(attachment['content'])}")
+
+    @staticmethod
+    def fetch_attachment(attachment: Attachment) -> AttachmentInline:
+        """Fetch attachment (if necessary) in sendEmailDeferred deferred task
+
+        This allows sending emails with large attachments,
+        and prevents the queue entry from exceeding the maximum datastore Entity size.
+        """
+        # We need a copy of the attachments to keep the content apart from the db.Entity,
+        # which will be re-written later with the response.
+        attachment = attachment.copy()
+        if file_key := attachment.get("file_key"):
+            if attachment.get("content"):
+                raise ValueError(f'Got {file_key=} but also content in attachment {attachment.get("filename")=}')
+            blob, content_type = conf.main_app.vi.file.read(key=file_key)
+            attachment["content"] = blob.getvalue()
+            attachment["mimetype"] = content_type
+        elif gcsfile := attachment.get("gcsfile"):
+            if attachment.get("content"):
+                raise ValueError(f'Got {gcsfile=} but also content in attachment {attachment.get("filename")=}')
+            blob, content_type = conf.main_app.vi.file.read(path=gcsfile)
+            attachment["content"] = blob.getvalue()
+            attachment["mimetype"] = content_type
+        return attachment
 
 
 @CallDeferred
@@ -187,7 +241,7 @@ def sendEMail(
     cc: str | list[str] = None,
     bcc: str | list[str] = None,
     headers: dict[str, str] = None,
-    attachments: list[dict[str, t.Any]] = None,
+    attachments: list[Attachment] = None,
     context: db.DATASTORE_BASE_TYPES | list[db.DATASTORE_BASE_TYPES] | db.Entity = None,
     **kwargs,
 ) -> bool:
@@ -211,6 +265,8 @@ def sendEMail(
             - filename (string): Name of the file that's attached. Always required
             - content (bytes): Content of the attachment as bytes.
             - mimetype (string): Mimetype of the file. Suggested parameter for other implementations (not used by SIB)
+            - gcsfile (string): Path to a GCS-File to include instead of content.
+            - file_key (string): Key of a FileSkeleton to include instead of content.
 
     :param context: Arbitrary data that can be stored along the queue entry to be evaluated in
         transportSuccessfulCallback (useful for tracking delivery / opening events etc).
@@ -241,13 +297,12 @@ def sendEMail(
         # it from being indexed
         for _ in range(0, len(attachments)):
             attachment = attachments.pop(0)
-            assert "filename" in attachment
+            transport_class.validate_attachment(attachment)
 
             if "mimetype" not in attachment:
                 attachment["mimetype"] = "application/octet-stream"
 
             entity = db.Entity()
-
             for k, v in attachment.items():
                 entity[k] = v
                 entity.exclude_from_indexes.add(k)
@@ -358,7 +413,7 @@ class EmailTransportSendInBlue(EmailTransport):
 
     @staticmethod
     def deliverEmail(*, sender: str, dests: list[str], cc: list[str], bcc: list[str], subject: str, body: str,
-                     headers: dict[str, str], attachments: list[dict[str, bytes]], **kwargs):
+                     headers: dict[str, str], attachments: list[Attachment], **kwargs):
         """
             Internal function for delivering Emails using Send in Blue. This function requires the
             conf.email.sendinblue_api_key to be set.
@@ -391,6 +446,7 @@ class EmailTransportSendInBlue(EmailTransport):
         if attachments:
             dataDict["attachment"] = []
             for attachment in attachments:
+                attachment = EmailTransportSendInBlue.fetch_attachment(attachment)
                 dataDict["attachment"].append({
                     "name": attachment["filename"],
                     "content": base64.b64encode(attachment["content"]).decode("ASCII")
@@ -492,7 +548,7 @@ if mailjet_dependencies:
     class EmailTransportMailjet(EmailTransport):
         @staticmethod
         def deliverEmail(*, sender: str, dests: list[str], cc: list[str], bcc: list[str], subject: str, body: str,
-                         headers: dict[str, str], attachments: list[dict[str, bytes]], **kwargs):
+                         headers: dict[str, str], attachments: list[Attachment], **kwargs):
             if not (conf.email.mailjet_api_key and conf.email.mailjet_api_secret):
                 raise RuntimeError("Mailjet config missing, check 'mailjet_api_key' and 'mailjet_api_secret'")
 
@@ -516,6 +572,7 @@ if mailjet_dependencies:
                 email["attachments"] = []
 
                 for attachment in attachments:
+                    attachment = EmailTransportMailjet.fetch_attachment(attachment)
                     email["attachments"].append({
                         "filename": attachment["filename"],
                         "base64content": base64.b64encode(attachment["content"]).decode("ASCII"),
