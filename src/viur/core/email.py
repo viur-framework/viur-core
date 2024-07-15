@@ -2,12 +2,10 @@ import base64
 import json
 import logging
 import os
-import requests
 import typing as t
 from abc import ABC, abstractmethod
 from urllib import request
 
-import puremagic
 import requests
 
 from viur.core import db, utils
