@@ -12,7 +12,7 @@ from viur.core import db, utils
 from viur.core.config import conf
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
 from viur.core.bones.text import HtmlSerializer
-from google.appengine.api.mail import SendMail, Attachment
+from google.appengine.api.mail import SendMail as GAE_SendMail, Attachment as GAE_Attachment
 
 if t.TYPE_CHECKING:
     from viur.core.skeleton import SkeletonInstance
@@ -623,12 +623,15 @@ class EmailTransportAppengine(EmailTransport):
             params["bcc"] = [EmailTransportAppengine.splitAddress(c)["email"] for c in bcc]
 
         if attachments:
-            params["attachments"] = [
-                Attachment(attachment["filename"], attachment["content"])
-                for attachment in attachments
-            ]
+            params["attachments"] = []
 
-        SendMail(**params)
+            for attachment in attachments:
+                attachment = EmailTransportAppengine.fetch_attachment(attachment)
+                params["attachments"].append(
+                    GAE_Attachment(attachment["filename"], attachment["content"])
+                )
+
+        GAE_SendMail(**params)
 
 
 # Set (limited, but free) Google AppEngine Mail API as default
