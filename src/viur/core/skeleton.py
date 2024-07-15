@@ -1376,7 +1376,7 @@ class RefSkel(RelSkel):
         """
         skel = skeletonByKind(self["key"].kind)()
         if not skel.fromDB(self["key"]):
-            raise ValueError(f"""The key {self["key"]!r} seems to be gone""") 
+            raise ValueError(f"""The key {self["key"]!r} seems to be gone""")
         return skel
 
 
