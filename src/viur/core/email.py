@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import os
+import requests
 import typing as t
 from abc import ABC, abstractmethod
 from urllib import request
@@ -40,6 +41,8 @@ except ModuleNotFoundError:
 
 """
 
+EMAIL_KINDNAME = "viur-emails"
+
 AttachmentInline = t.TypedDict("AttachmentInline", {
     "filename": str,
     "content": bytes,
@@ -60,7 +63,7 @@ Attachment: t.TypeAlias = AttachmentInline | AttachmentViurFile | AttachmentGscF
 @PeriodicTask(interval=60 * 24)
 def cleanOldEmailsFromLog(*args, **kwargs):
     """Start the QueryIter DeleteOldEmailsFromLog to remove old, successfully send emails from the queue"""
-    qry = db.Query("viur-emails").filter("isSend =", True) \
+    qry = db.Query(EMAIL_KINDNAME).filter("isSend =", True) \
         .filter("creationDate <", utils.utcNow() - conf.email.log_retention)
     DeleteEntitiesIter.startIterOnQuery(qry)
 
@@ -164,42 +167,51 @@ class EmailTransport(ABC):
 
 
 @CallDeferred
-def sendEmailDeferred(emailKey: db.Key):
+def sendEmailDeferred(key: db.Key):
     """
         Callback from the Taskqueue to send the given Email
         :param emailKey: Database-Key of the email we should send
     """
-    logging.debug(f"Sending deferred e-mail {emailKey!r}")
-    queueEntity = db.Get(emailKey)
-    assert queueEntity, "Email queue object went missing!"
-    if queueEntity["isSend"]:
+    logging.debug(f"Sending deferred e-mail {key!r}")
+    queued_email = db.Get(key)
+    assert queued_email, "Email queue object went missing!"
+
+    if queued_email["isSend"]:
         return True
-    elif queueEntity["errorCount"] > 3:
+    elif queued_email["errorCount"] > 3:
         raise ChildProcessError("Error-Count exceeded")
-    transportClass = conf.email.transport_class  # First, ensure we're able to send email at all
-    assert issubclass(transportClass, EmailTransport), "No or invalid email transportclass specified!"
+
+    transport_class = conf.email.transport_class  # First, ensure we're able to send email at all
+    assert issubclass(transport_class, EmailTransport), "No or invalid email transportclass specified!"
+
     try:
-        resultData = transportClass.deliverEmail(dests=queueEntity["dests"],
-                                                 sender=queueEntity["sender"],
-                                                 cc=queueEntity["cc"],
-                                                 bcc=queueEntity["bcc"],
-                                                 subject=queueEntity["subject"],
-                                                 body=queueEntity["body"],
-                                                 headers=queueEntity["headers"],
-                                                 attachments=queueEntity["attachments"])
+        result_data = transport_class.deliverEmail(
+            dests=queued_email["dests"],
+            sender=queued_email["sender"],
+            cc=queued_email["cc"],
+            bcc=queued_email["bcc"],
+            subject=queued_email["subject"],
+            body=queued_email["body"],
+            headers=queued_email["headers"],
+            attachments=queued_email["attachments"]
+        )
+
     except Exception:
         # Increase the errorCount and bail out
-        queueEntity["errorCount"] += 1
-        db.Put(queueEntity)
+        queued_email["errorCount"] += 1
+        db.Put(queued_email)
         raise
+
     # If that transportFunction did not raise an error that email has been successfully send
-    queueEntity["isSend"] = True
-    queueEntity["sendDate"] = utils.utcNow()
-    queueEntity["transportFuncResult"] = resultData
-    queueEntity.exclude_from_indexes.add("transportFuncResult")
-    db.Put(queueEntity)
+    queued_email["isSend"] = True
+    queued_email["sendDate"] = utils.utcNow()
+    queued_email["transportFuncResult"] = result_data
+    queued_email.exclude_from_indexes.add("transportFuncResult")
+
+    db.Put(queued_email)
+
     try:
-        transportClass.transportSuccessfulCallback(queueEntity)
+        transport_class.transportSuccessfulCallback(queued_email)
     except Exception as e:
         logging.exception(e)
 
@@ -219,23 +231,25 @@ def normalize_to_list(value: None | t.Any | list[t.Any] | t.Callable[[], list]) 
     return [value]
 
 
-def sendEMail(*,
-              tpl: str = None,
-              stringTemplate: str = None,
-              skel: t.Union[None, dict, "SkeletonInstance", list["SkeletonInstance"]] = None,
-              sender: str = None,
-              dests: str | list[str] = None,
-              cc: str | list[str] = None,
-              bcc: str | list[str] = None,
-              headers: dict[str, str] = None,
-              attachments: list[Attachment] = None,
-              context: db.DATASTORE_BASE_TYPES | list[db.DATASTORE_BASE_TYPES] | db.Entity = None,
-              **kwargs) -> bool:
+def sendEMail(
+    *,
+    tpl: str = None,
+    stringTemplate: str = None,
+    skel: t.Union[None, dict, "SkeletonInstance", list["SkeletonInstance"]] = None,
+    sender: str = None,
+    dests: str | list[str] = None,
+    cc: str | list[str] = None,
+    bcc: str | list[str] = None,
+    headers: dict[str, str] = None,
+    attachments: list[Attachment] = None,
+    context: db.DATASTORE_BASE_TYPES | list[db.DATASTORE_BASE_TYPES] | db.Entity = None,
+    **kwargs,
+) -> bool:
     """
     General purpose function for sending e-mail.
     This function allows for sending e-mails, also with generated content using the Jinja2 template engine.
     Your have to implement a method which should be called to send the prepared email finally. For this you have
-    to allocate *viur.email.transportClass* in conf.
+    to allocate *viur.email.transport_class* in conf.
 
     :param tpl: The name of a template from the deploy/emails directory.
     :param stringTemplate: This string is interpreted as the template contents. Alternative to load from template file.
@@ -249,7 +263,7 @@ def sendEMail(*,
     :param attachments:
         List of files to be sent within the mail as attachments. Each attachment must be a dictionary with these keys:
             - filename (string): Name of the file that's attached. Always required
-            - content (bytes): Content of the attachment as bytes. Required for the send in blue API.
+            - content (bytes): Content of the attachment as bytes.
             - mimetype (string): Mimetype of the file. Suggested parameter for other implementations (not used by SIB)
             - gcsfile (string): Path to a GCS-File to include instead of content.
             - file_key (string): Key of a FileSkeleton to include instead of content.
@@ -262,75 +276,92 @@ def sendEMail(*,
         (for all text and attachments combined)!
     """
     # First, ensure we're able to send email at all
-    transportClass = conf.email.transport_class  # First, ensure we're able to send email at all
-    assert issubclass(transportClass, EmailTransport), "No or invalid email transportclass specified!"
+    transport_class = conf.email.transport_class  # First, ensure we're able to send email at all
+    assert issubclass(transport_class, EmailTransport), "No or invalid email transportclass specified!"
+
     # Ensure that all recipient parameters (dest, cc, bcc) are a list
     dests = normalize_to_list(dests)
     cc = normalize_to_list(cc)
     bcc = normalize_to_list(bcc)
+
     assert dests or cc or bcc, "No destination address given"
     assert all([isinstance(x, str) and x for x in dests]), "Found non-string or empty destination address"
     assert all([isinstance(x, str) and x for x in cc]), "Found non-string or empty cc address"
     assert all([isinstance(x, str) and x for x in bcc]), "Found non-string or empty bcc address"
-    attachments = normalize_to_list(attachments)
+
     if not (bool(stringTemplate) ^ bool(tpl)):
         raise ValueError("You have to set the params 'tpl' xor a 'stringTemplate'.")
-    if attachments:
+
+    if attachments := normalize_to_list(attachments):
         # Ensure each attachment has the filename key and rewrite each dict to db.Entity so we can exclude
         # it from being indexed
         for _ in range(0, len(attachments)):
             attachment = attachments.pop(0)
-            transportClass.validate_attachment(attachment)
+            transport_class.validate_attachment(attachment)
+
+            if "mimetype" not in attachment:
+                attachment["mimetype"] = "application/octet-stream"
+
             entity = db.Entity()
             for k, v in attachment.items():
                 entity[k] = v
                 entity.exclude_from_indexes.add(k)
+
             attachments.append(entity)
+
     # If conf.email.recipient_override is set we'll redirect any email to these address(es)
     if conf.email.recipient_override:
         logging.warning(f"Overriding destination {dests!r} with {conf.email.recipient_override!r}")
-        oldDests = dests
-        newDests = normalize_to_list(conf.email.recipient_override)
+        old_dests = dests
+        new_dests = normalize_to_list(conf.email.recipient_override)
         dests = []
-        for newDest in newDests:
-            if newDest.startswith("@"):
-                for oldDest in oldDests:
-                    dests.append(oldDest.replace(".", "_dot_").replace("@", "_at_") + newDest)
+        for new_dest in new_dests:
+            if new_dest.startswith("@"):
+                for old_dest in old_dests:
+                    dests.append(old_dest.replace(".", "_dot_").replace("@", "_at_") + new_dest)
             else:
-                dests.append(newDest)
+                dests.append(new_dest)
         cc = bcc = []
+
     elif conf.email.recipient_override is False:
         logging.warning("Sending emails disabled by config[viur.email.recipientOverride]")
         return False
+
     if conf.email.sender_override:
         sender = conf.email.sender_override
     elif sender is None:
         sender = f'viur@{conf.instance.project_id}.appspotmail.com'
+
     subject, body = conf.emailRenderer(dests, tpl, stringTemplate, skel, **kwargs)
+
     # Push that email to the outgoing queue
-    queueEntity = db.Entity(db.Key("viur-emails"))
-    queueEntity["isSend"] = False
-    queueEntity["errorCount"] = 0
-    queueEntity["creationDate"] = utils.utcNow()
-    queueEntity["sender"] = sender
-    queueEntity["dests"] = dests
-    queueEntity["cc"] = cc
-    queueEntity["bcc"] = bcc
-    queueEntity["subject"] = subject
-    queueEntity["body"] = body
-    queueEntity["headers"] = headers
-    queueEntity["attachments"] = attachments
-    queueEntity["context"] = context
-    queueEntity.exclude_from_indexes = {"body", "attachments", "context"}
-    transportClass.validateQueueEntity(queueEntity)  # Will raise an exception if the entity is not valid
+    queued_email = db.Entity(db.Key(EMAIL_KINDNAME))
+
+    queued_email["isSend"] = False
+    queued_email["errorCount"] = 0
+    queued_email["creationDate"] = utils.utcNow()
+    queued_email["sender"] = sender
+    queued_email["dests"] = dests
+    queued_email["cc"] = cc
+    queued_email["bcc"] = bcc
+    queued_email["subject"] = subject
+    queued_email["body"] = body
+    queued_email["headers"] = headers
+    queued_email["attachments"] = attachments
+    queued_email["context"] = context
+    queued_email.exclude_from_indexes = {"body", "attachments", "context"}
+
+    transport_class.validateQueueEntity(queued_email)  # Will raise an exception if the entity is not valid
+
     if conf.instance.is_dev_server and not conf.email.send_from_local_development_server:
         logging.info("Not sending email from local development server")
-        logging.info(f"""Subject: {queueEntity["subject"]}""")
-        logging.info(f"""Body: {queueEntity["body"]}""")
-        logging.info(f"""Recipients: {queueEntity["dests"]}""")
+        logging.info(f"""Subject: {queued_email["subject"]}""")
+        logging.info(f"""Body: {queued_email["body"]}""")
+        logging.info(f"""Recipients: {queued_email["dests"]}""")
         return False
-    db.Put(queueEntity)
-    sendEmailDeferred(queueEntity.key, _queue="viur-emails")
+
+    db.Put(queued_email)
+    sendEmailDeferred(queued_email.key, _queue="viur-emails")
     return True
 
 
@@ -539,20 +570,13 @@ if mailjet_dependencies:
             if attachments:
                 email["attachments"] = []
 
-                for att in attachments:
-                    att = EmailTransportMailjet.fetch_attachment(att)
-                    if not (mimetype := att["mimetype"]):
-                        # try to guess mimetype using puremagic
-                        try:
-                            mimetype = puremagic.from_string(att["content"], mime=True)
-                        except puremagic.PureError:
-                            mimetype = "application/octet-stream"
-
-                email["attachments"].append({
-                    "filename": att["filename"],
-                    "base64content": base64.b64encode(att["content"]).decode("ASCII"),
-                    "mimetype": mimetype
-                })
+                for attachment in attachments:
+                    attachment = EmailTransportMailjet.fetch_attachment(attachment)
+                    email["attachments"].append({
+                        "filename": attachment["filename"],
+                        "base64content": base64.b64encode(attachment["content"]).decode("ASCII"),
+                        "contenttype": attachment["mimetype"]
+                    })
 
             mj_client = mailjet_rest.Client(
                 auth=(conf.email.mailjet_api_key, conf.email.mailjet_api_secret),
@@ -560,5 +584,5 @@ if mailjet_dependencies:
             )
 
             result = mj_client.send.create(data={"messages": [email]})
-            assert 200 <= result.status_code < 300, "Received a non 2XX Status Code!"
+            assert 200 <= result.status_code < 300, f"Received {result.status_code=} {result.reason=}"
             return result.content.decode("UTF-8")
