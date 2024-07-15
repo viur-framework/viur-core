@@ -298,12 +298,13 @@ def sendEMail(
 
     transport_class.validateQueueEntity(queued_email)  # Will raise an exception if the entity is not valid
 
-    if conf.instance.is_dev_server and not conf.email.send_from_local_development_server:
-        logging.info("Not sending email from local development server")
-        logging.info(f"""Subject: {queued_email["subject"]}""")
-        logging.info(f"""Body: {queued_email["body"]}""")
-        logging.info(f"""Recipients: {queued_email["dests"]}""")
-        return False
+    if conf.instance.is_dev_server:
+        if not conf.email.send_from_local_development_server or transport_class is EmailTransportAppengine:
+            logging.info("Not sending email from local development server")
+            logging.info(f"""Subject: {queued_email["subject"]}""")
+            logging.info(f"""Body: {queued_email["body"]}""")
+            logging.info(f"""Recipients: {queued_email["dests"]}""")
+            return False
 
     db.Put(queued_email)
     sendEmailDeferred(queued_email.key, _queue="viur-emails")
