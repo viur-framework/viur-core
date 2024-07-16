@@ -604,7 +604,7 @@ class EmailTransportAppengine(EmailTransport):
         subject: str,
         body: str,
         headers: dict[str, str],
-        attachments: list[dict[str, bytes]],
+        attachments: list[Attachment],
         **kwargs,
     ):
         # need to build a silly dict because the google.appengine mail api doesn't accept None or empty values ...
