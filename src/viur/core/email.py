@@ -11,6 +11,8 @@ import requests
 from viur.core import db, utils
 from viur.core.config import conf
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
+from viur.core.bones.text import HtmlSerializer
+from google.appengine.api.mail import SendMail as GAE_SendMail, Attachment as GAE_Attachment
 
 if t.TYPE_CHECKING:
     from viur.core.skeleton import SkeletonInstance
@@ -351,12 +353,13 @@ def sendEMail(
 
     transport_class.validateQueueEntity(queued_email)  # Will raise an exception if the entity is not valid
 
-    if conf.instance.is_dev_server and not conf.email.send_from_local_development_server:
-        logging.info("Not sending email from local development server")
-        logging.info(f"""Subject: {queued_email["subject"]}""")
-        logging.info(f"""Body: {queued_email["body"]}""")
-        logging.info(f"""Recipients: {queued_email["dests"]}""")
-        return False
+    if conf.instance.is_dev_server:
+        if not conf.email.send_from_local_development_server or transport_class is EmailTransportAppengine:
+            logging.info("Not sending email from local development server")
+            logging.info(f"""Subject: {queued_email["subject"]}""")
+            logging.info(f"""Body: {queued_email["body"]}""")
+            logging.info(f"""Recipients: {queued_email["dests"]}""")
+            return False
 
     db.Put(queued_email)
     sendEmailDeferred(queued_email.key, _queue="viur-emails")
@@ -584,3 +587,53 @@ if mailjet_dependencies:
             result = mj_client.send.create(data={"messages": [email]})
             assert 200 <= result.status_code < 300, f"Received {result.status_code=} {result.reason=}"
             return result.content.decode("UTF-8")
+
+
+class EmailTransportAppengine(EmailTransport):
+    """
+    Abstraction of the Google AppEngine Mail API for email transportation.
+    """
+
+    @staticmethod
+    def deliverEmail(
+        *,
+        sender: str,
+        dests: list[str],
+        cc: list[str],
+        bcc: list[str],
+        subject: str,
+        body: str,
+        headers: dict[str, str],
+        attachments: list[Attachment],
+        **kwargs,
+    ):
+        # need to build a silly dict because the google.appengine mail api doesn't accept None or empty values ...
+        params = {
+            "to": [EmailTransportAppengine.splitAddress(dest)["email"] for dest in dests],
+            "sender": sender,
+            "subject": subject,
+            "body": HtmlSerializer().sanitize(body),
+            "html": body,
+        }
+
+        if cc:
+            params["cc"] = [EmailTransportAppengine.splitAddress(c)["email"] for c in cc]
+
+        if bcc:
+            params["bcc"] = [EmailTransportAppengine.splitAddress(c)["email"] for c in bcc]
+
+        if attachments:
+            params["attachments"] = []
+
+            for attachment in attachments:
+                attachment = EmailTransportAppengine.fetch_attachment(attachment)
+                params["attachments"].append(
+                    GAE_Attachment(attachment["filename"], attachment["content"])
+                )
+
+        GAE_SendMail(**params)
+
+
+# Set (limited, but free) Google AppEngine Mail API as default
+if conf.email.transport_class is None:
+    conf.email.transport_class = EmailTransportAppengine
