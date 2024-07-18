@@ -34,7 +34,7 @@ class KeyBone(BaseBone):
         self.allowed_kinds = tuple(allowed_kinds) if allowed_kinds else None
         self.check = check
 
-    def singleValueFromClient(self, value, skel=None, bone_name=None, client_data=None):
+    def singleValueFromClient(self, value, skel=None, bone_name=None, client_data=None, parse_only: bool = False):
         # check for correct key
         if isinstance(value, str):
             value = value.strip()
@@ -59,19 +59,20 @@ class KeyBone(BaseBone):
                     )
                 ]
 
-        # Check custom validity
-        err = self.isInvalid(key)
-        if err:
-            return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
+        if not parse_only:
+            # Check custom validity
+            err = self.isInvalid(key)
+            if err:
+                return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
-        if self.check:
-            if db.Get(key) is None:
-                return self.getEmptyValue(), [
-                    ReadFromClientError(
-                        ReadFromClientErrorSeverity.Invalid,
-                        "The provided key does not exist"
-                    )
-                ]
+            if self.check:
+                if db.Get(key) is None:
+                    return self.getEmptyValue(), [
+                        ReadFromClientError(
+                            ReadFromClientErrorSeverity.Invalid,
+                            "The provided key does not exist"
+                        )
+                    ]
 
         return key, None
 
@@ -79,9 +80,8 @@ class KeyBone(BaseBone):
         if isinstance(val, db.Key):
             rval = db.normalizeKey(val)
         else:
-            rval, err = self.singleValueFromClient(val)
+            rval, err = self.singleValueFromClient(val, parse_only=True)
             if err:
-                print(val)
                 raise ValueError(err[0].errorMessage)
 
         return rval
