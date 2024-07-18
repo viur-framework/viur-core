@@ -7,6 +7,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+appengine-python-standard = "~=1.0"
 google-api-core = { version = "~=2.0", extras = ["grpc"] }
 google-auth = "~=2.0"
 google-cloud-datastore = "~=2.0"
@@ -21,7 +22,6 @@ gunicorn = "~=21.0"
 jinja2 = "~=3.0"
 jsonschema = "~=4.0"
 pillow = "~=10.0"
-puremagic = "~=1.0"
 pyotp = "~=2.0"
 pytz = "~=2023.0"
 pyyaml = "~=6.0"

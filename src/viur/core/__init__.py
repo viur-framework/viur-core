@@ -28,6 +28,7 @@ import os
 import yaml
 import warnings
 import inspect
+from google.appengine.api import wrap_wsgi_app
 from types import ModuleType
 from typing import Callable, Dict, Union, List
 from viur.core import errors, i18n, request, utils, current
@@ -260,7 +261,7 @@ def setup(modules: Union[object, ModuleType], render: Union[ModuleType, Dict] = 
             db.Put(obj)
 
         conf["viur.file.hmacKey"] = bytes(obj["hmacKey"], "utf-8")
-    return app
+    return wrap_wsgi_app(app)
 
 
 def app(environ: dict, start_response: Callable):

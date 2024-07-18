@@ -2,7 +2,6 @@ import base64
 import json
 import logging
 import os
-import puremagic
 import requests
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Union
@@ -10,6 +9,8 @@ from urllib import request
 from viur.core import db, utils
 from viur.core.config import conf
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
+from viur.core.bones.text import HtmlSerializer
+from google.appengine.api.mail import SendMail as GAE_SendMail, Attachment as GAE_Attachment
 
 
 mailjet_dependencies = True
@@ -488,18 +489,11 @@ if mailjet_dependencies:
                 email["attachments"] = []
 
                 for att in attachments:
-                    if not (mimetype := att["mimetype"]):
-                        # try to guess mimetype using puremagic
-                        try:
-                            mimetype = puremagic.from_string(att["content"], mime=True)
-                        except puremagic.PureError:
-                            mimetype = "application/octet-stream"
-
-                email["attachments"].append({
-                    "filename": att["filename"],
-                    "base64content": base64.b64encode(att["content"]).decode("ASCII"),
-                    "mimetype": mimetype
-                })
+                    email["attachments"].append({
+                        "filename": att["filename"],
+                        "base64content": base64.b64encode(att["content"]).decode("ASCII"),
+                        "mimetype": att["mimetype"],
+                    })
 
             mj_client = mailjet_rest.Client(
                 auth=(api_key, api_secret),
@@ -509,3 +503,54 @@ if mailjet_dependencies:
             result = mj_client.send.create(data={"messages": [email]})
             assert 200 <= result.status_code < 300, "Received a non 2XX Status Code!"
             return result.content.decode("UTF-8")
+
+
+class EmailTransportAppengine(EmailTransport):
+    """
+    Abstraction of the Google AppEngine Mail API for email transportation.
+    """
+
+    @staticmethod
+    def deliverEmail(
+        *,
+        sender: str,
+        dests: list[str],
+        cc: list[str],
+        bcc: list[str],
+        subject: str,
+        body: str,
+        headers: dict[str, str],
+        attachments: list[dict],
+        **kwargs,
+    ):
+        # need to build a silly dict because the google.appengine mail api doesn't accept None or empty values ...
+        params = {
+            "to": [EmailTransportAppengine.splitAddress(dest)["email"] for dest in dests],
+            "sender": sender,
+            "subject": subject,
+            "body": HtmlSerializer().sanitize(body),
+            "html": body,
+        }
+
+        if cc:
+            params["cc"] = [EmailTransportAppengine.splitAddress(c)["email"] for c in cc]
+
+        if bcc:
+            params["bcc"] = [EmailTransportAppengine.splitAddress(c)["email"] for c in bcc]
+
+        if attachments:
+            params["attachments"] = []
+
+            for attachment in attachments:
+                params["attachments"].append(
+                    GAE_Attachment(attachment["filename"], attachment["content"])
+                )
+
+        logging.info(f"EmailTransportAppengine {params}")
+
+        GAE_SendMail(**params)
+
+
+# Set (limited, but free) Google AppEngine Mail API as default
+if conf["viur.email.transportClass"] is None:
+    conf["viur.email.transportClass"] = EmailTransportAppengine
