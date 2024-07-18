@@ -2,7 +2,7 @@ import enum
 import typing as t
 from collections import OrderedDict
 from numbers import Number
-
+from viur.core.config import conf
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.i18n import translate
 
@@ -138,5 +138,8 @@ class SelectBone(BaseBone):
 
     def structure(self) -> dict:
         return super().structure() | {
-            "values": [(k, str(v)) for k, v in self.values.items()],
+            "values":
+                {k: str(v) for k, v in self.values.items()}  # new-style dict
+                if "bone.select.structure.values.keytuple" not in conf.compatibility
+                else [(k, str(v)) for k, v in self.values.items()]  # old-style key-tuple
         }
