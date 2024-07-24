@@ -4,33 +4,28 @@ from viur.core.bones.base import BaseBone, Compute, ComputeInterval, ComputeMeth
 
 
 def generate_uid(skel, bone):
-    def transac(_key):
+    def transact(_key: db.Key) -> int:
         for i in range(3):
             try:
                 if db_obj := db.Get(_key):
                     db_obj["count"] += 1
-                    db.Put(db_obj)
                 else:
                     db_obj = db.Entity(_key)
                     db_obj["count"] = 0
-                    db.Put(db_obj)
+                db.Put(db_obj)
                 break
             except db.CollisionError:  # recall the function
                 import time
                 time.sleep(i + 1)
-            except Exception as e:
-                msg = f"Can't set the Uid. {e=}"
-                logging.error(msg)
-                raise Exception(msg)
         else:
             raise ValueError("Can't set the Uid")
         return db_obj["count"]
 
     db_key = db.Key("viur-uids", f"{skel.kindName}-{bone.name}-uid")
     if db.IsInTransaction():
-        count_value = transac(db_key)
+        count_value = transact(db_key)
     else:
-        count_value = db.RunInTransaction(transac, db_key)
+        count_value = db.RunInTransaction(transact, db_key)
     if bone.fill_chars:
         length_to_fill = bone.length - len(bone.pattern)
         res = str(count_value).rjust(length_to_fill, bone.fill_chars)
@@ -49,7 +44,7 @@ class UidBone(BaseBone):
         self,
         *,
         generate_fn: t.Callable = generate_uid,
-        fill_chars="",
+        fillchar:str="",
         length: int = 13,
         pattern: str | t.Callable | None = "*",
         **kwargs
@@ -75,7 +70,7 @@ class UidBone(BaseBone):
         if not self.readOnly:
             self.readOnly = True
 
-        self.fill_chars = str(fill_chars)
+        self.fillchar = str(fillchar)
         self.length = length
         if isinstance(pattern, t.Callable):
             pattern = pattern()
@@ -85,7 +80,7 @@ class UidBone(BaseBone):
 
     def structure(self) -> dict:
         ret = super().structure() | {
-            "fill_chars": self.fill_chars,
+            "fillchar": self.fillchar,
             "length": self.length,
             "pattern": self.pattern
         }
