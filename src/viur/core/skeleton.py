@@ -1368,15 +1368,20 @@ class RefSkel(RelSkel):
         newClass.__boneMap__ = bone_map
         return newClass
 
-    def read(self) -> SkeletonInstance:
+    def read(self, key: t.Optional[db.Key | str | int] = None) -> SkeletonInstance:
         """
-        Read full skeleton instance of the RefSkel from the database.
-        Can be used in the RelationalBone for reading the full Skeleton from a RefSkel
+        Read full skeleton instance referenced by the RefSkel from the database.
+
+        Can be used for reading the full Skeleton from a RefSkel.
+        The `key` parameter also allows to read another, given key from the related kind.
+
         :raise ValueError: If the entry is no longer in the database.
         """
-        skel = skeletonByKind(self["key"].kind)()
-        if not skel.fromDB(self["key"]):
+        skel = skeletonByKind(self.kindName)()
+
+        if not skel.fromDB(key or self["key"]):
             raise ValueError(f"""The key {self["key"]!r} seems to be gone""")
+
         return skel
 
 
