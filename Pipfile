@@ -1,5 +1,4 @@
 # pipenv install --dev
-# pipenv requirements --hash >src/viur/core/requirements.txt
 
 [[source]]
 url = "https://pypi.org/simple"
@@ -7,7 +6,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-
+# See pyproject.toml
 
 [dev-packages]
 build = "*"
