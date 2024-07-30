@@ -251,7 +251,7 @@ class SkeletonInstance:
         # Load a @classmethod from the Skeleton class and bound this SkeletonInstance
         elif item in {"fromDB", "toDB", "all", "unserialize", "serialize", "fromClient", "getCurrentSEOKeys",
                       "preProcessSerializedData", "preProcessBlobLocks", "postSavedHandler", "setBoneValue",
-                      "delete", "postDeletedHandler", "refresh"}:
+                      "delete", "postDeletedHandler", "refresh", "read"}:
             return partial(getattr(self.skeletonCls, item), self)
         # Load a @property from the Skeleton class
         try:
@@ -1393,6 +1393,22 @@ class RefSkel(RelSkel):
             bone_map |= {k: fromSkel.__boneMap__[k] for k in fnmatch.filter(fromSkel.__boneMap__.keys(), arg)}
         newClass.__boneMap__ = bone_map
         return newClass
+
+    def read(self, key: t.Optional[db.Key | str | int] = None) -> SkeletonInstance:
+        """
+        Read full skeleton instance referenced by the RefSkel from the database.
+
+        Can be used for reading the full Skeleton from a RefSkel.
+        The `key` parameter also allows to read another, given key from the related kind.
+
+        :raise ValueError: If the entry is no longer in the database.
+        """
+        skel = skeletonByKind(self.kindName)()
+
+        if not skel.fromDB(key or self["key"]):
+            raise ValueError(f"""The key {key or self["key"]!r} seems to be gone""")
+
+        return skel
 
 
 class SkelList(list):
