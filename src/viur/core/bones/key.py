@@ -61,8 +61,8 @@ class KeyBone(BaseBone):
 
         if not parse_only:
             # Check custom validity
-            err = self.isInvalid(key)
-            if err:
+            
+            if err := self.isInvalid(key):
                 return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
             if self.check:
