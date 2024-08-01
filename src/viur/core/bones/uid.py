@@ -1,5 +1,6 @@
+import time
 import typing as t
-from viur.core import db, logging
+from viur.core import db
 from viur.core.bones.base import BaseBone, Compute, ComputeInterval, ComputeMethod, UniqueValue, UniqueLockMethod
 
 
@@ -15,7 +16,6 @@ def generate_uid(skel, bone):
                 db.Put(db_obj)
                 break
             except db.CollisionError:  # recall the function
-                import time
                 time.sleep(i + 1)
         else:
             raise ValueError("Can't set the Uid")
@@ -26,9 +26,9 @@ def generate_uid(skel, bone):
         count_value = transact(db_key)
     else:
         count_value = db.RunInTransaction(transact, db_key)
-    if bone.fill_chars:
+    if bone.fillchar:
         length_to_fill = bone.length - len(bone.pattern)
-        res = str(count_value).rjust(length_to_fill, bone.fill_chars)
+        res = str(count_value).rjust(length_to_fill, bone.fillchar)
         return bone.pattern.replace("*", res)
     else:
         return bone.pattern.replace("*", str(count_value))
@@ -54,7 +54,7 @@ class UidBone(BaseBone):
 
 
         :param generate_fn: The compute function to calculate the unique value,
-        :param fill_chars: The chars that are filed in when the uid has not the length.
+        :param fillchar The char that are filed in when the uid has not the length.
         :param length: The length allowed for values of this bone.
         :param pattern: The pattern for this Bone. "*" will be replaced with the uid value.
         :param kwargs: Inherited arguments from the BaseBone.
@@ -77,6 +77,8 @@ class UidBone(BaseBone):
         self.pattern = str(pattern)
         if self.pattern.count("*") != 1:
             raise ValueError("Only one Wildcard (*) is allowed in the pattern")
+        if len(self.fillchar)!=1:
+            raise ValueError("Only one char is allowed as fillchar")
 
     def structure(self) -> dict:
         ret = super().structure() | {
