@@ -4,8 +4,12 @@ from viur.core import db
 from viur.core.bones.base import BaseBone, Compute, ComputeInterval, ComputeMethod, UniqueValue, UniqueLockMethod
 
 
-def generate_uid(skel, bone):
-    def transact(_key: db.Key) -> int:
+def generate_number(db_key: db.Key) -> int:
+    """
+        The generate_number method generates a leading number that is always unique per entry.
+    """
+
+    def transact(_key: db.Key):
         for i in range(3):
             try:
                 if db_obj := db.Get(_key):
@@ -21,11 +25,15 @@ def generate_uid(skel, bone):
             raise ValueError("Can't set the Uid")
         return db_obj["count"]
 
-    db_key = db.Key("viur-uids", f"{skel.kindName}-{bone.name}-uid")
     if db.IsInTransaction():
-        count_value = transact(db_key)
+        return transact(db_key)
     else:
-        count_value = db.RunInTransaction(transact, db_key)
+        return db.RunInTransaction(transact, db_key)
+
+
+def generate_uid(skel, bone):
+    db_key = db.Key("viur-uids", f"{skel.kindName}-{bone.name}-uid")
+    count_value = generate_number(db_key)
     if bone.fillchar:
         length_to_fill = bone.length - len(bone.pattern)
         res = str(count_value).rjust(length_to_fill, bone.fillchar)
@@ -44,7 +52,7 @@ class UidBone(BaseBone):
         self,
         *,
         generate_fn: t.Callable = generate_uid,
-        fillchar:str="",
+        fillchar: str = "",
         length: int = 13,
         pattern: str | t.Callable | None = "*",
         **kwargs
@@ -77,7 +85,7 @@ class UidBone(BaseBone):
         self.pattern = str(pattern)
         if self.pattern.count("*") != 1:
             raise ValueError("Only one Wildcard (*) is allowed in the pattern")
-        if len(self.fillchar)!=1:
+        if len(self.fillchar) != 1:
             raise ValueError("Only one char is allowed as fillchar")
 
     def structure(self) -> dict:
