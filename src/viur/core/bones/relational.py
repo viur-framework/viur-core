@@ -508,8 +508,14 @@ class RelationalBone(BaseBone):
 
         return True
 
-    def _get_destinct_hash(self, value):
-        return value["dest"]["key"]
+    def _get_single_destinct_hash(self, value):
+        parts = [value["dest"]["key"]]
+
+        if self.using:
+            for name, bone in self.using.__boneMap__.items():
+                parts.append(bone._get_destinct_hash(value["rel"][name]))
+
+        return tuple(parts)
 
     def delete(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
         """

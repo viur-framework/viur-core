@@ -11,6 +11,7 @@ import inspect
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from collections.abc import Iterable
 from enum import Enum
 import typing as t
 from viur.core import db, utils, i18n
@@ -610,11 +611,21 @@ class BaseBone(object):
 
         return errors or None
 
-    def _get_destinct_hash(self, value) -> t.Any:
+    def _get_single_destinct_hash(self, value) -> t.Any:
         """
-        Returns a distinct hash value for a given entry of this bone.
+        Returns a distinct hash value for a single entry of this bone.
         The returned value must be hashable.
         """
+        return value
+
+    def _get_destinct_hash(self, value) -> t.Any:
+        """
+        Returns a distinct hash value for this bone.
+        The returned value must be hashable.
+        """
+        if not isinstance(value, str) and isinstance(value, Iterable):
+            return tuple(self._get_single_destinct_hash(item) for item in value)
+
         return value
 
     def _validate_multiple_contraints(self, constraints: MultipleConstraints, skel: 'SkeletonInstance', name: str) -> list[ReadFromClientError]:
@@ -627,7 +638,7 @@ class BaseBone(object):
         :return: A list of ReadFromClientError objects for each constraint violation.
         """
         res = []
-        value = tuple(self._get_destinct_hash(val) for val in skel[name])
+        value = self._get_destinct_hash(skel[name])
 
         if constraints.min and len(value) < constraints.min:
             res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Too few items"))
