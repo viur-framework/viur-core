@@ -208,7 +208,7 @@ class BaseBone(object):
         *,
         compute: Compute = None,
         defaultValue: t.Any = None,
-        descr: str = "",
+        descr: t.Optional[str] = None,
         getEmptyValueFunc: callable = None,
         indexed: bool = True,
         isEmptyFunc: callable = None,  # fixme: Rename this, see below.
@@ -228,7 +228,7 @@ class BaseBone(object):
         self.isClonedInstance = getSystemInitialized()
 
         # Standard definitions
-        self.descr = descr
+        self._descr = descr
         self.params = params or {}
         self.multiple = multiple
         self.required = required
@@ -318,6 +318,18 @@ class BaseBone(object):
             self._prevent_compute = False
 
         self.compute = compute
+
+    @property
+    def descr(self):
+        if self._descr:
+            return self._descr
+
+        if self.skel_cls:
+            for name, bone in self.skel_cls.__boneMap__.items():
+                if bone is self:
+                    return name
+
+        return ""
 
     def __set_name__(self, owner: "Skeleton", name: str) -> None:
         self.skel_cls = owner
