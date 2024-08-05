@@ -508,6 +508,9 @@ class RelationalBone(BaseBone):
 
         return True
 
+    def _get_destinct_hash(self, value):
+        return value["dest"]["key"]
+
     def delete(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
         """
         Clear any outgoing relational locks when deleting a skeleton.

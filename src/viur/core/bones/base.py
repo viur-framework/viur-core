@@ -132,12 +132,12 @@ class MultipleConstraints:  # Used to define constraints on multiple bones
     The MultipleConstraints class is used to define constraints on multiple bones, such as the minimum
     and maximum number of entries allowed and whether duplicate values are allowed.
     """
-    minAmount: int = 0  # Lower bound of how many entries can be submitted
+    min: int = 0  # Lower bound of how many entries can be submitted
     """An integer representing the lower bound of how many entries can be submitted (default: 0)."""
-    maxAmount: int = 0  # Upper bound of how many entries can be submitted
+    max: int = 0  # Upper bound of how many entries can be submitted
     """An integer representing the upper bound of how many entries can be submitted (default: 0)."""
-    preventDuplicates: bool = False  # Prevent the same value of being used twice
-    """A boolean value indicating if the same value can be used twice (default: False)."""
+    duplicates: bool = True  # Prevent the same value of being used twice
+    """A boolean value indicating if the same value can be used twice (default: True)."""
 
 
 class ComputeMethod(Enum):
@@ -603,11 +603,21 @@ class BaseBone(object):
                         for lang in missing]
         if isEmpty:
             return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "Field not set")]
+
+        # Check multiple constraints on demand
         if self.multiple and isinstance(self.multiple, MultipleConstraints):
-            errors.extend(self.validateMultipleConstraints(skel, name))
+            errors.extend(self._validate_multiple_contraints(self.multiple, skel, name))
+
         return errors or None
 
-    def validateMultipleConstraints(self, skel: 'SkeletonInstance', name: str) -> list[ReadFromClientError]:
+    def _get_destinct_hash(self, value) -> t.Any:
+        """
+        Returns a distinct hash value for a given entry of this bone.
+        The returned value must be hashable.
+        """
+        return value
+
+    def _validate_multiple_contraints(self, constraints: MultipleConstraints, skel: 'SkeletonInstance', name: str) -> list[ReadFromClientError]:
         """
         Validates the value of a bone against its multiple constraints and returns a list of ReadFromClientError
         objects for each violation, such as too many items or duplicates.
@@ -617,15 +627,18 @@ class BaseBone(object):
         :return: A list of ReadFromClientError objects for each constraint violation.
         """
         res = []
-        value = skel[name]
-        constraints = self.multiple
-        if constraints.minAmount and len(value) < constraints.minAmount:
+        value = tuple(self._get_destinct_hash(val) for val in skel[name])
+
+        if constraints.min and len(value) < constraints.min:
             res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Too few items"))
-        if constraints.maxAmount and len(value) > constraints.maxAmount:
+
+        if constraints.max and len(value) > constraints.max:
             res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Too many items"))
-        if constraints.preventDuplicates:
+
+        if not constraints.duplicates:
             if len(set(value)) != len(value):
                 res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Duplicate items"))
+
         return res
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
@@ -1294,9 +1307,9 @@ class BaseBone(object):
         # Provide a multiple setting
         if self.multiple and isinstance(self.multiple, MultipleConstraints):
             ret["multiple"] = {
-                "min": self.multiple.minAmount,
-                "max": self.multiple.maxAmount,
-                "preventduplicates": self.multiple.preventDuplicates,
+                "duplicates": self.multiple.duplicates,
+                "max": self.multiple.max,
+                "min": self.multiple.min,
             }
         else:
             ret["multiple"] = self.multiple
