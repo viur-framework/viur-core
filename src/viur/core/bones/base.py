@@ -324,10 +324,8 @@ class BaseBone(object):
         if self._descr:
             return self._descr
 
-        if self.skel_cls:
-            for name, bone in self.skel_cls.__boneMap__.items():
-                if bone is self:
-                    return name
+        if self.name:
+            return self.name
 
         return ""
 
