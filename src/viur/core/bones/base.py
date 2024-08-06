@@ -321,13 +321,7 @@ class BaseBone(object):
 
     @property
     def descr(self):
-        if self._descr:
-            return self._descr
-
-        if self.name:
-            return self.name
-
-        return ""
+        return self._descr or self.name or ""
 
     def __set_name__(self, owner: "Skeleton", name: str) -> None:
         self.skel_cls = owner
