@@ -628,11 +628,17 @@ class BaseBone(object):
 
         return value
 
-    def _validate_multiple_contraints(self, constraints: MultipleConstraints, skel: 'SkeletonInstance', name: str) -> list[ReadFromClientError]:
+    def _validate_multiple_contraints(
+        self,
+        constraints: MultipleConstraints,
+        skel: 'SkeletonInstance',
+        name: str
+    ) -> list[ReadFromClientError]:
         """
         Validates the value of a bone against its multiple constraints and returns a list of ReadFromClientError
         objects for each violation, such as too many items or duplicates.
 
+        :param constraints: The MultipleConstraints definition to apply.
         :param skel: A SkeletonInstance object where the values should be validated.
         :param name: A string representing the bone's name.
         :return: A list of ReadFromClientError objects for each constraint violation.
