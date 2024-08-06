@@ -2,6 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.13]
+
+- doc: Fix RelationalBone docstring (#1226)
+- chore: Use `pyproject.toml` as new SSOT packaging system (#1224)
+- feat-fix: Wrap `descr` and `params.category` in `translate` object for auto translating (#1223)
+
 ## [3.6.12]
 
 - feat: Add `EmailTransportAppengine` as default email transport class (#1210)
