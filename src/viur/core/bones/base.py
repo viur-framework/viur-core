@@ -320,7 +320,7 @@ class BaseBone(object):
         self.compute = compute
 
     @property
-    def descr(self):
+    def descr(self) -> str:
         return self._descr or self.name or ""
 
     def __set_name__(self, owner: "Skeleton", name: str) -> None:
