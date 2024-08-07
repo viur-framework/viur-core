@@ -777,12 +777,6 @@ class BaseBone(object):
                     skel.accessedValues[name] = self._compute(skel, name)
                     return True
 
-                # Only compute once when loaded value is empty
-                case ComputeMethod.Once:
-                    if loadVal is None:
-                        skel.accessedValues[name] = self._compute(skel, name)
-                        return True
-
         # unserialize value to given config
         if self.languages and self.multiple:
             res = {}
