@@ -1,10 +1,19 @@
 import re
 import typing as t
+import json
 
 from viur.core.bones.string import StringBone
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core import conf
+
+from pathlib import Path
 
 DEFAULT_REGEX = r"^\+?(\d{1,3})[-\s]?(\d{1,4})[-\s]?(\d{1,4})[-\s]?(\d{1,9})$"
+
+COUNTRYFILE = Path(__file__).parent / "../languages/country_information.json"
+
+with open(COUNTRYFILE, "r") as fin:
+    COUNTRYDATA = json.load(fin)
 
 
 class PhoneBone(StringBone):
@@ -13,6 +22,7 @@ class PhoneBone(StringBone):
     This class provides a number validation method, ensuring that the given phone/fax number conforms to the
     required/configured format and structure.
     """
+
     type: str = "str.phone"
     """
     A string representing the type of the bone, in this case "str.phone".
@@ -38,7 +48,7 @@ class PhoneBone(StringBone):
         """
         self.test: t.Pattern[str] = re.compile(test) if isinstance(test, str) else test
         self.default_country_code: str = default_country_code
-
+        self.countries = COUNTRYDATA
         super().__init__(max_length=max_length, **kwargs)
 
     @staticmethod
@@ -124,4 +134,8 @@ class PhoneBone(StringBone):
         Returns:
             t.Dict[str, t.Any]: A dictionary representing the structure of the PhoneBone.
         """
-        return super().structure() | {"test": self.test.pattern if self.test else ""}
+        return super().structure() | {
+            "test": self.test.pattern if self.test else "",
+            "countries": self.countries,
+            "default_country_code": self.default_country_code,
+        }
