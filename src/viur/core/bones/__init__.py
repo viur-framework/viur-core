@@ -32,6 +32,7 @@ from .select import (
     translation_key_prefix_bonename,
 )
 from .sortindex import SortIndexBone
+from .spam import SpamBone
 from .spatial import SpatialBone
 from .string import StringBone
 from .text import TextBone
@@ -69,6 +70,7 @@ __all = [
     "SelectBone",
     "SelectCountryBone",
     "SortIndexBone",
+    "SpamBone",
     "SpatialBone",
     "StringBone",
     "TextBone",

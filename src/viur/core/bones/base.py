@@ -13,11 +13,11 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 import typing as t
-from viur.core import db, utils
+from viur.core import db, utils, current, i18n
 from viur.core.config import conf
 
 if t.TYPE_CHECKING:
-    from ..skeleton import Skeleton
+    from ..skeleton import Skeleton, SkeletonInstance
 
 __system_initialized = False
 """
@@ -208,7 +208,7 @@ class BaseBone(object):
         *,
         compute: Compute = None,
         defaultValue: t.Any = None,
-        descr: str = "",
+        descr: str | i18n.translate = "",
         getEmptyValueFunc: callable = None,
         indexed: bool = True,
         isEmptyFunc: callable = None,  # fixme: Rename this, see below.
@@ -227,6 +227,9 @@ class BaseBone(object):
         """
         self.isClonedInstance = getSystemInitialized()
 
+        if isinstance(descr, str):
+            descr = i18n.translate(descr, hint=f"descr of a <{type(self).__name__}>")
+
         # Standard definitions
         self.descr = descr
         self.params = params or {}
@@ -236,6 +239,9 @@ class BaseBone(object):
         self.searchable = searchable
         self.visible = visible
         self.indexed = indexed
+
+        if isinstance(category := self.params.get("category"), str):
+            self.params["category"] = i18n.translate(category, hint=f"category of a <{type(self).__name__}>")
 
         # Multi-language support
         if not (
@@ -950,58 +956,77 @@ class BaseBone(object):
 
         return dbFilter
 
-    def buildDBSort(self,
-                    name: str,
-                    skel: 'viur.core.skeleton.SkeletonInstance',
-                    dbFilter: db.Query,
-                    rawFilter: dict) -> t.Optional[db.Query]:
+    def buildDBSort(
+        self,
+        name: str,
+        skel: "SkeletonInstance",
+        query: db.Query,
+        params: dict,
+        postfix: str = "",
+    ) -> t.Optional[db.Query]:
         """
             Same as buildDBFilter, but this time its not about filtering
             the results, but by sorting them.
-            Again: rawFilter is controlled by the client, so you *must* expect and safely handle
+            Again: query is controlled by the client, so you *must* expect and safely handle
             malformed data!
 
             :param name: The property-name this bone has in its Skeleton (not the description!)
             :param skel: The :class:`viur.core.skeleton.Skeleton` instance this bone is part of
             :param dbFilter: The current :class:`viur.core.db.Query` instance the filters should
                 be applied to
-            :param rawFilter: The dictionary of filters the client wants to have applied
+            :param query: The dictionary of filters the client wants to have applied
+            :param postfix: Inherited classes may use this to add a postfix to the porperty name
             :returns: The modified :class:`viur.core.db.Query`,
                 None if the query is unsatisfiable.
         """
-        if "orderby" in rawFilter and rawFilter["orderby"] == name:
-            if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
-                order = (rawFilter["orderby"], db.SortOrder.Descending)
-            elif "orderdir" in rawFilter and rawFilter["orderdir"] == "2":
-                order = (rawFilter["orderby"], db.SortOrder.InvertedAscending)
-            elif "orderdir" in rawFilter and rawFilter["orderdir"] == "3":
-                order = (rawFilter["orderby"], db.SortOrder.InvertedDescending)
+        if query.queries and (orderby := params.get("orderby")) and utils.string.is_prefix(orderby, name):
+            if self.languages:
+                lang = None
+                if orderby.startswith(f"{name}."):
+                    lng = orderby.replace(f"{name}.", "")
+                    if lng in self.languages:
+                        lang = lng
+
+                if lang is None:
+                    lang = current.language.get()
+                    if not lang or lang not in self.languages:
+                        lang = self.languages[0]
+
+                prop = f"{name}.{lang}"
             else:
-                order = (rawFilter["orderby"], db.SortOrder.Ascending)
-            queries = dbFilter.queries
-            if queries is None:
-                return  # This query is unsatisfiable
-            elif isinstance(queries, db.QueryDefinition):
-                inEqFilter = [x for x in queries.filters.keys() if
-                              (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
-            elif isinstance(queries, list):
-                inEqFilter = None
-                for singeFilter in queries:
-                    newInEqFilter = [x for x in singeFilter.filters.keys() if
-                                     (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
-                    if inEqFilter and newInEqFilter and inEqFilter != newInEqFilter:
+                prop = name
+
+            # In case this is a multiple query, check if all filters are valid
+            if isinstance(query.queries, list):
+                in_eq_filter = None
+
+                for item in query.queries:
+                    new_in_eq_filter = [
+                        key for key in item.filters.keys()
+                        if key.rstrip().endswith(("<", ">", "!="))
+                    ]
+                    if in_eq_filter and new_in_eq_filter and in_eq_filter != new_in_eq_filter:
                         raise NotImplementedError("Impossible ordering!")
-                    inEqFilter = newInEqFilter
-            if inEqFilter:
-                inEqFilter = inEqFilter[0][: inEqFilter[0].find(" ")]
-                if inEqFilter != order[0]:
-                    logging.warning(f"I fixed you query! Impossible ordering changed to {inEqFilter}, {order[0]}")
-                    dbFilter.order((inEqFilter, order))
-                else:
-                    dbFilter.order(order)
+
+                    in_eq_filter = new_in_eq_filter
+
             else:
-                dbFilter.order(order)
-        return dbFilter
+                in_eq_filter = [
+                    key for key in query.queries.filters.keys()
+                    if key.rstrip().endswith(("<", ">", "!="))
+                ]
+
+            if in_eq_filter:
+                orderby_prop = in_eq_filter[0].split(" ", 1)[0]
+                if orderby_prop != prop:
+                    logging.warning(
+                        f"The query was rewritten; Impossible ordering changed from {prop!r} into {orderby_prop!r}"
+                    )
+                    prop = orderby_prop
+
+            query.order((prop + postfix, utils.parse.sortorder(params.get("orderdir"))))
+
+        return query
 
     def _hashValueForUniquePropertyIndex(self, value: str | int) -> list[str]:
         """

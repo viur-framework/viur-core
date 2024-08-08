@@ -68,8 +68,8 @@ class RelationalBone(BaseBone):
     write-efficient method available yet.
 
     :param kind: KindName of the referenced property.
-    :param module: Name of the module which should be used to select entities of kind "type". If not set,
-        the value of "type" will be used (the kindName must match the moduleName)
+    :param module: Name of the module which should be used to select entities of kind "kind". If not set,
+        the value of "kind" will be used (the kindName must match the moduleName)
     :param refKeys: A list of properties to include from the referenced property. These properties will be
         available in the template without having to fetch the referenced property. Filtering is also only possible
         by properties named here!
@@ -246,7 +246,7 @@ class RelationalBone(BaseBone):
             self.module = self.kind
 
         if self.kind is None or self.module is None:
-            raise NotImplementedError("Type and Module of RelationalBone must not be None")
+            raise NotImplementedError("'kind' and 'module' of RelationalBone must not be None")
 
         # Referenced keys
         self.refKeys = {"key"}
@@ -888,9 +888,10 @@ class RelationalBone(BaseBone):
     def buildDBSort(
         self,
         name: str,
-        skel: 'viur.core.skeleton.SkeletonInstance',
-        dbFilter: db.Query,
-        rawFilter: dict
+        skel: "SkeletonInstance",
+        query: db.Query,
+        params: dict,
+        postfix: str = "",
     ) -> t.Optional[db.Query]:
         """
         Builds a datastore query by modifying the given filter based on the RelationalBone's properties for sorting.
@@ -898,10 +899,10 @@ class RelationalBone(BaseBone):
         This method takes a datastore query and modifies its sorting behavior according to the relational bone
         properties. It also checks if the sorting is valid based on the 'refKeys' and 'using' attributes of the bone.
 
-        :param str name: The name of the bone.
-        :param SkeletonInstance skel: The skeleton instance the bone is a part of.
-        :param db.Query dbFilter: The original datastore query to be modified.
-        :param dict rawFilter: The raw filter applied to the original datastore query.
+        :param name: The name of the bone.
+        :param skel: The skeleton instance the bone is a part of.
+        :param query: The original datastore query to be modified.
+        :param params: The raw filter applied to the original datastore query.
 
         :return: The modified datastore query with updated sorting behavior.
         :rtype: t.Optional[db.Query]
@@ -909,43 +910,39 @@ class RelationalBone(BaseBone):
         :raises RuntimeError: If the sorting is invalid, e.g., using properties not in 'refKeys'
             or not a bone in 'using'.
         """
-        origFilter = dbFilter.queries
-        if origFilter is None or not "orderby" in rawFilter:  # This query is unsatisfiable or not sorted
-            return dbFilter
-        if "orderby" in rawFilter and isinstance(rawFilter["orderby"], str) and rawFilter["orderby"].startswith(
-                f"{name}."):
-            if not dbFilter.getKind() == "viur-relations" and self.multiple:  # This query has not been rewritten (yet)
-                name, skel, dbFilter, rawFilter = self._rewriteQuery(name, skel, dbFilter, rawFilter)
-            key = rawFilter["orderby"]
+        if query.queries and (orderby := params.get("orderby")) and utils.string.is_prefix(orderby, name):
+            if self.multiple and query.getKind() != "viur-relations":
+                # This query has not been rewritten (yet)
+                name, skel, query, params = self._rewriteQuery(name, skel, query, params)
+
             try:
-                unused, _type, param = key.split(".")
-                assert _type in ["dest", "rel"]
-            except:
-                return dbFilter  # We cant parse that
+                _, _type, param = orderby.split(".")
+            except ValueError as e:
+                logging.exception(f"Invalid layout of {orderby=}: {e}")
+                return query
+            if _type not in ("dest", "rel"):
+                logging.error("Invalid type {_type}")
+                return query
+
             # Ensure that the relational-filter is in refKeys
             if _type == "dest" and param not in self._ref_keys:
-                logging.warning(f"Invalid filtering! {param} is not in refKeys of RelationalBone {name}!")
-                raise RuntimeError()
-            if _type == "rel" and (self.using is None or param not in self.using()):
-                logging.warning(f"Invalid filtering! {param} is not a bone in 'using' of {name}")
-                raise RuntimeError()
+                raise RuntimeError(f"Invalid filtering! {param!r} is not in refKeys of RelationalBone {name!r}!")
+            elif _type == "rel" and (self.using is None or param not in self.using()):
+                raise RuntimeError(f"Invalid filtering! {param!r} is not a bone in 'using' of RelationalBone {name!r}")
+
             if self.multiple:
-                orderPropertyPath = f"{_type}.{param}"
-            else:  # Also inject our bonename again
-                orderPropertyPath = f"{name}.{_type}.{param}"
-            if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
-                order = (orderPropertyPath, db.SortOrder.Descending)
-            elif "orderdir" in rawFilter and rawFilter["orderdir"] == "2":
-                order = (orderPropertyPath, db.SortOrder.InvertedAscending)
-            elif "orderdir" in rawFilter and rawFilter["orderdir"] == "3":
-                order = (orderPropertyPath, db.SortOrder.InvertedDescending)
+                path = f"{_type}.{param}"
             else:
-                order = (orderPropertyPath, db.SortOrder.Ascending)
-            dbFilter = dbFilter.order(order)
+                path = f"{name}.{_type}.{param}"
+
+            order = utils.parse.sortorder(params.get("orderdir"))
+            query = query.order((path, order))
+
             if self.multiple:
-                dbFilter.setFilterHook(lambda s, filter, value: self.filterHook(name, s, filter, value))
-                dbFilter.setOrderHook(lambda s, orderings: self.orderHook(name, s, orderings))
-        return dbFilter
+                query.setFilterHook(lambda s, query, value: self.filterHook(name, s, query, value))
+                query.setOrderHook(lambda s, orderings: self.orderHook(name, s, orderings))
+
+        return query
 
     def filterHook(self, name, query, param, value):  # FIXME
         """

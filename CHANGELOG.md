@@ -2,6 +2,21 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.13]
+
+- doc: Fix RelationalBone docstring (#1226)
+- chore: Use `pyproject.toml` as new SSOT packaging system (#1224)
+- feat-fix: Wrap `descr` and `params.category` in `translate` object for auto translating (#1223)
+
+## [3.6.12]
+
+- feat: Add `EmailTransportAppengine` as default email transport class (#1210)
+- feat: Improve email attachments (#1216)
+- feat: Render `SelectBone` values in dict-style (#1203)
+- fix: `RecordBone.getReferencedBlobs` should collect references for all bones (#1213)
+- fix: `viur-core-migrate-config` should replace sendinblue and mailjet configs as well (#1200)
+- refactor: `email`-module/`EmailTransportMailjet` fixes (#1212)
+
 ## [3.6.11]
 
 - fix: Changed `EmailTransportMailjet` mimetype detection to `puremagic` (#1196)
