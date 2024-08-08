@@ -43,6 +43,7 @@ def __load_indexes_from_file() -> dict[str, list]:
 
     return indexes_dict
 
+
 DATASTORE_INDEXES = __load_indexes_from_file()
 
 
