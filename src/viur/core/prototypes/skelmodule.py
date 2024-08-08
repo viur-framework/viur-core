@@ -1,5 +1,6 @@
 import os
 import yaml
+import logging
 from viur.core import Module, db
 from viur.core.config import conf
 from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
