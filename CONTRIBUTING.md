@@ -39,6 +39,40 @@ If you are not on the reviewers list, just add yourself or ask a maintainer to c
 
 If there are documentation changes to review, there should be a 'doc-review' tag added to the issue or pull request
 
+## Coding Convention
+
+* Fundamentally, we try to follow [PEP 8](https://peps.python.org/pep-0008). 
+  Old code syntax, will be updated gradually so that there are only few breaking changes.
+  * `snake_case` for variables, filenames, bone names
+  * `PascalCase` for classes
+  * `UPPER_CASE_WITH_UNDERSCORE` for constants, enums
+* We use the [Sphinx docstring format](https://sphinx-rtd-tutorial.readthedocs.io/en/latest/docstrings.html#the-sphinx-docstring-format).
+  Apart from that we follow [PEP 257](https://peps.python.org/pep-0257)
+* bone names and skeletons should be written in Singular -- even if they are `multiple=True` 
+* _Skeleton_ classes should end with `Skel`, not `Skeleton`
+* We use double quotes (`"`) for strings. Except, if we have to write a string inside an f-string
+* We write bones always multiline; One line per argument
+* Multiline dicts, lists and bones should end with a trailing comma `,` like
+  ```py
+  data = {
+    "foo": 1,
+    "bar": 2,  # <-- add here always a comma! 
+  }
+  ```
+* type hints should always be used everywhere. We do not write additional type definitions in the docstring. 
+  ```py
+  # We import the `typing` module only aliased as the shorthand `t`:
+  import typing as t
+  
+  # Furthermore we prefer generics over the typing types
+  def the_preferred_way(data: dict[str, list[int]]) -> set[str]: ...
+  def please_not_like_this(data: t.Dict[str, t.List[int]]) -> t.Set[str]: ...
+  
+  # If the types support it, we use the merge operator `|` (pipe) instead of t.Union
+  MULTIPLE_TYPES_ALLOWED = list[str | int | db.Key]   
+  ```
+
+
 ## Documentation
 
 Please document your changes and provide info in any form you can. We have established a documentation taskforce that takes care of chasing information from core developers, organizing and building the docs with sphinx/readthedocs. If you implement a feature or change, you can dump your documentation in the pull request and tag it accordingly ('doc-review' tag), so you do not need to waste time learning restructured text for sphinx or even correct English. The documentation team will pick up your text, translate and polish it so you can concentrate on coding and explaining in your own words.
