@@ -128,17 +128,17 @@ class UniqueValue:  # Mark a bone as unique (it must have a different value for 
 
 
 @dataclass
-class MultipleConstraints:  # Used to define constraints on multiple bones
+class MultipleConstraints:
     """
     The MultipleConstraints class is used to define constraints on multiple bones, such as the minimum
-    and maximum number of entries allowed and whether duplicate values are allowed.
+    and maximum number of entries allowed and whether value duplicates are allowed.
     """
-    min: int = 0  # Lower bound of how many entries can be submitted
+    min: int = 0
     """An integer representing the lower bound of how many entries can be submitted (default: 0)."""
-    max: int = 0  # Upper bound of how many entries can be submitted
-    """An integer representing the upper bound of how many entries can be submitted (default: 0)."""
-    duplicates: bool = True  # Prevent the same value of being used twice
-    """A boolean value indicating if the same value can be used twice (default: True)."""
+    max: int = 0
+    """An integer representing the upper bound of how many entries can be submitted (default: 0 = unlimited)."""
+    duplicates: bool = False
+    """A boolean indicating if the same value can be used multiple times (default: False)."""
 
 
 class ComputeMethod(Enum):
