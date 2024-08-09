@@ -208,7 +208,7 @@ class BaseBone(object):
         *,
         compute: Compute = None,
         defaultValue: t.Any = None,
-        descr: str | i18n.translate = "",
+        descr: t.Optional[str | i18n.translate] = None,
         getEmptyValueFunc: callable = None,
         indexed: bool = True,
         isEmptyFunc: callable = None,  # fixme: Rename this, see below.
@@ -227,11 +227,8 @@ class BaseBone(object):
         """
         self.isClonedInstance = getSystemInitialized()
 
-        if isinstance(descr, str):
-            descr = i18n.translate(descr, hint=f"descr of a <{type(self).__name__}>")
-
         # Standard definitions
-        self.descr = descr
+        self._descr = descr
         self.params = params or {}
         self.multiple = multiple
         self.required = required
@@ -324,6 +321,15 @@ class BaseBone(object):
             self._prevent_compute = False
 
         self.compute = compute
+
+    @property
+    def descr(self) -> str:
+        descr = self._descr or self.name or ""
+
+        if descr and isinstance(descr, str):
+            descr = i18n.translate(descr, hint=f"descr of a <{type(self).__name__}>")
+
+        return str(descr)
 
     def __set_name__(self, owner: "Skeleton", name: str) -> None:
         self.skel_cls = owner
@@ -1325,7 +1331,7 @@ class BaseBone(object):
         This function has to be implemented for subsequent, specialized bone types.
         """
         ret = {
-            "descr": str(self.descr),  # need to turn possible translate-object into string
+            "descr": self.descr,
             "type": self.type,
             "required": self.required,
             "params": self.params,
