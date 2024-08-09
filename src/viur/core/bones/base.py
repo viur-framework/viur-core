@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 import typing as t
-from viur.core import db, utils
+from viur.core import db, utils, i18n
 from viur.core.config import conf
 
 if t.TYPE_CHECKING:
@@ -201,7 +201,7 @@ class BaseBone(object):
         *,
         compute: Compute = None,
         defaultValue: t.Any = None,
-        descr: str = "",
+        descr: str | i18n.translate = "",
         getEmptyValueFunc: callable = None,
         indexed: bool = True,
         isEmptyFunc: callable = None,  # fixme: Rename this, see below.
@@ -220,6 +220,9 @@ class BaseBone(object):
         """
         self.isClonedInstance = getSystemInitialized()
 
+        if isinstance(descr, str):
+            descr = i18n.translate(descr, hint=f"descr of a <{type(self).__name__}>")
+
         # Standard definitions
         self.descr = descr
         self.params = params or {}
@@ -229,6 +232,9 @@ class BaseBone(object):
         self.searchable = searchable
         self.visible = visible
         self.indexed = indexed
+
+        if isinstance(category := self.params.get("category"), str):
+            self.params["category"] = i18n.translate(category, hint=f"category of a <{type(self).__name__}>")
 
         # Multi-language support
         if not (
