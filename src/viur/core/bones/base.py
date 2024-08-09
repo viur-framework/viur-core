@@ -228,7 +228,7 @@ class BaseBone(object):
         self.isClonedInstance = getSystemInitialized()
 
         # Standard definitions
-        self._descr = descr
+        self.descr = descr
         self.params = params or {}
         self.multiple = multiple
         self.required = required
@@ -322,25 +322,27 @@ class BaseBone(object):
 
         self.compute = compute
 
-    @property
-    def descr(self) -> str:
-        descr = self._descr or self.name or ""
-
-        if descr and isinstance(descr, str):
-            descr = i18n.translate(descr, hint=f"descr of a <{type(self).__name__}>")
-
-        return str(descr)
-
     def __set_name__(self, owner: "Skeleton", name: str) -> None:
         self.skel_cls = owner
         self.name = name
 
-    def setSystemInitialized(self):
+    def setSystemInitialized(self) -> None:
         """
-            Can be overridden to initialize properties that depend on the Skeleton system
-            being initialized
+        Can be overridden to initialize properties that depend on the Skeleton system
+        being initialized.
+
+        Here, in the BaseBone, we set descr to the bone_name if no descr argument
+        was given in __init__ and make sure that it is a :class:i18n.translate` object.
         """
-        pass
+        if self.descr is None:
+            # TODO: The super().__setattr__() call is kinda hackish,
+            #  but unfortunately viur-core has no *during system initialisation* state
+            super().__setattr__("descr", self.name or "")
+        if self.descr and isinstance(self.descr, str):
+            super().__setattr__(
+                "descr",
+                i18n.translate(self.descr, hint=f"descr of a <{type(self).__name__}>{self.name}")
+            )
 
     def isInvalid(self, value):
         """
