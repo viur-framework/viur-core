@@ -59,14 +59,8 @@ In all cases, `N` is a number counted upwards for every pre-release kind.
 
 ## Dependency management
 
-`viur-core` has several dependencies, which are maintained by the [`Pipfile`](/Pipfile).
-
-- For local development and dependency management, run `pipenv install --dev`
-- Update dependencies with `pipenv update`
-- Regenerate requirements.txt from locked pipenv using `pipenv requirements --hash >src/viur/core/requirements.txt`
-- Check for vulnerabilites using `pipenv check`, it normally should be clean
-
-Please try to keep external dependencies low.
+`viur-core` has several dependencies, which are maintained in [`pyproject.toml`](/pyproject.toml).<br>
+Please keep external dependencies low.
 
 ## Releasing
 
@@ -76,9 +70,8 @@ In case you have appropriate permissions, a release can be done this way:
 - Update [`CHANGELOG.md`](/CHANGELOG.md) and also check version number there
   - To quickly generate a changelog, run `git log --pretty="- %s" main..develop`
   - todo: Changelog shall be generated automatically later.
-- Build and publish the package (ensure `pipenv install --dev` was run before and is up-to-date)
+- Build and publish the package (ensure `pipenv install` was run before and is up-to-date)
   - Ensure any old files are deleted by running `pipenv run clean`
-  - Check for known issues using `pipenv check`, fix dependencies if necessary (see previous section!)
   - Build the wheel using `pipenv run build`
   - Release the package `pipenv run release`
 - When all went well, commit and create a tag equally to the version number in `src/viur/core/version.py`
