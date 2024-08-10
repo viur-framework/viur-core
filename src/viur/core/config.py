@@ -429,7 +429,7 @@ class Security(ConfigType):
 
     # CORS Settings
 
-    cors_origins: t.Iterable[str | re.Pattern] | t.Literal["*"] | None = None
+    cors_origins: t.Iterable[str | re.Pattern] | t.Literal["*"] = []
     """Allowed origins
     Access-Control-Allow-Origin
 
@@ -443,7 +443,7 @@ class Security(ConfigType):
     cors_methods: t.Iterable[str] = ["get", "head", "post", "options"]  # , "put", "patch", "delete"]
     """Access-Control-Request-Method"""
 
-    cors_allow_headers: t.Iterable[str | re.Pattern] | t.Literal["*"] | None = None
+    cors_allow_headers: t.Iterable[str | re.Pattern] | t.Literal["*"] = []
     """Access-Control-Request-Headers
 
     Can also be set for specific @exposed methods with the @cors decorator.
