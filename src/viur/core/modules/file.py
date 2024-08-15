@@ -562,13 +562,12 @@ class File(Tree):
             maxSize = authData["maxSize"]
 
         else:
-            if node:
-                rootNode = self.getRootNode(node)
-                if not self.canAdd("leaf", rootNode):
-                    raise errors.Forbidden()
-            else:
-                if not self.canAdd("leaf", None):
-                    raise errors.Forbidden()
+            rootNode = None
+            if node and not (rootNode := self.getRootNode(node)):
+                raise errors.NotFound(f"No valid root node found for {node=}")
+
+            if not self.canAdd("leaf", rootNode):
+                raise errors.Forbidden()
 
             maxSize = None  # The user has some file/add permissions, don't restrict fileSize
 
