@@ -562,6 +562,8 @@ class RelationalBone(BaseBone):
         srcEntity = skel.dbEntity
         parentValues.key = srcEntity.key
         for boneKey in (self.parentKeys or []):
+            if boneKey == "key":  # this is a relcit from viur2, as the key is encoded in the embedded entity
+                continue
             parentValues[boneKey] = srcEntity.get(boneKey)
         dbVals = db.Query("viur-relations")
         dbVals.filter("viur_src_kind =", skel.kindName)
