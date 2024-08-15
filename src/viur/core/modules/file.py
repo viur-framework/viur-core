@@ -353,6 +353,12 @@ class FileLeafSkel(TreeSkel):
         visible=False,
     )
 
+    public = BooleanBone(
+        descr="Public File",
+        readOnly=True,
+        defaultValue=False
+    )
+
     def preProcessBlobLocks(self, locks):
         """
             Ensure that our dlkey is locked even if we don't have a filebone here
@@ -674,7 +680,8 @@ class File(Tree):
         size: t.Optional[int] = None,
         node: t.Optional[str | db.Key] = None,
         authData: t.Optional[str] = None,
-        authSig: t.Optional[str] = None
+        authSig: t.Optional[str] = None,
+        public: bool = False
     ):
         filename = fileName.strip()  # VIUR4 FIXME: just for compatiblity of the parameter names
 
@@ -732,6 +739,10 @@ class File(Tree):
 
         # Create upload-URL and download key
         dlkey = utils.string.random()  # let's roll a random key
+
+        if public:
+            dlkey+="_pub" #mark folder as public
+
         blob = GOOGLE_STORAGE_BUCKET.blob(f"{dlkey}/source/{filename}")
         upload_url = blob.create_resumable_upload_session(content_type=mimeType, size=size, timeout=60)
 
@@ -747,6 +758,7 @@ class File(Tree):
         file_skel["pendingparententry"] = db.keyHelper(node, self.addSkel("node").kindName) if node else None
         file_skel["pending"] = True
         file_skel["weak"] = True
+        file_skel["public"] = public
         file_skel["width"] = 0
         file_skel["height"] = 0
 
@@ -838,7 +850,7 @@ class File(Tree):
                 response.headers["Content-Disposition"] = content_disposition
             return blob.download_as_bytes()
 
-        if validUntil == "0":  # Its an indefinitely valid URL
+        if validUntil == "0" or blobKey.endswith("_pub"):  # Its an indefinitely valid URL
             if blob.size < 5 * 1024 * 1024:  # Less than 5 MB - Serve directly and push it into the ede caches
                 response = current.request.get().response
                 response.headers["Content-Type"] = blob.content_type
