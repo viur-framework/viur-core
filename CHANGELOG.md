@@ -2,6 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+# [3.5.22]
+
+- fix: Inconsistency raises AssertionError
+- fix: null-key always written into `viur-relations`
+- fix: Backport v3.6.14 file root node check
+
 ## [3.5.21]
 
 - fix: Backport `EmailTransportAppengine` from v3.6 to v3.5
