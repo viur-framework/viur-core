@@ -18,7 +18,6 @@ import warnings
 from types import ModuleType
 import typing as t
 from google.appengine.api import wrap_wsgi_app
-import yaml
 
 from viur.core import i18n, request, utils
 from viur.core.config import conf
@@ -65,27 +64,6 @@ __all__ = [
 
 # Show DeprecationWarning from the viur-core
 warnings.filterwarnings("always", category=DeprecationWarning, module=r"viur\.core.*")
-
-
-def load_indexes_from_file() -> dict[str, list]:
-    """
-        Loads all indexes from the index.yaml and stores it in a dictionary  sorted by the module(kind)
-        :return A dictionary of indexes per module
-    """
-    indexes_dict = {}
-    try:
-        with open(os.path.join(conf.instance.project_base_path, "index.yaml"), "r") as file:
-            indexes = yaml.safe_load(file)
-            indexes = indexes.get("indexes", [])
-            for index in indexes:
-                index["properties"] = [_property["name"] for _property in index["properties"]]
-                indexes_dict.setdefault(index["kind"], []).append(index)
-
-    except FileNotFoundError:
-        logging.warning("index.yaml not found")
-        return {}
-
-    return indexes_dict
 
 
 def setDefaultLanguage(lang: str):
@@ -151,9 +129,6 @@ def __build_app(modules: ModuleType | object, renderers: ModuleType | object, de
     modules._translation = Translation
     modules.script = Script
 
-    # create module mappings
-    indexes = load_indexes_from_file()  # todo: datastore index retrieval should be done in SkelModule
-
     # Resolver defines the URL mapping
     resolver = {}
 
@@ -188,7 +163,6 @@ def __build_app(modules: ModuleType | object, renderers: ModuleType | object, de
             module_instance = module_cls(
                 module_name, ("/" + render_name if render_name != default else "") + "/" + module_name
             )
-            module_instance.indexes = indexes.get(module_name, [])  # todo: Fix this in SkelModule (see above!)
 
             # Attach the module-specific or the default render
             if render_name == default:  # default or render (sub)namespace?
