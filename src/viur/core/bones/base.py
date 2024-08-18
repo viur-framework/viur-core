@@ -208,7 +208,7 @@ class BaseBone(object):
         *,
         compute: Compute = None,
         defaultValue: t.Any = None,
-        descr: str | i18n.translate = "",
+        descr: t.Optional[str | i18n.translate] = None,
         getEmptyValueFunc: callable = None,
         indexed: bool = True,
         isEmptyFunc: callable = None,  # fixme: Rename this, see below.
@@ -226,9 +226,6 @@ class BaseBone(object):
         Initializes a new Bone.
         """
         self.isClonedInstance = getSystemInitialized()
-
-        if isinstance(descr, str):
-            descr = i18n.translate(descr, hint=f"descr of a <{type(self).__name__}>")
 
         # Standard definitions
         self.descr = descr
@@ -329,12 +326,23 @@ class BaseBone(object):
         self.skel_cls = owner
         self.name = name
 
-    def setSystemInitialized(self):
+    def setSystemInitialized(self) -> None:
         """
-            Can be overridden to initialize properties that depend on the Skeleton system
-            being initialized
+        Can be overridden to initialize properties that depend on the Skeleton system
+        being initialized.
+
+        Here, in the BaseBone, we set descr to the bone_name if no descr argument
+        was given in __init__ and make sure that it is a :class:i18n.translate` object.
         """
-        pass
+        if self.descr is None:
+            # TODO: The super().__setattr__() call is kinda hackish,
+            #  but unfortunately viur-core has no *during system initialisation* state
+            super().__setattr__("descr", self.name or "")
+        if self.descr and isinstance(self.descr, str):
+            super().__setattr__(
+                "descr",
+                i18n.translate(self.descr, hint=f"descr of a <{type(self).__name__}>{self.name}")
+            )
 
     def isInvalid(self, value):
         """
@@ -1325,7 +1333,7 @@ class BaseBone(object):
         This function has to be implemented for subsequent, specialized bone types.
         """
         ret = {
-            "descr": str(self.descr),  # need to turn possible translate-object into string
+            "descr": self.descr,
             "type": self.type,
             "required": self.required,
             "params": self.params,
