@@ -625,6 +625,7 @@ class File(Tree):
         skel["mimetype"] = mimetype
         skel["dlkey"] = dl_key
         skel["weak"] = True
+        skel["public"] = False
         skel["width"] = width
         skel["height"] = height
 
