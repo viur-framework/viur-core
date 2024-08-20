@@ -72,11 +72,19 @@ class CaptchaBone(BaseBone):
         return True
 
     def fromClient(self, skel: "SkeletonInstance", name: str, data: dict) -> None | list[ReadFromClientError]:
+        """
+        Load the reCAPTCHA token from the provided data and validate it with the help of the API.
+
+        reCAPTCHA provides the token via callback usually as "g-recaptcha-response",
+        but to fit into the skeleton logic, we support both names.
+        So the token can be provided as "g-recaptcha-response" or the name of the CaptchaBone in the Skeleton.
+        While the latter one is the preferred name.
+        """
         if conf.instance.is_dev_server:  # We dont enforce captchas on dev server
             return None
         if (user := current.user.get()) and "root" in user["access"]:
             return None  # Don't bother trusted users with this (not supported by admin/vi anyway)
-        if "g-recaptcha-response" not in data:
+        if name not in data and "g-recaptcha-response" not in data:
             return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "No Captcha given!")]
 
         result = requests.post(
@@ -84,7 +92,7 @@ class CaptchaBone(BaseBone):
             data={
                 "secret": self.privateKey,
                 "remoteip": current.request.get().request.remote_addr,
-                "response": data["g-recaptcha-response"],
+                "response": data.get(name, data.get("g-recaptcha-response")),
             },
             timeout=10,
         )
