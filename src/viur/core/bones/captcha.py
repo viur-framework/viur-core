@@ -5,7 +5,6 @@ import requests
 
 from viur.core import conf, current
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.shop.types.price import logger
 
 if t.TYPE_CHECKING:
     from viur.core.skeleton import SkeletonInstance
@@ -103,7 +102,7 @@ class CaptchaBone(BaseBone):
         logging.debug(f"Captcha verification {data=}")
 
         if not data.get("success"):
-            logger.error(data.get("error-codes"))
+            logging.error(data.get("error-codes"))
             return [ReadFromClientError(
                 ReadFromClientErrorSeverity.Invalid,
                 f'Invalid Captcha: {", ".join(data.get("error-codes", []))}'
