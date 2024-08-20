@@ -68,8 +68,8 @@ class RelationalBone(BaseBone):
     write-efficient method available yet.
 
     :param kind: KindName of the referenced property.
-    :param module: Name of the module which should be used to select entities of kind "type". If not set,
-        the value of "type" will be used (the kindName must match the moduleName)
+    :param module: Name of the module which should be used to select entities of kind "kind". If not set,
+        the value of "kind" will be used (the kindName must match the moduleName)
     :param refKeys: A list of properties to include from the referenced property. These properties will be
         available in the template without having to fetch the referenced property. Filtering is also only possible
         by properties named here!
@@ -246,7 +246,7 @@ class RelationalBone(BaseBone):
             self.module = self.kind
 
         if self.kind is None or self.module is None:
-            raise NotImplementedError("Type and Module of RelationalBone must not be None")
+            raise NotImplementedError("'kind' and 'module' of RelationalBone must not be None")
 
         # Referenced keys
         self.refKeys = {"key"}
@@ -508,6 +508,15 @@ class RelationalBone(BaseBone):
 
         return True
 
+    def _get_single_destinct_hash(self, value):
+        parts = [value["dest"]["key"]]
+
+        if self.using:
+            for name, bone in self.using.__boneMap__.items():
+                parts.append(bone._get_destinct_hash(value["rel"][name]))
+
+        return tuple(parts)
+
     def delete(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
         """
         Clear any outgoing relational locks when deleting a skeleton.
@@ -562,6 +571,8 @@ class RelationalBone(BaseBone):
         srcEntity = skel.dbEntity
         parentValues.key = srcEntity.key
         for boneKey in (self.parentKeys or []):
+            if boneKey == "key":  # this is a relcit from viur2, as the key is encoded in the embedded entity
+                continue
             parentValues[boneKey] = srcEntity.get(boneKey)
         dbVals = db.Query("viur-relations")
         dbVals.filter("viur_src_kind =", skel.kindName)
