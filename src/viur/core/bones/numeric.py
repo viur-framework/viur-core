@@ -120,30 +120,20 @@ class NumericBone(BaseBone):
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
         try:
-            logging.debug(f"singleValueFromClient {value=}")
             value = str(value).replace(",", ".", 1)
-            logging.debug(f"singleValueFromClient {value=}")
         except:
-            logging.debug(f"singleValueFromClient {value=}")
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid Value")]
         else:
-            logging.debug(f"singleValueFromClient {value=}")
             if self.precision and (str(value).replace(".", "", 1).replace("-", "", 1).isdigit()) and float(
                     value) >= self.min and float(value) <= self.max:
-                logging.debug(f"singleValueFromClient {value=}")
                 value = round(float(value), self.precision)
             elif not self.precision and (str(value).replace("-", "", 1).isdigit()) and int(
                     value) >= self.min and int(value) <= self.max:
-                logging.debug(f"singleValueFromClient {value=}")
                 value = int(value)
             else:
-                logging.debug(f"singleValueFromClient {value=}")
                 return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid Value")]
-        logging.debug(f"singleValueFromClient {value=}")
         err = self.isInvalid(value)
-        logging.debug(f"singleValueFromClient {value=} {err=}")
         if err:
-            logging.debug(f"singleValueFromClient {value=} {err=}")
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
         return value, None
 
