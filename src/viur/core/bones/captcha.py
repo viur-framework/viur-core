@@ -16,6 +16,14 @@ class CaptchaBone(BaseBone):
 
     The Captcha bone uses the Google reCAPTCHA API to perform the Captcha
     validation and supports v2 and v3.
+
+    .. seealso::
+
+        Option :attr:`core.config.Security.captcha_default_credentials`
+        for global security settings.
+
+        Option :attr:`core.config.Security.captcha_enforce_always`
+        for developing.
     """
 
     type = "captcha"
@@ -31,8 +39,8 @@ class CaptchaBone(BaseBone):
         """
         Initializes a new CaptchaBone.
 
-        publicKey and privateKey can be omitted, if they are set globally
-        in :attr:`conf.security.captcha_default_credentials`.
+        `publicKey` and `privateKey` can be omitted, if they are set globally
+        in :attr:`core.config.Security.captcha_default_credentials`.
 
         :param publicKey: The public key for the Captcha validation.
         :param privateKey: The private key for the Captcha validation.
@@ -64,8 +72,8 @@ class CaptchaBone(BaseBone):
         """
         Stores the publicKey in the SkeletonInstance
 
-        :param skel: The target SkeletonInstance.
-        :param name: The name of the CaptchaBone in the SkeletonInstance.
+        :param skel: The target :class:`SkeletonInstance`.
+        :param name: The name of the CaptchaBone in the :class:`SkeletonInstance`.
 
         :returns: boolean, that is true, as the Captcha bone is always unserialized successfully.
         """
@@ -81,10 +89,10 @@ class CaptchaBone(BaseBone):
         So the token can be provided as "g-recaptcha-response" or the name of the CaptchaBone in the Skeleton.
         While the latter one is the preferred name.
         """
-        if conf.instance.is_dev_server:  # We dont enforce captchas on dev server
+        if not conf.security.captcha_enforce_always and conf.instance.is_dev_server:
             logging.info("Skipping captcha validation on development server")
             return None
-        if (user := current.user.get()) and "root" in user["access"]:
+        if not conf.security.captcha_enforce_always and (user := current.user.get()) and "root" in user["access"]:
             logging.info("Skipping captcha validation for root user")
             return None  # Don't bother trusted users with this (not supported by admin/vi anyway)
         if name not in data and "g-recaptcha-response" not in data:

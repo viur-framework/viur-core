@@ -395,8 +395,15 @@ class Security(ConfigType):
     """Unless set to logical none; ViUR will emit a X-Permitted-Cross-Domain-Policies with each request"""
 
     captcha_default_credentials: t.Optional[CaptchaDefaultCredentialsType] = None
-    """The default sitekey and secret to use for the CaptchaBone.
+    """The default sitekey and secret to use for the :class:`CaptchaBone`.
     If set, must be a dictionary of "sitekey" and "secret".
+    """
+
+    captcha_enforce_always: bool = False
+    """By default a captcha of the :class:`CaptchaBone` must not be solved on a local development server
+    or by a root user. But for development it can be helpful to test the implementation
+    on a local development server. Setting this flag to True, disables this behavior and
+    enforces always a valid captcha.
     """
 
     password_recovery_key_length: int = 42
