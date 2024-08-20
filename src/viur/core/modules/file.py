@@ -16,6 +16,8 @@ import typing as t
 from collections import namedtuple
 from urllib.parse import quote as urlquote
 from urllib.request import urlopen
+from google.appengine.api import images, blobstore
+
 from google.cloud import storage
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from viur.core import conf, current, db, errors, utils
@@ -359,6 +361,11 @@ class FileLeafSkel(TreeSkel):
         defaultValue=False
     )
 
+    serving_url = StringBone(
+        descr = "Serving-URL",
+        readOnly = True
+    )
+
     def preProcessBlobLocks(self, locks):
         """
             Ensure that our dlkey is locked even if we don't have a filebone here
@@ -377,6 +384,7 @@ class FileLeafSkel(TreeSkel):
                     skelValues["downloadUrl"] = importData
                 skelValues["pendingparententry"] = False
 
+        conf.main_app.vi.file.create_serving_url(skelValues)
 
 class FileNodeSkel(TreeSkel):
     """
@@ -873,6 +881,85 @@ class File(Tree):
         raise errors.Redirect(signedUrl)
 
     @exposed
+    def serving(self,
+                key,
+                size = None,
+                filename = None,  # random string with .ext
+                options = "",
+                download = None,  # 1 = True, else False
+                ):
+        """
+
+        :param key: a string with one __ seperator. The first part is the hostprefix, second part is the key
+        :param size: the target image size, take a look at the valid_sizes
+        :param filename: a random string with an extention, valid extentions are jpg,png,webp
+        :param options: - seperated options:
+            c - crop
+            p - face crop
+            fv - vertrical flip
+            fh - horizontal flip
+            rXXX - rotate 90, 180, 270
+            nu - no upscale
+        :param download: if value = 1 force download, else not
+        :return:
+        """
+
+        valid_parameters = ["c", "p", "fv", "fh", "r90", "r180", "r270", "nu"]
+        valid_sizes = [32, 48, 64, 72, 80, 90, 94, 104, 110, 120, 128, 144,
+                       150, 160, 200, 220, 288, 320, 400, 512, 576,
+                       640, 720, 800, 912, 1024, 1152, 1280, 1440, 1600]
+        valid_formats = {
+            "jpg" : "rj",
+            "png" : "rp",
+            "webp": "rw",
+        }
+
+        host, value = key.split("__")
+
+        if any(c not in conf["viur.searchValidChars"] for c in host):
+            raise errors.BadRequest("key contains invalid characters")
+
+        # extract format from filename
+        fileformat = "webp"
+        if filename:
+            _format = filename.split(".")
+            _format.reverse()
+            _format = _format[0]
+            if _format in ["png", "jpg", "webp"]:
+                fileformat = _format
+
+        url = f"https://{host}.googleusercontent.com/{value}"
+
+        if options:
+            single_parameters = options.split("-")
+
+            if not all(param in valid_parameters for param in single_parameters):
+                raise errors.BadRequest("Invalid Options")
+
+        options += f"-{valid_formats[fileformat]}"
+
+        if size and int(size) in valid_sizes:
+            options = f"s{size}-" + options
+
+        url += "=" + options
+
+        try:
+            response = current.request.get().response
+            response.headers["Content-Type"] = f"image/{fileformat}"
+            response.headers[
+                "Cache-Control"] = "public, max-age=604800"  # 7 Days
+            if download and download == "1":
+                response.headers[
+                    "Content-Disposition"] = "attachment; filename=%s" % filename
+            else:
+                response.headers[
+                    "Content-Disposition"] = "filename=%s" % filename
+
+            return requests.get(url).content
+        except:
+            raise errors.BadRequest("Invalid Url")
+
+    @exposed
     @force_ssl
     @force_post
     @skey(allow_empty=True)
@@ -925,6 +1012,9 @@ class File(Tree):
 
             # Add updated download-URL as the auto-generated isn't valid yet
             skel["downloadUrl"] = self.create_download_url(skel["dlkey"], skel["name"])
+
+            skel = self.create_serving_url(skel)
+
             return self.render.addSuccess(skel)
 
         return super().add(skelType, node, *args, **kwargs)
@@ -948,6 +1038,8 @@ class File(Tree):
         GOOGLE_STORAGE_BUCKET.copy_blob(old_blob, GOOGLE_STORAGE_BUCKET, new_path, if_generation_match=0)
         GOOGLE_STORAGE_BUCKET.delete_blob(old_path)
 
+        self.create_serving_url(skel)
+
     def mark_for_deletion(self, dlkey: str) -> None:
         """
         Adds a marker to the datastore that the file specified as *dlkey* can be deleted.
@@ -970,6 +1062,26 @@ class File(Tree):
 
         db.Put(fileObj)
 
+    def create_serving_url(self, skel: SkeletonInstance) ->SkeletonInstance:
+        """ Create Serving url for public image files
+        """
+        #try to create a servingurl for images
+        if not conf.instance.is_dev_server and\
+            skel["public"] and\
+            skel["mimetype"] and\
+            skel["mimetype"].startswith("image/") and\
+            not skel["serving_url"]:
+            try:
+                skel["serving_url"] = images.get_serving_url(
+                    None,
+                    secure_url=True,
+                    filename=f"/gs/{GOOGLE_STORAGE_BUCKET.name}/{skel['dlkey']}/source/{skel['name']}",
+                )
+            except Exception as e:
+                logging.warning("Error while creating serving url")
+                if not conf.instance.is_dev_server:
+                    logging.exception(e)
+        return skel
 
 File.json = True
 File.html = True
@@ -1050,6 +1162,12 @@ def doCleanupDeletedFiles(cursor=None):
                 # There should be exactly 1 or 0 of these
                 for f in skeletonByKind("file")().all().filter("dlkey =", file["dlkey"]).fetch(99):
                     f.delete()
+
+                    if f["serving_url"]:
+                        blob_key = blobstore.create_gs_key(
+                            f"/gs/{GOOGLE_STORAGE_BUCKET.name}/{f['dlkey']}/source/{f['name']}"
+                        )
+                        images.delete_serving_url(blob_key) # delete serving url
             else:
                 logging.debug(f"""Increasing count, {file["dlkey"]}""")
                 file["itercount"] += 1
