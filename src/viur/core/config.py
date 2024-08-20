@@ -380,7 +380,8 @@ class Security(ConfigType):
 
     x_frame_options: t.Optional[
         tuple[t.Literal["deny", "sameorigin", "allow-from"],
-        t.Optional[str]]] = ("sameorigin", None)
+        t.Optional[str]]
+    ] = ("sameorigin", None)
     """If set, ViUR will emit an X-Frame-Options header
 
     In case of allow-from, the second parameters must be the host-url.
