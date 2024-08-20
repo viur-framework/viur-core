@@ -2,9 +2,9 @@ import datetime
 import hashlib
 import logging
 import os
+import typing as t
 import warnings
 from pathlib import Path
-import typing as t
 
 import google.auth
 
@@ -22,7 +22,9 @@ if t.TYPE_CHECKING:  # pragma: no cover
 _T = t.TypeVar("_T")
 Multiple: t.TypeAlias = list[_T] | tuple[_T] | set[_T] | frozenset[_T]  # TODO: Refactor for Python 3.12
 
+
 class CaptchaDefaultCredentialsType(t.TypedDict):
+    """Expected type of global captcha credential, see :attr:Security.captcha_default_credentials"""
     sitekey: str
     secret: str
 
@@ -378,7 +380,7 @@ class Security(ConfigType):
 
     x_frame_options: t.Optional[
         tuple[t.Literal["deny", "sameorigin", "allow-from"],
-              t.Optional[str]]] = ("sameorigin", None)
+        t.Optional[str]]] = ("sameorigin", None)
     """If set, ViUR will emit an X-Frame-Options header
 
     In case of allow-from, the second parameters must be the host-url.
