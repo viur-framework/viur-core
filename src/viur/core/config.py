@@ -24,7 +24,7 @@ Multiple: t.TypeAlias = list[_T] | tuple[_T] | set[_T] | frozenset[_T]  # TODO: 
 
 
 class CaptchaDefaultCredentialsType(t.TypedDict):
-    """Expected type of global captcha credential, see :attr:Security.captcha_default_credentials"""
+    """Expected type of global captcha credential, see :attr:`Security.captcha_default_credentials`"""
     sitekey: str
     secret: str
 
