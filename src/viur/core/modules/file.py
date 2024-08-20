@@ -45,14 +45,12 @@ PUBLIC_GOOGLE_STORAGE_BUCKET = GOOGLE_STORAGE_CLIENT.lookup_bucket(f"""public-do
 FilePath = namedtuple("FilePath", ("dlkey", "is_derived", "filename"))
 
 
-def get_current_bucket(dlkey:str) -> google.cloud.storage.bucket.Bucket:
+def get_current_bucket(dlkey: str) -> google.cloud.storage.bucket.Bucket:
     if dlkey.endswith("_pub"):
         if public_bucket := PUBLIC_GOOGLE_STORAGE_BUCKET:
             return public_bucket
         raise ValueError(f"""the bucket: public-dot-{__PROJECT_ID} does not exist! Please create it with ACL access.""")
     return GOOGLE_STORAGE_BUCKET
-
-
 
 
 def importBlobFromViur2(dlKey, fileName):
@@ -68,7 +66,7 @@ def importBlobFromViur2(dlKey, fileName):
     if conf.viur2import_blobsource["infoURL"]:
         try:
             importDataReq = urlopen(conf.viur2import_blobsource["infoURL"] + dlKey)
-        except:
+        except Exception as e:
             marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
             marker["success"] = False
             marker["error"] = "Failed URL-FETCH 1"
@@ -378,8 +376,8 @@ class FileLeafSkel(TreeSkel):
     )
 
     serving_url = StringBone(
-        descr = "Serving-URL",
-        readOnly = True
+        descr="Serving-URL",
+        readOnly=True
     )
 
     def preProcessBlobLocks(self, locks):
@@ -401,6 +399,7 @@ class FileLeafSkel(TreeSkel):
                 skelValues["pendingparententry"] = False
 
         conf.main_app.vi.file.create_serving_url(skelValues)
+
 
 class FileNodeSkel(TreeSkel):
     """
@@ -833,7 +832,7 @@ class File(Tree):
         try:
             dlPath, validUntil, download_filename = base64.urlsafe_b64decode(
                 blobKey).decode("UTF-8").split("\0")
-        except:  # It's the old format, without an downloadFileName
+        except Exception as e:  # It's the old format, without an downloadFileName
             dlPath, validUntil = base64.urlsafe_b64decode(blobKey).decode(
                 "UTF-8").split("\0")
 
@@ -909,12 +908,13 @@ class File(Tree):
     @exposed
     def serving(self,
                 key,
-                size = None,
-                filename = None,  # random string with .ext
-                options = "",
-                download = None,  # 1 = True, else False
+                size=None,
+                filename=None,  # random string with .ext
+                options="",
+                download=None,  # 1 = True, else False
                 ):
         """
+        Requests a image using the serving url to hide google requests.
 
         :param key: a string with one __ seperator. The first part is the hostprefix, second part is the key
         :param size: the target image size, take a look at the valid_sizes
@@ -935,8 +935,8 @@ class File(Tree):
                        150, 160, 200, 220, 288, 320, 400, 512, 576,
                        640, 720, 800, 912, 1024, 1152, 1280, 1440, 1600]
         valid_formats = {
-            "jpg" : "rj",
-            "png" : "rp",
+            "jpg": "rj",
+            "png": "rp",
             "webp": "rw",
         }
 
@@ -982,7 +982,7 @@ class File(Tree):
                     "Content-Disposition"] = "filename=%s" % filename
 
             return requests.get(url).content
-        except:
+        except Exception as e:
             raise errors.BadRequest("Invalid Url")
 
     @exposed
@@ -1043,8 +1043,6 @@ class File(Tree):
             # Add updated download-URL as the auto-generated isn't valid yet
             skel["downloadUrl"] = self.create_download_url(skel["dlkey"], skel["name"])
 
-
-
             return self.render.addSuccess(skel)
 
         return super().add(skelType, node, *args, **kwargs)
@@ -1094,15 +1092,13 @@ class File(Tree):
 
         db.Put(fileObj)
 
-    def create_serving_url(self, skel: SkeletonInstance) ->SkeletonInstance:
+    def create_serving_url(self, skel: SkeletonInstance) -> SkeletonInstance:
         """ Create Serving url for public image files
         """
-        #try to create a servingurl for images
-        if not conf.instance.is_dev_server and\
-            skel["public"] and\
-            skel["mimetype"] and\
-            skel["mimetype"].startswith("image/") and\
-            not skel["serving_url"]:
+        # try to create a servingurl for images
+        if not conf.instance.is_dev_server and skel["public"] and skel["mimetype"] \
+                and skel["mimetype"].startswith("image/") and not skel["serving_url"]:
+
             try:
                 current_bucket = get_current_bucket(skel['dlkey'])
                 skel["serving_url"] = images.get_serving_url(
@@ -1115,6 +1111,7 @@ class File(Tree):
                 if not conf.instance.is_dev_server:
                     logging.exception(e)
         return skel
+
 
 File.json = True
 File.html = True
@@ -1180,7 +1177,7 @@ def doCleanupDeletedFiles(cursor=None):
     if cursor:
         query.setCursor(cursor)
     for file in query.run(100):
-        if not "dlkey" in file:
+        if "dlkey" not in file:
             db.Delete(file.key)
         elif db.Query("viur-blob-locks").filter("active_blob_references =", file["dlkey"]).getEntry():
             logging.info(f"""is referenced, {file["dlkey"]}""")
@@ -1202,7 +1199,7 @@ def doCleanupDeletedFiles(cursor=None):
                         blob_key = blobstore.create_gs_key(
                             f"/gs/{current_bucket.name}/{f['dlkey']}/source/{f['name']}"
                         )
-                        images.delete_serving_url(blob_key) # delete serving url
+                        images.delete_serving_url(blob_key)  # delete serving url
             else:
                 logging.debug(f"""Increasing count, {file["dlkey"]}""")
                 file["itercount"] += 1
