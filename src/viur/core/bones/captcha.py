@@ -51,6 +51,8 @@ class CaptchaBone(BaseBone):
                 self.defaultValue = self.publicKey = conf.security.captcha_default_credentials["sitekey"]
                 self.privateKey = conf.security.captcha_default_credentials["secret"]
         self.required = True
+        if not self.privateKey:
+            raise ValueError("privateKey must be set.")
 
     def serialize(self, skel: "SkeletonInstance", name: str, parentIndexed: bool) -> bool:
         """
@@ -80,8 +82,10 @@ class CaptchaBone(BaseBone):
         While the latter one is the preferred name.
         """
         if conf.instance.is_dev_server:  # We dont enforce captchas on dev server
+            logging.info("Skipping captcha validation on development server")
             return None
         if (user := current.user.get()) and "root" in user["access"]:
+            logging.info("Skipping captcha validation for root user")
             return None  # Don't bother trusted users with this (not supported by admin/vi anyway)
         if name not in data and "g-recaptcha-response" not in data:
             return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "No Captcha given!")]
