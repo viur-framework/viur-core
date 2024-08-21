@@ -7,14 +7,15 @@ import json
 import logging
 import typing as t
 import warnings
-from enum import Enum
 from itertools import chain
 from time import time
+
 from viur.core import db, utils
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 
 if t.TYPE_CHECKING:
     from viur.core.skeleton import SkeletonInstance
+
 
 class RelationalConsistency(enum.IntEnum):
     """
@@ -869,7 +870,7 @@ class RelationalBone(BaseBone):
         if origFilter is None or not "orderby" in rawFilter:  # This query is unsatisfiable or not sorted
             return dbFilter
         if "orderby" in rawFilter and isinstance(rawFilter["orderby"], str) and rawFilter["orderby"].startswith(
-                f"{name}."):
+            f"{name}."):
             if not dbFilter.getKind() == "viur-relations" and self.multiple:  # This query has not been rewritten (yet)
                 name, skel, dbFilter, rawFilter = self._rewriteQuery(name, skel, dbFilter, rawFilter)
             key = rawFilter["orderby"]
@@ -1164,12 +1165,12 @@ class RelationalBone(BaseBone):
         elif not self.multiple and self.using:
             if not isinstance(value, tuple) or len(value) != 2 or \
                 not (isinstance(value[0], str) or isinstance(value[0], db.Key)) or \
-                    not isinstance(value[1], self._skeletonInstanceClassRef):
+                not isinstance(value[1], self._skeletonInstanceClassRef):
                 raise ValueError(f"You must supply a tuple of (Database-Key, relSkel) to {boneName}")
             realValue = value
         elif self.multiple and not self.using:
             if not (isinstance(value, str) or isinstance(value, db.Key)) and not (isinstance(value, list)) \
-                    and all([isinstance(x, str) or isinstance(x, db.Key) for x in value]):
+                and all([isinstance(x, str) or isinstance(x, db.Key) for x in value]):
                 raise ValueError(f"You must supply a Database-Key or a list hereof to {boneName}")
             if isinstance(value, list):
                 realValue = [(x, None) for x in value]
