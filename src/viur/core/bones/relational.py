@@ -2,6 +2,7 @@
 This module contains the RelationalBone to create and manage relationships between skeletons
 and enums to parameterize it.
 """
+import enum
 import json
 import logging
 import typing as t
@@ -12,25 +13,27 @@ from time import time
 from viur.core import db, utils
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 
+if t.TYPE_CHECKING:
+    from viur.core.skeleton import SkeletonInstance
 
-class RelationalConsistency(Enum):
+class RelationalConsistency(enum.IntEnum):
     """
     An enumeration representing the different consistency strategies for handling stale relations in
     the RelationalBone class.
     """
-    Ignore = 1  # Ignore stale relations (old behaviour)
+    Ignore = 1
     """Ignore stale relations, which represents the old behavior."""
-    PreventDeletion = 2  # Lock target object so it cannot be deleted
+    PreventDeletion = 2
     """Lock the target object so that it cannot be deleted."""
-    SetNull = 3  # Drop Relation if target object is deleted
+    SetNull = 3
     """Drop the relation if the target object is deleted."""
-    CascadeDeletion = 4  # Delete this object also if the referenced entry is deleted (Dangerous!)
+    CascadeDeletion = 4
     """
     .. warning:: Delete this object also if the referenced entry is deleted (Dangerous!)
     """
 
 
-class RelationalUpdateLevel(Enum):
+class RelationalUpdateLevel(enum.Enum):
     """
     An enumeration representing the different update levels for the RelationalBone class.
     """
@@ -296,9 +299,6 @@ class RelationalBone(BaseBone):
         self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
         self._skeletonInstanceClassRef = SkeletonInstance
         self._ref_keys = set(self._refSkelCache.__boneMap__.keys())
-    # from viur.core.skeleton import RefSkel, skeletonByKind
-    # self._refSkelCache = RefSkel.fromSkel(skeletonByKind(self.kind), *self.refKeys)
-    # self._usingSkelCache = self.using() if self.using else None
 
     def _getSkels(self):
         """
@@ -384,7 +384,7 @@ class RelationalBone(BaseBone):
             usingData = None
         return {"dest": relSkel, "rel": usingData}
 
-    def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
+    def serialize(self, skel: "SkeletonInstance", name: str, parentIndexed: bool) -> bool:
         """
         Serialize the RelationalBone for the given skeleton, updating relational locks as necessary.
 
@@ -401,8 +401,6 @@ class RelationalBone(BaseBone):
         :raises AssertionError: If a programming error is detected.
         """
         super().serialize(skel, name, parentIndexed)
-        oldRelationalLocks = set(skel.dbEntity.get(f"{name}_outgoingRelationalLocks") or [])
-        newRelationalLocks = set()
         # Clean old properties from entry (prevent name collision)
         for k in list(skel.dbEntity.keys()):
             if k.startswith(f"{name}."):
@@ -421,7 +419,6 @@ class RelationalBone(BaseBone):
                     for val in newVals[language]:
                         if val["dest"]:
                             refData = val["dest"].serialize(parentIndexed=indexed)
-                            newRelationalLocks.add(val["dest"]["key"])
                         else:
                             refData = None
                         if val["rel"]:
@@ -439,7 +436,6 @@ class RelationalBone(BaseBone):
                     val = newVals[language]
                     if val and val["dest"]:
                         refData = val["dest"].serialize(parentIndexed=indexed)
-                        newRelationalLocks.add(val["dest"]["key"])
                         if val["rel"]:
                             usingData = val["rel"].serialize(parentIndexed=indexed)
                         else:
@@ -453,7 +449,6 @@ class RelationalBone(BaseBone):
             for val in skel.accessedValues[name]:
                 if val["dest"]:
                     refData = val["dest"].serialize(parentIndexed=indexed)
-                    newRelationalLocks.add(val["dest"]["key"])
                 else:
                     refData = None
                 if val["rel"]:
@@ -465,7 +460,6 @@ class RelationalBone(BaseBone):
         else:
             if skel.accessedValues[name]["dest"]:
                 refData = skel.accessedValues[name]["dest"].serialize(parentIndexed=indexed)
-                newRelationalLocks.add(skel.accessedValues[name]["dest"]["key"])
             else:
                 refData = None
             if skel.accessedValues[name]["rel"]:
@@ -482,29 +476,8 @@ class RelationalBone(BaseBone):
         elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
             skel.dbEntity.exclude_from_indexes.add(name)
 
-        # Ensure outgoing Locks are up2date
-        if self.consistency != RelationalConsistency.PreventDeletion:
-            # We don't need to lock anything, but may delete old locks held
-            newRelationalLocks = set()
-
-        # We should always run inside a transaction so we can safely get+put
-        skel.dbEntity[f"{name}_outgoingRelationalLocks"] = list(newRelationalLocks)
-
-        for newLock in newRelationalLocks - oldRelationalLocks:
-            # Lock new Entry
-            if referencedObj := db.Get(newLock):
-                referencedObj.setdefault("viur_incomming_relational_locks", [])
-
-                if skel["key"] not in referencedObj["viur_incomming_relational_locks"]:
-                    referencedObj["viur_incomming_relational_locks"].append(skel["key"])
-                    db.Put(referencedObj)
-
-        for oldLock in oldRelationalLocks - newRelationalLocks:
-            # Remove Lock
-            if referencedObj := db.Get(oldLock):
-                if skel["key"] in referencedObj["viur_incomming_relational_locks"]:
-                    referencedObj["viur_incomming_relational_locks"].remove(skel["key"])
-                    db.Put(referencedObj)
+        # Delete legacy property
+        skel.dbEntity.pop(f"{name}_outgoingRelationalLocks", None)
 
         return True
 
@@ -517,40 +490,16 @@ class RelationalBone(BaseBone):
 
         return tuple(parts)
 
-    def delete(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
-        """
-        Clear any outgoing relational locks when deleting a skeleton.
-
-        This method ensures that any outgoing relational locks are cleared when deleting a skeleton.
-
-        :param SkeletonInstance skel: The skeleton instance being deleted.
-        :param str name: The name of the bone being deleted.
-
-        :raises Warning: If a referenced entry is missing despite the lock.
-        """
-        if skel.dbEntity.get(f"{name}_outgoingRelationalLocks"):
-            for refKey in skel.dbEntity[f"{name}_outgoingRelationalLocks"]:
-                referencedEntry = db.Get(refKey)
-                if not referencedEntry:
-                    logging.warning(f"Programming error detected: Entry {refKey} is gone despite lock")
-                    continue
-                incommingLocks = referencedEntry.get("viur_incomming_relational_locks", [])
-                # We remove any reference to ourself as multiple bones may hold Locks to the same entry
-                referencedEntry["viur_incomming_relational_locks"] = [x for x in incommingLocks if x != skel["key"]]
-                db.Put(referencedEntry)
-
-    def postSavedHandler(self, skel, boneName, key):
+    def postSavedHandler(self, skel: "SkeletonInstance", boneName: str, key: db.Key) -> None:
         """
         Handle relational updates after a skeleton is saved.
 
         This method updates, removes, or adds relations between the saved skeleton and the referenced entities.
         It also takes care of updating the relational properties and consistency levels.
 
-        :param SkeletonInstance skel: The saved skeleton instance.
-        :param str boneName: The name of the relational bone.
-        :param google.cloud.datastore.key.Key key: The key of the saved skeleton instance.
-
-        :raises Warning: If a relation entry is corrupt and cannot be updated.
+        :param skel: The saved skeleton instance.
+        :param boneName: The name of the relational bone.
+        :param key: The key of the saved skeleton instance.
         """
         if not skel[boneName]:
             values = []
@@ -563,10 +512,6 @@ class RelationalBone(BaseBone):
         else:
             values = [skel[boneName]]
         values = [x for x in values if x is not None]
-        # elif isinstance(skel[boneName], dict):
-        #    values = [dict((k, v) for k, v in skel[boneName].items())]
-        # else:
-        #    values = [dict((k, v) for k, v in x.items()) for x in skel[boneName]]
         parentValues = db.Entity()
         srcEntity = skel.dbEntity
         parentValues.key = srcEntity.key
@@ -620,25 +565,25 @@ class RelationalBone(BaseBone):
             dbObj["viur_foreign_keys"] = list(self._ref_keys)
             db.Put(dbObj)
 
-    def postDeletedHandler(self, skel, boneName, key):
+    def postDeletedHandler(self, skel: "SkeletonInstance", boneName: str, key: db.Key) -> None:
         """
         Handle relational updates after a skeleton is deleted.
 
         This method deletes all relations associated with the deleted skeleton and the referenced entities
         for the given relational bone.
 
-        :param SkeletonInstance skel: The deleted skeleton instance.
-        :param str boneName: The name of the relational bone.
-        :param google.cloud.datastore.key.Key key: The key of the deleted skeleton instance.
+        :param skel: The deleted SkeletonInstance.
+        :param boneName: The name of the RelationalBone in the Skeleton.
+        :param key: The key of the deleted Entity.
         """
-        dbVals = db.Query("viur-relations")  # skel.kindName+"_"+self.kind+"_"+key
-        dbVals.filter("viur_src_kind =", skel.kindName)
-        dbVals.filter("viur_dest_kind =", self.kind)
-        dbVals.filter("viur_src_property =", boneName)
-        dbVals.filter("src.__key__ =", key)
-        db.Delete([x for x in dbVals.run()])
+        query = db.Query("viur-relations")
+        query.filter("viur_src_kind =", skel.kindName)
+        query.filter("viur_dest_kind =", self.kind)
+        query.filter("viur_src_property =", boneName)
+        query.filter("src.__key__ =", key)
+        db.Delete([x for x in query.run()])
 
-    def isInvalid(self, key):
+    def isInvalid(self, key) -> None:
         """
         Check if the given key is invalid for this relational bone.
 
