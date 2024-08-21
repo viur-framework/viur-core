@@ -869,8 +869,10 @@ class RelationalBone(BaseBone):
         origFilter = dbFilter.queries
         if origFilter is None or not "orderby" in rawFilter:  # This query is unsatisfiable or not sorted
             return dbFilter
-        if "orderby" in rawFilter and isinstance(rawFilter["orderby"], str) and rawFilter["orderby"].startswith(
-            f"{name}."):
+        if (
+            "orderby" in rawFilter and isinstance(rawFilter["orderby"], str)
+            and rawFilter["orderby"].startswith(f"{name}.")
+        ):
             if not dbFilter.getKind() == "viur-relations" and self.multiple:  # This query has not been rewritten (yet)
                 name, skel, dbFilter, rawFilter = self._rewriteQuery(name, skel, dbFilter, rawFilter)
             key = rawFilter["orderby"]
@@ -1143,16 +1145,15 @@ class RelationalBone(BaseBone):
         Sets the value of the specified bone in the given skeleton. Sanity checks are performed to ensure the
         value is valid. If the value is invalid, no modifications are made.
 
-        :param SkeletonInstance skel: Dictionary with the current values from the skeleton we belong to.
-        :param str boneName: The name of the bone to be modified.
+        :param skel: Dictionary with the current values from the skeleton we belong to.
+        :param boneName: The name of the bone to be modified.
         :param value: The value to be assigned. The type depends on the bone type.
-        :param bool append: If true, the given value is appended to the values of the bone instead of replacing it.
-                   Only supported on bones with multiple=True.
-        :param Union[None, str] language: Set/append for a specific language (optional). Required if the bone
+        :param append: If true, the given value is appended to the values of the bone instead of replacing it.
+            Only supported on bones with multiple=True.
+        :param language: Set/append for a specific language (optional). Required if the bone
             supports languages.
 
         :return: True if the operation succeeded, False otherwise.
-        :rtype: bool
         """
         assert not (bool(self.languages) ^ bool(language)), "Language is required or not supported"
         assert not append or self.multiple, "Can't append - bone is not multiple"
@@ -1163,27 +1164,33 @@ class RelationalBone(BaseBone):
                 raise ValueError(f"You must supply exactly one Database-Key to {boneName}")
             realValue = (value, None)
         elif not self.multiple and self.using:
-            if not isinstance(value, tuple) or len(value) != 2 or \
-                not (isinstance(value[0], str) or isinstance(value[0], db.Key)) or \
-                not isinstance(value[1], self._skeletonInstanceClassRef):
+            if (
+                not isinstance(value, tuple) or len(value) != 2
+                or not (isinstance(value[0], str) or isinstance(value[0], db.Key))
+                or not isinstance(value[1], self._skeletonInstanceClassRef)
+            ):
                 raise ValueError(f"You must supply a tuple of (Database-Key, relSkel) to {boneName}")
             realValue = value
         elif self.multiple and not self.using:
-            if not (isinstance(value, str) or isinstance(value, db.Key)) and not (isinstance(value, list)) \
-                and all([isinstance(x, str) or isinstance(x, db.Key) for x in value]):
+            if (
+                not (isinstance(value, str) or isinstance(value, db.Key))
+                and not (isinstance(value, list))
+                and all(isinstance(x, (str, db.Key)) for x in value)
+            ):
                 raise ValueError(f"You must supply a Database-Key or a list hereof to {boneName}")
             if isinstance(value, list):
                 realValue = [(x, None) for x in value]
             else:
                 realValue = [(value, None)]
         else:  # which means (self.multiple and self.using)
-            if not (isinstance(value, tuple) and len(value) == 2 and
-                    (isinstance(value[0], str) or isinstance(value[0], db.Key))
-                    and isinstance(value[1], self._skeletonInstanceClassRef)) and not (isinstance(value, list)
-                                                                                       and all(
-                    (isinstance(x, tuple) and len(x) == 2 and
-                     (isinstance(x[0], str) or isinstance(x[0], db.Key))
-                     and isinstance(x[1], self._skeletonInstanceClassRef) for x in value))):
+            if (
+                not (isinstance(value, tuple) and len(value) == 2 and
+                     (isinstance(value[0], str) or isinstance(value[0], db.Key))
+                     and isinstance(value[1], self._skeletonInstanceClassRef))
+                and not (isinstance(value, list)
+                         and all((isinstance(x, tuple) and len(x) == 2 and (isinstance(x[0], (str, db.Key)))
+                                  and isinstance(x[1], self._skeletonInstanceClassRef) for x in value)))
+            ):
                 raise ValueError(f"You must supply (db.Key, RelSkel) or a list hereof to {boneName}")
             if not isinstance(value, list):
                 realValue = [value]
