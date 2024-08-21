@@ -14,7 +14,7 @@ from viur.core import db, utils
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 
 if t.TYPE_CHECKING:
-    from viur.core.skeleton import SkeletonInstance
+    from viur.core.skeleton import SkeletonInstance, RelSkel
 
 
 class RelationalConsistency(enum.IntEnum):
@@ -158,7 +158,7 @@ class RelationalBone(BaseBone):
         parentKeys: t.Optional[t.Iterable[str]] = {"name"},
         refKeys: t.Optional[t.Iterable[str]] = {"name"},
         updateLevel: RelationalUpdateLevel = RelationalUpdateLevel.Always,
-        using: t.Optional['viur.core.skeleton.RelSkel'] = None,
+        using: t.Optional["RelSkel"] = None,
         **kwargs
     ):
         """
@@ -739,7 +739,7 @@ class RelationalBone(BaseBone):
     def buildDBFilter(
         self,
         name: str,
-        skel: 'viur.core.skeleton.SkeletonInstance',
+        skel: "SkeletonInstance",
         dbFilter: db.Query,
         rawFilter: dict,
         prefix: t.Optional[str] = None
@@ -845,7 +845,7 @@ class RelationalBone(BaseBone):
     def buildDBSort(
         self,
         name: str,
-        skel: 'viur.core.skeleton.SkeletonInstance',
+        skel: "SkeletonInstance",
         dbFilter: db.Query,
         rawFilter: dict
     ) -> t.Optional[db.Query]:
@@ -964,7 +964,7 @@ class RelationalBone(BaseBone):
                 raise RuntimeError()
             return f"src.{param}", value
 
-    def orderHook(self, name, query, orderings):  # FIXME
+    def orderHook(self, name: str, query: db.Query, orderings):  # FIXME
         """
         Hook installed by buildDbFilter that rewrites orderings added to the query to match the layout of the
         viur-relations index and performs sanity checks on the query.
@@ -973,8 +973,8 @@ class RelationalBone(BaseBone):
         has been executed. It ensures that the orderings are compatible with the structure of the viur-relations
         index and checks if the query is possible.
 
-        :param str name: The name of the bone.
-        :param db.Query query: The datastore query to be modified.
+        :param name: The name of the bone.
+        :param query: The datastore query to be modified.
         :param orderings: A list or tuple of orderings to be checked and potentially modified.
         :type orderings: List[Union[str, Tuple[str, db.SortOrder]]] or Tuple[Union[str, Tuple[str, db.SortOrder]]]
 
@@ -1023,7 +1023,7 @@ class RelationalBone(BaseBone):
                         res.append(f"src.{orderKey}")
         return res
 
-    def refresh(self, skel, boneName):
+    def refresh(self, skel: "SkeletonInstance", boneName: str):
         """
         Refreshes all values that might be cached from other entities in the provided skeleton.
 
@@ -1069,18 +1069,17 @@ class RelationalBone(BaseBone):
                 for k in skel[boneName]:
                     updateInplace(k)
 
-    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
+    def getSearchTags(self, skel: "SkeletonInstance", name: str) -> set[str]:
         """
         Retrieves the search tags for the given RelationalBone in the provided skeleton.
 
         This method iterates over the values of the relational bone and gathers search tags from the
         reference and using skeletons. It combines all the tags into a set to avoid duplicates.
 
-        :param SkeletonInstance skel: The skeleton containing the bone for which search tags are to be retrieved.
-        :param str name: The name of the bone for which search tags are to be retrieved.
+        :param skel: The skeleton containing the bone for which search tags are to be retrieved.
+        :param name: The name of the bone for which search tags are to be retrieved.
 
         :return: A set of search tags for the specified relational bone.
-        :rtype: Set[str]
         """
         result = set()
 
@@ -1135,7 +1134,7 @@ class RelationalBone(BaseBone):
 
     def setBoneValue(
         self,
-        skel: 'SkeletonInstance',
+        skel: "SkeletonInstance",
         boneName: str,
         value: t.Any,
         append: bool,
@@ -1233,7 +1232,7 @@ class RelationalBone(BaseBone):
                     skel[boneName] = tmpRes
         return True
 
-    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
+    def getReferencedBlobs(self, skel: "SkeletonInstance", name: str) -> set[str]:
         """
         Retrieves the set of referenced blobs from the specified bone in the given skeleton instance.
 
