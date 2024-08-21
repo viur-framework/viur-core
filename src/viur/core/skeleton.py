@@ -1412,8 +1412,7 @@ def processRemovedRelations(removedKey, cursor=None):
     for entry in updateList:
         skel = skeletonByKind(entry["viur_src_kind"])()
         if not skel.fromDB(entry["src"].key):
-            logging.error(f"processRemovedRelations detects inconsistency on src={entry['src'].key!r}")
-            raise ValueError()
+            raise ValueError(f"processRemovedRelations detects inconsistency on src={entry['src'].key!r}")
 
         if entry["viur_relational_consistency"] == 3:  # Set Null
             for key, _bone in skel.items():
