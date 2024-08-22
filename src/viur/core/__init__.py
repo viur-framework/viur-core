@@ -18,7 +18,6 @@ import warnings
 from types import ModuleType
 import typing as t
 from google.appengine.api import wrap_wsgi_app
-import yaml
 
 from viur.core import i18n, request, utils
 from viur.core.config import conf
@@ -67,27 +66,6 @@ __all__ = [
 warnings.filterwarnings("always", category=DeprecationWarning, module=r"viur\.core.*")
 
 
-def load_indexes_from_file() -> dict[str, list]:
-    """
-        Loads all indexes from the index.yaml and stores it in a dictionary  sorted by the module(kind)
-        :return A dictionary of indexes per module
-    """
-    indexes_dict = {}
-    try:
-        with open(os.path.join(conf.instance.project_base_path, "index.yaml"), "r") as file:
-            indexes = yaml.safe_load(file)
-            indexes = indexes.get("indexes", [])
-            for index in indexes:
-                index["properties"] = [_property["name"] for _property in index["properties"]]
-                indexes_dict.setdefault(index["kind"], []).append(index)
-
-    except FileNotFoundError:
-        logging.warning("index.yaml not found")
-        return {}
-
-    return indexes_dict
-
-
 def setDefaultLanguage(lang: str):
     """
         Sets the default language used by ViUR to *lang*.
@@ -110,7 +88,7 @@ def setDefaultDomainLanguage(domain: str, lang: str):
     conf.i18n.domain_language_mapping[host] = lang.lower()
 
 
-def buildApp(modules: ModuleType | object, renderers: ModuleType | object, default: str = None) -> Module:
+def __build_app(modules: ModuleType | object, renderers: ModuleType | object, default: str = None) -> Module:
     """
         Creates the application-context for the current instance.
 
@@ -140,12 +118,6 @@ def buildApp(modules: ModuleType | object, renderers: ModuleType | object, defau
                         renderers[key][subkey] = render
         del renderers_root
 
-    # instanciate root module
-    if hasattr(modules, "index"):
-        root = modules.index("index", "")
-    else:
-        root = Module("index", "")
-
     # assign ViUR system modules
     from viur.core.modules.moduleconf import ModuleConf  # noqa: E402 # import works only here because circular imports
     from viur.core.modules.script import Script  # noqa: E402 # import works only here because circular imports
@@ -157,11 +129,20 @@ def buildApp(modules: ModuleType | object, renderers: ModuleType | object, defau
     modules._translation = Translation
     modules.script = Script
 
-    # create module mappings
-    indexes = load_indexes_from_file()  # todo: datastore index retrieval should be done in SkelModule
+    # Resolver defines the URL mapping
     resolver = {}
 
+    # Index is mapping all module instances for global access
+    index = (modules.index if hasattr(modules, "index") else Module)("index", "")
+    index.register(resolver, renderers[default]["default"](parent=index))
+
     for module_name, module_cls in vars(modules).items():  # iterate over all modules
+        if module_name == "index":
+            continue  # ignore index, as it has been processed before!
+
+        if module_name in renderers:
+            raise NameError(f"Cannot name module {module_name!r}, as it is a reserved render's name")
+
         if not (  # we define the cases we want to use and then negate them all
             (inspect.isclass(module_cls) and issubclass(module_cls, Module)  # is a normal Module class
              and not issubclass(module_cls, InstancedModule))  # but not a "instantiable" Module
@@ -169,9 +150,8 @@ def buildApp(modules: ModuleType | object, renderers: ModuleType | object, defau
         ):
             continue
 
-        if module_name == "index":
-            root.register(resolver, renderers[default]["default"](parent=root))
-            continue
+        # remember module_instance for default renderer.
+        module_instance = default_module_instance = None
 
         for render_name, render in renderers.items():  # look, if a particular renderer should be built
             # Only continue when module_cls is configured for this render
@@ -183,19 +163,18 @@ def buildApp(modules: ModuleType | object, renderers: ModuleType | object, defau
             module_instance = module_cls(
                 module_name, ("/" + render_name if render_name != default else "") + "/" + module_name
             )
-            module_instance.indexes = indexes.get(module_name, [])  # todo: Fix this in SkelModule (see above!)
 
             # Attach the module-specific or the default render
             if render_name == default:  # default or render (sub)namespace?
-                setattr(root, module_name, module_instance)
+                default_module_instance = module_instance
                 target = resolver
             else:
-                if getattr(root, render_name, True) is True:
+                if getattr(index, render_name, True) is True:
                     # Render is not build yet, or it is just the simple marker that a given render should be build
-                    setattr(root, render_name, Module(render_name, "/" + render_name))
+                    setattr(index, render_name, Module(render_name, "/" + render_name))
 
                 # Attach the module to the given renderer node
-                setattr(getattr(root, render_name), module_name, module_instance)
+                setattr(getattr(index, render_name), module_name, module_instance)
                 target = resolver.setdefault(render_name, {})
 
             module_instance.register(target, render.get(module_name, render["default"])(parent=module_instance))
@@ -204,8 +183,14 @@ def buildApp(modules: ModuleType | object, renderers: ModuleType | object, defau
             if "_postProcessAppObj" in render:  # todo: This is ugly!
                 render["_postProcessAppObj"](target)
 
-    conf.main_resolver = resolver
+        # Ugly solution, but there is no better way to do it in ViUR 3:
+        # Allow that any module can be accessed by `conf.main_app.<modulename>`,
+        # either with default render or the last created render.
+        # This behavior does NOT influence the routing.
+        if default_module_instance or module_instance:
+            setattr(index, module_name, default_module_instance or module_instance)
 
+    # fixme: Below is also ugly...
     if default in renderers and hasattr(renderers[default]["default"], "renderEmail"):
         conf.emailRenderer = renderers[default]["default"]().renderEmail
     elif "html" in renderers:
@@ -216,7 +201,8 @@ def buildApp(modules: ModuleType | object, renderers: ModuleType | object, defau
         import pprint
         logging.debug(pprint.pformat(resolver))
 
-    return root
+    conf.main_resolver = resolver
+    conf.main_app = index
 
 
 def setup(modules:  ModuleType | object, render:  ModuleType | object = None, default: str = "html"):
@@ -239,7 +225,8 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
     if not render:
         import viur.core.render
         render = viur.core.render
-    conf.main_app = buildApp(modules, render, default)
+
+    __build_app(modules, render, default)
 
     # Send warning email in case trace is activated in a cloud environment
     if ((conf.debug.trace

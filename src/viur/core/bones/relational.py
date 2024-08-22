@@ -508,6 +508,15 @@ class RelationalBone(BaseBone):
 
         return True
 
+    def _get_single_destinct_hash(self, value):
+        parts = [value["dest"]["key"]]
+
+        if self.using:
+            for name, bone in self.using.__boneMap__.items():
+                parts.append(bone._get_destinct_hash(value["rel"][name]))
+
+        return tuple(parts)
+
     def delete(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
         """
         Clear any outgoing relational locks when deleting a skeleton.
@@ -562,6 +571,8 @@ class RelationalBone(BaseBone):
         srcEntity = skel.dbEntity
         parentValues.key = srcEntity.key
         for boneKey in (self.parentKeys or []):
+            if boneKey == "key":  # this is a relcit from viur2, as the key is encoded in the embedded entity
+                continue
             parentValues[boneKey] = srcEntity.get(boneKey)
         dbVals = db.Query("viur-relations")
         dbVals.filter("viur_src_kind =", skel.kindName)
