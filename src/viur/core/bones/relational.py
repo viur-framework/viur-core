@@ -1174,7 +1174,7 @@ class RelationalBone(BaseBone):
             if (
                 not (isinstance(value, str) or isinstance(value, db.Key))
                 and not (isinstance(value, list))
-                and all(isinstance(x, (str, db.Key)) for x in value)
+                and all(isinstance(k, (str, db.Key)) for k in value)
             ):
                 raise ValueError(f"You must supply a Database-Key or a list hereof to {boneName}")
             if isinstance(value, list):
