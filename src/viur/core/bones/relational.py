@@ -477,7 +477,7 @@ class RelationalBone(BaseBone):
         elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
             skel.dbEntity.exclude_from_indexes.add(name)
 
-        # Delete legacy property
+        # FIXME VIUR4: Delete legacy property
         skel.dbEntity.pop(f"{name}_outgoingRelationalLocks", None)
 
         return True
