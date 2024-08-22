@@ -11,6 +11,7 @@ import inspect
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from collections.abc import Iterable
 from enum import Enum
 import typing as t
 from viur.core import db, utils, current, i18n
@@ -127,17 +128,17 @@ class UniqueValue:  # Mark a bone as unique (it must have a different value for 
 
 
 @dataclass
-class MultipleConstraints:  # Used to define constraints on multiple bones
+class MultipleConstraints:
     """
     The MultipleConstraints class is used to define constraints on multiple bones, such as the minimum
-    and maximum number of entries allowed and whether duplicate values are allowed.
+    and maximum number of entries allowed and whether value duplicates are allowed.
     """
-    minAmount: int = 0  # Lower bound of how many entries can be submitted
+    min: int = 0
     """An integer representing the lower bound of how many entries can be submitted (default: 0)."""
-    maxAmount: int = 0  # Upper bound of how many entries can be submitted
-    """An integer representing the upper bound of how many entries can be submitted (default: 0)."""
-    preventDuplicates: bool = False  # Prevent the same value of being used twice
-    """A boolean value indicating if the same value can be used twice (default: False)."""
+    max: int = 0
+    """An integer representing the upper bound of how many entries can be submitted (default: 0 = unlimited)."""
+    duplicates: bool = False
+    """A boolean indicating if the same value can be used multiple times (default: False)."""
     sorted: bool | t.Callable = False
     """A boolean value or a method indicating if the value must be sorted (default: False)."""
     reversed: bool = False
@@ -145,7 +146,6 @@ class MultipleConstraints:  # Used to define constraints on multiple bones
     A boolean value indicating if sorted values shall be sorted in reversed order (default: False).
     It is only applied when the `sorted`-flag is set accordingly.
     """
-
 
 class ComputeMethod(Enum):
     Always = 0  # Always compute on deserialization
@@ -642,29 +642,58 @@ class BaseBone(object):
                         for lang in missing]
         if isEmpty:
             return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "Field not set")]
+
+        # Check multiple constraints on demand
         if self.multiple and isinstance(self.multiple, MultipleConstraints):
-            errors.extend(self.validateMultipleConstraints(skel, name))
+            errors.extend(self._validate_multiple_contraints(self.multiple, skel, name))
+
         return errors or None
 
-    def validateMultipleConstraints(self, skel: 'SkeletonInstance', name: str) -> list[ReadFromClientError]:
+    def _get_single_destinct_hash(self, value) -> t.Any:
+        """
+        Returns a distinct hash value for a single entry of this bone.
+        The returned value must be hashable.
+        """
+        return value
+
+    def _get_destinct_hash(self, value) -> t.Any:
+        """
+        Returns a distinct hash value for this bone.
+        The returned value must be hashable.
+        """
+        if not isinstance(value, str) and isinstance(value, Iterable):
+            return tuple(self._get_single_destinct_hash(item) for item in value)
+
+        return value
+
+    def _validate_multiple_contraints(
+        self,
+        constraints: MultipleConstraints,
+        skel: 'SkeletonInstance',
+        name: str
+    ) -> list[ReadFromClientError]:
         """
         Validates the value of a bone against its multiple constraints and returns a list of ReadFromClientError
         objects for each violation, such as too many items or duplicates.
 
+        :param constraints: The MultipleConstraints definition to apply.
         :param skel: A SkeletonInstance object where the values should be validated.
         :param name: A string representing the bone's name.
         :return: A list of ReadFromClientError objects for each constraint violation.
         """
         res = []
-        value = skel[name]
-        constraints = self.multiple
-        if constraints.minAmount and len(value) < constraints.minAmount:
+        value = self._get_destinct_hash(skel[name])
+
+        if constraints.min and len(value) < constraints.min:
             res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Too few items"))
-        if constraints.maxAmount and len(value) > constraints.maxAmount:
+
+        if constraints.max and len(value) > constraints.max:
             res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Too many items"))
-        if constraints.preventDuplicates:
+
+        if not constraints.duplicates:
             if len(set(value)) != len(value):
                 res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Duplicate items"))
+
         return res
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
@@ -1352,9 +1381,9 @@ class BaseBone(object):
         # Provide a multiple setting
         if self.multiple and isinstance(self.multiple, MultipleConstraints):
             ret["multiple"] = {
-                "min": self.multiple.minAmount,
-                "max": self.multiple.maxAmount,
-                "preventduplicates": self.multiple.preventDuplicates,
+                "duplicates": self.multiple.duplicates,
+                "max": self.multiple.max,
+                "min": self.multiple.min,
             }
         else:
             ret["multiple"] = self.multiple

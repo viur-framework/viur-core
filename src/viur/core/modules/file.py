@@ -726,8 +726,8 @@ class File(Tree):
 
         else:
             rootNode = None
-            if node:
-                rootNode = self.getRootNode(node)
+            if node and not (rootNode := self.getRootNode(node)):
+                raise errors.NotFound(f"No valid root node found for {node=}")
 
             if not self.canAdd("leaf", rootNode):
                 raise errors.Forbidden()
