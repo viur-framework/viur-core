@@ -582,7 +582,7 @@ class RelationalBone(BaseBone):
         query.filter("viur_dest_kind =", self.kind)
         query.filter("viur_src_property =", boneName)
         query.filter("src.__key__ =", key)
-        db.Delete([x for x in query.run()])
+        db.Delete([entity for entity in query.run()])
 
     def isInvalid(self, key) -> None:
         """
