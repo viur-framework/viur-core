@@ -477,7 +477,7 @@ class RelationalBone(BaseBone):
         elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
             skel.dbEntity.exclude_from_indexes.add(name)
 
-        # FIXME VIUR4: Delete legacy property
+        # Delete legacy property (PR #1244)  #TODO: Remove in ViUR4
         skel.dbEntity.pop(f"{name}_outgoingRelationalLocks", None)
 
         return True
@@ -869,10 +869,8 @@ class RelationalBone(BaseBone):
         origFilter = dbFilter.queries
         if origFilter is None or not "orderby" in rawFilter:  # This query is unsatisfiable or not sorted
             return dbFilter
-        if (
-            "orderby" in rawFilter and isinstance(rawFilter["orderby"], str)
-            and rawFilter["orderby"].startswith(f"{name}.")
-        ):
+        if "orderby" in rawFilter and isinstance(rawFilter["orderby"], str) and rawFilter["orderby"].startswith(
+                f"{name}."):
             if not dbFilter.getKind() == "viur-relations" and self.multiple:  # This query has not been rewritten (yet)
                 name, skel, dbFilter, rawFilter = self._rewriteQuery(name, skel, dbFilter, rawFilter)
             key = rawFilter["orderby"]
@@ -1157,7 +1155,7 @@ class RelationalBone(BaseBone):
         assert not (bool(self.languages) ^ bool(language)), "Language is required or not supported"
         assert not append or self.multiple, "Can't append - bone is not multiple"
         if not self.multiple and not self.using:
-            if not (isinstance(value, str) or isinstance(value, db.Key)):
+            if not isinstance(value, (str, db.Key)):
                 logging.error(value)
                 logging.error(type(value))
                 raise ValueError(f"You must supply exactly one Database-Key to {boneName}")
@@ -1165,14 +1163,14 @@ class RelationalBone(BaseBone):
         elif not self.multiple and self.using:
             if (
                 not isinstance(value, tuple) or len(value) != 2
-                or not (isinstance(value[0], str) or isinstance(value[0], db.Key))
+                or not isinstance(value[0], (str, db.Key))
                 or not isinstance(value[1], self._skeletonInstanceClassRef)
             ):
                 raise ValueError(f"You must supply a tuple of (Database-Key, relSkel) to {boneName}")
             realValue = value
         elif self.multiple and not self.using:
             if (
-                not (isinstance(value, str) or isinstance(value, db.Key))
+                not isinstance(value, (str, db.Key))
                 and not (isinstance(value, list))
                 and all(isinstance(k, (str, db.Key)) for k in value)
             ):
@@ -1183,8 +1181,7 @@ class RelationalBone(BaseBone):
                 realValue = [(value, None)]
         else:  # which means (self.multiple and self.using)
             if (
-                not (isinstance(value, tuple) and len(value) == 2 and
-                     (isinstance(value[0], str) or isinstance(value[0], db.Key))
+                not (isinstance(value, tuple) and len(value) == 2 and isinstance(value[0], (str, db.Key))
                      and isinstance(value[1], self._skeletonInstanceClassRef))
                 and not (isinstance(value, list)
                          and all((isinstance(x, tuple) and len(x) == 2 and (isinstance(x[0], (str, db.Key)))

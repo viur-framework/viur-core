@@ -1049,7 +1049,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                         else:
                             logging.critical("Detected Database corruption! Could not delete stale lock-object!")
 
-            # Delete legacy property
+            # Delete legacy property (PR #1244)  #TODO: Remove in ViUR4
             db_obj.pop("viur_incomming_relational_locks", None)
 
             # Ensure the SEO-Keys are up-to-date
