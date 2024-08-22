@@ -1423,9 +1423,13 @@ def processRemovedRelations(removedKey, cursor=None):
     )
     updateListQuery = updateListQuery.setCursor(cursor)
     updateList = updateListQuery.run(limit=5)
+
     for entry in updateList:
         skel = skeletonByKind(entry["viur_src_kind"])()
-        assert skel.fromDB(entry["src"].key)
+
+        if not skel.fromDB(entry["src"].key):
+            raise ValueError(f"processRemovedRelations detects inconsistency on src={entry['src'].key!r}")
+
         if entry["viur_relational_consistency"] == RelationalConsistency.SetNull.value:
             for key, _bone in skel.items():
                 if isinstance(_bone, RelationalBone):
@@ -1439,10 +1443,11 @@ def processRemovedRelations(removedKey, cursor=None):
                     else:
                         raise NotImplementedError(f"No handling for {type(relVal)=}")
             skel.toDB(update_relations=False)
+
         else:
             logging.critical(f"""Cascade deletion of {skel["key"]!r}""")
             skel.delete()
-            pass
+
     if len(updateList) == 5:
         processRemovedRelations(removedKey, updateListQuery.getCursor())
 
