@@ -2,6 +2,24 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.14]
+
+- feat: Extend `CONTRIBUTING.md` with Coding Conventions (#1233)
+- fix: `File`-module allows to upload into non-existing node (#1235)
+- fix: `MultipleConstraints` as intended (#1228)
+- fix: Improve `NumericBone.singleValueFromClient` (#1245)
+- fix: Inconsistency raises AssertionError (#1237)
+- fix: null-key always written into `viur-relations` (#1238)
+- refactor: `__build_app` function clean-up and make all modules accessible (#1240)
+- refactor: Improved `RelationalConsistency.PreventDeletion` validation (#1244)
+- refactor: Move datastore index retrieval to `SkelModule` (#1239)
+
+## [3.6.13]
+
+- doc: Fix RelationalBone docstring (#1226)
+- chore: Use `pyproject.toml` as new SSOT packaging system (#1224)
+- feat-fix: Wrap `descr` and `params.category` in `translate` object for auto translating (#1223)
+
 ## [3.6.12]
 
 - feat: Add `EmailTransportAppengine` as default email transport class (#1210)
