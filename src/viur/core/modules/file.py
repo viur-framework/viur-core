@@ -397,7 +397,7 @@ class FileLeafSkel(TreeSkel):
                     skelValues["downloadUrl"] = importData
                 skelValues["pendingparententry"] = False
 
-        conf.main_app.vi.file.create_serving_url(skelValues)
+        conf.main_app.file.create_serving_url(skelValues)
 
 
 class FileNodeSkel(TreeSkel):
@@ -451,7 +451,9 @@ class File(Tree):
             if public_bucket := GOOGLE_STORAGE_CLIENT.lookup_bucket(f"""public-dot-{_PROJECT_ID}"""):
                 return public_bucket
 
-            raise ValueError(f"""The bucket 'public-dot-{_PROJECT_ID}' does not exist! Please create it with ACL access.""")
+            raise ValueError(
+                f"""The bucket 'public-dot-{_PROJECT_ID}' does not exist! Please create it with ACL access."""
+            )
 
         return GOOGLE_STORAGE_CLIENT.lookup_bucket(f"""{_PROJECT_ID}.appspot.com""")
 
@@ -672,7 +674,7 @@ class File(Tree):
         skel["mimetype"] = mimetype
         skel["dlkey"] = dl_key
         skel["weak"] = True
-        skel["public"] = False
+        skel["public"] = public
         skel["width"] = width
         skel["height"] = height
         skel["crc32c_checksum"] = base64.b64decode(blob.crc32c).hex()
