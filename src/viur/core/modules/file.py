@@ -939,18 +939,19 @@ class File(Tree):
         raise errors.Redirect(signedUrl)
 
     @exposed
-    def serving(self,
-                key,
-                size=None,
-                filename=None,  # random string with .ext
-                options="",
-                download=None,  # 1 = True, else False
-                ):
+    def serve(
+        self,
+        key: str,
+        size: t.Optional[int] = None,
+        filename: t.Optional[str] = None,  # random string with .ext
+        options: str = "",
+        download: bool = False,
+    ):
         """
-        Requests a image using the serving url to hide google requests.
+        Requests an image using the serving url to bypass direct Google requests.
 
-        :param key: a string with one __ seperator. The first part is the hostprefix, second part is the key
-        :param size: the target image size, take a look at the valid_sizes
+        :param key: a string with one __ seperator. The first part is the host prefix, the second part is the key
+        :param size: the target image size, take a look at the VALID_SIZES
         :param filename: a random string with an extention, valid extentions are jpg,png,webp
         :param options: - seperated options:
             c - crop
@@ -963,58 +964,80 @@ class File(Tree):
         :return:
         """
 
-        valid_parameters = ["c", "p", "fv", "fh", "r90", "r180", "r270", "nu"]
-        valid_sizes = [32, 48, 64, 72, 80, 90, 94, 104, 110, 120, 128, 144,
-                       150, 160, 200, 220, 288, 320, 400, 512, 576,
-                       640, 720, 800, 912, 1024, 1152, 1280, 1440, 1600]
-        valid_formats = {
+        VALID_PARAMETERS = {
+            "c",
+            "p",
+            "fv",
+            "fh",
+            "r90",
+            "r180",
+            "r270",
+            "nu"
+        }
+
+        VALID_SIZES = {
+            32, 48, 64, 72, 80, 90, 94,
+            104, 110, 120, 128, 144, 150, 160,
+            200, 220, 288,
+            320,
+            400,
+            512, 576,
+            640,
+            720,
+            800,
+            912,
+            1024, 1152, 1280, 1440, 1600
+        }
+
+        VALID_FMTS = {
             "jpg": "rj",
+            "jpeg": "rj",
             "png": "rp",
             "webp": "rw",
         }
 
-        host, value = key.split("__")
+        try:
+            host, value = key.split("__")
+        except ValueError:
+            raise errors.BadRequest("Invalid key provided for serving url")
 
-        if any(c not in conf["viur.searchValidChars"] for c in host):
+        if any(c not in conf.search_valid_chars for c in host):
             raise errors.BadRequest("key contains invalid characters")
 
         # extract format from filename
-        fileformat = "webp"
+        file_fmt = "webp"
+
         if filename:
-            _format = filename.split(".")
-            _format.reverse()
-            _format = _format[0]
-            if _format in ["png", "jpg", "webp"]:
-                fileformat = _format
+            fmt = filename.rsplit(".", 1)[-1].lower()
+            if fmt in VALID_FMTS:
+                file_fmt = fmt
 
         url = f"https://{host}.googleusercontent.com/{value}"
 
         if options:
             single_parameters = options.split("-")
 
-            if not all(param in valid_parameters for param in single_parameters):
-                raise errors.BadRequest("Invalid Options")
+            if not all(param in VALID_PARAMETERS for param in single_parameters):
+                raise errors.BadRequest("Invalid options provided")
 
-        options += f"-{valid_formats[fileformat]}"
+        options += f"-{VALID_FMTS[file_fmt]}"
 
-        if size and int(size) in valid_sizes:
+        if size and size in VALID_SIZES:
             options = f"s{size}-" + options
 
         url += "=" + options
 
         try:
             response = current.request.get().response
-            response.headers["Content-Type"] = f"image/{fileformat}"
-            response.headers[
-                "Cache-Control"] = "public, max-age=604800"  # 7 Days
-            if download and download == "1":
-                response.headers[
-                    "Content-Disposition"] = "attachment; filename=%s" % filename
+            response.headers["Content-Type"] = f"image/{file_fmt}"
+            response.headers["Cache-Control"] = "public, max-age=604800"  # 7 Days
+            if download:
+                response.headers["Content-Disposition"] = f"attachment; filename={filename}"
             else:
-                response.headers[
-                    "Content-Disposition"] = "filename=%s" % filename
+                response.headers["Content-Disposition"] = f"filename={filename}"
 
             return requests.get(url).content
+
         except Exception as e:
             raise errors.BadRequest("Invalid Url")
 
