@@ -371,12 +371,12 @@ class FileLeafSkel(TreeSkel):
     public = BooleanBone(
         descr="Public File",
         readOnly=True,
-        defaultValue=False
+        defaultValue=False,
     )
 
     serving_url = StringBone(
         descr="Serving-URL",
-        readOnly=True
+        readOnly=True,
     )
 
     def preProcessBlobLocks(self, locks):
