@@ -36,8 +36,8 @@ VALID_FILENAME_REGEX = re.compile(
     re.IGNORECASE
 )
 
-_CREDENTIALS, __PROJECT_ID = google.auth.default()
-GOOGLE_STORAGE_CLIENT = storage.Client(__PROJECT_ID, _CREDENTIALS)
+_CREDENTIALS, _PROJECT_ID = google.auth.default()
+GOOGLE_STORAGE_CLIENT = storage.Client(_PROJECT_ID, _CREDENTIALS)
 PUBLIC_DLKEY_POSTFIX = "_pub"
 
 # FilePath is a descriptor for ViUR file components
@@ -447,14 +447,13 @@ class File(Tree):
         """
         Retrieves a Google Cloud Storage bucket for the given dlkey.
         """
-
         if dlkey and dlkey.endswith(PUBLIC_DLKEY_POSTFIX):
-            if public_bucket := GOOGLE_STORAGE_CLIENT.lookup_bucket(f"""public-dot-{__PROJECT_ID}"""):
+            if public_bucket := GOOGLE_STORAGE_CLIENT.lookup_bucket(f"""public-dot-{_PROJECT_ID}"""):
                 return public_bucket
 
-            raise ValueError(f"""The bucket 'public-dot-{__PROJECT_ID}' does not exist! Please create it with ACL access.""")
+            raise ValueError(f"""The bucket 'public-dot-{_PROJECT_ID}' does not exist! Please create it with ACL access.""")
 
-        return GOOGLE_STORAGE_CLIENT.lookup_bucket(f"""{__PROJECT_ID}.appspot.com""")
+        return GOOGLE_STORAGE_CLIENT.lookup_bucket(f"""{_PROJECT_ID}.appspot.com""")
 
     @staticmethod
     def is_valid_filename(filename: str) -> bool:
@@ -743,7 +742,7 @@ class File(Tree):
         node: t.Optional[str | db.Key] = None,
         authData: t.Optional[str] = None,
         authSig: t.Optional[str] = None,
-        public: bool = True
+        public: bool = False,
     ):
         filename = fileName.strip()  # VIUR4 FIXME: just for compatiblity of the parameter names
 
