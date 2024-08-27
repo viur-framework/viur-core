@@ -368,6 +368,14 @@ class FileLeafSkel(TreeSkel):
         readOnly=True,
         visible=False,
     )
+    crc32c_checksum = StringBone(
+        descr="CRC32C checksum",
+        readOnly=True,
+    )
+    md5_checksum = StringBone(
+        descr="MD5 checksum",
+        readOnly=True,
+    )
 
     public = BooleanBone(
         descr="Public File",
@@ -655,6 +663,8 @@ class File(Tree):
         skel["public"] = False
         skel["width"] = width
         skel["height"] = height
+        skel["crc32c_checksum"] = base64.b64decode(blob.crc32c).hex()
+        skel["md5_checksum"] = base64.b64decode(blob.md5_hash).hex()
 
         return skel.toDB()
 
@@ -1035,6 +1045,8 @@ class File(Tree):
             skel["size"] = blob.size
             skel["parentrepo"] = rootNode["key"] if rootNode else None
             skel["weak"] = rootNode is None
+            skel["crc32c_checksum"] = base64.b64decode(blob.crc32c).hex()
+            skel["md5_checksum"] = base64.b64decode(blob.md5_hash).hex()
 
             skel = self.create_serving_url(skel)
 
@@ -1117,7 +1129,7 @@ File.json = True
 File.html = True
 
 
-@PeriodicTask(60 * 4)
+@PeriodicTask(interval=datetime.timedelta(hours=4))
 def startCheckForUnreferencedBlobs():
     """
         Start searching for blob locks that have been recently freed
@@ -1209,7 +1221,7 @@ def doCleanupDeletedFiles(cursor=None):
         doCleanupDeletedFiles(newCursor)
 
 
-@PeriodicTask(60 * 4)
+@PeriodicTask(interval=datetime.timedelta(hours=4))
 def start_delete_pending_files():
     """
     Start deletion of pending FileSkels that are older than 7 days.

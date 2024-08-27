@@ -14,11 +14,11 @@ from datetime import datetime, timedelta
 from collections.abc import Iterable
 from enum import Enum
 import typing as t
-from viur.core import db, utils, i18n
+from viur.core import db, utils, current, i18n
 from viur.core.config import conf
 
 if t.TYPE_CHECKING:
-    from ..skeleton import Skeleton
+    from ..skeleton import Skeleton, SkeletonInstance
 
 __system_initialized = False
 """
@@ -139,7 +139,13 @@ class MultipleConstraints:
     """An integer representing the upper bound of how many entries can be submitted (default: 0 = unlimited)."""
     duplicates: bool = False
     """A boolean indicating if the same value can be used multiple times (default: False)."""
-
+    sorted: bool | t.Callable = False
+    """A boolean value or a method indicating if the value must be sorted (default: False)."""
+    reversed: bool = False
+    """
+    A boolean value indicating if sorted values shall be sorted in reversed order (default: False).
+    It is only applied when the `sorted`-flag is set accordingly.
+    """
 
 class ComputeMethod(Enum):
     Always = 0  # Always compute on deserialization
@@ -202,7 +208,7 @@ class BaseBone(object):
         *,
         compute: Compute = None,
         defaultValue: t.Any = None,
-        descr: str | i18n.translate = "",
+        descr: t.Optional[str | i18n.translate] = None,
         getEmptyValueFunc: callable = None,
         indexed: bool = True,
         isEmptyFunc: callable = None,  # fixme: Rename this, see below.
@@ -220,9 +226,6 @@ class BaseBone(object):
         Initializes a new Bone.
         """
         self.isClonedInstance = getSystemInitialized()
-
-        if isinstance(descr, str):
-            descr = i18n.translate(descr, hint=f"descr of a <{type(self).__name__}>")
 
         # Standard definitions
         self.descr = descr
@@ -244,6 +247,8 @@ class BaseBone(object):
              and all([isinstance(x, str) for x in languages]))
         ):
             raise ValueError("languages must be None or a list of strings")
+        if languages and "__default__" in languages:
+            raise ValueError("__default__ is not supported as a language")
         if (
             not isinstance(required, bool)
             and (not isinstance(required, (tuple, list)) or any(not isinstance(value, str) for value in required))
@@ -260,8 +265,15 @@ class BaseBone(object):
         # Default value
         # Convert a None default-value to the empty container that's expected if the bone is
         # multiple or has languages
-        if defaultValue is None and self.languages:
-            self.defaultValue = {}
+        if self.languages:
+            if not isinstance(defaultValue, dict):
+                self.defaultValue = {lang: defaultValue for lang in self.languages}
+            elif "__default__" in defaultValue:
+                self.defaultValue = {lang: defaultValue.get(lang, defaultValue["__default__"])
+                                     for lang in self.languages}
+            else:
+                self.defaultValue = defaultValue
+
         elif defaultValue is None and self.multiple:
             self.defaultValue = []
         else:
@@ -314,12 +326,23 @@ class BaseBone(object):
         self.skel_cls = owner
         self.name = name
 
-    def setSystemInitialized(self):
+    def setSystemInitialized(self) -> None:
         """
-            Can be overridden to initialize properties that depend on the Skeleton system
-            being initialized
+        Can be overridden to initialize properties that depend on the Skeleton system
+        being initialized.
+
+        Here, in the BaseBone, we set descr to the bone_name if no descr argument
+        was given in __init__ and make sure that it is a :class:i18n.translate` object.
         """
-        pass
+        if self.descr is None:
+            # TODO: The super().__setattr__() call is kinda hackish,
+            #  but unfortunately viur-core has no *during system initialisation* state
+            super().__setattr__("descr", self.name or "")
+        if self.descr and isinstance(self.descr, str):
+            super().__setattr__(
+                "descr",
+                i18n.translate(self.descr, hint=f"descr of a <{type(self).__name__}>{self.name}")
+            )
 
     def isInvalid(self, value):
         """
@@ -555,6 +578,15 @@ class BaseBone(object):
                         filled_languages.add(language)
                         parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
                         res[language].append(parsedVal)
+                        if isinstance(self.multiple, MultipleConstraints) and self.multiple.sorted:
+                            if callable(self.multiple.sorted):
+                                res[language] = sorted(
+                                    res[language],
+                                    key=self.multiple.sorted,
+                                    reverse=self.multiple.reversed,
+                                )
+                            else:
+                                res[language] = sorted(res[language], reverse=self.multiple.reversed)
                         if parseErrors:
                             for parseError in parseErrors:
                                 parseError.fieldPath[:0] = [language, str(idx)]
@@ -583,10 +615,16 @@ class BaseBone(object):
                 isEmpty = False
                 parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
                 res.append(parsedVal)
+
                 if parseErrors:
                     for parseError in parseErrors:
                         parseError.fieldPath.insert(0, str(idx))
                     errors.extend(parseErrors)
+            if isinstance(self.multiple, MultipleConstraints) and self.multiple.sorted:
+                if callable(self.multiple.sorted):
+                    res = sorted(res, key=self.multiple.sorted, reverse=self.multiple.reversed)
+                else:
+                    res = sorted(res, reverse=self.multiple.reversed)
         else:  # No Languages, not multiple
             if self.isEmpty(parsedData):
                 res = self.getEmptyValue()
@@ -955,58 +993,77 @@ class BaseBone(object):
 
         return dbFilter
 
-    def buildDBSort(self,
-                    name: str,
-                    skel: 'viur.core.skeleton.SkeletonInstance',
-                    dbFilter: db.Query,
-                    rawFilter: dict) -> t.Optional[db.Query]:
+    def buildDBSort(
+        self,
+        name: str,
+        skel: "SkeletonInstance",
+        query: db.Query,
+        params: dict,
+        postfix: str = "",
+    ) -> t.Optional[db.Query]:
         """
             Same as buildDBFilter, but this time its not about filtering
             the results, but by sorting them.
-            Again: rawFilter is controlled by the client, so you *must* expect and safely handle
+            Again: query is controlled by the client, so you *must* expect and safely handle
             malformed data!
 
             :param name: The property-name this bone has in its Skeleton (not the description!)
             :param skel: The :class:`viur.core.skeleton.Skeleton` instance this bone is part of
             :param dbFilter: The current :class:`viur.core.db.Query` instance the filters should
                 be applied to
-            :param rawFilter: The dictionary of filters the client wants to have applied
+            :param query: The dictionary of filters the client wants to have applied
+            :param postfix: Inherited classes may use this to add a postfix to the porperty name
             :returns: The modified :class:`viur.core.db.Query`,
                 None if the query is unsatisfiable.
         """
-        if "orderby" in rawFilter and rawFilter["orderby"] == name:
-            if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
-                order = (rawFilter["orderby"], db.SortOrder.Descending)
-            elif "orderdir" in rawFilter and rawFilter["orderdir"] == "2":
-                order = (rawFilter["orderby"], db.SortOrder.InvertedAscending)
-            elif "orderdir" in rawFilter and rawFilter["orderdir"] == "3":
-                order = (rawFilter["orderby"], db.SortOrder.InvertedDescending)
+        if query.queries and (orderby := params.get("orderby")) and utils.string.is_prefix(orderby, name):
+            if self.languages:
+                lang = None
+                if orderby.startswith(f"{name}."):
+                    lng = orderby.replace(f"{name}.", "")
+                    if lng in self.languages:
+                        lang = lng
+
+                if lang is None:
+                    lang = current.language.get()
+                    if not lang or lang not in self.languages:
+                        lang = self.languages[0]
+
+                prop = f"{name}.{lang}"
             else:
-                order = (rawFilter["orderby"], db.SortOrder.Ascending)
-            queries = dbFilter.queries
-            if queries is None:
-                return  # This query is unsatisfiable
-            elif isinstance(queries, db.QueryDefinition):
-                inEqFilter = [x for x in queries.filters.keys() if
-                              (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
-            elif isinstance(queries, list):
-                inEqFilter = None
-                for singeFilter in queries:
-                    newInEqFilter = [x for x in singeFilter.filters.keys() if
-                                     (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
-                    if inEqFilter and newInEqFilter and inEqFilter != newInEqFilter:
+                prop = name
+
+            # In case this is a multiple query, check if all filters are valid
+            if isinstance(query.queries, list):
+                in_eq_filter = None
+
+                for item in query.queries:
+                    new_in_eq_filter = [
+                        key for key in item.filters.keys()
+                        if key.rstrip().endswith(("<", ">", "!="))
+                    ]
+                    if in_eq_filter and new_in_eq_filter and in_eq_filter != new_in_eq_filter:
                         raise NotImplementedError("Impossible ordering!")
-                    inEqFilter = newInEqFilter
-            if inEqFilter:
-                inEqFilter = inEqFilter[0][: inEqFilter[0].find(" ")]
-                if inEqFilter != order[0]:
-                    logging.warning(f"I fixed you query! Impossible ordering changed to {inEqFilter}, {order[0]}")
-                    dbFilter.order((inEqFilter, order))
-                else:
-                    dbFilter.order(order)
+
+                    in_eq_filter = new_in_eq_filter
+
             else:
-                dbFilter.order(order)
-        return dbFilter
+                in_eq_filter = [
+                    key for key in query.queries.filters.keys()
+                    if key.rstrip().endswith(("<", ">", "!="))
+                ]
+
+            if in_eq_filter:
+                orderby_prop = in_eq_filter[0].split(" ", 1)[0]
+                if orderby_prop != prop:
+                    logging.warning(
+                        f"The query was rewritten; Impossible ordering changed from {prop!r} into {orderby_prop!r}"
+                    )
+                    prop = orderby_prop
+
+            query.order((prop + postfix, utils.parse.sortorder(params.get("orderdir"))))
+
+        return query
 
     def _hashValueForUniquePropertyIndex(self, value: str | int) -> list[str]:
         """
@@ -1305,7 +1362,7 @@ class BaseBone(object):
         This function has to be implemented for subsequent, specialized bone types.
         """
         ret = {
-            "descr": str(self.descr),  # need to turn possible translate-object into string
+            "descr": self.descr,
             "type": self.type,
             "required": self.required,
             "params": self.params,

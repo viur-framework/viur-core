@@ -1,3 +1,5 @@
+import datetime
+
 from viur.core import current, db, errors, utils
 from viur.core.tasks import PeriodicTask, DeleteEntitiesIter
 import typing as t
@@ -125,6 +127,6 @@ class RateLimit(object):
         )
 
 
-@PeriodicTask(60)
+@PeriodicTask(interval=datetime.timedelta(hours=1))
 def cleanOldRateLocks(*args, **kwargs) -> None:
     DeleteEntitiesIter.startIterOnQuery(db.Query(RateLimit.rateLimitKind).filter("expires <", utils.utcNow()))
