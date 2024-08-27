@@ -46,7 +46,10 @@ class SpamBone(NumericBone):
         """
         The descr-property is generated and uses session variables to construct the question.
         """
-        session = current.session.get()
+
+        # The session is not available during startup
+        if not (session := current.session.get()):
+            return None
 
         a = session.get("spambone.value.a")
         b = session.get("spambone.value.b")
