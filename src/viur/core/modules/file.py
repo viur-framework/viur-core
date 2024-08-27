@@ -359,10 +359,12 @@ class FileLeafSkel(TreeSkel):
         readOnly=True,
         visible=False,
     )
+
     crc32c_checksum = StringBone(
         descr="CRC32C checksum",
         readOnly=True,
     )
+
     md5_checksum = StringBone(
         descr="MD5 checksum",
         readOnly=True,
