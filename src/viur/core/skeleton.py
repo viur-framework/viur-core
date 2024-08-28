@@ -986,7 +986,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     continue
 
                 # Allow bones to perform outstanding "magic" operations before saving to db
-                bone.performMagic(skel, bone_name, isAdd=is_add)  # FIXME: ANY MAGIC IN OUR CODE IS DEPRECATED; REMOVE WITH VIUR4!
+                bone.performMagic(skel, bone_name, isAdd=is_add)  # FIXME VIUR4: ANY MAGIC IN OUR CODE IS DEPRECATED!!!
 
                 if not (bone_name in skel.accessedValues or bone.compute) and bone_name not in skel.dbEntity:
                     _ = skel[bone_name]  # Ensure the datastore is filled with the default value
