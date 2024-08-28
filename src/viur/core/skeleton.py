@@ -649,36 +649,36 @@ class CustomDatabaseAdapter:
     providesCustomQueries: bool = False
     """Indicate that we can run more types of queries than originally supported by firestore"""
 
-    def preprocessEntry(self, entry: db.Entity, skel: BaseSkeleton, changeList: list[str], isAdd: bool) -> db.Entity:
+    def on_read(self, skel: BaseSkeleton, action: str, change_list: t.Iterable[str] = ()):
         """
-        Can be overridden to add or alter the data of this entry before it's written to firestore.
-        Will always be called inside an transaction.
-        :param entry: The entry containing the serialized data of that skeleton
-        :param skel: The (complete) skeleton this skel.toDB() runs for
-        :param changeList: List of boneNames that are changed by this skel.toDB() call
-        :param isAdd: Is this an update or an add?
-        :return: The (maybe modified) entity
-        """
-        return entry
+        Hook being called on a add, edit or delete operation before the skeleton-specific action is performed.
 
-    def updateEntry(self, dbObj: db.Entity, skel: BaseSkeleton, changeList: list[str], isAdd: bool) -> None:
-        """
-        Like `meth:preprocessEntry`, but runs after the transaction had completed.
-        Changes made to dbObj will be ignored.
-        :param entry: The entry containing the serialized data of that skeleton
-        :param skel: The (complete) skeleton this skel.toDB() runs for
-        :param changeList: List of boneNames that are changed by this skel.toDB() call
-        :param isAdd: Is this an update or an add?
-        """
-        return
+        The hook can be used to modifiy the skeleton before writing.
+        The raw entity can be obainted using `skel.dbEntity`.
 
-    def deleteEntry(self, entry: db.Entity, skel: BaseSkeleton) -> None:
+        :param action: Either contains "add", "edit" or "delete", depending on the operation.
+        :param skel: is the skeleton that is being read before written.
+        :param change_list: is a list of bone names which are being changed within the write.
         """
-        Called, after an skeleton has been successfully deleted from firestore
-        :param entry: The db.Entity object containing an snapshot of the data that has been deleted
-        :param skel: The (complete) skeleton for which `meth:delete' had been called
+        pass
+
+    def on_write(self, skel: BaseSkeleton, action: str, change_list: t.Iterable[str] = ()):
         """
-        return
+        Hook being called on a write operations after the skeleton is written.
+
+        The raw entity can be obainted using `skel.dbEntity`.
+
+        :param action: Either contains "add" or "edit", depending on the operation.
+        :param skel: is the skeleton that is being read before written.
+        :param change_list: is a list of bone names which are being changed within the write.
+        """
+        pass
+
+    def on_delete(self, skel: BaseSkeleton):
+        """
+        Hook being called on a delete operation after the skeleton is deleted.
+        """
+        pass
 
     def fulltextSearch(self, queryString: str, databaseQuery: db.Query) -> list[db.Entity]:
         """
@@ -692,31 +692,6 @@ class CustomDatabaseAdapter:
         :return:
         """
         raise NotImplementedError
-
-    def trigger(
-        self,
-        action: str,
-        old_skel: db.Entity | SkeletonInstance = None,
-        new_skel: SkeletonInstance = None,
-        change_list: t.Iterable[str] = (),
-        descr: t.Optional[str] = None,
-        user: t.Optional[SkeletonInstance] = None,
-        tags: t.Iterable[str] = (),
-        db_write: bool = False
-    ) -> str | None:
-        """
-        Universal action trigger for a CustomDatabaseAdapter.
-
-        :param action: Action identifier, e.g. "add", "edit", "delete"
-        :param old_skel: Old skeleton before the change
-        :param new_skel: New skeleton after the change
-        :param change_list: An optional list of changed bones.
-        :param descr: An optional description to be used.
-        :param user: An optional user to be used. If unset, the current user should be used.
-        :param tags: Additional tags for the history entry for identification or classification.
-        :param db_write: True in case the entry is created from a DB-related function.
-        """
-        # logging.debug(f"{action=} {old_skel=} {new_skel=} {change_list=} {descr=} {user=} {tags=} {db_write=}")
 
 
 class ViurTagsSearchAdapter(CustomDatabaseAdapter):
@@ -1060,6 +1035,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             # Move accessed Values from srcSkel over to skel
             skel.accessedValues = write_skel.accessedValues
             skel["key"] = db_key  # Ensure key stays set
+
             for bone_name, bone in skel.items():
                 if bone_name == "key":  # Explicitly skip key on top-level - this had been set above
                     continue
@@ -1193,11 +1169,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             # Allow the custom DB Adapter to apply last minute changes to the object
             for adapter in skel.customDatabaseAdapter:
-                # FIXME: DEPRECATED: Superseeded by adapter.trigger.
-                db_obj = adapter.preprocessEntry(db_obj, skel, change_list, is_add)
-
-                if not is_add:
-                    adapter.trigger("edit", db_obj, skel, change_list, db_write=True)
+                adapter.on_read(skel, "add" if is_add else "edit", change_list)
 
             # ViUR2 import compatibility - remove properties containing. if we have a dict with the same name
             def fixDotNames(entity):
@@ -1282,12 +1254,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             else:  # Update all inbound relations, regardless of which bones they mirror
                 updateRelations(key, time() + 1, None)
 
-        # Inform the custom DB Adapter of the changes made to the entry
+        # Trigger the custom DB Adapter of the changes made to the entry
         for adapter in skel.customDatabaseAdapter:
-            adapter.updateEntry(db_obj, skel, change_list, is_add)  # FIXME: DEPRECATED: Superseeded by adapter.trigger.
-
-            if is_add:
-                adapter.trigger("add", None, skel, db_write=True)
+            adapter.on_write(skel, "add" if is_add else "edit", change_list)
 
         return key
 
@@ -1398,18 +1367,24 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         skel = skeletonByKind(skelValues.kindName)()
         if not skel.fromDB(key):
             raise ValueError("This skeleton is not in the database (anymore?)!")
+
+        # Inform the custom DB Adapter before deletion.
+        for adapter in skel.customDatabaseAdapter:
+            adapter.on_read(skel, "delete")
+
         if db.IsInTransaction():
             dbObj = txnDelete(skel)
         else:
             dbObj = db.RunInTransaction(txnDelete, skel)
+
         for boneName, _bone in skel.items():
             _bone.postDeletedHandler(skel, boneName, key)
+
         skel.postDeletedHandler(key)
 
         # Inform the custom DB Adapter
         for adapter in skel.customDatabaseAdapter:
-            adapter.deleteEntry(dbObj, skel)  # FIXME: DEPRECATED: Superseeded by adapter.trigger.
-            adapter.trigger("delete", skel, None, db_write=True)
+            adapter.on_delete(skel)
 
 
 class RelSkel(BaseSkeleton):
