@@ -313,5 +313,6 @@ class FileBone(TreeLeafBone):
 
     def structure(self) -> dict:
         return super().structure() | {
-            "valid_mime_types": self.validMimeTypes
+            "valid_mime_types": self.validMimeTypes,
+            "public": self.public
         }
