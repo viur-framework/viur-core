@@ -949,7 +949,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             logging.warning(msg, stacklevel=3)
             update_relations = not kwargs["clearUpdateTag"]
 
-        def txnUpdate(write_skel):
+        def __txn_update(write_skel):
             db_key = write_skel["key"]
             skel = write_skel.skeletonCls()
 
@@ -957,20 +957,22 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             change_list = []
             old_copy = {}
             # Load the current values from Datastore or create a new, empty db.Entity
-            if is_add := not bool(db_key):
+            if not db_key:
                 # We'll generate the key we'll be stored under early so we can use it for locks etc
                 db_key = db.AllocateIDs(db.Key(skel.kindName))
                 db_obj = db.Entity(db_key)
-                db_obj["viur"] = {}
                 skel.dbEntity = db_obj
+                is_add = True
             else:
                 db_key = db.keyHelper(db_key, skel.kindName)
                 if not (db_obj := db.Get(db_key)):
                     db_obj = db.Entity(db_key)
                     skel.dbEntity = db_obj
+                    is_add = True
                 else:
                     skel.setEntity(db_obj)
                     old_copy = {k: v for k, v in db_obj.items()}
+                    is_add = False
 
             db_obj.setdefault("viur", {})
 
@@ -978,9 +980,13 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             # Move accessed Values from srcSkel over to skel
             skel.accessedValues = write_skel.accessedValues
             skel["key"] = db_key  # Ensure key stays set
+
             for bone_name, bone in skel.items():
                 if bone_name == "key":  # Explicitly skip key on top-level - this had been set above
                     continue
+
+                # Allow bones to perform outstanding "magic" operations before saving to db
+                bone.performMagic(skel, bone_name, isAdd=is_add)  # FIXME: ANY MAGIC IN OUR CODE IS DEPRECATED; REMOVE WITH VIUR4!
 
                 if not (bone_name in skel.accessedValues or bone.compute) and bone_name not in skel.dbEntity:
                     _ = skel[bone_name]  # Ensure the datastore is filled with the default value
@@ -1166,23 +1172,15 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 blob_lock_obj["is_stale"] = False
                 db.Put(blob_lock_obj)
 
-            return db_obj.key, db_obj, skel, change_list
+            return db_obj.key, db_obj, skel, change_list, is_add
 
-        # END of txnUpdate subfunction
-        is_add = skel["key"] is None
-
-        # Allow bones to perform outstanding "magic" operations before saving to db
-        for bone_name, _bone in skel.items():
-            _bone.performMagic(skel, bone_name, isAdd=is_add)
+        # END of __txn_update subfunction
 
         # Run our SaveTxn
         if db.IsInTransaction():
-            key, db_obj, skel, change_list = txnUpdate(skel)
+            key, db_obj, skel, change_list, is_add = __txn_update(skel)
         else:
-            key, db_obj, skel, change_list = db.RunInTransaction(txnUpdate, skel)
-
-        # Perform post-save operations (postProcessSerializedData Hook, Searchindex, ..)
-        skel["key"] = key
+            key, db_obj, skel, change_list, is_add = db.RunInTransaction(__txn_update, skel)
 
         for bone_name, bone in skel.items():
             bone.postSavedHandler(skel, bone_name, key)
