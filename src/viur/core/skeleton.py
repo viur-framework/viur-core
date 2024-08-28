@@ -636,12 +636,18 @@ class MetaSkel(MetaBaseSkel):
 
 
 class CustomDatabaseAdapter:
-    # Set to True if we can run a fulltext search using this database
+    """
+    Adapter class used to bind or use other databases and hook operations when working with a Skeleton.
+    """
+
     providesFulltextSearch: bool = False
-    # Are results returned by `meth:fulltextSearch` guaranteed to also match the databaseQuery
+    """Set to True if we can run a fulltext search using this database."""
+
     fulltextSearchGuaranteesQueryConstrains = False
-    # Indicate that we can run more types of queries than originally supported by firestore
+    """Are results returned by `meth:fulltextSearch` guaranteed to also match the databaseQuery"""
+
     providesCustomQueries: bool = False
+    """Indicate that we can run more types of queries than originally supported by firestore"""
 
     def preprocessEntry(self, entry: db.Entity, skel: BaseSkeleton, changeList: list[str], isAdd: bool) -> db.Entity:
         """
