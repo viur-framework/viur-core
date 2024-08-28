@@ -663,7 +663,7 @@ class File(Tree):
         dl_key = utils.string.random()
 
         if public:
-            dl_key += "_pub"  # mark file as public
+            dl_key += PUBLIC_DLKEY_POSTFIX  # mark file as public
 
         bucket = File.get_bucket(dl_key)
 
@@ -806,7 +806,7 @@ class File(Tree):
         dlkey = utils.string.random()  # let's roll a random key
 
         if public:
-            dlkey += "_pub"  # mark folder as public
+            dlkey += PUBLIC_DLKEY_POSTFIX  # mark file as public
 
         blob = File.get_bucket(dlkey).blob(f"{dlkey}/source/{filename}")
         upload_url = blob.create_resumable_upload_session(content_type=mimeType, size=size, timeout=60)
@@ -919,7 +919,7 @@ class File(Tree):
                 response.headers["Content-Disposition"] = content_disposition
             return blob.download_as_bytes()
 
-        if validUntil == "0" or blobKey.endswith("_pub"):  # Its an indefinitely valid URL
+        if validUntil == "0" or blobKey.endswith(PUBLIC_DLKEY_POSTFIX):  # Its an indefinitely valid URL
             if blob.size < 5 * 1024 * 1024:  # Less than 5 MB - Serve directly and push it into the ede caches
                 response = current.request.get().response
                 response.headers["Content-Type"] = blob.content_type
