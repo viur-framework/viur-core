@@ -688,7 +688,6 @@ class File(Tree):
         self,
         key: db.Key | int | str | None = None,
         path: str | None = None,
-        public: bool = False,
     ) -> tuple[io.BytesIO, str]:
         """
         Read a file from the Cloud Storage.
@@ -698,7 +697,6 @@ class File(Tree):
 
         :param key: Key of the LeafSkel that contains the "dlkey" and the "name".
         :param path: The path of the file in the Cloud Storage Bucket.
-        :param public: Defines whether the file path should be taken from private or public repo.
 
         :return: Returns the file as a io.BytesIO buffer and the content-type
         """
@@ -715,7 +713,7 @@ class File(Tree):
 
             bucket = File.get_bucket(skel["dlkey"])
         else:
-            bucket = File.get_bucket(PUBLIC_DLKEY_POSTFIX if public else "")
+            bucket = File.get_bucket(path.split("/", 1)[0])  # path's first part is dlkey plus eventual postfix
 
         blob = bucket.blob(path)
         return io.BytesIO(blob.download_as_bytes()), blob.content_type
@@ -871,7 +869,7 @@ class File(Tree):
             dlPath, validUntil = base64.urlsafe_b64decode(blobKey).decode(
                 "UTF-8").split("\0")
 
-        bucket = File.get_bucket(dlPath.split("/")[0])
+        bucket = File.get_bucket(dlPath.split("/", 1)[0])
 
         if not sig:
             # Check if the current user has the right to download *any* blob present in this application.
@@ -898,7 +896,7 @@ class File(Tree):
             raise errors.Gone("The requested blob has expired.")
 
         if not filename:
-            filename = download_filename or urlquote(blob.name.split("/")[-1])
+            filename = download_filename or urlquote(blob.name.rsplit("/", 1)[-1])
 
         content_disposition = "; ".join(
             item for item in (
@@ -966,7 +964,7 @@ class File(Tree):
         :return:
         """
 
-        VALID_PARAMETERS = {
+        VALID_OPTIONS = {
             "c",
             "p",
             "fv",
@@ -999,7 +997,7 @@ class File(Tree):
         }
 
         try:
-            host, value = key.split("__")
+            host, value = key.split("__", 1)
         except ValueError:
             raise errors.BadRequest("Invalid key provided for serving url")
 
@@ -1016,11 +1014,8 @@ class File(Tree):
 
         url = f"https://{host}.googleusercontent.com/{value}"
 
-        if options:
-            single_parameters = options.split("-")
-
-            if not all(param in VALID_PARAMETERS for param in single_parameters):
-                raise errors.BadRequest("Invalid options provided")
+        if options and not all(param in VALID_OPTIONS for param in options.split("-")):
+            raise errors.BadRequest("Invalid options provided")
 
         options += f"-{VALID_FMTS[file_fmt]}"
 
