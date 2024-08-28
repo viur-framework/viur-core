@@ -1499,9 +1499,9 @@ class SkelList(list):
 
 def skeletonByKind(kindName: str) -> t.Type[Skeleton]:
     """
-        Returns the Skeleton-Class for the given kindName. That skeleton must exist, otherwise an exception is raised.
-        :param kindName: The kindname to retreive the skeleton for
-        :return: The skeleton-class for that kind
+    Returns the Skeleton-Class for the given kindName. That skeleton must exist, otherwise an exception is raised.
+    :param kindName: The kindname to retreive the skeleton for
+    :return: The skeleton-class for that kind
     """
     assert kindName in MetaBaseSkel._skelCache, f"Unknown skeleton {kindName=}"
     return MetaBaseSkel._skelCache[kindName]
