@@ -8,12 +8,11 @@ from abc import ABC, abstractmethod
 from urllib import request
 
 import requests
-
+from google.appengine.api.mail import Attachment as GAE_Attachment, SendMail as GAE_SendMail
 from viur.core import db, utils
+from viur.core.bones.text import HtmlSerializer
 from viur.core.config import conf
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
-from viur.core.bones.text import HtmlSerializer
-from google.appengine.api.mail import SendMail as GAE_SendMail, Attachment as GAE_Attachment
 
 if t.TYPE_CHECKING:
     from viur.core.skeleton import SkeletonInstance
@@ -588,6 +587,75 @@ if mailjet_dependencies:
             result = mj_client.send.create(data={"messages": [email]})
             assert 200 <= result.status_code < 300, f"Received {result.status_code=} {result.reason=}"
             return result.content.decode("UTF-8")
+
+
+class EmailTransportSendgrid(EmailTransport):
+    """Send emails with SendGrid"""
+
+    @staticmethod
+    def deliverEmail(
+        *,
+        sender: str,
+        dests: list[str],
+        cc: list[str],
+        bcc: list[str],
+        subject: str,
+        body: str,
+        headers: dict[str, str],
+        attachments: list[Attachment],
+        **kwargs: t.Any,
+    ) -> dict[str, str]:
+        data = {
+            "personalizations": [
+                personalization := {
+                    "to": [EmailTransportSendgrid.splitAddress(val) for val in dests],
+                    "subject": subject,
+                }
+            ],
+            "from": EmailTransportSendgrid.splitAddress(sender),
+            "content": [{
+                "type": "text/html",
+                "value": body,
+            }],
+            "tracking_settings": {  # TODO: make the settings configurable
+                "click_tracking": {
+                    "enable": False,
+                }
+            },
+        }
+
+        if cc:
+            personalization["cc"] = [EmailTransportSendgrid.splitAddress(val) for val in cc]
+        if bcc:
+            personalization["bcc"] = [EmailTransportSendgrid.splitAddress(val) for val in bcc]
+
+        if attachments:
+            assert isinstance(attachments, list)
+            data["attachments"] = [
+                {
+                    "filename": attachment["filename"],
+                    "content": base64.b64encode(attachment["content"]).decode(),
+                    "type": attachment["mimetype"],
+                    "disposition": "attachment",
+                }
+                for attachment in map(EmailTransportSendInBlue.fetch_attachment, attachments)
+            ]
+
+        if headers:
+            assert isinstance(headers, dict)
+            data["headers"] = headers
+
+        req = requests.post(
+            "https://api.sendgrid.com/v3/mail/send",
+            headers={
+                "Authorization": f"Bearer {conf.email.sendgrid_api_key}",
+                "Accept": "application/json"
+            },
+            json=data,
+        )
+        if not req.ok:
+            raise ValueError(f"{req.status_code} {req.reason} {req.json()}", req)
+        return {k: v for k, v in req.headers.items() if k.startswith("X-")}  # X-Message-Id and maybe more in future
 
 
 class EmailTransportAppengine(EmailTransport):
