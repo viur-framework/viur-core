@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.15]
+
+- fix: `Skeleton.toDB()`s `is_add` determined wrong (#1248)
+- feat: Improve `CaptchaBone` (#1243)
+
 ## [3.6.14]
 
 - feat: Extend `CONTRIBUTING.md` with Coding Conventions (#1233)
