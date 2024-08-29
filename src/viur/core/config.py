@@ -517,6 +517,9 @@ class Email(ConfigType):
     Used by email.EmailTransportSendInBlue.check_sib_quota
     """
 
+    sendgrid_api_key: t.Optional[str] = None
+    """API Key for SendGrid"""
+
     send_from_local_development_server: bool = False
     """If set, we'll enable sending emails from the local development server.
     Otherwise, they'll just be logged.
