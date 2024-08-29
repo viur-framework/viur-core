@@ -40,11 +40,10 @@ class PhoneBone(StringBone):
         Initializes the PhoneBone with an optional custom regex for phone number validation, a default country code,
         and a flag to apply the default country code if none is provided.
 
-        Args:
-            test (t.Optional[t.Pattern[str]]): An optional custom regex pattern for phone number validation.
-            max_length (int): The maximum length of the phone number. Passed to 'StringBone'.
-            default_country_code (t.Optional[str]): The default country code to apply if none is provided.
-            **kwargs (t.Any): Additional keyword arguments. Passed to 'StringBone'.
+        :param test: An optional custom regex pattern for phone number validation.
+        :param max_length: The maximum length of the phone number. Passed to 'StringBone'.
+        :param default_country_code: The default country code to apply if none is provided.
+        :param kwargs: Additional keyword arguments. Passed to 'StringBone'.
         """
         self.test: t.Pattern[str] = re.compile(test) if isinstance(test, str) else test
         self.default_country_code: str = default_country_code
@@ -56,11 +55,8 @@ class PhoneBone(StringBone):
         """
         Extracts and returns only the digits from the given value.
 
-        Args:
-            value (str): The input string from which to extract digits.
-
-        Returns:
-            str: A string containing only the digits from the input value.
+        :param value: The input string from which to extract digits.
+        :return: A string containing only the digits from the input value.
         """
         return re.sub(r"[^\d+]", "", value)
 
@@ -68,11 +64,8 @@ class PhoneBone(StringBone):
         """
         Checks if the provided phone number is valid or not.
 
-        Args:
-            value (str): The phone number to be validated.
-
-        Returns:
-            t.Optional[str]: An error message if the phone number is invalid or None if it is valid.
+        :param value: The phone number to be validated.
+        :return: An error message if the phone number is invalid or None if it is valid.
 
         The method checks if the provided phone number is valid according to the following criteria:
         1. The phone number must not be empty.
@@ -99,15 +92,11 @@ class PhoneBone(StringBone):
         Processes a single value from the client, applying the default country code if necessary and validating the
         phone number.
 
-        Args:
-            value (str): The phone number provided by the client.
-            skel (t.Any): Skeleton data (not used in this method).
-            bone_name (str): The name of the bone (not used in this method).
-            client_data (t.Any): Additional client data (not used in this method).
-
-        Returns:
-            t.Tuple[t.Optional[str], t.Optional[t.List[ReadFromClientError]]]:
-            A tuple containing the processed phone number and an optional list of errors.
+        :param value: The phone number provided by the client.
+        :param skel: Skeleton data (not used in this method).
+        :param bone_name: The name of the bone (not used in this method).
+        :param client_data: Additional client data (not used in this method).
+        :return: A tuple containing the processed phone number and an optional list of errors.
         """
         value = value.strip()
 
@@ -131,8 +120,7 @@ class PhoneBone(StringBone):
         """
         Returns the structure of the PhoneBone, including the test regex pattern.
 
-        Returns:
-            t.Dict[str, t.Any]: A dictionary representing the structure of the PhoneBone.
+        :return: A dictionary representing the structure of the PhoneBone.
         """
         return super().structure() | {
             "test": self.test.pattern if self.test else "",
