@@ -33,7 +33,7 @@ from viur.core.bones.base import (
 )
 from viur.core.tasks import CallDeferred, CallableTask, CallableTaskBase, QueryIter
 
-_undefined = object()
+_UNDEFINED = object()
 ABSTRACT_SKEL_CLS_SUFFIX = "AbstractSkel"
 
 
@@ -236,11 +236,18 @@ class SkeletonInstance:
 
         # Load attribute value from the Skeleton class
         elif item in {
-            "customDatabaseAdapter",
+            "database_adapters",
             "interBoneValidations",
             "kindName",
         }:
             return getattr(self.skeletonCls, item)
+
+        # FIXME: viur-datastore backward compatiblity REMOVE WITH VIUR4
+        elif item == "customDatabaseAdapter":
+            if prop := getattr(self.skeletonCls, "database_adapters"):
+                return prop[0]  # viur-datastore assumes there is only ONE!
+
+            return None
 
         # Load a @classmethod from the Skeleton class and bound this SkeletonInstance
         elif item in {
@@ -583,12 +590,12 @@ class MetaSkel(MetaBaseSkel):
         # Check if we have an abstract skeleton
         if cls.__name__.endswith(ABSTRACT_SKEL_CLS_SUFFIX):
             # Ensure that it doesn't have a kindName
-            assert cls.kindName is _undefined or cls.kindName is None, "Abstract Skeletons can't have a kindName"
+            assert cls.kindName is _UNDEFINED or cls.kindName is None, "Abstract Skeletons can't have a kindName"
             # Prevent any further processing by this class; it has to be sub-classed before it can be used
             return
 
         # Automatic determination of the kindName, if the class is not part of viur.core.
-        if (cls.kindName is _undefined
+        if (cls.kindName is _UNDEFINED
             and not relNewFileName.strip(os.path.sep).startswith("viur")
             and not "viur_doc_build" in dir(sys)):
             if cls.__name__.endswith("Skel"):
@@ -597,7 +604,7 @@ class MetaSkel(MetaBaseSkel):
                 cls.kindName = cls.__name__.lower()
 
         # Try to determine which skeleton definition takes precedence
-        if cls.kindName and cls.kindName is not _undefined and cls.kindName in MetaBaseSkel._skelCache:
+        if cls.kindName and cls.kindName is not _UNDEFINED and cls.kindName in MetaBaseSkel._skelCache:
             relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]) \
                 .replace(str(conf.instance.project_base_path), "") \
                 .replace(str(conf.instance.core_base_path), "")
@@ -624,18 +631,18 @@ class MetaSkel(MetaBaseSkel):
             raise NotImplementedError(
                 f"""{relNewFileName} must be defined in a folder listed in {conf.skeleton_search_path}""")
 
-        if cls.kindName and cls.kindName is not _undefined:
+        if cls.kindName and cls.kindName is not _UNDEFINED:
             MetaBaseSkel._skelCache[cls.kindName] = cls
 
         # Auto-Add ViUR Search Tags Adapter if the skeleton has no adapter attached
-        if cls.customDatabaseAdapter is _undefined:
-            cls.customDatabaseAdapter = ViurTagsSearchAdapter()
+        if cls.database_adapters is _UNDEFINED:
+            cls.database_adapters = ViurTagsSearchAdapter()
 
-        # Always ensure that customDatabaseAdapter is an iterable
-        cls.customDatabaseAdapter = utils.ensure_iterable(cls.customDatabaseAdapter)
+        # Always ensure that skel.database_adapters is an iterable
+        cls.database_adapters = utils.ensure_iterable(cls.database_adapters)
 
 
-class CustomDatabaseAdapter:
+class DatabaseAdapter:
     """
     Adapter class used to bind or use other databases and hook operations when working with a Skeleton.
     """
@@ -649,7 +656,7 @@ class CustomDatabaseAdapter:
     providesCustomQueries: bool = False
     """Indicate that we can run more types of queries than originally supported by firestore"""
 
-    def on_read(self, skel: BaseSkeleton, action: str, change_list: t.Iterable[str] = ()):
+    def prewrite(self, skel: SkeletonInstance, is_add: bool, change_list: t.Iterable[str] = ()):
         """
         Hook being called on a add, edit or delete operation before the skeleton-specific action is performed.
 
@@ -662,7 +669,7 @@ class CustomDatabaseAdapter:
         """
         pass
 
-    def on_write(self, skel: BaseSkeleton, action: str, change_list: t.Iterable[str] = ()):
+    def write(self, skel: SkeletonInstance, is_add: bool, change_list: t.Iterable[str] = ()):
         """
         Hook being called on a write operations after the skeleton is written.
 
@@ -674,7 +681,7 @@ class CustomDatabaseAdapter:
         """
         pass
 
-    def on_delete(self, skel: BaseSkeleton):
+    def delete(self, skel: SkeletonInstance):
         """
         Hook being called on a delete operation after the skeleton is deleted.
         """
@@ -694,7 +701,7 @@ class CustomDatabaseAdapter:
         raise NotImplementedError
 
 
-class ViurTagsSearchAdapter(CustomDatabaseAdapter):
+class ViurTagsSearchAdapter(DatabaseAdapter):
     """
     This Adapter implements a simple fulltext search on top of the datastore.
 
@@ -719,7 +726,7 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
         self.max_length = max_length
         self.substring_matching = substring_matching
 
-    def _tagsFromString(self, value: str) -> set[str]:
+    def _tags_from_str(self, value: str) -> set[str]:
         """
         Extract all words including all min_length postfixes from given string
         """
@@ -737,18 +744,19 @@ class ViurTagsSearchAdapter(CustomDatabaseAdapter):
 
         return res
 
-    def preprocessEntry(self, entry: db.Entity, skel: Skeleton, changeList: list[str], isAdd: bool) -> db.Entity:
+    def prewrite(self, skel: SkeletonInstance, *args, **kwargs):
         """
         Collect searchTags from skeleton and build viurTags
         """
         tags = set()
 
-        for boneName, bone in skel.items():
+        for name, bone in skel.items():
             if bone.searchable:
-                tags = tags.union(bone.getSearchTags(skel, boneName))
+                tags = tags.union(bone.getSearchTags(skel, name))
 
-        entry["viurTags"] = list(chain(*[self._tagsFromString(x) for x in tags if len(x) <= self.max_length]))
-        return entry
+        skel.dbEntity["viurTags"] = list(
+            chain(*[self._tags_from_str(tag) for tag in tags if len(tag) <= self.max_length])
+        )
 
     def fulltextSearch(self, queryString: str, databaseQuery: db.Query) -> list[db.Entity]:
         """
@@ -804,13 +812,13 @@ class SeoKeyBone(StringBone):
 
 
 class Skeleton(BaseSkeleton, metaclass=MetaSkel):
-    kindName: str = _undefined
+    kindName: str = _UNDEFINED
     """
     Specifies the entity kind name this Skeleton is associated with.
     Will be determined automatically when not explicitly set.
     """
 
-    customDatabaseAdapter: CustomDatabaseAdapter | t.Iterable[CustomDatabaseAdapter] | None = _undefined
+    database_adapters: DatabaseAdapter | t.Iterable[DatabaseAdapter] | None = _UNDEFINED
     """
     Custom database adapters.
     Allows to hook special functionalities that during skeleton modifications.
@@ -885,7 +893,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
     def __init__(self, *args, **kwargs):
         super(Skeleton, self).__init__(*args, **kwargs)
-        assert self.kindName and self.kindName is not _undefined, "You must set kindName on this skeleton!"
+        assert self.kindName and self.kindName is not _UNDEFINED, "You must set kindName on this skeleton!"
 
     @classmethod
     def all(cls, skelValues, **kwargs) -> db.Query:
@@ -1172,9 +1180,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             db_obj = skel.preProcessSerializedData(db_obj)
 
-            # Allow the custom DB Adapter to apply last minute changes to the object
-            for adapter in skel.customDatabaseAdapter:
-                adapter.on_read(skel, "add" if is_add else "edit", change_list)
+            # Allow the database adapter to apply last minute changes to the object
+            for adapter in skel.database_adapters:
+                adapter.prewrite(skel, is_add, change_list)
 
             # ViUR2 import compatibility - remove properties containing. if we have a dict with the same name
             def fixDotNames(entity):
@@ -1233,7 +1241,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         # END of __txn_update subfunction
 
-        # Run our SaveTxn
+        # Run transactional function
         if db.IsInTransaction():
             key, db_obj, skel, change_list, is_add = __txn_update(skel)
         else:
@@ -1251,9 +1259,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             else:  # Update all inbound relations, regardless of which bones they mirror
                 updateRelations(key, time() + 1, None)
 
-        # Trigger the custom DB Adapter of the changes made to the entry
-        for adapter in skel.customDatabaseAdapter:
-            adapter.on_write(skel, "add" if is_add else "edit", change_list)
+        # Trigger the database adapter of the changes made to the entry
+        for adapter in skel.database_adapters:
+            adapter.write(skel, is_add, change_list)
 
         return key
 
@@ -1365,10 +1373,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         if not skel.fromDB(key):
             raise ValueError("This skeleton is not in the database (anymore?)!")
 
-        # Inform the custom DB Adapter before deletion.
-        for adapter in skel.customDatabaseAdapter:
-            adapter.on_read(skel, "delete")
-
         if db.IsInTransaction():
             dbObj = txnDelete(skel)
         else:
@@ -1380,8 +1384,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         skel.postDeletedHandler(key)
 
         # Inform the custom DB Adapter
-        for adapter in skel.customDatabaseAdapter:
-            adapter.on_delete(skel)
+        for adapter in skel.database_adapters:
+            adapter.delete(skel)
 
 
 class RelSkel(BaseSkeleton):
