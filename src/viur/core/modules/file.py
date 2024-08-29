@@ -1163,8 +1163,7 @@ class File(Tree):
                 )
             except Exception as e:
                 logging.warning("Error while creating serving url")
-                if not conf.instance.is_dev_server:
-                    logging.exception(e)
+                logging.exception(e)
         return skel
 
 
