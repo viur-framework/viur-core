@@ -85,6 +85,9 @@ class RecordBone(BaseBone):
 
         return value.serialize(parentIndexed=False)
 
+    def _get_single_destinct_hash(self, value):
+        return tuple(bone._get_destinct_hash(value[name]) for name, bone in self.using.__boneMap__.items())
+
     def parseSubfieldsFromClient(self) -> bool:
         """
         Determines if the current request should attempt to parse subfields received from the client.

@@ -14,7 +14,8 @@ from itertools import chain
 from time import time
 
 from viur.core import conf, current, db, email, errors, translate, utils
-from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, RelationalUpdateLevel, SelectBone, StringBone
+from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, RelationalConsistency, RelationalUpdateLevel, \
+    SelectBone, StringBone
 from viur.core.bones.base import Compute, ComputeInterval, ComputeMethod, ReadFromClientError, \
     ReadFromClientErrorSeverity, getSystemInitialized
 from viur.core.tasks import CallDeferred, CallableTask, CallableTaskBase, QueryIter
@@ -974,7 +975,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             logging.warning(msg, stacklevel=3)
             update_relations = not kwargs["clearUpdateTag"]
 
-        def txnUpdate(write_skel):
+        def __txn_update(write_skel):
             db_key = write_skel["key"]
             skel = write_skel.skeletonCls()
 
@@ -982,20 +983,22 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             change_list = []
             old_copy = {}
             # Load the current values from Datastore or create a new, empty db.Entity
-            if is_add := not bool(db_key):
+            if not db_key:
                 # We'll generate the key we'll be stored under early so we can use it for locks etc
                 db_key = db.AllocateIDs(db.Key(skel.kindName))
                 db_obj = db.Entity(db_key)
-                db_obj["viur"] = {}
                 skel.dbEntity = db_obj
+                is_add = True
             else:
                 db_key = db.keyHelper(db_key, skel.kindName)
                 if not (db_obj := db.Get(db_key)):
                     db_obj = db.Entity(db_key)
                     skel.dbEntity = db_obj
+                    is_add = True
                 else:
                     skel.setEntity(db_obj)
                     old_copy = {k: v for k, v in db_obj.items()}
+                    is_add = False
 
             db_obj.setdefault("viur", {})
 
@@ -1003,9 +1006,13 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             # Move accessed Values from srcSkel over to skel
             skel.accessedValues = write_skel.accessedValues
             skel["key"] = db_key  # Ensure key stays set
+
             for bone_name, bone in skel.items():
                 if bone_name == "key":  # Explicitly skip key on top-level - this had been set above
                     continue
+
+                # Allow bones to perform outstanding "magic" operations before saving to db
+                bone.performMagic(skel, bone_name, isAdd=is_add)  # FIXME VIUR4: ANY MAGIC IN OUR CODE IS DEPRECATED!!!
 
                 if not (bone_name in skel.accessedValues or bone.compute) and bone_name not in skel.dbEntity:
                     _ = skel[bone_name]  # Ensure the datastore is filled with the default value
@@ -1074,6 +1081,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                         else:
                             logging.critical("Detected Database corruption! Could not delete stale lock-object!")
 
+            # Delete legacy property (PR #1244)  #TODO: Remove in ViUR4
+            db_obj.pop("viur_incomming_relational_locks", None)
+
             # Ensure the SEO-Keys are up-to-date
             last_requested_seo_keys = db_obj["viur"].get("viurLastRequestedSeoKeys") or {}
             last_set_seo_keys = db_obj["viur"].get("viurCurrentSeoKeys") or {}
@@ -1114,7 +1124,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 db_obj["viur"]["viurCurrentSeoKeys"][language] = last_set_seo_keys[language]
 
             db_obj["viur"].setdefault("viurActiveSeoKeys", [])
-
             for language, seo_key in last_set_seo_keys.items():
                 if db_obj["viur"]["viurCurrentSeoKeys"][language] not in db_obj["viur"]["viurActiveSeoKeys"]:
                     # Ensure the current, active seo key is in the list of all seo keys
@@ -1129,6 +1138,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             # mark entity as "dirty" when update_relations is set, to zero otherwise.
             db_obj["viur"]["delayedUpdateTag"] = time() if update_relations else 0
+
             db_obj = skel.preProcessSerializedData(db_obj)
 
             # Allow the custom DB Adapter to apply last minute changes to the object
@@ -1158,7 +1168,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             db.Put(db_obj)
 
             # Now write the blob-lock object
-
             blob_list = skel.preProcessBlobLocks(blob_list)
             if blob_list is None:
                 raise ValueError("Did you forget to return the blob_list somewhere inside getReferencedBlobs()?")
@@ -1189,23 +1198,15 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 blob_lock_obj["is_stale"] = False
                 db.Put(blob_lock_obj)
 
-            return db_obj.key, db_obj, skel, change_list
+            return db_obj.key, db_obj, skel, change_list, is_add
 
-        # END of txnUpdate subfunction
-        is_add = skel["key"] is None
-
-        # Allow bones to perform outstanding "magic" operations before saving to db
-        for bone_name, _bone in skel.items():
-            _bone.performMagic(skel, bone_name, isAdd=is_add)
+        # END of __txn_update subfunction
 
         # Run our SaveTxn
         if db.IsInTransaction():
-            key, db_obj, skel, change_list = txnUpdate(skel)
+            key, db_obj, skel, change_list, is_add = __txn_update(skel)
         else:
-            key, db_obj, skel, change_list = db.RunInTransaction(txnUpdate, skel)
-
-        # Perform post-save operations (postProcessSerializedData Hook, Searchindex, ..)
-        skel["key"] = key
+            key, db_obj, skel, change_list, is_add = db.RunInTransaction(__txn_update, skel)
 
         for bone_name, bone in skel.items():
             bone.postSavedHandler(skel, bone_name, key)
@@ -1273,31 +1274,40 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             Deletes the entity associated with the current Skeleton from the data store.
         """
 
-        def txnDelete(skel: SkeletonInstance):
-            skelKey = skel["key"]
-            dbObj = db.Get(skelKey)  # Fetch the raw object as we might have to clear locks
-            viurData = dbObj.get("viur") or {}
-            if dbObj.get("viur_incomming_relational_locks"):
-                raise errors.Locked("This entry is locked!")
+        def txnDelete(skel: SkeletonInstance) -> db.Entity:
+            skel_key = skel["key"]
+            entity = db.Get(skel_key)  # Fetch the raw object as we might have to clear locks
+            viur_data = entity.get("viur") or {}
+
+            # Is there any relation to this Skeleton which prevents the deletion?
+            locked_relation = (
+                db.Query("viur-relations")
+                .filter("dest.__key__ =", skel_key)
+                .filter("viur_relational_consistency =", RelationalConsistency.PreventDeletion.value)
+            ).getEntry()
+            if locked_relation is not None:
+                raise errors.Locked("This entry is still referenced by other Skeletons, which prevents deleting!")
+
             for boneName, bone in skel.items():
                 # Ensure that we delete any value-lock objects remaining for this entry
                 bone.delete(skel, boneName)
                 if bone.unique:
                     flushList = []
-                    for lockValue in viurData.get(f"{boneName}_uniqueIndexValue") or []:
+                    for lockValue in viur_data.get(f"{boneName}_uniqueIndexValue") or []:
                         lockKey = db.Key(f"{skel.kindName}_{boneName}_uniquePropertyIndex", lockValue)
                         lockObj = db.Get(lockKey)
                         if not lockObj:
                             logging.error(f"{lockKey=} missing!")
-                        elif lockObj["references"] != dbObj.key.id_or_name:
+                        elif lockObj["references"] != entity.key.id_or_name:
                             logging.error(
                                 f"""{skel["key"]!r} does not hold lock for {lockKey!r}""")
                         else:
                             flushList.append(lockObj)
                     if flushList:
                         db.Delete(flushList)
+
             # Delete the blob-key lock object
-            lockObjectKey = db.Key("viur-blob-locks", dbObj.key.id_or_name)
+            lockObjectKey = db.Key("viur-blob-locks", entity.key.id_or_name)
             lockObj = db.Get(lockObjectKey)
             if lockObj is not None:
                 if lockObj["old_blob_references"] is None and lockObj["active_blob_references"] is None:
@@ -1313,13 +1323,13 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     lockObj["is_stale"] = True
                     lockObj["has_old_blob_references"] = True
                     db.Put(lockObj)
-            db.Delete(skelKey)
-            processRemovedRelations(skelKey)
-            return dbObj
+            db.Delete(skel_key)
+            processRemovedRelations(skel_key)
+            return entity
 
         key = skelValues["key"]
         if key is None:
-            raise ValueError("This skeleton is not in the database (anymore?)!")
+            raise ValueError("This skeleton has no key!")
         skel = skeletonByKind(skelValues.kindName)()
         if not skel.fromDB(key):
             raise ValueError("This skeleton is not in the database (anymore?)!")
@@ -1446,14 +1456,21 @@ class SkelList(list):
 
 @CallDeferred
 def processRemovedRelations(removedKey, cursor=None):
-    updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", removedKey) \
-        .filter("viur_relational_consistency >", 2)
+    updateListQuery = (
+        db.Query("viur-relations")
+        .filter("dest.__key__ =", removedKey)
+        .filter("viur_relational_consistency >", RelationalConsistency.PreventDeletion.value)
+    )
     updateListQuery = updateListQuery.setCursor(cursor)
     updateList = updateListQuery.run(limit=5)
+
     for entry in updateList:
         skel = skeletonByKind(entry["viur_src_kind"])()
-        assert skel.fromDB(entry["src"].key)
-        if entry["viur_relational_consistency"] == 3:  # Set Null
+
+        if not skel.fromDB(entry["src"].key):
+            raise ValueError(f"processRemovedRelations detects inconsistency on src={entry['src'].key!r}")
+
+        if entry["viur_relational_consistency"] == RelationalConsistency.SetNull.value:
             for key, _bone in skel.items():
                 if isinstance(_bone, RelationalBone):
                     relVal = skel[key]
@@ -1466,10 +1483,11 @@ def processRemovedRelations(removedKey, cursor=None):
                     else:
                         raise NotImplementedError(f"No handling for {type(relVal)=}")
             skel.toDB(update_relations=False)
+
         else:
             logging.critical(f"""Cascade deletion of {skel["key"]!r}""")
             skel.delete()
-            pass
+
     if len(updateList) == 5:
         processRemovedRelations(removedKey, updateListQuery.getCursor())
 
@@ -1494,9 +1512,12 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: t.Optional
             defer again.
     """
     logging.debug(f"Starting updateRelations for {destKey} ; {minChangeTime=},{changedBone=}, {cursor=}")
-    updateListQuery = db.Query("viur-relations").filter("dest.__key__ =", destKey) \
-        .filter("viur_delayed_update_tag <", minChangeTime).filter("viur_relational_updateLevel =",
-                                                                   RelationalUpdateLevel.Always.value)
+    updateListQuery = (
+        db.Query("viur-relations")
+        .filter("dest.__key__ =", destKey)
+        .filter("viur_delayed_update_tag <", minChangeTime)
+        .filter("viur_relational_updateLevel =", RelationalUpdateLevel.Always.value)
+    )
     if changedBone:
         updateListQuery.filter("viur_foreign_keys =", changedBone)
     if cursor:
