@@ -38,7 +38,13 @@ VALID_FILENAME_REGEX = re.compile(
 
 _CREDENTIALS, _PROJECT_ID = google.auth.default()
 GOOGLE_STORAGE_CLIENT = storage.Client(_PROJECT_ID, _CREDENTIALS)
+
+PRIVATE_BUCKET_NAME = f"""{_PROJECT_ID}.appspot.com"""
+PUBLIC_BUCKET_NAME = f"""public-dot-{_PROJECT_ID}"""
 PUBLIC_DLKEY_SUFFIX = "_pub"
+
+_private_bucket = GOOGLE_STORAGE_CLIENT.lookup_bucket(PRIVATE_BUCKET_NAME)
+_public_bucket = None
 
 # FilePath is a descriptor for ViUR file components
 FilePath = namedtuple("FilePath", ("dlkey", "is_derived", "filename"))
@@ -450,14 +456,14 @@ class File(Tree):
         Retrieves a Google Cloud Storage bucket for the given dlkey.
         """
         if dlkey and dlkey.endswith(PUBLIC_DLKEY_SUFFIX):
-            if public_bucket := GOOGLE_STORAGE_CLIENT.lookup_bucket(f"""public-dot-{_PROJECT_ID}"""):
+            if _public_bucket or (_public_bucket := GOOGLE_STORAGE_CLIENT.lookup_bucket(PUBLIC_BUCKET_NAME)):
                 return public_bucket
 
             raise ValueError(
                 f"""The bucket 'public-dot-{_PROJECT_ID}' does not exist! Please create it with ACL access."""
             )
 
-        return GOOGLE_STORAGE_CLIENT.lookup_bucket(f"""{_PROJECT_ID}.appspot.com""")
+        return _private_bucket
 
     @staticmethod
     def is_valid_filename(filename: str) -> bool:
