@@ -1,16 +1,15 @@
-from urllib import request
-
 import base64
 import datetime
+import json
 import logging
 import os
-import requests
 import typing as t
 from abc import ABC, abstractmethod
+from urllib import request
+
+import requests
 from deprecated import deprecated
 from google.appengine.api.mail import Attachment as GAE_Attachment, SendMail as GAE_SendMail
-
-import json
 from viur.core import db, utils
 from viur.core.bones.text import HtmlSerializer
 from viur.core.config import conf
@@ -211,7 +210,7 @@ def send_email_deferred(key: db.Key):
 
     :param key: Datastore key of the email to send
     """
-    logging.debug(f"Sending deferred e-mail {key!r}")
+    logging.debug(f"Sending deferred email {key!r}")
     if not (queued_email := db.Get(key)):
         raise ValueError(f"Email queue entity with {key=!r} went missing!")
 
@@ -285,8 +284,8 @@ def send_email(
     **kwargs,
 ) -> bool:
     """
-    General purpose function for sending e-mail.
-    This function allows for sending e-mails, also with generated content using the Jinja2 template engine.
+    General purpose function for sending email.
+    This function allows for sending emails, also with generated content using the Jinja2 template engine.
     Your have to implement a method which should be called to send the prepared email finally. For this you have
     to allocate *viur.email.transport_class* in conf.
 
@@ -438,7 +437,7 @@ def send_email_to_admins(subject: str, body: str, *args, **kwargs) -> bool:
             success = True
             return ret
         else:
-            logging.warning("There are no recipients for admin e-mails available.")
+            logging.warning("There are no recipients for admin emails available.")
 
     finally:
         if not success:
@@ -589,11 +588,11 @@ class EmailTransportBrevo(EmailTransport):
                 break
         else:
             credits = -1
-        logging.info(f"SIB E-Mail credits: {credits}")
+        logging.info(f"Brevo email credits: {credits}")
 
         # Keep track of the last credits and the limit for which a email has
         # already been sent. This way, emails for the same limit will not be
-        # sent more than once and the remaining e-mail credits will not be wasted.
+        # sent more than once and the remaining email credits will not be wasted.
         key = db.Key("viur-email-conf", "sib-credits")
         if not (entity := db.Get(key)):
             logging.debug(f"{entity = }")
@@ -625,7 +624,7 @@ class EmailTransportBrevo(EmailTransport):
         db.Put(entity)
 
 
-@deprecated(version="3.7.0", reason="Sendinblue is now brevo; Use EmailTransportBrevo instead", action="always")
+@deprecated(version="3.7.0", reason="Sendinblue is now Brevo; Use EmailTransportBrevo instead", action="always")
 class EmailTransportSendInBlue(EmailTransportBrevo):
     ...
 
