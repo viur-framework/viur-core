@@ -38,7 +38,7 @@ VALID_FILENAME_REGEX = re.compile(
 
 _CREDENTIALS, _PROJECT_ID = google.auth.default()
 GOOGLE_STORAGE_CLIENT = storage.Client(_PROJECT_ID, _CREDENTIALS)
-PUBLIC_DLKEY_POSTFIX = "_pub"
+PUBLIC_DLKEY_SUFFIX = "_pub"
 
 # FilePath is a descriptor for ViUR file components
 FilePath = namedtuple("FilePath", ("dlkey", "is_derived", "filename"))
@@ -449,7 +449,7 @@ class File(Tree):
         """
         Retrieves a Google Cloud Storage bucket for the given dlkey.
         """
-        if dlkey and dlkey.endswith(PUBLIC_DLKEY_POSTFIX):
+        if dlkey and dlkey.endswith(PUBLIC_DLKEY_SUFFIX):
             if public_bucket := GOOGLE_STORAGE_CLIENT.lookup_bucket(f"""public-dot-{_PROJECT_ID}"""):
                 return public_bucket
 
@@ -663,7 +663,7 @@ class File(Tree):
         dl_key = utils.string.random()
 
         if public:
-            dl_key += PUBLIC_DLKEY_POSTFIX  # mark file as public
+            dl_key += PUBLIC_DLKEY_SUFFIX  # mark file as public
 
         bucket = File.get_bucket(dl_key)
 
@@ -804,7 +804,7 @@ class File(Tree):
         dlkey = utils.string.random()  # let's roll a random key
 
         if public:
-            dlkey += PUBLIC_DLKEY_POSTFIX  # mark file as public
+            dlkey += PUBLIC_DLKEY_SUFFIX  # mark file as public
 
         blob = File.get_bucket(dlkey).blob(f"{dlkey}/source/{filename}")
         upload_url = blob.create_resumable_upload_session(content_type=mimeType, size=size, timeout=60)
@@ -917,7 +917,7 @@ class File(Tree):
                 response.headers["Content-Disposition"] = content_disposition
             return blob.download_as_bytes()
 
-        if validUntil == "0" or blobKey.endswith(PUBLIC_DLKEY_POSTFIX):  # Its an indefinitely valid URL
+        if validUntil == "0" or blobKey.endswith(PUBLIC_DLKEY_SUFFIX):  # Its an indefinitely valid URL
             if blob.size < 5 * 1024 * 1024:  # Less than 5 MB - Serve directly and push it into the ede caches
                 response = current.request.get().response
                 response.headers["Content-Type"] = blob.content_type
