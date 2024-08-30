@@ -3,8 +3,14 @@ import datetime
 import json
 import logging
 import os
+import smtplib
+import ssl
 import typing as t
 from abc import ABC, abstractmethod
+from email import encoders
+from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from urllib import request
 
 import requests
@@ -777,6 +783,69 @@ class EmailTransportSendgrid(EmailTransport):
         if not req.ok:
             raise ValueError(f"{req.status_code} {req.reason} {req.json()}", req)
         return {k: v for k, v in req.headers.items() if k.startswith("X-")}  # X-Message-Id and maybe more in future
+
+
+class EmailTransportSmtp(EmailTransport):
+    """
+    Send emails using the Simple Mail Transfer Protocol (SMTP).
+
+    Needs an email server.
+    """
+
+    def __init__(
+        self,
+        *,
+        host: str,
+        port: int = 465,
+        user: str,
+        password: str,
+    ) -> None:
+        super().__init__()
+        self.host = host
+        self.port = port
+        self.user = user
+        self.password = password
+        self.context = ssl.create_default_context()
+
+    def deliver_email(
+        self,
+        *,
+        sender: str,
+        dests: list[str],
+        cc: list[str],
+        bcc: list[str],
+        subject: str,
+        body: str,
+        headers: dict[str, str],
+        attachments: list[Attachment],
+        **kwargs: t.Any,
+    ) -> dict[str, tuple[int, bytes]]:
+        message = MIMEMultipart()
+        message["Subject"] = subject
+        message["From"] = sender
+        message["To"] = ", ".join(dests)
+        message["Cc"] = ", ".join(cc)
+        message["Bcc"] = ", ".join(bcc)
+        for key, value in headers.items():
+            message.add_header(key, value)
+
+        message.attach(MIMEText(body, "html"))
+        message.attach(MIMEText(HtmlSerializer().sanitize(body), "plain"))
+
+        for attachment in attachments:
+            attachment = self.fetch_attachment(attachment)
+            part = MIMEBase(*attachment["mimetype"].split("/", 1))
+            part.set_payload(attachment["content"])
+            encoders.encode_base64(part)
+            part.add_header(
+                "Content-Disposition",
+                f'attachment; filename= {attachment["filename"]}',
+            )
+            message.attach(part)
+
+        with smtplib.SMTP_SSL(self.host, self.port, context=self.context) as server:
+            server.login(self.user, self.password)
+            return server.sendmail(sender, (dests + cc + bcc), message.as_string())
 
 
 class EmailTransportAppengine(EmailTransport):
