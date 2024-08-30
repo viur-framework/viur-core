@@ -85,17 +85,17 @@ class EmailTransport(ABC):
 
     @abstractmethod
     def deliverEmail(
-        self,
-        *,
-        sender: str,
-        dests: list[str],
-        cc: list[str],
-        bcc: list[str],
-        subject: str,
-        body: str,
-        headers: dict[str, str],
-        attachments: list[Attachment],
-        **kwargs: t.Any,
+            self,
+            *,
+            sender: str,
+            dests: list[str],
+            cc: list[str],
+            bcc: list[str],
+            subject: str,
+            body: str,
+            headers: dict[str, str],
+            attachments: list[Attachment],
+            **kwargs: t.Any,
     ) -> t.Any:
         """
         The actual email delivery must be implemented here. All email-addresses can be either in the form of
@@ -248,18 +248,18 @@ def normalize_to_list(value: None | t.Any | list[t.Any] | t.Callable[[], list]) 
 
 
 def sendEMail(
-    *,
-    tpl: str = None,
-    stringTemplate: str = None,
-    skel: t.Union[None, dict, "SkeletonInstance", list["SkeletonInstance"]] = None,
-    sender: str = None,
-    dests: str | list[str] = None,
-    cc: str | list[str] = None,
-    bcc: str | list[str] = None,
-    headers: dict[str, str] = None,
-    attachments: list[Attachment] = None,
-    context: db.DATASTORE_BASE_TYPES | list[db.DATASTORE_BASE_TYPES] | db.Entity = None,
-    **kwargs,
+        *,
+        tpl: str = None,
+        stringTemplate: str = None,
+        skel: t.Union[None, dict, "SkeletonInstance", list["SkeletonInstance"]] = None,
+        sender: str = None,
+        dests: str | list[str] = None,
+        cc: str | list[str] = None,
+        bcc: str | list[str] = None,
+        headers: dict[str, str] = None,
+        attachments: list[Attachment] = None,
+        context: db.DATASTORE_BASE_TYPES | list[db.DATASTORE_BASE_TYPES] | db.Entity = None,
+        **kwargs,
 ) -> bool:
     """
     General purpose function for sending e-mail.
@@ -293,7 +293,8 @@ def sendEMail(
     """
     # First, ensure we're able to send email at all
     transport_class = conf.email.transport_class  # First, ensure we're able to send email at all
-    assert isinstance(transport_class, EmailTransport), "No or invalid email transportclass specified!"
+    if not isinstance(transport_class, EmailTransport):
+        raise ValueError(f"No or invalid email transportclass specified! ({transport_class=})")
 
     # Ensure that all recipient parameters (dest, cc, bcc) are a list
     dests = normalize_to_list(dests)
@@ -427,10 +428,10 @@ class EmailTransportSendInBlue(EmailTransport):
                          "xls", "xlsx", "ppt", "tar", "ez"}
 
     def __init__(
-        self,
-        *,
-        api_key: str,
-        thresholds: tuple[int] | list[int] = (1000, 500, 100),
+            self,
+            *,
+            api_key: str,
+            thresholds: tuple[int] | list[int] = (1000, 500, 100),
     ) -> None:
         """
         :param api_key: API key
@@ -441,17 +442,17 @@ class EmailTransportSendInBlue(EmailTransport):
         self.thresholds = thresholds
 
     def deliverEmail(
-        self,
-        *,
-        sender: str,
-        dests: list[str],
-        cc: list[str],
-        bcc: list[str],
-        subject: str,
-        body: str,
-        headers: dict[str, str],
-        attachments: list[Attachment],
-        **kwargs: t.Any,
+            self,
+            *,
+            sender: str,
+            dests: list[str],
+            cc: list[str],
+            bcc: list[str],
+            subject: str,
+            body: str,
+            headers: dict[str, str],
+            attachments: list[Attachment],
+            **kwargs: t.Any,
     ) -> str:
         """
             Internal function for delivering Emails using Send in Blue. This function requires the
@@ -585,27 +586,27 @@ class EmailTransportSendInBlue(EmailTransport):
 if mailjet_dependencies:
     class EmailTransportMailjet(EmailTransport):
         def __init__(
-            self,
-            *,
-            api_key: str,
-            secret_key: str,
+                self,
+                *,
+                api_key: str,
+                secret_key: str,
         ) -> None:
             super().__init__()
             self.api_key = api_key
             self.secret_key = secret_key
 
         def deliverEmail(
-            self,
-            *,
-            sender: str,
-            dests: list[str],
-            cc: list[str],
-            bcc: list[str],
-            subject: str,
-            body: str,
-            headers: dict[str, str],
-            attachments: list[Attachment],
-            **kwargs: t.Any,
+                self,
+                *,
+                sender: str,
+                dests: list[str],
+                cc: list[str],
+                bcc: list[str],
+                subject: str,
+                body: str,
+                headers: dict[str, str],
+                attachments: list[Attachment],
+                **kwargs: t.Any,
         ) -> str:
             if not (self.api_key and self.secret_key):
                 raise RuntimeError("Mailjet config invalid, check 'api_key' and 'secret_key'")
@@ -650,27 +651,35 @@ if mailjet_dependencies:
 class EmailTransportSendgrid(EmailTransport):
     """Send emails with SendGrid"""
 
-    @staticmethod
+    def __init__(
+            self,
+            *,
+            api_key: str,
+    ) -> None:
+        super().__init__()
+        self.api_key = api_key
+
     def deliverEmail(
-        *,
-        sender: str,
-        dests: list[str],
-        cc: list[str],
-        bcc: list[str],
-        subject: str,
-        body: str,
-        headers: dict[str, str],
-        attachments: list[Attachment],
-        **kwargs: t.Any,
+            self,
+            *,
+            sender: str,
+            dests: list[str],
+            cc: list[str],
+            bcc: list[str],
+            subject: str,
+            body: str,
+            headers: dict[str, str],
+            attachments: list[Attachment],
+            **kwargs: t.Any,
     ) -> dict[str, str]:
         data = {
             "personalizations": [
                 personalization := {
-                    "to": [EmailTransportSendgrid.splitAddress(val) for val in dests],
+                    "to": [self.splitAddress(val) for val in dests],
                     "subject": subject,
                 }
             ],
-            "from": EmailTransportSendgrid.splitAddress(sender),
+            "from": self.splitAddress(sender),
             "content": [{
                 "type": "text/html",
                 "value": body,
@@ -683,9 +692,9 @@ class EmailTransportSendgrid(EmailTransport):
         }
 
         if cc:
-            personalization["cc"] = [EmailTransportSendgrid.splitAddress(val) for val in cc]
+            personalization["cc"] = [self.splitAddress(val) for val in cc]
         if bcc:
-            personalization["bcc"] = [EmailTransportSendgrid.splitAddress(val) for val in bcc]
+            personalization["bcc"] = [self.splitAddress(val) for val in bcc]
 
         if attachments:
             assert isinstance(attachments, list)
@@ -696,7 +705,7 @@ class EmailTransportSendgrid(EmailTransport):
                     "type": attachment["mimetype"],
                     "disposition": "attachment",
                 }
-                for attachment in map(EmailTransportSendInBlue.fetch_attachment, attachments)
+                for attachment in map(self.fetch_attachment, attachments)
             ]
 
         if headers:
@@ -706,7 +715,7 @@ class EmailTransportSendgrid(EmailTransport):
         req = requests.post(
             "https://api.sendgrid.com/v3/mail/send",
             headers={
-                "Authorization": f"Bearer {conf.email.sendgrid_api_key}",
+                "Authorization": f"Bearer {self.api_key}",
                 "Accept": "application/json"
             },
             json=data,
@@ -722,17 +731,17 @@ class EmailTransportAppengine(EmailTransport):
     """
 
     def deliverEmail(
-        self,
-        *,
-        sender: str,
-        dests: list[str],
-        cc: list[str],
-        bcc: list[str],
-        subject: str,
-        body: str,
-        headers: dict[str, str],
-        attachments: list[Attachment],
-        **kwargs: t.Any,
+            self,
+            *,
+            sender: str,
+            dests: list[str],
+            cc: list[str],
+            bcc: list[str],
+            subject: str,
+            body: str,
+            headers: dict[str, str],
+            attachments: list[Attachment],
+            **kwargs: t.Any,
     ) -> None:
         # need to build a silly dict because the google.appengine mail api doesn't accept None or empty values ...
         params = {
