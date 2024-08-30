@@ -796,7 +796,7 @@ class EmailTransportSmtp(EmailTransport):
         self,
         *,
         host: str,
-        port: int = 465,
+        port: int = smtplib.SMTP_SSL_PORT,
         user: str,
         password: str,
     ) -> None:
