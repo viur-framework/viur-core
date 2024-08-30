@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from urllib import request
 
 import requests
-from deprecated import deprecated
+from deprecated.sphinx import deprecated
 from google.appengine.api.mail import Attachment as GAE_Attachment, SendMail as GAE_SendMail
 from viur.core import db, utils
 from viur.core.bones.text import HtmlSerializer
@@ -90,7 +90,12 @@ def clean_old_emails_from_log(*args, **kwargs):
 
 
 class EmailTransport(ABC):
-    maxRetries = 3
+    """Transport handler to deliver emails.
+
+    Implement for a specific service and set the instance to :attr:`conf.email.transport_class`
+    """
+    max_retries = 3
+    """maximum number of attempts to send a email."""
 
     @abstractmethod
     def deliver_email(
@@ -110,7 +115,7 @@ class EmailTransport(ABC):
         This method handles the actual sending of emails.
 
         It must be implemented by each type. All email-addresses can be either in the form of
-        "mm@example.com" or "Max Musterman <mm@example.com>". If the delivery was successful, this method
+        "mm@example.com" or "Max Mustermann <mm@example.com>". If the delivery was successful, this method
         should return normally, if there was an error delivering the message it *must* raise an exception.
 
         :param sender: The sender to be used on the outgoing email
@@ -145,7 +150,7 @@ class EmailTransport(ABC):
     def split_address(self, address: str) -> AddressPair:
         """
         Splits a Name/Address Pair into a dict,
-        i.e. "Max Musterman <mm@example.com>" into
+        i.e. "Max Mustermann <mm@example.com>" into
         {"name": "Max Mustermann", "email": "mm@example.com"}
         :param address: Name/Address pair
         :return: split dict
@@ -216,12 +221,13 @@ def send_email_deferred(key: db.Key):
 
     if queued_email["isSend"]:
         return True
-    elif queued_email["errorCount"] > 3:
-        raise ChildProcessError("Error-Count exceeded")
 
     transport_class = conf.email.transport_class  # First, ensure we're able to send email at all
     if not isinstance(transport_class, EmailTransport):
         raise ValueError(f"No or invalid email transportclass specified! ({transport_class=})")
+
+    if queued_email["errorCount"] > transport_class.max_retries:
+        raise ChildProcessError("Error-Count exceeded")
 
     try:
         result_data = transport_class.deliver_email(
@@ -293,13 +299,13 @@ def send_email(
     :param stringTemplate: This string is interpreted as the template contents. Alternative to load from template file.
         :param skel: The data made available to the template. In case of a Skeleton or SkelList, its parsed the usual way;\
         Dictionaries are passed unchanged.
-    :param sender: The address sending this mail.
-    :param dests: A list of addresses to send this mail to. A bare string will be treated as a list with 1 address.
+    :param sender: The address sending this email.
+    :param dests: A list of addresses to send this email to. A bare string will be treated as a list with 1 address.
     :param cc: Carbon-copy recipients. A bare string will be treated as a list with 1 address.
     :param bcc: Blind carbon-copy recipients. A bare string will be treated as a list with 1 address.
     :param headers: Specify headers for this email.
     :param attachments:
-        List of files to be sent within the mail as attachments. Each attachment must be a dictionary with these keys:
+        List of files to be sent within the email as attachments. Each attachment must be a dictionary with these keys:
             - filename (string): Name of the file that's attached. Always required
             - content (bytes): Content of the attachment as bytes.
             - mimetype (string): Mimetype of the file. Suggested parameter for other implementations (not used by SIB)
@@ -441,7 +447,7 @@ def send_email_to_admins(subject: str, body: str, *args, **kwargs) -> bool:
 
     finally:
         if not success:
-            logging.critical("Cannot send mail to Admins.")
+            logging.critical("Cannot send email to admins.")
             logging.debug(f"{subject = }, {body = }")
 
     return False
@@ -568,7 +574,7 @@ class EmailTransportBrevo(EmailTransport):
         Others can be set via :attr:`thresholds`.
         An email will be sent for the lowest threshold that has been undercut.
 
-        : seealos:: https://developers.brevo.com/reference/getaccount
+        .. seealso:: https://developers.brevo.com/reference/getaccount
         """
         if not isinstance(conf.email.transport_class, EmailTransportSendInBlue):
             return  # no SIB key, we cannot check
