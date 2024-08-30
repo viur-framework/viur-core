@@ -654,7 +654,7 @@ class DatabaseAdapter:
     """Are results returned by `meth:fulltextSearch` guaranteed to also match the databaseQuery"""
 
     providesCustomQueries: bool = False
-    """Indicate that we can run more types of queries than originally supported by firestore"""
+    """Indicate that we can run more types of queries than originally supported by datastore"""
 
     def prewrite(self, skel: SkeletonInstance, is_add: bool, change_list: t.Iterable[str] = ()):
         """
