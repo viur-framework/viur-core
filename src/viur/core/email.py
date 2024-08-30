@@ -171,8 +171,7 @@ class EmailTransport(ABC):
         if "filename" not in attachment:
             raise ValueError(f"Attachment {attachment} must have a filename")
         if not any(prop in attachment for prop in ("content", "file_key", "gcsfile")):
-            raise ValueError(
-                f"Attachment {attachment} must have content, file_key or gcsfile")
+            raise ValueError(f"Attachment {attachment} must have content, file_key or gcsfile")
         if "content" in attachment and not isinstance(attachment["content"], bytes):
             raise ValueError(f"Attachment content must be bytes, not {type(attachment['content'])}")
 
@@ -525,8 +524,7 @@ class EmailTransportBrevo(EmailTransport):
                 attachment = self.fetch_attachment(attachment)
                 dataDict["attachment"].append({
                     "name": attachment["filename"],
-                    "content": base64.b64encode(attachment["content"]).decode(
-                        "ASCII")
+                    "content": base64.b64encode(attachment["content"]).decode("ASCII")
                 })
         payload = json.dumps(dataDict).encode("UTF-8")
         headers = {
