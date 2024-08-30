@@ -33,6 +33,7 @@ This module includes implementation for various services, but own
 implementations are possible too.
 To enable a service, assign an instance of one of the implementation to
 :attr:`core.config.conf.email.transport_class`.
+By default :class:`EmailTransportAppengine` is enabled.
 
 This module needs a custom queue (viur-emails, :attr:`EMAIL_KINDNAME`)
 with a larger backoff value (so that we don't try to deliver the same email
@@ -68,15 +69,22 @@ AttachmentGscFile = t.TypedDict("AttachmentGscFile", {
     "filename": str,
     "gcsfile": db.Key | str,
 })
-
 Attachment: t.TypeAlias = AttachmentInline | AttachmentViurFile | AttachmentGscFile
+
+AddressPair = t.TypedDict("AddressPair", {
+    "email": str,
+    "name": t.NotRequired[str],
+})
 
 
 @PeriodicTask(interval=datetime.timedelta(days=1))
-def cleanOldEmailsFromLog(*args, **kwargs):
-    """Start the QueryIter DeleteOldEmailsFromLog to remove old, successfully send emails from the queue"""
-    qry = db.Query(EMAIL_KINDNAME).filter("isSend =", True) \
+def clean_old_emails_from_log(*args, **kwargs):
+    """Periodically delete sent emails, which are older than :attr:`conf.email.log_retention` from datastore queue"""
+    qry = (
+        db.Query(EMAIL_KINDNAME)
+        .filter("isSend =", True)
         .filter("creationDate <", utils.utcNow() - conf.email.log_retention)
+    )
     DeleteEntitiesIter.startIterOnQuery(qry)
 
 
@@ -84,21 +92,23 @@ class EmailTransport(ABC):
     maxRetries = 3
 
     @abstractmethod
-    def deliverEmail(
-            self,
-            *,
-            sender: str,
-            dests: list[str],
-            cc: list[str],
-            bcc: list[str],
-            subject: str,
-            body: str,
-            headers: dict[str, str],
-            attachments: list[Attachment],
-            **kwargs: t.Any,
+    def deliver_email(
+        self,
+        *,
+        sender: str,
+        dests: list[str],
+        cc: list[str],
+        bcc: list[str],
+        subject: str,
+        body: str,
+        headers: dict[str, str],
+        attachments: list[Attachment],
+        **kwargs: t.Any,
     ) -> t.Any:
         """
-        The actual email delivery must be implemented here. All email-addresses can be either in the form of
+        This method handles the actual sending of emails.
+
+        It must be implemented by each type. All email-addresses can be either in the form of
         "mm@example.com" or "Max Musterman <mm@example.com>". If the delivery was successful, this method
         should return normally, if there was an error delivering the message it *must* raise an exception.
 
@@ -113,54 +123,59 @@ class EmailTransport(ABC):
 
         :return: Any value that can be stored in the datastore in the queue entity as `transportFuncResult`.
         """
-        raise NotImplementedError()
+        ...
 
-    def validateQueueEntity(self, entity: db.Entity):
+    def validate_queue_entity(self, entity: db.Entity) -> None:
         """
-            This function can be used to pre-validate the queue entity before it's deferred into the queue.
-            Must raise an exception if the email cannot be send (f.e. if it contains an invalid attachment)
-            :param entity: The entity to validate
+        This function can be implemented to pre-validate the queue entity before it's deferred into the queue.
+        Must raise an exception if the email cannot be send (f.e. if it contains an invalid attachment)
+        :param entity: The entity to validate
         """
-        return
+        ...
 
-    def transportSuccessfulCallback(self, entity: db.Entity):
+    def transport_successful_callback(self, entity: db.Entity):
         """
-            This callback can be overridden by the project to execute additional tasks after an email
-            has been successfully send.
-            :param entity: The entity which has been sent
+        This callback can be implemented to execute additional tasks after an email
+        has been successfully send.
+        :param entity: The entity which has been sent
         """
-        pass
+        ...
 
-    def splitAddress(self, address: str) -> dict[str, str]:
+    def split_address(self, address: str) -> AddressPair:
         """
-            Splits a Name/Address Pair into a dict,
-            i.e. "Max Musterman <mm@example.com>" into
-            {"name": "Max Mustermann", "email": "mm@example.com"}
-            :param address: Name/Address pair
-            :return: split dict
+        Splits a Name/Address Pair into a dict,
+        i.e. "Max Musterman <mm@example.com>" into
+        {"name": "Max Mustermann", "email": "mm@example.com"}
+        :param address: Name/Address pair
+        :return: split dict
         """
-        posLt = address.rfind("<")
-        posGt = address.rfind(">")
-        if -1 < posLt < posGt:
-            email = address[posLt + 1:posGt]
-            sname = address.replace(f"<{email}>", "", 1).strip()
-            return {"name": sname, "email": email}
+        pos_lt = address.rfind("<")
+        pos_gt = address.rfind(">")
+        if -1 < pos_lt < pos_gt:
+            email = address[pos_lt + 1:pos_gt]
+            name = address.replace(f"<{email}>", "", 1).strip()
+            return {"name": name, "email": email}
         else:
             return {"email": address}
 
     def validate_attachment(self, attachment: Attachment) -> None:
         """Validate attachment before queueing the email"""
         if not isinstance(attachment, dict):
-            raise TypeError(f"Attachment must be a dict, not {type(attachment)}")
+            raise TypeError(
+                f"Attachment must be a dict, not {type(attachment)}")
         if "filename" not in attachment:
             raise ValueError(f"Attachment {attachment} must have a filename")
-        if not any(prop in attachment for prop in ("content", "file_key", "gcsfile")):
-            raise ValueError(f"Attachment {attachment} must have content, file_key or gcsfile")
-        if "content" in attachment and not isinstance(attachment["content"], bytes):
-            raise ValueError(f"Attachment content must be bytes, not {type(attachment['content'])}")
+        if not any(prop in attachment for prop in
+                   ("content", "file_key", "gcsfile")):
+            raise ValueError(
+                f"Attachment {attachment} must have content, file_key or gcsfile")
+        if "content" in attachment and not isinstance(attachment["content"],
+                                                      bytes):
+            raise ValueError(
+                f"Attachment content must be bytes, not {type(attachment['content'])}")
 
     def fetch_attachment(self, attachment: Attachment) -> AttachmentInline:
-        """Fetch attachment (if necessary) in sendEmailDeferred deferred task
+        """Fetch attachment (if necessary) in send_email_deferred deferred task
 
         This allows sending emails with large attachments,
         and prevents the queue entry from exceeding the maximum datastore Entity size.
@@ -184,14 +199,19 @@ class EmailTransport(ABC):
 
 
 @CallDeferred
-def sendEmailDeferred(key: db.Key):
+def send_email_deferred(key: db.Key):
     """
-    Callback from the Taskqueue to send the given Email
-    :param key: Database-Key of the email we should send
+    Task that send an email.
+
+    This task is enqueued into the Cloud Tasks queue viur-email (see :attr:`EMAIL_QUEUE`) by :meth:`sendEMail`.
+    Send the email by calling the implemented :meth:`EmailTransport.deliver_email`
+    of the configures :attr:`conf.email.transport_class`.
+
+    :param key: Datastore key of the email to send
     """
     logging.debug(f"Sending deferred e-mail {key!r}")
-    queued_email = db.Get(key)
-    assert queued_email, "Email queue object went missing!"
+    if not (queued_email := db.Get(key)):
+        raise ValueError(f"Email queue entity with {key=!r} went missing!")
 
     if queued_email["isSend"]:
         return True
@@ -199,10 +219,11 @@ def sendEmailDeferred(key: db.Key):
         raise ChildProcessError("Error-Count exceeded")
 
     transport_class = conf.email.transport_class  # First, ensure we're able to send email at all
-    assert isinstance(transport_class, EmailTransport), "No or invalid email transportclass specified!"
+    if not isinstance(transport_class, EmailTransport):
+        raise ValueError(f"No or invalid email transportclass specified! ({transport_class=})")
 
     try:
-        result_data = transport_class.deliverEmail(
+        result_data = transport_class.deliver_email(
             dests=queued_email["dests"],
             sender=queued_email["sender"],
             cc=queued_email["cc"],
@@ -227,7 +248,7 @@ def sendEmailDeferred(key: db.Key):
     db.Put(queued_email)
 
     try:
-        transport_class.transportSuccessfulCallback(queued_email)
+        transport_class.transport_successful_callback(queued_email)
     except Exception as e:
         logging.exception(e)
 
@@ -248,18 +269,18 @@ def normalize_to_list(value: None | t.Any | list[t.Any] | t.Callable[[], list]) 
 
 
 def sendEMail(
-        *,
-        tpl: str = None,
-        stringTemplate: str = None,
-        skel: t.Union[None, dict, "SkeletonInstance", list["SkeletonInstance"]] = None,
-        sender: str = None,
-        dests: str | list[str] = None,
-        cc: str | list[str] = None,
-        bcc: str | list[str] = None,
-        headers: dict[str, str] = None,
-        attachments: list[Attachment] = None,
-        context: db.DATASTORE_BASE_TYPES | list[db.DATASTORE_BASE_TYPES] | db.Entity = None,
-        **kwargs,
+    *,
+    tpl: str = None,
+    stringTemplate: str = None,
+    skel: t.Union[None, dict, "SkeletonInstance", list["SkeletonInstance"]] = None,
+    sender: str = None,
+    dests: str | list[str] = None,
+    cc: str | list[str] = None,
+    bcc: str | list[str] = None,
+    headers: dict[str, str] = None,
+    attachments: list[Attachment] = None,
+    context: db.DATASTORE_BASE_TYPES | list[db.DATASTORE_BASE_TYPES] | db.Entity = None,
+    **kwargs,
 ) -> bool:
     """
     General purpose function for sending e-mail.
@@ -285,7 +306,7 @@ def sendEMail(
             - file_key (string): Key of a FileSkeleton to include instead of content.
 
     :param context: Arbitrary data that can be stored along the queue entry to be evaluated in
-        transportSuccessfulCallback (useful for tracking delivery / opening events etc).
+        transport_successful_callback (useful for tracking delivery / opening events etc).
 
     .. warning::
         As emails will be queued (and not send directly) you cannot exceed 1MB in total
@@ -302,9 +323,9 @@ def sendEMail(
     bcc = normalize_to_list(bcc)
 
     assert dests or cc or bcc, "No destination address given"
-    assert all([isinstance(x, str) and x for x in dests]), "Found non-string or empty destination address"
-    assert all([isinstance(x, str) and x for x in cc]), "Found non-string or empty cc address"
-    assert all([isinstance(x, str) and x for x in bcc]), "Found non-string or empty bcc address"
+    assert all(isinstance(x, str) and x for x in dests), "Found non-string or empty destination address"
+    assert all(isinstance(x, str) and x for x in cc), "Found non-string or empty cc address"
+    assert all(isinstance(x, str) and x for x in bcc), "Found non-string or empty bcc address"
 
     if not (bool(stringTemplate) ^ bool(tpl)):
         raise ValueError("You have to set the params 'tpl' xor a 'stringTemplate'.")
@@ -368,7 +389,7 @@ def sendEMail(
     queued_email["context"] = context
     queued_email.exclude_from_indexes = {"body", "attachments", "context"}
 
-    transport_class.validateQueueEntity(queued_email)  # Will raise an exception if the entity is not valid
+    transport_class.validate_queue_entity(queued_email)  # Will raise an exception if the entity is not valid
 
     if conf.instance.is_dev_server:
         if not conf.email.send_from_local_development_server or transport_class is EmailTransportAppengine:
@@ -379,7 +400,7 @@ def sendEMail(
             return False
 
     db.Put(queued_email)
-    sendEmailDeferred(queued_email.key, _queue=EMAIL_QUEUE)
+    send_email_deferred(queued_email.key, _queue=EMAIL_QUEUE)
     return True
 
 
@@ -387,7 +408,7 @@ def sendEMailToAdmins(subject: str, body: str, *args, **kwargs) -> bool:
     """
     Sends an e-mail to the root users of the current app.
 
-    If conf.email.admin_recipients is set, these recipients
+    If :attr:`conf.email.admin_recipients` is set, these recipients
     will be used instead of the root users.
 
     :param subject: Defines the subject of the message.
@@ -420,18 +441,23 @@ def sendEMailToAdmins(subject: str, body: str, *args, **kwargs) -> bool:
     return False
 
 
-class EmailTransportSendInBlue(EmailTransport):
-    # List of allowed file extensions that can be send from Send in Blue
-    allowedExtensions = {"gif", "png", "bmp", "cgm", "jpg", "jpeg", "tif",
-                         "tiff", "rtf", "txt", "css", "shtml", "html", "htm",
-                         "csv", "zip", "pdf", "xml", "doc", "docx", "ics",
-                         "xls", "xlsx", "ppt", "tar", "ez"}
+class EmailTransportBrevo(EmailTransport):
+    """Send emails with `Brevo`_, formerly Sendinblue.
+
+    .. _Brevo: https://www.brevo.com
+    """
+
+    allowed_extensions = {"gif", "png", "bmp", "cgm", "jpg", "jpeg", "tif",
+                          "tiff", "rtf", "txt", "css", "shtml", "html", "htm",
+                          "csv", "zip", "pdf", "xml", "doc", "docx", "ics",
+                          "xls", "xlsx", "ppt", "tar", "ez"}
+    """List of allowed file extensions that can be send from Brevo"""
 
     def __init__(
-            self,
-            *,
-            api_key: str,
-            thresholds: tuple[int] | list[int] = (1000, 500, 100),
+        self,
+        *,
+        api_key: str,
+        thresholds: tuple[int] | list[int] = (1000, 500, 100),
     ) -> None:
         """
         :param api_key: API key
@@ -441,45 +467,42 @@ class EmailTransportSendInBlue(EmailTransport):
         self.api_key = api_key
         self.thresholds = thresholds
 
-    def deliverEmail(
-            self,
-            *,
-            sender: str,
-            dests: list[str],
-            cc: list[str],
-            bcc: list[str],
-            subject: str,
-            body: str,
-            headers: dict[str, str],
-            attachments: list[Attachment],
-            **kwargs: t.Any,
+    def deliver_email(
+        self,
+        *,
+        sender: str,
+        dests: list[str],
+        cc: list[str],
+        bcc: list[str],
+        subject: str,
+        body: str,
+        headers: dict[str, str],
+        attachments: list[Attachment],
+        **kwargs: t.Any,
     ) -> str:
         """
-            Internal function for delivering Emails using Send in Blue. This function requires the
-            conf.email.sendinblue_api_key to be set.
-            This function is supposed to return on success and throw an exception otherwise.
-            If no exception is thrown, the email is considered send and will not be retried.
+        Internal function for delivering emails using Brevo.
         """
         dataDict = {
-            "sender": self.splitAddress(sender),
+            "sender": self.split_address(sender),
             "to": [],
             "htmlContent": body,
             "subject": subject,
         }
         for dest in dests:
-            dataDict["to"].append(self.splitAddress(dest))
+            dataDict["to"].append(self.split_address(dest))
         # initialize bcc and cc lists in dataDict
         if bcc:
             dataDict["bcc"] = []
             for dest in bcc:
-                dataDict["bcc"].append(self.splitAddress(dest))
+                dataDict["bcc"].append(self.split_address(dest))
         if cc:
             dataDict["cc"] = []
             for dest in cc:
-                dataDict["cc"].append(self.splitAddress(dest))
+                dataDict["cc"].append(self.split_address(dest))
         if headers:
             if "Reply-To" in headers:
-                dataDict["replyTo"] = self.splitAddress(headers["Reply-To"])
+                dataDict["replyTo"] = self.split_address(headers["Reply-To"])
                 del headers["Reply-To"]
             if headers:
                 dataDict["headers"] = headers
@@ -489,14 +512,15 @@ class EmailTransportSendInBlue(EmailTransport):
                 attachment = self.fetch_attachment(attachment)
                 dataDict["attachment"].append({
                     "name": attachment["filename"],
-                    "content": base64.b64encode(attachment["content"]).decode("ASCII")
+                    "content": base64.b64encode(attachment["content"]).decode(
+                        "ASCII")
                 })
         payload = json.dumps(dataDict).encode("UTF-8")
         headers = {
             "api-key": self.api_key,
             "Content-Type": "application/json; charset=utf-8"
         }
-        reqObj = request.Request(url="https://api.sendinblue.com/v3/smtp/email",
+        reqObj = request.Request(url="https://api.brevo.com/v3/smtp/email",
                                  data=payload, headers=headers, method="POST")
         try:
             response = request.urlopen(reqObj)
@@ -508,19 +532,23 @@ class EmailTransportSendInBlue(EmailTransport):
         assert str(response.code)[0] == "2", "Received a non 2XX Status Code!"
         return response.read().decode("UTF-8")
 
-    def validateQueueEntity(self, entity: db.Entity):
+    def validate_queue_entity(self, entity: db.Entity) -> None:
         """
-            For Send in Blue, we'll validate the attachments (if any) against the list of supported file extensions
+        Validate the attachments (if any) against the list of supported file extensions by Brevo.
+
+        :raises ValueError: If the attachment was not allowed
+
+        .. seealso:: :attr:`allowed_extensions`
         """
         for attachment in entity.get("attachments") or []:
             ext = attachment["filename"].split(".")[-1].lower()
-            if ext not in self.allowedExtensions:
-                raise ValueError(f"The file-extension {ext} cannot be send using Send in Blue")
+            if ext not in self.allowed_extensions:
+                raise ValueError(f"The file-extension {ext} cannot be send using Brevo")
 
     @PeriodicTask(interval=datetime.timedelta(hours=1))
     @staticmethod
     def check_sib_quota() -> None:
-        """Periodically checks the remaining SendInBlue email quota.
+        """Periodically checks the remaining Brevo email quota.
 
         This task does not have to be enabled.
         It automatically checks if the apiKey is configured.
@@ -528,12 +556,14 @@ class EmailTransportSendInBlue(EmailTransport):
         There are three default thresholds: 1000, 500, 100
         Others can be set via :attr:`thresholds`.
         An email will be sent for the lowest threshold that has been undercut.
+
+        : seealos:: https://developers.brevo.com/reference/getaccount
         """
         if not isinstance(conf.email.transport_class, EmailTransportSendInBlue):
             return  # no SIB key, we cannot check
 
         req = requests.get(
-            "https://api.sendinblue.com/v3/account",
+            "https://api.brevo.com/v3/account",
             headers={"api-key": conf.email.transport_class.api_key},
         )
         if not req.ok:
@@ -583,46 +613,53 @@ class EmailTransportSendInBlue(EmailTransport):
         db.Put(entity)
 
 
+EmailTransportSendInBlue = EmailTransportBrevo
+
 if mailjet_dependencies:
     class EmailTransportMailjet(EmailTransport):
+        """Send emails with `Mailjet`_.
+
+        .. _Mailjet: https://www.mailjet.com/products/email-api/
+        """
+
         def __init__(
-                self,
-                *,
-                api_key: str,
-                secret_key: str,
+            self,
+            *,
+            api_key: str,
+            secret_key: str,
         ) -> None:
             super().__init__()
             self.api_key = api_key
             self.secret_key = secret_key
 
-        def deliverEmail(
-                self,
-                *,
-                sender: str,
-                dests: list[str],
-                cc: list[str],
-                bcc: list[str],
-                subject: str,
-                body: str,
-                headers: dict[str, str],
-                attachments: list[Attachment],
-                **kwargs: t.Any,
+        def deliver_email(
+            self,
+            *,
+            sender: str,
+            dests: list[str],
+            cc: list[str],
+            bcc: list[str],
+            subject: str,
+            body: str,
+            headers: dict[str, str],
+            attachments: list[Attachment],
+            **kwargs: t.Any,
         ) -> str:
             if not (self.api_key and self.secret_key):
                 raise RuntimeError("Mailjet config invalid, check 'api_key' and 'secret_key'")
 
             email = {
-                "from": self.splitAddress(sender),
+                "from": self.split_address(sender),
                 "htmlpart": body,
                 "subject": subject,
-                "to": [self.splitAddress(dest) for dest in dests],
+                "to": [self.split_address(dest) for dest in dests],
             }
 
             if bcc:
-                email["bcc"] = [self.splitAddress(b) for b in bcc]
+                email["bcc"] = [self.split_address(b) for b in bcc]
 
             if cc:
-                email["cc"] = [self.splitAddress(c) for c in cc]
+                email["cc"] = [self.split_address(c) for c in cc]
 
             if headers:
                 email["headers"] = headers
@@ -640,7 +677,7 @@ if mailjet_dependencies:
 
             mj_client = mailjet_rest.Client(
                 auth=(self.api_key, self.secret_key),
-                version="v3.1"
+                version="v3.1",
             )
 
             result = mj_client.send.create(data={"messages": [email]})
@@ -649,37 +686,40 @@ if mailjet_dependencies:
 
 
 class EmailTransportSendgrid(EmailTransport):
-    """Send emails with SendGrid"""
+    """Send emails with `SendGrid`_.
+
+    .. _SendGrid: https://sendgrid.com/en-us/solutions/email-api
+    """
 
     def __init__(
-            self,
-            *,
-            api_key: str,
+        self,
+        *,
+        api_key: str,
     ) -> None:
         super().__init__()
         self.api_key = api_key
 
-    def deliverEmail(
-            self,
-            *,
-            sender: str,
-            dests: list[str],
-            cc: list[str],
-            bcc: list[str],
-            subject: str,
-            body: str,
-            headers: dict[str, str],
-            attachments: list[Attachment],
-            **kwargs: t.Any,
+    def deliver_email(
+        self,
+        *,
+        sender: str,
+        dests: list[str],
+        cc: list[str],
+        bcc: list[str],
+        subject: str,
+        body: str,
+        headers: dict[str, str],
+        attachments: list[Attachment],
+        **kwargs: t.Any,
     ) -> dict[str, str]:
         data = {
             "personalizations": [
                 personalization := {
-                    "to": [self.splitAddress(val) for val in dests],
+                    "to": [self.split_address(val) for val in dests],
                     "subject": subject,
                 }
             ],
-            "from": self.splitAddress(sender),
+            "from": self.split_address(sender),
             "content": [{
                 "type": "text/html",
                 "value": body,
@@ -692,9 +732,9 @@ class EmailTransportSendgrid(EmailTransport):
         }
 
         if cc:
-            personalization["cc"] = [self.splitAddress(val) for val in cc]
+            personalization["cc"] = [self.split_address(val) for val in cc]
         if bcc:
-            personalization["bcc"] = [self.splitAddress(val) for val in bcc]
+            personalization["bcc"] = [self.split_address(val) for val in bcc]
 
         if attachments:
             assert isinstance(attachments, list)
@@ -728,24 +768,28 @@ class EmailTransportSendgrid(EmailTransport):
 class EmailTransportAppengine(EmailTransport):
     """
     Abstraction of the Google AppEngine Mail API for email transportation.
+
+    .. warning: Works only in a deployed Google Cloud environment.
+
+    .. seealso:: https://cloud.google.com/appengine/docs/standard/python3/services/mail
     """
 
-    def deliverEmail(
-            self,
-            *,
-            sender: str,
-            dests: list[str],
-            cc: list[str],
-            bcc: list[str],
-            subject: str,
-            body: str,
-            headers: dict[str, str],
-            attachments: list[Attachment],
-            **kwargs: t.Any,
+    def deliver_email(
+        self,
+        *,
+        sender: str,
+        dests: list[str],
+        cc: list[str],
+        bcc: list[str],
+        subject: str,
+        body: str,
+        headers: dict[str, str],
+        attachments: list[Attachment],
+        **kwargs: t.Any,
     ) -> None:
         # need to build a silly dict because the google.appengine mail api doesn't accept None or empty values ...
         params = {
-            "to": [self.splitAddress(dest)["email"] for dest in dests],
+            "to": [self.split_address(dest)["email"] for dest in dests],
             "sender": sender,
             "subject": subject,
             "body": HtmlSerializer().sanitize(body),
@@ -753,10 +797,10 @@ class EmailTransportAppengine(EmailTransport):
         }
 
         if cc:
-            params["cc"] = [self.splitAddress(c)["email"] for c in cc]
+            params["cc"] = [self.split_address(c)["email"] for c in cc]
 
         if bcc:
-            params["bcc"] = [self.splitAddress(c)["email"] for c in bcc]
+            params["bcc"] = [self.split_address(c)["email"] for c in bcc]
 
         if attachments:
             params["attachments"] = []
