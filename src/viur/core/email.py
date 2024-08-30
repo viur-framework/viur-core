@@ -167,18 +167,14 @@ class EmailTransport(ABC):
     def validate_attachment(self, attachment: Attachment) -> None:
         """Validate attachment before queueing the email"""
         if not isinstance(attachment, dict):
-            raise TypeError(
-                f"Attachment must be a dict, not {type(attachment)}")
+            raise TypeError(f"Attachment must be a dict, not {type(attachment)}")
         if "filename" not in attachment:
             raise ValueError(f"Attachment {attachment} must have a filename")
-        if not any(prop in attachment for prop in
-                   ("content", "file_key", "gcsfile")):
+        if not any(prop in attachment for prop in ("content", "file_key", "gcsfile")):
             raise ValueError(
                 f"Attachment {attachment} must have content, file_key or gcsfile")
-        if "content" in attachment and not isinstance(attachment["content"],
-                                                      bytes):
-            raise ValueError(
-                f"Attachment content must be bytes, not {type(attachment['content'])}")
+        if "content" in attachment and not isinstance(attachment["content"], bytes):
+            raise ValueError(f"Attachment content must be bytes, not {type(attachment['content'])}")
 
     def fetch_attachment(self, attachment: Attachment) -> AttachmentInline:
         """Fetch attachment (if necessary) in send_email_deferred deferred task
