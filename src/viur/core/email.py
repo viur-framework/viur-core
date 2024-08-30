@@ -1,14 +1,16 @@
-import base64
-import datetime
-import json
-import logging
-import os
-import typing as t
-from abc import ABC, abstractmethod
 from urllib import request
 
+import base64
+import datetime
+import logging
+import os
 import requests
+import typing as t
+from abc import ABC, abstractmethod
+from deprecated import deprecated
 from google.appengine.api.mail import Attachment as GAE_Attachment, SendMail as GAE_SendMail
+
+import json
 from viur.core import db, utils
 from viur.core.bones.text import HtmlSerializer
 from viur.core.config import conf
@@ -203,7 +205,7 @@ def send_email_deferred(key: db.Key):
     """
     Task that send an email.
 
-    This task is enqueued into the Cloud Tasks queue viur-email (see :attr:`EMAIL_QUEUE`) by :meth:`sendEMail`.
+    This task is enqueued into the Cloud Tasks queue viur-email (see :attr:`EMAIL_QUEUE`) by :meth:`send_email`.
     Send the email by calling the implemented :meth:`EmailTransport.deliver_email`
     of the configures :attr:`conf.email.transport_class`.
 
@@ -268,7 +270,7 @@ def normalize_to_list(value: None | t.Any | list[t.Any] | t.Callable[[], list]) 
     return [value]
 
 
-def sendEMail(
+def send_email(
     *,
     tpl: str = None,
     stringTemplate: str = None,
@@ -404,9 +406,14 @@ def sendEMail(
     return True
 
 
-def sendEMailToAdmins(subject: str, body: str, *args, **kwargs) -> bool:
+@deprecated(version="3.7.0", reason="Use send_email instead", action="always")
+def sendEMail(*args, **kwargs):
+    return send_email(*args, **kwargs)
+
+
+def send_email_to_admins(subject: str, body: str, *args, **kwargs) -> bool:
     """
-    Sends an e-mail to the root users of the current app.
+    Sends an email to the root users of the current app.
 
     If :attr:`conf.email.admin_recipients` is set, these recipients
     will be used instead of the root users.
@@ -427,7 +434,7 @@ def sendEMailToAdmins(subject: str, body: str, *args, **kwargs) -> bool:
         subject = f"{conf.instance.project_id}: {subject}"
 
         if users:
-            ret = sendEMail(dests=users, stringTemplate=os.linesep.join((subject, body)), *args, **kwargs)
+            ret = send_email(dests=users, stringTemplate=os.linesep.join((subject, body)), *args, **kwargs)
             success = True
             return ret
         else:
@@ -439,6 +446,11 @@ def sendEMailToAdmins(subject: str, body: str, *args, **kwargs) -> bool:
             logging.debug(f"{subject = }, {body = }")
 
     return False
+
+
+@deprecated(version="3.7.0", reason="Use send_email_to_admins instead", action="always")
+def sendEMailToAdmins(*args, **kwargs):
+    return send_email_to_admins(*args, **kwargs)
 
 
 class EmailTransportBrevo(EmailTransport):
@@ -613,7 +625,10 @@ class EmailTransportBrevo(EmailTransport):
         db.Put(entity)
 
 
-EmailTransportSendInBlue = EmailTransportBrevo
+@deprecated(version="3.7.0", reason="Sendinblue is now brevo; Use EmailTransportBrevo instead", action="always")
+class EmailTransportSendInBlue(EmailTransportBrevo):
+    ...
+
 
 if mailjet_dependencies:
     class EmailTransportMailjet(EmailTransport):

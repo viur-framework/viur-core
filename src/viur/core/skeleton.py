@@ -1610,7 +1610,7 @@ class RebuildSearchIndex(QueryIter):
             f"{totalCount} records updated in total on this kind."
         )
         try:
-            email.sendEMail(dests=customData["notify"], stringTemplate=txt, skel=None)
+            email.send_email(dests=customData["notify"], stringTemplate=txt, skel=None)
         except Exception as exc:  # noqa; OverQuota, whatever
             logging.exception(f'Failed to notify {customData["notify"]}')
 
@@ -1682,7 +1682,7 @@ def processVacuumRelationsChunk(
             f"{count_removed} entries removed"
         )
         try:
-            email.sendEMail(dests=notify, stringTemplate=txt, skel=None)
+            email.send_email(dests=notify, stringTemplate=txt, skel=None)
         except Exception as exc:  # noqa; OverQuota, whatever
             logging.exception(f"Failed to notify {notify}")
 
