@@ -1017,6 +1017,8 @@ class File(Tree):
             fmt = filename.rsplit(".", 1)[-1].lower()
             if fmt in VALID_FMTS:
                 file_fmt = fmt
+            else:
+                raise errors.UnprocessableEntity(f"Unsupported filetype {fmt}")
 
         url = f"https://{host}.googleusercontent.com/{value}"
 
