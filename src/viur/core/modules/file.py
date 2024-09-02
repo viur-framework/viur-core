@@ -1037,9 +1037,9 @@ class File(Tree):
             response.headers["Content-Type"] = f"image/{file_fmt}"
             response.headers["Cache-Control"] = "public, max-age=604800"  # 7 Days
             if download:
-                response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+                response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
             else:
-                response.headers["Content-Disposition"] = f"filename={filename}"
+                response.headers["Content-Disposition"] = f'filename="{filename}"'
 
             return requests.get(url).content
 
