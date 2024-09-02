@@ -944,63 +944,76 @@ class File(Tree):
 
         raise errors.Redirect(signedUrl)
 
+    SERVE_VALID_OPTIONS = {
+        "c",
+        "p",
+        "fv",
+        "fh",
+        "r90",
+        "r180",
+        "r270",
+        "nu",
+    }
+    """
+    Valid modification option shorts for the serve-function.
+    This is passed-through to the Google UserContent API, and hast to be supported there.
+    """
+
+    SERVE_VALID_SIZES = {
+        32, 48, 64, 72, 80, 90, 94,
+        104, 110, 120, 128, 144, 150, 160,
+        200, 220, 288,
+        320,
+        400,
+        512, 576,
+        640,
+        720,
+        800,
+        912,
+        1024, 1152, 1280, 1440, 1600,
+    }
+    """
+    Valid sizes for the serve-function.
+    This is passed-through to the Google UserContent API, and hast to be supported there.
+    """
+
+    SERVE_VALID_FORMATS = {
+        "jpg": "rj",
+        "jpeg": "rj",
+        "png": "rp",
+        "webp": "rw",
+    }
+    """
+    Valid file-formats to the serve-function.
+    This is passed-through to the Google UserContent API, and hast to be supported there.
+    """
+
     @exposed
     def serve(
         self,
         key: str,
         size: t.Optional[int] = None,
-        filename: t.Optional[str] = None,  # random string with .ext
+        filename: t.Optional[str] = None,
         options: str = "",
         download: bool = False,
     ):
         """
         Requests an image using the serving url to bypass direct Google requests.
 
-        :param key: a string with one __ seperator. The first part is the host prefix, the second part is the key
-        :param size: the target image size, take a look at the VALID_SIZES
-        :param filename: a random string with an extention, valid extentions are jpg,png,webp
-        :param options: - seperated options:
+        :param key: a string with one __ seperator. The first part is the host prefix, the second part is the key.
+        :param size: the target image size, take a look at File.SERVE_VALID_SIZES.
+        :param filename: a random string with an extention, valid extentions are (defined in File.SERVE_VALID_FORMATS).
+        :param options: - seperated options (defined in File.SERVE_VALID_OPTIONS).
             c - crop
             p - face crop
             fv - vertrical flip
             fh - horizontal flip
             rXXX - rotate 90, 180, 270
             nu - no upscale
-        :param download: if value = 1 force download, else not
-        :return:
+        :param download: Serves the content as download (Content-Disposition) or not.
+
+        :return: Returns the requested content on success, raises a proper HTTP exception otherwise.
         """
-
-        VALID_OPTIONS = {
-            "c",
-            "p",
-            "fv",
-            "fh",
-            "r90",
-            "r180",
-            "r270",
-            "nu",
-        }
-
-        VALID_SIZES = {
-            32, 48, 64, 72, 80, 90, 94,
-            104, 110, 120, 128, 144, 150, 160,
-            200, 220, 288,
-            320,
-            400,
-            512, 576,
-            640,
-            720,
-            800,
-            912,
-            1024, 1152, 1280, 1440, 1600,
-        }
-
-        VALID_FMTS = {
-            "jpg": "rj",
-            "jpeg": "rj",
-            "png": "rp",
-            "webp": "rw",
-        }
 
         try:
             host, value = key.split("__", 1)
@@ -1015,19 +1028,19 @@ class File(Tree):
 
         if filename:
             fmt = filename.rsplit(".", 1)[-1].lower()
-            if fmt in VALID_FMTS:
+            if fmt in self.SERVE_VALID_FORMATS:
                 file_fmt = fmt
             else:
                 raise errors.UnprocessableEntity(f"Unsupported filetype {fmt}")
 
         url = f"https://{host}.googleusercontent.com/{value}"
 
-        if options and not all(param in VALID_OPTIONS for param in options.split("-")):
+        if options and not all(param in self.SERVE_VALID_OPTIONS for param in options.split("-")):
             raise errors.BadRequest("Invalid options provided")
 
-        options += f"-{VALID_FMTS[file_fmt]}"
+        options += f"-{self.SERVE_VALID_FORMATS[file_fmt]}"
 
-        if size and size in VALID_SIZES:
+        if size and size in self.SERVE_VALID_SIZES:
             options = f"s{size}-" + options
 
         url += "=" + options
