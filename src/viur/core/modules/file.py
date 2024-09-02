@@ -1039,22 +1039,13 @@ class File(Tree):
             response.headers["Content-Disposition"] = f"attachment; filename={filename}"
         else:
             response.headers["Content-Disposition"] = f"filename={filename}"
-        
+
         answ = requests.get(url, timeout=20)
         if not answ.ok:
+            logging.error(f"{answ.status_code} {answ.text}")
             raise errors.BadRequest("Unable to fetch a file with these parameters")
-            response = current.request.get().response
-            response.headers["Content-Type"] = f"image/{file_fmt}"
-            response.headers["Cache-Control"] = "public, max-age=604800"  # 7 Days
-            if download:
-                response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
-            else:
-                response.headers["Content-Disposition"] = f'filename="{filename}"'
 
-            return requests.get(url).content
-
-        except Exception as e:
-            raise errors.BadRequest("Invalid Url")
+        return answ.content
 
     @exposed
     @force_ssl
