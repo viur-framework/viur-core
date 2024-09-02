@@ -34,13 +34,13 @@ class Formmailer(Module):
         # Get recipients
         rcpts = self.getRcpts(skel)
 
-        # Get additional options for sendEMail
+        # Get additional options for send_email
         opts = self.getOptions(skel)
         if not isinstance(opts, dict):
             opts = {}
 
         # Send the email!
-        email.sendEMail(dests=rcpts, tpl=self.mailTemplate, skel=skel, **opts)
+        email.send_email(dests=rcpts, tpl=self.mailTemplate, skel=skel, **opts)
         self.onAdded(skel)
 
         return self.render.addSuccess(skel)
