@@ -1032,7 +1032,17 @@ class File(Tree):
 
         url += "=" + options
 
-        try:
+        response = current.request.get().response
+        response.headers["Content-Type"] = f"image/{file_fmt}"
+        response.headers["Cache-Control"] = "public, max-age=604800"  # 7 Days
+        if download:
+            response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+        else:
+            response.headers["Content-Disposition"] = f"filename={filename}"
+        
+        answ = requests.get(url, timeout=20)
+        if not answ.ok:
+            raise errors.BadRequest("Unable to fetch a file with these parameters")
             response = current.request.get().response
             response.headers["Content-Type"] = f"image/{file_fmt}"
             response.headers["Cache-Control"] = "public, max-age=604800"  # 7 Days
