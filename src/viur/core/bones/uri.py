@@ -1,15 +1,21 @@
 import fnmatch
-
-import logging
-
-from . import RawBone, ReadFromClientError, ReadFromClientErrorSeverity
+from . import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from urllib.parse import urlparse, urlunparse
 import typing as t
 from collections.abc import Iterable
 from collections import namedtuple
 
 
-class URIBone(RawBone):
+class URIBone(BaseBone):
+    """
+       The URIBone is used for storing URI and URL.
+
+       :param accepted_protocols: The accepted protocols can be set to allow only the provide protocols.
+       :param accepted_ports The accepted ports can be set to allow only the provide ports.
+       :param clean_get_params: When set to Ture the GET Parameter for the URL will be cleand.
+       :param domain_allowed_list: If set only the URLs that are match with an entry of this list will be accepted.
+       :param domain_disallowed_list: If set only the URLs that are not match with an entry of this list will be accepted.
+       """
     type = "uri"
 
     def __init__(
@@ -17,9 +23,9 @@ class URIBone(RawBone):
         *,
         accepted_protocols: str | list[str] = "*",
         accepted_ports: int | str | list[int] | list[str] = "*",
+        clean_get_params: bool = False,
         domain_allowed_list: list[str] | None = None,
         domain_disallowed_list: list[str] | None = None,
-        clean_get_params: bool = False,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -29,7 +35,6 @@ class URIBone(RawBone):
 
         self.accepted_protocols = accepted_protocols
         if not isinstance(self.accepted_protocols, Iterable) or isinstance(self.accepted_protocols, str):
-            logging.debug("here1")
             self.accepted_protocols = [self.accepted_protocols]
 
         if "*" in accepted_protocols:
@@ -37,8 +42,6 @@ class URIBone(RawBone):
 
         if not isinstance(clean_get_params, bool):
             raise ValueError("clean_get_params must be a boolean")
-
-        self.clean_get_params = clean_get_params
 
         if not isinstance(domain_allowed_list, (list, tuple)) and domain_allowed_list is not None:
             raise ValueError("domain_allowed_list must be a list or a tuple or None")
@@ -53,6 +56,11 @@ class URIBone(RawBone):
         if domain_disallowed_list is not None:
             if any([not isinstance(domain, str) for domain in domain_disallowed_list]):
                 raise ValueError("domain_disallowed_list must only contain strings")
+
+        if domain_allowed_list and domain_disallowed_list:
+            raise ValueError("Only one of domain_allowed_list and domain_disallowed_list can be set")
+
+        self.clean_get_params = clean_get_params
         self.domain_allowed_list = domain_allowed_list
         self.domain_disallowed_list = domain_disallowed_list
 
@@ -78,11 +86,11 @@ class URIBone(RawBone):
         if isinstance(accepted_ports, int):
             accepted_ports_value.append(accepted_ports)
             return accepted_ports_value
-        if isinstance(accepted_ports, list):
+        if isinstance(accepted_ports, (list, tuple)):
             for accepted_port in accepted_ports:
                 accepted_ports_value.extend(self.build_accepted_ports(accepted_port))
             return accepted_ports_value
-
+        raise ValueError("accepted_ports must be a list or a tuple or an integer or string")
 
     def isInvalid(self, value):
         try:
@@ -94,7 +102,10 @@ class URIBone(RawBone):
             if parsed_url.port not in self.accepted_ports:
                 return f""""{parsed_url.port}" not in the accepted ports."""
         if self.accepted_protocols != "*":
-            if parsed_url.scheme not in self.accepted_protocols:
+            for protocol in self.accepted_protocols:
+                if fnmatch.fnmatch(parsed_url.scheme, protocol):
+                    break
+            else:
                 return f""""{parsed_url.scheme}" not in the accepted protocols."""
         if self.domain_allowed_list is not None:
             for domain in self.domain_allowed_list:
@@ -106,7 +117,6 @@ class URIBone(RawBone):
             for domain in self.domain_disallowed_list:
                 if fnmatch.fnmatch(value, domain):
                     return f"""Url is in the domain disallowed list."""
-
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
         if err := self.isInvalid(value):
@@ -133,5 +143,9 @@ class URIBone(RawBone):
 
     def structure(self) -> dict:
         return super().structure() | {
+            "accepted_protocols": self.accepted_protocols,
             "accepted_ports": self.accepted_ports,
+            "clean_get_params": self.clean_get_params,
+            "domain_allowed_list": self.domain_allowed_list,
+            "domain_disallowed_list": self.domain_disallowed_list,
         }
