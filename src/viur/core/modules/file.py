@@ -959,24 +959,6 @@ class File(Tree):
     This is passed-through to the Google UserContent API, and hast to be supported there.
     """
 
-    SERVE_VALID_SIZES = {
-        32, 48, 64, 72, 80, 90, 94,
-        104, 110, 120, 128, 144, 150, 160,
-        200, 220, 288,
-        320,
-        400,
-        512, 576,
-        640,
-        720,
-        800,
-        912,
-        1024, 1152, 1280, 1440, 1600,
-    }
-    """
-    Valid sizes for the serve-function.
-    This is passed-through to the Google UserContent API, and hast to be supported there.
-    """
-
     SERVE_VALID_FORMATS = {
         "jpg": "rj",
         "jpeg": "rj",
@@ -1040,7 +1022,7 @@ class File(Tree):
 
         options += f"-{self.SERVE_VALID_FORMATS[file_fmt]}"
 
-        if size and size in self.SERVE_VALID_SIZES:
+        if size:
             options = f"s{size}-" + options
 
         url += "=" + options
