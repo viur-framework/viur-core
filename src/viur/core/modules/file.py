@@ -973,6 +973,7 @@ class File(Tree):
     @exposed
     def serve(
         self,
+        host: str,
         key: str,
         size: t.Optional[int] = None,
         filename: t.Optional[str] = None,
@@ -982,8 +983,9 @@ class File(Tree):
         """
         Requests an image using the serving url to bypass direct Google requests.
 
-        :param key: a string with one __ seperator. The first part is the host prefix, the second part is the key.
-        :param size: the target image size, take a look at File.SERVE_VALID_SIZES.
+        :param host: the google host prefix i.e. lh3
+        :param key: the serving url key
+        :param size: the target image size
         :param filename: a random string with an extention, valid extentions are (defined in File.SERVE_VALID_FORMATS).
         :param options: - seperated options (defined in File.SERVE_VALID_OPTIONS).
             c - crop
@@ -996,11 +998,6 @@ class File(Tree):
 
         :return: Returns the requested content on success, raises a proper HTTP exception otherwise.
         """
-
-        try:
-            host, value = key.split("__", 1)
-        except ValueError:
-            raise errors.BadRequest("Invalid key provided for serving url")
 
         if any(c not in conf.search_valid_chars for c in host):
             raise errors.BadRequest("key contains invalid characters")
@@ -1015,7 +1012,7 @@ class File(Tree):
             else:
                 raise errors.UnprocessableEntity(f"Unsupported filetype {fmt}")
 
-        url = f"https://{host}.googleusercontent.com/{value}"
+        url = f"https://{host}.googleusercontent.com/{key}"
 
         if options and not all(param in self.SERVE_VALID_OPTIONS for param in options.split("-")):
             raise errors.BadRequest("Invalid options provided")
