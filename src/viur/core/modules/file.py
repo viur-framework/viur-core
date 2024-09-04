@@ -429,6 +429,7 @@ class FileNodeSkel(TreeSkel):
 class File(Tree):
     PENDING_POSTFIX = " (pending)"
     DOWNLOAD_URL_PREFIX = "/file/download/"
+    SERVE_URL_PREFIX = "/file/serve"
     MAX_FILENAME_LEN = 256
 
     leafSkelCls = FileLeafSkel
@@ -491,6 +492,53 @@ class File(Tree):
     @staticmethod
     def hmac_verify(data: t.Any, signature: str) -> bool:
         return hmac.compare_digest(File.hmac_sign(data.encode("ASCII")), signature)
+
+    @staticmethod
+    def create_serve_parameters( serving_url: str) -> t.Iterable[str] | None:
+        """
+        Splits a serving URL into its components, used by serve function.
+        :param serving_url: the serving URL to be split
+        :return: return a tuple of host and key
+        """
+        regex_result = re.match(
+            r"^https:\/\/(.*?)\.googleusercontent\.com\/(.*?)$",
+            serving_url
+        )
+
+        if regex_result:
+            return regex_result.groups()
+        return regex_result
+
+    @staticmethod
+    def create_serve_url(
+        serving_url :str,
+        size: t.Optional[int] = None,
+        filename: t.Optional[str] = None,
+        options: str = "",
+        download: bool = False
+    ) -> str:
+
+        serve_url = f"{File.SERVE_URL_PREFIX}"
+
+        serving_params = File.create_serve_parameters(serving_url)
+        if not serving_params:
+            raise errors.UnprocessableEntity(f"Invalid serving_url {serving_url!r} provided")
+
+        serve_url += f"/{'/'.join(serving_params)}"
+
+        path_parameters = [f"{x}" for x in [size, filename] if x is not None]
+        if path_parameters:
+            serve_url += f"/{'/'.join(path_parameters)}"
+
+        query_parameters = [
+            f"{k}={str(v).lower()}"
+            for k, v in {"options": options, "download": download}.items()
+            if bool(v) is not False]
+
+        if query_parameters:
+            serve_url += f"?{'&'.join(query_parameters)}"
+
+        return serve_url
 
     @staticmethod
     def create_download_url(
