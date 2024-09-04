@@ -494,7 +494,7 @@ class File(Tree):
         return hmac.compare_digest(File.hmac_sign(data.encode("ASCII")), signature)
 
     @staticmethod
-    def create_serve_parameters( serving_url: str) -> t.Iterable[str] | None:
+    def create_serve_parameters(serving_url: str) -> t.Iterable[str] | None:
         """
         Splits a serving URL into its components, used by serve function.
         :param serving_url: the serving URL to be split
@@ -511,7 +511,7 @@ class File(Tree):
 
     @staticmethod
     def create_serve_url(
-        serving_url :str,
+        serving_url: str,
         size: t.Optional[int] = None,
         filename: t.Optional[str] = None,
         options: str = "",
