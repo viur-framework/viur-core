@@ -1237,7 +1237,7 @@ def doCheckForUnreferencedBlobs(cursor=None):
         doCheckForUnreferencedBlobs(newCursor)
 
 
-@PeriodicTask(0)
+@PeriodicTask(interval=datetime.timedelta(hours=4))
 def startCleanupDeletedFiles():
     """
         Increase deletion counter on each blob currently not referenced and delete
