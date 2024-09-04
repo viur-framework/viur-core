@@ -841,7 +841,7 @@ class EmailTransportSmtp(EmailTransport):
             encoders.encode_base64(part)
             part.add_header(
                 "Content-Disposition",
-                f'attachment; filename= {attachment["filename"]}',
+                f'attachment; filename="{attachment["filename"]}"',
             )
             message.add_alternative(part)
 
