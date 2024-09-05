@@ -10,6 +10,10 @@ class MailSkel(RelSkel):
 
 
 class Formmailer(Module):
+    """
+    Formmailer is the standard module to implement a form mailer for contact request or similar forms.
+    """
+
     mailTemplate = None
 
     @exposed
