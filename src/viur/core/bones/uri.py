@@ -20,7 +20,8 @@ class URIBone(BaseBone):
             URIBone(accepted_ports=[1,"2","4-10"])
        :param clean_get_params: When set to Ture the GET Parameter for the URL will be cleand.
        :param domain_allowed_list: If set only the URLs that are match with an entry of this list will be accepted.
-       :param domain_disallowed_list: If set only the URLs that are not match with an entry of this list will be accepted.
+       :param domain_disallowed_list: If set only the URLs that are not match
+            with an entry of this list will be accepted.
        :param local_allowed_list: If True the URLs that are local paths will be prefixed with "/".
        """
     type = "uri"
