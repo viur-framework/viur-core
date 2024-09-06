@@ -26,6 +26,7 @@ class URIBone(BaseBone):
         clean_get_params: bool = False,
         domain_allowed_list: list[str] | None = None,
         domain_disallowed_list: list[str] | None = None,
+        local_path_allowed: bool = False,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -60,9 +61,13 @@ class URIBone(BaseBone):
         if domain_allowed_list and domain_disallowed_list:
             raise ValueError("Only one of domain_allowed_list and domain_disallowed_list can be set")
 
+        if not isinstance(local_path_allowed, bool):
+            raise ValueError("local_path_allowed must be a boolean")
+
         self.clean_get_params = clean_get_params
         self.domain_allowed_list = domain_allowed_list
         self.domain_disallowed_list = domain_disallowed_list
+        self.local_path_allowed = local_path_allowed
 
     def build_accepted_ports(self, accepted_ports):
         accepted_ports_value = []
@@ -70,7 +75,6 @@ class URIBone(BaseBone):
             if accepted_ports == "*":
                 return "*"
             else:
-
                 ports = accepted_ports.split(",")
                 for port in ports:
                     if "-" in port:  # range of ports
@@ -79,17 +83,27 @@ class URIBone(BaseBone):
                         end = int(end)
                         if start > end:
                             raise ValueError("Start value must be less than end value")
+
+                        if start < 0:
+                            raise ValueError("Start value must be greater than zero")
+
+                        if end < 65535:  # 2**16 max ports:
+                            raise ValueError("End value must be less or equal than 65535")
+
                         accepted_ports_value.extend(range(start, end + 1))
+
                     else:
                         accepted_ports_value.append(int(port))
                 return accepted_ports_value
         if isinstance(accepted_ports, int):
             accepted_ports_value.append(accepted_ports)
             return accepted_ports_value
+
         if isinstance(accepted_ports, (list, tuple)):
             for accepted_port in accepted_ports:
                 accepted_ports_value.extend(self.build_accepted_ports(accepted_port))
             return accepted_ports_value
+
         raise ValueError("accepted_ports must be a list or a tuple or an integer or string")
 
     def isInvalid(self, value):
@@ -98,21 +112,27 @@ class URIBone(BaseBone):
         except ValueError:
             return "Can't parse URL"
 
+        if not self.local_path_allowed and parsed_url.scheme == "":
+            return f"""No protocol specified"""
+
         if self.accepted_ports != "*":
             if parsed_url.port not in self.accepted_ports:
                 return f""""{parsed_url.port}" not in the accepted ports."""
+
         if self.accepted_protocols != "*":
             for protocol in self.accepted_protocols:
                 if fnmatch.fnmatch(parsed_url.scheme, protocol):
                     break
             else:
                 return f""""{parsed_url.scheme}" not in the accepted protocols."""
+
         if self.domain_allowed_list is not None:
             for domain in self.domain_allowed_list:
                 if fnmatch.fnmatch(value, domain):
                     break
             else:
                 return f"""Url is not in the domain allowed list."""
+
         if self.domain_disallowed_list is not None:
             for domain in self.domain_disallowed_list:
                 if fnmatch.fnmatch(value, domain):
@@ -121,8 +141,14 @@ class URIBone(BaseBone):
     def singleValueFromClient(self, value, skel, bone_name, client_data):
         if err := self.isInvalid(value):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
+
+        parsed_url = urlparse(value)
+        if self.local_path_allowed and parsed_url.scheme == "":
+            if value[0] not in ["?", "#", "/"]:
+                value = f"/{value}"
+                parsed_url = urlparse(value)
+
         if self.clean_get_params:
-            parsed_url = urlparse(value)
             Components = namedtuple(
                 typename="Components",
                 field_names=["scheme", "netloc", "path", "url", "query", "fragment"]
@@ -148,4 +174,5 @@ class URIBone(BaseBone):
             "clean_get_params": self.clean_get_params,
             "domain_allowed_list": self.domain_allowed_list,
             "domain_disallowed_list": self.domain_disallowed_list,
+            "local_path_allowed": self.local_path_allowed,
         }
