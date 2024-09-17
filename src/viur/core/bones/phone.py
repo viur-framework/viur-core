@@ -4,7 +4,6 @@ import json
 
 from viur.core.bones.string import StringBone
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import conf
 
 from pathlib import Path
 
@@ -42,7 +41,8 @@ class PhoneBone(StringBone):
 
         :param test: An optional custom regex pattern for phone number validation.
         :param max_length: The maximum length of the phone number. Passed to 'StringBone'.
-        :param default_country_code: The default country code to apply if none is provided.
+        :param default_country_code: The default country code to apply.
+        If None is provided the PhoneBone will ignore auto prefixing of the country code.
         :param kwargs: Additional keyword arguments. Passed to 'StringBone'.
         """
         self.test: t.Pattern[str] = re.compile(test) if isinstance(test, str) else test
