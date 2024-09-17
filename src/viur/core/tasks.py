@@ -411,7 +411,7 @@ def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
                         signature = ", ".join(args_repr + kwargs_repr)
                         try:
                             from viur.core import email
-                            email.sendEMail(
+                            email.send_email(
                                 dests=email_recipients,
                                 tpl=tpl,
                                 stringTemplate=string_template if tpl is None else string_template,

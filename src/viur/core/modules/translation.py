@@ -123,6 +123,10 @@ class TranslationSkel(Skeleton):
 
 
 class Translation(List):
+    """
+    The Translation module is a system module used by the ViUR framework for its internationalization capabilities.
+    """
+
     kindName = KINDNAME
 
     def adminInfo(self):

@@ -496,29 +496,10 @@ class Email(ConfigType):
     log_retention: datetime.timedelta = datetime.timedelta(days=30)
     """For how long we'll keep successfully send emails in the viur-emails table"""
 
-    transport_class: t.Type["EmailTransport"] = None
-    """Class that actually delivers the email using the service provider
+    transport_class: "EmailTransport" = None
+    """EmailTransport instance that actually delivers the email using the service provider
     of choice. See email.py for more details
     """
-
-    mailjet_api_key: t.Optional[str] = None
-    """API Key for MailJet"""
-
-    mailjet_api_secret: t.Optional[str] = None
-    """API Secret for MailJet"""
-
-    sendinblue_api_key: t.Optional[str] = None
-    """API Key for SendInBlue (now Brevo) for the EmailTransportSendInBlue
-    """
-
-    sendinblue_thresholds: tuple[int] | list[int] = (1000, 500, 100)
-    """Warning thresholds for remaining email quota
-
-    Used by email.EmailTransportSendInBlue.check_sib_quota
-    """
-
-    sendgrid_api_key: t.Optional[str] = None
-    """API Key for SendGrid"""
 
     send_from_local_development_server: bool = False
     """If set, we'll enable sending emails from the local development server.
