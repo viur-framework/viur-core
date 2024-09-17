@@ -46,7 +46,7 @@ class PhoneBone(StringBone):
         :param kwargs: Additional keyword arguments. Passed to 'StringBone'.
         """
         self.test: t.Pattern[str] = re.compile(test) if isinstance(test, str) else test
-        self.default_country_code: str = default_country_code
+        self.default_country_code: t.Optional[str] = default_country_code
         self.countries = COUNTRYDATA
         super().__init__(max_length=max_length, **kwargs)
 
