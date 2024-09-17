@@ -69,6 +69,7 @@ where = ["src"]
 [tool.setuptools.package-data]
 "viur.core" = [
     "template/*.html",
+    "languages/*.json",
 ]
 
 [project.urls]
