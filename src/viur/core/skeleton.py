@@ -12,7 +12,7 @@ import warnings
 from functools import partial
 from itertools import chain
 from time import time
-from deprecated.sphinx import deprecated
+
 from viur.core import conf, current, db, email, errors, translate, utils
 from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, RelationalConsistency, RelationalUpdateLevel, \
     SelectBone, StringBone
@@ -414,11 +414,6 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
     boneMap = None
 
     @classmethod
-    @deprecated(
-        version="3.7.0",
-        reason="Use sub_skel function as alternative implementation. It is used differently.",
-        action="always"
-    )
     def subSkel(cls, *subskel_names, full_clone: bool = False, **kwargs) -> SkeletonInstance:
         """
             Creates a new sub-skeleton as part of the current skeleton.
