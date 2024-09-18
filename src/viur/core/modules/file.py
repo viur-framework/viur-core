@@ -494,7 +494,7 @@ class File(Tree):
         return hmac.compare_digest(File.hmac_sign(data.encode("ASCII")), signature)
 
     @staticmethod
-    def create_serve_parameters(serving_url: str) -> t.Iterable[str] | None:
+    def create_serve_parameters(serving_url: str) -> tuple[str, str]:
         """
         Splits a serving URL into its components, used by serve function.
         :param serving_url: the serving URL to be split
@@ -504,10 +504,9 @@ class File(Tree):
             r"^https:\/\/(.*?)\.googleusercontent\.com\/(.*?)$",
             serving_url
         )
-
-        if regex_result:
-            return regex_result.groups()
-        return regex_result
+        if not regex_result:
+            raise ValueError(f"Invalid {serving_url=!r} provided")
+        return regex_result.groups()
 
     @staticmethod
     def create_serve_url(
@@ -517,12 +516,9 @@ class File(Tree):
         options: str = "",
         download: bool = False
     ) -> str:
-
-        serve_url = f"{File.SERVE_URL_PREFIX}"
+        serve_url = File.SERVE_URL_PREFIX
 
         serving_params = File.create_serve_parameters(serving_url)
-        if not serving_params:
-            raise errors.UnprocessableEntity(f"Invalid serving_url {serving_url!r} provided")
 
         serve_url += f"/{'/'.join(serving_params)}"
 
@@ -530,13 +526,12 @@ class File(Tree):
         if path_parameters:
             serve_url += f"/{'/'.join(path_parameters)}"
 
-        query_parameters = [
-            f"{k}={str(v).lower()}"
-            for k, v in {"options": options, "download": download}.items()
-            if bool(v) is not False]
+        from urllib.parse import urlencode  # TODO: move to the top
+        
+        query_parameters = {k: v for k, v in {"options": options, "download": download}.items() if v}
 
         if query_parameters:
-            serve_url += f"?{'&'.join(query_parameters)}"
+            serve_url += f"?{urlencode(query_parameters)}"
 
         return serve_url
 
