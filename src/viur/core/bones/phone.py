@@ -9,12 +9,6 @@ from pathlib import Path
 
 DEFAULT_REGEX = r"^\+?(\d{1,3})[-\s]?(\d{1,4})[-\s]?(\d{1,4})[-\s]?(\d{1,9})$"
 
-COUNTRYFILE = Path(__file__).parent / "../languages/country_information.json"
-
-with open(COUNTRYFILE, "r") as fin:
-    COUNTRYDATA = json.load(fin)
-
-
 class PhoneBone(StringBone):
     """
     The PhoneBone class is designed to store validated phone/fax numbers in configurable formats.
@@ -47,7 +41,6 @@ class PhoneBone(StringBone):
         """
         self.test: t.Pattern[str] = re.compile(test) if isinstance(test, str) else test
         self.default_country_code: t.Optional[str] = default_country_code
-        self.countries = COUNTRYDATA
         super().__init__(max_length=max_length, **kwargs)
 
     @staticmethod
@@ -124,6 +117,5 @@ class PhoneBone(StringBone):
         """
         return super().structure() | {
             "test": self.test.pattern if self.test else "",
-            "countries": self.countries,
             "default_country_code": self.default_country_code,
         }
