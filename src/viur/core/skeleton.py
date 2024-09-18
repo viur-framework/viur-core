@@ -12,7 +12,7 @@ import warnings
 from functools import partial
 from itertools import chain
 from time import time
-
+from deprecated.sphinx import deprecated
 from viur.core import conf, current, db, email, errors, translate, utils
 from viur.core.bones import BaseBone, DateBone, KeyBone, RelationalBone, RelationalConsistency, RelationalUpdateLevel, \
     SelectBone, StringBone
@@ -150,38 +150,54 @@ class SkeletonInstance:
         "skeletonCls",
     }
 
-    def __init__(self, skelCls, subSkelNames=None, fullClone=False, clonedBoneMap=None):
-        if clonedBoneMap:
-            self.boneMap = clonedBoneMap
-            for k, v in self.boneMap.items():
-                v.isClonedInstance = True
+    def __init__(
+        self,
+        skel_cls: Skeleton,
+        *,
+        bone_names: t.Iterable[str] = (),
+        full_clone: bool = False,
+    ):
+        """
+        Creates a new SkeletonInstance based on `skel_cls`.
+        """
 
-        elif subSkelNames:
-            boneList = ["key"] + list(chain(*[skelCls.subSkels.get(x, []) for x in ["*"] + subSkelNames]))
-            doesMatch = lambda name: name in boneList or any(
-                [name.startswith(x[:-1]) for x in boneList if x[-1] == "*"])
-            if fullClone:
-                self.boneMap = {k: copy.deepcopy(v) for k, v in skelCls.__boneMap__.items() if doesMatch(k)}
-                for v in self.boneMap.values():
-                    v.isClonedInstance = True
+        bone_map = None
+
+        if bone_names:
+            names = ("key", ) + tuple(bone_names)
+
+            # generate full keys sequence based on definition; keeps order of patterns!
+            keys = []
+            for name in names:
+                if name in skel_cls.__boneMap__:
+                    keys.append(name)
+                else:
+                    keys.extend(fnmatch.filter(skel_cls.__boneMap__.keys(), name))
+
+            if full_clone:
+                bone_map = {k: copy.deepcopy(skel_cls.__boneMap__[k]) for k in keys if skel_cls.__boneMap__[k]}
             else:
-                self.boneMap = {k: v for k, v in skelCls.__boneMap__.items() if doesMatch(k)}
+                bone_map = {k: skel_cls.__boneMap__[k] for k in keys if skel_cls.__boneMap__[k]}
 
-        elif fullClone:
-            self.boneMap = copy.deepcopy(skelCls.__boneMap__)
+        elif full_clone:
+            bone_map = copy.deepcopy(skel_cls.__boneMap__)
+
+        # generated or provided bone_map
+        if bone_map:
+            self.boneMap = bone_map
             for v in self.boneMap.values():
                 v.isClonedInstance = True
 
         else:  # No Subskel, no Clone
-            self.boneMap = skelCls.__boneMap__.copy()
+            self.boneMap = skel_cls.__boneMap__.copy()
 
         self.accessedValues = {}
         self.dbEntity = None
         self.errors = []
-        self.is_cloned = fullClone
+        self.is_cloned = full_clone
         self.renderAccessedValues = {}
         self.renderPreparation = None
-        self.skeletonCls = skelCls
+        self.skeletonCls = skel_cls
 
     def items(self, yieldBoneValues: bool = False) -> t.Iterable[tuple[str, BaseBone]]:
         if yieldBoneValues:
@@ -340,7 +356,7 @@ class SkeletonInstance:
         Clones a SkeletonInstance into a modificable, stand-alone instance.
         This will also allow to modify the underlying data model.
         """
-        res = SkeletonInstance(self.skeletonCls, clonedBoneMap=copy.deepcopy(self.boneMap))
+        res = SkeletonInstance(self.skeletonCls, full_clone=True)
         res.accessedValues = copy.deepcopy(self.accessedValues)
         res.dbEntity = copy.deepcopy(self.dbEntity)
         res.is_cloned = True
@@ -398,7 +414,12 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
     boneMap = None
 
     @classmethod
-    def subSkel(cls, *name, fullClone: bool = False, **kwargs) -> SkeletonInstance:
+    @deprecated(
+        version="3.7.0",
+        reason="Use sub_skel function as alternative implementation. It is used differently.",
+        action="always"
+    )
+    def subSkel(cls, *subskel_names, full_clone: bool = False, **kwargs) -> SkeletonInstance:
         """
             Creates a new sub-skeleton as part of the current skeleton.
 
@@ -416,9 +437,23 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 
             :return: The sub-skeleton of the specified type.
         """
-        if not name:
+        if not subskel_names:
             raise ValueError("Which subSkel?")
-        return cls(subSkelNames=list(name), fullClone=fullClone)
+
+        # collect all patterns from all subskel definitions
+        bone_names = set(chain(*[cls.subSkels.get(name, []) for name in ("*", ) + subskel_names]))
+
+        # create bone names based on the order of the bones in the original skeleton
+        bone_names = tuple(k for k in cls.__boneMap__.keys() if any(fnmatch.fnmatch(k, n) for n in bone_names))
+
+        return cls(bone_names=bone_names, full_clone=full_clone)
+
+    @classmethod
+    def sub_skel(cls, *bone_names, full_clone: bool = False) -> SkeletonInstance:
+        if not bone_names:
+            raise ValueError("Please specify at least one bone name to create the sub-skeleton.")
+
+        return cls(bone_names=bone_names, full_clone=full_clone)
 
     @classmethod
     def setSystemInitialized(cls):
