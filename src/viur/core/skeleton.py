@@ -208,6 +208,9 @@ class SkeletonInstance:
 
         return self[item]
 
+    def update(self, *args, **kwargs) -> None:
+        self.__ior__(dict(*args, **kwargs))
+
     def __setitem__(self, key, value):
         assert self.renderPreparation is None, "Cannot modify values while rendering"
         if isinstance(value, BaseBone):
@@ -249,7 +252,7 @@ class SkeletonInstance:
         # Load a @classmethod from the Skeleton class and bound this SkeletonInstance
         elif item in {"fromDB", "toDB", "all", "unserialize", "serialize", "fromClient", "getCurrentSEOKeys",
                       "preProcessSerializedData", "preProcessBlobLocks", "postSavedHandler", "setBoneValue",
-                      "delete", "postDeletedHandler", "refresh"}:
+                      "delete", "postDeletedHandler", "refresh", "read"}:
             return partial(getattr(self.skeletonCls, item), self)
         # Load a @property from the Skeleton class
         try:
@@ -308,6 +311,29 @@ class SkeletonInstance:
 
     def __len__(self) -> int:
         return len(self.boneMap)
+
+    def __ior__(self, other: dict | SkeletonInstance | db.Entity) -> SkeletonInstance:
+        if isinstance(other, dict):
+            for key, value in other.items():
+                self.setBoneValue(key, value)
+        elif isinstance(other, db.Entity):
+            new_entity = self.dbEntity or db.Entity()
+            # We're not overriding the key
+            for key, value in other.items():
+                new_entity[key] = value
+            self.setEntity(new_entity)
+        elif isinstance(other, SkeletonInstance):
+            for key, value in other.accessedValues.items():
+                self.accessedValues[key] = value
+            for key, value in other.dbEntity.items():
+                self.dbEntity[key] = value
+        else:
+            raise ValueError("Unsupported Type")
+        return self
+
+
+
+
 
     def clone(self):
         """
@@ -1381,6 +1407,22 @@ class RefSkel(RelSkel):
         newClass.__boneMap__ = bone_map
         return newClass
 
+    def read(self, key: t.Optional[db.Key | str | int] = None) -> SkeletonInstance:
+        """
+        Read full skeleton instance referenced by the RefSkel from the database.
+
+        Can be used for reading the full Skeleton from a RefSkel.
+        The `key` parameter also allows to read another, given key from the related kind.
+
+        :raise ValueError: If the entry is no longer in the database.
+        """
+        skel = skeletonByKind(self.kindName)()
+
+        if not skel.fromDB(key or self["key"]):
+            raise ValueError(f"""The key {key or self["key"]!r} seems to be gone""")
+
+        return skel
+
 
 class SkelList(list):
     """
@@ -1571,7 +1613,7 @@ class RebuildSearchIndex(QueryIter):
             f"{totalCount} records updated in total on this kind."
         )
         try:
-            email.sendEMail(dests=customData["notify"], stringTemplate=txt, skel=None)
+            email.send_email(dests=customData["notify"], stringTemplate=txt, skel=None)
         except Exception as exc:  # noqa; OverQuota, whatever
             logging.exception(f'Failed to notify {customData["notify"]}')
 
@@ -1643,7 +1685,7 @@ def processVacuumRelationsChunk(
             f"{count_removed} entries removed"
         )
         try:
-            email.sendEMail(dests=notify, stringTemplate=txt, skel=None)
+            email.send_email(dests=notify, stringTemplate=txt, skel=None)
         except Exception as exc:  # noqa; OverQuota, whatever
             logging.exception(f"Failed to notify {notify}")
 

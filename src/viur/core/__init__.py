@@ -109,14 +109,25 @@ def __build_app(modules: ModuleType | object, renderers: ModuleType | object, de
     """
     if not isinstance(renderers, dict):
         # build up the dict from viur.core.render
-        renderers, renderers_root = {}, renderers
-        for key, module in vars(renderers_root).items():
-            if "__" not in key:
-                renderers[key] = {}
-                for subkey, render in vars(module).items():
-                    if "__" not in subkey:
-                        renderers[key][subkey] = render
-        del renderers_root
+        renderers, mod = {}, renderers
+
+        from viur.core.render.abstract import AbstractRenderer
+
+        for render_name, render_mod in vars(mod).items():
+            if inspect.ismodule(render_mod):
+                for render_clsname, render_cls in vars(render_mod).items():
+                    # this is "kinda hackish..." because ViUR 3's current renderer concept is pure bulls*t...
+                    if render_clsname == "DefaultRender":
+                        continue
+
+                    if (
+                            # test for a renderer
+                            (inspect.isclass(render_cls) and issubclass(render_cls, AbstractRenderer))
+                            # bullsh*t, this must be entirely reworked!
+                            or render_clsname == "_postProcessAppObj"
+                    ):
+                        renderers.setdefault(render_name, {})
+                        renderers[render_name][render_clsname] = render_cls
 
     # assign ViUR system modules
     from viur.core.modules.moduleconf import ModuleConf  # noqa: E402 # import works only here because circular imports

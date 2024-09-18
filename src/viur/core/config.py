@@ -496,25 +496,9 @@ class Email(ConfigType):
     log_retention: datetime.timedelta = datetime.timedelta(days=30)
     """For how long we'll keep successfully send emails in the viur-emails table"""
 
-    transport_class: t.Type["EmailTransport"] = None
-    """Class that actually delivers the email using the service provider
+    transport_class: "EmailTransport" = None
+    """EmailTransport instance that actually delivers the email using the service provider
     of choice. See email.py for more details
-    """
-
-    mailjet_api_key: t.Optional[str] = None
-    """API Key for MailJet"""
-
-    mailjet_api_secret: t.Optional[str] = None
-    """API Secret for MailJet"""
-
-    sendinblue_api_key: t.Optional[str] = None
-    """API Key for SendInBlue (now Brevo) for the EmailTransportSendInBlue
-    """
-
-    sendinblue_thresholds: tuple[int] | list[int] = (1000, 500, 100)
-    """Warning thresholds for remaining email quota
-
-    Used by email.EmailTransportSendInBlue.check_sib_quota
     """
 
     send_from_local_development_server: bool = False
@@ -667,6 +651,8 @@ class Conf(ConfigType):
         "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
         "json.bone.structure.keytuples",  # use classic structure notation: `"structure = [["key", {...}] ...]` (#649)
         "json.bone.structure.inlists",  # dump skeleton structure with every JSON list response (#774 for details)
+        "tasks.periodic.useminutes",  # Interpret int/float values for @PeriodicTask as minutes
+        #                               instead of seconds (#1133 for details)
         "bone.select.structure.values.keytuple",  # render old-style tuple-list in SelectBone's values structure (#1203)
     ]
     """Backward compatibility flags; Remove to enforce new style."""
