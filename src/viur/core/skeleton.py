@@ -293,7 +293,10 @@ class SkeletonInstance:
 
     def __setattr__(self, key, value):
         if key in self.boneMap or isinstance(value, BaseBone):
-            self.boneMap[key] = value
+            if value is None:
+                del self.boneMap[key]
+            else:
+                self.boneMap[key] = value
         elif key == "renderPreparation":
             super().__setattr__(key, value)
             self.renderAccessedValues.clear()
