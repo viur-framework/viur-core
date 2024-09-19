@@ -1,7 +1,7 @@
 import datetime
+import fnmatch
 import json
 import logging
-
 from viur.core import Module, conf, current, errors
 from viur.core.decorators import *
 from viur.core.render.json import skey as json_render_skey
@@ -142,34 +142,24 @@ def getVersion(*args, **kwargs):
 
 
 def canAccess(*args, **kwargs) -> bool:
-    if (user := current.user.get()) and ("root" in user["access"] or "admin" in user["access"]):
+    """
+    General access restrictions for the vi-render.
+    """
+
+    if (cuser := current.user.get()) and any(right in cuser["access"] for right in ("root", "admin")):
         return True
-    pathList = current.request.get().path_list
-    if len(pathList) >= 2 and pathList[1] in ["skey", "getVersion", "settings"]:
-        # Give the user the chance to login :)
-        return True
-    if (len(pathList) >= 3
-        and pathList[1] == "user"
-        and (pathList[2].startswith("auth_")
-             or pathList[2].startswith("f2_")
-             or pathList[2] == "getAuthMethods"
-             or pathList[2] == "logout")):
-        # Give the user the chance to login :)
-        return True
-    if (len(pathList) >= 4
-        and pathList[1] == "user"
-        and pathList[2] == "view"
-        and pathList[3] == "self"):
-        # Give the user the chance to view himself.
-        return True
-    return False
+
+    return any(fnmatch.fnmatch(current.request.get().path, pat) for pat in conf.security.admin_allowed_paths)
 
 
 @exposed
 def index(*args, **kwargs):
     if args or kwargs:
         raise errors.NotFound()
-    if not conf.instance.project_base_path.joinpath("vi", "main.html").exists():
+    if (
+        not conf.instance.project_base_path.joinpath("vi", "main.html").exists()
+        and not conf.instance.project_base_path.joinpath("admin", "main.html").exists()
+    ):
         raise errors.NotFound()
     if conf.instance.is_dev_server or current.request.get().isSSLConnection:
         raise errors.Redirect("/vi/s/main.html")

@@ -2,6 +2,7 @@ import json
 from enum import Enum
 
 from viur.core import bones, utils, db, current
+from viur.core.render.abstract import AbstractRenderer
 from viur.core.skeleton import SkeletonInstance
 from viur.core.i18n import translate
 from viur.core.config import conf
@@ -26,12 +27,8 @@ class CustomJsonEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, o)
 
 
-class DefaultRender(object):
+class DefaultRender(AbstractRenderer):
     kind = "json"
-
-    def __init__(self, parent=None, *args, **kwargs):
-        super(DefaultRender, self).__init__(*args, **kwargs)
-        self.parent = parent
 
     @staticmethod
     def render_structure(structure: dict):
@@ -110,7 +107,7 @@ class DefaultRender(object):
         elif bone.languages:
             res = {}
             for language in bone.languages:
-                if boneVal and language in boneVal and boneVal[language]:
+                if boneVal and language in boneVal and boneVal[language] is not None:
                     res[language] = self.renderSingleBoneValue(boneVal[language], bone, skel, key)
                 else:
                     res[language] = None

@@ -111,7 +111,7 @@ def keyFromArgs(f: t.Callable, userSensitive: int, languageSensitive: bool, eval
 
 
 def wrapCallable(f, urls: list[str], userSensitive: int, languageSensitive: bool,
-                 evaluatedArgs: list[str], maxCacheTime: int):
+                 evaluatedArgs: list[str], maxCacheTime: int | timedelta):
     """
         Does the actual work of wrapping a callable.
         Use the decorator enableCache instead of calling this directly.
@@ -144,8 +144,10 @@ def wrapCallable(f, urls: list[str], userSensitive: int, languageSensitive: bool
             return f(self, *args, **kwargs)
         dbRes = db.Get(db.Key(viurCacheName, key))
         if dbRes is not None:
-            if not maxCacheTime \
-                or dbRes["creationtime"] > utils.utcNow() - timedelta(seconds=maxCacheTime):
+            if (
+                    not maxCacheTime or dbRes["creationtime"] > utils.utcNow()
+                    - utils.parse.timedelta(maxCacheTime)
+            ):
                 # We store it unlimited or the cache is fresh enough
                 logging.debug("This request was served from cache.")
                 currReq.response.headers['Content-Type'] = dbRes["content-type"]

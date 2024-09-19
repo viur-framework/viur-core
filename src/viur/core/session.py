@@ -1,4 +1,4 @@
-import hmac
+import datetime
 import logging
 import time
 from viur.core.tasks import DeleteEntitiesIter
@@ -23,8 +23,10 @@ import typing as t
     It returns None instead of raising an Exception if the key is not found.
 """
 
+_SENTINEL: t.Final[object] = object()
 
-class Session:
+
+class Session(db.Entity):
     """
         Store Sessions inside the datastore.
         The behaviour of this module can be customized in the following ways:
@@ -55,7 +57,6 @@ class Session:
         self.changed = False
         self.cookie_key = None
         self.static_security_key = None
-        self.session = db.Entity()
 
     def load(self, req):
         """
@@ -72,7 +73,10 @@ class Session:
                     return False
 
                 self.cookie_key = cookie_key
-                self.session = data["data"]
+
+                super().clear()
+                super().update(data["data"])
+
                 self.static_security_key = data.get("static_security_key") or data.get("staticSecurityKey")
 
                 if data["lastseen"] < time.time() - 5 * 60:  # Refresh every 5 Minutes
@@ -104,7 +108,7 @@ class Session:
 
         dbSession = db.Entity(db.Key(self.kindName, self.cookie_key))
 
-        dbSession["data"] = db.fixUnindexableProperties(self.session)
+        dbSession["data"] = db.fixUnindexableProperties(self)
         dbSession["static_security_key"] = self.static_security_key
         dbSession["lastseen"] = time.time()
         dbSession["user"] = str(user_key)  # allow filtering for users
@@ -125,45 +129,6 @@ class Session:
             ("Set-Cookie", f"{self.cookie_name}={self.cookie_key};{';'.join([f for f in flags if f])}")
         )
 
-    def __contains__(self, key: str) -> bool:
-        """
-            Returns True if the given *key* is set in the current session.
-        """
-        return key in self.session
-
-    def __delitem__(self, key: str) -> None:
-        """
-            Removes a *key* from the session.
-
-            This key must exist.
-        """
-        del self.session[key]
-        self.changed = True
-
-    def __getitem__(self, key) -> t.Any:
-        """
-            Returns the value stored under the given *key*.
-
-            The key must exist.
-        """
-        return self.session[key]
-
-    def __ior__(self, other: dict):
-        """
-        Merges the contents of a dict into the session.
-        """
-        self.session |= other
-        return self
-
-    def get(self, key: str, default: t.Any = None) -> t.Any:
-        """
-            Returns the value stored under the given key.
-
-            :param key: Key to retrieve from the session variables.
-            :param default: Default value to return when key does not exist.
-        """
-        return self.session.get(key, default)
-
     def __setitem__(self, key: str, item: t.Any):
         """
             Stores a new value under the given key.
@@ -171,7 +136,7 @@ class Session:
             If that key exists before, its value is
             overwritten.
         """
-        self.session[key] = item
+        super().__setitem__(key, item)
         self.changed = True
 
     def markChanged(self) -> None:
@@ -198,14 +163,45 @@ class Session:
 
         self.cookie_key = utils.string.random(42)
         self.static_security_key = utils.string.random(13)
-        self.session.clear()
+        self.clear()
         self.changed = True
 
-    def items(self) -> 'dict_items':
+    def __delitem__(self, key: str) -> None:
         """
-            Returns all items in the current session.
+            Removes a *key* from the session.
+            This key must exist.
         """
-        return self.session.items()
+        super().__delitem__(key)
+        self.changed = True
+
+    def __ior__(self, other: dict) -> t.Self:
+        """
+        Merges the contents of a dict into the session.
+        """
+        super().__ior__(other)
+        self.changed = True
+        return self
+
+    def update(self, other: dict) -> None:
+        """
+        Merges the contents of a dict into the session.
+        """
+        self |= other
+
+    def pop(self, key: str, default=_SENTINEL) -> t.Any:
+        """
+        Delete a specified key from the session.
+
+        If key is in the session, remove it and return its value, else return default.
+        If default is not given and key is not in the session, a KeyError is raised.
+        """
+        if key in self or default is _SENTINEL:
+            value = super().pop(key)
+            self.changed = True
+
+            return value
+
+        return default
 
 
 @tasks.CallDeferred
@@ -227,7 +223,7 @@ def killSessionByUser(user: t.Optional[t.Union[str, "db.Key", None]] = None):
         db.Delete(obj.key)
 
 
-@tasks.PeriodicTask(60 * 4)
+@tasks.PeriodicTask(interval=datetime.timedelta(hours=4))
 def start_clear_sessions():
     """
         Removes old (expired) Sessions

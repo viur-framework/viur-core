@@ -10,18 +10,18 @@
     <a href="https://pypi.org/project/viur-core/">
         <img alt="Badge showing current PyPI version" title="PyPI" src="https://img.shields.io/pypi/v/viur-core">
     </a>
-    <a href="https://opensource.org/licenses/LGPL-3.0">
-        <img src="https://img.shields.io/pypi/l/viur-core" alt="Badge displaying the license" title="License badge">
+    <a href="https://github.com/viur-framework/viur-core/blob/main/LICENSE">
+        <img src="https://img.shields.io/github/license/viur-framework/viur-core" alt="Badge displaying the license" title="License badge">
     </a>
     <br>
-    This is the core library component of the <a href="https://www.viur.dev">ViUR framework</a>.
+    This is the core component of the <a href="https://www.viur.dev">ViUR framework</a>.
 </div>
 
 ## About
 
-ViUR is an application development toolkit for the Google App Engine™.
+ViUR is an application development framework for the Google App Engine™.
 
-ViUR is an open source software development framework that was created to fulfill both designers and developers needs and requirements. It provides a clear concept for implementing agile data management software. It's written in Python™ and already attracted a steady growing community constantly helping and improving ViUR.
+ViUR was developed to meet the needs and requirements of both designers and developers. It provides a clear concept for the implementation of agile data management software systems. It is written in Python™ and has already attracted a growing community that is constantly supporting and improving ViUR.
 
 ## Getting started
 
@@ -52,4 +52,4 @@ See our [contribution guidelines](CONTRIBUTING.md) for details.
 Copyright © 2024 by Mausbrand Informationssysteme GmbH.<br>
 Mausbrand and ViUR are registered trademarks of Mausbrand Informationssysteme GmbH.
 
-You may use, modify and distribute this software under the terms and conditions of the GNU Lesser General Public License (LGPL). See the file LICENSE provided within this package for more information.
+Licensed under the MIT license. See LICENSE for more information.

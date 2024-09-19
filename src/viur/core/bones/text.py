@@ -91,9 +91,8 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
          "\n": "",
          "\0": ""})
 
-    def __init__(self, validHtml=None, srcSet=None):
-        global _defaultTags
-        super(HtmlSerializer, self).__init__()
+    def __init__(self, validHtml=None, srcSet=None, convert_charrefs: bool = True):
+        super().__init__(convert_charrefs=convert_charrefs)
         self.result = ""  # The final result that will be returned
         self.openTagsList = []  # List of tags that still need to be closed
         self.tagCache = []  # Tuple of tags that have been processed but not written yet
@@ -369,7 +368,7 @@ class TextBone(BaseBone):
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
         if not (err := self.isInvalid(value)):  # Returns None on success, error-str otherwise
-            return HtmlSerializer(self.validHtml, self.srcSet).sanitize(value), None
+            return HtmlSerializer(self.validHtml, self.srcSet, False).sanitize(value), None
         else:
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 

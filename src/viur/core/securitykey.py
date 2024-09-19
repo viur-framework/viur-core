@@ -62,10 +62,7 @@ def create(
     entity |= custom_data
 
     entity["viur_session"] = current.session.get().cookie_key if session_bound else None
-    if isinstance(duration, datetime.timedelta):
-        entity["viur_until"] = utils.utcNow() + duration
-    else:
-        entity["viur_until"] = utils.utcNow() + datetime.timedelta(seconds=int(duration))
+    entity["viur_until"] = utils.utcNow() + utils.parse.timedelta(duration)
 
 
     if not indexed:
@@ -115,7 +112,7 @@ def validate(key: str, session_bound: bool = True) -> bool | db.Entity:
     return entity or True
 
 
-@tasks.PeriodicTask(60 * 4)
+@tasks.PeriodicTask(interval=datetime.timedelta(hours=4))
 def periodic_clear_skeys():
     from viur.core import tasks
     """
