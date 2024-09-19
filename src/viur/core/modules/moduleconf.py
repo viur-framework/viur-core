@@ -185,6 +185,3 @@ class ModuleConf(List):
 
         collect_modules(conf.main_app.vi)
         # TODO: Remove entries from MODULECONF_KINDNAME which are in db_module_names but not in ModuleConf.MODULES
-
-
-ModuleConf.json = True

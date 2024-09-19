@@ -310,7 +310,10 @@ class SkeletonInstance:
 
     def __setattr__(self, key, value):
         if key in self.boneMap or isinstance(value, BaseBone):
-            self.boneMap[key] = value
+            if value is None:
+                del self.boneMap[key]
+            else:
+                self.boneMap[key] = value
         elif key == "renderPreparation":
             super().__setattr__(key, value)
             self.renderAccessedValues.clear()
@@ -1688,7 +1691,7 @@ class RebuildSearchIndex(QueryIter):
             f"{totalCount} records updated in total on this kind."
         )
         try:
-            email.sendEMail(dests=customData["notify"], stringTemplate=txt, skel=None)
+            email.send_email(dests=customData["notify"], stringTemplate=txt, skel=None)
         except Exception as exc:  # noqa; OverQuota, whatever
             logging.exception(f'Failed to notify {customData["notify"]}')
 
@@ -1760,7 +1763,7 @@ def processVacuumRelationsChunk(
             f"{count_removed} entries removed"
         )
         try:
-            email.sendEMail(dests=notify, stringTemplate=txt, skel=None)
+            email.send_email(dests=notify, stringTemplate=txt, skel=None)
         except Exception as exc:  # noqa; OverQuota, whatever
             logging.exception(f"Failed to notify {notify}")
 
