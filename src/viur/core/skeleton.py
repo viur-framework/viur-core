@@ -9,6 +9,7 @@ import string
 import sys
 import typing as t
 import warnings
+from deprecated.sphinx import deprecated
 from functools import partial
 from itertools import chain
 from time import time
@@ -427,7 +428,16 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
     boneMap = None
 
     @classmethod
+    @deprecated(
+        version="3.7.0",
+        reason="Function renamed. Use subskel function as alternative implementation.",
+        action="always"
+    )
     def subSkel(cls, *subskel_names, full_clone: bool = False, **kwargs) -> SkeletonInstance:
+        return cls.subskel(*subskel_names, full_clone=full_clone)  # FIXME: REMOVE WITH VIUR4
+
+    @classmethod
+    def subskel(cls, *names, full_clone: bool = False) -> SkeletonInstance:
         """
             Creates a new sub-skeleton as part of the current skeleton.
 
@@ -445,21 +455,31 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 
             :return: The sub-skeleton of the specified type.
         """
-        if not subskel_names:
-            raise ValueError("Which subSkel?")
+        from_subskel = False
+        bone_names = []
 
-        # collect all patterns from all subskel definitions
-        bone_names = set(chain(*[cls.subSkels.get(name, []) for name in ("*", ) + subskel_names]))
+        for name in names:
+            if isinstance(name, (tuple, list, set)):
+                bone_names.extend(name)
 
-        # create bone names based on the order of the bones in the original skeleton
-        bone_names = tuple(k for k in cls.__boneMap__.keys() if any(fnmatch.fnmatch(k, n) for n in bone_names))
+            # a str refers to a subskel name from the cls.subSkel dict
+            elif isinstance(name, str):
+                if not from_subskel:
+                    # add bones from "*" subskel once
+                    bone_names.extend(cls.subSkels.get("*") or ())
+                    from_subskel = True
 
-        return cls(bone_names=bone_names, full_clone=full_clone)
+                bone_names.extend(cls.subSkels.get(name) or ())
 
-    @classmethod
-    def sub_skel(cls, *bone_names, full_clone: bool = False) -> SkeletonInstance:
+            else:
+                raise ValueError(f"Invalid subskel definition: {name!r}")
+
+        if from_subskel:
+            # when from_subskel is True, create bone names based on the order of the bones in the original skeleton
+            bone_names = tuple(k for k in cls.__boneMap__.keys() if any(fnmatch.fnmatch(k, n) for n in bone_names))
+
         if not bone_names:
-            raise ValueError("Please specify at least one bone name to create the sub-skeleton.")
+            raise ValueError("The given subskel definition doesn't contain any bones!")
 
         return cls(bone_names=bone_names, full_clone=full_clone)
 
