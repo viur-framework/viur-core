@@ -478,7 +478,7 @@ class UserPassword(UserPrimaryAuthentication):
         """
         if user_skel := self._user_module.viewSkel().all().filter("name.idx =", user_name).getSkel():
             user_agent = user_agents.parse(user_agent)
-            email.sendEMail(
+            email.send_email(
                 tpl=self.passwordRecoveryMail,
                 skel=user_skel,
                 dests=[user_name],
@@ -569,7 +569,7 @@ class UserPassword(UserPrimaryAuthentication):
                                       name=skel["name"])
             skel.skey = BaseBone(descr="Skey")
             skel["skey"] = skey
-            email.sendEMail(dests=[skel["name"]], tpl=self._user_module.verifyEmailAddressMail, skel=skel)
+            email.send_email(dests=[skel["name"]], tpl=self._user_module.verifyEmailAddressMail, skel=skel)
         self._user_module.onAdded(skel)  # Call onAdded on our parent user module
         return self._user_module.render.addSuccess(skel)
 
@@ -1130,6 +1130,12 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
 
 
 class User(List):
+    """
+    The User module is used to manage and authenticate users in a ViUR system.
+
+    It is used in almost any ViUR project, but ViUR can also function without any user capabilites.
+    """
+
     kindName = "user"
     addTemplate = "user_add"
     addSuccessTemplate = "user_add_success"

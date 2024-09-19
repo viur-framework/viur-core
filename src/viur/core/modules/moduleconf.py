@@ -106,6 +106,7 @@ class ModuleConf(List):
     MODULES = set()  # will be filled by read_all_modules
     kindName = MODULECONF_KINDNAME
     accessRights = ["edit"]
+    default_order = None  # disable default ordering for ModuleConf
 
     def adminInfo(self):
         return conf.moduleconf_admin_info or {}
@@ -184,6 +185,3 @@ class ModuleConf(List):
 
         collect_modules(conf.main_app.vi)
         # TODO: Remove entries from MODULECONF_KINDNAME which are in db_module_names but not in ModuleConf.MODULES
-
-
-ModuleConf.json = True

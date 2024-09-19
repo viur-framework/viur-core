@@ -1,6 +1,82 @@
 [build-system]
-requires = [
-    "setuptools>=42",
-    "wheel"
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "viur-core"
+dynamic = ["version"]
+dependencies = [
+    "appengine-python-standard~=1.0",
+    "Deprecated~=1.2",
+    "google-api-core[grpc]~=2.0",
+    "google-auth~=2.0",
+    "google-cloud-datastore~=2.0",
+    "google-cloud-iam~=2.0",
+    "google-cloud-logging~=3.0",
+    "google-cloud-secret-manager~=2.0",
+    "google-cloud-storage~=2.0",
+    "google-cloud-tasks~=2.0",
+    "google-resumable-media~=2.0",
+    "googleapis-common-protos[grpc]~=1.0",
+    "gunicorn~=21.0",
+    "jinja2~=3.0",
+    "jsonschema~=4.0",
+    "pillow~=10.0",
+    "pyotp~=2.0",
+    "pytz~=2023.0",
+    "pyyaml~=6.0",
+    "qrcode~=7.0",
+    "requests~=2.0",
+    "tzlocal~=5.0",
+    "urllib3==1.26.18", # for appengine-python-standard used by some projects (https://github.com/GoogleCloudPlatform/appengine-python-standard/blob/main/setup.py#L28)
+    "user-agents~=2.0",
+    "viur-datastore~=1.0",
+    "webob~=1.0",
 ]
-#build-backend = "setuptools.build_meta"
+requires-python = ">=3.10"
+authors = [
+    { name = "Mausbrand Informationssysteme GmbH", email = "devs@viur.dev" },
+]
+maintainers = [
+    { name = "Jan Max Meyer", email = "jm@mausbrand.de" }
+]
+description = "The core component of ViUR, a development framework for Google App Engine"
+readme = "README.md"
+license = { file = "LICENSE" }
+keywords = ["viur", "framework", "backend"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
+
+[tool.setuptools.dynamic]
+version = { attr = "viur.core.version.__version__" }
+
+[project.optional-dependencies]
+mailjet = [
+    "mailjet-rest~=1.3",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"viur.core" = [
+    "template/*.html",
+]
+
+[project.urls]
+Homepage = "https://www.viur.dev/"
+Documentation = "https://core.docs.viur.dev/en/stable/"
+Repository = "https://github.com/viur-framework/viur-core.git"
+"Bug Tracker" = "https://github.com/viur-framework/viur-core/issues"
+Changelog = "https://github.com/viur-framework/viur-core/blob/main/CHANGELOG.md"
+
+[project.scripts]
+viur-core-migrate-config = "viur.core.scripts.migrate_config:main"

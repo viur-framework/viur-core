@@ -76,7 +76,7 @@ else:
     )
     queueRegion = "local"
 
-_periodicTasks: dict[str, dict[t.Callable, int]] = {}
+_periodicTasks: dict[str, dict[t.Callable, datetime.timedelta]] = {}
 _callableTasks = {}
 _deferred_tasks = {}
 _startupTasks = []
@@ -262,7 +262,7 @@ class TaskHandler(Module):
             periodicTaskName = task.periodicTaskName.lower()
             if interval:  # Ensure this task doesn't get called to often
                 lastCall = db.Get(db.Key("viur-task-interval", periodicTaskName))
-                if lastCall and utils.utcNow() - lastCall["date"] < datetime.timedelta(minutes=interval):
+                if lastCall and utils.utcNow() - lastCall["date"] < interval:
                     logging.debug(f"Task {periodicTaskName!r} has already run recently - skipping.")
                     continue
             res = self.findBoundTask(task, conf.main_app)
@@ -411,7 +411,7 @@ def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
                         signature = ", ".join(args_repr + kwargs_repr)
                         try:
                             from viur.core import email
-                            email.sendEMail(
+                            email.send_email(
                                 dests=email_recipients,
                                 tpl=tpl,
                                 stringTemplate=string_template if tpl is None else string_template,
@@ -493,23 +493,29 @@ def CallDeferred(func: t.Callable) -> t.Callable:
 
     __undefinedFlag_ = object()
 
-    def make_deferred(func, self=__undefinedFlag_, *args, **kwargs):
-        # Extract possibly provided task flags from kwargs
-        queue = kwargs.pop("_queue", "default")
-        call_deferred = kwargs.pop("_call_deferred", True)
-        target_version = kwargs.pop("_target_version", conf.instance.app_version)
-        if "_eta" in kwargs and "_countdown" in kwargs:
+    def make_deferred(
+        func: t.Callable,
+        self=__undefinedFlag_,
+        *args,
+        _queue: str = "default",
+        _name: str | None = None,
+        _call_deferred: bool = True,
+        _target_version: str = conf.instance.app_version,
+        _eta: datetime.datetime | None = None,
+        _countdown: int = 0,
+        **kwargs
+    ):
+        if _eta is not None and _countdown:
             raise ValueError("You cannot set the _countdown and _eta argument together!")
-        taskargs = {k: kwargs.pop(f"_{k}", None) for k in ("countdown", "eta", "name")}
 
         logging.debug(
             f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, "
-            f"{queue=}, {call_deferred=}, {target_version=}, {taskargs=}"
+            f"{_queue=}, {_name=}, {_call_deferred=}, {_target_version=}, {_eta=}, {_countdown=}"
         )
 
         try:
             req = current.request.get()
-        except:  # This will fail for warmup requests
+        except Exception:  # This will fail for warmup requests
             req = None
 
         if not queueRegion:
@@ -532,10 +538,10 @@ def CallDeferred(func: t.Callable) -> t.Callable:
             return  # Ensure no result gets passed back
 
         # It's the deferred method which is called from the task queue, this has to be called directly
-        call_deferred &= not (req and req.request.headers.get("X-Appengine-Taskretrycount")
-                              and "DEFERRED_TASK_CALLED" not in dir(req))
+        _call_deferred &= not (req and req.request.headers.get("X-Appengine-Taskretrycount")
+                               and "DEFERRED_TASK_CALLED" not in dir(req))
 
-        if not call_deferred:
+        if not _call_deferred:
             if self is __undefinedFlag_:
                 return func(*args, **kwargs)
 
@@ -548,27 +554,19 @@ def CallDeferred(func: t.Callable) -> t.Callable:
                     funcPath = func.__name__
                 else:
                     funcPath = f"{self.modulePath}/{func.__name__}"
-
                 command = "rel"
-
-            except:
+            except Exception:
                 funcPath = f"{func.__name__}.{func.__module__}"
-
                 if self is not __undefinedFlag_:
                     args = (self,) + args  # Re-append self to args, as this function is (hopefully) unbound
-
                 command = "unb"
-
-            taskargs["url"] = "/_tasks/deferred"
-            taskargs["headers"] = {"Content-Type": "application/octet-stream"}
 
             # Try to preserve the important data from the current environment
             try:  # We might get called inside a warmup request without session
                 usr = current.session.get().get("user")
                 if "password" in usr:
                     del usr["password"]
-
-            except:
+            except Exception:
                 usr = None
 
             env = {"user": usr}
@@ -582,7 +580,7 @@ def CallDeferred(func: t.Callable) -> t.Callable:
                 # We have to ensure transaction guarantees for that task also
                 env["transactionMarker"] = db.acquireTransactionSuccessMarker()
                 # We move that task at least 90 seconds into the future so the transaction has time to settle
-                taskargs["countdown"] = max(90, taskargs.get("countdown") or 0)  # Countdown can be set to None
+                _countdown = max(90, _countdown)  # Countdown can be set to None
 
             if conf.tasks_custom_environment_handler:
                 # Check if this project relies on additional environmental variables and serialize them too
@@ -593,27 +591,26 @@ def CallDeferred(func: t.Callable) -> t.Callable:
                 app_engine_http_request=tasks_v2.AppEngineHttpRequest(
                     body=utils.json.dumps((command, (funcPath, args, kwargs, env))).encode(),
                     http_method=tasks_v2.HttpMethod.POST,
-                    relative_uri=taskargs["url"],
+                    relative_uri="/_tasks/deferred",
                     app_engine_routing=tasks_v2.AppEngineRouting(
-                        version=target_version,
+                        version=_target_version,
                     ),
                 ),
             )
-            if taskargs.get("name"):
-                task.name = taskClient.task_path(conf.instance.project_id, queueRegion, queue, taskargs["name"])
+            if _name is not None:
+                task.name = taskClient.task_path(conf.instance.project_id, queueRegion, _queue, _name)
 
             # Set a schedule time in case eta (absolut) or countdown (relative) was set.
-            eta = taskargs.get("eta")
-            if seconds := taskargs.get("countdown"):
-                eta = utils.utcNow() + datetime.timedelta(seconds=seconds)
-            if eta:
+            if seconds := _countdown:
+                _eta = utils.utcNow() + datetime.timedelta(seconds=seconds)
+            if _eta:
                 # We must send a Timestamp Protobuf instead of a date-string
                 timestamp = protobuf.timestamp_pb2.Timestamp()
-                timestamp.FromDatetime(eta)
+                timestamp.FromDatetime(_eta)
                 task.schedule_time = timestamp
 
             # Use the client to build and send the task.
-            parent = taskClient.queue_path(conf.instance.project_id, queueRegion, queue)
+            parent = taskClient.queue_path(conf.instance.project_id, queueRegion, _queue)
             logging.debug(f"{parent=}, {task=}")
             taskClient.create_task(tasks_v2.CreateTaskRequest(parent=parent, task=task))
 
@@ -642,28 +639,40 @@ def callDeferred(func):
     return CallDeferred(func)
 
 
-def PeriodicTask(interval: int = 0, cronName: str = "default") -> t.Callable:
+def PeriodicTask(interval: datetime.timedelta | int | float = 0, cronName: str = "default") -> t.Callable:
     """
-        Decorator to call a function periodic during maintenance.
-        Interval defines a lower bound for the call-frequency for this task;
-        it will not be called faster than each interval minutes.
-        (Note that the actual delay between two sequent might be much larger)
+        Decorator to call a function periodically during cron job execution.
 
-        :param interval: Call at most every interval minutes. 0 means call as often as possible.
+        Interval defines a lower bound for the call-frequency for the given task, specified as a timedelta.
+
+        The true interval of how often cron jobs are being executed is defined in the project's cron.yaml file.
+        This defaults to 4 hours (see https://github.com/viur-framework/viur-base/blob/main/deploy/cron.yaml).
+        In case the interval defined here is lower than 4 hours, the task will be fired once every 4 hours anyway.
+
+        :param interval: Call at most the given timedelta.
     """
-
-    def mkDecorator(fn):
-        global _periodicTasks
+    def make_decorator(fn):
+        nonlocal interval
         if fn.__name__.startswith("_"):
             raise RuntimeError("Periodic called methods cannot start with an underscore! "
                                f"Please rename {fn.__name__!r}")
+
         if cronName not in _periodicTasks:
             _periodicTasks[cronName] = {}
-        _periodicTasks[cronName][fn] = interval
+
+        if isinstance(interval, (int, float)) and "tasks.periodic.useminutes" in conf.compatibility:
+            logging.warning(
+                f"PeriodicTask assuming {interval=} minutes here. This is changed into seconds in future. "
+                f"Please use `datetime.timedelta(minutes={interval})` for clarification.",
+                stacklevel=2,
+            )
+            interval *= 60
+
+        _periodicTasks[cronName][fn] = utils.parse.timedelta(interval)
         fn.periodicTaskName = f"{fn.__module__}_{fn.__qualname__}".replace(".", "_").lower()
         return fn
 
-    return mkDecorator
+    return make_decorator
 
 
 def CallableTask(fn: t.Callable) -> t.Callable:

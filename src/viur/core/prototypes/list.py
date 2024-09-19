@@ -20,28 +20,13 @@ class List(SkelModule):
     handler = "list"
     accessRights = ("add", "edit", "view", "delete", "manage")
 
-    def default_order(self, query: db.Query, bone_order: t.Iterable[str] = ("sortindex", "name")) -> DEFAULT_ORDER_TYPE:
-        """
-        Allows to specify a default order for this module, which is applied when no other order is specified.
-        This can also be set to any DEFAULT_ORDER_TYPE directly.
+    default_order: DEFAULT_ORDER_TYPE = None
+    """
+    Allows to specify a default order for this module, which is applied when no other order is specified.
 
-        Setting a default_order might result in the requirement of additional indexes, which are being raised
-        and must be specified.
-        """
-        for bone_name in bone_order:
-            bone = getattr(query.srcSkel, bone_name, None)
-            if isinstance(bone, BaseBone) and bone.indexed:
-                # In case the bone has a language setting, try to set default ordering to current language
-                if bone.languages:
-                    lang = current.language.get()
-                    if lang in bone.languages:
-                        return f"{bone_name}.{lang}"
-
-                    return f"{bone_name}.{bone.languages[0]}"
-
-                return bone_name
-
-        return None
+    Setting a default_order might result in the requirement of additional indexes, which are being raised
+    and must be specified.
+    """
 
     def viewSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -199,14 +184,19 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
         # The general access control is made via self.listFilter()
-        if query := self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs)):
+        query = self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs))
+        if query and query.queries and not isinstance(query.queries, list):
             # Apply default order when specified
             if self.default_order and not query.queries.orders and not current.request.get().kwargs.get("search"):
                 # TODO: refactor: Duplicate code in prototypes.Tree
                 if callable(default_order := self.default_order):
                     default_order = default_order(query)
 
-                if default_order:
+                if isinstance(default_order, dict):
+                    logging.debug(f"Applying filter {default_order=}")
+                    query.mergeExternalFilter(default_order)
+
+                elif default_order:
                     logging.debug(f"Applying {default_order=}")
 
                     # FIXME: This ugly test can be removed when there is type that abstracts SortOrders
@@ -258,7 +248,7 @@ class List(SkelModule):
         if (
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
-            or not skel.fromClient(kwargs)  # failure on reading into the bones
+            or not skel.fromClient(kwargs, amend=True)  # failure on reading into the bones
             or utils.parse.bool(kwargs.get("bounce"))  # review before changing
         ):
             # render the skeleton in the version it could as far as it could be read.
@@ -709,7 +699,7 @@ class List(SkelModule):
         logging.info(f"""Entry cloned: {skel["key"]!r}""")
         flushCache(kind=skel.kindName)
 
-        if user := utils.getCurrentUser():
+        if user := current.user.get():
             logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
 
