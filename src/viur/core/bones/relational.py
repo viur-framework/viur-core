@@ -1173,7 +1173,7 @@ class RelationalBone(BaseBone):
             parsed_value = value
         elif self.multiple and not self.using:
             if not isinstance(value, (str, int, db.Key)) and not (isinstance(value, list)) \
-                and all([isinstance(val, (str, int, db.Key)) for val in value]):
+                    and all([isinstance(val, (str, int, db.Key)) for val in value]):
                 raise ValueError(f"You must supply a Database-Key or a list hereof to {boneName}")
             if isinstance(value, list):
                 parsed_value = [(key, None) for key in value]
