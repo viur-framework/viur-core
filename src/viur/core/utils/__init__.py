@@ -2,6 +2,7 @@ import logging
 import typing as t
 import warnings
 import datetime
+from collections.abc import Iterable
 from . import string, parse, json  # noqa: used by external imports
 from viur.core import current, db
 from viur.core.config import conf
@@ -99,6 +100,34 @@ def normalizeKey(key: t.Union[None, 'db.KeyClass']) -> t.Union[None, 'db.KeyClas
     else:
         parent = None
     return db.Key(key.kind, key.id_or_name, parent=parent)
+
+
+def ensure_iterable(
+    obj: t.Any,
+    *,
+    test: t.Optional[t.Callable[[t.Any], bool]] = None,
+    allow_callable: bool = True,
+) -> t.Iterable[t.Any]:
+    """
+    Ensures an object to be iterable.
+
+    An additional test can be provided to check additionally.
+
+    If the object is not considered to be iterable, a tuple with the object is returned.
+    """
+    if allow_callable and callable(obj):
+        obj = obj()
+
+    if isinstance(obj, Iterable):  # uses collections.abc.Iterable
+        if test is None or test(obj):
+            return obj  # return the obj, which is an iterable
+
+        return ()  # empty tuple
+
+    elif obj is None:
+        return ()  # empty tuple
+
+    return obj,  # return a tuple with the obj
 
 
 # DEPRECATED ATTRIBUTES HANDLING
