@@ -439,19 +439,40 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
     @classmethod
     def subskel(cls, *names, full_clone: bool = False) -> SkeletonInstance:
         """
-            Creates a new sub-skeleton as part of the current skeleton.
+            Creates a new sub-skeleton from the current skeleton.
 
             A sub-skeleton is a copy of the original skeleton, containing only a subset of its bones.
-            To define sub-skeletons, use the subSkels property of the Skeleton object.
 
-            By passing multiple sub-skeleton names to this function, a sub-skeleton with the union of
-            all bones of the specified sub-skeletons is returned.
+            Sub-skeletons can either be defined using the the subSkels property of the Skeleton object,
+            or freely by giving patterns for bone names which shall be part of the sub-skeleton.
 
-            If an entry called "*" exists in the subSkels-dictionary, the bones listed in this entry
-            will always be part of the generated sub-skeleton.
+            1. Giving names as parameter merges the bones of all Skeleton.subSkels-configurations together.
+               This is the usual behavior. By passing multiple sub-skeleton names to this function, a sub-skeleton
+               with the union of all bones of the specified sub-skeletons is returned. If an entry called "*"
+               exists in the subSkels-dictionary, the bones listed in this entry will always be part of the
+               generated sub-skeleton.
+            2. Given iterators of names allows to freely specify a sub-skeleton; One specialty here is,
+               that the order of the bones can also be changed in this mode. This mode is the new way of defining
+               sub-skeletons.
+            3. Both modes (1 + 2) can be combined, but then the original order of the bones is kept.
+            4. The "key" bone is automatically available in each sub-skeleton.
+            5. An fnmatch-compatible wildcard pattern is allowed both in the subSkels-bone-list and the
+               free bone list.
 
-            :param name: Name of the sub-skeleton (that's the key of the subSkels dictionary); \
-                        Multiple names can be specified.
+            Example (TodoSkel is the example skeleton from viur-base):
+            ```py
+            # legacy mode (see 1)
+            subskel = TodoSkel.subskel("add")
+            # creates subskel: key, firstname, lastname, subject
+
+            # free mode (see 2) allows to specify a different order!
+            subskel = TodoSkel.subskel(("subject", "message", "*stname"))
+            # creates subskel: key, subject, message, firstname, lastname
+
+            # mixed mode (see 3)
+            subskel = TodoSkel.subskel(("message", ), "add")
+            # creates subskel: key, firstname, lastname, subject, message
+            ```
 
             :return: The sub-skeleton of the specified type.
         """
