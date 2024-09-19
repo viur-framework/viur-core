@@ -33,10 +33,14 @@ class PhoneBone(StringBone):
 
         :param test: An optional custom regex pattern for phone number validation.
         :param max_length: The maximum length of the phone number. Passed to "StringBone".
-        :param default_country_code: The default country code to apply (with leading +) e.g, "+49"
+        :param default_country_code: The default country code to apply (with leading +) for example "+49"
         If None is provided the PhoneBone will ignore auto prefixing of the country code.
         :param kwargs: Additional keyword arguments. Passed to "StringBone".
+        :raises ValueError: If the default country code is not in the correct format for example "+123".
         """
+        if default_country_code and not re.match(r"^\+\d{1,3}$", default_country_code):
+            raise ValueError(f"Invalid default country code format: {default_country_code}")
+
         self.test: t.Pattern[str] = re.compile(test) if isinstance(test, str) else test
         self.default_country_code: t.Optional[str] = default_country_code
         super().__init__(max_length=max_length, **kwargs)
