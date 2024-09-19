@@ -180,6 +180,7 @@ class BaseBone(object):
     :param multiple: If True, multiple values can be given. (ie. n:m relations instead of n:1)
     :param searchable: If True, this bone will be included in the fulltext search. Can be used
         without the need of also been indexed.
+    :param type_postfix: Allows to specify an optional postfix for the bone-type, for bone customization
     :param vfunc: If given, a callable validating the user-supplied value for this bone.
         This callable must return None if the value is valid, a String containing an meaningful
         error-message for the user otherwise.
@@ -218,6 +219,7 @@ class BaseBone(object):
         readOnly: bool = None,  # fixme: Rename into readonly (all lowercase!) soon.
         required: bool | list[str] | tuple[str] = False,
         searchable: bool = False,
+        type_postfix: str = "",
         unique: None | UniqueValue = None,
         vfunc: callable = None,  # fixme: Rename this, see below.
         visible: bool = True,
@@ -236,6 +238,9 @@ class BaseBone(object):
         self.searchable = searchable
         self.visible = visible
         self.indexed = indexed
+
+        if type_postfix:
+            self.type += f".{type_postfix}"
 
         if isinstance(category := self.params.get("category"), str):
             self.params["category"] = i18n.translate(category, hint=f"category of a <{type(self).__name__}>")
