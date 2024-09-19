@@ -32,10 +32,10 @@ class PhoneBone(StringBone):
         and a flag to apply the default country code if none is provided.
 
         :param test: An optional custom regex pattern for phone number validation.
-        :param max_length: The maximum length of the phone number. Passed to 'StringBone'.
-        :param default_country_code: The default country code to apply.
+        :param max_length: The maximum length of the phone number. Passed to "StringBone".
+        :param default_country_code: The default country code to apply (with leading +) e.g, "+49"
         If None is provided the PhoneBone will ignore auto prefixing of the country code.
-        :param kwargs: Additional keyword arguments. Passed to 'StringBone'.
+        :param kwargs: Additional keyword arguments. Passed to "StringBone".
         """
         self.test: t.Pattern[str] = re.compile(test) if isinstance(test, str) else test
         self.default_country_code: t.Optional[str] = default_country_code
@@ -66,14 +66,13 @@ class PhoneBone(StringBone):
         if not value:
             return "No value entered"
 
-        if not self.test.match(value):
+        if self.test and not self.test.match(value):
             return "Invalid phone number entered"
 
         # make sure max_length is not exceeded.
-        is_invalid: t.Optional[str] = super().isInvalid(self._extract_digits(value))
-
-        if is_invalid:
+        if is_invalid := super().isInvalid(self._extract_digits(value)):
             return is_invalid
+
         return None
 
     def singleValueFromClient(
@@ -101,8 +100,7 @@ class PhoneBone(StringBone):
                 value = value[1:]  # Remove leading 0 from city code
             value = f"{self.default_country_code} {value}"
 
-        err: t.Optional[str] = self.isInvalid(value)
-        if err:
+        if err := self.isInvalid(value):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
         return value, None
