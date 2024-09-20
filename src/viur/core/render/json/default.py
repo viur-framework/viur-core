@@ -24,6 +24,8 @@ class CustomJsonEncoder(json.JSONEncoder):
             return db.encodeKey(o)
         elif isinstance(o, Enum):
             return o.value
+        elif isinstance(o, set):
+            return tuple(o)
         return json.JSONEncoder.default(self, o)
 
 
