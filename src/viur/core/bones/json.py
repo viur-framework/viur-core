@@ -46,7 +46,10 @@ class JsonBone(RawBone):
         return utils.json.dumps(skel.accessedValues[name])
 
     def singleValueUnserialize(self, val):
-        return utils.json.loads(val)
+        if isinstance(val, (str, bytes, bytearray)):
+            return utils.json.loads(val)
+
+        return utils.json.loads(utils.json.dumps(val))
 
     def singleValueFromClient(self, value: str | list | dict, skel, bone_name, client_data):
         if value:
