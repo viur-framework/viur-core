@@ -1,4 +1,5 @@
 import json
+import logging
 from enum import Enum
 
 from viur.core import bones, utils, db, current
@@ -16,6 +17,7 @@ class CustomJsonEncoder(json.JSONEncoder):
     """
 
     def default(self, o: t.Any) -> t.Any:
+
         if isinstance(o, translate):
             return str(o)
         elif isinstance(o, datetime):
@@ -26,6 +28,8 @@ class CustomJsonEncoder(json.JSONEncoder):
             return o.value
         elif isinstance(o, set):
             return tuple(o)
+        elif isinstance(o, SkeletonInstance):
+            return {bone_name: o[bone_name] for bone_name in o}
         return json.JSONEncoder.default(self, o)
 
 

@@ -48,8 +48,7 @@ class JsonBone(RawBone):
     def singleValueUnserialize(self, val):
         if isinstance(val, (str, bytes, bytearray)):
             return utils.json.loads(val)
-
-        return utils.json.loads(utils.json.dumps(val))
+        return val
 
     def singleValueFromClient(self, value: str | list | dict, skel, bone_name, client_data):
         if value:

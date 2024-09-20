@@ -47,7 +47,7 @@ class ViURJsonEncoder(json.JSONEncoder):
         elif isinstance(obj, (list, tuple)):
             return tuple(ViURJsonEncoder.preprocess(value) for value in obj)
 
-        elif hasattr(obj, "boneMap"):  # SkeletonInstance
+        elif hasattr(obj, "__class__") and obj.__class__.__name__ == "SkeletonInstance":  # SkeletonInstance
             return {bone_name: ViURJsonEncoder.preprocess(obj[bone_name]) for bone_name in obj}
 
         return obj
