@@ -1297,6 +1297,91 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return key
 
     @classmethod
+    def delete(cls, skel: SkeletonInstance) -> None:
+        """
+            Deletes the entity associated with the current Skeleton from the data store.
+        """
+
+        def __txn_delete(skel: SkeletonInstance) -> db.Entity:
+            skel_key = skel["key"]
+            entity = db.Get(skel_key)  # Fetch the raw object as we might have to clear locks
+            viur_data = entity.get("viur") or {}
+
+            # Is there any relation to this Skeleton which prevents the deletion?
+            locked_relation = (
+                db.Query("viur-relations")
+                .filter("dest.__key__ =", skel_key)
+                .filter("viur_relational_consistency =", RelationalConsistency.PreventDeletion.value)
+            ).getEntry()
+
+            if locked_relation is not None:
+                raise errors.Locked("This entry is still referenced by other Skeletons, which prevents deleting!")
+
+            for boneName, bone in skel.items():
+                # Ensure that we delete any value-lock objects remaining for this entry
+                bone.delete(skel, boneName)
+                if bone.unique:
+                    flushList = []
+                    for lockValue in viur_data.get(f"{boneName}_uniqueIndexValue") or []:
+                        lockKey = db.Key(f"{skel.kindName}_{boneName}_uniquePropertyIndex", lockValue)
+                        lockObj = db.Get(lockKey)
+                        if not lockObj:
+                            logging.error(f"{lockKey=} missing!")
+                        elif lockObj["references"] != entity.key.id_or_name:
+                            logging.error(
+                                f"""{skel["key"]!r} does not hold lock for {lockKey!r}""")
+                        else:
+                            flushList.append(lockObj)
+                    if flushList:
+                        db.Delete(flushList)
+
+            # Delete the blob-key lock object
+            lockObjectKey = db.Key("viur-blob-locks", entity.key.id_or_name)
+            lockObj = db.Get(lockObjectKey)
+
+            if lockObj is not None:
+                if lockObj["old_blob_references"] is None and lockObj["active_blob_references"] is None:
+                    db.Delete(lockObjectKey)  # Nothing to do here
+                else:
+                    if lockObj["old_blob_references"] is None:
+                        # No old stale entries, move active_blob_references -> old_blob_references
+                        lockObj["old_blob_references"] = lockObj["active_blob_references"]
+                    elif lockObj["active_blob_references"] is not None:
+                        # Append the current references to the list of old & stale references
+                        lockObj["old_blob_references"] += lockObj["active_blob_references"]
+                    lockObj["active_blob_references"] = []  # There are no active ones left
+                    lockObj["is_stale"] = True
+                    lockObj["has_old_blob_references"] = True
+                    db.Put(lockObj)
+
+            db.Delete(skel_key)
+            processRemovedRelations(skel_key)
+            return entity
+
+        key = skel["key"]
+        if key is None:
+            raise ValueError("This skeleton has no key!")
+
+        skel = skeletonByKind(skel.kindName)()
+        if not skel.read(key):
+            raise ValueError("This skeleton is not in the database (anymore?)!")
+
+        if db.IsInTransaction():
+            __txn_delete(skel)
+        else:
+            db.RunInTransaction(__txn_delete, skel)
+
+        for boneName, _bone in skel.items():
+            _bone.postDeletedHandler(skel, boneName, key)
+
+        skel.postDeletedHandler(key)
+
+        # Inform the custom DB Adapter
+        for adapter in skel.database_adapters:
+            adapter.delete(skel)
+
+
+    @classmethod
     def preProcessBlobLocks(cls, skelValues, locks):
         """
             Can be overridden to modify the list of blobs referenced by this skeleton
@@ -1337,86 +1422,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         :return:
         """
         return
-
-    @classmethod
-    def delete(cls, skelValues):
-        """
-            Deletes the entity associated with the current Skeleton from the data store.
-        """
-
-        def txnDelete(skel: SkeletonInstance) -> db.Entity:
-            skel_key = skel["key"]
-            entity = db.Get(skel_key)  # Fetch the raw object as we might have to clear locks
-            viur_data = entity.get("viur") or {}
-
-            # Is there any relation to this Skeleton which prevents the deletion?
-            locked_relation = (
-                db.Query("viur-relations")
-                .filter("dest.__key__ =", skel_key)
-                .filter("viur_relational_consistency =", RelationalConsistency.PreventDeletion.value)
-            ).getEntry()
-            if locked_relation is not None:
-                raise errors.Locked("This entry is still referenced by other Skeletons, which prevents deleting!")
-
-            for boneName, bone in skel.items():
-                # Ensure that we delete any value-lock objects remaining for this entry
-                bone.delete(skel, boneName)
-                if bone.unique:
-                    flushList = []
-                    for lockValue in viur_data.get(f"{boneName}_uniqueIndexValue") or []:
-                        lockKey = db.Key(f"{skel.kindName}_{boneName}_uniquePropertyIndex", lockValue)
-                        lockObj = db.Get(lockKey)
-                        if not lockObj:
-                            logging.error(f"{lockKey=} missing!")
-                        elif lockObj["references"] != entity.key.id_or_name:
-                            logging.error(
-                                f"""{skel["key"]!r} does not hold lock for {lockKey!r}""")
-                        else:
-                            flushList.append(lockObj)
-                    if flushList:
-                        db.Delete(flushList)
-
-            # Delete the blob-key lock object
-            lockObjectKey = db.Key("viur-blob-locks", entity.key.id_or_name)
-            lockObj = db.Get(lockObjectKey)
-            if lockObj is not None:
-                if lockObj["old_blob_references"] is None and lockObj["active_blob_references"] is None:
-                    db.Delete(lockObjectKey)  # Nothing to do here
-                else:
-                    if lockObj["old_blob_references"] is None:
-                        # No old stale entries, move active_blob_references -> old_blob_references
-                        lockObj["old_blob_references"] = lockObj["active_blob_references"]
-                    elif lockObj["active_blob_references"] is not None:
-                        # Append the current references to the list of old & stale references
-                        lockObj["old_blob_references"] += lockObj["active_blob_references"]
-                    lockObj["active_blob_references"] = []  # There are no active ones left
-                    lockObj["is_stale"] = True
-                    lockObj["has_old_blob_references"] = True
-                    db.Put(lockObj)
-            db.Delete(skel_key)
-            processRemovedRelations(skel_key)
-            return entity
-
-        key = skelValues["key"]
-        if key is None:
-            raise ValueError("This skeleton has no key!")
-        skel = skeletonByKind(skelValues.kindName)()
-        if not skel.read(key):
-            raise ValueError("This skeleton is not in the database (anymore?)!")
-
-        if db.IsInTransaction():
-            dbObj = txnDelete(skel)
-        else:
-            dbObj = db.RunInTransaction(txnDelete, skel)
-
-        for boneName, _bone in skel.items():
-            _bone.postDeletedHandler(skel, boneName, key)
-
-        skel.postDeletedHandler(key)
-
-        # Inform the custom DB Adapter
-        for adapter in skel.database_adapters:
-            adapter.delete(skel)
 
 
 class RelSkel(BaseSkeleton):
