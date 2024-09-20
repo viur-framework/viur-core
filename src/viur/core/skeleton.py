@@ -1380,7 +1380,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         for adapter in skel.database_adapters:
             adapter.delete(skel)
 
-
     @classmethod
     def preProcessBlobLocks(cls, skel: SkeletonInstance, locks):
         """
