@@ -635,7 +635,7 @@ def renderEditForm(render: Render,
 
         res += sectionTpl.render(
             categoryName=category,
-            categoryClassName="".join([x for x in str(category) if x in string.ascii_letters]),
+            categoryClassName="".join(ch for ch in str(category) if ch in string.ascii_letters),
             categoryContent=categoryContent,
             allReadOnly=allReadOnly,
             allHidden=allHidden
