@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.17]
+
+- feat: `type_postfix` on `BaseBone` and `select.access` in `UserSkel` (#1261)
+
 ## [3.6.16]
 
 - fix: @access-decorator (#1257)
