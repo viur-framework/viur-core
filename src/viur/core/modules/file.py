@@ -457,9 +457,10 @@ class File(Tree):
         """
         Retrieves a Google Cloud Storage bucket for the given dlkey.
         """
+        global _public_bucket
         if dlkey and dlkey.endswith(PUBLIC_DLKEY_SUFFIX):
             if _public_bucket or (_public_bucket := GOOGLE_STORAGE_CLIENT.lookup_bucket(PUBLIC_BUCKET_NAME)):
-                return public_bucket
+                return _public_bucket
 
             raise ValueError(
                 f"""The bucket 'public-dot-{_PROJECT_ID}' does not exist! Please create it with ACL access."""
