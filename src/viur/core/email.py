@@ -3,13 +3,19 @@ import datetime
 import json
 import logging
 import os
+import smtplib
+import ssl
 import typing as t
 from abc import ABC, abstractmethod
+from email import encoders
+from email.message import EmailMessage
+from email.mime.base import MIMEBase
 from urllib import request
 
 import requests
 from deprecated.sphinx import deprecated
 from google.appengine.api.mail import Attachment as GAE_Attachment, SendMail as GAE_SendMail
+
 from viur.core import db, utils
 from viur.core.bones.text import HtmlSerializer
 from viur.core.config import conf
@@ -225,15 +231,17 @@ def send_email_deferred(key: db.Key):
         raise ChildProcessError("Error-Count exceeded")
 
     try:
+        # A datastore entity has no empty lists or dicts, these values always
+        # become `None`. Therefore, the type must be restored here with `or []`.
         result_data = transport_class.deliver_email(
-            dests=queued_email["dests"],
+            dests=queued_email["dests"] or [],
             sender=queued_email["sender"],
-            cc=queued_email["cc"],
-            bcc=queued_email["bcc"],
+            cc=queued_email["cc"] or [],
+            bcc=queued_email["bcc"] or [],
             subject=queued_email["subject"],
             body=queued_email["body"],
-            headers=queued_email["headers"],
-            attachments=queued_email["attachments"]
+            headers=queued_email["headers"] or {},
+            attachments=queued_email["attachments"] or [],
         )
     except Exception:
         # Increase the errorCount and bail out
@@ -777,6 +785,69 @@ class EmailTransportSendgrid(EmailTransport):
         if not req.ok:
             raise ValueError(f"{req.status_code} {req.reason} {req.json()}", req)
         return {k: v for k, v in req.headers.items() if k.startswith("X-")}  # X-Message-Id and maybe more in future
+
+
+class EmailTransportSmtp(EmailTransport):
+    """
+    Send emails using the Simple Mail Transfer Protocol (SMTP).
+
+    Needs an email server.
+    """
+
+    def __init__(
+        self,
+        *,
+        host: str,
+        port: int = smtplib.SMTP_SSL_PORT,
+        user: str,
+        password: str,
+    ) -> None:
+        super().__init__()
+        self.host = host
+        self.port = port
+        self.user = user
+        self.password = password
+        self.context = ssl.create_default_context()
+
+    def deliver_email(
+        self,
+        *,
+        sender: str,
+        dests: list[str],
+        cc: list[str],
+        bcc: list[str],
+        subject: str,
+        body: str,
+        headers: dict[str, str],
+        attachments: list[Attachment],
+        **kwargs: t.Any,
+    ) -> dict[str, tuple[int, bytes]]:
+        message = EmailMessage()
+        message["Subject"] = subject
+        message["From"] = sender
+        message["To"] = ", ".join(dests)
+        message["Cc"] = ", ".join(cc)
+        message["Bcc"] = ", ".join(bcc)
+        for key, value in headers.items():
+            message.add_header(key, value)
+
+        message.set_content(body, subtype="html")
+        message.add_alternative(HtmlSerializer().sanitize(body), subtype="text")
+
+        for attachment in attachments:
+            attachment = self.fetch_attachment(attachment)
+            part = MIMEBase(*attachment["mimetype"].split("/", 1))
+            part.set_payload(attachment["content"])
+            encoders.encode_base64(part)
+            part.add_header(
+                "Content-Disposition",
+                f'attachment; filename="{attachment["filename"]}"',
+            )
+            message.add_alternative(part)
+
+        with smtplib.SMTP_SSL(self.host, self.port, context=self.context) as server:
+            server.login(self.user, self.password)
+            return server.sendmail(sender, (dests + cc + bcc), message.as_string())
 
 
 class EmailTransportAppengine(EmailTransport):
