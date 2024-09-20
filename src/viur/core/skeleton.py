@@ -975,10 +975,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         Deprecated function, replaced by Skeleton.read().
         """
         logging.warning("skel.fromDB() is deprecated, use skel.read()")
-        return cls.read(skel, key)
+        return bool(cls.read(skel, key))
 
     @classmethod
-    def read(cls, skel: SkeletonInstance, key: db.Key | int | str) -> bool:
+    def read(cls, skel: SkeletonInstance, key: db.Key | int | str) -> t.Optional[SkeletonInstance]:
         """
             Read entity with *key* from the datastore into the Skeleton.
 
@@ -990,20 +990,20 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             :param key: A :class:`viur.core.DB.Key`, string, or int; from which the data shall be fetched.
 
-            :returns: True on success; False if the given key could not be found or can not be parsed.
+            :returns: None on error, or the given SkeletonInstance on success.
 
         """
         assert skel.renderPreparation is None, "Cannot modify values while rendering"
         try:
             db_key = db.keyHelper(key, skel.kindName)
         except ValueError:  # This key did not parse
-            return False
+            return None
 
         if not (db_res := db.Get(db_key)):
-            return False
+            return None
 
         skel.setEntity(db_res)
-        return True
+        return skel
 
     @classmethod
     def toDB(cls, skel: SkeletonInstance, update_relations: bool = True, **kwargs) -> db.Key:
