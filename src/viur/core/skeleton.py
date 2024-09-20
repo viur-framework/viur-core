@@ -263,7 +263,6 @@ class SkeletonInstance:
             "preProcessBlobLocks",
             "preProcessSerializedData",
             "read",
-            "read",
             "refresh",
             "serialize",
             "setBoneValue",
@@ -502,7 +501,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
             Even if this function returns False, all bones are guaranteed to be in a valid state.
             The ones which have been read correctly are set to their valid values;
             Bones with invalid values are set back to a safe default (None in most cases).
-            So its possible to call :func:`~viur.core.skeleton.Skeleton.toDB` afterwards even if reading
+            So its possible to call :func:`~viur.core.skeleton.Skeleton.write` afterwards even if reading
             data with this function failed (through this might violates the assumed consistency-model).
 
             :param skel: The skeleton instance to be filled.
@@ -712,7 +711,7 @@ class ViurTagsSearchAdapter(DatabaseAdapter):
     """
     This Adapter implements a simple fulltext search on top of the datastore.
 
-    On skel.toDB(), all words from String-/TextBones are collected with all *min_length* postfixes and dumped
+    On skel.write(), all words from String-/TextBones are collected with all *min_length* postfixes and dumped
     into the property `viurTags`. When queried, we'll run a prefix-match against this property - thus returning
     entities with either an exact match or a match within a word.
 
@@ -920,7 +919,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             Even if this function returns False, all bones are guaranteed to be in a valid state.
             The ones which have been read correctly are set to their valid values;
             Bones with invalid values are set back to a safe default (None in most cases).
-            So its possible to call :func:`~viur.core.skeleton.Skeleton.toDB` afterwards even if reading
+            So its possible to call :func:`~viur.core.skeleton.Skeleton.write` afterwards even if reading
             data with this function failed (through this might violates the assumed consistency-model).
 
             :param skel: The skeleton instance to be filled.
@@ -987,7 +986,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             from the Datastore into the Skeleton structure's bones. Any previous
             data of the bones will discard.
 
-            To store a Skeleton object to the Datastore, see :func:`~viur.core.skeleton.Skeleton.toDB`.
+            To store a Skeleton object to the Datastore, see :func:`~viur.core.skeleton.Skeleton.write`.
 
             :param key: A :class:`viur.core.DB.Key`, string, or int; from which the data shall be fetched.
 
@@ -1031,7 +1030,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             If an *key* value is set to the object, this entity will ne updated;
             Otherwise a new entity will be created.
 
-            To read a Skeleton object from the data store, see :func:`~viur.core.skeleton.Skeleton.fromDB`.
+            To read a Skeleton object from the data store, see :func:`~viur.core.skeleton.Skeleton.read`.
 
             :param update_relations: If False, this entity won't be marked dirty;
                 This avoids from being fetched by the background task updating relations.
@@ -1402,7 +1401,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         if key is None:
             raise ValueError("This skeleton has no key!")
         skel = skeletonByKind(skelValues.kindName)()
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise ValueError("This skeleton is not in the database (anymore?)!")
 
         if db.IsInTransaction():
@@ -1490,7 +1489,7 @@ class RefSkel(RelSkel):
         """
         skel = skeletonByKind(self.kindName)()
 
-        if not skel.fromDB(key or self["key"]):
+        if not skel.read(key or self["key"]):
             raise ValueError(f"""The key {key or self["key"]!r} seems to be gone""")
 
         return skel
@@ -1571,7 +1570,7 @@ def processRemovedRelations(removedKey, cursor=None):
     for entry in updateList:
         skel = skeletonByKind(entry["viur_src_kind"])()
 
-        if not skel.fromDB(entry["src"].key):
+        if not skel.read(entry["src"].key):
             raise ValueError(f"processRemovedRelations detects inconsistency on src={entry['src'].key!r}")
 
         if entry["viur_relational_consistency"] == RelationalConsistency.SetNull.value:
@@ -1586,7 +1585,7 @@ def processRemovedRelations(removedKey, cursor=None):
                         skel[key] = [x for x in relVal if x["dest"]["key"] != removedKey]
                     else:
                         raise NotImplementedError(f"No handling for {type(relVal)=}")
-            skel.toDB(update_relations=False)
+            skel.write(update_relations=False)
 
         else:
             logging.critical(f"""Cascade deletion of {skel["key"]!r}""")
@@ -1604,7 +1603,7 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: t.Optional
         entity that's referencing them. This allows ViUR to run queries over properties of referenced entities and
         prevents additional db.Get's to these referenced entities if the main entity is read. However, this forces
         us to track changes made to entities as we might have to update these mirrored values.     This is the deferred
-        call from meth:`viur.core.skeleton.Skeleton.toDB()` after an update (edit) on one Entity to do exactly that.
+        call from meth:`viur.core.skeleton.Skeleton.write()` after an update (edit) on one Entity to do exactly that.
 
         :param destKey: The database-key of the entity that has been edited
         :param minChangeTime: The timestamp on which the edit occurred. As we run deferred, and the entity might have
@@ -1629,12 +1628,12 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: t.Optional
     updateList = updateListQuery.run(limit=5)
 
     def updateTxn(skel, key, srcRelKey):
-        if not skel.fromDB(key):
+        if not skel.read(key):
             logging.warning(f"Cannot update stale reference to {key=} (referenced from {srcRelKey=})")
             return
 
         skel.refresh()
-        skel.toDB(update_relations=False)
+        skel.write(update_relations=False)
 
     for srcRel in updateList:
         try:
@@ -1701,7 +1700,7 @@ class RebuildSearchIndex(QueryIter):
     @classmethod
     def handleEntry(cls, skel: SkeletonInstance, customData: dict[str, str]):
         skel.refresh()
-        skel.toDB(update_relations=False)
+        skel.write(update_relations=False)
 
     @classmethod
     def handleFinish(cls, totalCount: int, customData: dict[str, str]):

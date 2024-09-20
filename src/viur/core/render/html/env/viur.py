@@ -173,7 +173,7 @@ def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel"
             return False
 
         if "canView" in dir(obj):
-            if not skel.fromDB(key):
+            if not skel.read(key):
                 logging.info(f"getSkel: Entry {key} not found")
                 return None
             if isinstance(obj, prototypes.singleton.Singleton):
@@ -201,7 +201,7 @@ def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel"
                 return None
 
         else:  # No Access-Test for this module
-            if not skel.fromDB(key):
+            if not skel.read(key):
                 return None
         skel.renderPreparation = render.renderBoneValue
         return skel
