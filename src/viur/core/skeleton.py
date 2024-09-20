@@ -65,15 +65,17 @@ class MetaBaseSkel(type):
         "postSavedHandler",
         "preProcessBlobLocks",
         "preProcessSerializedData",
+        "read",
         "refresh",
         "self",
         "serialize",
         "setBoneValue",
-        "style",
         "structure",
+        "style",
         "toDB",
         "unserialize",
         "values",
+        "write",
     }
 
     __allowed_chars = string.ascii_letters + string.digits + "_"
@@ -261,11 +263,13 @@ class SkeletonInstance:
             "preProcessBlobLocks",
             "preProcessSerializedData",
             "read",
+            "read",
             "refresh",
             "serialize",
             "setBoneValue",
             "toDB",
             "unserialize",
+            "write",
         }:
             return partial(getattr(self.skeletonCls, item), self)
 
@@ -969,7 +973,15 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     @classmethod
     def fromDB(cls, skel: SkeletonInstance, key: db.Key | int | str) -> bool:
         """
-            Load entity with *key* from the Datastore into the Skeleton.
+        Deprecated function, replaced by Skeleton.read().
+        """
+        logging.warning("skel.fromDB() is deprecated, use skel.read()")
+        return cls.read(skel, key)
+
+    @classmethod
+    def read(cls, skel: SkeletonInstance, key: db.Key | int | str) -> bool:
+        """
+            Read entity with *key* from the datastore into the Skeleton.
 
             Reads all available data of entity kind *kindName* and the key *key*
             from the Datastore into the Skeleton structure's bones. Any previous
@@ -990,13 +1002,30 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         if not (db_res := db.Get(db_key)):
             return False
+
         skel.setEntity(db_res)
         return True
 
     @classmethod
     def toDB(cls, skel: SkeletonInstance, update_relations: bool = True, **kwargs) -> db.Key:
         """
-            Store current Skeleton entity to the Datastore.
+        Deprecated function, replaced by Skeleton.write().
+        """
+        logging.warning("skel.toDB() is deprecated, use skel.write()")
+
+        # fixme: Remove in viur-core >= 4
+        if "clearUpdateTag" in kwargs:
+            msg = "clearUpdateTag was replaced by update_relations"
+            warnings.warn(msg, DeprecationWarning, stacklevel=3)
+            logging.warning(msg, stacklevel=3)
+            update_relations = not kwargs["clearUpdateTag"]
+
+        return cls.write(skel, update_relations)
+
+    @classmethod
+    def write(cls, skel: SkeletonInstance, update_relations: bool = True) -> db.Key:
+        """
+            Write current Skeleton entity to the datastore.
 
             Stores the current data of this instance into the database.
             If an *key* value is set to the object, this entity will ne updated;
@@ -1010,12 +1039,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             :returns: The datastore key of the entity.
         """
         assert skel.renderPreparation is None, "Cannot modify values while rendering"
-        # fixme: Remove in viur-core >= 4
-        if "clearUpdateTag" in kwargs:
-            msg = "clearUpdateTag was replaced by update_relations"
-            warnings.warn(msg, DeprecationWarning, stacklevel=3)
-            logging.warning(msg, stacklevel=3)
-            update_relations = not kwargs["clearUpdateTag"]
 
         def __txn_update(write_skel):
             db_key = write_skel["key"]
