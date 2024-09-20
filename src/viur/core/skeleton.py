@@ -446,7 +446,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
     @classmethod
     def setBoneValue(
         cls,
-        skelValues: SkeletonInstance,
+        skel: SkeletonInstance,
         boneName: str,
         value: t.Any,
         append: bool = False,
@@ -465,10 +465,10 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 
             :return: Wherever that operation succeeded or not.
         """
-        bone = getattr(skelValues, boneName, None)
+        bone = getattr(skel, boneName, None)
 
         if not isinstance(bone, BaseBone):
-            raise ValueError(f"{boneName!r} is no valid bone on this skeleton ({skelValues!r})")
+            raise ValueError(f"{boneName!r} is no valid bone on this skeleton ({skel!r})")
 
         if language:
             if not bone.languages:
@@ -481,17 +481,17 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                 raise ValueError("Cannot append None-value to bone {boneName!r}")
 
             if language:
-                skelValues[boneName][language] = [] if bone.multiple else None
+                skel[boneName][language] = [] if bone.multiple else None
             else:
-                skelValues[boneName] = [] if bone.multiple else None
+                skel[boneName] = [] if bone.multiple else None
 
             return True
 
-        _ = skelValues[boneName]  # ensure the bone is being unserialized first
-        return bone.setBoneValue(skelValues, boneName, value, append, language)
+        _ = skel[boneName]  # ensure the bone is being unserialized first
+        return bone.setBoneValue(skel, boneName, value, append, language)
 
     @classmethod
-    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str], amend: bool = False) -> bool:
+    def fromClient(cls, skel: SkeletonInstance, data: dict[str, list[str] | str], amend: bool = False) -> bool:
         """
             Load supplied *data* into Skeleton.
 
@@ -513,13 +513,13 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
             False otherwise (e.g. some required fields where missing or where invalid).
         """
         complete = True
-        skelValues.errors = []
+        skel.errors = []
 
-        for key, bone in skelValues.items():
+        for key, bone in skel.items():
             if bone.readOnly:
                 continue
 
-            if errors := bone.fromClient(skelValues, key, data):
+            if errors := bone.fromClient(skel, key, data):
                 for error in errors:
                     # insert current bone name into error's fieldPath
                     error.fieldPath.insert(0, str(key))
@@ -560,7 +560,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                                 f"""({error.severity}) {error.errorMessage}"""
                             )
 
-                skelValues.errors += errors
+                skel.errors += errors
 
         return complete
 
@@ -793,13 +793,13 @@ class SeoKeyBone(StringBone):
     Special kind of StringBone saving its contents as `viurCurrentSeoKeys` into the entity's `viur` dict.
     """
 
-    def unserialize(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> bool:
+    def unserialize(self, skel: SkeletonInstance, name: str) -> bool:
         try:
             skel.accessedValues[name] = skel.dbEntity["viur"]["viurCurrentSeoKeys"]
         except KeyError:
             skel.accessedValues[name] = self.getDefaultValue(skel)
 
-    def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
+    def serialize(self, skel: SkeletonInstance, name: str, parentIndexed: bool) -> bool:
         # Serialize also to skel["viur"]["viurCurrentSeoKeys"], so we can use this bone in relations
         if name in skel.accessedValues:
             newVal = skel.accessedValues[name]
@@ -902,16 +902,16 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         assert self.kindName and self.kindName is not _UNDEFINED, "You must set kindName on this skeleton!"
 
     @classmethod
-    def all(cls, skelValues, **kwargs) -> db.Query:
+    def all(cls, skel, **kwargs) -> db.Query:
         """
             Create a query with the current Skeletons kindName.
 
             :returns: A db.Query object which allows for entity filtering and sorting.
         """
-        return db.Query(skelValues.kindName, srcSkelClass=skelValues, **kwargs)
+        return db.Query(skel.kindName, srcSkelClass=skel, **kwargs)
 
     @classmethod
-    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str], amend: bool = False) -> bool:
+    def fromClient(cls, skel: SkeletonInstance, data: dict[str, list[str] | str], amend: bool = False) -> bool:
         """
             This function works similar to :func:`~viur.core.skeleton.Skeleton.setValues`, except that
             the values retrieved from *data* are checked against the bones and their validity checks.
@@ -930,34 +930,34 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             :returns: True if all data was successfully read and complete. \
             False otherwise (e.g. some required fields where missing or where invalid).
         """
-        assert skelValues.renderPreparation is None, "Cannot modify values while rendering"
+        assert skel.renderPreparation is None, "Cannot modify values while rendering"
 
         # Load data into this skeleton
-        complete = bool(data) and super().fromClient(skelValues, data, amend=amend)
+        complete = bool(data) and super().fromClient(skel, data, amend=amend)
 
         if (
             not data  # in case data is empty
             or (len(data) == 1 and "key" in data)
             or (utils.parse.bool(data.get("nomissing")))
         ):
-            skelValues.errors = []
+            skel.errors = []
 
         # Check if all unique values are available
-        for boneName, boneInstance in skelValues.items():
+        for boneName, boneInstance in skel.items():
             if boneInstance.unique:
-                lockValues = boneInstance.getUniquePropertyIndexValues(skelValues, boneName)
+                lockValues = boneInstance.getUniquePropertyIndexValues(skel, boneName)
                 for lockValue in lockValues:
-                    dbObj = db.Get(db.Key(f"{skelValues.kindName}_{boneName}_uniquePropertyIndex", lockValue))
-                    if dbObj and (not skelValues["key"] or dbObj["references"] != skelValues["key"].id_or_name):
+                    dbObj = db.Get(db.Key(f"{skel.kindName}_{boneName}_uniquePropertyIndex", lockValue))
+                    if dbObj and (not skel["key"] or dbObj["references"] != skel["key"].id_or_name):
                         # This value is taken (sadly, not by us)
                         complete = False
                         errorMsg = boneInstance.unique.message
-                        skelValues.errors.append(
+                        skel.errors.append(
                             ReadFromClientError(ReadFromClientErrorSeverity.Invalid, errorMsg, [boneName]))
 
         # Check inter-Bone dependencies
-        for checkFunc in skelValues.interBoneValidations:
-            errors = checkFunc(skelValues)
+        for checkFunc in skel.interBoneValidations:
+            errors = checkFunc(skel)
             if errors:
                 for error in errors:
                     if error.severity.value > 1:
@@ -965,7 +965,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                         if conf.debug.skeleton_from_client:
                             logging.debug(f"{cls.kindName}: {error.fieldPath}: {error.errorMessage!r}")
 
-                skelValues.errors.extend(errors)
+                skel.errors.extend(errors)
 
         return complete
 
@@ -1382,14 +1382,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
 
     @classmethod
-    def preProcessBlobLocks(cls, skelValues, locks):
+    def preProcessBlobLocks(cls, skel: SkeletonInstance, locks):
         """
             Can be overridden to modify the list of blobs referenced by this skeleton
         """
         return locks
 
     @classmethod
-    def preProcessSerializedData(cls, skelValues, entity):
+    def preProcessSerializedData(cls, skel: SkeletonInstance, entity):
         """
             Can be overridden to modify the :class:`viur.core.db.Entity` before its actually
             written to the data store.
@@ -1397,7 +1397,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return entity
 
     @classmethod
-    def postSavedHandler(cls, skelValues, key, dbObj):
+    def postSavedHandler(cls, skel: SkeletonInstance, key, dbObj):
         """
             Can be overridden to perform further actions after the entity has been written
             to the data store.
@@ -1405,7 +1405,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         pass
 
     @classmethod
-    def postDeletedHandler(cls, skelValues, key):
+    def postDeletedHandler(cls, skel: SkeletonInstance, key):
         """
             Can be overridden to perform further actions after the entity has been deleted
             from the data store.
@@ -1413,7 +1413,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         pass
 
     @classmethod
-    def getCurrentSEOKeys(cls, skelValues) -> None | dict[str, str]:
+    def getCurrentSEOKeys(cls, skel: SkeletonInstance) -> None | dict[str, str]:
         """
         Should be overridden to return a dictionary of language -> SEO-Friendly key
         this entry should be reachable under. How theses names are derived are entirely up to the application.
