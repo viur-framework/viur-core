@@ -82,6 +82,10 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
 
 
 class Script(Tree):
+    """
+    Script is a system module used to serve a filesystem for scripts used by ViUR Scriptor and ViUR CLI.
+    """
+
     leafSkelCls = ScriptLeafSkel
     nodeSkelCls = ScriptNodeSkel
 
@@ -156,6 +160,3 @@ class Script(Tree):
             key = parent_skel["parententry"]
 
         skel["path"] = "/".join(path)
-
-
-Script.json = True

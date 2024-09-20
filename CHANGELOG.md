@@ -2,6 +2,15 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.17]
+
+- feat: `type_postfix` on `BaseBone` and `select.access` in `UserSkel` (#1261)
+
+## [3.6.16]
+
+- fix: @access-decorator (#1257)
+- fix: Delete bones set to `None` from a Skeleton (#1258)
+
 ## [3.6.15]
 
 - fix: `Skeleton.toDB()`s `is_add` determined wrong (#1248)

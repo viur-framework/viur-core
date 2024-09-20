@@ -1211,10 +1211,6 @@ class File(Tree):
         return skel
 
 
-File.json = True
-File.html = True
-
-
 @PeriodicTask(interval=datetime.timedelta(hours=4))
 def startCheckForUnreferencedBlobs():
     """

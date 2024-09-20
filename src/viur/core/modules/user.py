@@ -92,6 +92,7 @@ class UserSkel(skeleton.Skeleton):
 
     access = SelectBone(
         descr=i18n.translate("viur.user.bone.access", defaultText="Access rights"),
+        type_postfix="access",
         values=lambda: {
             right: i18n.translate(f"server.modules.user.accessright.{right}", defaultText=right)
             for right in sorted(conf.user.access_rights)
@@ -1130,6 +1131,12 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
 
 
 class User(List):
+    """
+    The User module is used to manage and authenticate users in a ViUR system.
+
+    It is used in almost any ViUR project, but ViUR can also function without any user capabilites.
+    """
+
     kindName = "user"
     addTemplate = "user_add"
     addSuccessTemplate = "user_add_success"
