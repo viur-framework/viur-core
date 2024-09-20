@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import html
 import io
+import itertools
 import json
 import logging
 import PIL
@@ -14,9 +15,9 @@ import requests
 import string
 import typing as t
 from collections import namedtuple
-from urllib.parse import quote as urlquote
-from urllib.request import urlopen
 from google.appengine.api import images, blobstore
+from urllib.parse import quote as urlquote, urlencode
+from urllib.request import urlopen
 
 from google.cloud import storage
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
@@ -429,7 +430,7 @@ class FileNodeSkel(TreeSkel):
 class File(Tree):
     PENDING_POSTFIX = " (pending)"
     DOWNLOAD_URL_PREFIX = "/file/download/"
-    SERVE_URL_PREFIX = "/file/serve"
+    INTERNAL_SERVING_URL_PREFIX = "/file/serve/"
     MAX_FILENAME_LEN = 256
 
     leafSkelCls = FileLeafSkel
@@ -494,46 +495,49 @@ class File(Tree):
         return hmac.compare_digest(File.hmac_sign(data.encode("ASCII")), signature)
 
     @staticmethod
-    def create_serve_parameters(serving_url: str) -> tuple[str, str]:
+    def create_internal_serving_url(
+        serving_url: str,
+        size: int = 0,
+        filename: str = "",
+        options: str = "",
+        download: bool = False
+    ) -> str:
         """
-        Splits a serving URL into its components, used by serve function.
-        :param serving_url: the serving URL to be split
-        :return: return a tuple of host and key
+        Helper function to generate an internal serving url (endpoint: /file/serve) from a Google serving url.
+
+        This is needed to hide requests to Google as they are internally be routed, and can be the result of a
+        legal requirement like GDPR.
+
+        :param serving_url: Is the original serving URL as generated from create_serving_url()
+        :param size: Optional size setting
+        :param filename: Optonal filename setting
+        :param options: Additional options parameter-pass through to /file/serve
+        :param download: Download parameter-pass through to /file/serve
         """
+
+        # Split a serving URL into its components, used by serve function.
         regex_result = re.match(
             r"^https:\/\/(.*?)\.googleusercontent\.com\/(.*?)$",
             serving_url
         )
+
         if not regex_result:
             raise ValueError(f"Invalid {serving_url=!r} provided")
-        return regex_result.groups()
 
-    @staticmethod
-    def create_serve_url(
-        serving_url: str,
-        size: t.Optional[int] = None,
-        filename: t.Optional[str] = None,
-        options: str = "",
-        download: bool = False
-    ) -> str:
-        serve_url = File.SERVE_URL_PREFIX
+        # Create internal serving URL
+        serving_url = "/".join(
+            itertools.chain(
+                [File.INTERNAL_SERVING_URL_PREFIX.rstrip("/")],
+                list(regex_result.groups()),
+                [str(item) for item in (size, filename) if item],
+            )
+        )
 
-        serving_params = File.create_serve_parameters(serving_url)
+        # Append additional parameters
+        if query_parameters := {k: v for k, v in {"options": options, "download": download}.items() if v}:
+            serving_url += f"?{urlencode(query_parameters)}"
 
-        serve_url += f"/{'/'.join(serving_params)}"
-
-        path_parameters = [f"{x}" for x in [size, filename] if x is not None]
-        if path_parameters:
-            serve_url += f"/{'/'.join(path_parameters)}"
-
-        from urllib.parse import urlencode  # TODO: move to the top
-        
-        query_parameters = {k: v for k, v in {"options": options, "download": download}.items() if v}
-
-        if query_parameters:
-            serve_url += f"?{urlencode(query_parameters)}"
-
-        return serve_url
+        return serving_url
 
     @staticmethod
     def create_download_url(
@@ -1208,6 +1212,7 @@ class File(Tree):
             except Exception as e:
                 logging.warning("Error while creating serving url")
                 logging.exception(e)
+
         return skel
 
 
