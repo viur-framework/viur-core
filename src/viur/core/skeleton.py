@@ -986,7 +986,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     @classmethod
     def read(cls, skel: SkeletonInstance, key: t.Optional[KeyType] = None) -> t.Optional[SkeletonInstance]:
         """
-            Read entity with *key* from the datastore into the Skeleton.
+            Read Skeleton with *key* from the datastore into the Skeleton.
+            If not key is given, skel["key"] will be used.
 
             Reads all available data of entity kind *kindName* and the key *key*
             from the Datastore into the Skeleton structure's bones. Any previous
@@ -1041,7 +1042,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         update_relations: bool = True
     ) -> SkeletonInstance:
         """
-            Write current Skeleton entity to the datastore.
+            Write current Skeleton to the datastore.
 
             Stores the current data of this instance into the database.
             If an *key* value is set to the object, this entity will ne updated;
@@ -1053,7 +1054,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             :param update_relations: If False, this entity won't be marked dirty;
                 This avoids from being fetched by the background task updating relations.
 
-            :returns: The datastore key of the entity.
+            :returns: The Skeleton.
         """
         assert skel.renderPreparation is None, "Cannot modify values while rendering"
 
