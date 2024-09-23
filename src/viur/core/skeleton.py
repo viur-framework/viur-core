@@ -9,6 +9,7 @@ import string
 import sys
 import typing as t
 import warnings
+from deprecated.sphinx import deprecated
 from functools import partial
 from itertools import chain
 from time import time
@@ -971,11 +972,15 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return complete
 
     @classmethod
+    @deprecated(
+        version="3.7.0",
+        reason="Use skel.read() instead of skel.fromDB()",
+        action="always"
+    )
     def fromDB(cls, skel: SkeletonInstance, key: KeyType) -> bool:
         """
         Deprecated function, replaced by Skeleton.read().
         """
-        logging.warning("skel.fromDB() is deprecated, use skel.read()")
         return bool(cls.read(skel, key))
 
     @classmethod
@@ -1008,23 +1013,25 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return skel
 
     @classmethod
+    @deprecated(
+        version="3.7.0",
+        reason="Use skel.write() instead of skel.toDB()",
+        action="always"
+    )
     def toDB(cls, skel: SkeletonInstance, update_relations: bool = True, **kwargs) -> db.Key:
         """
         Deprecated function, replaced by Skeleton.write().
         """
-        logging.warning("skel.toDB() is deprecated, use skel.write()")
-
-        # fixme: Remove in viur-core >= 4
         if "clearUpdateTag" in kwargs:
             msg = "clearUpdateTag was replaced by update_relations"
             warnings.warn(msg, DeprecationWarning, stacklevel=3)
             logging.warning(msg, stacklevel=3)
             update_relations = not kwargs["clearUpdateTag"]
 
-        return cls.write(skel, update_relations)
+        return cls.write(skel, update_relations=update_relations)
 
     @classmethod
-    def write(cls, skel: SkeletonInstance, update_relations: bool = True) -> db.Key:
+    def write(cls, skel: SkeletonInstance, *, update_relations: bool = True) -> db.Key:
         """
             Write current Skeleton entity to the datastore.
 
