@@ -517,26 +517,27 @@ class File(Tree):
         """
 
         # Split a serving URL into its components, used by serve function.
-        regex_result = re.match(
+        res = re.match(
             r"^https:\/\/(.*?)\.googleusercontent\.com\/(.*?)$",
             serving_url
         )
 
-        if not regex_result:
+        if not res:
             raise ValueError(f"Invalid {serving_url=!r} provided")
 
         # Create internal serving URL
-        serving_url = "/".join(
-            itertools.chain(
-                [File.INTERNAL_SERVING_URL_PREFIX.rstrip("/")],
-                list(regex_result.groups()),
-                [str(item) for item in (size, filename) if item],
-            )
-        )
+        serving_url = File.INTERNAL_SERVING_URL_PREFIX + "/".join(res.groups())
 
         # Append additional parameters
-        if query_parameters := {k: v for k, v in {"options": options, "download": download}.items() if v}:
-            serving_url += f"?{urlencode(query_parameters)}"
+        if params := {
+                k: v for k, v in {
+                    "download": download,
+                    "filename": filename,
+                    "options": options,
+                    "size": size,
+                }.items() if v
+        }:
+            serving_url += f"?{urlencode(params)}"
 
         return serving_url
 
