@@ -979,7 +979,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return bool(cls.read(skel, key))
 
     @classmethod
-    def read(cls, skel: SkeletonInstance, key: KeyType) -> t.Optional[SkeletonInstance]:
+    def read(cls, skel: SkeletonInstance, key: t.Optional[KeyType] = None) -> t.Optional[SkeletonInstance]:
         """
             Read entity with *key* from the datastore into the Skeleton.
 
@@ -995,8 +995,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         """
         assert skel.renderPreparation is None, "Cannot modify values while rendering"
+
         try:
-            db_key = db.keyHelper(key, skel.kindName)
+            db_key = db.keyHelper(key or skel["key"], skel.kindName)
         except ValueError:  # This key did not parse
             return None
 
