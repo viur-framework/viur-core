@@ -5,7 +5,6 @@ import hashlib
 import hmac
 import html
 import io
-import itertools
 import json
 import logging
 import PIL
