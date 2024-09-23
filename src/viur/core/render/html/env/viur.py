@@ -757,6 +757,13 @@ def srcSetFor(
 
 
 @jinjaGlobalFunction
+def serving_url_for(render: Render, *args, **kwargs):
+    """
+    Jinja wrapper for File.create_internal_serving_url(), see there for parameter information.
+    """
+    return file.File.create_internal_serving_url(*args, **kwargs)
+
+@jinjaGlobalFunction
 def seoUrlForEntry(render: Render, *args, **kwargs):
     return utils.seoUrlToEntry(*args, **kwargs)
 
