@@ -16,6 +16,7 @@ class CustomJsonEncoder(json.JSONEncoder):
     """
 
     def default(self, o: t.Any) -> t.Any:
+
         if isinstance(o, translate):
             return str(o)
         elif isinstance(o, datetime):
@@ -24,6 +25,10 @@ class CustomJsonEncoder(json.JSONEncoder):
             return db.encodeKey(o)
         elif isinstance(o, Enum):
             return o.value
+        elif isinstance(o, set):
+            return tuple(o)
+        elif isinstance(o, SkeletonInstance):
+            return {bone_name: o[bone_name] for bone_name in o}
         return json.JSONEncoder.default(self, o)
 
 
