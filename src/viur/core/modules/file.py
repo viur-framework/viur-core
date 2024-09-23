@@ -14,8 +14,10 @@ import requests
 import string
 import typing as t
 from collections import namedtuple
-from urllib.parse import quote as urlquote
+from google.appengine.api import images, blobstore
+from urllib.parse import quote as urlquote, urlencode
 from urllib.request import urlopen
+
 from google.cloud import storage
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from viur.core import conf, current, db, errors, utils
@@ -34,15 +36,23 @@ VALID_FILENAME_REGEX = re.compile(
     re.IGNORECASE
 )
 
-_CREDENTIALS, __PROJECT_ID = google.auth.default()
-GOOGLE_STORAGE_CLIENT = storage.Client(__PROJECT_ID, _CREDENTIALS)
-GOOGLE_STORAGE_BUCKET = GOOGLE_STORAGE_CLIENT.lookup_bucket(f"""{__PROJECT_ID}.appspot.com""")
+_CREDENTIALS, _PROJECT_ID = google.auth.default()
+GOOGLE_STORAGE_CLIENT = storage.Client(_PROJECT_ID, _CREDENTIALS)
+
+PRIVATE_BUCKET_NAME = f"""{_PROJECT_ID}.appspot.com"""
+PUBLIC_BUCKET_NAME = f"""public-dot-{_PROJECT_ID}"""
+PUBLIC_DLKEY_SUFFIX = "_pub"
+
+_private_bucket = GOOGLE_STORAGE_CLIENT.lookup_bucket(PRIVATE_BUCKET_NAME)
+_public_bucket = None
 
 # FilePath is a descriptor for ViUR file components
 FilePath = namedtuple("FilePath", ("dlkey", "is_derived", "filename"))
 
 
 def importBlobFromViur2(dlKey, fileName):
+    bucket = File.get_bucket(dlKey)
+
     if not conf.viur2import_blobsource:
         return False
     existingImport = db.Get(db.Key("viur-viur2-blobimport", dlKey))
@@ -53,7 +63,7 @@ def importBlobFromViur2(dlKey, fileName):
     if conf.viur2import_blobsource["infoURL"]:
         try:
             importDataReq = urlopen(conf.viur2import_blobsource["infoURL"] + dlKey)
-        except:
+        except Exception as e:
             marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
             marker["success"] = False
             marker["error"] = "Failed URL-FETCH 1"
@@ -67,11 +77,11 @@ def importBlobFromViur2(dlKey, fileName):
             return False
         importData = json.loads(importDataReq.read())
         oldBlobName = conf.viur2import_blobsource["gsdir"] + "/" + importData["key"]
-        srcBlob = storage.Blob(bucket=GOOGLE_STORAGE_BUCKET,
+        srcBlob = storage.Blob(bucket=bucket,
                                name=conf.viur2import_blobsource["gsdir"] + "/" + importData["key"])
     else:
         oldBlobName = conf.viur2import_blobsource["gsdir"] + "/" + dlKey
-        srcBlob = storage.Blob(bucket=GOOGLE_STORAGE_BUCKET, name=conf.viur2import_blobsource["gsdir"] + "/" + dlKey)
+        srcBlob = storage.Blob(bucket=bucket, name=conf.viur2import_blobsource["gsdir"] + "/" + dlKey)
     if not srcBlob.exists():
         marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
         marker["success"] = False
@@ -79,7 +89,7 @@ def importBlobFromViur2(dlKey, fileName):
         marker["oldBlobName"] = oldBlobName
         db.Put(marker)
         return False
-    GOOGLE_STORAGE_BUCKET.rename_blob(srcBlob, f"{dlKey}/source/{fileName}")
+    bucket.rename_blob(srcBlob, f"{dlKey}/source/{fileName}")
     marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
     marker["success"] = True
     marker["old_src_key"] = dlKey
@@ -91,7 +101,8 @@ def importBlobFromViur2(dlKey, fileName):
 
 def thumbnailer(fileSkel, existingFiles, params):
     file_name = html.unescape(fileSkel["name"])
-    blob = GOOGLE_STORAGE_BUCKET.get_blob(f"""{fileSkel["dlkey"]}/source/{file_name}""")
+    bucket = File.get_bucket(fileSkel["dlkey"])
+    blob = bucket.get_blob(f"""{fileSkel["dlkey"]}/source/{file_name}""")
     if not blob:
         logging.warning(f"""Blob {fileSkel["dlkey"]}/source/{file_name} is missing from cloud storage!""")
         return
@@ -137,7 +148,7 @@ def thumbnailer(fileSkel, existingFiles, params):
         img.save(outData, fileExtension)
         outSize = outData.tell()
         outData.seek(0)
-        targetBlob = GOOGLE_STORAGE_BUCKET.blob(f"""{fileSkel["dlkey"]}/derived/{targetName}""")
+        targetBlob = bucket.blob(f"""{fileSkel["dlkey"]}/derived/{targetName}""")
         targetBlob.upload_from_file(outData, content_type=mimeType)
         resList.append((targetName, outSize, mimeType, {"mimetype": mimeType, "width": width, "height": height}))
     return resList
@@ -172,12 +183,14 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
     if not conf.file_thumbnailer_url:
         raise ValueError("conf.file_thumbnailer_url is not set")
 
+    bucket = File.get_bucket(fileSkel["dlkey"])
+
     def getsignedurl():
         if conf.instance.is_dev_server:
             signedUrl = File.create_download_url(fileSkel["dlkey"], fileSkel["name"])
         else:
             path = f"""{fileSkel["dlkey"]}/source/{file_name}"""
-            if not (blob := GOOGLE_STORAGE_BUCKET.get_blob(path)):
+            if not (blob := bucket.get_blob(path)):
                 logging.warning(f"Blob {path} is missing from cloud storage!")
                 return None
             authRequest = google.auth.transport.requests.Request()
@@ -242,7 +255,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
     uploadUrls = {}
     for data in derivedData["values"]:
         fileName = File.sanitize_filename(data["name"])
-        blob = GOOGLE_STORAGE_BUCKET.blob(f"""{fileSkel["dlkey"]}/derived/{fileName}""")
+        blob = bucket.blob(f"""{fileSkel["dlkey"]}/derived/{fileName}""")
         uploadUrls[fileSkel["dlkey"] + fileName] = blob.create_resumable_upload_session(timeout=60,
                                                                                         content_type=data["mimeType"])
 
@@ -352,12 +365,25 @@ class FileLeafSkel(TreeSkel):
         readOnly=True,
         visible=False,
     )
+
     crc32c_checksum = StringBone(
         descr="CRC32C checksum",
         readOnly=True,
     )
+
     md5_checksum = StringBone(
         descr="MD5 checksum",
+        readOnly=True,
+    )
+
+    public = BooleanBone(
+        descr="Public File",
+        readOnly=True,
+        defaultValue=False,
+    )
+
+    serving_url = StringBone(
+        descr="Serving-URL",
         readOnly=True,
     )
 
@@ -378,6 +404,8 @@ class FileLeafSkel(TreeSkel):
                 if not skelValues["downloadUrl"]:
                     skelValues["downloadUrl"] = importData
                 skelValues["pendingparententry"] = False
+
+        conf.main_app.file.inject_serving_url(skelValues)
 
 
 class FileNodeSkel(TreeSkel):
@@ -401,6 +429,7 @@ class FileNodeSkel(TreeSkel):
 class File(Tree):
     PENDING_POSTFIX = " (pending)"
     DOWNLOAD_URL_PREFIX = "/file/download/"
+    INTERNAL_SERVING_URL_PREFIX = "/file/serve/"
     MAX_FILENAME_LEN = 256
 
     leafSkelCls = FileLeafSkel
@@ -421,6 +450,22 @@ class File(Tree):
     default_order = "name"
 
     # Helper functions currently resist here
+
+    @staticmethod
+    def get_bucket(dlkey: str) -> google.cloud.storage.bucket.Bucket:
+        """
+        Retrieves a Google Cloud Storage bucket for the given dlkey.
+        """
+        global _public_bucket
+        if dlkey and dlkey.endswith(PUBLIC_DLKEY_SUFFIX):
+            if _public_bucket or (_public_bucket := GOOGLE_STORAGE_CLIENT.lookup_bucket(PUBLIC_BUCKET_NAME)):
+                return _public_bucket
+
+            raise ValueError(
+                f"""The bucket 'public-dot-{_PROJECT_ID}' does not exist! Please create it with ACL access."""
+            )
+
+        return _private_bucket
 
     @staticmethod
     def is_valid_filename(filename: str) -> bool:
@@ -448,6 +493,52 @@ class File(Tree):
     @staticmethod
     def hmac_verify(data: t.Any, signature: str) -> bool:
         return hmac.compare_digest(File.hmac_sign(data.encode("ASCII")), signature)
+
+    @staticmethod
+    def create_internal_serving_url(
+        serving_url: str,
+        size: int = 0,
+        filename: str = "",
+        options: str = "",
+        download: bool = False
+    ) -> str:
+        """
+        Helper function to generate an internal serving url (endpoint: /file/serve) from a Google serving url.
+
+        This is needed to hide requests to Google as they are internally be routed, and can be the result of a
+        legal requirement like GDPR.
+
+        :param serving_url: Is the original serving URL as generated from inject_serving_url()
+        :param size: Optional size setting
+        :param filename: Optonal filename setting
+        :param options: Additional options parameter-pass through to /file/serve
+        :param download: Download parameter-pass through to /file/serve
+        """
+
+        # Split a serving URL into its components, used by serve function.
+        res = re.match(
+            r"^https:\/\/(.*?)\.googleusercontent\.com\/(.*?)$",
+            serving_url
+        )
+
+        if not res:
+            raise ValueError(f"Invalid {serving_url=!r} provided")
+
+        # Create internal serving URL
+        serving_url = File.INTERNAL_SERVING_URL_PREFIX + "/".join(res.groups())
+
+        # Append additional parameters
+        if params := {
+                k: v for k, v in {
+                    "download": download,
+                    "filename": filename,
+                    "options": options,
+                    "size": size,
+                }.items() if v
+        }:
+            serving_url += f"?{urlencode(params)}"
+
+        return serving_url
 
     @staticmethod
     def create_download_url(
@@ -600,8 +691,15 @@ class File(Tree):
 
         return ", ".join(src_set)
 
-    def write(self, filename: str, content: t.Any, mimetype: str = "text/plain", width: int = None,
-              height: int = None) -> db.Key:
+    def write(
+        self,
+        filename: str,
+        content: t.Any,
+        mimetype: str = "text/plain",
+        width: int = None,
+        height: int = None,
+        public: bool = False,
+    ) -> db.Key:
         """
         Write a file from any buffer into the file module.
 
@@ -610,7 +708,7 @@ class File(Tree):
         :param mimetype: The file's mimetype.
         :param width: Optional width information for the file.
         :param height: Optional height information for the file.
-
+        :param public: True if the file should be publicly accessible.
         :return: Returns the key of the file object written. This can be associated e.g. with a FileBone.
         """
         if not File.is_valid_filename(filename):
@@ -618,7 +716,12 @@ class File(Tree):
 
         dl_key = utils.string.random()
 
-        blob = GOOGLE_STORAGE_BUCKET.blob(f"{dl_key}/source/{filename}")
+        if public:
+            dl_key += PUBLIC_DLKEY_SUFFIX  # mark file as public
+
+        bucket = File.get_bucket(dl_key)
+
+        blob = bucket.blob(f"{dl_key}/source/{filename}")
         blob.upload_from_file(io.BytesIO(content), content_type=mimetype)
 
         skel = self.addSkel("leaf")
@@ -627,6 +730,7 @@ class File(Tree):
         skel["mimetype"] = mimetype
         skel["dlkey"] = dl_key
         skel["weak"] = True
+        skel["public"] = public
         skel["width"] = width
         skel["height"] = height
         skel["crc32c_checksum"] = base64.b64decode(blob.crc32c).hex()
@@ -634,7 +738,11 @@ class File(Tree):
 
         return skel.write()
 
-    def read(self, key: db.Key | int | str | None = None, path: str | None = None) -> tuple[io.BytesIO, str]:
+    def read(
+        self,
+        key: db.Key | int | str | None = None,
+        path: str | None = None,
+    ) -> tuple[io.BytesIO, str]:
         """
         Read a file from the Cloud Storage.
 
@@ -648,6 +756,7 @@ class File(Tree):
         """
         if not key and not path:
             raise ValueError("Please provide a key or a path")
+
         if key:
             skel = self.viewSkel("leaf")
             if not skel.read(db.keyHelper(key, skel.kindName)):
@@ -656,7 +765,11 @@ class File(Tree):
             else:
                 path = f"""{skel["dlkey"]}/source/{skel["name"]}"""
 
-        blob = GOOGLE_STORAGE_BUCKET.blob(path)
+            bucket = File.get_bucket(skel["dlkey"])
+        else:
+            bucket = File.get_bucket(path.split("/", 1)[0])  # path's first part is dlkey plus eventual postfix
+
+        blob = bucket.blob(path)
         return io.BytesIO(blob.download_as_bytes()), blob.content_type
 
     @CallDeferred
@@ -684,7 +797,8 @@ class File(Tree):
         size: t.Optional[int] = None,
         node: t.Optional[str | db.Key] = None,
         authData: t.Optional[str] = None,
-        authSig: t.Optional[str] = None
+        authSig: t.Optional[str] = None,
+        public: bool = False,
     ):
         filename = fileName.strip()  # VIUR4 FIXME: just for compatiblity of the parameter names
 
@@ -742,7 +856,11 @@ class File(Tree):
 
         # Create upload-URL and download key
         dlkey = utils.string.random()  # let's roll a random key
-        blob = GOOGLE_STORAGE_BUCKET.blob(f"{dlkey}/source/{filename}")
+
+        if public:
+            dlkey += PUBLIC_DLKEY_SUFFIX  # mark file as public
+
+        blob = File.get_bucket(dlkey).blob(f"{dlkey}/source/{filename}")
         upload_url = blob.create_resumable_upload_session(content_type=mimeType, size=size, timeout=60)
 
         # Create a corresponding file-lock object early, otherwise we would have to ensure that the file-lock object
@@ -757,6 +875,7 @@ class File(Tree):
         file_skel["pendingparententry"] = db.keyHelper(node, self.addSkel("node").kindName) if node else None
         file_skel["pending"] = True
         file_skel["weak"] = True
+        file_skel["public"] = public
         file_skel["width"] = 0
         file_skel["height"] = 0
 
@@ -797,6 +916,15 @@ class File(Tree):
 
         download_filename = ""
 
+        try:
+            dlPath, validUntil, download_filename = base64.urlsafe_b64decode(
+                blobKey).decode("UTF-8").split("\0")
+        except Exception as e:  # It's the old format, without an downloadFileName
+            dlPath, validUntil = base64.urlsafe_b64decode(blobKey).decode(
+                "UTF-8").split("\0")
+
+        bucket = File.get_bucket(dlPath.split("/", 1)[0])
+
         if not sig:
             # Check if the current user has the right to download *any* blob present in this application.
             # blobKey is then the path inside cloudstore - not a base64 encoded tuple
@@ -805,29 +933,24 @@ class File(Tree):
             if "root" not in usr["access"] and "file-view" not in usr["access"]:
                 raise errors.Forbidden()
             validUntil = "-1"  # Prevent this from being cached down below
-            blob = GOOGLE_STORAGE_BUCKET.get_blob(blobKey)
+            blob = bucket.get_blob(blobKey)
 
         else:
             # We got an request including a signature (probably a guest or a user without file-view access)
             # First, validate the signature, otherwise we don't need to proceed any further
             if not self.hmac_verify(blobKey, sig):
                 raise errors.Forbidden()
-            # Split the blobKey into the individual fields it should contain
-            try:
-                dlPath, validUntil, download_filename = base64.urlsafe_b64decode(blobKey).decode("UTF-8").split("\0")
-            except:  # It's the old format, without an downloadFileName
-                dlPath, validUntil = base64.urlsafe_b64decode(blobKey).decode("UTF-8").split("\0")
 
             if validUntil != "0" and datetime.datetime.strptime(validUntil, "%Y%m%d%H%M") < datetime.datetime.now():
                 blob = None
             else:
-                blob = GOOGLE_STORAGE_BUCKET.get_blob(dlPath)
+                blob = bucket.get_blob(dlPath)
 
         if not blob:
             raise errors.Gone("The requested blob has expired.")
 
         if not filename:
-            filename = download_filename or urlquote(blob.name.split("/")[-1])
+            filename = download_filename or urlquote(blob.name.rsplit("/", 1)[-1])
 
         content_disposition = "; ".join(
             item for item in (
@@ -848,7 +971,7 @@ class File(Tree):
                 response.headers["Content-Disposition"] = content_disposition
             return blob.download_as_bytes()
 
-        if validUntil == "0":  # Its an indefinitely valid URL
+        if validUntil == "0" or blobKey.endswith(PUBLIC_DLKEY_SUFFIX):  # Its an indefinitely valid URL
             if blob.size < 5 * 1024 * 1024:  # Less than 5 MB - Serve directly and push it into the ede caches
                 response = current.request.get().response
                 response.headers["Content-Type"] = blob.content_type
@@ -868,6 +991,101 @@ class File(Tree):
             version="v4")
 
         raise errors.Redirect(signedUrl)
+
+    SERVE_VALID_OPTIONS = {
+        "c",
+        "p",
+        "fv",
+        "fh",
+        "r90",
+        "r180",
+        "r270",
+        "nu",
+    }
+    """
+    Valid modification option shorts for the serve-function.
+    This is passed-through to the Google UserContent API, and hast to be supported there.
+    """
+
+    SERVE_VALID_FORMATS = {
+        "jpg": "rj",
+        "jpeg": "rj",
+        "png": "rp",
+        "webp": "rw",
+    }
+    """
+    Valid file-formats to the serve-function.
+    This is passed-through to the Google UserContent API, and hast to be supported there.
+    """
+
+    @exposed
+    def serve(
+        self,
+        host: str,
+        key: str,
+        size: t.Optional[int] = None,
+        filename: t.Optional[str] = None,
+        options: str = "",
+        download: bool = False,
+    ):
+        """
+        Requests an image using the serving url to bypass direct Google requests.
+
+        :param host: the google host prefix i.e. lh3
+        :param key: the serving url key
+        :param size: the target image size
+        :param filename: a random string with an extention, valid extentions are (defined in File.SERVE_VALID_FORMATS).
+        :param options: - seperated options (defined in File.SERVE_VALID_OPTIONS).
+            c - crop
+            p - face crop
+            fv - vertrical flip
+            fh - horizontal flip
+            rXXX - rotate 90, 180, 270
+            nu - no upscale
+        :param download: Serves the content as download (Content-Disposition) or not.
+
+        :return: Returns the requested content on success, raises a proper HTTP exception otherwise.
+        """
+
+        if any(c not in conf.search_valid_chars for c in host):
+            raise errors.BadRequest("key contains invalid characters")
+
+        # extract format from filename
+        file_fmt = "webp"
+
+        if filename:
+            fmt = filename.rsplit(".", 1)[-1].lower()
+            if fmt in self.SERVE_VALID_FORMATS:
+                file_fmt = fmt
+            else:
+                raise errors.UnprocessableEntity(f"Unsupported filetype {fmt}")
+
+        url = f"https://{host}.googleusercontent.com/{key}"
+
+        if options and not all(param in self.SERVE_VALID_OPTIONS for param in options.split("-")):
+            raise errors.BadRequest("Invalid options provided")
+
+        options += f"-{self.SERVE_VALID_FORMATS[file_fmt]}"
+
+        if size:
+            options = f"s{size}-" + options
+
+        url += "=" + options
+
+        response = current.request.get().response
+        response.headers["Content-Type"] = f"image/{file_fmt}"
+        response.headers["Cache-Control"] = "public, max-age=604800"  # 7 Days
+        if download:
+            response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+        else:
+            response.headers["Content-Disposition"] = f"filename={filename}"
+
+        answ = requests.get(url, timeout=20)
+        if not answ.ok:
+            logging.error(f"{answ.status_code} {answ.text}")
+            raise errors.BadRequest("Unable to fetch a file with these parameters")
+
+        return answ.content
 
     @exposed
     @force_ssl
@@ -902,7 +1120,9 @@ class File(Tree):
                 session.markChanged()
 
             # Now read the blob from the dlkey folder
-            blobs = list(GOOGLE_STORAGE_BUCKET.list_blobs(prefix=f"""{skel["dlkey"]}/"""))
+            bucket = File.get_bucket(skel["dlkey"])
+
+            blobs = list(bucket.list_blobs(prefix=f"""{skel["dlkey"]}/"""))
             if len(blobs) != 1:
                 logging.error("Invalid number of blobs in folder")
                 logging.error(targetKey)
@@ -919,11 +1139,13 @@ class File(Tree):
             skel["weak"] = rootNode is None
             skel["crc32c_checksum"] = base64.b64decode(blob.crc32c).hex()
             skel["md5_checksum"] = base64.b64decode(blob.md5_hash).hex()
+            self.inject_serving_url(skel)
 
             skel.write()
 
             # Add updated download-URL as the auto-generated isn't valid yet
             skel["downloadUrl"] = self.create_download_url(skel["dlkey"], skel["name"])
+
             return self.render.addSuccess(skel)
 
         return super().add(skelType, node, *args, **kwargs)
@@ -941,11 +1163,15 @@ class File(Tree):
         old_path = f"{skel['dlkey']}/source/{html.unescape(old_skel['name'])}"
         new_path = f"{skel['dlkey']}/source/{html.unescape(skel['name'])}"
 
-        if not (old_blob := GOOGLE_STORAGE_BUCKET.get_blob(old_path)):
+        bucket = File.get_bucket(skel['dlkey'])
+
+        if not (old_blob := bucket.get_blob(old_path)):
             raise errors.Gone()
 
-        GOOGLE_STORAGE_BUCKET.copy_blob(old_blob, GOOGLE_STORAGE_BUCKET, new_path, if_generation_match=0)
-        GOOGLE_STORAGE_BUCKET.delete_blob(old_path)
+        bucket.copy_blob(old_blob, bucket, new_path, if_generation_match=0)
+        bucket.delete_blob(old_path)
+
+        self.inject_serving_url(skel)
 
     def mark_for_deletion(self, dlkey: str) -> None:
         """
@@ -968,6 +1194,23 @@ class File(Tree):
         fileObj["dlkey"] = str(dlkey)
 
         db.Put(fileObj)
+
+    def inject_serving_url(self, skel: SkeletonInstance) -> None:
+        """Inject the serving url for public image files into a FileSkel"""
+        # try to create a servingurl for images
+        if not conf.instance.is_dev_server and skel["public"] and skel["mimetype"] \
+                and skel["mimetype"].startswith("image/") and not skel["serving_url"]:
+
+            try:
+                bucket = File.get_bucket(skel['dlkey'])
+                skel["serving_url"] = images.get_serving_url(
+                    None,
+                    secure_url=True,
+                    filename=f"/gs/{bucket.name}/{skel['dlkey']}/source/{skel['name']}",
+                )
+            except Exception as e:
+                logging.warning("Error while creating serving url")
+                logging.exception(e)
 
 
 @PeriodicTask(interval=datetime.timedelta(hours=4))
@@ -1030,7 +1273,7 @@ def doCleanupDeletedFiles(cursor=None):
     if cursor:
         query.setCursor(cursor)
     for file in query.run(100):
-        if not "dlkey" in file:
+        if "dlkey" not in file:
             db.Delete(file.key)
         elif db.Query("viur-blob-locks").filter("active_blob_references =", file["dlkey"]).getEntry():
             logging.info(f"""is referenced, {file["dlkey"]}""")
@@ -1038,13 +1281,21 @@ def doCleanupDeletedFiles(cursor=None):
         else:
             if file["itercount"] > maxIterCount:
                 logging.info(f"""Finally deleting, {file["dlkey"]}""")
-                blobs = GOOGLE_STORAGE_BUCKET.list_blobs(prefix=f"""{file["dlkey"]}/""")
+                bucket = File.get_bucket(file["dlkey"])
+                blobs = bucket.list_blobs(prefix=f"""{file["dlkey"]}/""")
                 for blob in blobs:
                     blob.delete()
                 db.Delete(file.key)
                 # There should be exactly 1 or 0 of these
                 for f in skeletonByKind("file")().all().filter("dlkey =", file["dlkey"]).fetch(99):
                     f.delete()
+
+                    if f["serving_url"]:
+                        bucket = File.get_bucket(f["dlkey"])
+                        blob_key = blobstore.create_gs_key(
+                            f"/gs/{bucket.name}/{f['dlkey']}/source/{f['name']}"
+                        )
+                        images.delete_serving_url(blob_key)  # delete serving url
             else:
                 logging.debug(f"""Increasing count, {file["dlkey"]}""")
                 file["itercount"] += 1
