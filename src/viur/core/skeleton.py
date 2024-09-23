@@ -994,7 +994,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             To store a Skeleton object to the Datastore, see :func:`~viur.core.skeleton.Skeleton.write`.
 
-            :param key: A :class:`viur.core.DB.Key`, string, or int; from which the data shall be fetched.
+            :param key: A :class:`viur.core.db.Key`, string, or int; from which the data shall be fetched.
+                If not provided, skel["key"] will be used.
 
             :returns: None on error, or the given SkeletonInstance on success.
 
@@ -1028,10 +1029,17 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             logging.warning(msg, stacklevel=3)
             update_relations = not kwargs["clearUpdateTag"]
 
-        return cls.write(skel, update_relations=update_relations)
+        skel = cls.write(skel, update_relations=update_relations)
+        return skel["key"]
 
     @classmethod
-    def write(cls, skel: SkeletonInstance, *, update_relations: bool = True) -> db.Key:
+    def write(
+        cls,
+        skel: SkeletonInstance,
+        key: t.Optional[KeyType] = None,
+        *,
+        update_relations: bool = True
+    ) -> SkeletonInstance:
         """
             Write current Skeleton entity to the datastore.
 
@@ -1041,6 +1049,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             To read a Skeleton object from the data store, see :func:`~viur.core.skeleton.Skeleton.read`.
 
+            :param key: Allows to specify a key that is set to the skeleton and used for writing.
             :param update_relations: If False, this entity won't be marked dirty;
                 This avoids from being fetched by the background task updating relations.
 
@@ -1048,7 +1057,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         """
         assert skel.renderPreparation is None, "Cannot modify values while rendering"
 
-        def __txn_update(write_skel):
+        def __txn_write(write_skel):
             db_key = write_skel["key"]
             skel = write_skel.skeletonCls()
 
@@ -1279,13 +1288,15 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             return skel.dbEntity.key, skel, change_list, is_add
 
-        # END of __txn_update subfunction
+        # Parse provided key, if any, and set it to skel["key"]
+        if key:
+            skel["key"] = db.keyHelper(key, skel.kindName)
 
         # Run transactional function
         if db.IsInTransaction():
-            key, skel, change_list, is_add = __txn_update(skel)
+            key, skel, change_list, is_add = __txn_write(skel)
         else:
-            key, skel, change_list, is_add = db.RunInTransaction(__txn_update, skel)
+            key, skel, change_list, is_add = db.RunInTransaction(__txn_write, skel)
 
         for bone_name, bone in skel.items():
             bone.postSavedHandler(skel, bone_name, key)
@@ -1303,31 +1314,34 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         for adapter in skel.database_adapters:
             adapter.write(skel, is_add, change_list)
 
-        return key
+        return skel
 
     @classmethod
-    def delete(cls, skel: SkeletonInstance) -> None:
+    def delete(cls, skel: SkeletonInstance, key: t.Optional[KeyType] = None) -> None:
         """
             Deletes the entity associated with the current Skeleton from the data store.
+
+            :param key: Allows to specify a key that is used for deletion, otherwise skel["key"] will be used.
         """
 
-        def __txn_delete(skel: SkeletonInstance) -> db.Entity:
-            skel_key = skel["key"]
-            entity = db.Get(skel_key)  # Fetch the raw object as we might have to clear locks
-            viur_data = entity.get("viur") or {}
+        def __txn_delete(skel: SkeletonInstance, key: db.Key):
+            if not skel.read(key):
+                raise ValueError("This skeleton is not in the database (anymore?)!")
 
             # Is there any relation to this Skeleton which prevents the deletion?
             locked_relation = (
                 db.Query("viur-relations")
-                .filter("dest.__key__ =", skel_key)
+                .filter("dest.__key__ =", key)
                 .filter("viur_relational_consistency =", RelationalConsistency.PreventDeletion.value)
             ).getEntry()
 
             if locked_relation is not None:
                 raise errors.Locked("This entry is still referenced by other Skeletons, which prevents deleting!")
 
+            # Ensure that any value lock objects remaining for this entry are being deleted
+            viur_data = skel.dbEntity.get("viur") or {}
+
             for boneName, bone in skel.items():
-                # Ensure that we delete any value-lock objects remaining for this entry
                 bone.delete(skel, boneName)
                 if bone.unique:
                     flushList = []
@@ -1336,16 +1350,16 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                         lockObj = db.Get(lockKey)
                         if not lockObj:
                             logging.error(f"{lockKey=} missing!")
-                        elif lockObj["references"] != entity.key.id_or_name:
+                        elif lockObj["references"] != key.id_or_name:
                             logging.error(
-                                f"""{skel["key"]!r} does not hold lock for {lockKey!r}""")
+                                f"""{key!r} does not hold lock for {lockKey!r}""")
                         else:
                             flushList.append(lockObj)
                     if flushList:
                         db.Delete(flushList)
 
             # Delete the blob-key lock object
-            lockObjectKey = db.Key("viur-blob-locks", entity.key.id_or_name)
+            lockObjectKey = db.Key("viur-blob-locks", key.id_or_name)
             lockObj = db.Get(lockObjectKey)
 
             if lockObj is not None:
@@ -1363,25 +1377,24 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     lockObj["has_old_blob_references"] = True
                     db.Put(lockObj)
 
-            db.Delete(skel_key)
-            processRemovedRelations(skel_key)
-            return entity
+            db.Delete(key)
+            processRemovedRelations(key)
 
-        key = skel["key"]
-        if key is None:
+        if key := (key or skel["key"]):
+            key = db.keyHelper(key, skel.kindName)
+        else:
             raise ValueError("This skeleton has no key!")
 
+        # Full skeleton is required to have all bones!
         skel = skeletonByKind(skel.kindName)()
-        if not skel.read(key):
-            raise ValueError("This skeleton is not in the database (anymore?)!")
 
         if db.IsInTransaction():
-            __txn_delete(skel)
+            __txn_delete(skel, key)
         else:
-            db.RunInTransaction(__txn_delete, skel)
+            db.RunInTransaction(__txn_delete, skel, key)
 
-        for boneName, _bone in skel.items():
-            _bone.postDeletedHandler(skel, boneName, key)
+        for boneName, bone in skel.items():
+            bone.postDeletedHandler(skel, boneName, key)
 
         skel.postDeletedHandler(key)
 
