@@ -35,6 +35,7 @@ from viur.core.tasks import CallDeferred, CallableTask, CallableTaskBase, QueryI
 
 _UNDEFINED = object()
 ABSTRACT_SKEL_CLS_SUFFIX = "AbstractSkel"
+KeyType: t.TypeAlias = db.Key | str | int
 
 
 class MetaBaseSkel(type):
@@ -970,7 +971,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return complete
 
     @classmethod
-    def fromDB(cls, skel: SkeletonInstance, key: db.Key | int | str) -> bool:
+    def fromDB(cls, skel: SkeletonInstance, key: KeyType) -> bool:
         """
         Deprecated function, replaced by Skeleton.read().
         """
@@ -978,7 +979,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return bool(cls.read(skel, key))
 
     @classmethod
-    def read(cls, skel: SkeletonInstance, key: db.Key | int | str) -> t.Optional[SkeletonInstance]:
+    def read(cls, skel: SkeletonInstance, key: KeyType) -> t.Optional[SkeletonInstance]:
         """
             Read entity with *key* from the datastore into the Skeleton.
 
