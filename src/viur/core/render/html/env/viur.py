@@ -747,7 +747,7 @@ def srcSetFor(
     expires: t.Optional[int] = conf.render_html_download_url_expiration,
     width: t.Optional[int] = None,
     height: t.Optional[int] = None,
-    language: t.Optional[str] = None
+    language: t.Optional[str] = None,
 ) -> str:
     """
     Generates a string suitable for use as the srcset tag in html. This functionality provides the browser with a list
