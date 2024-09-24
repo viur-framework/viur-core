@@ -1,4 +1,5 @@
 import json
+import typing as t
 from enum import Enum
 
 from viur.core import bones, utils, db, current
@@ -237,3 +238,11 @@ class DefaultRender(AbstractRenderer):
             rn["key"] = db.encodeKey(rn["key"])
 
         return json.dumps(rootNodes, cls=CustomJsonEncoder)
+
+    def render(self, action: str, skel: t.Optional[SkeletonInstance] = None, **kwargs):
+        """
+        Universal rendering function.
+
+        Handles an action and a skeleton. It shall be used by any action, in future.
+        """
+        return self.renderEntry(skel, action, params=kwargs)
