@@ -632,7 +632,7 @@ class File(Tree):
         expires: t.Optional[datetime.timedelta | int] = datetime.timedelta(hours=1),
         width: t.Optional[int] = None,
         height: t.Optional[int] = None,
-        language: t.Optional[str] = None
+        language: t.Optional[str] = None,
     ) -> str:
         """
             Generates a string suitable for use as the srcset tag in html. This functionality provides the browser
