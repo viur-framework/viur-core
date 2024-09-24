@@ -1,4 +1,7 @@
 import fnmatch
+import sys
+
+import logging
 from . import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from urllib.parse import urlparse, urlunparse
 import typing as t
@@ -38,10 +41,9 @@ class URIBone(BaseBone):
         **kwargs
     ):
         super().__init__(**kwargs)
-        self.accepted_ports = self.build_accepted_ports(accepted_ports)
+        self.accepted_ports = URIBone._build_accepted_ports(accepted_ports)
         if "*" in self.accepted_ports:
             self.accepted_ports = None
-
         self.accepted_protocols = accepted_protocols
         if self.accepted_protocols:
             if not isinstance(self.accepted_protocols, Iterable) or isinstance(self.accepted_protocols, str):
@@ -77,11 +79,12 @@ class URIBone(BaseBone):
         self.domain_disallowed_list = domain_disallowed_list
         self.local_path_allowed = local_path_allowed
 
-    def build_accepted_ports(self, accepted_ports):
+    @classmethod
+    def _build_accepted_ports(cls, accepted_ports) -> set:
         accepted_ports_value = set()
         if isinstance(accepted_ports, str):
             if accepted_ports == "*":
-                return "*"
+                return {"*"}
             else:
                 ports = accepted_ports.split(",")
                 for port in ports:
@@ -115,12 +118,12 @@ class URIBone(BaseBone):
 
         if isinstance(accepted_ports, Iterable):
             for accepted_port in accepted_ports:
-                accepted_ports_value |= self.build_accepted_ports(accepted_port)
+                accepted_ports_value |= URIBone._build_accepted_ports(accepted_port)
             return accepted_ports_value
 
         raise ValueError("accepted_ports must be a iterable or an integer or string")
 
-    def isInvalid(self, value):
+    def isInvalid(self, value) -> str | None:
         try:
             parsed_url = urlparse(value)
         except ValueError:
@@ -152,7 +155,7 @@ class URIBone(BaseBone):
                 if fnmatch.fnmatch(value, domain):
                     return f"""Url is in the domain disallowed list."""
 
-    def singleValueFromClient(self, value, skel, bone_name, client_data):
+    def singleValueFromClient(self, value, skel, bone_name, client_data) -> tuple:
         if err := self.isInvalid(value):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
