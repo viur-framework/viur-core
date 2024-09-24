@@ -23,6 +23,7 @@ from google.oauth2.service_account import Credentials as ServiceAccountCredentia
 from viur.core import conf, current, db, errors, utils
 from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
 from viur.core.decorators import *
+from viur.core.i18n import LanguageWrapper
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import SkeletonInstance, skeletonByKind
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
@@ -630,7 +631,8 @@ class File(Tree):
         file: t.Union["SkeletonInstance", dict, str],
         expires: t.Optional[datetime.timedelta | int] = datetime.timedelta(hours=1),
         width: t.Optional[int] = None,
-        height: t.Optional[int] = None
+        height: t.Optional[int] = None,
+        language: t.Optional[str] = None
     ) -> str:
         """
             Generates a string suitable for use as the srcset tag in html. This functionality provides the browser
@@ -646,6 +648,7 @@ class File(Tree):
                 If a given width is not available, it will be skipped.
             :param height: A list of heights that should be included in the srcset. If a given height is not available,
                 it will be skipped.
+            :param language: Language overwrite if file has multiple languages, and we want to explicitly specify one
             :return: The srctag generated or an empty string if a invalid file object was supplied
         """
         if not width and not height:
@@ -657,6 +660,15 @@ class File(Tree):
 
         if not file:
             return ""
+
+        if isinstance(file, LanguageWrapper):
+            current_lang = current.language.get()
+            if language in file and file[language]:
+                file = file[language]
+            elif current_lang and current_lang in file:
+                file = file[current_lang]
+            else:
+                file = file[conf.i18n.default_language]
 
         if "dlkey" not in file and "dest" in file:
             file = file["dest"]

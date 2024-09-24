@@ -13,6 +13,7 @@ from qrcode.image import svg as qrcode_svg
 import string
 from viur.core import Method, current, db, errors, prototypes, securitykey, utils
 from viur.core.config import conf
+from viur.core.i18n import LanguageWrapper
 from viur.core.i18n import translate as translate_class
 from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
 from viur.core.request import TEMPLATE_STYLE_KEY
@@ -679,7 +680,8 @@ def downloadUrlFor(
     fileObj: dict,
     expires: t.Optional[int] = conf.render_html_download_url_expiration,
     derived: t.Optional[str] = None,
-    downloadFileName: t.Optional[str] = None
+    downloadFileName: t.Optional[str] = None,
+    language: t.Optional[str] = None
 ) -> str:
     """
     Constructs a signed download-url for the given file-bone. Mostly a wrapper around
@@ -694,8 +696,19 @@ def downloadUrlFor(
             Optional the filename of a derived file,
             otherwise the download-link will point to the originally uploaded file.
         :param downloadFileName: The filename to use when saving the response payload locally.
+        :param language: Language overwrite if fileObj has multiple languages and we want to explicitly specify one
         :return: THe signed download-url relative to the current domain (eg /download/...)
     """
+
+    if isinstance(fileObj, LanguageWrapper):
+        current_lang = current.language.get()
+        if language in fileObj and fileObj[language]:
+            fileObj = fileObj[language]
+        elif current_lang and current_lang in fileObj:
+            fileObj = fileObj[current_lang]
+        else:
+            fileObj = fileObj[conf.i18n.default_language]
+
     if "dlkey" not in fileObj and "dest" in fileObj:
         fileObj = fileObj["dest"]
 
@@ -733,7 +746,8 @@ def srcSetFor(
     fileObj: dict,
     expires: t.Optional[int] = conf.render_html_download_url_expiration,
     width: t.Optional[int] = None,
-    height: t.Optional[int] = None
+    height: t.Optional[int] = None,
+    language: t.Optional[str] = None
 ) -> str:
     """
     Generates a string suitable for use as the srcset tag in html. This functionality provides the browser with a list
@@ -750,10 +764,10 @@ def srcSetFor(
             If a given width is not available, it will be skipped.
         :param height: A list of heights that should be included in the srcset.
             If a given height is not available, it will be skipped.
-
+        :param language: Language overwrite if fileObj has multiple languages and we want to explicitly specify one
     :return: The srctag generated or an empty string if a invalid file object was supplied
     """
-    return file.File.create_src_set(fileObj, expires, width, height)
+    return file.File.create_src_set(fileObj, expires, width, height, language)
 
 
 @jinjaGlobalFunction
