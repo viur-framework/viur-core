@@ -7,12 +7,12 @@ import logging
 import os
 import string
 import sys
+import time
 import typing as t
 import warnings
 from deprecated.sphinx import deprecated
 from functools import partial
 from itertools import chain
-from time import time
 from viur.core import conf, current, db, email, errors, translate, utils
 from viur.core.bones import (
     BaseBone,
@@ -76,6 +76,7 @@ class MetaBaseSkel(type):
         "style",
         "toDB",
         "unserialize",
+        "update",
         "values",
         "write",
     }
@@ -199,9 +200,6 @@ class SkeletonInstance:
 
         return self[item]
 
-    def update(self, *args, **kwargs) -> None:
-        self.__ior__(dict(*args, **kwargs))
-
     def __setitem__(self, key, value):
         assert self.renderPreparation is None, "Cannot modify values while rendering"
         if isinstance(value, BaseBone):
@@ -270,6 +268,7 @@ class SkeletonInstance:
             "setBoneValue",
             "toDB",
             "unserialize",
+            "update",
             "write",
         }:
             return partial(getattr(self.skeletonCls, item), self)
@@ -1244,7 +1243,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             skel.dbEntity["viur"]["viurLastRequestedSeoKeys"] = current_seo_keys
 
             # mark entity as "dirty" when update_relations is set, to zero otherwise.
-            skel.dbEntity["viur"]["delayedUpdateTag"] = time() if update_relations else 0
+            skel.dbEntity["viur"]["delayedUpdateTag"] = time.time() if update_relations else 0
 
             skel.dbEntity = skel.preProcessSerializedData(skel.dbEntity)
 
@@ -1326,9 +1325,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         if update_relations and not is_add:
             if change_list and len(change_list) < 5:  # Only a few bones have changed, process these individually
                 for idx, changed_bone in enumerate(change_list):
-                    updateRelations(key, time() + 1, changed_bone, _countdown=10 * idx)
+                    updateRelations(key, time.time() + 1, changed_bone, _countdown=10 * idx)
             else:  # Update all inbound relations, regardless of which bones they mirror
-                updateRelations(key, time() + 1, None)
+                updateRelations(key, time.time() + 1, None)
 
         # Trigger the database adapter of the changes made to the entry
         for adapter in skel.database_adapters:
@@ -1421,6 +1420,86 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         # Inform the custom DB Adapter
         for adapter in skel.database_adapters:
             adapter.delete(skel)
+
+    @classmethod
+    def update(
+        cls,
+        skel: SkeletonInstance,
+        values: t.Optional[dict | t.Callable[[SkeletonInstance], None]] = {},
+        *,
+        key: t.Optional[db.Key | int | str] = None,
+        check: t.Optional[dict | t.Callable[[SkeletonInstance], None]] = None,
+        create: t.Optional[dict | t.Callable[[SkeletonInstance], None]] = None,
+        update_relations: bool = True,
+        retry: int = 1,
+    ) -> t.Optional[SkeletonInstance]:
+
+        # Transactional function
+        def __update_txn():
+            # Try to read the skeleton, create on demand
+            if not skel.read(key):
+                if not (key or skel["key"]):
+                    return None
+
+                skel["key"] = db.keyHelper(key or skel["key"], skel.kindName)
+
+                if create is None:
+                    return None
+
+                if isinstance(create, dict):
+                    if create and not skel.fromClient(create, amend=True):
+                        raise ValueError(f"'create' contains invalid data {skel.errors!r}")
+                elif callable(create):
+                    create(skel)
+                else:
+                    raise ValueError("'create' must either be dict or a callable.")
+
+            # Handle check
+            if isinstance(check, dict):
+                for bone, value in check.items():
+                    if skel[bone] != value:
+                        raise ValueError(f"{bone} contains {skel[bone]!r}, expecting {value!r}")
+
+            elif callable(check):
+                check(skel)
+
+            # Set values
+            if isinstance(values, dict):
+                if values and not skel.fromClient(values, amend=True):
+                    raise ValueError(f"'values' contains invalid data {skel.errors!r}")
+
+                # Special-feature: "+" and "-" prefix for simple calculations
+                for name, value in values.items():
+                    match name[0]:
+                        case "+":  # Increment by value?
+                            skel[name[1:]] += value
+                        case "-":  # Decrement by value?
+                            skel[name[1:]] -= value
+
+            elif callable(values):
+                values(skel)
+
+            else:
+                raise ValueError("'values' must either be dict or a callable.")
+
+            return skel.write(update_relations=update_relations)
+
+        # Retry loop
+        while True:
+            try:
+                if db.IsInTransaction:
+                    return __update_txn()
+                else:
+                    return db.RunInTransaction(__update_txn)
+
+            except db.ViurDatastoreError as e:
+                retry -= 1
+                if retry <= 0:
+                    raise
+
+                logging.debug(f"{e}, retrying {retry} more times")
+
+            time.sleep(1)
 
     @classmethod
     def preProcessBlobLocks(cls, skel: SkeletonInstance, locks):
