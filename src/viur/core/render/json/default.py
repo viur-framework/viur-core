@@ -2,13 +2,12 @@ import json
 import typing as t
 from enum import Enum
 
-from viur.core import bones, utils, db, current
+from viur.core import bones, db, current
 from viur.core.render.abstract import AbstractRenderer
 from viur.core.skeleton import SkeletonInstance
 from viur.core.i18n import translate
 from viur.core.config import conf
 from datetime import datetime
-import typing as t
 
 
 class CustomJsonEncoder(json.JSONEncoder):
