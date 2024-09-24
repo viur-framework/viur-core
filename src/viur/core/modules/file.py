@@ -662,13 +662,9 @@ class File(Tree):
             return ""
 
         if isinstance(file, LanguageWrapper):
-            current_lang = current.language.get()
-            if language in file and file[language]:
-                file = file[language]
-            elif current_lang and current_lang in file:
-                file = file[current_lang]
-            else:
-                file = file[conf.i18n.default_language]
+            language = language or current.language.get()
+            if not language or not (file := file.get(language)):
+                return ""
 
         if "dlkey" not in file and "dest" in file:
             file = file["dest"]
