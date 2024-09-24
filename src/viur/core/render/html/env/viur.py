@@ -681,7 +681,7 @@ def downloadUrlFor(
     expires: t.Optional[int] = conf.render_html_download_url_expiration,
     derived: t.Optional[str] = None,
     downloadFileName: t.Optional[str] = None,
-    language: t.Optional[str] = None
+    language: t.Optional[str] = None,
 ) -> str:
     """
     Constructs a signed download-url for the given file-bone. Mostly a wrapper around
