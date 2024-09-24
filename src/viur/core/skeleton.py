@@ -981,10 +981,16 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         """
         Deprecated function, replaced by Skeleton.read().
         """
-        return bool(cls.read(skel, key))
+        return bool(cls.read(skel, key, _check_legacy=False))
 
     @classmethod
-    def read(cls, skel: SkeletonInstance, key: t.Optional[KeyType] = None) -> t.Optional[SkeletonInstance]:
+    def read(
+        cls,
+        skel: SkeletonInstance,
+        key: t.Optional[KeyType] = None,
+        *,
+        _check_legacy: bool = True
+    ) -> t.Optional[SkeletonInstance]:
         """
             Read Skeleton with *key* from the datastore into the Skeleton.
             If not key is given, skel["key"] will be used.
@@ -1001,6 +1007,12 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             :returns: None on error, or the given SkeletonInstance on success.
 
         """
+        # FIXME VIUR4: Stay backward compatible, call sub-classed fromDB if available first!
+        if _check_legacy and "fromDB" in cls.__dict__:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                return cls.fromDB(skel, key=key)
+
         assert skel.renderPreparation is None, "Cannot modify values while rendering"
 
         try:
@@ -1030,7 +1042,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             logging.warning(msg, stacklevel=3)
             update_relations = not kwargs["clearUpdateTag"]
 
-        skel = cls.write(skel, update_relations=update_relations)
+        skel = cls.write(skel, update_relations=update_relations, _check_legacy=False)
         return skel["key"]
 
     @classmethod
@@ -1039,7 +1051,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         skel: SkeletonInstance,
         key: t.Optional[KeyType] = None,
         *,
-        update_relations: bool = True
+        update_relations: bool = True,
+        _check_legacy: bool = True,
     ) -> SkeletonInstance:
         """
             Write current Skeleton to the datastore.
@@ -1056,6 +1069,12 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             :returns: The Skeleton.
         """
+        # FIXME VIUR4: Stay backward compatible, call sub-classed toDB if available first!
+        if _check_legacy and "toDB" in cls.__dict__:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                return cls.toDB(skel, update_relations=update_relations)
+
         assert skel.renderPreparation is None, "Cannot modify values while rendering"
 
         def __txn_write(write_skel):
