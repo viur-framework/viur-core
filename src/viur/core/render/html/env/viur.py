@@ -1,5 +1,4 @@
 from collections import OrderedDict
-
 import logging
 import os
 import typing as t
@@ -457,25 +456,6 @@ def fileSize(render: Render, value: int | float, binary: bool = False) -> str:
             break
 
     return f'{(base * bytes / unit):.1f} {prefix}'
-
-
-@jinjaGlobalFilter
-def urlencode(render: Render, val: str) -> str:
-    """
-    Jinja2 filter: Make a string URL-safe.
-
-    :param render: The html-renderer instance.
-    :param val: String to be quoted.
-    :returns: Quoted string.
-    """
-    # quote_plus fails if val is None
-    if not val:
-        return ""
-
-    if isinstance(val, str):
-        val = val.encode("UTF-8")
-
-    return urllib.parse.quote_plus(val)
 
 
 # TODO
