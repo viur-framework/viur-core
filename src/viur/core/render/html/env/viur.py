@@ -701,13 +701,9 @@ def downloadUrlFor(
     """
 
     if isinstance(fileObj, LanguageWrapper):
-        current_lang = current.language.get()
-        if language in fileObj and fileObj[language]:
-            fileObj = fileObj[language]
-        elif current_lang and current_lang in fileObj:
-            fileObj = fileObj[current_lang]
-        else:
-            fileObj = fileObj[conf.i18n.default_language]
+        language = language or current.language.get()
+        if not language or not (fileObj := fileObj.get(language)):
+            return ""
 
     if "dlkey" not in fileObj and "dest" in fileObj:
         fileObj = fileObj["dest"]
