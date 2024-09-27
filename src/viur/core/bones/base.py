@@ -264,6 +264,8 @@ class BaseBone(object):
         if isinstance(required, (tuple, list)) and languages and (diff := set(required).difference(languages)):
             raise ValueError(f"The language(s) {', '.join(map(repr, diff))} can not be required, "
                              f"because they're not defined.")
+        if callable(defaultValue) and len(inspect.signature(defaultValue).parameters) < 2:
+            raise ValueError(f"Callable default values must have at least 2 Parameters for 'skel' and 'self'")
 
         self.languages = languages
 
