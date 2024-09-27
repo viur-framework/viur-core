@@ -7,6 +7,7 @@ import urllib
 import urllib.parse
 from datetime import timedelta
 from hashlib import sha512
+import jinja2
 from deprecated.sphinx import deprecated
 from qrcode import make as qrcode_make
 from qrcode.image import svg as qrcode_svg
