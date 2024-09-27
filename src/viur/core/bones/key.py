@@ -122,6 +122,8 @@ class KeyBone(BaseBone):
                     val = []
             elif not self.multiple and isinstance(val, list):
                 val = val[0]
+            if self.unserialize_compute(skel, name, val):
+                return True
             skel.accessedValues[name] = val
             return True
         return False
@@ -143,6 +145,7 @@ class KeyBone(BaseBone):
         .. note:: Key values are always indexed, so the method discards any exclusion from indexing
             for key values.
         """
+        self.serialize_compute(skel, name)
         if name in skel.accessedValues:
             if name == "key":
                 skel.dbEntity.key = skel.accessedValues["key"]
