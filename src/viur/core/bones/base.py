@@ -389,6 +389,8 @@ class BaseBone(object):
                 if not isinstance(res, dict):
                     if not isinstance(res, (list, set, tuple)):
                         return {lang: [res] for lang in self.languages}
+                    else:
+                        return {lang: res for lang in self.languages}
             elif self.languages:
                 if not isinstance(res, dict):
                     return {lang: res for lang in self.languages}
