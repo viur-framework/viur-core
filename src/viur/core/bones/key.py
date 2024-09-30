@@ -1,8 +1,7 @@
 import copy
 import logging
 import typing as t
-
-from viur.core import db, utils
+from viur.core import db
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 
@@ -13,11 +12,11 @@ class KeyBone(BaseBone):
     Key management is crucial for maintaining relationships between entities in the database, and the
     KeyBone class helps ensure that keys are handled correctly and efficiently throughout the system.
 
-    :param str descr: The description of the KeyBone.
-    :param bool readOnly: Whether the KeyBone is read-only.
-    :param bool visible: Whether the KeyBone is visible.
-    :param Union[None, List[str]] allowed_kinds: The allowed entity kinds for the KeyBone.
-    :param bool check: Whether to check for entity existence.
+    :param descr: The description of the KeyBone.
+    :param readOnly: Whether the KeyBone is read-only.
+    :param visible: Whether the KeyBone is visible.
+    :param allowed_kinds: The allowed entity kinds for the KeyBone.
+    :param check: Whether to check for entity existence.
     """
     type = "key"
 
@@ -27,15 +26,15 @@ class KeyBone(BaseBone):
         descr: str = "Key",
         readOnly: bool = True,  # default is readonly
         visible: bool = False,  # default is invisible
-        allowed_kinds: None | list[str] = None,  # None allows for any kind
+        allowed_kinds: t.Optional[t.Iterable[str]] = None,  # None allows for any kind
         check: bool = False,  # check for entity existence
         **kwargs
     ):
         super().__init__(descr=descr, readOnly=readOnly, visible=visible, defaultValue=None, **kwargs)
-        self.allowed_kinds = allowed_kinds
+        self.allowed_kinds = tuple(allowed_kinds) if allowed_kinds else None
         self.check = check
 
-    def singleValueFromClient(self, value, skel, bone_name, client_data):
+    def singleValueFromClient(self, value, skel=None, bone_name=None, client_data=None, parse_only: bool = False):
         # check for correct key
         if isinstance(value, str):
             value = value.strip()
@@ -60,97 +59,53 @@ class KeyBone(BaseBone):
                     )
                 ]
 
-        # Check custom validity
-        err = self.isInvalid(key)
-        if err:
-            return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
+        if not parse_only:
+            # Check custom validity
+            if err := self.isInvalid(key):
+                return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
-        if self.check:
-            if db.Get(key) is None:
-                return self.getEmptyValue(), [
-                    ReadFromClientError(
-                        ReadFromClientErrorSeverity.Invalid,
-                        "The provided key does not exist"
-                    )
-                ]
+            if self.check:
+                if db.Get(key) is None:
+                    return self.getEmptyValue(), [
+                        ReadFromClientError(
+                            ReadFromClientErrorSeverity.Invalid,
+                            "The provided key does not exist"
+                        )
+                    ]
 
         return key, None
 
-    def unserialize(self, skel: 'viur.core.skeleton.SkeletonValues', name: str) -> bool:
-        """
-        This method is the inverse of :meth:serialize. It reads the key value from the datastore
-        and populates the corresponding KeyBone in the Skeleton. The method converts the value from
-        the datastore into an appropriate format for further use in the program.
+    def singleValueUnserialize(self, val):
+        if isinstance(val, db.Key):
+            rval = db.normalizeKey(val)
+        else:
+            rval, err = self.singleValueFromClient(val, parse_only=True)
+            if err:
+                raise ValueError(err[0].errorMessage)
 
-        :param skel: The SkeletonValues instance this bone is a part of.
-        :param name: The property name of this bone in the Skeleton (not the description).
+        return rval
 
-        :return: A boolean value indicating whether the operation was successful. Returns True if
-            the key value was successfully unserialized and added to the accessedValues of the
-            Skeleton, and False otherwise.
-
-        .. note:: The method contains an inner function, fixVals(val), which normalizes and
-            validates the key values before populating the bone.
-        """
-
-        def fixVals(val):
-            if isinstance(val, str):
-                try:
-                    val = utils.normalizeKey(db.Key.from_legacy_urlsafe(val))
-                except:
-                    val = None
-            elif not isinstance(val, db.Key):
-                val = None
-            return val
-
-        if (name == "key"
-            and isinstance(skel.dbEntity, db.Entity)
-            and skel.dbEntity.key
-                and not skel.dbEntity.key.is_partial):
+    def unserialize(self, skel: 'SkeletonInstance', name: str) -> bool:
+        if (
+                name == "key"
+                and isinstance(skel.dbEntity, db.Entity)
+                and skel.dbEntity.key
+                and not skel.dbEntity.key.is_partial
+        ):
             skel.accessedValues[name] = skel.dbEntity.key
             return True
-        elif name in skel.dbEntity:
-            val = skel.dbEntity[name]
-            if isinstance(val, list):
-                val = [fixVals(x) for x in val if fixVals(x)]
-            else:
-                val = fixVals(val)
-            if self.multiple and not isinstance(val, list):
-                if val:
-                    val = [val]
-                else:
-                    val = []
-            elif not self.multiple and isinstance(val, list):
-                val = val[0]
-            skel.accessedValues[name] = val
-            return True
-        return False
+
+        return super().unserialize(skel, name)
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
-        """
-        This method serializes the KeyBone into a format that can be written to the datastore. It
-        converts the key value from the Skeleton object into a format suitable for storage in the
-        datastore.
+        if name not in skel.accessedValues:
+            return False
 
-        :param skel: The SkeletonInstance this bone is a part of.
-        :param name: The property name of this bone in the Skeleton (not the description).
-        :param parentIndexed: A boolean value indicating whether the parent entity is indexed or not.
-
-        :return: A boolean value indicating whether the operation was successful. Returns True if
-            the key value was successfully serialized and added to the datastore entity, and False
-            otherwise.
-
-        .. note:: Key values are always indexed, so the method discards any exclusion from indexing
-            for key values.
-        """
-        if name in skel.accessedValues:
-            if name == "key":
-                skel.dbEntity.key = skel.accessedValues["key"]
-            else:
-                skel.dbEntity[name] = skel.accessedValues[name]
-                skel.dbEntity.exclude_from_indexes.discard(name)  # Keys can never be not indexed
+        if name == "key":
+            skel.dbEntity.key = skel.accessedValues["key"]
             return True
-        return False
+
+        return super().serialize(skel, name, parentIndexed=parentIndexed)
 
     def buildDBFilter(
         self,
