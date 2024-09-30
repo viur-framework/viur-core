@@ -1325,7 +1325,7 @@ def __getattr__(attr: str) -> object:
             # stuff prior viur-core < 3.7
             "GOOGLE_STORAGE_BUCKET": ("File.get_bucket()", _private_bucket),
     }.get(attr):
-        msg = f"{entry[1]} was replaced by {entry[0]}"
+        msg = f"{attr} was replaced by {entry[0]}"
         warnings.warn(msg, DeprecationWarning, stacklevel=2)
         logging.warning(msg, stacklevel=2)
         return func
