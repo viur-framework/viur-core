@@ -128,6 +128,7 @@ class FileBone(TreeLeafBone):
 
     kind = "file"
     """The kind of this bone is 'file'"""
+
     type = "relational.tree.leaf.file"
     """The type of this bone is 'relational.tree.leaf.file'."""
 
@@ -137,7 +138,16 @@ class FileBone(TreeLeafBone):
         derive: None | dict[str, t.Any] = None,
         maxFileSize: None | int = None,
         validMimeTypes: None | list[str] = None,
-        refKeys: t.Optional[t.Iterable[str]] = ("name", "mimetype", "size", "width", "height", "derived"),
+        refKeys: t.Optional[t.Iterable[str]] = (
+            "name",
+            "mimetype",
+            "size",
+            "width",
+            "height",
+            "derived",
+            "public",
+        ),
+        public: bool = False,
         **kwargs
     ):
         r"""
@@ -170,6 +180,7 @@ class FileBone(TreeLeafBone):
 
         self.refKeys.add("dlkey")
         self.derive = derive
+        self.public = public
         self.validMimeTypes = validMimeTypes
         self.maxFileSize = maxFileSize
 
@@ -191,6 +202,10 @@ class FileBone(TreeLeafBone):
         if self.maxFileSize:
             if value["dest"]["size"] > self.maxFileSize:
                 return "File too large."
+
+        if value["dest"]["public"] != self.public:
+            return f"Only files marked public={self.public!r} are allowed."
+
         return None
 
     def postSavedHandler(self, skel, boneName, key):
@@ -298,5 +313,6 @@ class FileBone(TreeLeafBone):
 
     def structure(self) -> dict:
         return super().structure() | {
-            "valid_mime_types": self.validMimeTypes
+            "valid_mime_types": self.validMimeTypes,
+            "public": self.public,
         }
