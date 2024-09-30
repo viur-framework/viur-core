@@ -13,6 +13,7 @@ import re
 import requests
 import string
 import typing as t
+import warnings
 from collections import namedtuple
 from google.appengine.api import images, blobstore
 from urllib.parse import quote as urlquote, urlencode
@@ -1315,3 +1316,18 @@ def start_delete_pending_files():
         .filter("pending =", True)
         .filter("creationdate <", utils.utcNow() - datetime.timedelta(days=7))
     )
+
+
+# DEPRECATED ATTRIBUTES HANDLING
+
+def __getattr__(attr: str) -> object:
+    if entry := {
+            # stuff prior viur-core < 3.7
+            "GOOGLE_STORAGE_BUCKET": ("File.get_bucket()", _private_bucket),
+    }.get(attr):
+        msg = f"{attr} was replaced by {entry[0]}"
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
+        logging.warning(msg, stacklevel=2)
+        return func
+
+    return super(__import__(__name__).__class__).__getattribute__(attr)
