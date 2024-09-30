@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.19]
+
+- fix: Rename `type_postfix` on `BaseBone` into `type_suffix` (#1275)
+
 ## [3.6.18]
 
 - fix: Cast category to str() for ascii check (#1263)
