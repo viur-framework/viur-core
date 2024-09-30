@@ -13,6 +13,7 @@ import re
 import requests
 import string
 import typing as t
+import warnings
 from collections import namedtuple
 from google.appengine.api import images, blobstore
 from urllib.parse import quote as urlquote, urlencode
@@ -23,6 +24,7 @@ from google.oauth2.service_account import Credentials as ServiceAccountCredentia
 from viur.core import conf, current, db, errors, utils
 from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
 from viur.core.decorators import *
+from viur.core.i18n import LanguageWrapper
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import SkeletonInstance, skeletonByKind
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
@@ -630,7 +632,8 @@ class File(Tree):
         file: t.Union["SkeletonInstance", dict, str],
         expires: t.Optional[datetime.timedelta | int] = datetime.timedelta(hours=1),
         width: t.Optional[int] = None,
-        height: t.Optional[int] = None
+        height: t.Optional[int] = None,
+        language: t.Optional[str] = None,
     ) -> str:
         """
             Generates a string suitable for use as the srcset tag in html. This functionality provides the browser
@@ -646,6 +649,7 @@ class File(Tree):
                 If a given width is not available, it will be skipped.
             :param height: A list of heights that should be included in the srcset. If a given height is not available,
                 it will be skipped.
+            :param language: Language overwrite if file has multiple languages, and we want to explicitly specify one
             :return: The srctag generated or an empty string if a invalid file object was supplied
         """
         if not width and not height:
@@ -657,6 +661,11 @@ class File(Tree):
 
         if not file:
             return ""
+
+        if isinstance(file, LanguageWrapper):
+            language = language or current.language.get()
+            if not language or not (file := file.get(language)):
+                return ""
 
         if "dlkey" not in file and "dest" in file:
             file = file["dest"]
@@ -1315,3 +1324,18 @@ def start_delete_pending_files():
         .filter("pending =", True)
         .filter("creationdate <", utils.utcNow() - datetime.timedelta(days=7))
     )
+
+
+# DEPRECATED ATTRIBUTES HANDLING
+
+def __getattr__(attr: str) -> object:
+    if entry := {
+            # stuff prior viur-core < 3.7
+            "GOOGLE_STORAGE_BUCKET": ("File.get_bucket()", _private_bucket),
+    }.get(attr):
+        msg = f"{attr} was replaced by {entry[0]}"
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
+        logging.warning(msg, stacklevel=2)
+        return entry[1]
+
+    return super(__import__(__name__).__class__).__getattribute__(attr)
