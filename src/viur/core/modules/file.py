@@ -1328,6 +1328,6 @@ def __getattr__(attr: str) -> object:
         msg = f"{attr} was replaced by {entry[0]}"
         warnings.warn(msg, DeprecationWarning, stacklevel=2)
         logging.warning(msg, stacklevel=2)
-        return func
+        return entry[1]
 
     return super(__import__(__name__).__class__).__getattribute__(attr)
