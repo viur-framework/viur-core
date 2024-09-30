@@ -475,11 +475,11 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
             # creates subskel: key, firstname, lastname, subject
 
             # free mode (see 2) allows to specify a different order!
-            subskel = TodoSkel.subskel(("subject", "message", "*stname"))
+            subskel = TodoSkel.subskel(bones=("subject", "message", "*stname"))
             # creates subskel: key, subject, message, firstname, lastname
 
             # mixed mode (see 3)
-            subskel = TodoSkel.subskel(("message", ), "add")
+            subskel = TodoSkel.subskel("add", bones=("message", ))
             # creates subskel: key, firstname, lastname, subject, message
             ```
 
