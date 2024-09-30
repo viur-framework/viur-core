@@ -635,7 +635,7 @@ def renderEditForm(render: Render,
 
         res += sectionTpl.render(
             categoryName=category,
-            categoryClassName="".join([x for x in category if x in string.ascii_letters]),
+            categoryClassName="".join(ch for ch in str(category) if ch in string.ascii_letters),
             categoryContent=categoryContent,
             allReadOnly=allReadOnly,
             allHidden=allHidden
@@ -755,6 +755,13 @@ def srcSetFor(
     """
     return file.File.create_src_set(fileObj, expires, width, height)
 
+
+@jinjaGlobalFunction
+def serving_url_for(render: Render, *args, **kwargs):
+    """
+    Jinja wrapper for File.create_internal_serving_url(), see there for parameter information.
+    """
+    return file.File.create_internal_serving_url(*args, **kwargs)
 
 @jinjaGlobalFunction
 def seoUrlForEntry(render: Render, *args, **kwargs):
