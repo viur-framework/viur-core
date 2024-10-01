@@ -1,5 +1,4 @@
 from collections import OrderedDict
-
 import logging
 import os
 import typing as t
@@ -7,6 +6,8 @@ import urllib
 import urllib.parse
 from datetime import timedelta
 from hashlib import sha512
+import jinja2
+from deprecated.sphinx import deprecated
 from qrcode import make as qrcode_make
 from qrcode.image import svg as qrcode_svg
 
@@ -418,6 +419,7 @@ def updateURL(render: Render, **kwargs) -> str:
 
 
 @jinjaGlobalFilter
+@deprecated(version="3.7.0", reason="Use Jinja filter filesizeformat instead", action="always")
 def fileSize(render: Render, value: int | float, binary: bool = False) -> str:
     """
     Jinja2 filter: Format the value in an 'human-readable' file size (i.e. 13 kB, 4.1 MB, 102 Bytes, etc).
@@ -430,53 +432,7 @@ def fileSize(render: Render, value: int | float, binary: bool = False) -> str:
 
     :returns: The formatted file size string in human readable format.
     """
-    bytes = float(value)
-    base = binary and 1024 or 1000
-
-    prefixes = [
-        (binary and 'KiB' or 'kB'),
-        (binary and 'MiB' or 'MB'),
-        (binary and 'GiB' or 'GB'),
-        (binary and 'TiB' or 'TB'),
-        (binary and 'PiB' or 'PB'),
-        (binary and 'EiB' or 'EB'),
-        (binary and 'ZiB' or 'ZB'),
-        (binary and 'YiB' or 'YB')
-    ]
-
-    if bytes == 1:
-        return '1 Byte'
-    elif bytes < base:
-        return '%d Bytes' % bytes
-
-    unit = 0
-    prefix = ""
-
-    for i, prefix in enumerate(prefixes):
-        unit = base ** (i + 2)
-        if bytes < unit:
-            break
-
-    return f'{(base * bytes / unit):.1f} {prefix}'
-
-
-@jinjaGlobalFilter
-def urlencode(render: Render, val: str) -> str:
-    """
-    Jinja2 filter: Make a string URL-safe.
-
-    :param render: The html-renderer instance.
-    :param val: String to be quoted.
-    :returns: Quoted string.
-    """
-    # quote_plus fails if val is None
-    if not val:
-        return ""
-
-    if isinstance(val, str):
-        val = val.encode("UTF-8")
-
-    return urllib.parse.quote_plus(val)
+    return jinja2.filters.do_filesizeformat(value, binary)
 
 
 # TODO
