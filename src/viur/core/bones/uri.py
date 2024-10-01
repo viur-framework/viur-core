@@ -37,7 +37,8 @@ class URIBone(BaseBone):
             URIBone(accepted_ports="1-4")
             URIBone(accepted_ports=(1,"2","4-10"))
         :param clean_get_params: When set to True, the GET-parameter for the URL will be cleaned.
-        :param domain_allowed_list: If set, only the URLs that are matched with an entry of this iterable will be accepted.
+        :param domain_allowed_list: If set, only the URLs that are matched with an entry of this iterable
+            will be accepted.
         :param domain_disallowed_list: If set, only the URLs that are not matched
             with an entry of this iterable will be accepted.
         :param local_path_allowed: If True, the URLs that are local paths will be prefixed with "/".
