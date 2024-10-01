@@ -18,6 +18,7 @@ from viur.core.bones import (
     BaseBone,
     DateBone,
     KeyBone,
+    ReadFromClientException,
     RelationalBone,
     RelationalConsistency,
     RelationalUpdateLevel,
@@ -1432,33 +1433,63 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         create: t.Optional[dict | t.Callable[[SkeletonInstance], None]] = None,
         update_relations: bool = True,
         retry: int = 1,
-    ) -> t.Optional[SkeletonInstance]:
+    ) -> SkeletonInstance:
+        """
+        Performs an update on a Skeleton within a transaction.
+
+        The transaction performs a read, updates values and afterwards does a write in exclusive access on the
+        given Skeleton.
+
+        All value-dicts that are being fed to this function are provided to `skel.fromClient()`. Instead of dicts,
+        a callable can also be given that can individually modify the Skeleton that is edited.
+
+        :param values: A dict of key-values to update on the entry, or a callable that is executed within
+            the transaction.
+
+            This dict allows for a special notation: Keys starting with "+" or "-" are added or substracted to the
+            given value, which can be used for counters.
+        :param key: A :class:`viur.core.db.Key`, string, or int; from which the data shall be fetched.
+            If not provided, skel["key"] will be used.
+        :param check: An optional dict of key-values or a callable to check on the Skeleton before updating.
+            If something fails within this check, an AssertionError is being raised.
+        :param create: Allows to specify a dict or initial callable that is executed in case the Skeleton with the
+            given key does not exist.
+        :param update_relations: Trigger update relations task on success. Defaults to False.
+        :param retry: On ViurDatastoreError, retry for this amount of times.
+
+        If the function does not raise an Exception, all went well. The function always returns the input Skeleton.
+
+        Raises:
+            ValueError: In case parameters where given wrong or incomplete.
+            AssertionError: In case an asserted check parameter did not match.
+            ReadFromClientException: In case a skel.fromClient() failed with a high severity.
+        """
 
         # Transactional function
         def __update_txn():
             # Try to read the skeleton, create on demand
             if not skel.read(key):
                 if not (key or skel["key"]):
-                    return None
+                    return ValueError("No valid key provided")
 
                 skel["key"] = db.keyHelper(key or skel["key"], skel.kindName)
 
-                if create is None:
-                    return None
+                if create is None or create is False:
+                    raise ValueError("Creation during update is forbidden - explicitly provide `create=True` to allow.")
 
                 if isinstance(create, dict):
                     if create and not skel.fromClient(create, amend=True):
-                        raise ValueError(f"'create' contains invalid data {skel.errors!r}")
+                        raise ReadFromClientException(skel.errors)
                 elif callable(create):
                     create(skel)
-                else:
+                elif create is not True:
                     raise ValueError("'create' must either be dict or a callable.")
 
             # Handle check
             if isinstance(check, dict):
                 for bone, value in check.items():
                     if skel[bone] != value:
-                        raise ValueError(f"{bone} contains {skel[bone]!r}, expecting {value!r}")
+                        raise AssertionError(f"{bone} contains {skel[bone]!r}, expecting {value!r}")
 
             elif callable(check):
                 check(skel)
@@ -1466,9 +1497,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             # Set values
             if isinstance(values, dict):
                 if values and not skel.fromClient(values, amend=True):
-                    raise ValueError(f"'values' contains invalid data {skel.errors!r}")
+                    raise ReadFromClientException(skel.errors)
 
                 # Special-feature: "+" and "-" prefix for simple calculations
+                # FIXME: This can maybe integrated into skel.fromClient() later...
                 for name, value in values.items():
                     match name[0]:
                         case "+":  # Increment by value?
