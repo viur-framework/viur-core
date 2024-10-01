@@ -110,7 +110,7 @@ class URIBone(BaseBone):
 
             else:
                 port = int(port)
-                return [range(port, port+1)]
+                return [range(port, port + 1)]
 
         elif isinstance(accepted_ports, int):
             if accepted_ports < PORT_MIN:
