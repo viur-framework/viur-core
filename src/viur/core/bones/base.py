@@ -1329,7 +1329,7 @@ class BaseBone(object):
 
             if issubclass(skel.skeletonCls, RefSkel):  # we have a ref skel we must load the complete skeleton
                 cloned_skel = skeletonByKind(skel.kindName)()
-                cloned_skel.fromDB(skel["key"])
+                cloned_skel.read(skel["key"])
             else:
                 cloned_skel = skel.clone()
             cloned_skel[bone_name] = None  # remove value form accessedValues to avoid endless recursion
