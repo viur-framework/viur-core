@@ -82,12 +82,12 @@ class URIBone(BaseBone):
         self.local_path_allowed = local_path_allowed
 
     @classmethod
-    def _build_accepted_ports(cls, accepted_ports: str|int|t.Iterable[str | int]) -> list[range]:
+    def _build_accepted_ports(cls, accepted_ports: str | int | t.Iterable[str | int]) -> list[range]:
         if isinstance(accepted_ports, str):
             if accepted_ports == "*":
                 return [range(PORT_MIN, PORT_MAX + 1)]
 
-            elif "," in accepted_ports: # list of ranges, values
+            elif "," in accepted_ports:  # list of ranges, values
                 return cls._build_accepted_ports([
                     value.strip() for value in accepted_ports.split(",")
                 ])
@@ -99,7 +99,7 @@ class URIBone(BaseBone):
                 if start > end:
                     raise ValueError("Start value must be less than end value")
 
-                if start < 0:
+                if start < PORT_MIN:
                     raise ValueError("Start value must be greater than zero")
 
                 if end > PORT_MAX:
@@ -112,7 +112,7 @@ class URIBone(BaseBone):
                 return [range(port, port+1)]
 
         elif isinstance(accepted_ports, int):
-            if accepted_ports < 0:
+            if accepted_ports < PORT_MIN:
                 raise ValueError("Port value must be greater than zero")
 
             if accepted_ports > PORT_MAX:
@@ -138,7 +138,7 @@ class URIBone(BaseBone):
             return f"""No protocol specified"""
 
         if self.accepted_ports:
-            if not any (parsed_url.port in rng for rng in self.accepted_ports):
+            if not any(parsed_url.port in rng for rng in self.accepted_ports):
                 return f""""{parsed_url.port}" not in the accepted ports."""
 
         if self.accepted_protocols:
