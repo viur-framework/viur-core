@@ -8,25 +8,10 @@ import typing as t
 from collections.abc import Iterable
 from collections import namedtuple
 
+PORT_MIN: t.Final[int] = 1
+PORT_MAX: t.Final[int] = 2 ** 16 - 1
 
 class URIBone(BaseBone):
-    """
-       The URIBone is used for storing URI and URL.
-
-       :param accepted_protocols: The accepted protocols can be set to allow only the provide protocols.
-       :param accepted_ports The accepted ports can be set to allow only the provide ports.
-       ..  code-block:: python
-            # Example
-            URIBone(accepted_ports=1)
-            URIBone(accepted_ports="2")
-            URIBone(accepted_ports="1-4")
-            URIBone(accepted_ports=(1,"2","4-10"))
-       :param clean_get_params: When set to True, the GET-parameter for the URL will be cleaned.
-       :param domain_allowed_list: If set, only the URLs that are matched with an entry of this iterable will be accepted.
-       :param domain_disallowed_list: If set, only the URLs that are not matched
-            with an entry of this iterable will be accepted.
-       :param local_path_allowed: If True, the URLs that are local paths will be prefixed with "/".
-       """
     type = "uri"
 
     def __init__(
@@ -40,10 +25,27 @@ class URIBone(BaseBone):
         local_path_allowed: bool = False,
         **kwargs
     ):
+        """
+        The URIBone is used for storing URI and URL.
+
+        :param accepted_protocols: The accepted protocols can be set to allow only the provide protocols.
+        :param accepted_ports The accepted ports can be set to allow only the provide ports.
+        ..  code-block:: python
+            # Example
+            URIBone(accepted_ports=1)
+            URIBone(accepted_ports="2")
+            URIBone(accepted_ports="1-4")
+            URIBone(accepted_ports=(1,"2","4-10"))
+        :param clean_get_params: When set to True, the GET-parameter for the URL will be cleaned.
+        :param domain_allowed_list: If set, only the URLs that are matched with an entry of this iterable will be accepted.
+        :param domain_disallowed_list: If set, only the URLs that are not matched
+            with an entry of this iterable will be accepted.
+        :param local_path_allowed: If True, the URLs that are local paths will be prefixed with "/".
+        """
         super().__init__(**kwargs)
-        self.accepted_ports = URIBone._build_accepted_ports(accepted_ports)
-        if "*" in self.accepted_ports:
-            self.accepted_ports = None
+        self.accepted_ports = sorted(URIBone._build_accepted_ports(accepted_ports), key=lambda rng: rng.start)
+        if self.accepted_ports == [range(PORT_MIN, PORT_MAX + 1)]:
+            self.accepted_ports = None  # all allowed
         self.accepted_protocols = accepted_protocols
         if self.accepted_protocols:
             if not isinstance(self.accepted_protocols, Iterable) or isinstance(self.accepted_protocols, str):
@@ -80,45 +82,48 @@ class URIBone(BaseBone):
         self.local_path_allowed = local_path_allowed
 
     @classmethod
-    def _build_accepted_ports(cls, accepted_ports) -> set:
-        accepted_ports_value = set()
+    def _build_accepted_ports(cls, accepted_ports: str|int|t.Iterable[str | int]) -> list[range]:
         if isinstance(accepted_ports, str):
             if accepted_ports == "*":
-                return {"*"}
+                return [range(PORT_MIN, PORT_MAX + 1)]
+
+            elif "," in accepted_ports: # list of ranges, values
+                return cls._build_accepted_ports([
+                    value.strip() for value in accepted_ports.split(",")
+                ])
+
+            elif "-" in accepted_ports:  # range of ports
+                start, end = accepted_ports.split("-", 1)
+                start = int(start)
+                end = int(end)
+                if start > end:
+                    raise ValueError("Start value must be less than end value")
+
+                if start < 0:
+                    raise ValueError("Start value must be greater than zero")
+
+                if end > PORT_MAX:
+                    raise ValueError(f"End value must be less or equal than {PORT_MAX}")
+
+                return [range(start, end + 1)]
+
             else:
-                ports = accepted_ports.split(",")
-                for port in ports:
-                    if "-" in port:  # range of ports
-                        start, end = port.split("-", 1)
-                        start = int(start)
-                        end = int(end)
-                        if start > end:
-                            raise ValueError("Start value must be less than end value")
+                port = int(port)
+                return [range(port, port+1)]
 
-                        if start < 0:
-                            raise ValueError("Start value must be greater than zero")
-
-                        if end > 65535:  # 2**16 max ports:
-                            raise ValueError("End value must be less or equal than 65535")
-
-                        accepted_ports_value.update(range(start, end + 1))
-
-                    else:
-                        accepted_ports_value.add(int(port))
-                return accepted_ports_value
-        if isinstance(accepted_ports, int):
+        elif isinstance(accepted_ports, int):
             if accepted_ports < 0:
                 raise ValueError("Port value must be greater than zero")
 
-            if accepted_ports > 65535:  # 2**16 max ports:
-                raise ValueError("Port value must be less or equal than 65535")
+            if accepted_ports > PORT_MAX:
+                raise ValueError(f"Port value must be less or equal than {PORT_MAX}")
 
-            accepted_ports_value.add(accepted_ports)
-            return accepted_ports_value
+            return [range(accepted_ports, accepted_ports + 1)]
 
-        if isinstance(accepted_ports, Iterable):
+        elif isinstance(accepted_ports, Iterable):
+            accepted_ports_value = []
             for accepted_port in accepted_ports:
-                accepted_ports_value |= URIBone._build_accepted_ports(accepted_port)
+                accepted_ports_value.extend(URIBone._build_accepted_ports(accepted_port))
             return accepted_ports_value
 
         raise ValueError("accepted_ports must be a iterable or an integer or string")
@@ -133,7 +138,7 @@ class URIBone(BaseBone):
             return f"""No protocol specified"""
 
         if self.accepted_ports:
-            if parsed_url.port not in self.accepted_ports:
+            if not any (parsed_url.port in rng for rng in self.accepted_ports):
                 return f""""{parsed_url.port}" not in the accepted ports."""
 
         if self.accepted_protocols:
@@ -187,7 +192,7 @@ class URIBone(BaseBone):
     def structure(self) -> dict:
         return super().structure() | {
             "accepted_protocols": list(self.accepted_protocols) if self.accepted_protocols else None,
-            "accepted_ports": list(self.accepted_ports) if self.accepted_ports else None,
+            "accepted_ports": [(rng.start, rng.stop) for rng in self.accepted_ports] if self.accepted_ports else None,
             "clean_get_params": self.clean_get_params,
             "domain_allowed_list": self.domain_allowed_list,
             "domain_disallowed_list": self.domain_disallowed_list,
