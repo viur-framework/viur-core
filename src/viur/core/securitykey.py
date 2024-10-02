@@ -60,8 +60,14 @@ def create(
 
     entity = db.Entity(db.Key(SECURITYKEY_KINDNAME, key))
     entity |= custom_data
+    if session_bound:
+        if not current.session.get().loaded:
+            current.session.get().reset()
+        entity["viur_session"] = current.session.get().cookie_key
 
-    entity["viur_session"] = current.session.get().cookie_key if session_bound else None
+    else:
+        entity["viur_session"] = None
+
     entity["viur_until"] = utils.utcNow() + utils.parse.timedelta(duration)
 
 
