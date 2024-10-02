@@ -57,6 +57,7 @@ class Session(db.Entity):
         self.changed = False
         self.cookie_key = None
         self.static_security_key = None
+        self.loaded = False
 
     def load(self, req):
         """
@@ -65,26 +66,26 @@ class Session(db.Entity):
             If the client supplied a valid Cookie, the session is read from the datastore, otherwise a new,
             empty session will be initialized.
         """
-        if cookie_key := str(req.request.cookies.get(self.cookie_name)):
+        if cookie_key := req.request.cookies.get(self.cookie_name):
+            cookie_key=str(cookie_key)
             if data := db.Get(db.Key(self.kindName, cookie_key)):  # Loaded successfully
                 if data["lastseen"] < time.time() - conf.user.session_life_time:
                     # This session is too old
                     self.reset()
                     return False
 
+                self.loaded = True
                 self.cookie_key = cookie_key
 
                 super().clear()
                 super().update(data["data"])
 
                 self.static_security_key = data.get("static_security_key") or data.get("staticSecurityKey")
-
                 if data["lastseen"] < time.time() - 5 * 60:  # Refresh every 5 Minutes
                     self.changed = True
+
             else:
                 self.reset()
-        else:
-            self.reset()
 
     def save(self, req):
         """
@@ -105,6 +106,10 @@ class Session(db.Entity):
             user_key = conf.main_app.vi.user.getCurrentUser()["key"]
         except Exception:
             user_key = Session.GUEST_USER  # this is a guest
+
+        if not self.loaded:
+            self.cookie_key = utils.string.random(42)
+            self.static_security_key = utils.string.random(13)
 
         dbSession = db.Entity(db.Key(self.kindName, self.cookie_key))
 
@@ -163,6 +168,7 @@ class Session(db.Entity):
 
         self.cookie_key = utils.string.random(42)
         self.static_security_key = utils.string.random(13)
+        self.loaded = True
         self.clear()
         self.changed = True
 
@@ -202,6 +208,21 @@ class Session(db.Entity):
             return value
 
         return default
+
+    def clear(self) -> None:
+        if self:
+            self.changed=True
+        super().clear()
+
+    def popitem(self)-> t.Tuple[t.Any, t.Any]:
+        self.changed=True
+        return super().popitem()
+
+    def setdefault(self, __key, __default=None) -> t.Any:
+        if __key not in self:
+            self.changed = True
+        return super().setdefault(__key, __default)
+
 
 
 @tasks.CallDeferred

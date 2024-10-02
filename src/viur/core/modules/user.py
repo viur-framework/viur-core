@@ -1315,7 +1315,7 @@ class User(List):
     def getCurrentUser(self):
         session = current.session.get()
 
-        if session and (user := session.get("user")):
+        if session and session.loaded and (user := session.get("user")):
             skel = self.baseSkel()
             skel.setEntity(user)
             return skel
