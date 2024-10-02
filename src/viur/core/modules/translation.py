@@ -109,10 +109,10 @@ class TranslationSkel(Skeleton):
     )
 
     @classmethod
-    def toDB(cls, skelValues: SkeletonInstance, **kwargs) -> db.Key:
+    def write(cls, skelValues: SkeletonInstance, **kwargs) -> db.Key:
         # Ensure we have only lowercase keys
         skelValues["tr_key"] = skelValues["tr_key"].lower()
-        return super().toDB(skelValues, **kwargs)
+        return super().write(skelValues, **kwargs)
 
     @classmethod
     def preProcessSerializedData(cls, skelValues: SkeletonInstance, entity: db.Entity) -> db.Entity:

@@ -142,7 +142,7 @@ class ModuleConf(List):
     def get_by_module_name(cls, module_name: str) -> None | skeleton.SkeletonInstance:
         db_key = db.Key(MODULECONF_KINDNAME, module_name)
         skel = conf.main_app.vi._moduleconf.viewSkel()
-        if not skel.fromDB(db_key):
+        if not skel.read(db_key):
             logging.error(f"module({module_name}) not found")
             return None
 
@@ -178,7 +178,7 @@ class ModuleConf(List):
                     skel = conf.main_app.vi._moduleconf.addSkel()
                     skel["key"] = db.Key(MODULECONF_KINDNAME, module_name)
                     skel["name"] = module_name
-                    skel.toDB()
+                    skel.write()
 
                 # Collect children
                 collect_modules(module, depth=depth + 1, prefix=f"{module_name}.")
