@@ -44,9 +44,11 @@ class URIBone(BaseBone):
         :param local_path_allowed: If True, the URLs that are local paths will be prefixed with "/".
         """
         super().__init__(**kwargs)
-        self.accepted_ports = sorted(URIBone._build_accepted_ports(accepted_ports), key=lambda rng: rng.start)
-        if self.accepted_ports == [range(PORT_MIN, PORT_MAX + 1)]:
+        self.accepted_ports = set(sorted(URIBone._build_accepted_ports(accepted_ports), key=lambda rng: rng.start))
+
+        if range(PORT_MIN, PORT_MAX + 1) in self.accepted_ports:
             self.accepted_ports = None  # all allowed
+
         self.accepted_protocols = accepted_protocols
         if self.accepted_protocols:
             if not isinstance(self.accepted_protocols, Iterable) or isinstance(self.accepted_protocols, str):
@@ -109,7 +111,7 @@ class URIBone(BaseBone):
                 return [range(start, end + 1)]
 
             else:
-                port = int(port)
+                port = int(accepted_ports)
                 return [range(port, port + 1)]
 
         elif isinstance(accepted_ports, int):
