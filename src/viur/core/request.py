@@ -235,7 +235,7 @@ class Router:
                     if lang in conf.i18n.available_languages or lang in conf.i18n.language_alias_map:
                         current.language.set(lang)
         elif conf.i18n.language_method == "header":
-            if lang:=get_language_from_header():
+            if lang := get_language_from_header():
                 current.language.set(lang)
 
         return path

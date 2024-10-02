@@ -67,7 +67,7 @@ class Session(db.Entity):
             empty session will be initialized.
         """
         if cookie_key := req.request.cookies.get(self.cookie_name):
-            cookie_key=str(cookie_key)
+            cookie_key = str(cookie_key)
             if data := db.Get(db.Key(self.kindName, cookie_key)):  # Loaded successfully
                 if data["lastseen"] < time.time() - conf.user.session_life_time:
                     # This session is too old
@@ -211,11 +211,11 @@ class Session(db.Entity):
 
     def clear(self) -> None:
         if self:
-            self.changed=True
+            self.changed = True
         super().clear()
 
-    def popitem(self)-> t.Tuple[t.Any, t.Any]:
-        self.changed=True
+    def popitem(self) -> t.Tuple[t.Any, t.Any]:
+        self.changed = True
         return super().popitem()
 
     def setdefault(self, __key, __default=None) -> t.Any:

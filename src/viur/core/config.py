@@ -544,7 +544,7 @@ class I18N(ConfigType):
     language_alias_map: dict[str, str] = {}
     """Allows mapping of certain languages to one translation (i.e. us->en)"""
 
-    language_method: t.Literal["session", "url", "domain","header"] = "session"
+    language_method: t.Literal["session", "url", "domain", "header"] = "session"
     """Defines how translations are applied:
         - session: Per Session
         - url: inject language prefix in url
