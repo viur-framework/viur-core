@@ -27,16 +27,16 @@ class UriBone(BaseBone):
         **kwargs
     ):
         """
-        The URIBone is used for storing URI and URL.
+        The UriBone is used for storing URI and URL.
 
         :param accepted_protocols: The accepted protocols can be set to allow only the provide protocols.
         :param accepted_ports The accepted ports can be set to allow only the provide ports.
         ..  code-block:: python
             # Example
-            URIBone(accepted_ports=1)
-            URIBone(accepted_ports="2")
-            URIBone(accepted_ports="1-4")
-            URIBone(accepted_ports=(1,"2","4-10"))
+            UriBone(accepted_ports=1)
+            UriBone(accepted_ports="2")
+            UriBone(accepted_ports="1-4")
+            UriBone(accepted_ports=(1,"2","4-10"))
         :param clean_get_params: When set to True, the GET-parameter for the URL will be cleaned.
         :param domain_allowed_list: If set, only the URLs that are matched with an entry of this iterable
             will be accepted.
@@ -45,7 +45,7 @@ class UriBone(BaseBone):
         :param local_path_allowed: If True, the URLs that are local paths will be prefixed with "/".
         """
         super().__init__(**kwargs)
-        self.accepted_ports = set(sorted(URIBone._build_accepted_ports(accepted_ports), key=lambda rng: rng.start))
+        self.accepted_ports = set(sorted(UriBone._build_accepted_ports(accepted_ports), key=lambda rng: rng.start))
 
         if range(PORT_MIN, PORT_MAX + 1) in self.accepted_ports:
             self.accepted_ports = None  # all allowed
@@ -127,7 +127,7 @@ class UriBone(BaseBone):
         elif isinstance(accepted_ports, Iterable):
             accepted_ports_value = []
             for accepted_port in accepted_ports:
-                accepted_ports_value.extend(URIBone._build_accepted_ports(accepted_port))
+                accepted_ports_value.extend(UriBone._build_accepted_ports(accepted_port))
             return accepted_ports_value
 
         raise ValueError("accepted_ports must be a iterable or an integer or string")
