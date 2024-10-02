@@ -11,7 +11,7 @@ from collections import namedtuple
 PORT_MIN: t.Final[int] = 1
 PORT_MAX: t.Final[int] = 2 ** 16 - 1
 
-class URIBone(BaseBone):
+class UriBone(BaseBone):
     type = "uri"
 
     def __init__(
