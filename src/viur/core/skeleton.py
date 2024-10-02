@@ -55,6 +55,7 @@ class MetaBaseSkel(type):
         "clone",
         "cursor",
         "delete",
+        "edit",
         "fromClient",
         "fromDB",
         "get",
@@ -77,7 +78,6 @@ class MetaBaseSkel(type):
         "style",
         "toDB",
         "unserialize",
-        "update",
         "values",
         "write",
     }
@@ -201,6 +201,9 @@ class SkeletonInstance:
 
         return self[item]
 
+    def update(self, *args, **kwargs) -> None:
+        self.__ior__(dict(*args, **kwargs))
+
     def __setitem__(self, key, value):
         assert self.renderPreparation is None, "Cannot modify values while rendering"
         if isinstance(value, BaseBone):
@@ -256,6 +259,7 @@ class SkeletonInstance:
         elif item in {
             "all",
             "delete",
+            "edit",
             "fromClient",
             "fromDB",
             "getCurrentSEOKeys",
@@ -269,7 +273,6 @@ class SkeletonInstance:
             "setBoneValue",
             "toDB",
             "unserialize",
-            "update",
             "write",
         }:
             return partial(getattr(self.skeletonCls, item), self)
@@ -1423,7 +1426,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             adapter.delete(skel)
 
     @classmethod
-    def update(
+    def edit(
         cls,
         skel: SkeletonInstance,
         values: t.Optional[dict | t.Callable[[SkeletonInstance], None]] = {},
@@ -1435,10 +1438,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         retry: int = 1,
     ) -> SkeletonInstance:
         """
-        Performs an update on a Skeleton within a transaction.
+        Performs an edit operation on a Skeleton within a transaction.
 
-        The transaction performs a read, updates values and afterwards does a write in exclusive access on the
-        given Skeleton.
+        The transaction performs a read, sets bones and afterwards does a write with exclusive access on the
+        given Skeleton and its underlying database entity.
 
         All value-dicts that are being fed to this function are provided to `skel.fromClient()`. Instead of dicts,
         a callable can also be given that can individually modify the Skeleton that is edited.
