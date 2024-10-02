@@ -9,6 +9,7 @@ import string
 import sys
 import typing as t
 import warnings
+from deprecated.sphinx import deprecated
 from functools import partial
 from itertools import chain
 from time import time
@@ -35,6 +36,7 @@ from viur.core.tasks import CallDeferred, CallableTask, CallableTaskBase, QueryI
 
 _UNDEFINED = object()
 ABSTRACT_SKEL_CLS_SUFFIX = "AbstractSkel"
+KeyType: t.TypeAlias = db.Key | str | int
 
 
 class MetaBaseSkel(type):
@@ -65,15 +67,17 @@ class MetaBaseSkel(type):
         "postSavedHandler",
         "preProcessBlobLocks",
         "preProcessSerializedData",
+        "read",
         "refresh",
         "self",
         "serialize",
         "setBoneValue",
-        "style",
         "structure",
+        "style",
         "toDB",
         "unserialize",
         "values",
+        "write",
     }
 
     __allowed_chars = string.ascii_letters + string.digits + "_"
@@ -266,6 +270,7 @@ class SkeletonInstance:
             "setBoneValue",
             "toDB",
             "unserialize",
+            "write",
         }:
             return partial(getattr(self.skeletonCls, item), self)
 
@@ -443,7 +448,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
     @classmethod
     def setBoneValue(
         cls,
-        skelValues: SkeletonInstance,
+        skel: SkeletonInstance,
         boneName: str,
         value: t.Any,
         append: bool = False,
@@ -462,10 +467,10 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 
             :return: Wherever that operation succeeded or not.
         """
-        bone = getattr(skelValues, boneName, None)
+        bone = getattr(skel, boneName, None)
 
         if not isinstance(bone, BaseBone):
-            raise ValueError(f"{boneName!r} is no valid bone on this skeleton ({skelValues!r})")
+            raise ValueError(f"{boneName!r} is no valid bone on this skeleton ({skel!r})")
 
         if language:
             if not bone.languages:
@@ -478,17 +483,17 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                 raise ValueError("Cannot append None-value to bone {boneName!r}")
 
             if language:
-                skelValues[boneName][language] = [] if bone.multiple else None
+                skel[boneName][language] = [] if bone.multiple else None
             else:
-                skelValues[boneName] = [] if bone.multiple else None
+                skel[boneName] = [] if bone.multiple else None
 
             return True
 
-        _ = skelValues[boneName]  # ensure the bone is being unserialized first
-        return bone.setBoneValue(skelValues, boneName, value, append, language)
+        _ = skel[boneName]  # ensure the bone is being unserialized first
+        return bone.setBoneValue(skel, boneName, value, append, language)
 
     @classmethod
-    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str], amend: bool = False) -> bool:
+    def fromClient(cls, skel: SkeletonInstance, data: dict[str, list[str] | str], amend: bool = False) -> bool:
         """
             Load supplied *data* into Skeleton.
 
@@ -498,7 +503,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
             Even if this function returns False, all bones are guaranteed to be in a valid state.
             The ones which have been read correctly are set to their valid values;
             Bones with invalid values are set back to a safe default (None in most cases).
-            So its possible to call :func:`~viur.core.skeleton.Skeleton.toDB` afterwards even if reading
+            So its possible to call :func:`~viur.core.skeleton.Skeleton.write` afterwards even if reading
             data with this function failed (through this might violates the assumed consistency-model).
 
             :param skel: The skeleton instance to be filled.
@@ -510,13 +515,13 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
             False otherwise (e.g. some required fields where missing or where invalid).
         """
         complete = True
-        skelValues.errors = []
+        skel.errors = []
 
-        for key, bone in skelValues.items():
+        for key, bone in skel.items():
             if bone.readOnly:
                 continue
 
-            if errors := bone.fromClient(skelValues, key, data):
+            if errors := bone.fromClient(skel, key, data):
                 for error in errors:
                     # insert current bone name into error's fieldPath
                     error.fieldPath.insert(0, str(key))
@@ -557,7 +562,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                                 f"""({error.severity}) {error.errorMessage}"""
                             )
 
-                skelValues.errors += errors
+                skel.errors += errors
 
         return complete
 
@@ -708,7 +713,7 @@ class ViurTagsSearchAdapter(DatabaseAdapter):
     """
     This Adapter implements a simple fulltext search on top of the datastore.
 
-    On skel.toDB(), all words from String-/TextBones are collected with all *min_length* postfixes and dumped
+    On skel.write(), all words from String-/TextBones are collected with all *min_length* postfixes and dumped
     into the property `viurTags`. When queried, we'll run a prefix-match against this property - thus returning
     entities with either an exact match or a match within a word.
 
@@ -790,13 +795,13 @@ class SeoKeyBone(StringBone):
     Special kind of StringBone saving its contents as `viurCurrentSeoKeys` into the entity's `viur` dict.
     """
 
-    def unserialize(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> bool:
+    def unserialize(self, skel: SkeletonInstance, name: str) -> bool:
         try:
             skel.accessedValues[name] = skel.dbEntity["viur"]["viurCurrentSeoKeys"]
         except KeyError:
             skel.accessedValues[name] = self.getDefaultValue(skel)
 
-    def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
+    def serialize(self, skel: SkeletonInstance, name: str, parentIndexed: bool) -> bool:
         # Serialize also to skel["viur"]["viurCurrentSeoKeys"], so we can use this bone in relations
         if name in skel.accessedValues:
             newVal = skel.accessedValues[name]
@@ -899,16 +904,16 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         assert self.kindName and self.kindName is not _UNDEFINED, "You must set kindName on this skeleton!"
 
     @classmethod
-    def all(cls, skelValues, **kwargs) -> db.Query:
+    def all(cls, skel, **kwargs) -> db.Query:
         """
             Create a query with the current Skeletons kindName.
 
             :returns: A db.Query object which allows for entity filtering and sorting.
         """
-        return db.Query(skelValues.kindName, srcSkelClass=skelValues, **kwargs)
+        return db.Query(skel.kindName, srcSkelClass=skel, **kwargs)
 
     @classmethod
-    def fromClient(cls, skelValues: SkeletonInstance, data: dict[str, list[str] | str], amend: bool = False) -> bool:
+    def fromClient(cls, skel: SkeletonInstance, data: dict[str, list[str] | str], amend: bool = False) -> bool:
         """
             This function works similar to :func:`~viur.core.skeleton.Skeleton.setValues`, except that
             the values retrieved from *data* are checked against the bones and their validity checks.
@@ -916,7 +921,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             Even if this function returns False, all bones are guaranteed to be in a valid state.
             The ones which have been read correctly are set to their valid values;
             Bones with invalid values are set back to a safe default (None in most cases).
-            So its possible to call :func:`~viur.core.skeleton.Skeleton.toDB` afterwards even if reading
+            So its possible to call :func:`~viur.core.skeleton.Skeleton.write` afterwards even if reading
             data with this function failed (through this might violates the assumed consistency-model).
 
             :param skel: The skeleton instance to be filled.
@@ -927,34 +932,34 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             :returns: True if all data was successfully read and complete. \
             False otherwise (e.g. some required fields where missing or where invalid).
         """
-        assert skelValues.renderPreparation is None, "Cannot modify values while rendering"
+        assert skel.renderPreparation is None, "Cannot modify values while rendering"
 
         # Load data into this skeleton
-        complete = bool(data) and super().fromClient(skelValues, data, amend=amend)
+        complete = bool(data) and super().fromClient(skel, data, amend=amend)
 
         if (
             not data  # in case data is empty
             or (len(data) == 1 and "key" in data)
             or (utils.parse.bool(data.get("nomissing")))
         ):
-            skelValues.errors = []
+            skel.errors = []
 
         # Check if all unique values are available
-        for boneName, boneInstance in skelValues.items():
+        for boneName, boneInstance in skel.items():
             if boneInstance.unique:
-                lockValues = boneInstance.getUniquePropertyIndexValues(skelValues, boneName)
+                lockValues = boneInstance.getUniquePropertyIndexValues(skel, boneName)
                 for lockValue in lockValues:
-                    dbObj = db.Get(db.Key(f"{skelValues.kindName}_{boneName}_uniquePropertyIndex", lockValue))
-                    if dbObj and (not skelValues["key"] or dbObj["references"] != skelValues["key"].id_or_name):
+                    dbObj = db.Get(db.Key(f"{skel.kindName}_{boneName}_uniquePropertyIndex", lockValue))
+                    if dbObj and (not skel["key"] or dbObj["references"] != skel["key"].id_or_name):
                         # This value is taken (sadly, not by us)
                         complete = False
                         errorMsg = boneInstance.unique.message
-                        skelValues.errors.append(
+                        skel.errors.append(
                             ReadFromClientError(ReadFromClientErrorSeverity.Invalid, errorMsg, [boneName]))
 
         # Check inter-Bone dependencies
-        for checkFunc in skelValues.interBoneValidations:
-            errors = checkFunc(skelValues)
+        for checkFunc in skel.interBoneValidations:
+            errors = checkFunc(skel)
             if errors:
                 for error in errors:
                     if error.severity.value > 1:
@@ -962,62 +967,117 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                         if conf.debug.skeleton_from_client:
                             logging.debug(f"{cls.kindName}: {error.fieldPath}: {error.errorMessage!r}")
 
-                skelValues.errors.extend(errors)
+                skel.errors.extend(errors)
 
         return complete
 
     @classmethod
-    def fromDB(cls, skel: SkeletonInstance, key: db.Key | int | str) -> bool:
+    @deprecated(
+        version="3.7.0",
+        reason="Use skel.read() instead of skel.fromDB()",
+        action="always"
+    )
+    def fromDB(cls, skel: SkeletonInstance, key: KeyType) -> bool:
         """
-            Load entity with *key* from the Datastore into the Skeleton.
+        Deprecated function, replaced by Skeleton.read().
+        """
+        return bool(cls.read(skel, key, _check_legacy=False))
+
+    @classmethod
+    def read(
+        cls,
+        skel: SkeletonInstance,
+        key: t.Optional[KeyType] = None,
+        *,
+        _check_legacy: bool = True
+    ) -> t.Optional[SkeletonInstance]:
+        """
+            Read Skeleton with *key* from the datastore into the Skeleton.
+            If not key is given, skel["key"] will be used.
 
             Reads all available data of entity kind *kindName* and the key *key*
             from the Datastore into the Skeleton structure's bones. Any previous
             data of the bones will discard.
 
-            To store a Skeleton object to the Datastore, see :func:`~viur.core.skeleton.Skeleton.toDB`.
+            To store a Skeleton object to the Datastore, see :func:`~viur.core.skeleton.Skeleton.write`.
 
-            :param key: A :class:`viur.core.DB.Key`, string, or int; from which the data shall be fetched.
+            :param key: A :class:`viur.core.db.Key`, string, or int; from which the data shall be fetched.
+                If not provided, skel["key"] will be used.
 
-            :returns: True on success; False if the given key could not be found or can not be parsed.
+            :returns: None on error, or the given SkeletonInstance on success.
 
         """
+        # FIXME VIUR4: Stay backward compatible, call sub-classed fromDB if available first!
+        if _check_legacy and "fromDB" in cls.__dict__:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                return cls.fromDB(skel, key=key)
+
         assert skel.renderPreparation is None, "Cannot modify values while rendering"
+
         try:
-            db_key = db.keyHelper(key, skel.kindName)
+            db_key = db.keyHelper(key or skel["key"], skel.kindName)
         except ValueError:  # This key did not parse
-            return False
+            return None
 
         if not (db_res := db.Get(db_key)):
-            return False
+            return None
+
         skel.setEntity(db_res)
-        return True
+        return skel
 
     @classmethod
+    @deprecated(
+        version="3.7.0",
+        reason="Use skel.write() instead of skel.toDB()",
+        action="always"
+    )
     def toDB(cls, skel: SkeletonInstance, update_relations: bool = True, **kwargs) -> db.Key:
         """
-            Store current Skeleton entity to the Datastore.
-
-            Stores the current data of this instance into the database.
-            If an *key* value is set to the object, this entity will ne updated;
-            Otherwise a new entity will be created.
-
-            To read a Skeleton object from the data store, see :func:`~viur.core.skeleton.Skeleton.fromDB`.
-
-            :param update_relations: If False, this entity won't be marked dirty;
-                This avoids from being fetched by the background task updating relations.
-
-            :returns: The datastore key of the entity.
+        Deprecated function, replaced by Skeleton.write().
         """
-        assert skel.renderPreparation is None, "Cannot modify values while rendering"
-        # fixme: Remove in viur-core >= 4
         if "clearUpdateTag" in kwargs:
             msg = "clearUpdateTag was replaced by update_relations"
             warnings.warn(msg, DeprecationWarning, stacklevel=3)
             logging.warning(msg, stacklevel=3)
             update_relations = not kwargs["clearUpdateTag"]
 
-        def __txn_update(write_skel):
+        skel = cls.write(skel, update_relations=update_relations, _check_legacy=False)
+        return skel["key"]
+
+    @classmethod
+    def write(
+        cls,
+        skel: SkeletonInstance,
+        key: t.Optional[KeyType] = None,
+        *,
+        update_relations: bool = True,
+        _check_legacy: bool = True,
+    ) -> SkeletonInstance:
+        """
+            Write current Skeleton to the datastore.
+
+            Stores the current data of this instance into the database.
+            If an *key* value is set to the object, this entity will ne updated;
+            Otherwise a new entity will be created.
+
+            To read a Skeleton object from the data store, see :func:`~viur.core.skeleton.Skeleton.read`.
+
+            :param key: Allows to specify a key that is set to the skeleton and used for writing.
+            :param update_relations: If False, this entity won't be marked dirty;
+                This avoids from being fetched by the background task updating relations.
+
+            :returns: The Skeleton.
+        """
+        # FIXME VIUR4: Stay backward compatible, call sub-classed toDB if available first!
+        if _check_legacy and "toDB" in cls.__dict__:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                return cls.toDB(skel, update_relations=update_relations)
+
+        assert skel.renderPreparation is None, "Cannot modify values while rendering"
+
+        def __txn_write(write_skel):
             db_key = write_skel["key"]
             skel = write_skel.skeletonCls()
 
@@ -1248,13 +1308,15 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             return skel.dbEntity.key, skel, change_list, is_add
 
-        # END of __txn_update subfunction
+        # Parse provided key, if any, and set it to skel["key"]
+        if key:
+            skel["key"] = db.keyHelper(key, skel.kindName)
 
         # Run transactional function
         if db.IsInTransaction():
-            key, skel, change_list, is_add = __txn_update(skel)
+            key, skel, change_list, is_add = __txn_write(skel)
         else:
-            key, skel, change_list, is_add = db.RunInTransaction(__txn_update, skel)
+            key, skel, change_list, is_add = db.RunInTransaction(__txn_write, skel)
 
         for bone_name, bone in skel.items():
             bone.postSavedHandler(skel, bone_name, key)
@@ -1272,72 +1334,34 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         for adapter in skel.database_adapters:
             adapter.write(skel, is_add, change_list)
 
-        return key
+        return skel
 
     @classmethod
-    def preProcessBlobLocks(cls, skelValues, locks):
-        """
-            Can be overridden to modify the list of blobs referenced by this skeleton
-        """
-        return locks
-
-    @classmethod
-    def preProcessSerializedData(cls, skelValues, entity):
-        """
-            Can be overridden to modify the :class:`viur.core.db.Entity` before its actually
-            written to the data store.
-        """
-        return entity
-
-    @classmethod
-    def postSavedHandler(cls, skelValues, key, dbObj):
-        """
-            Can be overridden to perform further actions after the entity has been written
-            to the data store.
-        """
-        pass
-
-    @classmethod
-    def postDeletedHandler(cls, skelValues, key):
-        """
-            Can be overridden to perform further actions after the entity has been deleted
-            from the data store.
-        """
-        pass
-
-    @classmethod
-    def getCurrentSEOKeys(cls, skelValues) -> None | dict[str, str]:
-        """
-        Should be overridden to return a dictionary of language -> SEO-Friendly key
-        this entry should be reachable under. How theses names are derived are entirely up to the application.
-        If the name is already in use for this module, the server will automatically append some random string
-        to make it unique.
-        :return:
-        """
-        return
-
-    @classmethod
-    def delete(cls, skelValues):
+    def delete(cls, skel: SkeletonInstance, key: t.Optional[KeyType] = None) -> None:
         """
             Deletes the entity associated with the current Skeleton from the data store.
+
+            :param key: Allows to specify a key that is used for deletion, otherwise skel["key"] will be used.
         """
 
-        def txnDelete(skel: SkeletonInstance) -> db.Entity:
-            skel_key = skel["key"]
-            entity = db.Get(skel_key)  # Fetch the raw object as we might have to clear locks
-            viur_data = entity.get("viur") or {}
+        def __txn_delete(skel: SkeletonInstance, key: db.Key):
+            if not skel.read(key):
+                raise ValueError("This skeleton is not in the database (anymore?)!")
 
             # Is there any relation to this Skeleton which prevents the deletion?
             locked_relation = (
                 db.Query("viur-relations")
-                .filter("dest.__key__ =", skel_key)
+                .filter("dest.__key__ =", key)
                 .filter("viur_relational_consistency =", RelationalConsistency.PreventDeletion.value)
             ).getEntry()
+
             if locked_relation is not None:
                 raise errors.Locked("This entry is still referenced by other Skeletons, which prevents deleting!")
 
+            # Ensure that any value lock objects remaining for this entry are being deleted
+            viur_data = skel.dbEntity.get("viur") or {}
+
             for boneName, bone in skel.items():
-                # Ensure that we delete any value-lock objects remaining for this entry
                 bone.delete(skel, boneName)
                 if bone.unique:
                     flushList = []
@@ -1346,17 +1370,18 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                         lockObj = db.Get(lockKey)
                         if not lockObj:
                             logging.error(f"{lockKey=} missing!")
-                        elif lockObj["references"] != entity.key.id_or_name:
+                        elif lockObj["references"] != key.id_or_name:
                             logging.error(
-                                f"""{skel["key"]!r} does not hold lock for {lockKey!r}""")
+                                f"""{key!r} does not hold lock for {lockKey!r}""")
                         else:
                             flushList.append(lockObj)
                     if flushList:
                         db.Delete(flushList)
 
             # Delete the blob-key lock object
-            lockObjectKey = db.Key("viur-blob-locks", entity.key.id_or_name)
+            lockObjectKey = db.Key("viur-blob-locks", key.id_or_name)
             lockObj = db.Get(lockObjectKey)
+
             if lockObj is not None:
                 if lockObj["old_blob_references"] is None and lockObj["active_blob_references"] is None:
                     db.Delete(lockObjectKey)  # Nothing to do here
@@ -1371,30 +1396,73 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     lockObj["is_stale"] = True
                     lockObj["has_old_blob_references"] = True
                     db.Put(lockObj)
-            db.Delete(skel_key)
-            processRemovedRelations(skel_key)
-            return entity
 
-        key = skelValues["key"]
-        if key is None:
+            db.Delete(key)
+            processRemovedRelations(key)
+
+        if key := (key or skel["key"]):
+            key = db.keyHelper(key, skel.kindName)
+        else:
             raise ValueError("This skeleton has no key!")
-        skel = skeletonByKind(skelValues.kindName)()
-        if not skel.fromDB(key):
-            raise ValueError("This skeleton is not in the database (anymore?)!")
+
+        # Full skeleton is required to have all bones!
+        skel = skeletonByKind(skel.kindName)()
 
         if db.IsInTransaction():
-            dbObj = txnDelete(skel)
+            __txn_delete(skel, key)
         else:
-            dbObj = db.RunInTransaction(txnDelete, skel)
+            db.RunInTransaction(__txn_delete, skel, key)
 
-        for boneName, _bone in skel.items():
-            _bone.postDeletedHandler(skel, boneName, key)
+        for boneName, bone in skel.items():
+            bone.postDeletedHandler(skel, boneName, key)
 
         skel.postDeletedHandler(key)
 
         # Inform the custom DB Adapter
         for adapter in skel.database_adapters:
             adapter.delete(skel)
+
+    @classmethod
+    def preProcessBlobLocks(cls, skel: SkeletonInstance, locks):
+        """
+            Can be overridden to modify the list of blobs referenced by this skeleton
+        """
+        return locks
+
+    @classmethod
+    def preProcessSerializedData(cls, skel: SkeletonInstance, entity):
+        """
+            Can be overridden to modify the :class:`viur.core.db.Entity` before its actually
+            written to the data store.
+        """
+        return entity
+
+    @classmethod
+    def postSavedHandler(cls, skel: SkeletonInstance, key, dbObj):
+        """
+            Can be overridden to perform further actions after the entity has been written
+            to the data store.
+        """
+        pass
+
+    @classmethod
+    def postDeletedHandler(cls, skel: SkeletonInstance, key):
+        """
+            Can be overridden to perform further actions after the entity has been deleted
+            from the data store.
+        """
+        pass
+
+    @classmethod
+    def getCurrentSEOKeys(cls, skel: SkeletonInstance) -> None | dict[str, str]:
+        """
+        Should be overridden to return a dictionary of language -> SEO-Friendly key
+        this entry should be reachable under. How theses names are derived are entirely up to the application.
+        If the name is already in use for this module, the server will automatically append some random string
+        to make it unique.
+        :return:
+        """
+        return
 
 
 class RelSkel(BaseSkeleton):
@@ -1467,7 +1535,7 @@ class RefSkel(RelSkel):
         """
         skel = skeletonByKind(self.kindName)()
 
-        if not skel.fromDB(key or self["key"]):
+        if not skel.read(key or self["key"]):
             raise ValueError(f"""The key {key or self["key"]!r} seems to be gone""")
 
         return skel
@@ -1548,7 +1616,7 @@ def processRemovedRelations(removedKey, cursor=None):
     for entry in updateList:
         skel = skeletonByKind(entry["viur_src_kind"])()
 
-        if not skel.fromDB(entry["src"].key):
+        if not skel.read(entry["src"].key):
             raise ValueError(f"processRemovedRelations detects inconsistency on src={entry['src'].key!r}")
 
         if entry["viur_relational_consistency"] == RelationalConsistency.SetNull.value:
@@ -1563,7 +1631,7 @@ def processRemovedRelations(removedKey, cursor=None):
                         skel[key] = [x for x in relVal if x["dest"]["key"] != removedKey]
                     else:
                         raise NotImplementedError(f"No handling for {type(relVal)=}")
-            skel.toDB(update_relations=False)
+            skel.write(update_relations=False)
 
         else:
             logging.critical(f"""Cascade deletion of {skel["key"]!r}""")
@@ -1581,7 +1649,7 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: t.Optional
         entity that's referencing them. This allows ViUR to run queries over properties of referenced entities and
         prevents additional db.Get's to these referenced entities if the main entity is read. However, this forces
         us to track changes made to entities as we might have to update these mirrored values.     This is the deferred
-        call from meth:`viur.core.skeleton.Skeleton.toDB()` after an update (edit) on one Entity to do exactly that.
+        call from meth:`viur.core.skeleton.Skeleton.write()` after an update (edit) on one Entity to do exactly that.
 
         :param destKey: The database-key of the entity that has been edited
         :param minChangeTime: The timestamp on which the edit occurred. As we run deferred, and the entity might have
@@ -1606,12 +1674,12 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: t.Optional
     updateList = updateListQuery.run(limit=5)
 
     def updateTxn(skel, key, srcRelKey):
-        if not skel.fromDB(key):
+        if not skel.read(key):
             logging.warning(f"Cannot update stale reference to {key=} (referenced from {srcRelKey=})")
             return
 
         skel.refresh()
-        skel.toDB(update_relations=False)
+        skel.write(update_relations=False)
 
     for srcRel in updateList:
         try:
@@ -1678,7 +1746,7 @@ class RebuildSearchIndex(QueryIter):
     @classmethod
     def handleEntry(cls, skel: SkeletonInstance, customData: dict[str, str]):
         skel.refresh()
-        skel.toDB(update_relations=False)
+        skel.write(update_relations=False)
 
     @classmethod
     def handleFinish(cls, totalCount: int, customData: dict[str, str]):
