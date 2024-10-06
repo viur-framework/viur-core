@@ -725,7 +725,7 @@ class Conf(ConfigType):
     - validTags (list[str]):
         A list of valid HTML tags allowed in TextBone instances.
     - validAttrs (dict[str, list[str]]):
-        A dictionary mapping valid attributes for each tag. If a tag is not listed, no attributes are allowed for that tag.
+        A dictionary mapping valid attributes for each tag. If a tag is not listed, this tag accepts no attributes.
     - validStyles (list[str]):
         A list of allowed CSS directives for the TextBone instances.
     - validClasses (list[str]):
