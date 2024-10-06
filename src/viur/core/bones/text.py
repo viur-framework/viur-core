@@ -13,12 +13,14 @@ import typing as t
 from viur.core import db, conf
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
-_defaultTags = {
-    "validTags": [  # List of HTML-Tags which are valid
-        'b', 'a', 'i', 'u', 'span', 'div', 'p', 'img', 'ol', 'ul', 'li', 'abbr', 'sub', 'sup',
-        'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'br',
-        'hr', 'strong', 'blockquote', 'em'],
-    "validAttrs": {  # Mapping of valid parameters for each tag (if a tag is not listed here: no parameters allowed)
+_DEFAULTTAGS = {
+    # List of HTML-Tags which are valid
+    "validTags": (
+        "b a i u span div p img ol ul li abbr sub sup h1 h2 h3 h4 h5 h6 table thead tbody "
+        "tfoot tr td th br hr strong blockquote em"
+    ).split(),
+    # Mapping of valid parameters for each tag (if a tag is not listed here: no parameters allowed)
+    "validAttrs": {
         "a": ["href", "target", "title"],
         "abbr": ["title"],
         "span": ["title"],
@@ -27,11 +29,14 @@ _defaultTags = {
         "p": ["data-indent"],
         "blockquote": ["cite"]
     },
+    # List of CSS-Directives we allow
     "validStyles": [
         "color"
-    ],  # List of CSS-Directives we allow
-    "validClasses": ["vitxt-*", "viur-txt-*"],  # List of valid class-names that are valid
-    "singleTags": ["br", "img", "hr"]  # List of tags, which don't have a corresponding end tag
+    ],
+    # List of valid class-names that are valid
+    "validClasses": ["vitxt-*", "viur-txt-*"],
+    # List of tags, which don't have a corresponding end tag
+    "singleTags": ["br", "img", "hr"]
 }
 """
 A dictionary containing default configurations for handling HTML content in TextBone instances.
@@ -91,13 +96,20 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
          "\n": "",
          "\0": ""})
 
-    def __init__(self, validHtml=None, srcSet=None, convert_charrefs: bool = True):
+    def __init__(self, tags=None, leaf_tags=None, attrs=None, styles=None, classes=None, src_set=None, convert_charrefs: bool = True):
         super().__init__(convert_charrefs=convert_charrefs)
+
         self.result = ""  # The final result that will be returned
         self.openTagsList = []  # List of tags that still need to be closed
         self.tagCache = []  # Tuple of tags that have been processed but not written yet
-        self.validHtml = validHtml
-        self.srcSet = srcSet
+
+        self.tags = tags or []
+        self.leaf_tags = leaf_tags or []
+        self.attrs = attrs or {}
+        self.style = styles or []
+        self.classes = classes or []
+
+        self.src_set = src_set
 
     def handle_data(self, data):
         """
@@ -148,115 +160,128 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
         :param str tag: The current start tag encountered by the parser.
         :param List[Tuple[str, str]] attrs: A list of tuples containing the attribute name and value of the current tag.
         """
+
+        if tag not in self.tags:
+            self.result += " "
+            return
+
         filterChars = "\"'\\\0\r\n@()"
-        if self.validHtml and tag in self.validHtml["validTags"]:
-            cacheTagStart = '<' + tag
-            isBlankTarget = False
-            styles = None
-            classes = None
-            for k, v in attrs:
-                k = k.strip()
-                v = v.strip()
-                if any([c in k for c in filterChars]) or any([c in v for c in filterChars]):
-                    if k in {"title", "href", "alt"} and not any([c in v for c in "\"'\\\0\r\n"]):
-                        # If we have a title or href attribute, ignore @ and ()
-                        pass
-                    else:
-                        # Either the key or the value contains a character that's not supposed to be there
-                        continue
-                elif k == "class":
-                    # Classes are handled below
-                    classes = v.split(" ")
-                    continue
-                elif k == "style":
-                    # Styles are handled below
-                    styles = v.split(";")
-                    continue
-                elif k == "src":
-                    # We ensure that any src tag starts with an actual url
-                    checker = v.lower()
-                    if not (checker.startswith("http://") or checker.startswith("https://") or checker.startswith("/")):
-                        continue
+        cacheTagStart = '<' + tag
+        isBlankTarget = False
+        styles = None
+        classes = None
 
-                    file = getattr(conf.main_app.vi, "file", None)
-                    if file and (filepath := file.parse_download_url(v)):
-                        v = file.create_download_url(
+        for k, v in attrs:
+            k = k.strip().lower()
+            v = v.strip()
+
+            if any([c in k for c in filterChars]) or any([c in v for c in filterChars]):
+                if k in {"title", "href", "alt"} and not any([c in v for c in "\"'\\\0\r\n"]):
+                    # If we have a title or href attribute, ignore @ and ()
+                    pass
+                else:
+                    # Either the key or the value contains a character that's not supposed to be there
+                    continue
+
+            elif k == "class":
+                # Classes are handled below
+                classes = v.split(" ")
+                continue
+            elif k == "style":
+                # Styles are handled below
+                styles = v.split(";")
+                continue
+            elif k == "src":
+                # We ensure that any src tag starts with an actual url
+                checker = v.lower()
+                if not (checker.startswith("http://") or checker.startswith("https://") or checker.startswith("/")):
+                    continue
+
+                file = getattr(conf.main_app.vi, "file", None)
+                if file and (filepath := file.parse_download_url(v)):
+                    v = file.create_download_url(
+                        filepath.dlkey,
+                        filepath.filename,
+                        filepath.is_derived,
+                        expires=None
+                    )
+
+                    if self.srcSet:
+                        # Build the src set with files already available. If a derived file is not yet build,
+                        # getReferencedBlobs will catch it, build it, and we're going to be re-called afterwards.
+                        srcSet = file.create_src_set(
                             filepath.dlkey,
-                            filepath.filename,
-                            filepath.is_derived,
-                            expires=None
+                            None,
+                            self.srcSet.get("width"),
+                            self.srcSet.get("height")
                         )
+                        cacheTagStart += f' srcSet="{srcSet}"'
 
-                        if self.srcSet:
-                            # Build the src set with files already available. If a derived file is not yet build,
-                            # getReferencedBlobs will catch it, build it, and we're going to be re-called afterwards.
-                            srcSet = file.create_src_set(
-                                filepath.dlkey,
-                                None,
-                                self.srcSet.get("width"),
-                                self.srcSet.get("height")
-                            )
-                            cacheTagStart += f' srcSet="{srcSet}"'
-                if not tag in self.validHtml["validAttrs"].keys() or not k in self.validHtml["validAttrs"][tag]:
-                    # That attribute is not valid on this tag
+            if k not in self.attrs.get(tag, ()):
+                # That attribute is not valid on this tag
+                continue
+
+            if k.lower()[0:2] != "on" and v.lower()[0:10] != 'javascript':
+                cacheTagStart += f" {k}=\"{v}\""
+
+            if tag == "a" and k == "target" and v.lower() == "_blank":
+                isBlankTarget = True
+
+        if styles:
+            style_res = {}
+
+            for s in styles:
+                style = s[: s.find(":")].strip()
+                value = s[s.find(":") + 1:].strip()
+                if any([c in style for c in filterChars]) or any(
+                    [c in value for c in filterChars]):
+                    # Either the key or the value contains a character that's not supposed to be there
                     continue
-                if k.lower()[0:2] != 'on' and v.lower()[0:10] != 'javascript':
-                    cacheTagStart += f' {k}="{v}"'
-                if tag == "a" and k == "target" and v.lower() == "_blank":
-                    isBlankTarget = True
-            if styles:
-                syleRes = {}
-                for s in styles:
-                    style = s[: s.find(":")].strip()
-                    value = s[s.find(":") + 1:].strip()
-                    if any([c in style for c in filterChars]) or any(
-                           [c in value for c in filterChars]):
-                        # Either the key or the value contains a character that's not supposed to be there
-                        continue
-                    if value.lower().startswith("expression") or value.lower().startswith("import"):
-                        # IE evaluates JS inside styles if the keyword expression is present
-                        continue
-                    if style in self.validHtml["validStyles"] and not any(
-                           [(x in value) for x in ["\"", ":", ";"]]):
-                        syleRes[style] = value
-                if len(syleRes.keys()):
-                    cacheTagStart += f""" style=\"{"; ".join([(f"{k}: {v}") for k, v in syleRes.items()])}\""""
-            if classes:
-                validClasses = []
-                for currentClass in classes:
-                    validClassChars = string.ascii_lowercase + string.ascii_uppercase + string.digits + "-"
-                    if not all([x in validClassChars for x in currentClass]):
-                        # The class contains invalid characters
-                        continue
-                    isOkay = False
-                    for validClass in self.validHtml["validClasses"]:
-                        # Check if the classname matches or is white-listed by a prefix
-                        if validClass == currentClass:
+                if value.lower().startswith("expression") or value.lower().startswith("import"):
+                    # IE evaluates JS inside styles if the keyword expression is present
+                    continue
+
+                if style in self.validHtml["validStyles"] and not any(
+                    [(x in value) for x in ["\"", ":", ";"]]):
+                    style_res[style] = value
+
+            if len(style_res):
+                cacheTagStart += " style=\"%s\"" % "; ".join(
+                    [("%s: %s" % (k, v)) for (k, v) in style_res.items()])
+        if classes:
+            validClasses = []
+            for currentClass in classes:
+                validClassChars = string.ascii_lowercase + string.ascii_uppercase + string.digits + "-"
+                if not all([x in validClassChars for x in currentClass]):
+                    # The class contains invalid characters
+                    continue
+                isOkay = False
+                for validClass in self.validHtml["validClasses"]:
+                    # Check if the classname matches or is white-listed by a prefix
+                    if validClass == currentClass:
+                        isOkay = True
+                        break
+                    if validClass.endswith("*"):
+                        validClass = validClass[:-1]
+                        if currentClass.startswith(validClass):
                             isOkay = True
                             break
-                        if validClass.endswith("*"):
-                            validClass = validClass[:-1]
-                            if currentClass.startswith(validClass):
-                                isOkay = True
-                                break
-                    if isOkay:
-                        validClasses.append(currentClass)
-                if validClasses:
-                    cacheTagStart += f""" class=\"{" ".join(validClasses)}\""""
-            if isBlankTarget:
-                # Add rel tag to prevent the browser to pass window.opener around
-                cacheTagStart += " rel=\"noopener noreferrer\""
-            if tag in self.validHtml["singleTags"]:
-                # Single-Tags do have a visual representation; ensure it makes it into the result
-                self.flushCache()
-                self.result += cacheTagStart + '>'  # dont need slash in void elements in html5
-            else:
-                # We opened a 'normal' tag; push it on the cache so it can be discarded later if
-                # we detect it has no content
-                cacheTagStart += '>'
-                self.tagCache.append((cacheTagStart, tag))
+                if isOkay:
+                    validClasses.append(currentClass)
+            if validClasses:
+                cacheTagStart += " class=\"%s\"" % " ".join(validClasses)
+        if isBlankTarget:
+            # Add rel tag to prevent the browser to pass window.opener around
+            cacheTagStart += " rel=\"noopener noreferrer\""
+        if tag in self.validHtml["singleTags"]:
+            # Single-Tags do have a visual representation; ensure it makes it into the result
+            self.flushCache()
+            self.result += cacheTagStart + '>'  # dont need slash in void elements in html5
         else:
-            self.result += " "
+            # We opened a 'normal' tag; push it on the cache so it can be discarded later if
+            # we detect it has no content
+            cacheTagStart += '>'
+            self.tagCache.append((cacheTagStart, tag))
 
     def handle_endtag(self, tag):
         """
@@ -312,7 +337,7 @@ class TextBone(BaseBone):
     srcset for embedded images.
 
     :param Union[None, Dict] validHtml: A dictionary containing allowed HTML tags and their attributes. Defaults
-        to _defaultTags. Must be a structured like :prop:_defaultTags
+        to _DEFAULTTAGS. Must be a structured like :prop:_DEFAULTTAGS
     :param int max_length: The maximum allowed length for the content. Defaults to 200000.
     :param languages: If set, this bone can store a different content for each language
     :param Dict[str, List] srcSet: An optional dictionary containing width and height for srcset generation.
@@ -336,7 +361,7 @@ class TextBone(BaseBone):
         **kwargs
     ):
         """
-            :param validHtml: If set, must be a structure like :prop:_defaultTags
+            :param validHtml: If set, must be a structure like :prop:_DEFAULTTAGS
             :param languages: If set, this bone can store a different content for each language
             :param max_length: Limit content to max_length bytes
             :param indexed: Must not be set True, unless you limit max_length accordingly
@@ -350,8 +375,8 @@ class TextBone(BaseBone):
         super().__init__(indexed=indexed, **kwargs)
 
         if validHtml == TextBone.__undefinedC__:
-            global _defaultTags
-            validHtml = _defaultTags
+            global _DEFAULTTAGS
+            validHtml = _DEFAULTTAGS
 
         self.validHtml = validHtml
         self.max_length = max_length
@@ -368,7 +393,14 @@ class TextBone(BaseBone):
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
         if not (err := self.isInvalid(value)):  # Returns None on success, error-str otherwise
-            return HtmlSerializer(self.validHtml, self.srcSet, False).sanitize(value), None
+            return HtmlSerializer(
+                tags=self.validHtml["validTags"],
+                leaf_tags=self.validHtml["singleTags"],
+                attrs=self.validHtml["validAttrs"],
+                styles=self.validHtml["validStyles"],
+                classes=self.validHtml["validClasses"],
+                src_set=self.srcSet
+            ).sanitize(value), None
         else:
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
@@ -395,7 +427,7 @@ class TextBone(BaseBone):
         :rtype: Optional[str]
         """
 
-        if value == None:
+        if value is None:
             return "No value entered"
         if len(value) > self.max_length:
             return "Maximum length exceeded"
