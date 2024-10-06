@@ -274,7 +274,7 @@ class TextBone(BaseBone):
     srcset for embedded images.
 
     :param validHtml: A dictionary containing allowed HTML tags and their attributes.
-        Defaults to `conf.bone_text_valid_html_default`.
+        Defaults to `conf.bone_html_default_allow`.
     :param max_length: The maximum allowed length for the content. Defaults to 200000.
     :param languages: If set, this bone can store a different content for each language
     :param srcSet: An optional dictionary containing width and height for srcset generation.
@@ -298,7 +298,7 @@ class TextBone(BaseBone):
         **kwargs
     ):
         """
-            :param validHtml: If set, must be a structure like `conf.bone_text_valid_html_default`
+            :param validHtml: If set, must be a structure like `conf.bone_html_default_allow`
             :param languages: If set, this bone can store a different content for each language
             :param max_length: Limit content to max_length bytes
             :param indexed: Must not be set True, unless you limit max_length accordingly
