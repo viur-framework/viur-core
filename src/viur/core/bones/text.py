@@ -2,51 +2,13 @@
 The `text` module contains the `Textbone` and a custom HTML-Parser
 to validate and extract client data for the `TextBone`.
 """
+import html
 import string
-import warnings
-from base64 import urlsafe_b64decode
-from datetime import datetime
-from html import entities as htmlentitydefs
-from html.parser import HTMLParser
 import typing as t
-
+import warnings
+from html.parser import HTMLParser
 from viur.core import db, conf
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-
-_defaultTags = {
-    "validTags": [  # List of HTML-Tags which are valid
-        'b', 'a', 'i', 'u', 'span', 'div', 'p', 'img', 'ol', 'ul', 'li', 'abbr', 'sub', 'sup',
-        'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'br',
-        'hr', 'strong', 'blockquote', 'em'],
-    "validAttrs": {  # Mapping of valid parameters for each tag (if a tag is not listed here: no parameters allowed)
-        "a": ["href", "target", "title"],
-        "abbr": ["title"],
-        "span": ["title"],
-        "img": ["src", "alt", "title"],  # "srcset" must not be in this list. It will be injected by ViUR
-        "td": ["colspan", "rowspan"],
-        "p": ["data-indent"],
-        "blockquote": ["cite"]
-    },
-    "validStyles": [
-        "color"
-    ],  # List of CSS-Directives we allow
-    "validClasses": ["vitxt-*", "viur-txt-*"],  # List of valid class-names that are valid
-    "singleTags": ["br", "img", "hr"]  # List of tags, which don't have a corresponding end tag
-}
-"""
-A dictionary containing default configurations for handling HTML content in TextBone instances.
-
-- validTags (list[str]):
-    A list of valid HTML tags allowed in TextBone instances.
-- validAttrs (dict[str, list[str]]):
-    A dictionary mapping valid attributes for each tag. If a tag is not listed, no attributes are allowed for that tag.
-- validStyles (list[str]):
-   A list of allowed CSS directives for the TextBone instances.
-- validClasses (list[str]):
-    A list of valid CSS class names allowed in TextBone instances.
-- singleTags (list[str]):
-   A list of self-closing HTML tags that don't have corresponding end tags.
-"""
 
 
 class CollectBlobKeys(HTMLParser):
@@ -75,7 +37,7 @@ class CollectBlobKeys(HTMLParser):
                         self.blobs.add(filepath.dlkey)
 
 
-class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
+class HtmlSerializer(HTMLParser):
     """
     A custom HTML parser that extends the HTMLParser class to sanitize and serialize HTML content
     by removing invalid tags and attributes while retaining the valid ones.
@@ -127,7 +89,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
 
         :param str name: The name of the entity reference.
         """
-        if name in htmlentitydefs.entitydefs.keys():
+        if name in html.entities.entitydefs.keys():
             self.flushCache()
             self.result += f"&{name};"
 
@@ -311,13 +273,13 @@ class TextBone(BaseBone):
     only specific HTML tags and attributes, and enforce a maximum length. Supports the use of
     srcset for embedded images.
 
-    :param Union[None, Dict] validHtml: A dictionary containing allowed HTML tags and their attributes. Defaults
-        to _defaultTags. Must be a structured like :prop:_defaultTags
-    :param int max_length: The maximum allowed length for the content. Defaults to 200000.
+    :param validHtml: A dictionary containing allowed HTML tags and their attributes.
+        Defaults to `conf.bone_text_valid_html_default`.
+    :param max_length: The maximum allowed length for the content. Defaults to 200000.
     :param languages: If set, this bone can store a different content for each language
-    :param Dict[str, List] srcSet: An optional dictionary containing width and height for srcset generation.
+    :param srcSet: An optional dictionary containing width and height for srcset generation.
         Must be a dict of "width": [List of Ints], "height": [List of Ints], eg {"height": [720, 1080]}
-    :param bool indexed: Whether the content should be indexed for searching. Defaults to False.
+    :param indexed: Whether the content should be indexed for searching. Defaults to False.
     :param kwargs: Additional keyword arguments to be passed to the base class constructor.
     """
 
@@ -336,7 +298,7 @@ class TextBone(BaseBone):
         **kwargs
     ):
         """
-            :param validHtml: If set, must be a structure like :prop:_defaultTags
+            :param validHtml: If set, must be a structure like `conf.bone_text_valid_html_default`
             :param languages: If set, this bone can store a different content for each language
             :param max_length: Limit content to max_length bytes
             :param indexed: Must not be set True, unless you limit max_length accordingly
@@ -350,8 +312,7 @@ class TextBone(BaseBone):
         super().__init__(indexed=indexed, **kwargs)
 
         if validHtml == TextBone.__undefinedC__:
-            global _defaultTags
-            validHtml = _defaultTags
+            validHtml = conf.bone_html_default_allow
 
         self.validHtml = validHtml
         self.max_length = max_length

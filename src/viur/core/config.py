@@ -642,6 +642,98 @@ class Conf(ConfigType):
     bone_boolean_str2true: Multiple[str | int] = ("true", "yes", "1")
     """Allowed values that define a str to evaluate to true"""
 
+    bone_html_default_allow: t.Dict[str, t.Any] = {
+        "validTags": [
+            "a",
+            "abbr",
+            "b",
+            "blockquote",
+            "br",
+            "div",
+            "em",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "hr",
+            "i",
+            "img",
+            "li",
+            "ol",
+            "p",
+            "span",
+            "strong",
+            "sub",
+            "sup",
+            "table",
+            "tbody",
+            "td",
+            "tfoot",
+            "th",
+            "thead",
+            "tr",
+            "u",
+            "ul",
+        ],
+        "validAttrs": {
+            "a": [
+                "href",
+                "target",
+                "title",
+            ],
+            "abbr": [
+                "title",
+            ],
+            "blockquote": [
+                "cite",
+            ],
+            "img": [
+                "src",
+                "alt",
+                "title",
+            ],
+            "p": [
+                "data-indent",
+            ],
+            "span": [
+                "title",
+            ],
+            "td": [
+                "colspan",
+                "rowspan",
+            ],
+
+        },
+        "validStyles": [
+            "color",
+        ],
+        "validClasses": [
+            "vitxt-*",
+            "viur-txt-*"
+        ],
+        "singleTags": [
+            "br",
+            "hr",
+            "img",
+        ]
+    }
+    """
+    A dictionary containing default configurations for handling HTML content in TextBone instances.
+
+    - validTags (list[str]):
+        A list of valid HTML tags allowed in TextBone instances.
+    - validAttrs (dict[str, list[str]]):
+        A dictionary mapping valid attributes for each tag. If a tag is not listed, no attributes are allowed for that tag.
+    - validStyles (list[str]):
+        A list of allowed CSS directives for the TextBone instances.
+    - validClasses (list[str]):
+        A list of valid CSS class names allowed in TextBone instances.
+    - singleTags (list[str]):
+        A list of self-closing HTML tags that don't have corresponding end tags.
+    """
+
     cache_environment_key: t.Optional[t.Callable[[], str]] = None
     """If set, this function will be called for each cache-attempt
     and the result will be included in the computed cache-key"""
