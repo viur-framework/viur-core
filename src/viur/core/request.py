@@ -162,7 +162,8 @@ class Router:
         """
 
         def get_language_from_header() -> str | None:
-            accept_language = self.request.headers.get("accept-language")
+            if not (accept_language := self.request.headers.get("accept-language")):
+                return None
             languages = accept_language.split(",")
             locale_q_pairs = []
 
