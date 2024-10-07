@@ -3,7 +3,7 @@ import logging
 import time
 from viur.core.tasks import DeleteEntitiesIter
 from viur.core.config import conf  # this import has to stay alone due partial import
-from viur.core import db, utils, tasks
+from viur.core import db, utils, tasks,current
 import typing as t
 
 """
@@ -59,14 +59,15 @@ class Session(db.Entity):
         self.static_security_key = None
         self.loaded = False
 
-    def load(self, req):
+    def load(self):
         """
             Initializes the Session.
 
             If the client supplied a valid Cookie, the session is read from the datastore, otherwise a new,
             empty session will be initialized.
         """
-        if cookie_key := req.request.cookies.get(self.cookie_name):
+
+        if cookie_key := current.request.get().request.cookies.get(self.cookie_name):
             cookie_key = str(cookie_key)
             if data := db.Get(db.Key(self.kindName, cookie_key)):  # Loaded successfully
                 if data["lastseen"] < time.time() - conf.user.session_life_time:
@@ -87,17 +88,18 @@ class Session(db.Entity):
             else:
                 self.reset()
 
-    def save(self, req):
+    def save(self):
         """
             Writes the session into the database.
 
             Does nothing, in case the session hasn't been changed in the current request.
         """
+
         if not self.changed:
             return
-
+        current_request = current.request.get()
         # We will not issue sessions over http anymore
-        if not (req.isSSLConnection or conf.instance.is_dev_server):
+        if not (current_request.isSSLConnection or conf.instance.is_dev_server):
             return
 
         # Get the current user's key
@@ -130,7 +132,7 @@ class Session(db.Entity):
             f"Max-Age={conf.user.session_life_time}" if not self.use_session_cookie else None,
         )
 
-        req.response.headerlist.append(
+        current_request.response.headerlist.append(
             ("Set-Cookie", f"{self.cookie_name}={self.cookie_key};{';'.join([f for f in flags if f])}")
         )
 
@@ -161,15 +163,11 @@ class Session(db.Entity):
 
             :warning: Everything is flushed.
         """
-        if self.cookie_key:
-            db.Delete(db.Key(self.kindName, self.cookie_key))
-            from viur.core import securitykey
-            securitykey.clear_session_skeys(self.cookie_key)
 
+        self.clear()
         self.cookie_key = utils.string.random(42)
         self.static_security_key = utils.string.random(13)
         self.loaded = True
-        self.clear()
         self.changed = True
 
     def __delitem__(self, key: str) -> None:
@@ -210,8 +208,13 @@ class Session(db.Entity):
         return default
 
     def clear(self) -> None:
-        if self:
-            self.changed = True
+        if self.cookie_key:
+            db.Delete(db.Key(self.kindName, self.cookie_key))
+            from viur.core import securitykey
+            securitykey.clear_session_skeys(self.cookie_key)
+        current.request.get().response.delete_cookie(self.cookie_name)
+        self.loaded=False
+        self.cookie_key = None
         super().clear()
 
     def popitem(self) -> t.Tuple[t.Any, t.Any]:

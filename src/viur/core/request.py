@@ -7,6 +7,7 @@
 """
 import fnmatch
 import json
+from deprecated.sphinx import deprecated
 import logging
 import os
 import time
@@ -323,7 +324,7 @@ class Router:
             return
 
         try:
-            current.session.get().load(self)
+            current.session.get().load()
 
             # Load current user into context variable if user module is there.
             if user_mod := getattr(conf.main_app.vi, "user", None):
@@ -419,7 +420,7 @@ class Router:
             self.response.write(res.encode("UTF-8"))
 
         finally:
-            self.saveSession()
+            current.session.get().save()
             if conf.instance.is_dev_server and conf.debug.dev_server_cloud_logging:
                 # Emit the outer log only on dev_appserver (we'll use the existing request log when live)
                 SEVERITY = "DEBUG"
@@ -604,9 +605,9 @@ class Router:
         if not isinstance(res, bytes):  # Convert the result to bytes if it is not already!
             res = str(res).encode("UTF-8")
         self.response.write(res)
-
+    @deprecated(version="3.7.0", reason="Use current.session.get().save() instead", action="always")
     def saveSession(self) -> None:
-        current.session.get().save(self)
+        current.session.get().save()
 
 
 from .i18n import translate  # noqa: E402
