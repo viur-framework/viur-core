@@ -3,7 +3,7 @@ import logging
 import time
 from viur.core.tasks import DeleteEntitiesIter
 from viur.core.config import conf  # this import has to stay alone due partial import
-from viur.core import db, utils, tasks,current
+from viur.core import db, utils, tasks, current
 import typing as t
 
 """
@@ -213,7 +213,7 @@ class Session(db.Entity):
             from viur.core import securitykey
             securitykey.clear_session_skeys(self.cookie_key)
         current.request.get().response.delete_cookie(self.cookie_name)
-        self.loaded=False
+        self.loaded = False
         self.cookie_key = None
         super().clear()
 

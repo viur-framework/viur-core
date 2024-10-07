@@ -605,6 +605,7 @@ class Router:
         if not isinstance(res, bytes):  # Convert the result to bytes if it is not already!
             res = str(res).encode("UTF-8")
         self.response.write(res)
+
     @deprecated(version="3.7.0", reason="Use current.session.get().save() instead", action="always")
     def saveSession(self) -> None:
         current.session.get().save()
