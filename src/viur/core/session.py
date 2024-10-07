@@ -218,10 +218,10 @@ class Session(db.Entity):
         self.changed = True
         return super().popitem()
 
-    def setdefault(self, __key, __default=None) -> t.Any:
-        if __key not in self:
+    def setdefault(self, key, default=None) -> t.Any:
+        if key not in self:
             self.changed = True
-        return super().setdefault(__key, __default)
+        return super().setdefault(key, default)
 
 
 
