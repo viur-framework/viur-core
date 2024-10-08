@@ -149,6 +149,7 @@ def skey(
 def cors(
     allow_headers: t.Iterable[str] = (),
 ) -> t.Callable:
+    """Add additional CORS setting for a decorated :meth:`exposed` method."""
     def decorator(func):
         meth = Method.ensure(func)
         meth.cors_allow_headers = allow_headers

@@ -370,7 +370,7 @@ class Router:
                 error_info["logo"] = conf.error_logo
 
                 if (len(self.path_list) > 0 and self.path_list[0] in ("vi", "json")) or \
-                    current.request.get().response.headers["Content-Type"] == "application/json":
+                        current.request.get().response.headers["Content-Type"] == "application/json":
                     current.request.get().response.headers["Content-Type"] = "application/json"
                     res = json.dumps(error_info)
                 else:  # We render the error in html
@@ -544,9 +544,9 @@ class Router:
 
         # Check for @force_ssl flag
         if not self.internalRequest \
-            and caller.ssl \
-            and not self.request.host_url.lower().startswith("https://") \
-            and not conf.instance.is_dev_server:
+                and caller.ssl \
+                and not self.request.host_url.lower().startswith("https://") \
+                and not conf.instance.is_dev_server:
             raise errors.PreconditionFailed("You must use SSL to access this resource!")
 
         # Check for @force_post flag
@@ -570,7 +570,7 @@ class Router:
             kwargs = self.kwargs
 
         if ((self.internalRequest and conf.debug.trace_internal_call_routing)
-            or conf.debug.trace_external_call_routing):
+                or conf.debug.trace_external_call_routing):
             logging.debug(
                 f"Calling {caller._func!r} with args={self.args!r}, {kwargs=} within context={self.context!r}"
             )
