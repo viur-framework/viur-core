@@ -1,4 +1,5 @@
 import logging
+import typing as t
 from viur.core import Module, conf, db, current, i18n, tasks, skeleton
 from viur.core.bones import StringBone, TextBone, SelectBone, TreeLeafBone
 from viur.core.bones.text import HtmlBoneConfiguration
@@ -7,7 +8,7 @@ from viur.core.prototypes import List
 
 MODULECONF_KINDNAME = "viur-module-conf"
 
-_LIMITED_HTML: HtmlBoneConfiguration = conf.bone_html_default_allow | {
+_LIMITED_HTML: t.Final[HtmlBoneConfiguration] = conf.bone_html_default_allow | {
     "validTags": "a abbr b blockquote br div em h1 h2 h3 h4 h5 h6 hr i li ol p span strong sub sup u ul".split(),
 }
 
