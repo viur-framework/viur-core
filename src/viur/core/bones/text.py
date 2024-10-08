@@ -11,6 +11,25 @@ from viur.core import db, conf
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 
+class HtmlBoneConfiguration(t.TypedDict):
+    """A dictionary containing configurations for handling HTML content in TextBone instances."""
+
+    validTags: list[str]
+    """A list of valid HTML tags allowed in TextBone instances."""
+
+    validAttrs: dict[str, list[str]]
+    """A dictionary mapping valid attributes for each tag. If a tag is not listed, this tag accepts no attributes."""
+
+    validStyles: list[str]
+    """A list of allowed CSS directives for the TextBone instances."""
+
+    validClasses: list[str]
+    """A list of valid CSS class names allowed in TextBone instances."""
+
+    singleTags: list[str]
+    """A list of self-closing HTML tags that don't have corresponding end tags."""
+
+
 class CollectBlobKeys(HTMLParser):
     """
     A custom HTML parser that extends the HTMLParser class to collect blob keys found in the "src" attribute
@@ -53,7 +72,7 @@ class HtmlSerializer(HTMLParser):
          "\n": "",
          "\0": ""})
 
-    def __init__(self, validHtml=None, srcSet=None, convert_charrefs: bool = True):
+    def __init__(self, validHtml: HtmlBoneConfiguration = None, srcSet=None, convert_charrefs: bool = True):
         super().__init__(convert_charrefs=convert_charrefs)
         self.result = ""  # The final result that will be returned
         self.openTagsList = []  # List of tags that still need to be closed
@@ -291,7 +310,7 @@ class TextBone(BaseBone):
     def __init__(
         self,
         *,
-        validHtml: None | dict = __undefinedC__,
+        validHtml: None | HtmlBoneConfiguration = __undefinedC__,
         max_length: int = 200000,
         srcSet: t.Optional[dict[str, list]] = None,
         indexed: bool = False,

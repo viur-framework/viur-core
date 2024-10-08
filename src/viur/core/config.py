@@ -11,10 +11,12 @@ import google.auth
 from viur.core.version import __version__
 
 if t.TYPE_CHECKING:  # pragma: no cover
+    from viur.core.bones.text import HtmlBoneConfiguration
     from viur.core.email import EmailTransport
     from viur.core.skeleton import SkeletonInstance
     from viur.core.module import Module
     from viur.core.tasks import CustomEnvironmentHandler
+
 
 # Construct an alias with a generic type to be able to write Multiple[str]
 # TODO: Backward compatible implementation, refactor when viur-core
@@ -642,7 +644,7 @@ class Conf(ConfigType):
     bone_boolean_str2true: Multiple[str | int] = ("true", "yes", "1")
     """Allowed values that define a str to evaluate to true"""
 
-    bone_html_default_allow: t.Dict[str, t.Any] = {
+    bone_html_default_allow: "HtmlBoneConfiguration" = {
         "validTags": [
             "a",
             "abbr",
@@ -721,17 +723,6 @@ class Conf(ConfigType):
     }
     """
     A dictionary containing default configurations for handling HTML content in TextBone instances.
-
-    - validTags (list[str]):
-        A list of valid HTML tags allowed in TextBone instances.
-    - validAttrs (dict[str, list[str]]):
-        A dictionary mapping valid attributes for each tag. If a tag is not listed, this tag accepts no attributes.
-    - validStyles (list[str]):
-        A list of allowed CSS directives for the TextBone instances.
-    - validClasses (list[str]):
-        A list of valid CSS class names allowed in TextBone instances.
-    - singleTags (list[str]):
-        A list of self-closing HTML tags that don't have corresponding end tags.
     """
 
     cache_environment_key: t.Optional[t.Callable[[], str]] = None
