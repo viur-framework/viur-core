@@ -581,8 +581,8 @@ class Router:
         if self.method == "options":
             # OPTIONS request doesn't have a body
             del self.response.app_iter
-            self.response.status = "204 No Content"
             del self.response.content_type
+            self.response.status = "204 No Content"
             return
 
         if not isinstance(res, bytes):  # Convert the result to bytes if it is not already!
@@ -591,15 +591,22 @@ class Router:
 
     def _cors(self) -> None:
         """
-        Set CORS headers to the HTTP response
+        Set CORS headers to the HTTP response.
 
-        See Also:
-            - https://fetch.spec.whatwg.org/#http-cors-protocol
-            - https://enable-cors.org/server.html
-            - https://www.html5rocks.com/static/images/cors_server_flowchart.png
+        .. seealso::
+
+            Option :attr:`core.config.Security.cors_origins`, etc.
+            for cors settings.
+
+            https://fetch.spec.whatwg.org/#http-cors-protocol
+
+            https://enable-cors.org/server.html
+
+            https://www.html5rocks.com/static/images/cors_server_flowchart.png
         """
 
         def test_candidates(value: str, *candidates: str | re.Pattern) -> bool:
+            """Test if the value matches the pattern of any candidate"""
             for candidate in candidates:
                 if isinstance(candidate, re.Pattern):
                     if candidate.match(value):
@@ -614,12 +621,7 @@ class Router:
                     )
             return False
 
-        logging.warning(self.request.headers)
-        logging.warning(dict(self.request.headers))
-
         origin = current.request.get().request.headers.get("Origin")
-
-        logging.debug(f"{origin = }")
         if not origin:
             logging.debug(f"Origin header is not set")
             return
@@ -661,7 +663,6 @@ class Router:
                 # It's a CORS-preflight request
                 # - MUST include Access-Control-Request-Method
                 # - CAN include Access-Control-Request-Headers
-                logging.debug(f"{method=} is in {conf.security.cors_methods=}")
 
                 # The response can be cached
                 if conf.security.cors_max_age is not None:
