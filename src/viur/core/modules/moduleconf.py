@@ -6,7 +6,7 @@ from viur.core.prototypes import List
 
 MODULECONF_KINDNAME = "viur-module-conf"
 
-_LIMITED_HTML = conf.bone_html_default_allow.copy() \
+_LIMITED_HTML = conf.bone_html_default_allow \
     | {"validTags": "a abbr b blockquote br div em h1 h2 h3 h4 h5 h6 hr i li ol p span strong sub sup u ul".split()}
 
 
