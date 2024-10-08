@@ -20,6 +20,7 @@ from .json import JsonBone
 from .key import KeyBone
 from .numeric import NumericBone
 from .password import PasswordBone
+from .phone import PhoneBone
 from .randomslice import RandomSliceBone
 from .raw import RawBone
 from .record import RecordBone
@@ -31,6 +32,7 @@ from .select import (
     translation_key_prefix_bonename,
 )
 from .sortindex import SortIndexBone
+from .spam import SpamBone
 from .spatial import SpatialBone
 from .string import StringBone
 from .text import TextBone
@@ -56,6 +58,7 @@ __all = [
     "MultipleConstraints",
     "NumericBone",
     "PasswordBone",
+    "PhoneBone",
     "RandomSliceBone",
     "RawBone",
     "ReadFromClientError",
@@ -67,6 +70,7 @@ __all = [
     "SelectBone",
     "SelectCountryBone",
     "SortIndexBone",
+    "SpamBone",
     "SpatialBone",
     "StringBone",
     "TextBone",

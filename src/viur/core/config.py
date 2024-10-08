@@ -24,6 +24,12 @@ _T = t.TypeVar("_T")
 Multiple: t.TypeAlias = list[_T] | tuple[_T] | set[_T] | frozenset[_T]  # TODO: Refactor for Python 3.12
 
 
+class CaptchaDefaultCredentialsType(t.TypedDict):
+    """Expected type of global captcha credential, see :attr:`Security.captcha_default_credentials`"""
+    sitekey: str
+    secret: str
+
+
 class ConfigType:
     """An abstract class for configurations.
 
@@ -391,9 +397,16 @@ class Security(ConfigType):
     x_permitted_cross_domain_policies: t.Optional[t.Literal["none", "master-only", "by-content-type", "all"]] = "none"
     """Unless set to logical none; ViUR will emit a X-Permitted-Cross-Domain-Policies with each request"""
 
-    captcha_default_credentials: t.Optional[dict[t.Literal["sitekey", "secret"], str]] = None
-    """The default sitekey and secret to use for the captcha-bone.
+    captcha_default_credentials: t.Optional[CaptchaDefaultCredentialsType] = None
+    """The default sitekey and secret to use for the :class:`CaptchaBone`.
     If set, must be a dictionary of "sitekey" and "secret".
+    """
+
+    captcha_enforce_always: bool = False
+    """By default a captcha of the :class:`CaptchaBone` must not be solved on a local development server
+    or by a root user. But for development it can be helpful to test the implementation
+    on a local development server. Setting this flag to True, disables this behavior and
+    enforces always a valid captcha.
     """
 
     password_recovery_key_length: int = 42
@@ -518,25 +531,9 @@ class Email(ConfigType):
     log_retention: datetime.timedelta = datetime.timedelta(days=30)
     """For how long we'll keep successfully send emails in the viur-emails table"""
 
-    transport_class: t.Type["EmailTransport"] = None
-    """Class that actually delivers the email using the service provider
+    transport_class: "EmailTransport" = None
+    """EmailTransport instance that actually delivers the email using the service provider
     of choice. See email.py for more details
-    """
-
-    mailjet_api_key: t.Optional[str] = None
-    """API Key for MailJet"""
-
-    mailjet_api_secret: t.Optional[str] = None
-    """API Secret for MailJet"""
-
-    sendinblue_api_key: t.Optional[str] = None
-    """API Key for SendInBlue (now Brevo) for the EmailTransportSendInBlue
-    """
-
-    sendinblue_thresholds: tuple[int] | list[int] = (1000, 500, 100)
-    """Warning thresholds for remaining email quota
-
-    Used by email.EmailTransportSendInBlue.check_sib_quota
     """
 
     send_from_local_development_server: bool = False
@@ -689,6 +686,8 @@ class Conf(ConfigType):
         "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
         "json.bone.structure.keytuples",  # use classic structure notation: `"structure = [["key", {...}] ...]` (#649)
         "json.bone.structure.inlists",  # dump skeleton structure with every JSON list response (#774 for details)
+        "tasks.periodic.useminutes",  # Interpret int/float values for @PeriodicTask as minutes
+        #                               instead of seconds (#1133 for details)
         "bone.select.structure.values.keytuple",  # render old-style tuple-list in SelectBone's values structure (#1203)
     ]
     """Backward compatibility flags; Remove to enforce new style."""

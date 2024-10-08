@@ -92,6 +92,7 @@ class UserSkel(skeleton.Skeleton):
 
     access = SelectBone(
         descr=i18n.translate("viur.user.bone.access", defaultText="Access rights"),
+        type_suffix="access",
         values=lambda: {
             right: i18n.translate(f"server.modules.user.accessright.{right}", defaultText=right)
             for right in sorted(conf.user.access_rights)
@@ -137,7 +138,7 @@ class UserSkel(skeleton.Skeleton):
         return super().__new__(cls)
 
     @classmethod
-    def toDB(cls, skel, *args, **kwargs):
+    def write(cls, skel, *args, **kwargs):
         # Roles
         if skel["roles"] and "custom" not in skel["roles"]:
             # Collect access rights through rules
@@ -177,7 +178,7 @@ class UserSkel(skeleton.Skeleton):
 
             skel["access"] = list(access)
 
-        return super().toDB(skel, *args, **kwargs)
+        return super().write(skel, *args, **kwargs)
 
 
 class UserAuthentication(Module, abc.ABC):
@@ -354,7 +355,7 @@ class UserPassword(UserPrimaryAuthentication):
             # re-hash the password with more iterations
             # FIXME: This must be done within a transaction!
             user_skel["password"] = password  # will be hashed on serialize
-            user_skel.toDB(update_relations=False)
+            user_skel.write(update_relations=False)
 
         return self.next_or_finish(user_skel)
 
@@ -460,7 +461,7 @@ class UserPassword(UserPrimaryAuthentication):
 
         # Update the password, save the user, reset his session and show the success-template
         user_skel["password"] = skel["password"]
-        user_skel.toDB(update_relations=False)
+        user_skel.write(update_relations=False)
 
         return self._user_module.render.view(
             None,
@@ -478,7 +479,7 @@ class UserPassword(UserPrimaryAuthentication):
         """
         if user_skel := self._user_module.viewSkel().all().filter("name.idx =", user_name).getSkel():
             user_agent = user_agents.parse(user_agent)
-            email.sendEMail(
+            email.send_email(
                 tpl=self.passwordRecoveryMail,
                 skel=user_skel,
                 dests=[user_name],
@@ -495,12 +496,12 @@ class UserPassword(UserPrimaryAuthentication):
     def verify(self, data):
         def transact(key):
             skel = self._user_module.editSkel()
-            if not key or not skel.fromDB(key):
+            if not key or not skel.read(key):
                 return None
             skel["status"] = Status.WAITING_FOR_ADMIN_VERIFICATION \
                 if self.registrationAdminVerificationRequired else Status.ACTIVE
 
-            skel.toDB(update_relations=False)
+            skel.write(update_relations=False)
             return skel
 
         if not isinstance(data, dict) or not (skel := db.RunInTransaction(transact, data.get("user_key"))):
@@ -561,7 +562,7 @@ class UserPassword(UserPrimaryAuthentication):
             # render the skeleton in the version it could as far as it could be read.
             return self._user_module.render.add(skel)
         self._user_module.onAdd(skel)
-        skel.toDB()
+        skel.write()
         if self.registrationEmailVerificationRequired and skel["status"] == Status.WAITING_FOR_EMAIL_VERIFICATION:
             # The user will have to verify his email-address. Create a skey and send it to his address
             skey = securitykey.create(duration=datetime.timedelta(days=7), session_bound=False,
@@ -569,7 +570,7 @@ class UserPassword(UserPrimaryAuthentication):
                                       name=skel["name"])
             skel.skey = BaseBone(descr="Skey")
             skel["skey"] = skey
-            email.sendEMail(dests=[skel["name"]], tpl=self._user_module.verifyEmailAddressMail, skel=skel)
+            email.send_email(dests=[skel["name"]], tpl=self._user_module.verifyEmailAddressMail, skel=skel)
         self._user_module.onAdded(skel)  # Call onAdded on our parent user module
         return self._user_module.render.addSuccess(skel)
 
@@ -670,7 +671,7 @@ class GoogleAccount(UserPrimaryAuthentication):
                     update = True
 
         if update:
-            assert user_skel.toDB()
+            assert user_skel.write()
 
         return self.next_or_finish(user_skel)
 
@@ -792,7 +793,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             )
 
         user_skel = self._user_module.baseSkel()
-        if not user_skel.fromDB(user_key):
+        if not user_skel.read(user_key):
             raise errors.NotFound("The previously authenticated user is gone.")
 
         if not (otp_user_conf := self.get_config(user_skel)):
@@ -1130,6 +1131,12 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
 
 
 class User(List):
+    """
+    The User module is used to manage and authenticate users in a ViUR system.
+
+    It is used in almost any ViUR project, but ViUR can also function without any user capabilites.
+    """
+
     kindName = "user"
     addTemplate = "user_add"
     addSuccessTemplate = "user_add_success"
@@ -1321,7 +1328,7 @@ class User(List):
         """
         skel = self.baseSkel()
 
-        if not skel.fromDB(user_key):
+        if not skel.read(user_key):
             raise errors.NotFound("User was not found.")
 
         if not provider.can_handle(skel):
@@ -1383,7 +1390,7 @@ class User(List):
             :param key: The (DB-)Key of the user we shall authenticate
         """
         skel = self.baseSkel()
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise ValueError(f"Unable to authenticate unknown user {key}")
 
         # Verify that this user account is active
@@ -1445,7 +1452,7 @@ class User(List):
             # Conserve DB-Writes: Update the user max once in 30 Minutes (why??)
             if not skel["lastlogin"] or ((now - skel["lastlogin"]) > datetime.timedelta(minutes=30)):
                 skel["lastlogin"] = now
-                skel.toDB(update_relations=False)
+                skel.write(update_relations=False)
 
         logging.info(f"""User {skel["name"]} logged in""")
 
@@ -1533,7 +1540,7 @@ class User(List):
             raise errors.Unauthorized()
 
         skel = self.baseSkel()
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         match action:
@@ -1586,7 +1593,7 @@ def createNewUserIfNotExists():
             addSkel["password"] = pw
 
             try:
-                addSkel.toDB()
+                addSkel.write()
             except Exception as e:
                 logging.critical(f"Something went wrong when trying to add admin user {uname!r} with Password {pw!r}")
                 logging.exception(e)
