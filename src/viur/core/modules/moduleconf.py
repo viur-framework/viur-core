@@ -18,12 +18,16 @@ class ModuleConfScriptSkel(skeleton.RelSkel):
     name = StringBone(
         descr="Label",
         required=True,
-        params={"tooltip": "Label for the action button displayed."},
+        params={
+            "tooltip": "Label for the action button displayed."
+        },
     )
 
     icon = StringBone(
         descr="Icon",
-        params={"tooltip": "Shoelace-conforming icon identifier."},
+        params={
+            "tooltip": "Shoelace-conforming icon identifier."
+        },
     )
 
     capable = SelectBone(
@@ -36,23 +40,23 @@ class ModuleConfScriptSkel(skeleton.RelSkel):
             "multiple": "multiple: Run script with list of entity keys as argument",
         },
         params={
-            "tooltip": "Describes the behavior in the admin, "
-            "if and how selected entries from the module are being processed."
+            "tooltip":
+                "Describes the behavior in the admin, "
+                "if and how selected entries from the module are being processed."
         },
     )
 
     access = SelectBone(
         descr="Required access rights",
         values=lambda: {
-            right: i18n.translate(
-                f"server.modules.user.accessright.{right}", defaultText=right
-            )
+            right: i18n.translate(f"server.modules.user.accessright.{right}", defaultText=right)
             for right in sorted(conf.user.access_rights)
         },
         multiple=True,
         params={
-            "tooltip": "To whom the button should be displayed in the admin. "
-            "In addition, the admin checks whether all rights of the script are also fulfilled.",
+            "tooltip":
+                "To whom the button should be displayed in the admin. "
+                "In addition, the admin checks whether all rights of the script are also fulfilled.",
         },
     )
 
@@ -96,10 +100,9 @@ class ModuleConfSkel(skeleton.Skeleton):
 
 class ModuleConf(List):
     """
-    This module is for ViUR internal purposes only.
-    It lists all other modules to be able to provide them with help texts.
+        This module is for ViUR internal purposes only.
+        It lists all other modules to be able to provide them with help texts.
     """
-
     MODULES = set()  # will be filled by read_all_modules
     kindName = MODULECONF_KINDNAME
     accessRights = ["edit"]
@@ -119,9 +122,7 @@ class ModuleConf(List):
             return True
 
         # Check for "manage"-flag on current user
-        return (cuser := current.user.get()) and f"""{skel["name"]}-manage""" in cuser[
-            "access"
-        ]
+        return (cuser := current.user.get()) and f"""{skel["name"]}-manage""" in cuser["access"]
 
     def listFilter(self, query):
         original_query = query
@@ -130,9 +131,7 @@ class ModuleConf(List):
         if not (query := super().listFilter(query)):
             if cuser := current.user.get():
                 # ... then, list modules the user is allowed to use!
-                user_modules = set(
-                    right.split("-", 1)[0] for right in cuser["access"] if "-" in right
-                )
+                user_modules = set(right.split("-", 1)[0] for right in cuser["access"] if "-" in right)
 
                 query = original_query
                 query.filter("name IN", tuple(user_modules))
@@ -158,9 +157,7 @@ class ModuleConf(List):
         def collect_modules(parent, depth: int = 0, prefix: str = "") -> None:
             """Recursively collects all routable modules for the vi renderer"""
             if depth > 10:
-                logging.warning(
-                    f"Reached maximum recursion limit of {depth} at {parent=}"
-                )
+                logging.warning(f"Reached maximum recursion limit of {depth} at {parent=}")
                 return
 
             for module_name in dir(parent):
