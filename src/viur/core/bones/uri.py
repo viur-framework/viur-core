@@ -1,10 +1,7 @@
 import fnmatch
-import sys
-
-import logging
+import typing as t
 from . import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from urllib.parse import urlparse, urlunparse
-import typing as t
 from collections.abc import Iterable
 from collections import namedtuple
 
@@ -45,10 +42,13 @@ class UriBone(BaseBone):
         :param local_path_allowed: If True, the URLs that are local paths will be prefixed with "/".
         """
         super().__init__(**kwargs)
-        self.accepted_ports = set(sorted(UriBone._build_accepted_ports(accepted_ports), key=lambda rng: rng.start))
+        if accepted_ports:
+            self.accepted_ports = set(sorted(UriBone._build_accepted_ports(accepted_ports), key=lambda rng: rng.start))
 
-        if range(PORT_MIN, PORT_MAX + 1) in self.accepted_ports:
-            self.accepted_ports = None  # all allowed
+            if range(PORT_MIN, PORT_MAX + 1) in self.accepted_ports:
+                self.accepted_ports = None  # all allowed
+        else:
+            self.accepted_ports = None
 
         self.accepted_protocols = accepted_protocols
         if self.accepted_protocols:
@@ -166,7 +166,7 @@ class UriBone(BaseBone):
 
     def singleValueFromClient(self, value, skel, bone_name, client_data) -> tuple:
         if err := self.isInvalid(value):
-            return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
+            return value, [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
         parsed_url = urlparse(value)
         if self.local_path_allowed and parsed_url.scheme == "":
