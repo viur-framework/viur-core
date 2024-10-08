@@ -43,7 +43,7 @@ class UriBone(BaseBone):
         """
         super().__init__(**kwargs)
         if accepted_ports:
-            self.accepted_ports = set(sorted(UriBone._build_accepted_ports(accepted_ports), key=lambda rng: rng.start))
+            self.accepted_ports = sorted(set(UriBone._build_accepted_ports(accepted_ports)), key=lambda rng: rng.start)
 
             if range(PORT_MIN, PORT_MAX + 1) in self.accepted_ports:
                 self.accepted_ports = None  # all allowed
