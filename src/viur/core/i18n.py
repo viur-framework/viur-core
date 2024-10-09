@@ -425,7 +425,7 @@ def add_missing_translation(
     skel["usage_lineno"] = lineno
     skel["usage_variables"] = variables or []
     skel["creator"] = Creator.VIUR
-    skel.toDB()
+    skel.write()
 
     # Add to system translation to avoid triggering this method again
     systemTranslations[key] = {
@@ -456,7 +456,7 @@ def migrate_translation(
     skel.setEntity(entity)
     skel["key"] = key
     try:
-        skel.toDB()
+        skel.write()
     except ValueError as exc:
         logging.exception(exc)
         if "unique value" in exc.args[0] and "recently claimed" in exc.args[0]:

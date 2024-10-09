@@ -38,7 +38,7 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refreshKey: 
     from viur.core.skeleton import skeletonByKind, updateRelations
     deriveFuncMap = conf.file_derivations
     skel = skeletonByKind("file")()
-    if not skel.fromDB(key):
+    if not skel.read(key):
         logging.info("File-Entry went missing in ensureDerived")
         return
     if not skel["derived"]:
@@ -88,10 +88,10 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refreshKey: 
         if refreshKey:
             def refreshTxn():
                 skel = skeletonByKind(refreshKey.kind)()
-                if not skel.fromDB(refreshKey):
+                if not skel.read(refreshKey):
                     return
                 skel.refresh()
-                skel.toDB(update_relations=False)
+                skel.write(update_relations=False)
 
             db.RunInTransaction(refreshTxn)
 
@@ -128,6 +128,7 @@ class FileBone(TreeLeafBone):
 
     kind = "file"
     """The kind of this bone is 'file'"""
+
     type = "relational.tree.leaf.file"
     """The type of this bone is 'relational.tree.leaf.file'."""
 
@@ -137,7 +138,16 @@ class FileBone(TreeLeafBone):
         derive: None | dict[str, t.Any] = None,
         maxFileSize: None | int = None,
         validMimeTypes: None | list[str] = None,
-        refKeys: t.Optional[t.Iterable[str]] = ("name", "mimetype", "size", "width", "height", "derived"),
+        refKeys: t.Optional[t.Iterable[str]] = (
+            "name",
+            "mimetype",
+            "size",
+            "width",
+            "height",
+            "derived",
+            "public",
+        ),
+        public: bool = False,
         **kwargs
     ):
         r"""
@@ -170,6 +180,7 @@ class FileBone(TreeLeafBone):
 
         self.refKeys.add("dlkey")
         self.derive = derive
+        self.public = public
         self.validMimeTypes = validMimeTypes
         self.maxFileSize = maxFileSize
 
@@ -191,6 +202,10 @@ class FileBone(TreeLeafBone):
         if self.maxFileSize:
             if value["dest"]["size"] > self.maxFileSize:
                 return "File too large."
+
+        if value["dest"]["public"] != self.public:
+            return f"Only files marked public={self.public!r} are allowed."
+
         return None
 
     def postSavedHandler(self, skel, boneName, key):
@@ -268,7 +283,7 @@ class FileBone(TreeLeafBone):
         def recreateFileEntryIfNeeded(val):
             # Recreate the (weak) filenetry referenced by the relation *val*. (ViUR2 might have deleted them)
             skel = skeletonByKind("file")()
-            if skel.fromDB(val["key"]):  # This file-object exist, no need to recreate it
+            if skel.read(val["key"]):  # This file-object exist, no need to recreate it
                 return
             skel["key"] = val["key"]
             skel["name"] = val["name"]
@@ -279,7 +294,7 @@ class FileBone(TreeLeafBone):
             skel["height"] = val["height"]
             skel["weak"] = True
             skel["pending"] = False
-            k = skel.toDB()
+            k = skel.write()
 
         from viur.core.modules.file import importBlobFromViur2
         super().refresh(skel, boneName)
@@ -298,5 +313,6 @@ class FileBone(TreeLeafBone):
 
     def structure(self) -> dict:
         return super().structure() | {
-            "valid_mime_types": self.validMimeTypes
+            "valid_mime_types": self.validMimeTypes,
+            "public": self.public,
         }

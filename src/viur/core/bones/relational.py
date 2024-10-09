@@ -666,7 +666,9 @@ class RelationalBone(BaseBone):
         else:
             destKey = value
             usingData = None
-        assert isinstance(destKey, str)
+
+        destKey = str(destKey)
+
         refSkel, usingSkel, errors = restoreSkels(destKey, usingData)
         if refSkel:
             resVal = {"dest": refSkel, "rel": usingSkel}

@@ -110,7 +110,7 @@ class Singleton(SkelModule):
 
         key = db.Key(self.editSkel().kindName, self.getKey())
 
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         self.onView(skel)
@@ -139,7 +139,7 @@ class Singleton(SkelModule):
 
         key = db.Key(self.editSkel().kindName, self.getKey())
         skel = self.editSkel()
-        if not skel.fromDB(key):  # Its not there yet; we need to set the key again
+        if not skel.read(key):  # Its not there yet; we need to set the key again
             skel["key"] = key
 
         if (
@@ -151,7 +151,7 @@ class Singleton(SkelModule):
             return self.render.edit(skel)
 
         self.onEdit(skel)
-        skel.toDB()
+        skel.write()
         self.onEdited(skel)
         return self.render.editSuccess(skel)
 
@@ -164,7 +164,7 @@ class Singleton(SkelModule):
         skel = self.viewSkel()
         key = db.Key(self.viewSkel().kindName, self.getKey())
 
-        if not skel.fromDB(key):
+        if not skel.read(key):
             return None
 
         return skel
