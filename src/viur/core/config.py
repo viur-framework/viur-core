@@ -11,10 +11,12 @@ import google.auth
 from viur.core.version import __version__
 
 if t.TYPE_CHECKING:  # pragma: no cover
+    from viur.core.bones.text import HtmlBoneConfiguration
     from viur.core.email import EmailTransport
     from viur.core.skeleton import SkeletonInstance
     from viur.core.module import Module
     from viur.core.tasks import CustomEnvironmentHandler
+
 
 # Construct an alias with a generic type to be able to write Multiple[str]
 # TODO: Backward compatible implementation, refactor when viur-core
@@ -642,6 +644,87 @@ class Conf(ConfigType):
 
     bone_boolean_str2true: Multiple[str | int] = ("true", "yes", "1")
     """Allowed values that define a str to evaluate to true"""
+
+    bone_html_default_allow: "HtmlBoneConfiguration" = {
+        "validTags": [
+            "a",
+            "abbr",
+            "b",
+            "blockquote",
+            "br",
+            "div",
+            "em",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "hr",
+            "i",
+            "img",
+            "li",
+            "ol",
+            "p",
+            "span",
+            "strong",
+            "sub",
+            "sup",
+            "table",
+            "tbody",
+            "td",
+            "tfoot",
+            "th",
+            "thead",
+            "tr",
+            "u",
+            "ul",
+        ],
+        "validAttrs": {
+            "a": [
+                "href",
+                "target",
+                "title",
+            ],
+            "abbr": [
+                "title",
+            ],
+            "blockquote": [
+                "cite",
+            ],
+            "img": [
+                "src",
+                "alt",
+                "title",
+            ],
+            "p": [
+                "data-indent",
+            ],
+            "span": [
+                "title",
+            ],
+            "td": [
+                "colspan",
+                "rowspan",
+            ],
+
+        },
+        "validStyles": [
+            "color",
+        ],
+        "validClasses": [
+            "vitxt-*",
+            "viur-txt-*"
+        ],
+        "singleTags": [
+            "br",
+            "hr",
+            "img",
+        ]
+    }
+    """
+    A dictionary containing default configurations for handling HTML content in TextBone instances.
+    """
 
     cache_environment_key: t.Optional[t.Callable[[], str]] = None
     """If set, this function will be called for each cache-attempt

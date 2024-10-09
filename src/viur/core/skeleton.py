@@ -770,7 +770,7 @@ class ViurTagsSearchAdapter(DatabaseAdapter):
         """
         Run a fulltext search
         """
-        keywords = list(self._tagsFromString(queryString))[:10]
+        keywords = list(self._tags_from_str(queryString))[:10]
         resultScoreMap = {}
         resultEntryMap = {}
 
