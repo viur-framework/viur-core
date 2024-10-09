@@ -264,6 +264,8 @@ class BaseBone(object):
         if isinstance(required, (tuple, list)) and languages and (diff := set(required).difference(languages)):
             raise ValueError(f"The language(s) {', '.join(map(repr, diff))} can not be required, "
                              f"because they're not defined.")
+        if callable(defaultValue) and len(inspect.signature(defaultValue).parameters) < 2:
+            raise ValueError(f"Callable default values require for two parameters (self and skel)")
 
         self.languages = languages
 
@@ -272,7 +274,10 @@ class BaseBone(object):
         # multiple or has languages
         if self.languages:
             if not isinstance(defaultValue, dict):
-                self.defaultValue = {lang: defaultValue for lang in self.languages}
+                if callable(defaultValue):
+                    self.defaultValue = defaultValue
+                else:
+                    self.defaultValue = {lang: defaultValue for lang in self.languages}
             elif "__default__" in defaultValue:
                 self.defaultValue = {lang: defaultValue.get(lang, defaultValue["__default__"])
                                      for lang in self.languages}
@@ -381,7 +386,21 @@ class BaseBone(object):
         :return: The default value of the bone, which can be of any data type.
     """
         if callable(self.defaultValue):
-            return self.defaultValue(skeletonInstance, self)
+            res = self.defaultValue(skeletonInstance, self)
+            if self.languages and self.multiple:
+                if not isinstance(res, dict):
+                    if not isinstance(res, (list, set, tuple)):
+                        return {lang: [res] for lang in self.languages}
+                    else:
+                        return {lang: res for lang in self.languages}
+            elif self.languages:
+                if not isinstance(res, dict):
+                    return {lang: res for lang in self.languages}
+            elif self.multiple:
+                if not isinstance(res, (list, set, tuple)):
+                    return [res]
+            return res
+
         elif isinstance(self.defaultValue, list):
             return self.defaultValue[:]
         elif isinstance(self.defaultValue, dict):
@@ -1329,7 +1348,7 @@ class BaseBone(object):
 
             if issubclass(skel.skeletonCls, RefSkel):  # we have a ref skel we must load the complete skeleton
                 cloned_skel = skeletonByKind(skel.kindName)()
-                cloned_skel.fromDB(skel["key"])
+                cloned_skel.read(skel["key"])
             else:
                 cloned_skel = skel.clone()
             cloned_skel[bone_name] = None  # remove value form accessedValues to avoid endless recursion

@@ -38,7 +38,7 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refreshKey: 
     from viur.core.skeleton import skeletonByKind, updateRelations
     deriveFuncMap = conf.file_derivations
     skel = skeletonByKind("file")()
-    if not skel.fromDB(key):
+    if not skel.read(key):
         logging.info("File-Entry went missing in ensureDerived")
         return
     if not skel["derived"]:
@@ -88,10 +88,10 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refreshKey: 
         if refreshKey:
             def refreshTxn():
                 skel = skeletonByKind(refreshKey.kind)()
-                if not skel.fromDB(refreshKey):
+                if not skel.read(refreshKey):
                     return
                 skel.refresh()
-                skel.toDB(update_relations=False)
+                skel.write(update_relations=False)
 
             db.RunInTransaction(refreshTxn)
 
@@ -283,7 +283,7 @@ class FileBone(TreeLeafBone):
         def recreateFileEntryIfNeeded(val):
             # Recreate the (weak) filenetry referenced by the relation *val*. (ViUR2 might have deleted them)
             skel = skeletonByKind("file")()
-            if skel.fromDB(val["key"]):  # This file-object exist, no need to recreate it
+            if skel.read(val["key"]):  # This file-object exist, no need to recreate it
                 return
             skel["key"] = val["key"]
             skel["name"] = val["name"]
@@ -294,7 +294,7 @@ class FileBone(TreeLeafBone):
             skel["height"] = val["height"]
             skel["weak"] = True
             skel["pending"] = False
-            k = skel.toDB()
+            k = skel.write()
 
         from viur.core.modules.file import importBlobFromViur2
         super().refresh(skel, boneName)

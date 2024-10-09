@@ -745,7 +745,7 @@ class File(Tree):
         skel["crc32c_checksum"] = base64.b64decode(blob.crc32c).hex()
         skel["md5_checksum"] = base64.b64decode(blob.md5_hash).hex()
 
-        return skel.toDB()
+        return skel.write()
 
     def read(
         self,
@@ -768,7 +768,7 @@ class File(Tree):
 
         if key:
             skel = self.viewSkel("leaf")
-            if not skel.fromDB(db.keyHelper(key, skel.kindName)):
+            if not skel.read(db.keyHelper(key, skel.kindName)):
                 if not path:
                     raise ValueError("This skeleton is not in the database!")
             else:
@@ -788,13 +788,13 @@ class File(Tree):
             self.mark_for_deletion(fileEntry["dlkey"])
             skel = self.leafSkelCls()
 
-            if skel.fromDB(str(fileEntry.key())):
+            if skel.read(str(fileEntry.key())):
                 skel.delete()
         dirs = db.Query(self.nodeSkelCls().kindName).filter("parentdir", parentKey).iter()
         for d in dirs:
             self.deleteRecursive(d.key)
             skel = self.nodeSkelCls()
-            if skel.fromDB(d.key):
+            if skel.read(d.key):
                 skel.delete()
 
     @exposed
@@ -888,7 +888,7 @@ class File(Tree):
         file_skel["width"] = 0
         file_skel["height"] = 0
 
-        key = db.encodeKey(file_skel.toDB())
+        key = db.encodeKey(file_skel.write())
 
         # Mark that entry dirty as we might never receive an add
         self.mark_for_deletion(dlkey)
@@ -1106,7 +1106,7 @@ class File(Tree):
             targetKey = kwargs.get("key")
             skel = self.addSkel("leaf")
 
-            if not skel.fromDB(targetKey):
+            if not skel.read(targetKey):
                 raise errors.NotFound()
 
             if not skel["pending"]:
@@ -1150,7 +1150,7 @@ class File(Tree):
             skel["md5_checksum"] = base64.b64decode(blob.md5_hash).hex()
             self.inject_serving_url(skel)
 
-            skel.toDB()
+            skel.write()
 
             # Add updated download-URL as the auto-generated isn't valid yet
             skel["downloadUrl"] = self.create_download_url(skel["dlkey"], skel["name"])
