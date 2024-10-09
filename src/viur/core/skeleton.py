@@ -1098,7 +1098,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         try:
             db_key = db.keyHelper(key or skel["key"], skel.kindName)
-        except ValueError:  # This key did not parse
+        except (ValueError, NotImplementedError):  # This key did not parse
             return None
 
         if not (db_res := db.Get(db_key)):
