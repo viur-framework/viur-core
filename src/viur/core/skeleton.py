@@ -140,7 +140,7 @@ class SkeletonInstance:
 
     def __init__(
         self,
-        skel_cls: Skeleton,
+        skel_cls: t.Type[Skeleton],
         *,
         bones: t.Iterable[str] = (),
         full_clone: bool = False,
@@ -443,7 +443,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
     @classmethod
     def subskel(
         cls,
-        *names,
+        *names: str,
         bones: t.Iterable[str] = (),
         full_clone: bool = False,
     ) -> SkeletonInstance:
