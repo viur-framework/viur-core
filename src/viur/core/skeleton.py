@@ -1433,7 +1433,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         *,
         key: t.Optional[db.Key | int | str] = None,
         check: t.Optional[dict | t.Callable[[SkeletonInstance], None]] = None,
-        create: t.Optional[dict | t.Callable[[SkeletonInstance], None]] = None,
+        create: t.Optional[bool | dict | t.Callable[[SkeletonInstance], None]] = None,
         update_relations: bool = True,
         retry: int = 1,
     ) -> SkeletonInstance:
@@ -1503,7 +1503,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     raise ReadFromClientException(skel.errors)
 
                 # Special-feature: "+" and "-" prefix for simple calculations
-                # FIXME: This can maybe integrated into skel.fromClient() later...
+                # TODO: This can maybe integrated into skel.fromClient() later...
                 for name, value in values.items():
                     match name[0]:
                         case "+":  # Increment by value?
