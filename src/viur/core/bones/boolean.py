@@ -25,7 +25,7 @@ class BooleanBone(BaseBone):
         if defaultValue is not None:
             # We have given an explicit defaultValue and maybe a complex structure
             if not kwargs.get("languages") and not (isinstance(defaultValue, bool) or callable(defaultValue)):
-                raise TypeError("Only 'True', 'False' , 'None' or callable can be provided as BooleanBone defaultValue")
+                raise TypeError("Only True, False, None or callable can be provided as BooleanBone defaultValue")
             # TODO: missing validation for complex types, but in other bones too
 
         super().__init__(defaultValue=defaultValue, **kwargs)
