@@ -1,8 +1,9 @@
 import typing as t
-
 from viur.core import conf, db, utils
 from viur.core.bones.base import BaseBone
 
+
+DEFAULT_VALUE_T: t.TypeAlias = bool | None | list[bool] | dict[str, list[bool] | bool]
 
 class BooleanBone(BaseBone):
     """
@@ -18,13 +19,13 @@ class BooleanBone(BaseBone):
     def __init__(
         self,
         *,
-        defaultValue: bool | list[bool] | dict[str, list[bool] | bool] = None,
+        defaultValue: DEFAULT_VALUE_T | t.Callable[[t.Self, "SkeletonInstance"], DEFAULT_VALUE_T] = None,
         **kwargs
     ):
         if defaultValue is not None:
             # We have given an explicit defaultValue and maybe a complex structure
-            if not (kwargs.get("multiple") or kwargs.get("languages")) and not (isinstance(defaultValue, bool)):
-                raise TypeError("Only 'True', 'False' or 'None' can be provided as BooleanBone defaultValue")
+            if not kwargs.get("languages") and not (isinstance(defaultValue, bool) or callable(defaultValue)):
+                raise TypeError("Only True, False, None or callable can be provided as BooleanBone defaultValue")
             # TODO: missing validation for complex types, but in other bones too
 
         super().__init__(defaultValue=defaultValue, **kwargs)
