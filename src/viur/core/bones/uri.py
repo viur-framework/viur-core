@@ -153,16 +153,23 @@ class UriBone(BaseBone):
                 return f""""{parsed_url.scheme}" not in the accepted protocols."""
 
         if self.domain_allowed_list is not None:
-            for domain in self.domain_allowed_list:
-                if fnmatch.fnmatch(value, domain):
-                    break
+            if parsed_url.hostname:
+                for domain in self.domain_allowed_list:
+                    if fnmatch.fnmatch(parsed_url.hostname, domain):
+                        break
+                else:
+                    return f"""Provided URL is not in the domain allowed list."""
             else:
-                return f"""Url is not in the domain allowed list."""
+                return f"""Provided URL has no hostname specified."""
 
         if self.domain_disallowed_list is not None:
-            for domain in self.domain_disallowed_list:
-                if fnmatch.fnmatch(value, domain):
-                    return f"""Url is in the domain disallowed list."""
+            if parsed_url.hostname:
+                for domain in self.domain_disallowed_list:
+                    if fnmatch.fnmatch(parsed_url.hostname, domain):
+                        return f"""Provided URL is in the domain disallowed list."""
+
+            else:
+                return f"""Provided URL has no hostname specified."""
 
     def singleValueFromClient(self, value, skel, bone_name, client_data) -> tuple:
         if err := self.isInvalid(value):
