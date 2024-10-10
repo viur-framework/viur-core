@@ -146,10 +146,10 @@ class SkeletonInstance:
         skel_cls: t.Type[Skeleton],
         *,
         bones: t.Iterable[str] = (),
-        bone_map: t.Dict[str, BaseBone] = None,
+        bone_map: t.Optional[t.Dict[str, BaseBone]] = None,
         full_clone: bool = False,
         # BELOW IS DEPRECATED!
-        clonedBoneMap: t.Dict[str, BaseBone] = None,
+        clonedBoneMap: t.Optional[t.Dict[str, BaseBone]] = None,
     ):
         """
         Creates a new SkeletonInstance based on `skel_cls`.
