@@ -272,22 +272,19 @@ class BaseBone(object):
         # Default value
         # Convert a None default-value to the empty container that's expected if the bone is
         # multiple or has languages
+        default = [] if defaultValue is None and self.multiple else defaultValue
         if self.languages:
-            if not isinstance(defaultValue, dict):
-                if callable(defaultValue):
-                    self.defaultValue = defaultValue
-                else:
-                    self.defaultValue = {lang: defaultValue for lang in self.languages}
+            if callable(defaultValue):
+                self.defaultValue = defaultValue
+            elif not isinstance(defaultValue, dict):
+                self.defaultValue = {lang: default for lang in self.languages}
             elif "__default__" in defaultValue:
                 self.defaultValue = {lang: defaultValue.get(lang, defaultValue["__default__"])
                                      for lang in self.languages}
             else:
-                self.defaultValue = defaultValue
-
-        elif defaultValue is None and self.multiple:
-            self.defaultValue = []
+                self.defaultValue = defaultValue  # default will have the same value at this point
         else:
-            self.defaultValue = defaultValue
+            self.defaultValue = default
 
         # Unique values
         if unique:
