@@ -252,20 +252,29 @@ class BaseBone(object):
              and all([isinstance(x, str) for x in languages]))
         ):
             raise ValueError("languages must be None or a list of strings")
+
         if languages and "__default__" in languages:
             raise ValueError("__default__ is not supported as a language")
+
         if (
             not isinstance(required, bool)
             and (not isinstance(required, (tuple, list)) or any(not isinstance(value, str) for value in required))
         ):
             raise TypeError(f"required must be boolean or a tuple/list of strings. Got: {required!r}")
+
         if isinstance(required, (tuple, list)) and not languages:
             raise ValueError("You set required to a list of languages, but defined no languages.")
+
         if isinstance(required, (tuple, list)) and languages and (diff := set(required).difference(languages)):
             raise ValueError(f"The language(s) {', '.join(map(repr, diff))} can not be required, "
                              f"because they're not defined.")
-        if callable(defaultValue) and len(inspect.signature(defaultValue).parameters) < 2:
-            raise ValueError(f"Callable default values require for two parameters (self and skel)")
+
+        if callable(defaultValue):
+            # check if the signature of defaultValue can bind two (fictive) parameters.
+            try:
+                inspect.signature(defaultValue).bind("skel", "bone")  # the strings are just for the test!
+            except TypeError:
+                raise ValueError(f"Callable {defaultValue=} requires for the parameters 'skel' and 'bone'.")
 
         self.languages = languages
 
