@@ -6,6 +6,7 @@ from .base import (
     MultipleConstraints,
     ReadFromClientError,
     ReadFromClientErrorSeverity,
+    ReadFromClientException,
     UniqueLockMethod,
     UniqueValue,
 )
