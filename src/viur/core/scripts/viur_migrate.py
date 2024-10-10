@@ -179,7 +179,7 @@ def replace_in_file(args: argparse.Namespace, file: Path):
                 count += 1
         elif isinstance(old_expr, re.Pattern):
             if re.search(old_expr, content):
-                content = content.sub(old_expr, new_expr)
+                content = re.sub(old_expr, new_expr, content)
                 count += 1
         else:
             raise ValueError(f"Invalid pattern {old_expr!r}")
