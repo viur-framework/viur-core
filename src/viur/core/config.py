@@ -2,6 +2,7 @@ import datetime
 import hashlib
 import logging
 import os
+import re
 import typing as t
 import warnings
 from pathlib import Path
@@ -440,6 +441,40 @@ class Security(ConfigType):
         "user/login",
     ]
     """Paths that are accessible without authentication in a closed system, see `closed_system` for details."""
+
+    # CORS Settings
+
+    cors_origins: t.Iterable[str | re.Pattern] | t.Literal["*"] = []
+    """Allowed origins
+    Access-Control-Allow-Origin
+
+    Pattern should be case-insensitive, for example:
+        >>> re.compile(r"^http://localhost:(\d{4,5})/?$", flags=re.IGNORECASE)
+    """  # noqa
+
+    cors_origins_use_wildcard: bool = False
+    """Use * for Access-Control-Allow-Origin -- if possible"""
+
+    cors_methods: t.Iterable[str] = ["get", "head", "post", "options"]  # , "put", "patch", "delete"]
+    """Access-Control-Request-Method"""
+
+    cors_allow_headers: t.Iterable[str | re.Pattern] | t.Literal["*"] = []
+    """Access-Control-Request-Headers
+
+    Can also be set for specific @exposed methods with the @cors decorator.
+
+    Pattern should be case-insensitive, for example:
+        >>> re.compile(r"^X-ViUR-.*$", flags=re.IGNORECASE)
+    """
+
+    cors_allow_credentials: bool = False
+    """
+    Set Access-Control-Allow-Credentials to true
+    to support fetch requests with credentials: include
+    """
+
+    cors_max_age: datetime.timedelta | None = None
+    """Allow caching"""
 
     _mapping = {
         "contentSecurityPolicy": "content_security_policy",
