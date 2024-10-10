@@ -79,4 +79,4 @@ Repository = "https://github.com/viur-framework/viur-core.git"
 Changelog = "https://github.com/viur-framework/viur-core/blob/main/CHANGELOG.md"
 
 [project.scripts]
-viur-core-migrate-config = "viur.core.scripts.migrate_config:main"
+viur-migrate = "viur.core.scripts.viur_migrate:main"
