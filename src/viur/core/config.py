@@ -546,11 +546,12 @@ class I18N(ConfigType):
     language_alias_map: dict[str, str] = {}
     """Allows mapping of certain languages to one translation (i.e. us->en)"""
 
-    language_method: t.Literal["session", "url", "domain"] = "session"
+    language_method: t.Literal["session", "url", "domain", "header"] = "session"
     """Defines how translations are applied:
         - session: Per Session
         - url: inject language prefix in url
         - domain: one domain per language
+        - header: Per Http-Header
     """
 
     language_module_map: dict[str, dict[str, str]] = {}
@@ -595,7 +596,7 @@ class User(ConfigType):
     session_persistent_fields_on_login: Multiple[str] = ["language"]
     """If set, these Fields will survive the session.reset() called on user/login"""
 
-    session_persistent_fields_on_logout: Multiple[str] = ["language"]
+    session_persistent_fields_on_logout: Multiple[str] = []
     """If set, these Fields will survive the session.reset() called on user/logout"""
 
     max_password_length: int = 512

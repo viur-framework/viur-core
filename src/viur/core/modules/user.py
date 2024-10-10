@@ -1315,7 +1315,7 @@ class User(List):
     def getCurrentUser(self):
         session = current.session.get()
 
-        if session and (user := session.get("user")):
+        if session and session.loaded and (user := session.get("user")):
             skel = self.baseSkel()
             skel.setEntity(user)
             return skel
@@ -1428,9 +1428,11 @@ class User(List):
         self.onLogout(user)
 
         session = current.session.get()
-        take_over = {k: v for k, v in session.items() if k in conf.user.session_persistent_fields_on_logout}
-        session.reset()
-        session |= take_over
+        if take_over := {k: v for k, v in session.items() if k in conf.user.session_persistent_fields_on_logout}:
+            session.reset()
+            session |= take_over
+        else:
+            session.clear()
         current.user.set(None)  # set user to none in context var
         return self.render.logoutSuccess()
 
