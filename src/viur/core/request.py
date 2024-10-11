@@ -5,18 +5,22 @@
     Additionally, this module defines the RequestValidator interface which provides a very early hook into the
     request processing (useful for global ratelimiting, DDoS prevention or access control).
 """
+import datetime
 import fnmatch
 import json
 import logging
 import os
+import re
 import time
 import traceback
 import typing as t
-import unicodedata
-import webob
 from abc import ABC, abstractmethod
 from urllib import parse
 from urllib.parse import unquote, urljoin, urlparse
+
+import unicodedata
+import webob
+
 from viur.core import current, db, errors, session, utils
 from viur.core.config import conf
 from viur.core.logging import client as loggingClient, requestLogger, requestLoggingRessource
@@ -122,6 +126,7 @@ class Router:
         self.kwargs = {}
         self.context = {}
         self.template_style: str | None = None
+        self.cors_headers = ()
 
         # Check if it's a HTTP-Method we support
         self.method = self.request.method.lower()
@@ -138,6 +143,8 @@ class Router:
 
         # Process actual request
         self._process()
+
+        self._cors()
 
         # Unset context variables
         current.language.set(None)
@@ -242,7 +249,7 @@ class Router:
         return path
 
     def _process(self):
-        if self.method not in ("get", "post", "head"):
+        if self.method not in ("get", "post", "head", "options"):
             logging.error(f"{self.method=} not supported")
             return
 
@@ -565,6 +572,13 @@ class Router:
         if caller.exposed is False and not self.internalRequest:
             raise errors.NotFound()
 
+        # Fill the Allow header of the response with the allowed HTTP methods
+        if self.method == "options":
+            self.response.headers["Allow"] = ", ".join(sorted(caller.methods)).upper()
+
+        # Register caller specific CORS headers
+        self.cors_headers = [str(header).lower() for header in caller.cors_allow_headers or ()]
+
         # Check for @force_ssl flag
         if not self.internalRequest \
                 and caller.ssl \
@@ -573,7 +587,7 @@ class Router:
             raise errors.PreconditionFailed("You must use SSL to access this resource!")
 
         # Check for @force_post flag
-        if not self.isPostRequest and caller.methods == ("POST", ):
+        if not self.isPostRequest and caller.methods == ("POST",):
             raise errors.MethodNotAllowed("You must use POST to access this resource!")
 
         # Check if this request should bypass the caches
@@ -601,9 +615,127 @@ class Router:
         # Now call the routed method!
         res = caller(*self.args, **kwargs)
 
+        if self.method == "options":
+            # OPTIONS request doesn't have a body
+            del self.response.app_iter
+            del self.response.content_type
+            self.response.status = "204 No Content"
+            return
+
         if not isinstance(res, bytes):  # Convert the result to bytes if it is not already!
             res = str(res).encode("UTF-8")
         self.response.write(res)
+
+    def _cors(self) -> None:
+        """
+        Set CORS headers to the HTTP response.
+
+        .. seealso::
+
+            Option :attr:`core.config.Security.cors_origins`, etc.
+            for cors settings.
+
+            https://fetch.spec.whatwg.org/#http-cors-protocol
+
+            https://enable-cors.org/server.html
+
+            https://www.html5rocks.com/static/images/cors_server_flowchart.png
+        """
+
+        def test_candidates(value: str, *candidates: str | re.Pattern) -> bool:
+            """Test if the value matches the pattern of any candidate"""
+            for candidate in candidates:
+                if isinstance(candidate, re.Pattern):
+                    if candidate.match(value):
+                        return True
+                elif isinstance(candidate, str):
+                    if candidate.lower() == str(value).lower():
+                        return True
+                else:
+                    raise TypeError(
+                        f"Invalid setting {candidate}. "
+                        f"Expected a string or a compiled regex."
+                    )
+            return False
+
+        origin = current.request.get().request.headers.get("Origin")
+        if not origin:
+            logging.debug(f"Origin header is not set")
+            return
+
+        # Origin is set --> It's a CORS request
+        logging.debug(f"Got CORS request from {origin=}")
+
+        any_origin_allowed = (
+            conf.security.cors_origins == "*"
+            or any(_origin == "*" for _origin in conf.security.cors_origins)
+            or any(_origin.pattern == r".*"
+                   for _origin in conf.security.cors_origins
+                   if isinstance(_origin, re.Pattern))
+        )
+
+        if any_origin_allowed and conf.security.cors_origins_use_wildcard:
+            if conf.security.cors_allow_credentials:
+                raise RuntimeError(
+                    "Invalid CORS config: "
+                    "If credentials mode is \"include\", then `Access-Control-Allow-Origin` cannot be `*`. "
+                    "See https://fetch.spec.whatwg.org/#cors-protocol-and-credentials"
+                )
+            self.response.headers["Access-Control-Allow-Origin"] = "*"
+
+        elif test_candidates(origin, *conf.security.cors_origins):
+            self.response.headers["Access-Control-Allow-Origin"] = origin
+
+        else:
+            logging.warning(f"{origin=} not valid (must be one of {conf.security.cors_origins=})")
+            return
+
+        if conf.security.cors_allow_credentials:
+            self.response.headers["Access-Control-Allow-Credentials"] = "true"
+
+        if self.method == "options":
+            method = (self.request.headers.get("Access-Control-Request-Method") or "").lower()
+
+            if method in conf.security.cors_methods:
+                # It's a CORS-preflight request
+                # - MUST include Access-Control-Request-Method
+                # - CAN include Access-Control-Request-Headers
+
+                # The response can be cached
+                if conf.security.cors_max_age is not None:
+                    assert isinstance(conf.security.cors_max_age, datetime.timedelta)
+                    self.response.headers["Access-Control-Max-Age"] = \
+                        str(int(conf.security.cors_max_age.total_seconds()))
+
+                # Allowed methods
+                self.response.headers["Access-Control-Allow-Methods"] = ", ".join(
+                    sorted(conf.security.cors_methods)).upper()
+
+                # Allowed headers
+                request_headers = self.request.headers.get("Access-Control-Request-Headers")
+                request_headers = [h.strip().lower() for h in request_headers.split(",")]
+                if conf.security.cors_allow_headers == "*":
+                    # Every header is allowed
+                    allow_headers = request_headers[:]
+                else:
+                    # There are generally headers allowed and/or from the caller
+                    allow_headers = [
+                        header
+                        for header in request_headers
+                        if test_candidates(
+                            header,
+                            *(self.cors_headers or ()),  # caller specific
+                            *(conf.security.cors_allow_headers or ())  # generally global
+                        )
+                    ]
+                if allow_headers:
+                    self.response.headers["Access-Control-Allow-Headers"] = ", ".join(sorted(allow_headers))
+
+            else:
+                logging.warning(
+                    f"Access-Control-Request-Method: {method} is NOT a valid method of {conf.security.cors_methods=}. "
+                    f"Don't append CORS-preflight request headers"
+                )
 
     def saveSession(self) -> None:
         current.session.get().save()
