@@ -596,7 +596,7 @@ class User(ConfigType):
     session_persistent_fields_on_login: Multiple[str] = ["language"]
     """If set, these Fields will survive the session.reset() called on user/login"""
 
-    session_persistent_fields_on_logout: Multiple[str] = []
+    session_persistent_fields_on_logout: Multiple[str] = ["language"]
     """If set, these Fields will survive the session.reset() called on user/logout"""
 
     max_password_length: int = 512
