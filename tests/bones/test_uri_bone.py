@@ -10,7 +10,7 @@ class TestUriBone(unittest.TestCase):
         monkey_patch()
         cls.bone_name = "uriTestBone"
 
-    def isInvalid(self, res, url_value):
+    def is_invalid(self, res, url_value):
         self.assertEqual(url_value, res[0])
         self.assertIsInstance(res[1], list)
         self.assertTrue(res[1])  # list is not empty (hopefully contains a ReadFromClientError)
@@ -30,7 +30,7 @@ class TestUriBone(unittest.TestCase):
         self.assertEqual((url_value, None), res)
         url_value = "file://www.viur.dev/"
         res = bone.singleValueFromClient(url_value, skel, self.bone_name, None)
-        self.isInvalid(res, url_value)
+        self.is_invalid(res, url_value)
 
         # Test for ports
         bone = UriBone(accepted_ports=["1-10", "15", 20])
@@ -45,7 +45,7 @@ class TestUriBone(unittest.TestCase):
         self.assertEqual((url_value, None), res)
         url_value = "http://localhost:21"
         res = bone.singleValueFromClient(url_value, skel, self.bone_name, None)
-        self.isInvalid(res, url_value)
+        self.is_invalid(res, url_value)
 
         # Test domain_allowed_list
         bone = UriBone(domain_allowed_list=["viur.dev"])
@@ -57,7 +57,7 @@ class TestUriBone(unittest.TestCase):
         self.assertEqual((url_value, None), res)
         url_value = "https://viur.com/"
         res = bone.singleValueFromClient(url_value, skel, self.bone_name, None)
-        self.isInvalid(res, url_value)
+        self.is_invalid(res, url_value)
 
         # Test for fnmatch in domain_allowed_list
         bone = UriBone(domain_allowed_list=["w*.viur.dev"])
@@ -69,10 +69,10 @@ class TestUriBone(unittest.TestCase):
         self.assertEqual((url_value, None), res)
         url_value = "https://foo.viur.dev/"
         res = bone.singleValueFromClient(url_value, skel, self.bone_name, None)
-        self.isInvalid(res, url_value)
+        self.is_invalid(res, url_value)
         url_value = "https://viur.dev/"
         res = bone.singleValueFromClient(url_value, skel, self.bone_name, None)
-        self.isInvalid(res, url_value)
+        self.is_invalid(res, url_value)
 
         # Test for clean_get_params
         bone = UriBone(clean_get_params=False)
@@ -97,4 +97,4 @@ class TestUriBone(unittest.TestCase):
         bone = UriBone(local_path_allowed=False)
         url_value = "/foo/bar/?a=b"
         res = bone.singleValueFromClient(url_value, skel, self.bone_name, None)
-        self.isInvalid(res, url_value)
+        self.is_invalid(res, url_value)
