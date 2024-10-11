@@ -155,7 +155,7 @@ class UriBone(BaseBone):
         if self.domain_allowed_list is not None:
             if parsed_url.hostname:
                 for domain in self.domain_allowed_list:
-                    if fnmatch.fnmatch(parsed_url.hostname, domain):
+                    if fnmatch.fnmatch(parsed_url.hostname, domain) or domain in parsed_url.hostname:
                         break
                 else:
                     return f"""Provided URL is not in the domain allowed list."""
@@ -165,7 +165,7 @@ class UriBone(BaseBone):
         if self.domain_disallowed_list is not None:
             if parsed_url.hostname:
                 for domain in self.domain_disallowed_list:
-                    if fnmatch.fnmatch(parsed_url.hostname, domain):
+                    if fnmatch.fnmatch(parsed_url.hostname, domain) or domain in parsed_url.hostname:
                         return f"""Provided URL is in the domain disallowed list."""
 
             else:
