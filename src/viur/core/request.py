@@ -167,32 +167,65 @@ class Router:
             conf.i18n.language_method, we'll either try to load it from the session, determine it by the domain
             or extract it from the URL.
         """
-        sessionReference = current.session.get()
+
+        def get_language_from_header() -> str | None:
+            if not (accept_language := self.request.headers.get("accept-language")):
+                return None
+            languages = accept_language.split(",")
+            locale_q_pairs = []
+
+            for language in languages:
+                if language.split(";")[0] == language:
+                    # no q => q = 1
+                    locale_q_pairs.append((language.strip(), "1"))
+                else:
+                    locale = language.split(";")[0].strip()
+                    q = language.split(";")[1].split("=")[1]
+                    locale_q_pairs.append((locale, q))
+            for locale_q_pair in locale_q_pairs:
+                if "-" in locale_q_pair[0]:  # Check for de-DE
+                    lang = locale_q_pair[0].split("-")[0]
+                else:
+                    lang = locale_q_pair[0]
+                if lang in conf.i18n.available_languages + list(conf.i18n.language_alias_map.keys()):
+                    return lang
+            return None
+
         if not conf.i18n.available_languages:
             # This project doesn't use the multi-language feature, nothing to do here
             return path
         if conf.i18n.language_method == "session":
-            # We store the language inside the session, try to load it from there
-            if "lang" not in sessionReference:
-                if "X-Appengine-Country" in self.request.headers:
-                    lng = self.request.headers["X-Appengine-Country"].lower()
-                    if lng in conf.i18n.available_languages + list(conf.i18n.language_alias_map.keys()):
-                        sessionReference["lang"] = lng
-                        current.language.set(lng)
-                    else:
-                        sessionReference["lang"] = conf.i18n.default_language
-            else:
-                current.language.set(sessionReference["lang"])
+            current_session = current.session.get()
+            lang = conf.i18n.default_language
+            # We save the language in the session, if it exists, and try to load it from there
+            if "lang" in current_session:
+                current.language.set(current_session["lang"])
+                return path
+
+            if header_lang := get_language_from_header():
+                lang = header_lang
+                current.language.set(lang)
+
+            elif header_lang := self.request.headers.get("X-Appengine-Country"):
+                header_lang = str(header_lang).lower()
+                if header_lang in conf.i18n.available_languages + list(conf.i18n.language_alias_map.keys()):
+                    lang = header_lang
+
+            if current_session.loaded:
+                current_session["lang"] = lang
+            current.language.set(lang)
+
         elif conf.i18n.language_method == "domain":
             host = self.request.host_url.lower()
             host = host[host.find("://") + 3:].strip(" /")  # strip http(s)://
             if host.startswith("www."):
                 host = host[4:]
-            if host in conf.i18n.domain_language_mapping:
-                current.language.set(conf.i18n.domain_language_mapping[host])
-            else:  # We have no language configured for this domain, try to read it from session
-                if "lang" in sessionReference:
-                    current.language.set(sessionReference["lang"])
+            if lang := conf.i18n.domain_language_mapping.get(host):
+                current.language.set(lang)
+            # We have no language configured for this domain, try to read it from the HTTP Header
+            elif lang := get_language_from_header():
+                current.language.set(lang)
+
         elif conf.i18n.language_method == "url":
             tmppath = urlparse(path).path
             tmppath = [unquote(x) for x in tmppath.lower().strip("/").split("/")]
@@ -203,12 +236,16 @@ class Router:
                 current.language.set(tmppath[0])
                 return path[len(tmppath[0]) + 1:]  # Return the path stripped by its language segment
             else:  # This URL doesnt contain an language prefix, try to read it from session
-                if "lang" in sessionReference:
-                    current.language.set(sessionReference["lang"])
-                elif "X-Appengine-Country" in self.request.headers.keys():
-                    lng = self.request.headers["X-Appengine-Country"].lower()
-                    if lng in conf.i18n.available_languages or lng in conf.i18n.language_alias_map:
-                        current.language.set(lng)
+                if header_lang := get_language_from_header():
+                    current.language.set(header_lang)
+                elif header_lang := self.request.headers.get("X-Appengine-Country"):
+                    lang = str(header_lang).lower()
+                    if lang in conf.i18n.available_languages or lang in conf.i18n.language_alias_map:
+                        current.language.set(lang)
+        elif conf.i18n.language_method == "header":
+            if lang := get_language_from_header():
+                current.language.set(lang)
+
         return path
 
     def _process(self):
@@ -293,7 +330,7 @@ class Router:
             return
 
         try:
-            current.session.get().load(self)
+            current.session.get().load()
 
             # Load current user into context variable if user module is there.
             if user_mod := getattr(conf.main_app.vi, "user", None):
@@ -389,7 +426,7 @@ class Router:
             self.response.write(res.encode("UTF-8"))
 
         finally:
-            self.saveSession()
+            current.session.get().save()
             if conf.instance.is_dev_server and conf.debug.dev_server_cloud_logging:
                 # Emit the outer log only on dev_appserver (we'll use the existing request log when live)
                 SEVERITY = "DEBUG"
@@ -701,7 +738,7 @@ class Router:
                 )
 
     def saveSession(self) -> None:
-        current.session.get().save(self)
+        current.session.get().save()
 
 
 from .i18n import translate  # noqa: E402
