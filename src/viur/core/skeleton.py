@@ -1507,7 +1507,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             adapter.delete(skel)
 
     @classmethod
-    def edit(
+    def patch(
         cls,
         skel: SkeletonInstance,
         values: t.Optional[dict | t.Callable[[SkeletonInstance], None]] = {},
@@ -1516,7 +1516,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         check: t.Optional[dict | t.Callable[[SkeletonInstance], None]] = None,
         create: t.Optional[bool | dict | t.Callable[[SkeletonInstance], None]] = None,
         update_relations: bool = True,
-        retry: int = 1,
+        retry: int = 0,
     ) -> SkeletonInstance:
         """
         Performs an edit operation on a Skeleton within a transaction.
@@ -1554,7 +1554,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             # Try to read the skeleton, create on demand
             if not skel.read(key):
                 if not (key or skel["key"]):
-                    return ValueError("No valid key provided")
+                    raise ValueError("No valid key provided")
 
                 skel["key"] = db.keyHelper(key or skel["key"], skel.kindName)
 
@@ -1610,7 +1610,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             except db.ViurDatastoreError as e:
                 retry -= 1
-                if retry <= 0:
+                if retry < 0:
                     raise
 
                 logging.debug(f"{e}, retrying {retry} more times")
