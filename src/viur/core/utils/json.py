@@ -25,21 +25,39 @@ class ViURJsonEncoder(json.JSONEncoder):
         # cannot be tested in tests...
         elif isinstance(obj, db.Key):
             return {".__key__": db.encodeKey(obj)}
-        elif isinstance(obj, db.Entity):
-            # TODO: Handle SkeletonInstance as well?
-            return {
-                ".__entity__": dict(obj),
-                ".__key__": db.encodeKey(obj.key) if obj.key else None
-            }
 
         return super().default(obj)
 
+    @staticmethod
+    def preprocess(obj: t.Any) -> t.Any:
+        """
+        Needed to preprocess db.Entity as it subclasses dict.
+        There is currently no other way to integrate with JSONEncoder.
+        """
+        if isinstance(obj, db.Entity):
+            # TODO: Handle SkeletonInstance as well?
+            return {
+                ".__entity__": ViURJsonEncoder.preprocess(dict(obj)),
+                ".__key__": db.encodeKey(obj.key) if obj.key else None
+            }
+        elif isinstance(obj, dict):
+            return {
+                ViURJsonEncoder.preprocess(key): ViURJsonEncoder.preprocess(value) for key, value in obj.items()
+            }
+        elif isinstance(obj, (list, tuple)):
+            return tuple(ViURJsonEncoder.preprocess(value) for value in obj)
 
-def dumps(obj: t.Any, *, cls=ViURJsonEncoder, **kwargs) -> str:
+        elif hasattr(obj, "__class__") and obj.__class__.__name__ == "SkeletonInstance":  # SkeletonInstance
+            return {bone_name: ViURJsonEncoder.preprocess(obj[bone_name]) for bone_name in obj}
+
+        return obj
+
+
+def dumps(obj: t.Any, *, cls: ViURJsonEncoder = ViURJsonEncoder, **kwargs) -> str:
     """
     Wrapper for json.dumps() which converts additional ViUR datatypes.
     """
-    return json.dumps(obj, cls=cls, **kwargs)
+    return json.dumps(cls.preprocess(obj), cls=cls, **kwargs)
 
 
 def _decode_object_hook(obj: t.Any):
@@ -60,7 +78,6 @@ def _decode_object_hook(obj: t.Any):
             return set(items)
 
     elif len(obj) == 2 and all(k in obj for k in (".__entity__", ".__key__")):
-        # TODO: Handle SkeletonInstance as well?
         entity = db.Entity(db.Key.from_legacy_urlsafe(obj[".__key__"]) if obj[".__key__"] else None)
         entity.update(obj[".__entity__"])
         return entity

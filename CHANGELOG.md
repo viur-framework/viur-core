@@ -2,6 +2,84 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.19]
+
+- fix: Rename `type_postfix` on `BaseBone` into `type_suffix` (#1275)
+
+## [3.6.18]
+
+- fix: Cast category to str() for ascii check (#1263)
+
+## [3.6.17]
+
+- feat: `type_postfix` on `BaseBone` and `select.access` in `UserSkel` (#1261)
+
+## [3.6.16]
+
+- fix: @access-decorator (#1257)
+- fix: Delete bones set to `None` from a Skeleton (#1258)
+
+## [3.6.15]
+
+- fix: `Skeleton.toDB()`s `is_add` determined wrong (#1248)
+- feat: Improve `CaptchaBone` (#1243)
+
+## [3.6.14]
+
+- feat: Extend `CONTRIBUTING.md` with Coding Conventions (#1233)
+- fix: `File`-module allows to upload into non-existing node (#1235)
+- fix: `MultipleConstraints` as intended (#1228)
+- fix: Improve `NumericBone.singleValueFromClient` (#1245)
+- fix: Inconsistency raises AssertionError (#1237)
+- fix: null-key always written into `viur-relations` (#1238)
+- refactor: `__build_app` function clean-up and make all modules accessible (#1240)
+- refactor: Improved `RelationalConsistency.PreventDeletion` validation (#1244)
+- refactor: Move datastore index retrieval to `SkelModule` (#1239)
+
+## [3.6.13]
+
+- doc: Fix RelationalBone docstring (#1226)
+- chore: Use `pyproject.toml` as new SSOT packaging system (#1224)
+- feat-fix: Wrap `descr` and `params.category` in `translate` object for auto translating (#1223)
+
+## [3.6.12]
+
+- feat: Add `EmailTransportAppengine` as default email transport class (#1210)
+- feat: Improve email attachments (#1216)
+- feat: Render `SelectBone` values in dict-style (#1203)
+- fix: `RecordBone.getReferencedBlobs` should collect references for all bones (#1213)
+- fix: `viur-core-migrate-config` should replace sendinblue and mailjet configs as well (#1200)
+- refactor: `email`-module/`EmailTransportMailjet` fixes (#1212)
+
+## [3.6.11]
+
+- fix: Changed `EmailTransportMailjet` mimetype detection to `puremagic` (#1196)
+
+## [3.6.10]
+
+- fix: Remove `default_order` fallback from `List` (#1195)
+- feat: store compute value on unserialize (#1107)
+- fix: Add `google.cloud.logging_v2.handlers.transports.background_thread` to the `EXCLUDED_LOGGER_DEFAULTS` (#1177)
+
+## [3.6.9]
+
+- fix: `default_order` and `query.queries` can be a list (#1188)
+- fix: Keep HTML-entities in `HtmlSerializer` (#1184)
+
+## [3.6.8]
+
+- fix: Allow dict-filters for `default_order` (#1169)
+- fix: Pre-process object for JSON encoding (#1174)
+
+## [3.6.7]
+
+- fix: `ViURJsonEncoder` doesn't handle `db.Entity` (#1171)
+- fix: codecov
+- cicd: Enable tests for python 3.12 (#1167)
+- fix: More invalid replacements in `migrate_config.py` (#1166)
+- feat: Add `EmailTransportMailjet` to `email.py` (#1162)
+- Change of LICENSE from LGPL into MIT (#1164)
+
 ## [3.6.6]
 
 - fix: Don't obfuscate any route with character replacements (#1161)

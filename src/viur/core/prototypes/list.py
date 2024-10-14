@@ -20,28 +20,13 @@ class List(SkelModule):
     handler = "list"
     accessRights = ("add", "edit", "view", "delete", "manage")
 
-    def default_order(self, query: db.Query, bone_order: t.Iterable[str] = ("sortindex", "name")) -> DEFAULT_ORDER_TYPE:
-        """
-        Allows to specify a default order for this module, which is applied when no other order is specified.
-        This can also be set to any DEFAULT_ORDER_TYPE directly.
+    default_order: DEFAULT_ORDER_TYPE = None
+    """
+    Allows to specify a default order for this module, which is applied when no other order is specified.
 
-        Setting a default_order might result in the requirement of additional indexes, which are being raised
-        and must be specified.
-        """
-        for bone_name in bone_order:
-            bone = getattr(query.srcSkel, bone_name, None)
-            if isinstance(bone, BaseBone) and bone.indexed:
-                # In case the bone has a language setting, try to set default ordering to current language
-                if bone.languages:
-                    lang = current.language.get()
-                    if lang in bone.languages:
-                        return f"{bone_name}.{lang}"
-
-                    return f"{bone_name}.{bone.languages[0]}"
-
-                return bone_name
-
-        return None
+    Setting a default_order might result in the requirement of additional indexes, which are being raised
+    and must be specified.
+    """
 
     def viewSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -172,7 +157,7 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
         skel = self.viewSkel()
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         if not self.canView(skel):
@@ -200,14 +185,18 @@ class List(SkelModule):
         """
         # The general access control is made via self.listFilter()
         query = self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs))
-        if query and query.queries:
+        if query and query.queries and not isinstance(query.queries, list):
             # Apply default order when specified
             if self.default_order and not query.queries.orders and not current.request.get().kwargs.get("search"):
                 # TODO: refactor: Duplicate code in prototypes.Tree
                 if callable(default_order := self.default_order):
                     default_order = default_order(query)
 
-                if default_order:
+                if isinstance(default_order, dict):
+                    logging.debug(f"Applying filter {default_order=}")
+                    query.mergeExternalFilter(default_order)
+
+                elif default_order:
                     logging.debug(f"Applying {default_order=}")
 
                     # FIXME: This ugly test can be removed when there is type that abstracts SortOrders
@@ -250,7 +239,7 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
         skel = self.editSkel()
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         if not self.canEdit(skel):
@@ -266,7 +255,7 @@ class List(SkelModule):
             return self.render.edit(skel)
 
         self.onEdit(skel)
-        skel.toDB()  # write it!
+        skel.write()  # write it!
         self.onEdited(skel)
 
         return self.render.editSuccess(skel)
@@ -303,7 +292,7 @@ class List(SkelModule):
             return self.render.add(skel)
 
         self.onAdd(skel)
-        skel.toDB()
+        skel.write()
         self.onAdded(skel)
 
         return self.render.addSuccess(skel)
@@ -327,7 +316,7 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
         skel = self.editSkel()
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         if not self.canDelete(skel):
@@ -393,7 +382,7 @@ class List(SkelModule):
         """
 
         skel = self.cloneSkel()
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         # a clone-operation is some kind of edit and add...
@@ -415,7 +404,7 @@ class List(SkelModule):
             return self.render.edit(skel, action="clone")
 
         self.onClone(skel, src_skel=src_skel)
-        assert skel.toDB()
+        assert skel.write()
         self.onCloned(skel, src_skel=src_skel)
 
         return self.render.editSuccess(skel, action="cloneSuccess")

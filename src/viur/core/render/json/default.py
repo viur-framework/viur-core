@@ -1,12 +1,13 @@
 import json
+import typing as t
 from enum import Enum
 
-from viur.core import bones, utils, db, current
+from viur.core import bones, db, current
+from viur.core.render.abstract import AbstractRenderer
 from viur.core.skeleton import SkeletonInstance
 from viur.core.i18n import translate
 from viur.core.config import conf
 from datetime import datetime
-import typing as t
 
 
 class CustomJsonEncoder(json.JSONEncoder):
@@ -15,6 +16,7 @@ class CustomJsonEncoder(json.JSONEncoder):
     """
 
     def default(self, o: t.Any) -> t.Any:
+
         if isinstance(o, translate):
             return str(o)
         elif isinstance(o, datetime):
@@ -23,15 +25,15 @@ class CustomJsonEncoder(json.JSONEncoder):
             return db.encodeKey(o)
         elif isinstance(o, Enum):
             return o.value
+        elif isinstance(o, set):
+            return tuple(o)
+        elif isinstance(o, SkeletonInstance):
+            return {bone_name: o[bone_name] for bone_name in o}
         return json.JSONEncoder.default(self, o)
 
 
-class DefaultRender(object):
+class DefaultRender(AbstractRenderer):
     kind = "json"
-
-    def __init__(self, parent=None, *args, **kwargs):
-        super(DefaultRender, self).__init__(*args, **kwargs)
-        self.parent = parent
 
     @staticmethod
     def render_structure(structure: dict):
@@ -235,3 +237,11 @@ class DefaultRender(object):
             rn["key"] = db.encodeKey(rn["key"])
 
         return json.dumps(rootNodes, cls=CustomJsonEncoder)
+
+    def render(self, action: str, skel: t.Optional[SkeletonInstance] = None, **kwargs):
+        """
+        Universal rendering function.
+
+        Handles an action and a skeleton. It shall be used by any action, in future.
+        """
+        return self.renderEntry(skel, action, params=kwargs)
