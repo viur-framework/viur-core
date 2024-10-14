@@ -60,7 +60,6 @@ class UidBone(BaseBone):
         """
         Initializes a new UidBone.
 
-
         :param generate_fn: The compute function to calculate the unique value,
         :param fillchar The char that are filed in when the uid has not the length.
         :param length: The length allowed for values of this bone.
@@ -84,7 +83,7 @@ class UidBone(BaseBone):
             pattern = pattern()
         self.pattern = str(pattern)
         if self.pattern.count("*") != 1:
-            raise ValueError("Only one Wildcard (*) is allowed in the pattern")
+            raise ValueError("Only one wildcard (*) is allowed and required in the pattern")
         if len(self.fillchar) != 1:
             raise ValueError("Only one char is allowed as fillchar")
 
