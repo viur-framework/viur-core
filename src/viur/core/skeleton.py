@@ -1555,10 +1555,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             if not skel.read(key):
                 if create is None or create is False:
                     raise ValueError("Creation during update is forbidden - explicitly provide `create=True` to allow.")
-                
+
                 if not (key or skel["key"]) and create in (False, None):
                     return ValueError("No valid key provided")
-                
+
                 if key or skel["key"]:
                     skel["key"] = db.keyHelper(key or skel["key"], skel.kindName)
 
