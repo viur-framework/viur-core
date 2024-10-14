@@ -1553,13 +1553,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         def __update_txn():
             # Try to read the skeleton, create on demand
             if not skel.read(key):
-                if not (key or skel["key"]):
-                    raise ValueError("No valid key provided")
-
-                skel["key"] = db.keyHelper(key or skel["key"], skel.kindName)
-
                 if create is None or create is False:
                     raise ValueError("Creation during update is forbidden - explicitly provide `create=True` to allow.")
+                
+                if not (key or skel["key"]) and create in (False, None):
+                    return ValueError("No valid key provided")
+                
+                if key or skel["key"]:
+                    skel["key"] = db.keyHelper(key or skel["key"], skel.kindName)
 
                 if isinstance(create, dict):
                     if create and not skel.fromClient(create, amend=True):
