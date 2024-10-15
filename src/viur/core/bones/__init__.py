@@ -39,6 +39,7 @@ from .string import StringBone
 from .text import TextBone
 from .treeleaf import TreeLeafBone
 from .treenode import TreeNodeBone
+from .uri import UriBone
 from .user import UserBone
 
 # Expose only specific names
@@ -80,6 +81,7 @@ __all = [
     "UniqueLockMethod",
     "UniqueValue",
     "UserBone",
+    "UriBone",
     "translation_key_prefix_bonename",
     "translation_key_prefix_skeleton_bonename",
 ]
