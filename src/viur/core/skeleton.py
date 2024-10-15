@@ -55,7 +55,7 @@ class MetaBaseSkel(type):
         "clone",
         "cursor",
         "delete",
-        "edit",
+        "patch",
         "fromClient",
         "fromDB",
         "get",
@@ -279,7 +279,7 @@ class SkeletonInstance:
         elif item in {
             "all",
             "delete",
-            "edit",
+            "patch",
             "fromClient",
             "fromDB",
             "getCurrentSEOKeys",
