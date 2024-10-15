@@ -1,6 +1,5 @@
 import unittest
 
-from viur.core.bones import ReadFromClientError, ReadFromClientErrorSeverity
 
 
 class TestUriBone(unittest.TestCase):
@@ -11,6 +10,7 @@ class TestUriBone(unittest.TestCase):
         cls.bone_name = "uriTestBone"
 
     def is_invalid(self, res, url_value):
+        from viur.core.bones import ReadFromClientError, ReadFromClientErrorSeverity
         self.assertEqual(url_value, res[0])
         self.assertIsInstance(res[1], list)
         self.assertTrue(res[1])  # list is not empty (hopefully contains a ReadFromClientError)
@@ -98,3 +98,30 @@ class TestUriBone(unittest.TestCase):
         url_value = "/foo/bar/?a=b"
         res = bone.singleValueFromClient(url_value, skel, self.bone_name, None)
         self.is_invalid(res, url_value)
+
+        # Test for general schema, not valid URLs
+        bone = UriBone()
+        skel = {}
+        url_value = "foo"
+        res = bone.singleValueFromClient(url_value, skel, self.bone_name, None)
+        self.is_invalid(res, url_value)
+        #
+        url_value = "foo/bar"
+        res = bone.singleValueFromClient(url_value, skel, self.bone_name, None)
+        self.is_invalid(res, url_value)
+        #
+        url_value = "foo:/bar"
+        res = bone.singleValueFromClient(url_value, skel, self.bone_name, None)
+        self.assertEqual((url_value, None), res)
+        #
+        url_value = "foo/:bar"
+        res = bone.singleValueFromClient(url_value, skel, self.bone_name, None)
+        self.is_invalid(res, url_value)
+        #
+        url_value = "foo//:bar"
+        res = bone.singleValueFromClient(url_value, skel, self.bone_name, None)
+        self.is_invalid(res, url_value)
+        #
+        url_value = "http://https://viur.dev"
+        res = bone.singleValueFromClient(url_value, skel, self.bone_name, None)
+        self.assertEqual((url_value, None), res)
