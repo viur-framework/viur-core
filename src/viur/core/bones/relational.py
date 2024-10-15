@@ -484,7 +484,6 @@ class RelationalBone(BaseBone):
                 new_referenced_enity["viur_incomming_relational_locks"].append(skel["key"])
                 incomming_locks.append(new_referenced_enity)
 
-
         for old_referenced_enity in db.Get(list(old_relational_locks - new_relational_locks)):
             if not old_referenced_enity:
                 continue
