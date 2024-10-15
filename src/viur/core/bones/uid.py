@@ -52,9 +52,10 @@ class UidBone(BaseBone):
         self,
         *,
         generate_fn: t.Callable = generate_uid,
-        fillchar: str = "",
+        fillchar: str = "*",
         length: int = 13,
         pattern: str | t.Callable | None = "*",
+        readOnly: bool = False,
         **kwargs
     ):
         """
@@ -66,16 +67,18 @@ class UidBone(BaseBone):
         :param pattern: The pattern for this Bone. "*" will be replaced with the uid value.
         :param kwargs: Inherited arguments from the BaseBone.
         """
+
         super().__init__(
             compute=Compute(fn=generate_fn, interval=ComputeInterval(ComputeMethod.Once)),
             unique=UniqueValue(UniqueLockMethod.SameValue, False, "Unique Value already in use"),
+            readOnly=readOnly,
             **kwargs
         )
-
         if self.multiple or self.languages:
             raise ValueError("UidBone cannot be multiple or translated")
-        if not self.readOnly:
-            self.readOnly = True
+
+        if self.readOnly:
+            raise ValueError("UidBone must be read-only")
 
         self.fillchar = str(fillchar)
         self.length = length
