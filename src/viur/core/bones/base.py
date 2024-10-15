@@ -11,10 +11,14 @@ import inspect
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from collections.abc import Iterable
 from enum import Enum
 import typing as t
-from viur.core import db, utils
+from viur.core import db, utils, current, i18n
 from viur.core.config import conf
+
+if t.TYPE_CHECKING:
+    from ..skeleton import Skeleton, SkeletonInstance
 
 __system_initialized = False
 """
@@ -124,18 +128,24 @@ class UniqueValue:  # Mark a bone as unique (it must have a different value for 
 
 
 @dataclass
-class MultipleConstraints:  # Used to define constraints on multiple bones
+class MultipleConstraints:
     """
     The MultipleConstraints class is used to define constraints on multiple bones, such as the minimum
-    and maximum number of entries allowed and whether duplicate values are allowed.
+    and maximum number of entries allowed and whether value duplicates are allowed.
     """
-    minAmount: int = 0  # Lower bound of how many entries can be submitted
+    min: int = 0
     """An integer representing the lower bound of how many entries can be submitted (default: 0)."""
-    maxAmount: int = 0  # Upper bound of how many entries can be submitted
-    """An integer representing the upper bound of how many entries can be submitted (default: 0)."""
-    preventDuplicates: bool = False  # Prevent the same value of being used twice
-    """A boolean value indicating if the same value can be used twice (default: False)."""
-
+    max: int = 0
+    """An integer representing the upper bound of how many entries can be submitted (default: 0 = unlimited)."""
+    duplicates: bool = False
+    """A boolean indicating if the same value can be used multiple times (default: False)."""
+    sorted: bool | t.Callable = False
+    """A boolean value or a method indicating if the value must be sorted (default: False)."""
+    reversed: bool = False
+    """
+    A boolean value indicating if sorted values shall be sorted in reversed order (default: False).
+    It is only applied when the `sorted`-flag is set accordingly.
+    """
 
 class ComputeMethod(Enum):
     Always = 0  # Always compute on deserialization
@@ -170,6 +180,7 @@ class BaseBone(object):
     :param multiple: If True, multiple values can be given. (ie. n:m relations instead of n:1)
     :param searchable: If True, this bone will be included in the fulltext search. Can be used
         without the need of also been indexed.
+    :param type_suffix: Allows to specify an optional suffix for the bone-type, for bone customization
     :param vfunc: If given, a callable validating the user-supplied value for this bone.
         This callable must return None if the value is valid, a String containing an meaningful
         error-message for the user otherwise.
@@ -187,12 +198,18 @@ class BaseBone(object):
     type = "hidden"
     isClonedInstance = False
 
+    skel_cls = None
+    """Skeleton class to which this bone instance belongs"""
+
+    name = None
+    """Name of this bone (attribute name in the skeletons containing this bone)"""
+
     def __init__(
         self,
         *,
         compute: Compute = None,
         defaultValue: t.Any = None,
-        descr: str = "",
+        descr: t.Optional[str | i18n.translate] = None,
         getEmptyValueFunc: callable = None,
         indexed: bool = True,
         isEmptyFunc: callable = None,  # fixme: Rename this, see below.
@@ -202,6 +219,7 @@ class BaseBone(object):
         readOnly: bool = None,  # fixme: Rename into readonly (all lowercase!) soon.
         required: bool | list[str] | tuple[str] = False,
         searchable: bool = False,
+        type_suffix: str = "",
         unique: None | UniqueValue = None,
         vfunc: callable = None,  # fixme: Rename this, see below.
         visible: bool = True,
@@ -221,6 +239,12 @@ class BaseBone(object):
         self.visible = visible
         self.indexed = indexed
 
+        if type_suffix:
+            self.type += f".{type_suffix}"
+
+        if isinstance(category := self.params.get("category"), str):
+            self.params["category"] = i18n.translate(category, hint=f"category of a <{type(self).__name__}>")
+
         # Multi-language support
         if not (
             languages is None or
@@ -228,6 +252,8 @@ class BaseBone(object):
              and all([isinstance(x, str) for x in languages]))
         ):
             raise ValueError("languages must be None or a list of strings")
+        if languages and "__default__" in languages:
+            raise ValueError("__default__ is not supported as a language")
         if (
             not isinstance(required, bool)
             and (not isinstance(required, (tuple, list)) or any(not isinstance(value, str) for value in required))
@@ -244,8 +270,15 @@ class BaseBone(object):
         # Default value
         # Convert a None default-value to the empty container that's expected if the bone is
         # multiple or has languages
-        if defaultValue is None and self.languages:
-            self.defaultValue = {}
+        if self.languages:
+            if not isinstance(defaultValue, dict):
+                self.defaultValue = {lang: defaultValue for lang in self.languages}
+            elif "__default__" in defaultValue:
+                self.defaultValue = {lang: defaultValue.get(lang, defaultValue["__default__"])
+                                     for lang in self.languages}
+            else:
+                self.defaultValue = defaultValue
+
         elif defaultValue is None and self.multiple:
             self.defaultValue = []
         else:
@@ -288,15 +321,33 @@ class BaseBone(object):
                 raise ValueError(
                     f"'compute' is configured as ComputeMethod.Lifetime, but {compute.interval.lifetime=} was specified"
                 )
+            # If a RelationalBone is computed and raw is False, the unserialize function is called recursively
+            # and the value is recalculated all the time. This parameter is to prevent this.
+            self._prevent_compute = False
 
         self.compute = compute
 
-    def setSystemInitialized(self):
+    def __set_name__(self, owner: "Skeleton", name: str) -> None:
+        self.skel_cls = owner
+        self.name = name
+
+    def setSystemInitialized(self) -> None:
         """
-            Can be overridden to initialize properties that depend on the Skeleton system
-            being initialized
+        Can be overridden to initialize properties that depend on the Skeleton system
+        being initialized.
+
+        Here, in the BaseBone, we set descr to the bone_name if no descr argument
+        was given in __init__ and make sure that it is a :class:i18n.translate` object.
         """
-        pass
+        if self.descr is None:
+            # TODO: The super().__setattr__() call is kinda hackish,
+            #  but unfortunately viur-core has no *during system initialisation* state
+            super().__setattr__("descr", self.name or "")
+        if self.descr and isinstance(self.descr, str):
+            super().__setattr__(
+                "descr",
+                i18n.translate(self.descr, hint=f"descr of a <{type(self).__name__}>{self.name}")
+            )
 
     def isInvalid(self, value):
         """
@@ -532,6 +583,15 @@ class BaseBone(object):
                         filled_languages.add(language)
                         parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
                         res[language].append(parsedVal)
+                        if isinstance(self.multiple, MultipleConstraints) and self.multiple.sorted:
+                            if callable(self.multiple.sorted):
+                                res[language] = sorted(
+                                    res[language],
+                                    key=self.multiple.sorted,
+                                    reverse=self.multiple.reversed,
+                                )
+                            else:
+                                res[language] = sorted(res[language], reverse=self.multiple.reversed)
                         if parseErrors:
                             for parseError in parseErrors:
                                 parseError.fieldPath[:0] = [language, str(idx)]
@@ -560,10 +620,16 @@ class BaseBone(object):
                 isEmpty = False
                 parsedVal, parseErrors = self.singleValueFromClient(singleValue, skel, name, data)
                 res.append(parsedVal)
+
                 if parseErrors:
                     for parseError in parseErrors:
                         parseError.fieldPath.insert(0, str(idx))
                     errors.extend(parseErrors)
+            if isinstance(self.multiple, MultipleConstraints) and self.multiple.sorted:
+                if callable(self.multiple.sorted):
+                    res = sorted(res, key=self.multiple.sorted, reverse=self.multiple.reversed)
+                else:
+                    res = sorted(res, reverse=self.multiple.reversed)
         else:  # No Languages, not multiple
             if self.isEmpty(parsedData):
                 res = self.getEmptyValue()
@@ -581,29 +647,58 @@ class BaseBone(object):
                         for lang in missing]
         if isEmpty:
             return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "Field not set")]
+
+        # Check multiple constraints on demand
         if self.multiple and isinstance(self.multiple, MultipleConstraints):
-            errors.extend(self.validateMultipleConstraints(skel, name))
+            errors.extend(self._validate_multiple_contraints(self.multiple, skel, name))
+
         return errors or None
 
-    def validateMultipleConstraints(self, skel: 'SkeletonInstance', name: str) -> list[ReadFromClientError]:
+    def _get_single_destinct_hash(self, value) -> t.Any:
+        """
+        Returns a distinct hash value for a single entry of this bone.
+        The returned value must be hashable.
+        """
+        return value
+
+    def _get_destinct_hash(self, value) -> t.Any:
+        """
+        Returns a distinct hash value for this bone.
+        The returned value must be hashable.
+        """
+        if not isinstance(value, str) and isinstance(value, Iterable):
+            return tuple(self._get_single_destinct_hash(item) for item in value)
+
+        return value
+
+    def _validate_multiple_contraints(
+        self,
+        constraints: MultipleConstraints,
+        skel: 'SkeletonInstance',
+        name: str
+    ) -> list[ReadFromClientError]:
         """
         Validates the value of a bone against its multiple constraints and returns a list of ReadFromClientError
         objects for each violation, such as too many items or duplicates.
 
+        :param constraints: The MultipleConstraints definition to apply.
         :param skel: A SkeletonInstance object where the values should be validated.
         :param name: A string representing the bone's name.
         :return: A list of ReadFromClientError objects for each constraint violation.
         """
         res = []
-        value = skel[name]
-        constraints = self.multiple
-        if constraints.minAmount and len(value) < constraints.minAmount:
+        value = self._get_destinct_hash(skel[name])
+
+        if constraints.min and len(value) < constraints.min:
             res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Too few items"))
-        if constraints.maxAmount and len(value) > constraints.maxAmount:
+
+        if constraints.max and len(value) > constraints.max:
             res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Too many items"))
-        if constraints.preventDuplicates:
+
+        if not constraints.duplicates:
             if len(set(value)) != len(value):
                 res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Duplicate items"))
+
         return res
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
@@ -728,7 +823,7 @@ class BaseBone(object):
         # Is this value computed?
         # In this case, check for configured compute method and if recomputation is required.
         # Otherwise, the value from the DB is used as is.
-        if self.compute:
+        if self.compute and not self._prevent_compute:
             match self.compute.interval.method:
                 # Computation is bound to a lifetime?
                 case ComputeMethod.Lifetime:
@@ -743,7 +838,19 @@ class BaseBone(object):
 
                     if not last_update or last_update + self.compute.interval.lifetime <= now:
                         # if so, recompute and refresh updated value
-                        skel.accessedValues[name] = self._compute(skel, name)
+                        skel.accessedValues[name] = value = self._compute(skel, name)
+
+                        def transact():
+                            db_obj = db.Get(skel["key"])
+                            db_obj[f"_viur_compute_{name}_"] = now
+                            db_obj[name] = value
+                            db.Put(db_obj)
+
+                        if db.IsInTransaction():
+                            transact()
+                        else:
+                            db.RunInTransaction(transact)
+
                         return True
 
                 # Compute on every deserialization
@@ -891,58 +998,77 @@ class BaseBone(object):
 
         return dbFilter
 
-    def buildDBSort(self,
-                    name: str,
-                    skel: 'viur.core.skeleton.SkeletonInstance',
-                    dbFilter: db.Query,
-                    rawFilter: dict) -> t.Optional[db.Query]:
+    def buildDBSort(
+        self,
+        name: str,
+        skel: "SkeletonInstance",
+        query: db.Query,
+        params: dict,
+        postfix: str = "",
+    ) -> t.Optional[db.Query]:
         """
             Same as buildDBFilter, but this time its not about filtering
             the results, but by sorting them.
-            Again: rawFilter is controlled by the client, so you *must* expect and safely handle
+            Again: query is controlled by the client, so you *must* expect and safely handle
             malformed data!
 
             :param name: The property-name this bone has in its Skeleton (not the description!)
             :param skel: The :class:`viur.core.skeleton.Skeleton` instance this bone is part of
             :param dbFilter: The current :class:`viur.core.db.Query` instance the filters should
                 be applied to
-            :param rawFilter: The dictionary of filters the client wants to have applied
+            :param query: The dictionary of filters the client wants to have applied
+            :param postfix: Inherited classes may use this to add a postfix to the porperty name
             :returns: The modified :class:`viur.core.db.Query`,
                 None if the query is unsatisfiable.
         """
-        if "orderby" in rawFilter and rawFilter["orderby"] == name:
-            if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
-                order = (rawFilter["orderby"], db.SortOrder.Descending)
-            elif "orderdir" in rawFilter and rawFilter["orderdir"] == "2":
-                order = (rawFilter["orderby"], db.SortOrder.InvertedAscending)
-            elif "orderdir" in rawFilter and rawFilter["orderdir"] == "3":
-                order = (rawFilter["orderby"], db.SortOrder.InvertedDescending)
+        if query.queries and (orderby := params.get("orderby")) and utils.string.is_prefix(orderby, name):
+            if self.languages:
+                lang = None
+                if orderby.startswith(f"{name}."):
+                    lng = orderby.replace(f"{name}.", "")
+                    if lng in self.languages:
+                        lang = lng
+
+                if lang is None:
+                    lang = current.language.get()
+                    if not lang or lang not in self.languages:
+                        lang = self.languages[0]
+
+                prop = f"{name}.{lang}"
             else:
-                order = (rawFilter["orderby"], db.SortOrder.Ascending)
-            queries = dbFilter.queries
-            if queries is None:
-                return  # This query is unsatisfiable
-            elif isinstance(queries, db.QueryDefinition):
-                inEqFilter = [x for x in queries.filters.keys() if
-                              (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
-            elif isinstance(queries, list):
-                inEqFilter = None
-                for singeFilter in queries:
-                    newInEqFilter = [x for x in singeFilter.filters.keys() if
-                                     (">" in x[-3:] or "<" in x[-3:] or "!=" in x[-4:])]
-                    if inEqFilter and newInEqFilter and inEqFilter != newInEqFilter:
+                prop = name
+
+            # In case this is a multiple query, check if all filters are valid
+            if isinstance(query.queries, list):
+                in_eq_filter = None
+
+                for item in query.queries:
+                    new_in_eq_filter = [
+                        key for key in item.filters.keys()
+                        if key.rstrip().endswith(("<", ">", "!="))
+                    ]
+                    if in_eq_filter and new_in_eq_filter and in_eq_filter != new_in_eq_filter:
                         raise NotImplementedError("Impossible ordering!")
-                    inEqFilter = newInEqFilter
-            if inEqFilter:
-                inEqFilter = inEqFilter[0][: inEqFilter[0].find(" ")]
-                if inEqFilter != order[0]:
-                    logging.warning(f"I fixed you query! Impossible ordering changed to {inEqFilter}, {order[0]}")
-                    dbFilter.order((inEqFilter, order))
-                else:
-                    dbFilter.order(order)
+
+                    in_eq_filter = new_in_eq_filter
+
             else:
-                dbFilter.order(order)
-        return dbFilter
+                in_eq_filter = [
+                    key for key in query.queries.filters.keys()
+                    if key.rstrip().endswith(("<", ">", "!="))
+                ]
+
+            if in_eq_filter:
+                orderby_prop = in_eq_filter[0].split(" ", 1)[0]
+                if orderby_prop != prop:
+                    logging.warning(
+                        f"The query was rewritten; Impossible ordering changed from {prop!r} into {orderby_prop!r}"
+                    )
+                    prop = orderby_prop
+
+            query.order((prop + postfix, utils.parse.sortorder(params.get("orderdir"))))
+
+        return query
 
     def _hashValueForUniquePropertyIndex(self, value: str | int) -> list[str]:
         """
@@ -1203,7 +1329,7 @@ class BaseBone(object):
 
             if issubclass(skel.skeletonCls, RefSkel):  # we have a ref skel we must load the complete skeleton
                 cloned_skel = skeletonByKind(skel.kindName)()
-                cloned_skel.fromDB(skel["key"])
+                cloned_skel.read(skel["key"])
             else:
                 cloned_skel = skel.clone()
             cloned_skel[bone_name] = None  # remove value form accessedValues to avoid endless recursion
@@ -1217,11 +1343,10 @@ class BaseBone(object):
 
         ret = self.compute.fn(**compute_fn_args)
 
-        def unserialize_raw_value(value: list[dict] | dict | None):
+        def unserialize_raw_value(raw_value: list[dict] | dict | None):
             if self.multiple:
-                return [self.singleValueUnserialize(value)
-                        for value in ret]
-            return self.singleValueUnserialize(ret)
+                return [self.singleValueUnserialize(inner_value) for inner_value in raw_value]
+            return self.singleValueUnserialize(raw_value)
 
         if self.compute.raw:
             if self.languages:
@@ -1230,10 +1355,10 @@ class BaseBone(object):
                     for lang in self.languages
                 }
             return unserialize_raw_value(ret)
-
+        self._prevent_compute = True
         if errors := self.fromClient(skel, bone_name, {bone_name: ret}):
             raise ValueError(f"Computed value fromClient failed with {errors!r}")
-
+        self._prevent_compute = False
         return skel[bone_name]
 
     def structure(self) -> dict:
@@ -1242,7 +1367,7 @@ class BaseBone(object):
         This function has to be implemented for subsequent, specialized bone types.
         """
         ret = {
-            "descr": str(self.descr),  # need to turn possible translate-object into string
+            "descr": self.descr,
             "type": self.type,
             "required": self.required,
             "params": self.params,
@@ -1261,9 +1386,9 @@ class BaseBone(object):
         # Provide a multiple setting
         if self.multiple and isinstance(self.multiple, MultipleConstraints):
             ret["multiple"] = {
-                "min": self.multiple.minAmount,
-                "max": self.multiple.maxAmount,
-                "preventduplicates": self.multiple.preventDuplicates,
+                "duplicates": self.multiple.duplicates,
+                "max": self.multiple.max,
+                "min": self.multiple.min,
             }
         else:
             ret["multiple"] = self.multiple

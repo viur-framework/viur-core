@@ -45,7 +45,7 @@ class ModuleConfScriptSkel(skeleton.RelSkel):
         descr="Required access rights",
         values=lambda: {
             right: i18n.translate(f"server.modules.user.accessright.{right}", defaultText=right)
-            for right in sorted(conf["viur.accessRights"])
+            for right in sorted(conf.user.access_rights)
         },
         multiple=True,
         params={
@@ -106,6 +106,7 @@ class ModuleConf(List):
     MODULES = set()  # will be filled by read_all_modules
     kindName = MODULECONF_KINDNAME
     accessRights = ["edit"]
+    default_order = None  # disable default ordering for ModuleConf
 
     def adminInfo(self):
         return conf.moduleconf_admin_info or {}
@@ -141,7 +142,7 @@ class ModuleConf(List):
     def get_by_module_name(cls, module_name: str) -> None | skeleton.SkeletonInstance:
         db_key = db.Key(MODULECONF_KINDNAME, module_name)
         skel = conf.main_app.vi._moduleconf.viewSkel()
-        if not skel.fromDB(db_key):
+        if not skel.read(db_key):
             logging.error(f"module({module_name}) not found")
             return None
 
@@ -177,13 +178,10 @@ class ModuleConf(List):
                     skel = conf.main_app.vi._moduleconf.addSkel()
                     skel["key"] = db.Key(MODULECONF_KINDNAME, module_name)
                     skel["name"] = module_name
-                    skel.toDB()
+                    skel.write()
 
                 # Collect children
                 collect_modules(module, depth=depth + 1, prefix=f"{module_name}.")
 
         collect_modules(conf.main_app.vi)
         # TODO: Remove entries from MODULECONF_KINDNAME which are in db_module_names but not in ModuleConf.MODULES
-
-
-ModuleConf.json = True

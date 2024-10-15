@@ -2,6 +2,245 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.19]
+
+- fix: Rename `type_postfix` on `BaseBone` into `type_suffix` (#1275)
+
+## [3.6.18]
+
+- fix: Cast category to str() for ascii check (#1263)
+
+## [3.6.17]
+
+- feat: `type_postfix` on `BaseBone` and `select.access` in `UserSkel` (#1261)
+
+## [3.6.16]
+
+- fix: @access-decorator (#1257)
+- fix: Delete bones set to `None` from a Skeleton (#1258)
+
+## [3.6.15]
+
+- fix: `Skeleton.toDB()`s `is_add` determined wrong (#1248)
+- feat: Improve `CaptchaBone` (#1243)
+
+## [3.6.14]
+
+- feat: Extend `CONTRIBUTING.md` with Coding Conventions (#1233)
+- fix: `File`-module allows to upload into non-existing node (#1235)
+- fix: `MultipleConstraints` as intended (#1228)
+- fix: Improve `NumericBone.singleValueFromClient` (#1245)
+- fix: Inconsistency raises AssertionError (#1237)
+- fix: null-key always written into `viur-relations` (#1238)
+- refactor: `__build_app` function clean-up and make all modules accessible (#1240)
+- refactor: Improved `RelationalConsistency.PreventDeletion` validation (#1244)
+- refactor: Move datastore index retrieval to `SkelModule` (#1239)
+
+## [3.6.13]
+
+- doc: Fix RelationalBone docstring (#1226)
+- chore: Use `pyproject.toml` as new SSOT packaging system (#1224)
+- feat-fix: Wrap `descr` and `params.category` in `translate` object for auto translating (#1223)
+
+## [3.6.12]
+
+- feat: Add `EmailTransportAppengine` as default email transport class (#1210)
+- feat: Improve email attachments (#1216)
+- feat: Render `SelectBone` values in dict-style (#1203)
+- fix: `RecordBone.getReferencedBlobs` should collect references for all bones (#1213)
+- fix: `viur-core-migrate-config` should replace sendinblue and mailjet configs as well (#1200)
+- refactor: `email`-module/`EmailTransportMailjet` fixes (#1212)
+
+## [3.6.11]
+
+- fix: Changed `EmailTransportMailjet` mimetype detection to `puremagic` (#1196)
+
+## [3.6.10]
+
+- fix: Remove `default_order` fallback from `List` (#1195)
+- feat: store compute value on unserialize (#1107)
+- fix: Add `google.cloud.logging_v2.handlers.transports.background_thread` to the `EXCLUDED_LOGGER_DEFAULTS` (#1177)
+
+## [3.6.9]
+
+- fix: `default_order` and `query.queries` can be a list (#1188)
+- fix: Keep HTML-entities in `HtmlSerializer` (#1184)
+
+## [3.6.8]
+
+- fix: Allow dict-filters for `default_order` (#1169)
+- fix: Pre-process object for JSON encoding (#1174)
+
+## [3.6.7]
+
+- fix: `ViURJsonEncoder` doesn't handle `db.Entity` (#1171)
+- fix: codecov
+- cicd: Enable tests for python 3.12 (#1167)
+- fix: More invalid replacements in `migrate_config.py` (#1166)
+- feat: Add `EmailTransportMailjet` to `email.py` (#1162)
+- Change of LICENSE from LGPL into MIT (#1164)
+
+## [3.6.6]
+
+- fix: Don't obfuscate any route with character replacements (#1161)
+- feat: View script by path (#1156)
+- fix: Make `Translation`-module `admin_info` configurable (#1158)
+- fix: Support `/deploy/admin` folder as well (#1159)
+
+## [3.6.5]
+
+- feat: Implement `fromClient(amend=True)` feature (#1150)
+- chore: Update dependencies (fix for CVE-2024-28219) (#1151)
+- fix: Fix deprecated `parse_bool` call (#1149)
+- fix: `list` should handle unsatisfiable queries (#1148)
+
+## [3.6.4]
+
+- fix: Enfore serialized values are always strings in the datastore (#1146)
+- fix: RelationalBone `serialize` add super call (#1119)
+- fix: Add missing import of `PIL.ImageCms` (#1144)
+- fix: Re-add `StringBone`s `max_length` check (#1142)
+- fix: Replace deprecated `utils.getCurrentUser` (#1139)
+
+## [3.6.3]
+
+- fix: Avoid `*AbstractSkel`s from being initialized (#1136)
+- fix: Replace old dict `conf` access with attribute access (#1137)
+
+## [3.6.2]
+
+- fix: Remove comma in f-string (#1135)
+- fix: target_version was always `None` (used the default version) (#1134)
+- fix: Improve `List.default_order` to respect languages config (#1132)
+
+## [3.6.1]
+
+- fix: Add `_call_deferred`-parameter for super-calls (#1128)
+- feat: Implement `translation_key_prefix` for `SelectBone` values (#1126)
+- fix: Pass arguments in `JsonBone.__init__()` to `super()` call (#1129)
+- fix: Improving several `User` auth method handling (#1125)
+- fix: `TimeBasedOTP.start()` should use UserSkel (#1124)
+- fix: Broken access to methods in `File` class by refactoring (#1122)
+
+## [3.6.0]
+
+- fix: Add `is None`-check for bone values with languages (#1120)
+- feat: Provide `LoginSkel` on `UserPassword.login` (#1118)
+- feat: `default_order` should support multiple orders as well (#1109)
+- fix: Add `_prevent_compute` for computed bones (#1111)
+- feat: Set icon in admin_info of translation module (#1113)
+- fix: Handle non-ASCII characters in username comparison (#1112)
+- fix: file module typo `UnprocessableEntity` (#1105)
+- feat: Allow `None` as defaultValue in BooleanBone (#988)
+- feat: Support `*`-wildcard postfix in `refKeys` for `RelationalBones` (#1022)
+- feat: Implement `utils.parse.timedelta` (#1086)
+- refactor: `File.getUploadURL()` (#1050)
+- fix: Improving `utils` deprecation handling (#1089)
+- refactor: Remove old code (#1094)
+- feat: Add deprecation handling to `skeleton` (#984)
+- fix: `vi.canAccess` based on fnmatch config setting (#1088)
+- fix: `compute` and `unserialize_raw_value` for `JsonBone` (#1093)
+- chore: Update requirements to latest patchlevels (#1091)
+- feat: Add closed system (#1085)
+- feat: `UserPrimaryAuthentication.next_or_finish` handler (#997)
+- refactor: Replace securitykey duration with `timedelta` (#1083)
+- feat: `utils.json` module / improving `JsonBone` (#1072)
+- refactor: Remove `extjson`, fallback to `json` (#1084)
+- feat: Require abstract `METHOD_NAME` for any `UserAuthentication` (#1059)
+- feat: Allow `None` in `skel setBoneValue` (#1053)
+- feat: Provide `default_order` for `List` and `Tree` (#1076)
+- feat: securitykey  create duration allow timedelta (#1078)
+- fix: Remove `self` from `create_src_set` (#1079)
+- fix: `read_all_modules` after  #1073 and #1037 and merge 2a2b76ec16 (#1074)
+- fix: Make ViUR runable again after the extremely security-relevant PR #1037 (#1075)
+- fix: Remove default `P.html = True` from prototypes (#1037)
+- fix: new icon naming scheme in modules (#1069)
+- refactor: `tasks` module (#1016)
+- fix: Use `__getattribute__` instead of `__getattr__` for super call in utils (#1065)
+- fix: correctly set `refKeys` to get merged in (#1066)
+- refactor: `RelationalBone`s `refKeys` and `parentKeys` as set (#1058)
+- feat: Improve `UserBone` to additional defaults (#1055)
+- fix: patch_user_skel (fix for #983) (#1060)
+- feat: `UserAuthentication`s with skeleton patch capability (#983)
+- refactor_ value for `tasks_custom_environment_handler` to new abstract class `CustomEnvironmentHandler` (#946)
+- fix: f-string in `RelationalBone` introduced in #950 (#1054)
+- fix: Further refactoring and fixing of `File`-module for #1046 (#1049)
+- fix: Add missing import in #950 (#1048)
+- refactor: Modularization of `File` (#1046)
+- fix: compute for relational bones (#950)
+- feat: Collect modules recursivly in `read_all_modules` (#1041)
+- feat: Collect modules recursivly in `vi/config` (#995)
+- fix: customize `iter_bone_value` for `NumericBone` (#1044)
+- fix: Wrong f-strings introducted by #1025 (#1043)
+- fix: Help and comments on `UserPassword.pwrecover` (#1042)
+- feat: `clone`-action for `List` and `Tree`, recursive tree cloning (#1036)
+- feat: `Skeleton.ensure_is_cloned()` (#1040)
+- refactor: `Skeleton.toDB` method (#973)
+- feat: Support for nested modules in `getStructure()` (#1031)
+- refactor: Replace `%`-formattings by f-string (#1025)
+- fix: Get rid of the catch all index behavior in vi renderer (#960)
+- feat: Show project, python- and core-versions on startup (#1009)
+- refactor: `Skeleton.fromDB` method (#968)
+- feat: Add and improve check on root node in `Tree` prototype (#1030)
+- feat: Improve translations & provide `Translation` module (#969)
+- feat: Support compute for multilang and/or multiple bones (#1029)
+- fix: `@property` in module causes problems during warmup (#1020)
+- fix: config regression after incorrect merge 537f0e2 (#1021)
+- refactor: Improved type annotations (#986)
+- fix: Some more fixes for #833 (#1014)
+- fix: Provide "moduleGroups" in `/vi/config` (#994)
+- chore: Updating dependencies and requirements.txt
+- feat: Implement `@property` support in `Skeleton`s (#1001)
+- fix: Adding linter settings for flake8 as well (#998)
+- feat: Refactoring and renamed `utils`, adding `utils.string.unescape` (#992)
+- feat: Implement `InstancedModule` (#967)
+- feat: Improved and slightly refactored `PasswordBone` (#990)
+- feat: Add requirements for the memcache (#830)
+- feat: Add `File.read` method (#975)
+- fix: wrong conf var access (#989)
+- chore: Update all requirements, bump version v3.6.0.dev3
+- fix: Start explicit with `main_app` in `findBoundTask()` (#980)
+- fix: Set correct stacklevel to deprecation warning on `utils.escapeString` (#981)
+- fix: Admin-tool specific settings (#979)
+- refactor: static skey marker (#945)
+- feat: Implement migration script for new core config (#924)
+- fix: `vi`-render returns wrong config (regression introduced by #833) (#977)
+- fix: merge error in StringBone.singleValueFromClient
+- fix: Add `try`/`except` around task emulation call (#970)
+- fix: `@retry_n_times` does not work on local server during warmup (#971)
+- feat: Add logging with the name of the bone where the serialization failed (#959)
+- feat: Add stacklevels to `warning.warn` calls (#966)
+- refactor: Replace the `replace` function with `translate` (#953)
+- fix: `defaultValue` type hint in `SelectBone` (#957)
+- chore: Sort and translate module names in `Rebuild Search Index` task Skeleton (#947)
+- refactor: Rename `StringBone`'s `maxLength` into `max_length` (#942)
+- feat: Add `min_length` to `StringBone` (#940)
+- feat: use `CustomJsonEncoder` class in `json.dumps` call (#937)
+- fix: invalid `conf` refactoring (#929)
+- fix: Clean-up Skeletons `key` default bone (#926)
+- fix: Refactor usage of `SeoKeyBone` in `Skeleton` (#927)
+- feat: Provide computed `name`-bone for `Skeleton` (#925)
+- feat: Add new error template with a nonce and custom image (#867)
+- feat: Implement the config as a class (#833)
+- feat: `utils.is_prefix`-function (#910)
+- refactor: Replace `Tree.handler` by @property (#909)
+- fix: Second Factor `start` (#890)
+- feat: Provide `indexed`-parameter to `securitykey.create` (#886)
+- fix: TimebaseOTP rename possible_user to user (#887)
+- feat: `UserPrimaryAuthentication` with unified `can_handle()` (#878)
+- feat: Implement `__all__` in root's `__init__` and `decorators` to support easier imports (#859)
+- feat: Add missing type hints for `current` module (#871)
+
+## [3.5.17]
+
+- fix: Handle non-ASCII characters in username comparison (#1112)
+
+## [3.5.16]
+
+- chore: Dependency updates
+- fix: Improvement `conf["viur.paramFilterFunction"]` (#1106)
+- fix: User roles: Automatic "view" right when "edit" or "delete" is provided (#1102)
+
 ## [3.5.15]
 
 - fix: Several improvements on `ModuleConf` (#1073)

@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 
 class TestStringBone(unittest.TestCase):
@@ -169,9 +170,9 @@ class TestStringBoneSerialize(unittest.TestCase):
         res = bone.singleValueSerialize("Foo", skel, self.bone_name, False)
         self.assertEqual("Foo", res)
         res = bone.singleValueSerialize(None, skel, self.bone_name, True)
-        self.assertEqual(None, res)
+        self.assertEqual("", res)
         res = bone.singleValueSerialize(None, skel, self.bone_name, False)
-        self.assertEqual(None, res)
+        self.assertEqual("", res)
 
     def test_singleValueSerialize_caseInSensitive(self):
         from viur.core.bones import StringBone
@@ -182,9 +183,9 @@ class TestStringBoneSerialize(unittest.TestCase):
         res = bone.singleValueSerialize("Foo", skel, self.bone_name, False)
         self.assertEqual("Foo", res)
         res = bone.singleValueSerialize(None, skel, self.bone_name, True)
-        self.assertDictEqual({"val": None, "idx": None}, res)
+        self.assertDictEqual({"val": "", "idx": ""}, res)
         res = bone.singleValueSerialize(None, skel, self.bone_name, False)
-        self.assertEqual(None, res)
+        self.assertEqual("", res)
 
     def test_singleValueUnserialize(self):
         from viur.core.bones import StringBone

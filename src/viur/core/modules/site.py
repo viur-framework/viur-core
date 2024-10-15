@@ -3,6 +3,13 @@ from viur.core.decorators import exposed
 
 
 class Site(Module):
+    """
+    The Site module simply serves static templates without a module-binding stored in html/sites.
+
+    It is normally imported as `s` module in modern ViUR projects, to serve pages under short URL.
+    Therefore, a template `html/sites/imprint.html` can be accessed via `/s/imprint` by default.
+    """
+
     adminInfo = None
 
     @exposed

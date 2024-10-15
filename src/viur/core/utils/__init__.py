@@ -1,34 +1,18 @@
-import hashlib
-import hmac
-import warnings
-
 import logging
-from base64 import urlsafe_b64encode
-from datetime import datetime, timedelta, timezone
 import typing as t
-from urllib.parse import quote
+import warnings
+import datetime
+from collections.abc import Iterable
+from . import string, parse, json  # noqa: used by external imports
 from viur.core import current, db
 from viur.core.config import conf
-from . import string, parse
 
 
-def utcNow() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def getCurrentUser() -> t.Optional["SkeletonInstance"]:
+def utcNow() -> datetime.datetime:
     """
-        Retrieve current user, if logged in.
-        If a user is logged in, this function returns a dict containing user data.
-        If no user is logged in, the function returns None.
-
-        :returns: A SkeletonInstance containing information about the logged-in user, None if no user is logged in.
+    Returns an actual timestamp with UTC timezone setting.
     """
-    import warnings
-    msg = f"Use of `utils.getCurrentUser()` is deprecated; Use `current.user.get()` instead!"
-    warnings.warn(msg, DeprecationWarning, stacklevel=3)
-    logging.warning(msg, stacklevel=3)
-    return current.user.get()
+    return datetime.datetime.now(datetime.timezone.utc)
 
 
 def seoUrlToEntry(module: str,
@@ -118,6 +102,34 @@ def normalizeKey(key: t.Union[None, 'db.KeyClass']) -> t.Union[None, 'db.KeyClas
     return db.Key(key.kind, key.id_or_name, parent=parent)
 
 
+def ensure_iterable(
+    obj: t.Any,
+    *,
+    test: t.Optional[t.Callable[[t.Any], bool]] = None,
+    allow_callable: bool = True,
+) -> t.Iterable[t.Any]:
+    """
+    Ensures an object to be iterable.
+
+    An additional test can be provided to check additionally.
+
+    If the object is not considered to be iterable, a tuple with the object is returned.
+    """
+    if allow_callable and callable(obj):
+        obj = obj()
+
+    if isinstance(obj, Iterable):  # uses collections.abc.Iterable
+        if test is None or test(obj):
+            return obj  # return the obj, which is an iterable
+
+        return ()  # empty tuple
+
+    elif obj is None:
+        return ()  # empty tuple
+
+    return obj,  # return a tuple with the obj
+
+
 # DEPRECATED ATTRIBUTES HANDLING
 __UTILS_CONF_REPLACEMENT = {
     "projectID": "viur.instance.project_id",
@@ -127,14 +139,17 @@ __UTILS_CONF_REPLACEMENT = {
 }
 
 __UTILS_NAME_REPLACEMENT = {
+    "currentLanguage": ("current.language", current.language),
     "currentRequest": ("current.request", current.request),
     "currentRequestData": ("current.request_data", current.request_data),
     "currentSession": ("current.session", current.session),
-    "currentLanguage": ("current.language", current.language),
-    "generateRandomString": ("utils.string.random", string.random),
+    "downloadUrlFor": ("modules.file.File.create_download_url", "viur.core.modules.file.File.create_download_url"),
     "escapeString": ("utils.string.escape", string.escape),
+    "generateRandomString": ("utils.string.random", string.random),
+    "getCurrentUser": ("current.user.get", current.user.get),
     "is_prefix": ("utils.string.is_prefix", string.is_prefix),
     "parse_bool": ("utils.parse.bool", parse.bool),
+    "srcSetFor": ("modules.file.File.create_src_set", "viur.core.modules.file.File.create_src_set"),
 }
 
 
@@ -149,6 +164,16 @@ def __getattr__(attr):
         msg = f"Use of `utils.{attr}` is deprecated; Use `{replace[0]}` instead!"
         warnings.warn(msg, DeprecationWarning, stacklevel=3)
         logging.warning(msg, stacklevel=3)
-        return replace[1]
+
+        ret = replace[1]
+
+        # When this is a string, try to resolve by dynamic import
+        if isinstance(ret, str):
+            mod, item, attr = ret.rsplit(".", 2)
+            mod = __import__(mod, fromlist=(item,))
+            item = getattr(mod, item)
+            ret = getattr(item, attr)
+
+        return ret
 
     return super(__import__(__name__).__class__).__getattribute__(attr)

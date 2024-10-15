@@ -4,6 +4,7 @@ from viur.core import current, db, errors, utils
 from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
+from viur.core.bones import BaseBone
 from .skelmodule import SkelModule, DEFAULT_ORDER_TYPE
 
 
@@ -19,8 +20,7 @@ class List(SkelModule):
     handler = "list"
     accessRights = ("add", "edit", "view", "delete", "manage")
 
-    default_order: DEFAULT_ORDER_TYPE = \
-        lambda _self, query: next((prop for prop in ("sortindex", "name") if prop in query.srcSkel), None)
+    default_order: DEFAULT_ORDER_TYPE = None
     """
     Allows to specify a default order for this module, which is applied when no other order is specified.
 
@@ -157,7 +157,7 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
         skel = self.viewSkel()
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         if not self.canView(skel):
@@ -184,14 +184,34 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
         # The general access control is made via self.listFilter()
-        if query := self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs)):
+        query = self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs))
+        if query and query.queries and not isinstance(query.queries, list):
             # Apply default order when specified
             if self.default_order and not query.queries.orders and not current.request.get().kwargs.get("search"):
+                # TODO: refactor: Duplicate code in prototypes.Tree
                 if callable(default_order := self.default_order):
                     default_order = default_order(query)
 
-                if default_order:
-                    query.order(default_order)
+                if isinstance(default_order, dict):
+                    logging.debug(f"Applying filter {default_order=}")
+                    query.mergeExternalFilter(default_order)
+
+                elif default_order:
+                    logging.debug(f"Applying {default_order=}")
+
+                    # FIXME: This ugly test can be removed when there is type that abstracts SortOrders
+                    if (
+                        isinstance(default_order, str)
+                        or (
+                            isinstance(default_order, tuple)
+                            and len(default_order) == 2
+                            and isinstance(default_order[0], str)
+                            and isinstance(default_order[1], db.SortOrder)
+                        )
+                    ):
+                        query.order(default_order)
+                    else:
+                        query.order(*default_order)
 
             return self.render.list(query.fetch())
 
@@ -219,7 +239,7 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
         skel = self.editSkel()
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         if not self.canEdit(skel):
@@ -228,14 +248,14 @@ class List(SkelModule):
         if (
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
-            or not skel.fromClient(kwargs)  # failure on reading into the bones
+            or not skel.fromClient(kwargs, amend=True)  # failure on reading into the bones
             or utils.parse.bool(kwargs.get("bounce"))  # review before changing
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self.render.edit(skel)
 
         self.onEdit(skel)
-        skel.toDB()  # write it!
+        skel.write()  # write it!
         self.onEdited(skel)
 
         return self.render.editSuccess(skel)
@@ -272,7 +292,7 @@ class List(SkelModule):
             return self.render.add(skel)
 
         self.onAdd(skel)
-        skel.toDB()
+        skel.write()
         self.onAdded(skel)
 
         return self.render.addSuccess(skel)
@@ -296,7 +316,7 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
         skel = self.editSkel()
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         if not self.canDelete(skel):
@@ -362,7 +382,7 @@ class List(SkelModule):
         """
 
         skel = self.cloneSkel()
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         # a clone-operation is some kind of edit and add...
@@ -384,7 +404,7 @@ class List(SkelModule):
             return self.render.edit(skel, action="clone")
 
         self.onClone(skel, src_skel=src_skel)
-        assert skel.toDB()
+        assert skel.write()
         self.onCloned(skel, src_skel=src_skel)
 
         return self.render.editSuccess(skel, action="cloneSuccess")
@@ -679,7 +699,7 @@ class List(SkelModule):
         logging.info(f"""Entry cloned: {skel["key"]!r}""")
         flushCache(kind=skel.kindName)
 
-        if user := utils.getCurrentUser():
+        if user := current.user.get():
             logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
 

@@ -109,10 +109,10 @@ class TranslationSkel(Skeleton):
     )
 
     @classmethod
-    def toDB(cls, skelValues: SkeletonInstance, **kwargs) -> db.Key:
+    def write(cls, skelValues: SkeletonInstance, **kwargs) -> db.Key:
         # Ensure we have only lowercase keys
         skelValues["tr_key"] = skelValues["tr_key"].lower()
-        return super().toDB(skelValues, **kwargs)
+        return super().write(skelValues, **kwargs)
 
     @classmethod
     def preProcessSerializedData(cls, skelValues: SkeletonInstance, entity: db.Entity) -> db.Entity:
@@ -123,16 +123,23 @@ class TranslationSkel(Skeleton):
 
 
 class Translation(List):
+    """
+    The Translation module is a system module used by the ViUR framework for its internationalization capabilities.
+    """
+
     kindName = KINDNAME
 
     def adminInfo(self):
-        admin_info = {
+        return {
             "name": translate("translations"),
+            "icon": "translate",
+            "display": "hidden" if len(conf.i18n.available_dialects) <= 1 else "default",
             "views": [
                 {
-                    "name": translate("core.translations.view.missing",
-                                      "Missing translations for {{lang}}",
-                                      )(lang=lang),
+                    "name": translate(
+                        "core.translations.view.missing",
+                        "Missing translations for {{lang}}",
+                    )(lang=lang),
                     "filter": {
                         "translations_missing": lang,
                     },
@@ -140,7 +147,6 @@ class Translation(List):
                 for lang in conf.i18n.available_dialects
             ],
         }
-        return admin_info
 
     roles = {
         "admin": "*",
