@@ -2,6 +2,7 @@ import datetime
 import hashlib
 import logging
 import os
+import re
 import typing as t
 import warnings
 from pathlib import Path
@@ -11,10 +12,12 @@ import google.auth
 from viur.core.version import __version__
 
 if t.TYPE_CHECKING:  # pragma: no cover
+    from viur.core.bones.text import HtmlBoneConfiguration
     from viur.core.email import EmailTransport
     from viur.core.skeleton import SkeletonInstance
     from viur.core.module import Module
     from viur.core.tasks import CustomEnvironmentHandler
+
 
 # Construct an alias with a generic type to be able to write Multiple[str]
 # TODO: Backward compatible implementation, refactor when viur-core
@@ -439,6 +442,40 @@ class Security(ConfigType):
     ]
     """Paths that are accessible without authentication in a closed system, see `closed_system` for details."""
 
+    # CORS Settings
+
+    cors_origins: t.Iterable[str | re.Pattern] | t.Literal["*"] = []
+    """Allowed origins
+    Access-Control-Allow-Origin
+
+    Pattern should be case-insensitive, for example:
+        >>> re.compile(r"^http://localhost:(\d{4,5})/?$", flags=re.IGNORECASE)
+    """  # noqa
+
+    cors_origins_use_wildcard: bool = False
+    """Use * for Access-Control-Allow-Origin -- if possible"""
+
+    cors_methods: t.Iterable[str] = ["get", "head", "post", "options"]  # , "put", "patch", "delete"]
+    """Access-Control-Request-Method"""
+
+    cors_allow_headers: t.Iterable[str | re.Pattern] | t.Literal["*"] = []
+    """Access-Control-Request-Headers
+
+    Can also be set for specific @exposed methods with the @cors decorator.
+
+    Pattern should be case-insensitive, for example:
+        >>> re.compile(r"^X-ViUR-.*$", flags=re.IGNORECASE)
+    """
+
+    cors_allow_credentials: bool = False
+    """
+    Set Access-Control-Allow-Credentials to true
+    to support fetch requests with credentials: include
+    """
+
+    cors_max_age: datetime.timedelta | None = None
+    """Allow caching"""
+
     _mapping = {
         "contentSecurityPolicy": "content_security_policy",
         "referrerPolicy": "referrer_policy",
@@ -544,11 +581,12 @@ class I18N(ConfigType):
     language_alias_map: dict[str, str] = {}
     """Allows mapping of certain languages to one translation (i.e. us->en)"""
 
-    language_method: t.Literal["session", "url", "domain"] = "session"
+    language_method: t.Literal["session", "url", "domain", "header"] = "session"
     """Defines how translations are applied:
         - session: Per Session
         - url: inject language prefix in url
         - domain: one domain per language
+        - header: Per Http-Header
     """
 
     language_module_map: dict[str, dict[str, str]] = {}
@@ -641,6 +679,87 @@ class Conf(ConfigType):
 
     bone_boolean_str2true: Multiple[str | int] = ("true", "yes", "1")
     """Allowed values that define a str to evaluate to true"""
+
+    bone_html_default_allow: "HtmlBoneConfiguration" = {
+        "validTags": [
+            "a",
+            "abbr",
+            "b",
+            "blockquote",
+            "br",
+            "div",
+            "em",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "hr",
+            "i",
+            "img",
+            "li",
+            "ol",
+            "p",
+            "span",
+            "strong",
+            "sub",
+            "sup",
+            "table",
+            "tbody",
+            "td",
+            "tfoot",
+            "th",
+            "thead",
+            "tr",
+            "u",
+            "ul",
+        ],
+        "validAttrs": {
+            "a": [
+                "href",
+                "target",
+                "title",
+            ],
+            "abbr": [
+                "title",
+            ],
+            "blockquote": [
+                "cite",
+            ],
+            "img": [
+                "src",
+                "alt",
+                "title",
+            ],
+            "p": [
+                "data-indent",
+            ],
+            "span": [
+                "title",
+            ],
+            "td": [
+                "colspan",
+                "rowspan",
+            ],
+
+        },
+        "validStyles": [
+            "color",
+        ],
+        "validClasses": [
+            "vitxt-*",
+            "viur-txt-*"
+        ],
+        "singleTags": [
+            "br",
+            "hr",
+            "img",
+        ]
+    }
+    """
+    A dictionary containing default configurations for handling HTML content in TextBone instances.
+    """
 
     cache_environment_key: t.Optional[t.Callable[[], str]] = None
     """If set, this function will be called for each cache-attempt
