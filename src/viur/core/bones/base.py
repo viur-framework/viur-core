@@ -954,7 +954,6 @@ class BaseBone(object):
                 last_update = skel.dbEntity.get(f"_viur_compute_{name}_")
                 skel.accessedValues[f"_viur_compute_{name}_"] = last_update or now
 
-
                 if not last_update or last_update + self.compute.interval.lifetime <= now:
                     # if so, recompute and refresh updated value
                     skel.accessedValues[name] = value = self._compute(skel, name)
