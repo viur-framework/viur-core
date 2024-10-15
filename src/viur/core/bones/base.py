@@ -790,26 +790,33 @@ class BaseBone(object):
         return False
 
     def serialize_compute(self, skel: "SkeletonInstance", name: str) -> None:
-        # Handle compute on write
-        if self.compute:
-            match self.compute.interval.method:
-                case ComputeMethod.OnWrite:
+        """
+        This function checks whether a bone is computed and if this is the case, it attempts to serialize the
+        value with the appropriate calculation method
+
+        :param skel : The SkeletonInstance where the current Bone is located
+        :param name: The name of the Bone in the Skeleton
+        """
+        if not self.compute:
+            return None
+        match self.compute.interval.method:
+            case ComputeMethod.OnWrite:
+                skel.accessedValues[name] = self._compute(skel, name)
+
+            case ComputeMethod.Lifetime:
+                now = utils.utcNow()
+
+                last_update = \
+                    skel.accessedValues.get(f"_viur_compute_{name}_") \
+                    or skel.dbEntity.get(f"_viur_compute_{name}_")
+
+                if not last_update or last_update + self.compute.interval.lifetime < now:
                     skel.accessedValues[name] = self._compute(skel, name)
+                    skel.dbEntity[f"_viur_compute_{name}_"] = now
 
-                case ComputeMethod.Lifetime:
-                    now = utils.utcNow()
-
-                    last_update = \
-                        skel.accessedValues.get(f"_viur_compute_{name}_") \
-                        or skel.dbEntity.get(f"_viur_compute_{name}_")
-
-                    if not last_update or last_update + self.compute.interval.lifetime < now:
-                        skel.accessedValues[name] = self._compute(skel, name)
-                        skel.dbEntity[f"_viur_compute_{name}_"] = now
-
-                case ComputeMethod.Once:
-                    if name not in skel.dbEntity:
-                        skel.accessedValues[name] = self._compute(skel, name)
+            case ComputeMethod.Once:
+                if name not in skel.dbEntity:
+                    skel.accessedValues[name] = self._compute(skel, name)
 
 
     def singleValueUnserialize(self, val):
@@ -926,49 +933,55 @@ class BaseBone(object):
         return True
 
     def unserialize_compute(self, skel: "SkeletonInstance", name: str, loaded_value: t.Any) -> bool:
-        # Is this value computed?
-        # In this case, check for configured compute method and if recomputation is required.
-        # Otherwise, the value from the DB is used as is.
-        if self.compute and not self._prevent_compute:
-            match self.compute.interval.method:
-                # Computation is bound to a lifetime?
-                case ComputeMethod.Lifetime:
-                    now = utils.utcNow()
+        """
+        This function checks whether a bone is computed and if this is the case, it attempts to deserialise the
+        value with the appropriate calculation method
 
-                    # check if lifetime exceeded
-                    last_update = skel.dbEntity.get(f"_viur_compute_{name}_")
-                    skel.accessedValues[f"_viur_compute_{name}_"] = last_update or now
+        :param skel : The SkeletonInstance where the current Bone is located
+        :param name: The name of the Bone in the Skeleton
+        :param loaded_value: The value from the DB Entity
+        :return: True if the Bone was unserialized, False otherwise
+        """
+        if not self.compute and self._prevent_compute:
+            return False
 
-                    # logging.debug(f"READ {name=} {skel.dbEntity=}")
-                    # logging.debug(f"READ {name=} {skel.accessedValues=}")
+        match self.compute.interval.method:
+            # Computation is bound to a lifetime?
+            case ComputeMethod.Lifetime:
+                now = utils.utcNow()
 
-                    if not last_update or last_update + self.compute.interval.lifetime <= now:
-                        # if so, recompute and refresh updated value
-                        skel.accessedValues[name] = value = self._compute(skel, name)
+                # check if lifetime exceeded
+                last_update = skel.dbEntity.get(f"_viur_compute_{name}_")
+                skel.accessedValues[f"_viur_compute_{name}_"] = last_update or now
 
-                        def transact():
-                            db_obj = db.Get(skel["key"])
-                            db_obj[f"_viur_compute_{name}_"] = now
-                            db_obj[name] = value
-                            db.Put(db_obj)
 
-                        if db.IsInTransaction():
-                            transact()
-                        else:
-                            db.RunInTransaction(transact)
+                if not last_update or last_update + self.compute.interval.lifetime <= now:
+                    # if so, recompute and refresh updated value
+                    skel.accessedValues[name] = value = self._compute(skel, name)
 
-                        return True
+                    def transact():
+                        db_obj = db.Get(skel["key"])
+                        db_obj[f"_viur_compute_{name}_"] = now
+                        db_obj[name] = value
+                        db.Put(db_obj)
 
-                # Compute on every deserialization
-                case ComputeMethod.Always:
-                    skel.accessedValues[name] = self._compute(skel, name)
+                    if db.IsInTransaction():
+                        transact()
+                    else:
+                        db.RunInTransaction(transact)
+
                     return True
 
-                # Only compute once when loaded value is empty
-                case ComputeMethod.Once:
-                    if loaded_value is None:
-                        skel.accessedValues[name] = self._compute(skel, name)
-                        return True
+            # Compute on every deserialization
+            case ComputeMethod.Always:
+                skel.accessedValues[name] = self._compute(skel, name)
+                return True
+
+            # Only compute once when loaded value is empty
+            case ComputeMethod.Once:
+                if loaded_value is None:
+                    skel.accessedValues[name] = self._compute(skel, name)
+                    return True
         return False
 
     def delete(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
