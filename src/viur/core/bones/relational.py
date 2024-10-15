@@ -417,7 +417,8 @@ class RelationalBone(BaseBone):
                 using_data_serialized = rel_data.serialize(parentIndexed=indexed)
             else:
                 using_data_serialized = None
-            return ref_data_serialized, using_data_serialized
+
+            return using_data_serialized, ref_data_serialized
 
 
         super().serialize(skel, name, parentIndexed)
@@ -459,7 +460,6 @@ class RelationalBone(BaseBone):
         else:
             using_data, ref_data = serialize_dest_rel(new_vals)
             res = {"rel": using_data, "dest": ref_data}
-
         skel.dbEntity[name] = res
 
         # Ensure our indexed flag is up2date
@@ -477,6 +477,8 @@ class RelationalBone(BaseBone):
         skel.dbEntity[f"{name}_outgoingRelationalLocks"] = list(new_relational_locks)
         incomming_locks = []
         for new_referenced_enity in db.Get(list(new_relational_locks - old_relational_locks)):
+            if not new_referenced_enity:
+                continue
             new_referenced_enity.setdefault("viur_incomming_relational_locks", [])
             if skel["key"] not in new_referenced_enity["viur_incomming_relational_locks"]:
                 new_referenced_enity["viur_incomming_relational_locks"].append(skel["key"])
@@ -484,6 +486,8 @@ class RelationalBone(BaseBone):
 
 
         for old_referenced_enity in db.Get(list(old_relational_locks - new_relational_locks)):
+            if not old_referenced_enity:
+                continue
             old_referenced_enity.setdefault("viur_incomming_relational_locks", [])
             if skel["key"] in old_referenced_enity["viur_incomming_relational_locks"]:
                 old_referenced_enity["viur_incomming_relational_locks"].remove(skel["key"])
