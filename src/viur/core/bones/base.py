@@ -84,6 +84,41 @@ class ReadFromClientError:
     invalidatedFields: list[str] = None
     """A list of strings containing the names of invalidated fields, if any."""
 
+    def __str__(self):
+        return f"{'.'.join(self.fieldPath)}: {self.errorMessage} [{self.severity.name}]"
+
+
+class ReadFromClientException(Exception):
+    """
+    ReadFromClientError as an Exception to raise.
+    """
+
+    def __init__(self, errors: ReadFromClientError | t.Iterable[ReadFromClientError]):
+        """
+        This is an exception holding ReadFromClientErrors.
+
+        :param errors: Either one or an iterable of errors.
+        """
+        super().__init__()
+
+        # Allow to specifiy a single ReadFromClientError
+        if isinstance(errors, ReadFromClientError):
+            errors = (ReadFromClientError, )
+
+        self.errors = tuple(error for error in errors if isinstance(error, ReadFromClientError))
+
+        # Disallow ReadFromClientException without any ReadFromClientErrors
+        if not self.errors:
+            raise ValueError("ReadFromClientException requires for at least one ReadFromClientError")
+
+        # Either show any errors with severity greater ReadFromClientErrorSeverity.NotSet to the Exception notes,
+        # or otherwise all errors (all have ReadFromClientErrorSeverity.NotSet then)
+        notes_errors = tuple(
+            error for error in self.errors if error.severity.value > ReadFromClientErrorSeverity.NotSet.value
+        )
+
+        self.add_note("\n".join(str(error) for error in notes_errors or self.errors))
+
 
 class UniqueLockMethod(Enum):
     """
@@ -252,37 +287,48 @@ class BaseBone(object):
              and all([isinstance(x, str) for x in languages]))
         ):
             raise ValueError("languages must be None or a list of strings")
+
         if languages and "__default__" in languages:
             raise ValueError("__default__ is not supported as a language")
+
         if (
             not isinstance(required, bool)
             and (not isinstance(required, (tuple, list)) or any(not isinstance(value, str) for value in required))
         ):
             raise TypeError(f"required must be boolean or a tuple/list of strings. Got: {required!r}")
+
         if isinstance(required, (tuple, list)) and not languages:
             raise ValueError("You set required to a list of languages, but defined no languages.")
+
         if isinstance(required, (tuple, list)) and languages and (diff := set(required).difference(languages)):
             raise ValueError(f"The language(s) {', '.join(map(repr, diff))} can not be required, "
                              f"because they're not defined.")
+
+        if callable(defaultValue):
+            # check if the signature of defaultValue can bind two (fictive) parameters.
+            try:
+                inspect.signature(defaultValue).bind("skel", "bone")  # the strings are just for the test!
+            except TypeError:
+                raise ValueError(f"Callable {defaultValue=} requires for the parameters 'skel' and 'bone'.")
 
         self.languages = languages
 
         # Default value
         # Convert a None default-value to the empty container that's expected if the bone is
         # multiple or has languages
+        default = [] if defaultValue is None and self.multiple else defaultValue
         if self.languages:
-            if not isinstance(defaultValue, dict):
-                self.defaultValue = {lang: defaultValue for lang in self.languages}
+            if callable(defaultValue):
+                self.defaultValue = defaultValue
+            elif not isinstance(defaultValue, dict):
+                self.defaultValue = {lang: default for lang in self.languages}
             elif "__default__" in defaultValue:
                 self.defaultValue = {lang: defaultValue.get(lang, defaultValue["__default__"])
                                      for lang in self.languages}
             else:
-                self.defaultValue = defaultValue
-
-        elif defaultValue is None and self.multiple:
-            self.defaultValue = []
+                self.defaultValue = defaultValue  # default will have the same value at this point
         else:
-            self.defaultValue = defaultValue
+            self.defaultValue = default
 
         # Unique values
         if unique:
@@ -381,7 +427,21 @@ class BaseBone(object):
         :return: The default value of the bone, which can be of any data type.
     """
         if callable(self.defaultValue):
-            return self.defaultValue(skeletonInstance, self)
+            res = self.defaultValue(skeletonInstance, self)
+            if self.languages and self.multiple:
+                if not isinstance(res, dict):
+                    if not isinstance(res, (list, set, tuple)):
+                        return {lang: [res] for lang in self.languages}
+                    else:
+                        return {lang: res for lang in self.languages}
+            elif self.languages:
+                if not isinstance(res, dict):
+                    return {lang: res for lang in self.languages}
+            elif self.multiple:
+                if not isinstance(res, (list, set, tuple)):
+                    return [res]
+            return res
+
         elif isinstance(self.defaultValue, list):
             return self.defaultValue[:]
         elif isinstance(self.defaultValue, dict):
