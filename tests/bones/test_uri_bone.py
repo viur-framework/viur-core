@@ -1,7 +1,6 @@
 import unittest
 
 
-
 class TestUriBone(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
