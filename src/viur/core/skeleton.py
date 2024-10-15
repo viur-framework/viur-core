@@ -148,7 +148,10 @@ class SkeletonInstance:
         skel_cls: t.Type[Skeleton],
         *,
         bones: t.Iterable[str] = (),
+        bone_map: t.Optional[t.Dict[str, BaseBone]] = None,
         full_clone: bool = False,
+        # BELOW IS DEPRECATED!
+        clonedBoneMap: t.Optional[t.Dict[str, BaseBone]] = None,
     ):
         """
         Creates a new SkeletonInstance based on `skel_cls`.
@@ -156,9 +159,22 @@ class SkeletonInstance:
         :param skel_cls: Is the base skeleton class to inherit from and reference to.
         :param bones: If given, defines an iterable of bones that are take into the SkeletonInstance.
             The order of the bones defines the order in the SkeletonInstance.
+        :param bone_map: A pre-defined bone map to use, or extend.
         :param full_clone: If set True, performs a full clone of the used bone map, to be entirely stand-alone.
         """
-        bone_map = None
+
+        # TODO: Remove with ViUR-core 3.8; required by viur-datastore :'-(
+        if clonedBoneMap:
+            msg = "'clonedBoneMap' was renamed into 'bone_map'"
+            warnings.warn(msg, DeprecationWarning, stacklevel=2)
+            # logging.warning(msg, stacklevel=2)
+
+            if bone_map:
+                raise ValueError("Can't provide both 'bone_map' and 'clonedBoneMap'")
+
+            bone_map = clonedBoneMap
+
+        bone_map = bone_map or {}
 
         if bones:
             names = ("key", ) + tuple(bones)
@@ -172,14 +188,14 @@ class SkeletonInstance:
                     keys.extend(fnmatch.filter(skel_cls.__boneMap__.keys(), name))
 
             if full_clone:
-                bone_map = {k: copy.deepcopy(skel_cls.__boneMap__[k]) for k in keys if skel_cls.__boneMap__[k]}
+                bone_map |= {k: copy.deepcopy(skel_cls.__boneMap__[k]) for k in keys if skel_cls.__boneMap__[k]}
             else:
-                bone_map = {k: skel_cls.__boneMap__[k] for k in keys if skel_cls.__boneMap__[k]}
+                bone_map |= {k: skel_cls.__boneMap__[k] for k in keys if skel_cls.__boneMap__[k]}
 
         elif full_clone:
-            bone_map = copy.deepcopy(skel_cls.__boneMap__)
+            bone_map |= copy.deepcopy(skel_cls.__boneMap__)
 
-        # generated or provided bone_map
+        # generated or use provided bone_map
         if bone_map:
             self.boneMap = bone_map
             for v in self.boneMap.values():
@@ -1120,6 +1136,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         """
         Deprecated function, replaced by Skeleton.write().
         """
+
+        # TODO: Remove with ViUR4
         if "clearUpdateTag" in kwargs:
             msg = "clearUpdateTag was replaced by update_relations"
             warnings.warn(msg, DeprecationWarning, stacklevel=3)

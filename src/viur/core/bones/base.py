@@ -287,42 +287,48 @@ class BaseBone(object):
              and all([isinstance(x, str) for x in languages]))
         ):
             raise ValueError("languages must be None or a list of strings")
+
         if languages and "__default__" in languages:
             raise ValueError("__default__ is not supported as a language")
+
         if (
             not isinstance(required, bool)
             and (not isinstance(required, (tuple, list)) or any(not isinstance(value, str) for value in required))
         ):
             raise TypeError(f"required must be boolean or a tuple/list of strings. Got: {required!r}")
+
         if isinstance(required, (tuple, list)) and not languages:
             raise ValueError("You set required to a list of languages, but defined no languages.")
+
         if isinstance(required, (tuple, list)) and languages and (diff := set(required).difference(languages)):
             raise ValueError(f"The language(s) {', '.join(map(repr, diff))} can not be required, "
                              f"because they're not defined.")
-        if callable(defaultValue) and len(inspect.signature(defaultValue).parameters) < 2:
-            raise ValueError(f"Callable default values require for two parameters (self and skel)")
+
+        if callable(defaultValue):
+            # check if the signature of defaultValue can bind two (fictive) parameters.
+            try:
+                inspect.signature(defaultValue).bind("skel", "bone")  # the strings are just for the test!
+            except TypeError:
+                raise ValueError(f"Callable {defaultValue=} requires for the parameters 'skel' and 'bone'.")
 
         self.languages = languages
 
         # Default value
         # Convert a None default-value to the empty container that's expected if the bone is
         # multiple or has languages
+        default = [] if defaultValue is None and self.multiple else defaultValue
         if self.languages:
-            if not isinstance(defaultValue, dict):
-                if callable(defaultValue):
-                    self.defaultValue = defaultValue
-                else:
-                    self.defaultValue = {lang: defaultValue for lang in self.languages}
+            if callable(defaultValue):
+                self.defaultValue = defaultValue
+            elif not isinstance(defaultValue, dict):
+                self.defaultValue = {lang: default for lang in self.languages}
             elif "__default__" in defaultValue:
                 self.defaultValue = {lang: defaultValue.get(lang, defaultValue["__default__"])
                                      for lang in self.languages}
             else:
-                self.defaultValue = defaultValue
-
-        elif defaultValue is None and self.multiple:
-            self.defaultValue = []
+                self.defaultValue = defaultValue  # default will have the same value at this point
         else:
-            self.defaultValue = defaultValue
+            self.defaultValue = default
 
         # Unique values
         if unique:
