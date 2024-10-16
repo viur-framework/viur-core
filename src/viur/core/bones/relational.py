@@ -1098,7 +1098,10 @@ class RelationalBone(BaseBone):
 
         return result
 
-    def createRelSkelFromKey(self, key_rel_list: list[tuple]):
+    def createRelSkelFromKey(self, key: db.Key, rel: dict | None):
+        return self.createRelSkelFromKey([key, rel])
+
+    def createRelSkelFromKeys(self, key_rel_list: list[tuple]):
         """
         Creates a relSkel instance valid for this bone from the given database key.
 
@@ -1195,7 +1198,7 @@ class RelationalBone(BaseBone):
                 skel[boneName].setdefault(language, [])
 
         if self.multiple:
-            rel_list = self.createRelSkelFromKey(parsed_value)
+            rel_list = self.createRelSkelFromKeys(parsed_value)
             if append:
                 if language:
                     skel[boneName][language].extend(rel_list)
@@ -1209,7 +1212,7 @@ class RelationalBone(BaseBone):
                 else:
                     skel[boneName] = rel_list
         else:
-            if not (rel := self.createRelSkelFromKey([parsed_value[0], parsed_value[1]])):
+            if not (rel := self.createRelSkelFromKey(parsed_value[0], parsed_value[1])):
                 return False
             if language:
                 skel[boneName][language] = rel[0]
