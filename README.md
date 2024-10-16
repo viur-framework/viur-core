@@ -29,15 +29,9 @@ To get started with ViUR, check out [viur-base](https://github.com/viur-framewor
 
 ## Migration
 
-### from `<=v3.5` to `v3.6`
-In [#833](https://github.com/viur-framework/viur-core/pull/833) the config has
-changed from a dict to an object.
-To migrate the access expressions like `conf["option"]` in your project
-to `conf.option` the viur-core provides a migration script.
-Install the _viur-core_ in your project, open a (virtual) environment shell
-and `viur-core-migrate-config` will be available.
-After checking the result with `viur-core-migrate-config ./deploy/ -d`
-you can apply the changes with `viur-core-migrate-config ./deploy/ -x`.
+The package contains a service tool `viur-migrate` to migrate existing project sources to the current `viur-core`, by replacing old namings and config variables by their newer counterparts.
+
+After checking the result with `viur-migrate ./deploy/ -d` you can apply the changes with `viur-migrate ./deploy/ -x`.
 
 ## Contributing
 

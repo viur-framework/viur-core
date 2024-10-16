@@ -84,6 +84,41 @@ class ReadFromClientError:
     invalidatedFields: list[str] = None
     """A list of strings containing the names of invalidated fields, if any."""
 
+    def __str__(self):
+        return f"{'.'.join(self.fieldPath)}: {self.errorMessage} [{self.severity.name}]"
+
+
+class ReadFromClientException(Exception):
+    """
+    ReadFromClientError as an Exception to raise.
+    """
+
+    def __init__(self, errors: ReadFromClientError | t.Iterable[ReadFromClientError]):
+        """
+        This is an exception holding ReadFromClientErrors.
+
+        :param errors: Either one or an iterable of errors.
+        """
+        super().__init__()
+
+        # Allow to specifiy a single ReadFromClientError
+        if isinstance(errors, ReadFromClientError):
+            errors = (ReadFromClientError, )
+
+        self.errors = tuple(error for error in errors if isinstance(error, ReadFromClientError))
+
+        # Disallow ReadFromClientException without any ReadFromClientErrors
+        if not self.errors:
+            raise ValueError("ReadFromClientException requires for at least one ReadFromClientError")
+
+        # Either show any errors with severity greater ReadFromClientErrorSeverity.NotSet to the Exception notes,
+        # or otherwise all errors (all have ReadFromClientErrorSeverity.NotSet then)
+        notes_errors = tuple(
+            error for error in self.errors if error.severity.value > ReadFromClientErrorSeverity.NotSet.value
+        )
+
+        self.add_note("\n".join(str(error) for error in notes_errors or self.errors))
+
 
 class UniqueLockMethod(Enum):
     """
@@ -318,7 +353,8 @@ class BaseBone(object):
         if compute:
             if not isinstance(compute, Compute):
                 raise TypeError("compute must be an instanceof of Compute")
-
+            if not isinstance(compute.fn, t.Callable):
+                raise ValueError("'compute.fn' must be callable")
             # When readOnly is None, handle flag automatically
             if readOnly is None:
                 self.readOnly = True
@@ -882,12 +918,6 @@ class BaseBone(object):
                 case ComputeMethod.Always:
                     skel.accessedValues[name] = self._compute(skel, name)
                     return True
-
-                # Only compute once when loaded value is empty
-                case ComputeMethod.Once:
-                    if loadVal is None:
-                        skel.accessedValues[name] = self._compute(skel, name)
-                        return True
 
         # unserialize value to given config
         if self.languages and self.multiple:
