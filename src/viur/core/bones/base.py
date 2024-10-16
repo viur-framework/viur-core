@@ -353,7 +353,8 @@ class BaseBone(object):
         if compute:
             if not isinstance(compute, Compute):
                 raise TypeError("compute must be an instanceof of Compute")
-
+            if not isinstance(compute.fn, t.Callable):
+                raise ValueError("'compute.fn' must be callable")
             # When readOnly is None, handle flag automatically
             if readOnly is None:
                 self.readOnly = True
@@ -917,12 +918,6 @@ class BaseBone(object):
                 case ComputeMethod.Always:
                     skel.accessedValues[name] = self._compute(skel, name)
                     return True
-
-                # Only compute once when loaded value is empty
-                case ComputeMethod.Once:
-                    if loadVal is None:
-                        skel.accessedValues[name] = self._compute(skel, name)
-                        return True
 
         # unserialize value to given config
         if self.languages and self.multiple:

@@ -39,6 +39,7 @@ from .string import StringBone
 from .text import TextBone
 from .treeleaf import TreeLeafBone
 from .treenode import TreeNodeBone
+from .uid import UidBone
 from .uri import UriBone
 from .user import UserBone
 
@@ -78,6 +79,7 @@ __all = [
     "TextBone",
     "TreeLeafBone",
     "TreeNodeBone",
+    "UidBone",
     "UniqueLockMethod",
     "UniqueValue",
     "UserBone",
