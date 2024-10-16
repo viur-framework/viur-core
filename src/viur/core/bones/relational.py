@@ -1102,10 +1102,10 @@ class RelationalBone(BaseBone):
 
         return result
 
-    def createRelSkelFromKey(self, key: db.Key, rel: dict | None) -> dict:
-        return self.relskels_from_keys([key, rel])
+    def createRelSkelFromKey(self, key: db.Key, rel: dict | None) -> RelDict:
+        return self.relskels_from_keys([key, rel])[0]
 
-    def relskels_from_keys(self, key_rel_list: list[tuple]) -> list[RelDict] | None:
+    def relskels_from_keys(self, key_rel_list: list[tuple[db.Key, dict | None]]) -> list[RelDict] | None:
         """
         Creates a list of RelSkel instances valid for this bone from the given database key.
 
@@ -1220,9 +1220,9 @@ class RelationalBone(BaseBone):
             if not (rel := self.createRelSkelFromKey(parsed_value[0], parsed_value[1])):
                 return False
             if language:
-                skel[boneName][language] = rel[0]
+                skel[boneName][language] = rel
             else:
-                skel[boneName] = rel[0]
+                skel[boneName] = rel
         return True
 
     def getReferencedBlobs(self, skel: "SkeletonInstance", name: str) -> set[str]:
