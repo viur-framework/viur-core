@@ -353,7 +353,8 @@ class BaseBone(object):
         if compute:
             if not isinstance(compute, Compute):
                 raise TypeError("compute must be an instanceof of Compute")
-
+            if not isinstance(compute.fn, t.Callable):
+                raise ValueError("'compute.fn' must be callable")
             # When readOnly is None, handle flag automatically
             if readOnly is None:
                 self.readOnly = True
@@ -888,6 +889,7 @@ class BaseBone(object):
             skel.accessedValues[name] = self.getDefaultValue(skel)
             return False
 
+
         if self.unserialize_compute(skel, name, loadVal):
             return True
 
@@ -1011,11 +1013,6 @@ class BaseBone(object):
                 skel.accessedValues[name] = self._compute(skel, name)
                 return True
 
-            # Only compute once when loaded value is empty
-            case ComputeMethod.Once:
-                if loaded_value is None:
-                    skel.accessedValues[name] = self._compute(skel, name)
-                    return True
         return False
 
     def delete(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str):
