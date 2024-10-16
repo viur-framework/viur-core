@@ -1098,12 +1098,12 @@ class RelationalBone(BaseBone):
 
         return result
 
-    def createRelSkelFromKey(self, key: db.Key, rel: dict | None):
-        return self.createRelSkelFromKeys([key, rel])
+    def createRelSkelFromKey(self, key: db.Key, rel: dict | None) -> dict:
+        return self._relskel_from_keys([key, rel])
 
-    def createRelSkelFromKeys(self, key_rel_list: list[tuple]):
+    def _relskel_from_keys(self, key_rel_list: list[tuple]) -> dict:
         """
-        Creates a relSkel instance valid for this bone from the given database key.
+        Creates a list of RelSkel instances valid for this bone from the given database key.
 
         This method retrieves the entity corresponding to the provided key from the database, unserializes it
         into a reference skeleton, and returns a dictionary containing the reference skeleton and optional
@@ -1198,7 +1198,7 @@ class RelationalBone(BaseBone):
                 skel[boneName].setdefault(language, [])
 
         if self.multiple:
-            rel_list = self.createRelSkelFromKeys(parsed_value)
+            rel_list = self._relskel_from_keys(parsed_value)
             if append:
                 if language:
                     skel[boneName][language].extend(rel_list)
