@@ -420,7 +420,7 @@ class RelationalBone(BaseBone):
         super().serialize(skel, name, parentIndexed)
 
         # Clean old properties from entry (prevent name collision)
-        for k in skel.dbEntity.keys():
+        for k in skel.dbEntity:
             if k.startswith(f"{name}."):
                 del skel.dbEntity[k]
         indexed = self.indexed and parentIndexed
@@ -429,22 +429,19 @@ class RelationalBone(BaseBone):
             return False
         elif self.languages:
             res = {"_viurLanguageWrapper_": True}
-            if self.multiple:
-                for language in self.languages:
-                    res[language] = []
-                    if language in new_vals:
+            for language in self.languages:
+                if language in new_vals:
+                    if self.multiple:
+                        res[language] = []
                         for val in new_vals[language]:
                             using_data, ref_data = serialize_dest_rel(val)
                             res[language].append({"rel": using_data, "dest": ref_data})
-            else:
-                for language in self.languages:
-                    res[language] = []
-                    if language in new_vals:
-                        val = new_vals[language]
-                        if val and val["dest"]:
+                    else:
+                        if (val := new_vals[language]) and val["dest"]:
                             using_data, ref_data = serialize_dest_rel(val)
-                            res[language] = {"rel": using_data, "dest": ref_data}
-
+                            res[language] = {"rel": using_data, "dest": ref_data}       
+                        else:
+                            res[language] = None
                         else:
                             res[language] = None
         elif self.multiple:
