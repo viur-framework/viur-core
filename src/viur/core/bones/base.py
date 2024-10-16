@@ -829,8 +829,8 @@ class BaseBone(object):
         This function checks whether a bone is computed and if this is the case, it attempts to serialize the
         value with the appropriate calculation method
 
-        :param skel : The SkeletonInstance where the current Bone is located
-        :param name: The name of the Bone in the Skeleton
+        :param skel: The SkeletonInstance where the current bone is located
+        :param name: The name of the bone in the Skeleton
         """
         if not self.compute:
             return None
@@ -977,7 +977,7 @@ class BaseBone(object):
         :param loaded_value: The value from the DB Entity
         :return: True if the Bone was unserialized, False otherwise
         """
-        if not self.compute and self._prevent_compute:
+        if not self.compute or self._prevent_compute:
             return False
 
         match self.compute.interval.method:
