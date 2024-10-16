@@ -1115,17 +1115,17 @@ class RelationalBone(BaseBone):
         if not all(db_objs := db.Get([db.keyHelper(value[0], self.kind) for value in key_rel_list])):
             return None
         res_rel_skels = []
-        for i, db_obj in enumerate(db_objs):
+        for (key, rel), db_obj in zip(key_rel_list, db_objs):
             dest_skel = self._refSkelCache()
             dest_skel.unserialize(db_obj)
-            for k in dest_skel.keys():
+            for bone_name in dest_skel:
                 # Unserialize all bones from refKeys, then drop dbEntity - otherwise all properties will be copied
-                _ = dest_skel[k]
+                _ = dest_skel[bone_name]
             dest_skel.dbEntity = None
             res_rel_skels.append(
                 {
                     "dest": dest_skel,
-                    "rel": key_rel_list[i][1] or None
+                    "rel": rel or None
                 }
             )
         return res_rel_skels
