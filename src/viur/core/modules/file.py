@@ -607,9 +607,9 @@ class File(Tree):
         data = base64.urlsafe_b64decode(data).decode("UTF-8")
 
         match data.count("\0"):
-            case 3:
-                dlpath, valid_until, _ = data.split("\0")
             case 2:
+                dlpath, valid_until, _ = data.split("\0")
+            case 1:
                 # It's the old format, without an downloadFileName
                 dlpath, valid_until = data.split("\0")
             case _:
