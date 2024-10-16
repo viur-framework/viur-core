@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.20]
+
+- fix: `File.parse_download_url()`: `too many values to unpack` (#1287)
+
 ## [3.6.19]
 
 - fix: Rename `type_postfix` on `BaseBone` into `type_suffix` (#1275)
