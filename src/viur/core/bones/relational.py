@@ -442,8 +442,6 @@ class RelationalBone(BaseBone):
                             res[language] = {"rel": using_data, "dest": ref_data}       
                         else:
                             res[language] = None
-                        else:
-                            res[language] = None
         elif self.multiple:
             res = []
             for val in new_vals:
