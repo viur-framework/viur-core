@@ -1099,7 +1099,7 @@ class RelationalBone(BaseBone):
         return result
 
     def createRelSkelFromKey(self, key: db.Key, rel: dict | None):
-        return self.createRelSkelFromKey([key, rel])
+        return self.createRelSkelFromKeys([key, rel])
 
     def createRelSkelFromKeys(self, key_rel_list: list[tuple]):
         """
