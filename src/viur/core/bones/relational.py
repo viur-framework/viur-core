@@ -45,6 +45,7 @@ class RelationalUpdateLevel(enum.Enum):
     OnValueAssignment = 2
     """Update the relational information only when a new value is assigned to the bone."""
 
+
 class RelDict(t.TypedDict):
     dest: SkeletonInstance
     rel: RelSkel | None
