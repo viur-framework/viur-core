@@ -889,7 +889,6 @@ class BaseBone(object):
             skel.accessedValues[name] = self.getDefaultValue(skel)
             return False
 
-
         if self.unserialize_compute(skel, name, loadVal):
             return True
 
