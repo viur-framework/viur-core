@@ -55,7 +55,6 @@ class UidBone(BaseBone):
         fillchar: str = "*",
         length: int = 13,
         pattern: str | t.Callable | None = "*",
-        readOnly: bool = False,
         **kwargs
     ):
         """
@@ -71,13 +70,12 @@ class UidBone(BaseBone):
         super().__init__(
             compute=Compute(fn=generate_fn, interval=ComputeInterval(ComputeMethod.Once)),
             unique=UniqueValue(UniqueLockMethod.SameValue, False, "Unique Value already in use"),
-            readOnly=readOnly,
             **kwargs
         )
         if self.multiple or self.languages:
             raise ValueError("UidBone cannot be multiple or translated")
 
-        if self.readOnly:
+        if not self.readOnly:
             raise ValueError("UidBone must be read-only")
 
         self.fillchar = str(fillchar)
