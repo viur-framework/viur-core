@@ -402,15 +402,12 @@ class RelationalBone(BaseBone):
         :raises AssertionError: If a programming error is detected.
         """
 
-        old_relational_locks = set(skel.dbEntity.get(f"{name}_outgoingRelationalLocks") or [])
-        new_relational_locks = set()
 
         def serialize_dest_rel(in_value: dict | None = None):
             if not in_value:
                 return None, None
             if dest_val := in_value.get("dest"):
                 ref_data_serialized = dest_val.serialize(parentIndexed=indexed)
-                new_relational_locks.add(dest_val["key"])
             else:
                 ref_data_serialized = None
             if rel_data := in_value.get("rel"):
@@ -453,7 +450,6 @@ class RelationalBone(BaseBone):
                             res[language] = None
         elif self.multiple:
             res = []
-
             for val in new_vals:
                 using_data, ref_data = serialize_dest_rel(val)
                 res.append({"rel": using_data, "dest": ref_data})
@@ -468,35 +464,8 @@ class RelationalBone(BaseBone):
         elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
             skel.dbEntity.exclude_from_indexes.add(name)
 
-        # Ensure outgoing Locks are up2date
-        if self.consistency != RelationalConsistency.PreventDeletion:
-            # We don't need to lock anything, but may delete old locks held
-            new_relational_locks = set()
-
-        # We should always run inside a transaction so we can safely get+put
-        skel.dbEntity[f"{name}_outgoingRelationalLocks"] = list(new_relational_locks)
-        incomming_locks = []
-        for new_referenced_enity in db.Get(list(new_relational_locks - old_relational_locks)):
-            if not new_referenced_enity:
-                continue
-            new_referenced_enity.setdefault("viur_incomming_relational_locks", [])
-            if skel["key"] not in new_referenced_enity["viur_incomming_relational_locks"]:
-                new_referenced_enity["viur_incomming_relational_locks"].append(skel["key"])
-                incomming_locks.append(new_referenced_enity)
-
-        for old_referenced_enity in db.Get(list(old_relational_locks - new_relational_locks)):
-            if not old_referenced_enity:
-                continue
-            old_referenced_enity.setdefault("viur_incomming_relational_locks", [])
-            if skel["key"] in old_referenced_enity["viur_incomming_relational_locks"]:
-                old_referenced_enity["viur_incomming_relational_locks"].remove(skel["key"])
-                incomming_locks.append(old_referenced_enity)
-
-        db.Put(incomming_locks)
-
         # Delete legacy property (PR #1244)  #TODO: Remove in ViUR4
         skel.dbEntity.pop(f"{name}_outgoingRelationalLocks", None)
-
 
         return True
 
