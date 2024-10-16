@@ -439,7 +439,7 @@ class RelationalBone(BaseBone):
                     else:
                         if (val := new_vals[language]) and val["dest"]:
                             using_data, ref_data = serialize_dest_rel(val)
-                            res[language] = {"rel": using_data, "dest": ref_data}       
+                            res[language] = {"rel": using_data, "dest": ref_data}
                         else:
                             res[language] = None
         elif self.multiple:
