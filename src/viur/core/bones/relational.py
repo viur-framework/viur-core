@@ -45,6 +45,9 @@ class RelationalUpdateLevel(enum.Enum):
     OnValueAssignment = 2
     """Update the relational information only when a new value is assigned to the bone."""
 
+class RelDict(t.TypedDict):
+    dest: SkeletonInstance
+    rel: RelSkel | None
 
 class RelationalBone(BaseBone):
     """
@@ -403,12 +406,12 @@ class RelationalBone(BaseBone):
         """
         super().serialize(skel, name, parentIndexed)
         # Clean old properties from entry (prevent name collision)
-        for k in list(skel.dbEntity.keys()):
-            if k.startswith(f"{name}."):
-                del skel.dbEntity[k]
+        for entity_keys in skel.dbEntity:
+            if entity_keys.startswith(f"{name}."):
+                del skel.dbEntity[entity_keys]
         indexed = self.indexed and parentIndexed
         if name not in skel.accessedValues:
-            return
+            return False
         elif not skel.accessedValues[name]:
             res = None
         elif self.languages and self.multiple:
@@ -1099,9 +1102,9 @@ class RelationalBone(BaseBone):
         return result
 
     def createRelSkelFromKey(self, key: db.Key, rel: dict | None) -> dict:
-        return self._relskel_from_keys([key, rel])
+        return self.relskels_from_keys([key, rel])
 
-    def _relskel_from_keys(self, key_rel_list: list[tuple]) -> dict:
+    def relskels_from_keys(self, key_rel_list: list[tuple]) -> list[RelDict] | None:
         """
         Creates a list of RelSkel instances valid for this bone from the given database key.
 
@@ -1109,9 +1112,10 @@ class RelationalBone(BaseBone):
         into a reference skeleton, and returns a dictionary containing the reference skeleton and optional
         relation data.
 
-        :param Union[str, db.Key] key: The database key of the entity for which a relSkel instance is to be created.
+        :param key_rel_list: List of tuples with the first value in the tuple is the
+            key and the second is and RelSkel or None
 
-        :return: A dictionary containing a reference skeleton and optional relation data.
+        :return: A dictionary containing a reference skeleton and optional relation data or None.
         :rtype: dict
         """
 
@@ -1198,7 +1202,7 @@ class RelationalBone(BaseBone):
                 skel[boneName].setdefault(language, [])
 
         if self.multiple:
-            rel_list = self._relskel_from_keys(parsed_value)
+            rel_list = self.relskels_from_keys(parsed_value)
             if append:
                 if language:
                     skel[boneName][language].extend(rel_list)
