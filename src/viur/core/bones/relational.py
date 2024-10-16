@@ -47,7 +47,7 @@ class RelationalUpdateLevel(enum.Enum):
 
 
 class RelDict(t.TypedDict):
-    dest: SkeletonInstance
+    dest: "SkeletonInstance"
     rel: RelSkel | None
 
 class RelationalBone(BaseBone):
