@@ -1619,22 +1619,22 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             return skel.write(update_relations=update_relations)
 
-        # Retry loop
-        while True:
-            try:
-                if db.IsInTransaction:
-                    return __update_txn()
-                else:
+        if not db.IsInTransaction:
+            # Retry loop
+            while True:
+                try:
                     return db.RunInTransaction(__update_txn)
 
-            except db.ViurDatastoreError as e:
-                retry -= 1
-                if retry < 0:
-                    raise
+                except db.ViurDatastoreError as e:
+                    retry -= 1
+                    if retry < 0:
+                        raise
 
-                logging.debug(f"{e}, retrying {retry} more times")
+                    logging.debug(f"{e}, retrying {retry} more times")
 
-            time.sleep(1)
+                time.sleep(1)
+        else:
+            return __update_txn()
 
     @classmethod
     def preProcessBlobLocks(cls, skel: SkeletonInstance, locks):
