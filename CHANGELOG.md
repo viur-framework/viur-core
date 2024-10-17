@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.21]
+
+- fix: `Skeleton.processRemovedRelations` unable to handle empty values (#1288)
+
 ## [3.6.20]
 
 - fix: `File.parse_download_url()`: `too many values to unpack` (#1287)
