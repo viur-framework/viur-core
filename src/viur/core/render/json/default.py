@@ -1,7 +1,9 @@
+import fnmatch
 import json
+import logging
 import typing as t
 from enum import Enum
-
+from viur.core.modules.file import File
 from viur.core import bones, db, current
 from viur.core.render.abstract import AbstractRenderer
 from viur.core.skeleton import SkeletonInstance
@@ -88,7 +90,11 @@ class DefaultRender(AbstractRenderer):
         if isinstance(bone, bones.RelationalBone):
             if isinstance(value, dict):
                 return {
-                    "dest": self.renderSkelValues(value["dest"], injectDownloadURL=isinstance(bone, bones.FileBone)),
+                    "dest": self.renderSkelValues(
+                        value["dest"],
+                        bone_path=f"{skel.kindName}.{bone.name}",
+                        injectDownloadURL=isinstance(bone, bones.FileBone)
+                    ),
                     "rel": (self.renderSkelValues(value["rel"], injectDownloadURL=isinstance(bone, bones.FileBone))
                             if value["rel"] else None),
                 }
@@ -122,7 +128,10 @@ class DefaultRender(AbstractRenderer):
             res = self.renderSingleBoneValue(boneVal, bone, skel, key)
         return res
 
-    def renderSkelValues(self, skel: SkeletonInstance, injectDownloadURL: bool = False) -> t.Optional[dict]:
+    def renderSkelValues(self,
+                         skel: SkeletonInstance,
+                         bone_path: t.Optional[str] = None,
+                         injectDownloadURL: bool = False) -> t.Optional[dict]:
         """
         Prepares values of one :class:`viur.core.skeleton.Skeleton` or a list of skeletons for output.
 
@@ -140,15 +149,39 @@ class DefaultRender(AbstractRenderer):
 
         if (
             injectDownloadURL
-            and (file := getattr(conf.main_app, "file", None))
             and "dlkey" in skel
             and "name" in skel
         ):
-            res["downloadUrl"] = file.create_download_url(
+            res["downloadUrl"] = File.create_download_url(
                 skel["dlkey"],
                 skel["name"],
                 expires=conf.render_json_download_url_expiration
             )
+
+
+            # generate the downloadUrl for derives
+            search_paths= []
+            if search_path := current.request.get().request.headers.get("X-VIUR-DERIVED-DOWNLOAD-URL"):
+                search_paths.append(search_path)
+            if conf.file_generate_download_url_for_derives:
+
+                if isinstance(conf.file_generate_download_url_for_derives,list):
+                    search_paths.extend(conf.file_generate_download_url_for_derives)
+                else:
+                    search_path.append("*")
+
+            for search_path in search_paths:
+                if fnmatch.fnmatch(bone_path, search_path):
+                    break
+            else:
+                return res
+
+            for derive_name in res.get("derived",{}).get("files",{}):
+                res["derived"]["files"][derive_name]["downloadUrl"]=File.create_download_url(
+                    skel["dlkey"],
+                    derive_name,
+                    derived=True
+                )
         return res
 
     def renderEntry(self, skel: SkeletonInstance, actionName, params=None):
