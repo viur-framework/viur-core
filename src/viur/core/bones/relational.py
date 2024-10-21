@@ -46,6 +46,10 @@ class RelationalUpdateLevel(enum.Enum):
     """Update the relational information only when a new value is assigned to the bone."""
 
 
+class RelDict(t.TypedDict):
+    dest: "SkeletonInstance"
+    rel: t.Optional["RelSkel"]
+
 class RelationalBone(BaseBone):
     """
     The base class for all relational bones in the ViUR framework.
@@ -1077,36 +1081,41 @@ class RelationalBone(BaseBone):
 
         return result
 
-    def createRelSkelFromKey(self, key: t.Union[str, "db.Key"], rel: dict | None = None):
+    def createRelSkelFromKey(self, key: db.Key, rel: dict | None) -> RelDict:
+        return self.relskels_from_keys([key, rel])[0]
+
+    def relskels_from_keys(self, key_rel_list: list[tuple[db.Key, dict | None]]) -> list[RelDict] | None:
         """
-        Creates a relSkel instance valid for this bone from the given database key.
+        Creates a list of RelSkel instances valid for this bone from the given database key.
 
         This method retrieves the entity corresponding to the provided key from the database, unserializes it
         into a reference skeleton, and returns a dictionary containing the reference skeleton and optional
         relation data.
 
-        :param Union[str, db.Key] key: The database key of the entity for which a relSkel instance is to be created.
-        :param Union[dict, None]rel: Optional relation data to be included in the resulting dictionary. Default is None.
+        :param key_rel_list: List of tuples with the first value in the tuple is the
+            key and the second is and RelSkel or None
 
-        :return: A dictionary containing a reference skeleton and optional relation data.
+        :return: A dictionary containing a reference skeleton and optional relation data or None.
         :rtype: dict
         """
 
-        key = db.keyHelper(key, self.kind)
-        entity = db.Get(key)
-        if not entity:
-            logging.error(f"Key {key} not found")
+        if not all(db_objs := db.Get([db.keyHelper(value[0], self.kind) for value in key_rel_list])):
             return None
-        relSkel = self._refSkelCache()
-        relSkel.unserialize(entity)
-        for k in relSkel.keys():
-            # Unserialize all bones from refKeys, then drop dbEntity - otherwise all properties will be copied
-            _ = relSkel[k]
-        relSkel.dbEntity = None
-        return {
-            "dest": relSkel,
-            "rel": rel or None
-        }
+        res_rel_skels = []
+        for (key, rel), db_obj in zip(key_rel_list, db_objs):
+            dest_skel = self._refSkelCache()
+            dest_skel.unserialize(db_obj)
+            for bone_name in dest_skel:
+                # Unserialize all bones from refKeys, then drop dbEntity - otherwise all properties will be copied
+                _ = dest_skel[bone_name]
+            dest_skel.dbEntity = None
+            res_rel_skels.append(
+                {
+                    "dest": dest_skel,
+                    "rel": rel or None
+                }
+            )
+        return res_rel_skels
 
     def setBoneValue(
         self,
@@ -1132,79 +1141,67 @@ class RelationalBone(BaseBone):
         """
         assert not (bool(self.languages) ^ bool(language)), "Language is required or not supported"
         assert not append or self.multiple, "Can't append - bone is not multiple"
+
+        def tuple_check(in_value: tuple | None = None) -> bool:
+            """
+            Return False if the given value is a tuple with a length of two.
+            In addition, the first field in the tuple must be a str,int or db.key.
+            Furthermore, the second field must be a skeletonInstanceClassRef.
+            """
+            return not (isinstance(in_value, tuple) and len(in_value) == 2
+                        and isinstance(in_value[0], (str, int, db.Key))
+                        and isinstance(in_value[1], self._skeletonInstanceClassRef))
+
         if not self.multiple and not self.using:
-            if not isinstance(value, (str, db.Key)):
-                logging.error(value)
-                logging.error(type(value))
-                raise ValueError(f"You must supply exactly one Database-Key to {boneName}")
-            realValue = (value, None)
+            if not isinstance(value, (str, int, db.Key)):
+                raise ValueError(f"You must supply exactly one Database-Key str or int to {boneName}")
+            parsed_value = (value, None)
         elif not self.multiple and self.using:
-            if (
-                not isinstance(value, tuple) or len(value) != 2
-                or not isinstance(value[0], (str, db.Key))
-                or not isinstance(value[1], self._skeletonInstanceClassRef)
-            ):
+            if tuple_check(value):
                 raise ValueError(f"You must supply a tuple of (Database-Key, relSkel) to {boneName}")
-            realValue = value
+            parsed_value = value
         elif self.multiple and not self.using:
-            if (
-                not isinstance(value, (str, db.Key))
-                and not (isinstance(value, list))
-                and all(isinstance(k, (str, db.Key)) for k in value)
-            ):
+            if not isinstance(value, (str, int, db.Key)) and not (isinstance(value, list)) \
+                    and all([isinstance(val, (str, int, db.Key)) for val in value]):
                 raise ValueError(f"You must supply a Database-Key or a list hereof to {boneName}")
             if isinstance(value, list):
-                realValue = [(x, None) for x in value]
+                parsed_value = [(key, None) for key in value]
             else:
-                realValue = [(value, None)]
+                parsed_value = [(value, None)]
         else:  # which means (self.multiple and self.using)
-            if (
-                not (isinstance(value, tuple) and len(value) == 2 and isinstance(value[0], (str, db.Key))
-                     and isinstance(value[1], self._skeletonInstanceClassRef))
-                and not (isinstance(value, list)
-                         and all((isinstance(x, tuple) and len(x) == 2 and (isinstance(x[0], (str, db.Key)))
-                                  and isinstance(x[1], self._skeletonInstanceClassRef) for x in value)))
-            ):
+            if tuple_check(value) and not (isinstance(value, list) and all(tuple_check(val) for val in value)):
                 raise ValueError(f"You must supply (db.Key, RelSkel) or a list hereof to {boneName}")
-            if not isinstance(value, list):
-                realValue = [value]
+            if isinstance(value, list):
+                parsed_value = value
             else:
-                realValue = value
-        if not self.multiple:
-            rel = self.createRelSkelFromKey(realValue[0], realValue[1])
-            if not rel:
+                parsed_value = [value]
+
+        if boneName not in skel:
+            skel[boneName] = {}
+            if language:
+                skel[boneName].setdefault(language, [])
+
+        if self.multiple:
+            rel_list = self.relskels_from_keys(parsed_value)
+            if append:
+                if language:
+                    skel[boneName][language].extend(rel_list)
+                else:
+                    if not isinstance(skel[boneName], list):
+                        skel[boneName] = []
+                    skel[boneName].extend(rel_list)
+            else:
+                if language:
+                    skel[boneName][language] = rel_list
+                else:
+                    skel[boneName] = rel_list
+        else:
+            if not (rel := self.createRelSkelFromKey(parsed_value[0], parsed_value[1])):
                 return False
             if language:
-                if boneName not in skel or not isinstance(skel[boneName], dict):
-                    skel[boneName] = {}
                 skel[boneName][language] = rel
             else:
                 skel[boneName] = rel
-        else:
-            tmpRes = []
-            for val in realValue:
-                rel = self.createRelSkelFromKey(val[0], val[1])
-                if not rel:
-                    return False
-                tmpRes.append(rel)
-            if append:
-                if language:
-                    if boneName not in skel or not isinstance(skel[boneName], dict):
-                        skel[boneName] = {}
-                    if not isinstance(skel[boneName].get(language), list):
-                        skel[boneName][language] = []
-                    skel[boneName][language].extend(tmpRes)
-                else:
-                    if boneName not in skel or not isinstance(skel[boneName], list):
-                        skel[boneName] = []
-                    skel[boneName].extend(tmpRes)
-            else:
-                if language:
-                    if boneName not in skel or not isinstance(skel[boneName], dict):
-                        skel[boneName] = {}
-                    skel[boneName][language] = tmpRes
-                else:
-                    skel[boneName] = tmpRes
         return True
 
     def getReferencedBlobs(self, skel: "SkeletonInstance", name: str) -> set[str]:
