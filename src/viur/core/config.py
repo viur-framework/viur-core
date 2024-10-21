@@ -798,7 +798,7 @@ class Conf(ConfigType):
     file_thumbnailer_url: t.Optional[str] = None
     # TODO: """docstring"""
 
-    file_generate_download_url_for_derives: bool | list[str] = False
+    file_generate_download_url_for_derives: bool | t.Iterable[str] = False
     """
     If True, for all derives, a download URL is created as well.
     
