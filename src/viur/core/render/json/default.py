@@ -167,7 +167,7 @@ class DefaultRender(AbstractRenderer):
                 if isinstance(conf.file_generate_download_url_for_derives, list):
                     search_paths.extend(conf.file_generate_download_url_for_derives)
                 else:
-                    search_path.append("*")
+                    search_paths.append("*")
 
             for search_path in search_paths:
                 if fnmatch.fnmatch(bone_path, search_path):
