@@ -420,9 +420,9 @@ class RelationalBone(BaseBone):
         super().serialize(skel, name, parentIndexed)
 
         # Clean old properties from entry (prevent name collision)
-        for k in skel.dbEntity:
-            if k.startswith(f"{name}."):
-                del skel.dbEntity[k]
+        for key in skel.dbEntity:
+            if key.startswith(f"{name}."):
+                del skel.dbEntity[key]
         indexed = self.indexed and parentIndexed
 
         if not (new_vals := skel.accessedValues.get(name)):
@@ -440,8 +440,6 @@ class RelationalBone(BaseBone):
                         if (val := new_vals[language]) and val["dest"]:
                             using_data, ref_data = serialize_dest_rel(val)
                             res[language] = {"rel": using_data, "dest": ref_data}
-                        else:
-                            res[language] = None
         elif self.multiple:
             res = []
             for val in new_vals:
