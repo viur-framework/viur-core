@@ -156,6 +156,9 @@ for name, level in {
 for handler in logger.handlers[:]:
     logger.removeHandler(handler)
 
+EXCLUDED_LOGGER_DEFAULTS = list(EXCLUDED_LOGGER_DEFAULTS)
+EXCLUDED_LOGGER_DEFAULTS.append("google.cloud.logging_v2.handlers.transports.background_thread")
+
 # Disable internal logging
 # https://github.com/googleapis/python-logging/issues/13#issuecomment-539723753
 for logger_name in EXCLUDED_LOGGER_DEFAULTS:

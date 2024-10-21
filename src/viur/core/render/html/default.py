@@ -13,12 +13,13 @@ from viur.core.bones import *
 from viur.core.i18n import LanguageWrapper, TranslationExtension
 from viur.core.skeleton import SkelList, SkeletonInstance
 from . import utils as jinjaUtils
+from ..abstract import AbstractRenderer
 from ..json.default import CustomJsonEncoder
 
 KeyValueWrapper = collections.namedtuple("KeyValueWrapper", ["key", "descr"])
 
 
-class Render(object):
+class Render(AbstractRenderer):
     """
         The core jinja2 render.
 
@@ -55,14 +56,13 @@ class Render(object):
 
     __haveEnvImported_ = False
 
-    def __init__(self, parent=None, *args, **kwargs):
-        super(Render, self).__init__(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         if not Render.__haveEnvImported_:
             # We defer loading our plugins to this point to avoid circular imports
             # noinspection PyUnresolvedReferences
             from . import env
             Render.__haveEnvImported_ = True
-        self.parent = parent
 
     def getTemplateFileName(
         self,
@@ -443,6 +443,15 @@ class Render(object):
         """
         template = self.get_template("listRootNodes", tpl)
         return template.render(repos=repos, action=action, params=params, **kwargs)
+
+    def render(self, action: str, skel: t.Optional[SkeletonInstance] = None, tpl: t.Optional[str] = None, **kwargs):
+        """
+        Universal rendering function.
+
+        Handles an action and a skeleton. It shall be used by any action, in future.
+        It additionally allows for a tpl-parameter in HTML-renderer.
+        """
+        return self.render_action_template(action, skel, action, tpl, params=kwargs)
 
     def renderEmail(self,
                     dests: t.List[str],

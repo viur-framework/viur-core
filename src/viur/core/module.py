@@ -33,8 +33,9 @@ class Method:
         # Attributes
         self.exposed = None  # None = unexposed, True = exposed, False = internal exposed
         self.ssl = False
-        self.methods = ("GET", "POST", "HEAD")
+        self.methods = ("GET", "POST", "HEAD", "OPTIONS")
         self.seo_language_map = None
+        self.cors_allow_headers = None
 
         # Inspection
         self.signature = inspect.signature(self._func)
@@ -265,28 +266,30 @@ class Method:
 
                 raise errors.Unauthorized(self.access["message"]) if self.access["message"] else errors.Unauthorized()
 
-            ok = False
-            for acc in self.access["access"]:
-                if trace:
-                    logging.debug(f"@access checking {acc=}")
+            ok = "root" in user["access"]
 
-                # Callable directly tests access
-                if callable(acc):
-                    if acc():
+            if not ok and self.access["access"]:
+                for acc in self.access["access"]:
+                    if trace:
+                        logging.debug(f"@access checking {acc=}")
+
+                    # Callable directly tests access
+                    if callable(acc):
+                        if acc():
+                            ok = True
+                            break
+
+                        continue
+
+                    # Otherwise, check for access rights
+                    if isinstance(acc, str):
+                        acc = (acc, )
+
+                    assert isinstance(acc, (tuple, list, set))
+
+                    if all(a in user["access"] for a in acc):
                         ok = True
                         break
-
-                    continue
-
-                # Otherwise, check for access rights
-                if isinstance(acc, str):
-                    acc = (acc, )
-
-                assert isinstance(acc, (tuple, list, set))
-
-                if not set(acc).difference(user["access"]):
-                    ok = True
-                    break
 
             if trace:
                 logging.debug(f"@access {ok=}")

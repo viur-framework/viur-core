@@ -1,11 +1,16 @@
 import logging
+import typing as t
 from viur.core import Module, conf, db, current, i18n, tasks, skeleton
 from viur.core.bones import StringBone, TextBone, SelectBone, TreeLeafBone
-from viur.core.bones.text import _defaultTags
+from viur.core.bones.text import HtmlBoneConfiguration
 from viur.core.prototypes import List
 
 
 MODULECONF_KINDNAME = "viur-module-conf"
+
+_LIMITED_HTML: t.Final[HtmlBoneConfiguration] = conf.bone_html_default_allow | {
+    "validTags": "a abbr b blockquote br div em h1 h2 h3 h4 h5 h6 hr i li ol p span strong sub sup u ul".split(),
+}
 
 
 class ModuleConfScriptSkel(skeleton.RelSkel):
@@ -59,11 +64,6 @@ class ModuleConfScriptSkel(skeleton.RelSkel):
 class ModuleConfSkel(skeleton.Skeleton):
     kindName = MODULECONF_KINDNAME
 
-    _valid_tags = ['b', 'a', 'i', 'u', 'span', 'div', 'p', 'ol', 'ul', 'li', 'abbr', 'sub', 'sup', 'h1', 'h2', 'h3',
-                   'h4', 'h5', 'h6', 'br', 'hr', 'strong', 'blockquote', 'em']
-    _valid_html = _defaultTags.copy()
-    _valid_html["validTags"] = _valid_tags
-
     name = StringBone(
         descr=i18n.translate("modulename"),
         readOnly=True,
@@ -71,17 +71,17 @@ class ModuleConfSkel(skeleton.Skeleton):
 
     help_text = TextBone(
         descr=i18n.translate("module helptext"),
-        validHtml=_valid_html,
+        validHtml=_LIMITED_HTML,
     )
 
     help_text_add = TextBone(
         descr=i18n.translate("add helptext"),
-        validHtml=_valid_html,
+        validHtml=_LIMITED_HTML,
     )
 
     help_text_edit = TextBone(
         descr=i18n.translate("edit helptext"),
-        validHtml=_valid_html,
+        validHtml=_LIMITED_HTML,
     )
 
     scripts = TreeLeafBone(
@@ -106,6 +106,7 @@ class ModuleConf(List):
     MODULES = set()  # will be filled by read_all_modules
     kindName = MODULECONF_KINDNAME
     accessRights = ["edit"]
+    default_order = None  # disable default ordering for ModuleConf
 
     def adminInfo(self):
         return conf.moduleconf_admin_info or {}
@@ -141,7 +142,7 @@ class ModuleConf(List):
     def get_by_module_name(cls, module_name: str) -> None | skeleton.SkeletonInstance:
         db_key = db.Key(MODULECONF_KINDNAME, module_name)
         skel = conf.main_app.vi._moduleconf.viewSkel()
-        if not skel.fromDB(db_key):
+        if not skel.read(db_key):
             logging.error(f"module({module_name}) not found")
             return None
 
@@ -177,13 +178,10 @@ class ModuleConf(List):
                     skel = conf.main_app.vi._moduleconf.addSkel()
                     skel["key"] = db.Key(MODULECONF_KINDNAME, module_name)
                     skel["name"] = module_name
-                    skel.toDB()
+                    skel.write()
 
                 # Collect children
                 collect_modules(module, depth=depth + 1, prefix=f"{module_name}.")
 
         collect_modules(conf.main_app.vi)
         # TODO: Remove entries from MODULECONF_KINDNAME which are in db_module_names but not in ModuleConf.MODULES
-
-
-ModuleConf.json = True

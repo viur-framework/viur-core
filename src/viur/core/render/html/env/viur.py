@@ -1,5 +1,4 @@
 from collections import OrderedDict
-
 import logging
 import os
 import typing as t
@@ -7,12 +6,15 @@ import urllib
 import urllib.parse
 from datetime import timedelta
 from hashlib import sha512
+import jinja2
+from deprecated.sphinx import deprecated
 from qrcode import make as qrcode_make
 from qrcode.image import svg as qrcode_svg
 
 import string
 from viur.core import Method, current, db, errors, prototypes, securitykey, utils
 from viur.core.config import conf
+from viur.core.i18n import LanguageWrapper
 from viur.core.i18n import translate as translate_class
 from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
 from viur.core.request import TEMPLATE_STYLE_KEY
@@ -173,7 +175,7 @@ def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel"
             return False
 
         if "canView" in dir(obj):
-            if not skel.fromDB(key):
+            if not skel.read(key):
                 logging.info(f"getSkel: Entry {key} not found")
                 return None
             if isinstance(obj, prototypes.singleton.Singleton):
@@ -201,7 +203,7 @@ def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel"
                 return None
 
         else:  # No Access-Test for this module
-            if not skel.fromDB(key):
+            if not skel.read(key):
                 return None
         skel.renderPreparation = render.renderBoneValue
         return skel
@@ -417,6 +419,7 @@ def updateURL(render: Render, **kwargs) -> str:
 
 
 @jinjaGlobalFilter
+@deprecated(version="3.7.0", reason="Use Jinja filter filesizeformat instead", action="always")
 def fileSize(render: Render, value: int | float, binary: bool = False) -> str:
     """
     Jinja2 filter: Format the value in an 'human-readable' file size (i.e. 13 kB, 4.1 MB, 102 Bytes, etc).
@@ -429,53 +432,7 @@ def fileSize(render: Render, value: int | float, binary: bool = False) -> str:
 
     :returns: The formatted file size string in human readable format.
     """
-    bytes = float(value)
-    base = binary and 1024 or 1000
-
-    prefixes = [
-        (binary and 'KiB' or 'kB'),
-        (binary and 'MiB' or 'MB'),
-        (binary and 'GiB' or 'GB'),
-        (binary and 'TiB' or 'TB'),
-        (binary and 'PiB' or 'PB'),
-        (binary and 'EiB' or 'EB'),
-        (binary and 'ZiB' or 'ZB'),
-        (binary and 'YiB' or 'YB')
-    ]
-
-    if bytes == 1:
-        return '1 Byte'
-    elif bytes < base:
-        return '%d Bytes' % bytes
-
-    unit = 0
-    prefix = ""
-
-    for i, prefix in enumerate(prefixes):
-        unit = base ** (i + 2)
-        if bytes < unit:
-            break
-
-    return f'{(base * bytes / unit):.1f} {prefix}'
-
-
-@jinjaGlobalFilter
-def urlencode(render: Render, val: str) -> str:
-    """
-    Jinja2 filter: Make a string URL-safe.
-
-    :param render: The html-renderer instance.
-    :param val: String to be quoted.
-    :returns: Quoted string.
-    """
-    # quote_plus fails if val is None
-    if not val:
-        return ""
-
-    if isinstance(val, str):
-        val = val.encode("UTF-8")
-
-    return urllib.parse.quote_plus(val)
+    return jinja2.filters.do_filesizeformat(value, binary)
 
 
 # TODO
@@ -635,7 +592,7 @@ def renderEditForm(render: Render,
 
         res += sectionTpl.render(
             categoryName=category,
-            categoryClassName="".join([x for x in category if x in string.ascii_letters]),
+            categoryClassName="".join(ch for ch in str(category) if ch in string.ascii_letters),
             categoryContent=categoryContent,
             allReadOnly=allReadOnly,
             allHidden=allHidden
@@ -679,7 +636,8 @@ def downloadUrlFor(
     fileObj: dict,
     expires: t.Optional[int] = conf.render_html_download_url_expiration,
     derived: t.Optional[str] = None,
-    downloadFileName: t.Optional[str] = None
+    downloadFileName: t.Optional[str] = None,
+    language: t.Optional[str] = None,
 ) -> str:
     """
     Constructs a signed download-url for the given file-bone. Mostly a wrapper around
@@ -694,8 +652,15 @@ def downloadUrlFor(
             Optional the filename of a derived file,
             otherwise the download-link will point to the originally uploaded file.
         :param downloadFileName: The filename to use when saving the response payload locally.
+        :param language: Language overwrite if fileObj has multiple languages and we want to explicitly specify one
         :return: THe signed download-url relative to the current domain (eg /download/...)
     """
+
+    if isinstance(fileObj, LanguageWrapper):
+        language = language or current.language.get()
+        if not language or not (fileObj := fileObj.get(language)):
+            return ""
+
     if "dlkey" not in fileObj and "dest" in fileObj:
         fileObj = fileObj["dest"]
 
@@ -733,7 +698,8 @@ def srcSetFor(
     fileObj: dict,
     expires: t.Optional[int] = conf.render_html_download_url_expiration,
     width: t.Optional[int] = None,
-    height: t.Optional[int] = None
+    height: t.Optional[int] = None,
+    language: t.Optional[str] = None,
 ) -> str:
     """
     Generates a string suitable for use as the srcset tag in html. This functionality provides the browser with a list
@@ -750,11 +716,18 @@ def srcSetFor(
             If a given width is not available, it will be skipped.
         :param height: A list of heights that should be included in the srcset.
             If a given height is not available, it will be skipped.
-
+        :param language: Language overwrite if fileObj has multiple languages and we want to explicitly specify one
     :return: The srctag generated or an empty string if a invalid file object was supplied
     """
-    return file.File.create_src_set(fileObj, expires, width, height)
+    return file.File.create_src_set(fileObj, expires, width, height, language)
 
+
+@jinjaGlobalFunction
+def serving_url_for(render: Render, *args, **kwargs):
+    """
+    Jinja wrapper for File.create_internal_serving_url(), see there for parameter information.
+    """
+    return file.File.create_internal_serving_url(*args, **kwargs)
 
 @jinjaGlobalFunction
 def seoUrlForEntry(render: Render, *args, **kwargs):

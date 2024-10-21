@@ -177,7 +177,6 @@ class translate:
     def __repr__(self) -> str:
         return f"<translate object for {self.key} with force_lang={self.force_lang}>"
 
-
     def __str__(self) -> str:
         if self.translationCache is None:
             global systemTranslations
@@ -426,7 +425,7 @@ def add_missing_translation(
     skel["usage_lineno"] = lineno
     skel["usage_variables"] = variables or []
     skel["creator"] = Creator.VIUR
-    skel.toDB()
+    skel.write()
 
     # Add to system translation to avoid triggering this method again
     systemTranslations[key] = {
@@ -457,7 +456,7 @@ def migrate_translation(
     skel.setEntity(entity)
     skel["key"] = key
     try:
-        skel.toDB()
+        skel.write()
     except ValueError as exc:
         logging.exception(exc)
         if "unique value" in exc.args[0] and "recently claimed" in exc.args[0]:
