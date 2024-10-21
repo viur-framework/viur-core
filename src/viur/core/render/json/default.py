@@ -158,14 +158,13 @@ class DefaultRender(AbstractRenderer):
                 expires=conf.render_json_download_url_expiration
             )
 
-
             # generate the downloadUrl for derives
-            search_paths= []
+            search_paths = []
             if search_path := current.request.get().request.headers.get("X-VIUR-DERIVED-DOWNLOAD-URL"):
                 search_paths.append(search_path)
             if conf.file_generate_download_url_for_derives:
 
-                if isinstance(conf.file_generate_download_url_for_derives,list):
+                if isinstance(conf.file_generate_download_url_for_derives, list):
                     search_paths.extend(conf.file_generate_download_url_for_derives)
                 else:
                     search_path.append("*")
@@ -176,8 +175,8 @@ class DefaultRender(AbstractRenderer):
             else:
                 return res
 
-            for derive_name in res.get("derived",{}).get("files",{}):
-                res["derived"]["files"][derive_name]["downloadUrl"]=File.create_download_url(
+            for derive_name in res.get("derived", {}).get("files", {}):
+                res["derived"]["files"][derive_name]["downloadUrl"] = File.create_download_url(
                     skel["dlkey"],
                     derive_name,
                     derived=True
