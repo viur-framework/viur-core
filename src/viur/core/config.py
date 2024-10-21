@@ -800,15 +800,20 @@ class Conf(ConfigType):
 
     file_generate_download_url_for_derives: bool | list[str] = False
     """
-    If true for all derives a download Url is created
-    If this is a list all entries used as a search string:
+    If True, for all derives, a download URL is created as well.
+    
+    When an iterable of str is provided, for all entries that match a pattern,
+    a download URL will be created.
+
     Example:
+    ```py
         class Test(Skeleton):
             image_bar = FileBone(derive=conf["derives"])
             image_foo = FileBone(derive=conf["derives"])
             logo = FileBone(derive=conf["derives"])
 
         conf.file_generate_download_url_for_derives = ["test.image*"]
+    ```
     """
 
     main_app: "Module" = None
