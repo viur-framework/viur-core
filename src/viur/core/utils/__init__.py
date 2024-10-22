@@ -143,13 +143,13 @@ __UTILS_NAME_REPLACEMENT = {
     "currentRequest": ("current.request", current.request),
     "currentRequestData": ("current.request_data", current.request_data),
     "currentSession": ("current.session", current.session),
-    "downloadUrlFor": ("conf.main_app.file.create_download_url", conf.main_app.file.create_download_url),
+    "downloadUrlFor": ("conf.main_app.file.create_download_url", lambda: conf.main_app.file.create_download_url),
     "escapeString": ("utils.string.escape", string.escape),
     "generateRandomString": ("utils.string.random", string.random),
     "getCurrentUser": ("current.user.get", current.user.get),
     "is_prefix": ("utils.string.is_prefix", string.is_prefix),
     "parse_bool": ("utils.parse.bool", parse.bool),
-    "srcSetFor": ("conf.main_app.file.create_src_set", conf.main_app.file.create_src_set),
+    "srcSetFor": ("conf.main_app.file.create_src_set", lambda: conf.main_app.file.create_src_set),
 }
 
 
@@ -164,6 +164,9 @@ def __getattr__(attr):
         msg = f"Use of `utils.{attr}` is deprecated; Use `{replace[0]}` instead!"
         warnings.warn(msg, DeprecationWarning, stacklevel=3)
         logging.warning(msg, stacklevel=3)
-        return replace[1]
+        res = replace[1]
+        if isinstance(res, t.Callable):
+            res = res()
+        return res
 
     return super(__import__(__name__).__class__).__getattribute__(attr)
