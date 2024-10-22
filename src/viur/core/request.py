@@ -273,18 +273,19 @@ class Router:
         path = self.request.path
 
         if conf.redirect_map:
+            redirect_url : str | None = None
             if conf.redirect_map_advanced_mode:
-                for k in conf.redirect_map.keys():
-                    if fnmatch.fnmatch(path, k):
-                        self.response.status = "302 Redirect"
-                        self.response.headers['Location'] = conf.redirect_map[k]
-                        self.response.write("Redirect")
-                        return
+                for pattern, target in conf.redirect_map.items():
+                    if fnmatch.fnmatch(path, pattern):
+                        redirect_url = target
+                        break
+            else: 
+                redirect_url = conf.redirect_map.get(path):
 
-            if redirect_url := conf.redirect_map.get(path):
+            if redirect_url:
                 self.response.status = "302 Redirect"
-                self.response.headers['Location'] = redirect_url
-                self.response.write("Redirect")
+                self.response.headers["Location"] = redirect_url
+                self.response.write("")
                 return
 
         # Add CSP headers early (if any)
