@@ -378,7 +378,7 @@ def send_email(
     if conf.email.sender_override:
         sender = conf.email.sender_override
     elif sender is None:
-        sender = f'viur@{conf.instance.project_id}.appspotmail.com'
+        sender = conf.email.sender_default
 
     subject, body = conf.emailRenderer(dests, tpl, stringTemplate, skel, **kwargs)
 

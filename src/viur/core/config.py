@@ -548,6 +548,12 @@ class Email(ConfigType):
     (overriding the 'dests'-parameter in email.sendEmail)
     """
 
+    sender_default: str = f"viur@{_project_id}.appspotmail.com"
+    """This sender is used by default for emails.
+    It can be overridden for a specific email by passing the `sender` argument
+    to :meth:`core.email.send_email` or for all emails with :attr:`sender_override`.
+    """
+
     sender_override: str | None = None
     """If set, this sender will be used, regardless of what the templates advertise as sender"""
 
