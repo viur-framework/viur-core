@@ -801,7 +801,7 @@ class Conf(ConfigType):
     file_generate_download_url_for_derives: bool | t.Iterable[str] = False
     """
     If True, for all derives, a download URL is created as well.
-    
+
     When an iterable of str is provided, for all entries that match a pattern,
     a download URL will be created.
 

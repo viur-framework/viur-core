@@ -1,6 +1,5 @@
 import fnmatch
 import json
-import logging
 import typing as t
 from enum import Enum
 from viur.core.modules.file import File
