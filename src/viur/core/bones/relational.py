@@ -406,7 +406,7 @@ class RelationalBone(BaseBone):
         :raises AssertionError: If a programming error is detected.
         """
 
-        def serialize_dest_rel(in_value: dict | None = None):
+        def serialize_dest_rel(in_value: dict | None = None) -> (dict | None, dict | None):
             if not in_value:
                 return None, None
             if dest_val := in_value.get("dest"):
