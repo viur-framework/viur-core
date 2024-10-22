@@ -825,10 +825,10 @@ class Conf(ConfigType):
     }
     """Describing the Script module"""
 
-    redirect_map = {}
+    redirect_map: dict[str, str] = {}
     """Map for redirect Urls"""
 
-    redirect_map_advanced_mode = False
+    redirect_map_advanced_mode: bool = False
     """If True the fnmatch is activated for key match"""
 
     render_html_download_url_expiration: t.Optional[float | int] = None
