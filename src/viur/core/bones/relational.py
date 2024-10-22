@@ -405,74 +405,53 @@ class RelationalBone(BaseBone):
 
         :raises AssertionError: If a programming error is detected.
         """
+
+        def serialize_dest_rel(in_value: dict | None = None) -> (dict | None, dict | None):
+            if not in_value:
+                return None, None
+            if dest_val := in_value.get("dest"):
+                ref_data_serialized = dest_val.serialize(parentIndexed=indexed)
+            else:
+                ref_data_serialized = None
+            if rel_data := in_value.get("rel"):
+                using_data_serialized = rel_data.serialize(parentIndexed=indexed)
+            else:
+                using_data_serialized = None
+
+            return using_data_serialized, ref_data_serialized
+
+
         super().serialize(skel, name, parentIndexed)
+
         # Clean old properties from entry (prevent name collision)
-        for k in list(skel.dbEntity.keys()):
-            if k.startswith(f"{name}."):
-                del skel.dbEntity[k]
+        for key in skel.dbEntity:
+            if key.startswith(f"{name}."):
+                del skel.dbEntity[key]
         indexed = self.indexed and parentIndexed
-        if name not in skel.accessedValues:
-            return
-        elif not skel.accessedValues[name]:
-            res = None
-        elif self.languages and self.multiple:
-            res = {"_viurLanguageWrapper_": True}
-            newVals = skel.accessedValues[name]
-            for language in self.languages:
-                res[language] = []
-                if language in newVals:
-                    for val in newVals[language]:
-                        if val["dest"]:
-                            refData = val["dest"].serialize(parentIndexed=indexed)
-                        else:
-                            refData = None
-                        if val["rel"]:
-                            usingData = val["rel"].serialize(parentIndexed=indexed)
-                        else:
-                            usingData = None
-                        r = {"rel": usingData, "dest": refData}
-                        res[language].append(r)
+
+        if not (new_vals := skel.accessedValues.get(name)):
+            return False
         elif self.languages:
             res = {"_viurLanguageWrapper_": True}
-            newVals = skel.accessedValues[name]
             for language in self.languages:
-                res[language] = []
-                if language in newVals:
-                    val = newVals[language]
-                    if val and val["dest"]:
-                        refData = val["dest"].serialize(parentIndexed=indexed)
-                        if val["rel"]:
-                            usingData = val["rel"].serialize(parentIndexed=indexed)
-                        else:
-                            usingData = None
-                        r = {"rel": usingData, "dest": refData}
-                        res[language] = r
+                if language in new_vals:
+                    if self.multiple:
+                        res[language] = []
+                        for val in new_vals[language]:
+                            using_data, ref_data = serialize_dest_rel(val)
+                            res[language].append({"rel": using_data, "dest": ref_data})
                     else:
-                        res[language] = None
+                        if (val := new_vals[language]) and val["dest"]:
+                            using_data, ref_data = serialize_dest_rel(val)
+                            res[language] = {"rel": using_data, "dest": ref_data}
         elif self.multiple:
             res = []
-            for val in skel.accessedValues[name]:
-                if val["dest"]:
-                    refData = val["dest"].serialize(parentIndexed=indexed)
-                else:
-                    refData = None
-                if val["rel"]:
-                    usingData = val["rel"].serialize(parentIndexed=indexed)
-                else:
-                    usingData = None
-                r = {"rel": usingData, "dest": refData}
-                res.append(r)
+            for val in new_vals:
+                using_data, ref_data = serialize_dest_rel(val)
+                res.append({"rel": using_data, "dest": ref_data})
         else:
-            if skel.accessedValues[name]["dest"]:
-                refData = skel.accessedValues[name]["dest"].serialize(parentIndexed=indexed)
-            else:
-                refData = None
-            if skel.accessedValues[name]["rel"]:
-                usingData = skel.accessedValues[name]["rel"].serialize(parentIndexed=indexed)
-            else:
-                usingData = None
-            res = {"rel": usingData, "dest": refData}
-
+            using_data, ref_data = serialize_dest_rel(new_vals)
+            res = {"rel": using_data, "dest": ref_data}
         skel.dbEntity[name] = res
 
         # Ensure our indexed flag is up2date
