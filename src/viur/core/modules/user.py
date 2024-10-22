@@ -336,18 +336,9 @@ class UserPassword(UserPrimaryAuthentication):
         # next, check if the password hash matches
         is_okay &= secrets.compare_digest(password_data.get("pwhash", b"-invalid-"), password_hash)
 
-        # next, check if the user account is active
-        is_okay &= (user_skel["status"] or 0) >= Status.ACTIVE.value
-
         if not is_okay:
             self.loginRateLimit.decrementQuota()  # Only failed login attempts will count to the quota
-            skel = self.LoginSkel()
-            return self._user_module.render.login(
-                skel,
-                action="login",
-                loginFailed=True,  # FIXME: Is this still being used?
-                accountStatus=user_skel["status"]  # FIXME: Is this still being used?
-            )
+            return self._user_module.render.login(self.LoginSkel(), action="login")
 
         # check if iterations are below current security standards, and update if necessary.
         if iterations < PBKDF2_DEFAULT_ITERATIONS:
@@ -450,7 +441,7 @@ class UserPassword(UserPrimaryAuthentication):
                 )
             )
 
-        if user_skel["status"] != Status.ACTIVE:  # The account is locked or not yet validated. Abort the process.
+        if user_skel["status"] < Status.ACTIVE:  # The account is locked or not yet validated. Abort the process.
             raise errors.NotFound(
                 i18n.translate(
                     key="viur.modules.user.passwordrecovery.accountlocked",
