@@ -273,14 +273,14 @@ class Router:
         path = self.request.path
 
         if conf.redirect_map:
-            redirect_url : str | None = None
+            redirect_url: str | None = None
             if conf.redirect_map_advanced_mode:
                 for pattern, target in conf.redirect_map.items():
                     if fnmatch.fnmatch(path, pattern):
                         redirect_url = target
                         break
-            else: 
-                redirect_url = conf.redirect_map.get(path):
+            else:
+                redirect_url = conf.redirect_map.get(path)
 
             if redirect_url:
                 self.response.status = "302 Redirect"
