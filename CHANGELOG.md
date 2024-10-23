@@ -2,7 +2,7 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.7.0.beta1]
+## [3.7.0.beta2]
 
 - chore: Adding file deprecations (#1268)
 - chore: Drop python 3.10 support (#1175)
@@ -30,6 +30,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - feat: Implement `EmailTransportSendgrid` (#1249)
 - feat: Implement `EmailTransportSmtp` (#1251)
 - feat: Implement abstract renderer (#1190)
+- feat: Introduce `conf.email.sender_default` (#1294)
 - feat: Load Session only when needed (#1277)
 - feat: Make custom jinja filter `|fileSize` deprecated (#1272)
 - feat: Make SkeletonInstance json serializable (#1262)
@@ -44,17 +45,20 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: Clean-up `KeyBone` and added unserialization (#1204)
 - fix: Cleanly collect renders from Python module (#1230)
 - fix: handle gracefully downloadurls and srcsets with optional languages overwrite for files (#1266)
-- fix: Hotfix for #1268
 - fix: Improve interval format warning in `PeriodicTask` (#1199)
 - fix: Improved signature test on callable `defaultValue` (#1284)
 - fix: multiple bones with languages have the wrong default value (#1282)
+- fix: provide `key_rel_list` as list of tuples and not only a list (#1291)
 - fix: refactor _tagsFromString to _tags_from_str (#1279)
 - fix: Remove urlencode (#1271)
 - fix: Rename create_serving_url into inject_serving_url (#1241)
+- fix: Test `user["status"]` at one place (#1292)
 - fix+doc: PeriodicTask (#1247)
 - refactor: `BaseBone.buildDBSort` (#1077)
 - refactor: `DatabaseAdapter` with simplified triggers (#1198)
-- refactor: `RelationalBone.setBoneValue` (#1081)
+- refactor: `relationalBone.serialize()` (#1087)
+- refactor: `RelationalBone.setBoneValue()` (#1081)
+- refactor: Improve `db.IsInTransaction`-mode in `Skeleton.patch()` (#1289)
 - refactor: `Skeleton`-API rework (#1264)
 - refactor: Move datastore index retrieval to `SkelModule` (#1231)
 - refactor: Move special system arguments for `CallDeferred` in `make_deferred`'s signature (#1143)
