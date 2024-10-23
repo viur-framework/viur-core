@@ -1334,7 +1334,7 @@ def start_delete_pending_files():
 def __getattr__(attr: str) -> object:
     if entry := {
             # stuff prior viur-core < 3.7
-            "GOOGLE_STORAGE_BUCKET": ("viur.core.config.get_bucket()", _private_bucket),
+            "GOOGLE_STORAGE_BUCKET": ("conf.main_app.file.get_bucket()", _private_bucket),
     }.get(attr):
         msg = f"{attr} was replaced by {entry[0]}"
         warnings.warn(msg, DeprecationWarning, stacklevel=2)
