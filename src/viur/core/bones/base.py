@@ -975,7 +975,6 @@ class BaseBone(object):
 
         :param skel : The SkeletonInstance where the current Bone is located
         :param name: The name of the Bone in the Skeleton
-        :param loaded_value: The value from the DB Entity
         :return: True if the Bone was unserialized, False otherwise
         """
         if not self.compute or self._prevent_compute:
