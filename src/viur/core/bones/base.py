@@ -889,7 +889,7 @@ class BaseBone(object):
             skel.accessedValues[name] = self.getDefaultValue(skel)
             return False
 
-        if self.unserialize_compute(skel, name, loadVal):
+        if self.unserialize_compute(skel, name):
             return True
 
         # unserialize value to given config
@@ -968,7 +968,7 @@ class BaseBone(object):
         skel.accessedValues[name] = res
         return True
 
-    def unserialize_compute(self, skel: "SkeletonInstance", name: str, loaded_value: t.Any) -> bool:
+    def unserialize_compute(self, skel: "SkeletonInstance", name: str) -> bool:
         """
         This function checks whether a bone is computed and if this is the case, it attempts to deserialise the
         value with the appropriate calculation method
@@ -985,15 +985,18 @@ class BaseBone(object):
             # Computation is bound to a lifetime?
             case ComputeMethod.Lifetime:
                 now = utils.utcNow()
+                from viur.core.skeleton import RefSkel  # noqa: E402 # import works only here because circular imports
 
-                # check if lifetime exceeded
-                last_update = skel.dbEntity.get(f"_viur_compute_{name}_")
-                skel.accessedValues[f"_viur_compute_{name}_"] = last_update or now
+                if issubclass(skel.skeletonCls, RefSkel):  # we have a ref skel we must load the complete Entity
+                    db_obj = db.Get(skel["key"])
+                    last_update = db_obj.get(f"_viur_compute_{name}_")
+                else:
+                    last_update = skel.dbEntity.get(f"_viur_compute_{name}_")
+                    skel.accessedValues[f"_viur_compute_{name}_"] = last_update or now
 
                 if not last_update or last_update + self.compute.interval.lifetime <= now:
                     # if so, recompute and refresh updated value
                     skel.accessedValues[name] = value = self._compute(skel, name)
-
                     def transact():
                         db_obj = db.Get(skel["key"])
                         db_obj[f"_viur_compute_{name}_"] = now
