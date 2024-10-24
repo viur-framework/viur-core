@@ -160,7 +160,7 @@ class DefaultRender(AbstractRenderer):
             # generate the downloadUrl for derives
             search_paths = []
             if search_path := current.request.get().request.headers.get("X-VIUR-DERIVED-DOWNLOAD-URL"):
-                search_paths.append(search_path)
+                search_paths.extend(search_path.split(","))
             if conf.file_generate_download_url_for_derives:
 
                 if isinstance(conf.file_generate_download_url_for_derives, t.Iterable):
