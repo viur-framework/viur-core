@@ -184,38 +184,43 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
         # The general access control is made via self.listFilter()
-        query = self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs))
-        if query and query.queries and not isinstance(query.queries, list):
-            # Apply default order when specified
-            if self.default_order and not query.queries.orders and not current.request.get().kwargs.get("search"):
-                # TODO: refactor: Duplicate code in prototypes.Tree
-                if callable(default_order := self.default_order):
-                    default_order = default_order(query)
+        if not (query := self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs))):
+            raise errors.Unauthorized()
 
-                if isinstance(default_order, dict):
-                    logging.debug(f"Applying filter {default_order=}")
-                    query.mergeExternalFilter(default_order)
+        # Apply default_order when possible!
+        # TODO: refactor: Duplicate code in prototypes.Tree
+        if (
+                self.default_order
+                and query.queries
+                and not isinstance(query.queries, list)
+                and not query.queries.orders
+                and not current.request.get().kwargs.get("search")
+        ):
+            if callable(default_order := self.default_order):
+                default_order = default_order(query)
 
-                elif default_order:
-                    logging.debug(f"Applying {default_order=}")
+            if isinstance(default_order, dict):
+                logging.debug(f"Applying filter {default_order=}")
+                query.mergeExternalFilter(default_order)
 
-                    # FIXME: This ugly test can be removed when there is type that abstracts SortOrders
-                    if (
-                        isinstance(default_order, str)
-                        or (
-                            isinstance(default_order, tuple)
-                            and len(default_order) == 2
-                            and isinstance(default_order[0], str)
-                            and isinstance(default_order[1], db.SortOrder)
-                        )
-                    ):
-                        query.order(default_order)
-                    else:
-                        query.order(*default_order)
+            elif default_order:
+                logging.debug(f"Applying {default_order=}")
 
-            return self.render.list(query.fetch())
+                # FIXME: This ugly test can be removed when there is type that abstracts SortOrders
+                if (
+                    isinstance(default_order, str)
+                    or (
+                        isinstance(default_order, tuple)
+                        and len(default_order) == 2
+                        and isinstance(default_order[0], str)
+                        and isinstance(default_order[1], db.SortOrder)
+                    )
+                ):
+                    query.order(default_order)
+                else:
+                    query.order(*default_order)
 
-        raise errors.Unauthorized()
+        return self.render.list(query.fetch())
 
     @force_ssl
     @exposed
