@@ -22,7 +22,8 @@ from urllib.request import urlopen
 from google.cloud import storage
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 from viur.core import conf, current, db, errors, utils
-from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
+from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone, UriBone
+from viur.core.bones import Compute, ComputeMethod, ComputeInterval
 from viur.core.decorators import *
 from viur.core.i18n import LanguageWrapper
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
@@ -281,20 +282,6 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
     return reslist
 
 
-class DownloadUrlBone(BaseBone):
-    """
-    This bone is used to inject a freshly signed download url into a FileSkel.
-    """
-
-    def unserialize(self, skel, name):
-        if "dlkey" in skel.dbEntity and "name" in skel.dbEntity:
-            skel.accessedValues[name] = File.create_download_url(
-                skel["dlkey"], skel["name"], expires=conf.render_json_download_url_expiration
-            )
-            return True
-
-        return False
-
 
 class FileLeafSkel(TreeSkel):
     """
@@ -350,10 +337,37 @@ class FileLeafSkel(TreeSkel):
         searchable=True,
     )
 
-    downloadUrl = DownloadUrlBone(
-        descr="Download-URL",
+    download_url_json = UriBone(
+        descr="Download-URL for HTML",
         readOnly=True,
         visible=False,
+        compute=Compute(
+            fn=lambda skel: File.create_download_url(
+                dlkey=skel["dlkey"],
+                filename=skel["name"],
+                expires=conf.render_json_download_url_expiration
+            ),
+            interval=ComputeInterval(
+                method=ComputeMethod.Lifetime,
+                lifetime=conf.render_json_download_url_expiration or datetime.timedelta(hours=1)
+            )
+        )
+    )
+    download_url_html = UriBone(
+        descr="Download-URL for HTML",
+        readOnly=True,
+        visible=False,
+        compute=Compute(
+            fn=lambda skel: File.create_download_url(
+                dlkey=skel["dlkey"],
+                filename=skel["name"],
+                expires=conf.render_html_download_url_expiration
+            ),
+            interval=ComputeInterval(
+                method=ComputeMethod.Lifetime,
+                lifetime=conf.render_html_download_url_expiration or datetime.timedelta(hours=1)
+            )
+        )
     )
 
     derived = BaseBone(
