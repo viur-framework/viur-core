@@ -985,14 +985,12 @@ class BaseBone(object):
             case ComputeMethod.Lifetime:
                 now = utils.utcNow()
                 from viur.core.skeleton import RefSkel  # noqa: E402 # import works only here because circular imports
-
                 if issubclass(skel.skeletonCls, RefSkel):  # we have a ref skel we must load the complete Entity
                     db_obj = db.Get(skel["key"])
                     last_update = db_obj.get(f"_viur_compute_{name}_")
                 else:
                     last_update = skel.dbEntity.get(f"_viur_compute_{name}_")
                     skel.accessedValues[f"_viur_compute_{name}_"] = last_update or now
-
                 if not last_update or last_update + self.compute.interval.lifetime <= now:
                     # if so, recompute and refresh updated value
                     skel.accessedValues[name] = value = self._compute(skel, name)
