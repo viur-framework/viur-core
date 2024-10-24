@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.22]
+
+- fix: `UserSkel.__new__()` cannot be subSkel'ed (#1296)
+
 ## [3.6.21]
 
 - fix: `Skeleton.processRemovedRelations` unable to handle empty values (#1288)
