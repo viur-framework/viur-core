@@ -4,6 +4,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 
 ## [3.6.22]
 
+- fix: `default_order`-code raises `errors.Unauthorized()` on MultiQuery (#1299)
 - fix: `UserSkel.__new__()` cannot be subSkel'ed (#1296)
 
 ## [3.6.21]
