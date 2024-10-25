@@ -1839,18 +1839,24 @@ def processRemovedRelations(removedKey, cursor=None):
             raise ValueError(f"processRemovedRelations detects inconsistency on src={entry['src'].key!r}")
 
         if entry["viur_relational_consistency"] == RelationalConsistency.SetNull.value:
-            for key, _bone in skel.items():
-                if isinstance(_bone, RelationalBone):
-                    relVal = skel[key]
-                    if isinstance(relVal, dict) and relVal["dest"]["key"] == removedKey:
-                        # FIXME: Should never happen: "key" not in relVal["dest"]
-                        # skel.setBoneValue(key, None)
-                        skel[key] = None
-                    elif isinstance(relVal, list):
-                        skel[key] = [x for x in relVal if x["dest"]["key"] != removedKey]
-                    else:
-                        raise NotImplementedError(f"No handling for {type(relVal)=}")
-            skel.write(update_relations=False)
+            found = False
+
+            for key, bone in skel.items():
+                if isinstance(bone, RelationalBone):
+                    if relational_value := skel[key]:
+                        if isinstance(relational_value, dict) and relational_value["dest"]["key"] == removedKey:
+                            skel[key] = None
+                            found = True
+
+                        elif isinstance(relational_value, list):
+                            skel[key] = [entry for entry in relational_value if entry["dest"]["key"] != removedKey]
+                            found = True
+
+                        else:
+                            raise NotImplementedError(f"In {entry['src'].key!r}, no handling for {relational_value=}")
+
+            if found:
+                skel.write(update_relations=False)
 
         else:
             logging.critical(f"""Cascade deletion of {skel["key"]!r}""")

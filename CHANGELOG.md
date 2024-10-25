@@ -66,6 +66,15 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Send emails from `EmailTransport` instances instead of class (#1250)
 - refactor: Sub-class `Session` from `db.Entity` to behave `dict`-compliant (#1153)
 
+## [3.6.22]
+
+- fix: `default_order`-code raises `errors.Unauthorized()` on MultiQuery (#1299)
+- fix: `UserSkel.__new__()` cannot be subSkel'ed (#1296)
+
+## [3.6.21]
+
+- fix: `Skeleton.processRemovedRelations` unable to handle empty values (#1288)
+
 ## [3.6.20]
 
 - fix: `File.parse_download_url()`: `too many values to unpack` (#1287)
