@@ -76,7 +76,9 @@ class KeyBone(BaseBone):
         return key, None
 
     def singleValueUnserialize(self, val):
-        if isinstance(val, db.Key):
+        if not val:
+            rval = None
+        elif isinstance(val, db.Key):
             rval = db.normalizeKey(val)
         else:
             rval, err = self.singleValueFromClient(val, parse_only=True)

@@ -405,7 +405,7 @@ class FileLeafSkel(TreeSkel):
             if importData:
                 if not skelValues["downloadUrl"]:
                     skelValues["downloadUrl"] = importData
-                skelValues["pendingparententry"] = False
+                skelValues["pendingparententry"] = None
 
         conf.main_app.file.inject_serving_url(skelValues)
 
