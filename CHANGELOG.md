@@ -2,7 +2,7 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.7.0.beta2]
+## [3.7.0.beta3]
 
 - chore: Adding file deprecations (#1268)
 - chore: Drop python 3.10 support (#1175)
@@ -36,14 +36,18 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - feat: Make SkeletonInstance json serializable (#1262)
 - feat: Retrieve default `descr` from bone's name in its Skeleton (#1227)
 - feat+refactor: Improved and extended `Skeleton.subskel()` (#1259)
+- fix: `KeyBone.singleValueUnseralize()` doesn't handle None (#1300)
 - fix: `RelationalBone.singleValueFromClient` str-cast (#1269)
 - fix: `Session.__delitem__` causes endless recursion (#1208)
+- fix: `Skeleton.subskel()` and `SkeletonInstance.clone()` (#1297)
 - fix: `SkeletonInstance` must accept `bone_map` and deprecated `clonedBoneMap` (#1286)
 - fix: `SpamBone` regression of descr-property (#1246)
 - fix: Add datetime import in email.py (#1225)
 - fix: Calling `db.KeyHelper` with `None` raises a unhandled `NotImplementedError` (#1281)
 - fix: Clean-up `KeyBone` and added unserialization (#1204)
 - fix: Cleanly collect renders from Python module (#1230)
+- fix: Extend `viur_migrate` to further conf keys (#1298)
+- fix: Handle `RefSkel`s in `unserialize_compute` differently (#1295)
 - fix: handle gracefully downloadurls and srcsets with optional languages overwrite for files (#1266)
 - fix: Improve interval format warning in `PeriodicTask` (#1199)
 - fix: Improved signature test on callable `defaultValue` (#1284)
@@ -58,8 +62,8 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: `DatabaseAdapter` with simplified triggers (#1198)
 - refactor: `relationalBone.serialize()` (#1087)
 - refactor: `RelationalBone.setBoneValue()` (#1081)
-- refactor: Improve `db.IsInTransaction`-mode in `Skeleton.patch()` (#1289)
 - refactor: `Skeleton`-API rework (#1264)
+- refactor: Improve `db.IsInTransaction`-mode in `Skeleton.patch()` (#1289)
 - refactor: Move datastore index retrieval to `SkelModule` (#1231)
 - refactor: Move special system arguments for `CallDeferred` in `make_deferred`'s signature (#1143)
 - refactor: Remove `xml` renderer (#1192)
