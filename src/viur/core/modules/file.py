@@ -889,7 +889,8 @@ class File(Tree):
         file_skel["width"] = 0
         file_skel["height"] = 0
 
-        key = db.encodeKey(file_skel.write())
+        file_skel.write()
+        key = str(file_skel["key"])
 
         # Mark that entry dirty as we might never receive an add
         self.mark_for_deletion(dlkey)
@@ -908,8 +909,8 @@ class File(Tree):
             session.markChanged()
 
         return self.render.view({
-            "uploadUrl": upload_url,
             "uploadKey": key,
+            "uploadUrl": upload_url,
         })
 
     @exposed

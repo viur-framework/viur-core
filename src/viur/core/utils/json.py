@@ -24,7 +24,7 @@ class ViURJsonEncoder(json.JSONEncoder):
             return tuple(obj)
         # cannot be tested in tests...
         elif isinstance(obj, db.Key):
-            return {".__key__": db.encodeKey(obj)}
+            return {".__key__": str(obj)}
 
         return super().default(obj)
 
@@ -35,10 +35,9 @@ class ViURJsonEncoder(json.JSONEncoder):
         There is currently no other way to integrate with JSONEncoder.
         """
         if isinstance(obj, db.Entity):
-            # TODO: Handle SkeletonInstance as well?
             return {
                 ".__entity__": ViURJsonEncoder.preprocess(dict(obj)),
-                ".__key__": db.encodeKey(obj.key) if obj.key else None
+                ".__key__": str(obj.key) if obj.key else None
             }
         elif isinstance(obj, dict):
             return {

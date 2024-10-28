@@ -230,7 +230,7 @@ class Render(AbstractRenderer):
         elif bone.type == "password":
             return ""
         elif bone.type == "key":
-            return db.encodeKey(boneValue) if boneValue else None
+            return str(boneValue) if boneValue else None
 
         else:
             return boneValue
