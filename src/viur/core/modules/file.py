@@ -1160,21 +1160,39 @@ class File(Tree):
         return super().add(skelType, node, *args, **kwargs)
 
     @exposed
-    def get_derived_download_url(self, filename: str, key: t.Optional[db.Key] = None, dlkey: t.Optional[str] = None):
+    def get_derived_download_url(
+        self,
+        key: t.Optional[db.Key] = None,
+        dlkey: t.Optional[str] = None,
+        filename: t.Optional[str] = None
+
+    ):
         """
         Request a download url for a given file
-        :param filename: The filename of the derive
+        :param filename: The filename of the derived. If no filename is provided
+        downloadUrls for all derived files are returned
         :param key: The key of the file
         :param dlkey: The download key of the file
         """
-        if dlkey is None:
+        if key is not None:
             skel = self.viewSkel("leaf")
             if not skel.read(key):
                 raise errors.NotFound()
             dlkey = skel["dlkey"]
-        return self.render.view(
-            {"downloadUrl": self.create_download_url(dlkey, filename, derived=True)}
-        )
+        elif dlkey is not None:
+            skel = self.viewSkel("leaf").all().filter("dlkey", dlkey).getSkel()
+            if not skel.read(key):
+                raise errors.NotFound()
+        else:
+            raise errors.BadRequest("No key or dlkey provided")
+
+        if filename is None:
+            res = {}
+            for filename in skel["derived"]["files"]:
+                res[filename] = {"downloadUrl":self.create_download_url(dlkey,filename,True)}
+        else:
+            res = {"downloadUrl": self.create_download_url(dlkey, filename, True)}
+        return self.render.view(res)
 
     def onEdit(self, skelType: SkelType, skel: SkeletonInstance):
         super().onEdit(skelType, skel)
