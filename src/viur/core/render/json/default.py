@@ -22,7 +22,7 @@ class CustomJsonEncoder(json.JSONEncoder):
         elif isinstance(o, datetime):
             return o.isoformat()
         elif isinstance(o, db.Key):
-            return db.encodeKey(o)
+            return str(o)
         elif isinstance(o, Enum):
             return o.value
         elif isinstance(o, set):
@@ -233,9 +233,6 @@ class DefaultRender(AbstractRenderer):
         return json.dumps("OKAY")
 
     def listRootNodes(self, rootNodes, *args, **kwargs):
-        for rn in rootNodes:
-            rn["key"] = db.encodeKey(rn["key"])
-
         return json.dumps(rootNodes, cls=CustomJsonEncoder)
 
     def render(self, action: str, skel: t.Optional[SkeletonInstance] = None, **kwargs):
