@@ -120,7 +120,7 @@ class UserSkel(skeleton.Skeleton):
         visible=False
     )
 
-    def __new__(cls):
+    def __new__(cls, *args, **kwargs):
         """
         Constructor for the UserSkel-class, with the capability
         to dynamically add bones required for the configured
@@ -135,7 +135,7 @@ class UserSkel(skeleton.Skeleton):
             provider.patch_user_skel(cls)
 
         cls.__boneMap__ = skeleton.MetaBaseSkel.generate_bonemap(cls)
-        return super().__new__(cls)
+        return super().__new__(cls, *args, **kwargs)
 
     @classmethod
     def write(cls, skel, *args, **kwargs):

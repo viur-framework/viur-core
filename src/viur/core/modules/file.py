@@ -405,7 +405,7 @@ class FileLeafSkel(TreeSkel):
             if importData:
                 if not skelValues["downloadUrl"]:
                     skelValues["downloadUrl"] = importData
-                skelValues["pendingparententry"] = False
+                skelValues["pendingparententry"] = None
 
         conf.main_app.file.inject_serving_url(skelValues)
 
@@ -745,7 +745,8 @@ class File(Tree):
         skel["crc32c_checksum"] = base64.b64decode(blob.crc32c).hex()
         skel["md5_checksum"] = base64.b64decode(blob.md5_hash).hex()
 
-        return skel.write()
+        skel.write()
+        return skel["key"]
 
     def read(
         self,
@@ -888,7 +889,8 @@ class File(Tree):
         file_skel["width"] = 0
         file_skel["height"] = 0
 
-        key = db.encodeKey(file_skel.write())
+        file_skel.write()
+        key = str(file_skel["key"])
 
         # Mark that entry dirty as we might never receive an add
         self.mark_for_deletion(dlkey)
@@ -907,8 +909,8 @@ class File(Tree):
             session.markChanged()
 
         return self.render.view({
-            "uploadUrl": upload_url,
             "uploadKey": key,
+            "uploadUrl": upload_url,
         })
 
     @exposed
