@@ -1189,7 +1189,7 @@ class File(Tree):
         if filename is None:
             res = {}
             for filename in skel["derived"]["files"]:
-                res[filename] = {"downloadUrl":self.create_download_url(dlkey,filename,True)}
+                res[filename] = {"downloadUrl": self.create_download_url(dlkey, filename, True)}
         else:
             res = {"downloadUrl": self.create_download_url(dlkey, filename, True)}
         return self.render.view(res)
