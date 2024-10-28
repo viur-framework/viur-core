@@ -1159,6 +1159,23 @@ class File(Tree):
 
         return super().add(skelType, node, *args, **kwargs)
 
+    @exposed
+    def get_derived_download_url(self, filename: str, key: t.Optional[db.Key] = None, dlkey: t.Optional[str] = None):
+        """
+        Request a download url for a given file
+        :param filename: The filename of the derive
+        :param key: The key of the file
+        :param dlkey: The download key of the file
+        """
+        if dlkey is None:
+            skel = self.viewSkel("leaf")
+            if not skel.read(key):
+                raise errors.NotFound()
+            dlkey = skel["dlkey"]
+        return self.render.view(
+            {"downloadUrl": self.create_download_url(dlkey, filename, derived=True)}
+        )
+
     def onEdit(self, skelType: SkelType, skel: SkeletonInstance):
         super().onEdit(skelType, skel)
         old_skel = self.editSkel(skelType)
