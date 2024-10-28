@@ -745,7 +745,8 @@ class File(Tree):
         skel["crc32c_checksum"] = base64.b64decode(blob.crc32c).hex()
         skel["md5_checksum"] = base64.b64decode(blob.md5_hash).hex()
 
-        return skel.write()
+        skel.write()
+        return skel["key"]
 
     def read(
         self,

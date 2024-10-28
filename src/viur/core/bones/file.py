@@ -294,7 +294,7 @@ class FileBone(TreeLeafBone):
             skel["height"] = val["height"]
             skel["weak"] = True
             skel["pending"] = False
-            k = skel.write()
+            skel.write()
 
         from viur.core.modules.file import importBlobFromViur2
         super().refresh(skel, boneName)
