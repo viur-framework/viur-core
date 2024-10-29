@@ -1195,7 +1195,7 @@ class File(Tree):
         if derived and filename is None:
             res = {}
             for filename in skel["derived"]["files"]:
-                res[filename] = {"downloadUrl": self.create_download_url(dlkey, filename, derived)}
+                res[filename] = self.create_download_url(dlkey, filename, derived)
         else:
             if derived:
                 # Check if Filename exist in the Derives. We sign nothing that not exist.
@@ -1207,7 +1207,7 @@ class File(Tree):
                 elif filename != skel["name"]:
                     raise errors.NotFound("Filename not match")
 
-            res = {"downloadUrl": self.create_download_url(dlkey, filename, derived)}
+            res = self.create_download_url(dlkey, filename, derived)
 
         return self.render.view(res)
 
