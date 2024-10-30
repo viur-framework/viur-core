@@ -29,7 +29,6 @@ from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import SkeletonInstance, skeletonByKind
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
 
-
 # Globals for connectivity
 
 VALID_FILENAME_REGEX = re.compile(
@@ -531,12 +530,12 @@ class File(Tree):
 
         # Append additional parameters
         if params := {
-                k: v for k, v in {
-                    "download": download,
-                    "filename": filename,
-                    "options": options,
-                    "size": size,
-                }.items() if v
+            k: v for k, v in {
+                "download": download,
+                "filename": filename,
+                "options": options,
+                "size": size,
+            }.items() if v
         }:
             serving_url += f"?{urlencode(params)}"
 
@@ -708,9 +707,16 @@ class File(Tree):
         width: int = None,
         height: int = None,
         public: bool = False,
+        foldername: t.Optional[str | t.Iterable[str]] = None,
+        rootnode: t.Optional[db.Key] = None,
     ) -> db.Key:
         """
-        Write a file from any buffer into the file module.
+        Write a file from any bytes-like object into the file module.
+
+        If foldername and rootnode are both set, the file is added to the repository in that folder.
+        If only foldername is set, the file is added to the default repository in that folder.
+        If only rootnode is set, the file is added to that repository in the root folder.
+        If both are not set, the file is added without a path or repository. It will not be visible in admin.
 
         :param filename: Filename to be written.
         :param content:  The file content to be written, as bytes-like object.
@@ -718,35 +724,76 @@ class File(Tree):
         :param width: Optional width information for the file.
         :param height: Optional height information for the file.
         :param public: True if the file should be publicly accessible.
+        :param foldername: Optional folder the file should be written into.
+        :param rootnode: Optional root-node of the repository to add the file to
         :return: Returns the key of the file object written. This can be associated e.g. with a FileBone.
         """
-        if not File.is_valid_filename(filename):
+        if not self.is_valid_filename(filename):
             raise ValueError(f"{filename=} is invalid")
 
+        # Check for foldername
+        if rootnode is None:
+            rootnode = self.ensureOwnModuleRootNode()
+        elif not foldername:
+            # if rootnode is set and foldername is not, save the file in the root of the rootnode
+            foldername = []
+
+        if foldername is not None:
+            foldernames = foldername
+            if isinstance(foldername, str):
+                foldernames = foldernames.replace('\\', '/')
+                foldernames = (i for i in foldernames.split('/'))
+            foldernames = (i for i in foldernames if i)
+
+            parentrepokey = rootnode.key
+            parentfolderkey = rootnode.key
+
+            for fname in foldernames:
+                currentfolder = (self.addSkel("node").all()
+                                 .filter("parentrepo", parentrepokey)
+                                 .filter("parententry", parentfolderkey)
+                                 .filter("name", fname)
+                                 .getSkel())
+                if currentfolder:
+                    parentfolderkey = currentfolder.key
+                else:
+                    newfolderskel = self.addSkel("node")
+                    newfolderskel["name"] = fname
+                    newfolderskel["parentrepo"] = parentrepokey
+                    newfolderskel["parententry"] = parentfolderkey
+                    newfolderskel.write()
+                    parentfolderkey = newfolderskel["key"]
+
+        # Save the file into the folder.
         dl_key = utils.string.random()
 
         if public:
             dl_key += PUBLIC_DLKEY_SUFFIX  # mark file as public
 
-        bucket = File.get_bucket(dl_key)
+        bucket = self.get_bucket(dl_key)
 
         blob = bucket.blob(f"{dl_key}/source/{filename}")
         blob.upload_from_file(io.BytesIO(content), content_type=mimetype)
 
-        skel = self.addSkel("leaf")
-        skel["name"] = filename
-        skel["size"] = blob.size
-        skel["mimetype"] = mimetype
-        skel["dlkey"] = dl_key
-        skel["weak"] = True
-        skel["public"] = public
-        skel["width"] = width
-        skel["height"] = height
-        skel["crc32c_checksum"] = base64.b64decode(blob.crc32c).hex()
-        skel["md5_checksum"] = base64.b64decode(blob.md5_hash).hex()
+        fileskel = self.addSkel("leaf")
+        fileskel["name"] = filename
+        fileskel["size"] = blob.size
+        fileskel["mimetype"] = mimetype
+        fileskel["dlkey"] = dl_key
+        fileskel["weak"] = foldername is None
+        fileskel["public"] = public
+        fileskel["width"] = width
+        fileskel["height"] = height
+        fileskel["crc32c_checksum"] = base64.b64decode(blob.crc32c).hex()
+        fileskel["md5_checksum"] = base64.b64decode(blob.md5_hash).hex()
 
-        skel.write()
-        return skel["key"]
+        if foldername is not None:
+            fileskel["parentrepo"] = parentrepokey
+            fileskel["parententry"] = parentfolderkey
+            fileskel["pending"] = False
+
+        fileskel.write()
+        return fileskel["key"]
 
     def read(
         self,
@@ -1210,7 +1257,7 @@ class File(Tree):
         """Inject the serving url for public image files into a FileSkel"""
         # try to create a servingurl for images
         if not conf.instance.is_dev_server and skel["public"] and skel["mimetype"] \
-                and skel["mimetype"].startswith("image/") and not skel["serving_url"]:
+            and skel["mimetype"].startswith("image/") and not skel["serving_url"]:
 
             try:
                 bucket = File.get_bucket(skel['dlkey'])
@@ -1332,8 +1379,8 @@ def start_delete_pending_files():
 
 def __getattr__(attr: str) -> object:
     if entry := {
-            # stuff prior viur-core < 3.7
-            "GOOGLE_STORAGE_BUCKET": ("File.get_bucket()", _private_bucket),
+        # stuff prior viur-core < 3.7
+        "GOOGLE_STORAGE_BUCKET": ("File.get_bucket()", _private_bucket),
     }.get(attr):
         msg = f"{attr} was replaced by {entry[0]}"
         warnings.warn(msg, DeprecationWarning, stacklevel=2)
