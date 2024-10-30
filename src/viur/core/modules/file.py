@@ -1161,6 +1161,56 @@ class File(Tree):
 
         return super().add(skelType, node, *args, **kwargs)
 
+    @exposed
+    def get_download_url(
+        self,
+        key: t.Optional[db.Key] = None,
+        dlkey: t.Optional[str] = None,
+        filename: t.Optional[str] = None,
+        derived: bool = False,
+
+    ):
+        """
+        Request a download url for a given file
+        :param key: The key of the file
+        :param dlkey: The download key of the file
+        :param filename: The filename to be given. If no filename is provided
+            downloadUrls for all derived files are returned in case of `derived=True`.
+        :param derived: True, if a derived file download URL is being requested.
+        """
+        skel = self.viewSkel("leaf")
+        if dlkey is not None:
+            skel = skel.all().filter("dlkey", dlkey).getSkel()
+        elif key is None and dlkey is None:
+            raise errors.BadRequest("No key or dlkey provided")
+
+        if not (skel and skel.read(key)):
+            raise errors.NotFound()
+
+        if not self.canView("leaf", skel):
+            raise errors.Unauthorized()
+
+        dlkey = skel["dlkey"]
+
+        if derived and filename is None:
+            res = {}
+            for filename in skel["derived"]["files"]:
+                res[filename] = self.create_download_url(dlkey, filename, derived)
+        else:
+            if derived:
+                # Check if Filename exist in the Derives. We sign nothing that not exist.
+                if filename not in skel["derived"]["files"]:
+                    raise errors.NotFound("File not in derives")
+            else:
+                if filename is None:
+                    filename = skel["name"]
+                elif filename != skel["name"]:
+                    raise errors.NotFound("Filename not match")
+
+            res = self.create_download_url(dlkey, filename, derived)
+
+        return self.render.view(res)
+
     def onEdit(self, skelType: SkelType, skel: SkeletonInstance):
         super().onEdit(skelType, skel)
         old_skel = self.editSkel(skelType)
