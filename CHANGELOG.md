@@ -2,7 +2,7 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.7.0.beta4]
+## [3.7.0.rc1]
 
 - chore: Adding file deprecations (#1268)
 - chore: Drop python 3.10 support (#1175)
@@ -14,6 +14,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - feat: `render.render()` generalized action skel rendering (#1270)
 - feat: `Skeleton.patch()` for transactional read/write (#1267)
 - feat: `UriBone` (#1254)
+- feat: Add `File.get_download_url()` (#1305)
 - feat: Add `PeriodicTask` can handle `timedelta` as interval (#1133)
 - feat: Add `PhoneBone` (#1205)
 - feat: Add `read` method for `RefSkel` (#1193)
@@ -45,6 +46,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: `SpamBone` regression of descr-property (#1246)
 - fix: `uploadKey` wrong in `getUploadUrl` (#1301)
 - fix: Add datetime import in email.py (#1225)
+- fix: Add default param for `createRelSkelFromKey` (#1304)
 - fix: Calling `db.KeyHelper` with `None` raises a unhandled `NotImplementedError` (#1281)
 - fix: Clean-up `KeyBone` and added unserialization (#1204)
 - fix: Cleanly collect renders from Python module (#1230)
