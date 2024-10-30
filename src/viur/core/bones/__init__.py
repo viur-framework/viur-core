@@ -6,6 +6,7 @@ from .base import (
     MultipleConstraints,
     ReadFromClientError,
     ReadFromClientErrorSeverity,
+    ReadFromClientException,
     UniqueLockMethod,
     UniqueValue,
 )
@@ -20,6 +21,7 @@ from .json import JsonBone
 from .key import KeyBone
 from .numeric import NumericBone
 from .password import PasswordBone
+from .phone import PhoneBone
 from .randomslice import RandomSliceBone
 from .raw import RawBone
 from .record import RecordBone
@@ -31,11 +33,14 @@ from .select import (
     translation_key_prefix_bonename,
 )
 from .sortindex import SortIndexBone
+from .spam import SpamBone
 from .spatial import SpatialBone
 from .string import StringBone
 from .text import TextBone
 from .treeleaf import TreeLeafBone
 from .treenode import TreeNodeBone
+from .uid import UidBone
+from .uri import UriBone
 from .user import UserBone
 
 # Expose only specific names
@@ -56,6 +61,7 @@ __all = [
     "MultipleConstraints",
     "NumericBone",
     "PasswordBone",
+    "PhoneBone",
     "RandomSliceBone",
     "RawBone",
     "ReadFromClientError",
@@ -67,14 +73,17 @@ __all = [
     "SelectBone",
     "SelectCountryBone",
     "SortIndexBone",
+    "SpamBone",
     "SpatialBone",
     "StringBone",
     "TextBone",
     "TreeLeafBone",
     "TreeNodeBone",
+    "UidBone",
     "UniqueLockMethod",
     "UniqueValue",
     "UserBone",
+    "UriBone",
     "translation_key_prefix_bonename",
     "translation_key_prefix_skeleton_bonename",
 ]

@@ -1,14 +1,85 @@
 #!/usr/bin/env python3
 """
+Naive ViUR3 project porting script with a simple search & replace mechanism using lookup table.
+
 Replace the old conf["dict-key"] syntax with the new conf.attribute syntax,
 which was introduced in #833.
 """
 
 import argparse
 import difflib
+import re
 from pathlib import Path
 
-mapping = {
+# Naive lookup table that replaces key by value.
+lookup = {
+    # old: new
+    "addItemSuccess": "addSuccess",
+    "BasicApplication": "SkelModule",
+    "callDeferred": "CallDeferred",
+    "clearUpdateTag=True": "update_relations=False",
+    "editItemSuccess": "editSuccess",
+    "forcePost": "force_post",
+    "forceSSL": "force_ssl",
+    "from server import": "from viur.core import",
+    "from server.bones import": "from viur.core.bones import",
+    "getEmtpyValueFunc": "getEmptyValueFunc",
+    "internalExposed": "internal_exposed",
+    "onItemAdded": "onAdded",
+    "onItemDeleted": "onDeleted",
+    "onItemEdited": "onEdited",
+    "seoLanguageMap": "seo_language_map",
+    "Session.cookieName": "Session.cookie_name",
+    "Session.sameSite": "Session.same_site",
+    "Session.useSessionCookie": "Session.use_session_cookie",
+    "utils.currentLanguage": "current.language",
+    "utils.currentRequest": "current.request",
+    "utils.currentRequestData": "current.request_data",
+    "utils.currentSession": "current.session",
+    "utils.getCurrentUser": "current.user.get",
+    "utils.isLocalDevelopmentServer": "conf.instance.is_dev_server",
+    "utils.projectID": "conf.instance.project_id",
+    "toDB": "write",
+    "fromDB": "read",
+    re.compile(r"\bsubSkel\b"): "subskel",
+
+    # WARNING: THESE MUST BE KEPT AT THE END, THE ORDER MATTERS!!!!
+    "projectID": "conf.instance.project_id",
+    "isLocalDevelopmentServer": "conf.instance.is_dev_server",
+}
+
+# Add ViUR <= 3.1 lower-case bone class names and replace by upper-case versions
+lookup.update({
+    f"{name}Bone": f"{name[0].upper()}{name[1:]}Bone" for name in (
+        "base",
+        "boolean",
+        "captcha",
+        "color",
+        "credential",
+        "date",
+        "email",
+        "file",
+        "key",
+        "numeric",
+        "password",
+        "randomSlice",
+        "raw",
+        "record",
+        "relational",
+        "selectCountry",
+        "select",
+        "sortindex",
+        "spatial",
+        "string",
+        "text",
+        "treeLeaf",
+        "treeNode",
+        "user",
+    )
+})
+
+# Build-up a mapping for old config values and their new versions
+for old_key, new_attr in {
     "admin.color.primary": "admin.color_primary",
     "admin.color.secondary": "admin.color_secondary",
     "admin.login.background": "admin.login_background",
@@ -86,13 +157,11 @@ mapping = {
     "viur.static.embedSvg.path": "static_embed_svg_path",
     "viur.tasks.customEnvironmentHandler": "tasks_custom_environment_handler",
     "viur.user.roles": "user.roles",
+    "viur.user.google.clientID": "user.google_client_id",
+    "viur.user.google.gsuiteDomains": "user.google_gsuite_domains",
     "viur.validApplicationIDs": "valid_application_ids",
     "viur.version": "version",
-}
-
-# Build up the replaceable expressions
-lookup = {}
-for old_key, new_attr in mapping.items():
+}.items():
     for quoting in ("'", "\""):
         old_expr = f"conf[{quoting}{old_key}{quoting}]"
         lookup[old_expr] = f"conf.{new_attr}"
@@ -106,9 +175,16 @@ def replace_in_file(args: argparse.Namespace, file: Path):
 
     count = 0
     for old_expr, new_expr in lookup.items():
-        if old_expr in content:
-            content = content.replace(old_expr, new_expr)
-            count += 1
+        if isinstance(old_expr, str):
+            if old_expr in content:
+                content = content.replace(old_expr, new_expr)
+                count += 1
+        elif isinstance(old_expr, re.Pattern):
+            if re.search(old_expr, content):
+                content = re.sub(old_expr, new_expr, content)
+                count += 1
+        else:
+            raise ValueError(f"Invalid pattern {old_expr!r}")
 
     if count:
         if not args.dryrun:
@@ -133,7 +209,7 @@ def replace_in_file(args: argparse.Namespace, file: Path):
 def main():
     # Get arguments
     ap = argparse.ArgumentParser(
-        description="ViUR-core migrate config 3.5 --> 3.6"
+        description="ViUR3 porting tool"
     )
 
     ap.add_argument(

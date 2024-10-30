@@ -191,7 +191,7 @@ class Tree(SkelModule):
         skel = self.nodeSkelCls()
 
         while key:
-            if not skel.fromDB(key):
+            if not skel.read(key):
                 return None
 
             key = skel["parententry"]
@@ -245,7 +245,7 @@ class Tree(SkelModule):
         lastLevel = []
         for x in range(0, 99):
             currentNodeSkel = self.viewSkel("node")
-            if not currentNodeSkel.fromDB(key):
+            if not currentNodeSkel.read(key):
                 return []  # Either invalid key or listFilter prevented us from fetching anything
             if currentNodeSkel["parententry"] == currentNodeSkel["parentrepo"]:  # We reached the top level
                 break
@@ -372,7 +372,7 @@ class Tree(SkelModule):
             raise errors.NotAcceptable(f"Invalid skelType provided.")
 
         skel = self.viewSkel(skelType)
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         if not self.canView(skelType, skel):
@@ -408,7 +408,7 @@ class Tree(SkelModule):
 
         skel = self.addSkel(skelType)
         parentNodeSkel = self.editSkel("node")
-        if not parentNodeSkel.fromDB(node):
+        if not parentNodeSkel.read(node):
             raise errors.NotFound("The provided parent node could not be found.")
         if not self.canAdd(skelType, parentNodeSkel):
             raise errors.Unauthorized()
@@ -426,7 +426,7 @@ class Tree(SkelModule):
             return self.render.add(skel)
 
         self.onAdd(skelType, skel)
-        skel.toDB()
+        skel.write()
         self.onAdded(skelType, skel)
 
         return self.render.addSuccess(skel)
@@ -457,7 +457,7 @@ class Tree(SkelModule):
             raise errors.NotAcceptable(f"Invalid skelType provided.")
 
         skel = self.editSkel(skelType)
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         if not self.canEdit(skelType, skel):
@@ -472,7 +472,7 @@ class Tree(SkelModule):
             return self.render.edit(skel)
 
         self.onEdit(skelType, skel)
-        skel.toDB()
+        skel.write()
         self.onEdited(skelType, skel)
 
         return self.render.editSuccess(skel)
@@ -502,7 +502,7 @@ class Tree(SkelModule):
             raise errors.NotAcceptable(f"Invalid skelType provided.")
 
         skel = self.editSkel(skelType)
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         if not self.canDelete(skelType, skel):
@@ -530,13 +530,13 @@ class Tree(SkelModule):
         if self.leafSkelCls:
             for leaf in db.Query(self.viewSkel("leaf").kindName).filter("parententry =", nodeKey).iter():
                 leafSkel = self.viewSkel("leaf")
-                if not leafSkel.fromDB(leaf.key):
+                if not leafSkel.read(leaf.key):
                     continue
                 leafSkel.delete()
         for node in db.Query(self.viewSkel("node").kindName).filter("parententry =", nodeKey).iter():
             self.deleteRecursive(node.key)
             nodeSkel = self.viewSkel("node")
-            if not nodeSkel.fromDB(node.key):
+            if not nodeSkel.read(node.key):
                 continue
             nodeSkel.delete()
 
@@ -567,10 +567,10 @@ class Tree(SkelModule):
         skel = self.editSkel(skelType)  # srcSkel - the skeleton to be moved
         parentNodeSkel = self.baseSkel("node")  # destSkel - the node it should be moved into
 
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound("Cannot find entity to move")
 
-        if not parentNodeSkel.fromDB(parentNode):
+        if not parentNodeSkel.read(parentNode):
             parentNode = utils.normalizeKey(db.Key.from_legacy_urlsafe(parentNode))
 
             if parentNode.kind != parentNodeSkel.kindName:
@@ -613,7 +613,7 @@ class Tree(SkelModule):
                 raise errors.PreconditionFailed()
 
         self.onEdit(skelType, skel)
-        skel.toDB()
+        skel.write()
         self.onEdited(skelType, skel)
 
         # Ensure a changed parentRepo get's proagated
@@ -648,7 +648,7 @@ class Tree(SkelModule):
             raise errors.NotAcceptable(f"Invalid skelType provided.")
 
         skel = self.cloneSkel(skelType)
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         # a clone-operation is some kind of edit and add...
@@ -684,7 +684,7 @@ class Tree(SkelModule):
             return self.render.edit(skel, action="clone")
 
         self.onClone(skelType, skel, src_skel=src_skel)
-        assert skel.toDB()
+        assert skel.write()
         self.onCloned(skelType, skel, src_skel=src_skel)
 
         return self.render.editSuccess(skel, action="cloneSuccess")
@@ -997,7 +997,7 @@ class Tree(SkelModule):
 
             self.onClone(skel_type, skel, src_skel=src_skel)
             logging.debug(f"copying {skel=}")  # this logging _is_ needed, otherwise not all values are being written..
-            assert skel.toDB()
+            assert skel.write()
             self.onCloned(skel_type, skel, src_skel=src_skel)
             count += 1
 

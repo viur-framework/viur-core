@@ -140,7 +140,7 @@ viur.emailRecipientOverride
 Override recipients for all outgoing email. This should be done for testing purposes only.
 
 If set, all outgoing emails will be send to this address
-(always overriding the ``dests``-parameter in `core.email.sendEMail`_).
+(always overriding the ``dests``-parameter in `core.email.send_email`_).
 
 ::
 

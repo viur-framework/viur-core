@@ -7,6 +7,7 @@ name = "viur-core"
 dynamic = ["version"]
 dependencies = [
     "appengine-python-standard~=1.0",
+    "Deprecated~=1.2",
     "google-api-core[grpc]~=2.0",
     "google-auth~=2.0",
     "google-cloud-datastore~=2.0",
@@ -78,4 +79,4 @@ Repository = "https://github.com/viur-framework/viur-core.git"
 Changelog = "https://github.com/viur-framework/viur-core/blob/main/CHANGELOG.md"
 
 [project.scripts]
-viur-core-migrate-config = "viur.core.scripts.migrate_config:main"
+viur-migrate = "viur.core.scripts.viur_migrate:main"

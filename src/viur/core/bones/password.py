@@ -163,6 +163,7 @@ class PasswordBone(StringBone):
             otherwise, a list of ReadFromClientErrors containing detailed information about the errors.
         :rtype: Union[None, List[ReadFromClientError]]
         """
+        self.serialize_compute(skel, name)
         if not (value := skel.accessedValues.get(name)):
             return False
 

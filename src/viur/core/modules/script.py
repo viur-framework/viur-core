@@ -82,6 +82,10 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
 
 
 class Script(Tree):
+    """
+    Script is a system module used to serve a filesystem for scripts used by ViUR Scriptor and ViUR CLI.
+    """
+
     leafSkelCls = ScriptLeafSkel
     nodeSkelCls = ScriptNodeSkel
 
@@ -134,7 +138,7 @@ class Script(Tree):
             # only update when path changed
             if new_path != skel["path"]:
                 skel["path"] = new_path  # self.onEdit() is NOT required, as it resolves the path again.
-                skel.toDB()
+                skel.write()
                 self.onEdited(skel_type, skel)  # triggers this recursion for nodes, again.
 
         if cursor := query.getCursor():
@@ -149,13 +153,10 @@ class Script(Tree):
         key = skel["parententry"]
         while key:
             parent_skel = self.viewSkel("node")
-            if not parent_skel.fromDB(key) or parent_skel["key"] == skel["parentrepo"]:
+            if not parent_skel.read(key) or parent_skel["key"] == skel["parentrepo"]:
                 break
 
             path.insert(0, parent_skel["name"])
             key = parent_skel["parententry"]
 
         skel["path"] = "/".join(path)
-
-
-Script.json = True

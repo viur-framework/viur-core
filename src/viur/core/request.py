@@ -5,18 +5,22 @@
     Additionally, this module defines the RequestValidator interface which provides a very early hook into the
     request processing (useful for global ratelimiting, DDoS prevention or access control).
 """
+import datetime
 import fnmatch
 import json
 import logging
 import os
+import re
 import time
 import traceback
 import typing as t
-import unicodedata
-import webob
 from abc import ABC, abstractmethod
 from urllib import parse
 from urllib.parse import unquote, urljoin, urlparse
+
+import unicodedata
+import webob
+
 from viur.core import current, db, errors, session, utils
 from viur.core.config import conf
 from viur.core.logging import client as loggingClient, requestLogger, requestLoggingRessource
@@ -122,6 +126,7 @@ class Router:
         self.kwargs = {}
         self.context = {}
         self.template_style: str | None = None
+        self.cors_headers = ()
 
         # Check if it's a HTTP-Method we support
         self.method = self.request.method.lower()
@@ -138,6 +143,8 @@ class Router:
 
         # Process actual request
         self._process()
+
+        self._cors()
 
         # Unset context variables
         current.language.set(None)
@@ -160,32 +167,65 @@ class Router:
             conf.i18n.language_method, we'll either try to load it from the session, determine it by the domain
             or extract it from the URL.
         """
-        sessionReference = current.session.get()
+
+        def get_language_from_header() -> str | None:
+            if not (accept_language := self.request.headers.get("accept-language")):
+                return None
+            languages = accept_language.split(",")
+            locale_q_pairs = []
+
+            for language in languages:
+                if language.split(";")[0] == language:
+                    # no q => q = 1
+                    locale_q_pairs.append((language.strip(), "1"))
+                else:
+                    locale = language.split(";")[0].strip()
+                    q = language.split(";")[1].split("=")[1]
+                    locale_q_pairs.append((locale, q))
+            for locale_q_pair in locale_q_pairs:
+                if "-" in locale_q_pair[0]:  # Check for de-DE
+                    lang = locale_q_pair[0].split("-")[0]
+                else:
+                    lang = locale_q_pair[0]
+                if lang in conf.i18n.available_languages + list(conf.i18n.language_alias_map.keys()):
+                    return lang
+            return None
+
         if not conf.i18n.available_languages:
             # This project doesn't use the multi-language feature, nothing to do here
             return path
         if conf.i18n.language_method == "session":
-            # We store the language inside the session, try to load it from there
-            if "lang" not in sessionReference:
-                if "X-Appengine-Country" in self.request.headers:
-                    lng = self.request.headers["X-Appengine-Country"].lower()
-                    if lng in conf.i18n.available_languages + list(conf.i18n.language_alias_map.keys()):
-                        sessionReference["lang"] = lng
-                        current.language.set(lng)
-                    else:
-                        sessionReference["lang"] = conf.i18n.default_language
-            else:
-                current.language.set(sessionReference["lang"])
+            current_session = current.session.get()
+            lang = conf.i18n.default_language
+            # We save the language in the session, if it exists, and try to load it from there
+            if "lang" in current_session:
+                current.language.set(current_session["lang"])
+                return path
+
+            if header_lang := get_language_from_header():
+                lang = header_lang
+                current.language.set(lang)
+
+            elif header_lang := self.request.headers.get("X-Appengine-Country"):
+                header_lang = str(header_lang).lower()
+                if header_lang in conf.i18n.available_languages + list(conf.i18n.language_alias_map.keys()):
+                    lang = header_lang
+
+            if current_session.loaded:
+                current_session["lang"] = lang
+            current.language.set(lang)
+
         elif conf.i18n.language_method == "domain":
             host = self.request.host_url.lower()
             host = host[host.find("://") + 3:].strip(" /")  # strip http(s)://
             if host.startswith("www."):
                 host = host[4:]
-            if host in conf.i18n.domain_language_mapping:
-                current.language.set(conf.i18n.domain_language_mapping[host])
-            else:  # We have no language configured for this domain, try to read it from session
-                if "lang" in sessionReference:
-                    current.language.set(sessionReference["lang"])
+            if lang := conf.i18n.domain_language_mapping.get(host):
+                current.language.set(lang)
+            # We have no language configured for this domain, try to read it from the HTTP Header
+            elif lang := get_language_from_header():
+                current.language.set(lang)
+
         elif conf.i18n.language_method == "url":
             tmppath = urlparse(path).path
             tmppath = [unquote(x) for x in tmppath.lower().strip("/").split("/")]
@@ -196,16 +236,20 @@ class Router:
                 current.language.set(tmppath[0])
                 return path[len(tmppath[0]) + 1:]  # Return the path stripped by its language segment
             else:  # This URL doesnt contain an language prefix, try to read it from session
-                if "lang" in sessionReference:
-                    current.language.set(sessionReference["lang"])
-                elif "X-Appengine-Country" in self.request.headers.keys():
-                    lng = self.request.headers["X-Appengine-Country"].lower()
-                    if lng in conf.i18n.available_languages or lng in conf.i18n.language_alias_map:
-                        current.language.set(lng)
+                if header_lang := get_language_from_header():
+                    current.language.set(header_lang)
+                elif header_lang := self.request.headers.get("X-Appengine-Country"):
+                    lang = str(header_lang).lower()
+                    if lang in conf.i18n.available_languages or lang in conf.i18n.language_alias_map:
+                        current.language.set(lang)
+        elif conf.i18n.language_method == "header":
+            if lang := get_language_from_header():
+                current.language.set(lang)
+
         return path
 
     def _process(self):
-        if self.method not in ("get", "post", "head"):
+        if self.method not in ("get", "post", "head", "options"):
             logging.error(f"{self.method=} not supported")
             return
 
@@ -286,7 +330,7 @@ class Router:
             return
 
         try:
-            current.session.get().load(self)
+            current.session.get().load()
 
             # Load current user into context variable if user module is there.
             if user_mod := getattr(conf.main_app.vi, "user", None):
@@ -382,7 +426,7 @@ class Router:
             self.response.write(res.encode("UTF-8"))
 
         finally:
-            self.saveSession()
+            current.session.get().save()
             if conf.instance.is_dev_server and conf.debug.dev_server_cloud_logging:
                 # Emit the outer log only on dev_appserver (we'll use the existing request log when live)
                 SEVERITY = "DEBUG"
@@ -528,6 +572,13 @@ class Router:
         if caller.exposed is False and not self.internalRequest:
             raise errors.NotFound()
 
+        # Fill the Allow header of the response with the allowed HTTP methods
+        if self.method == "options":
+            self.response.headers["Allow"] = ", ".join(sorted(caller.methods)).upper()
+
+        # Register caller specific CORS headers
+        self.cors_headers = [str(header).lower() for header in caller.cors_allow_headers or ()]
+
         # Check for @force_ssl flag
         if not self.internalRequest \
                 and caller.ssl \
@@ -536,7 +587,7 @@ class Router:
             raise errors.PreconditionFailed("You must use SSL to access this resource!")
 
         # Check for @force_post flag
-        if not self.isPostRequest and caller.methods == ("POST", ):
+        if not self.isPostRequest and caller.methods == ("POST",):
             raise errors.MethodNotAllowed("You must use POST to access this resource!")
 
         # Check if this request should bypass the caches
@@ -564,12 +615,130 @@ class Router:
         # Now call the routed method!
         res = caller(*self.args, **kwargs)
 
+        if self.method == "options":
+            # OPTIONS request doesn't have a body
+            del self.response.app_iter
+            del self.response.content_type
+            self.response.status = "204 No Content"
+            return
+
         if not isinstance(res, bytes):  # Convert the result to bytes if it is not already!
             res = str(res).encode("UTF-8")
         self.response.write(res)
 
+    def _cors(self) -> None:
+        """
+        Set CORS headers to the HTTP response.
+
+        .. seealso::
+
+            Option :attr:`core.config.Security.cors_origins`, etc.
+            for cors settings.
+
+            https://fetch.spec.whatwg.org/#http-cors-protocol
+
+            https://enable-cors.org/server.html
+
+            https://www.html5rocks.com/static/images/cors_server_flowchart.png
+        """
+
+        def test_candidates(value: str, *candidates: str | re.Pattern) -> bool:
+            """Test if the value matches the pattern of any candidate"""
+            for candidate in candidates:
+                if isinstance(candidate, re.Pattern):
+                    if candidate.match(value):
+                        return True
+                elif isinstance(candidate, str):
+                    if candidate.lower() == str(value).lower():
+                        return True
+                else:
+                    raise TypeError(
+                        f"Invalid setting {candidate}. "
+                        f"Expected a string or a compiled regex."
+                    )
+            return False
+
+        origin = current.request.get().request.headers.get("Origin")
+        if not origin:
+            logging.debug(f"Origin header is not set")
+            return
+
+        # Origin is set --> It's a CORS request
+        logging.debug(f"Got CORS request from {origin=}")
+
+        any_origin_allowed = (
+            conf.security.cors_origins == "*"
+            or any(_origin == "*" for _origin in conf.security.cors_origins)
+            or any(_origin.pattern == r".*"
+                   for _origin in conf.security.cors_origins
+                   if isinstance(_origin, re.Pattern))
+        )
+
+        if any_origin_allowed and conf.security.cors_origins_use_wildcard:
+            if conf.security.cors_allow_credentials:
+                raise RuntimeError(
+                    "Invalid CORS config: "
+                    "If credentials mode is \"include\", then `Access-Control-Allow-Origin` cannot be `*`. "
+                    "See https://fetch.spec.whatwg.org/#cors-protocol-and-credentials"
+                )
+            self.response.headers["Access-Control-Allow-Origin"] = "*"
+
+        elif test_candidates(origin, *conf.security.cors_origins):
+            self.response.headers["Access-Control-Allow-Origin"] = origin
+
+        else:
+            logging.warning(f"{origin=} not valid (must be one of {conf.security.cors_origins=})")
+            return
+
+        if conf.security.cors_allow_credentials:
+            self.response.headers["Access-Control-Allow-Credentials"] = "true"
+
+        if self.method == "options":
+            method = (self.request.headers.get("Access-Control-Request-Method") or "").lower()
+
+            if method in conf.security.cors_methods:
+                # It's a CORS-preflight request
+                # - MUST include Access-Control-Request-Method
+                # - CAN include Access-Control-Request-Headers
+
+                # The response can be cached
+                if conf.security.cors_max_age is not None:
+                    assert isinstance(conf.security.cors_max_age, datetime.timedelta)
+                    self.response.headers["Access-Control-Max-Age"] = \
+                        str(int(conf.security.cors_max_age.total_seconds()))
+
+                # Allowed methods
+                self.response.headers["Access-Control-Allow-Methods"] = ", ".join(
+                    sorted(conf.security.cors_methods)).upper()
+
+                # Allowed headers
+                request_headers = self.request.headers.get("Access-Control-Request-Headers")
+                request_headers = [h.strip().lower() for h in request_headers.split(",")]
+                if conf.security.cors_allow_headers == "*":
+                    # Every header is allowed
+                    allow_headers = request_headers[:]
+                else:
+                    # There are generally headers allowed and/or from the caller
+                    allow_headers = [
+                        header
+                        for header in request_headers
+                        if test_candidates(
+                            header,
+                            *(self.cors_headers or ()),  # caller specific
+                            *(conf.security.cors_allow_headers or ())  # generally global
+                        )
+                    ]
+                if allow_headers:
+                    self.response.headers["Access-Control-Allow-Headers"] = ", ".join(sorted(allow_headers))
+
+            else:
+                logging.warning(
+                    f"Access-Control-Request-Method: {method} is NOT a valid method of {conf.security.cors_methods=}. "
+                    f"Don't append CORS-preflight request headers"
+                )
+
     def saveSession(self) -> None:
-        current.session.get().save(self)
+        current.session.get().save()
 
 
 from .i18n import translate  # noqa: E402

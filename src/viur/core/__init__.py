@@ -10,28 +10,34 @@ import os
 import sys
 
 # Set a dummy project id to survive API Client initializations
-if sys.argv[0].endswith("viur-core-migrate-config"):
+if sys.argv[0].endswith("viur-migrate"):  # FIXME: What a "kinda hackish" solution...
     os.environ["GOOGLE_CLOUD_PROJECT"] = "dummy"
 
-import inspect
-import warnings
-from types import ModuleType
-import typing as t
 from google.appengine.api import wrap_wsgi_app
-
+from types import ModuleType
 from viur.core import i18n, request, utils
 from viur.core.config import conf
-from viur.core.decorators import *
 from viur.core.decorators import access, exposed, force_post, force_ssl, internal_exposed, skey
+from viur.core.i18n import translate
 from viur.core.module import Method, Module
-from viur.core.module import Module, Method
-from viur.core.tasks import TaskHandler, runStartupTasks
-from .i18n import translate
-from .tasks import (DeleteEntitiesIter, PeriodicTask, QueryIter, StartupTask,
-                    TaskHandler, callDeferred, retry_n_times, runStartupTasks)
+import inspect
+import typing as t
+import warnings
+from .tasks import (
+    callDeferred,
+    CallDeferred,
+    DeleteEntitiesIter,
+    PeriodicTask,
+    QueryIter,
+    retry_n_times,
+    runStartupTasks,
+    StartupTask,
+    TaskHandler,
+)
 
-# noinspection PyUnresolvedReferences
-from viur.core import logging as viurLogging  # unused import, must exist, initializes request logging
+if not sys.argv[0].endswith("viur-migrate"):  # FIXME: What a "kinda hackish" solution...
+    # noinspection PyUnresolvedReferences
+    from viur.core import logging as viurLogging  # unused import, must exist, initializes request logging
 
 import logging  # this import has to stay here, see #571
 
@@ -48,6 +54,7 @@ __all__ = [
     "QueryIter",
     "retry_n_times",
     "callDeferred",
+    "CallDeferred",
     "StartupTask",
     "PeriodicTask",
     # Decorators
@@ -109,14 +116,25 @@ def __build_app(modules: ModuleType | object, renderers: ModuleType | object, de
     """
     if not isinstance(renderers, dict):
         # build up the dict from viur.core.render
-        renderers, renderers_root = {}, renderers
-        for key, module in vars(renderers_root).items():
-            if "__" not in key:
-                renderers[key] = {}
-                for subkey, render in vars(module).items():
-                    if "__" not in subkey:
-                        renderers[key][subkey] = render
-        del renderers_root
+        renderers, mod = {}, renderers
+
+        from viur.core.render.abstract import AbstractRenderer
+
+        for render_name, render_mod in vars(mod).items():
+            if inspect.ismodule(render_mod):
+                for render_clsname, render_cls in vars(render_mod).items():
+                    # this is "kinda hackish..." because ViUR 3's current renderer concept is pure bulls*t...
+                    if render_clsname == "DefaultRender":
+                        continue
+
+                    if (
+                            # test for a renderer
+                            (inspect.isclass(render_cls) and issubclass(render_cls, AbstractRenderer))
+                            # bullsh*t, this must be entirely reworked!
+                            or render_clsname == "_postProcessAppObj"
+                    ):
+                        renderers.setdefault(render_name, {})
+                        renderers[render_name][render_clsname] = render_cls
 
     # assign ViUR system modules
     from viur.core.modules.moduleconf import ModuleConf  # noqa: E402 # import works only here because circular imports

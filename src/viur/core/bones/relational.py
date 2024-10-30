@@ -46,6 +46,10 @@ class RelationalUpdateLevel(enum.Enum):
     """Update the relational information only when a new value is assigned to the bone."""
 
 
+class RelDict(t.TypedDict):
+    dest: "SkeletonInstance"
+    rel: t.Optional["RelSkel"]
+
 class RelationalBone(BaseBone):
     """
     The base class for all relational bones in the ViUR framework.
@@ -401,74 +405,53 @@ class RelationalBone(BaseBone):
 
         :raises AssertionError: If a programming error is detected.
         """
+
+        def serialize_dest_rel(in_value: dict | None = None) -> (dict | None, dict | None):
+            if not in_value:
+                return None, None
+            if dest_val := in_value.get("dest"):
+                ref_data_serialized = dest_val.serialize(parentIndexed=indexed)
+            else:
+                ref_data_serialized = None
+            if rel_data := in_value.get("rel"):
+                using_data_serialized = rel_data.serialize(parentIndexed=indexed)
+            else:
+                using_data_serialized = None
+
+            return using_data_serialized, ref_data_serialized
+
+
         super().serialize(skel, name, parentIndexed)
+
         # Clean old properties from entry (prevent name collision)
-        for k in list(skel.dbEntity.keys()):
-            if k.startswith(f"{name}."):
-                del skel.dbEntity[k]
+        for key in skel.dbEntity:
+            if key.startswith(f"{name}."):
+                del skel.dbEntity[key]
         indexed = self.indexed and parentIndexed
-        if name not in skel.accessedValues:
-            return
-        elif not skel.accessedValues[name]:
-            res = None
-        elif self.languages and self.multiple:
-            res = {"_viurLanguageWrapper_": True}
-            newVals = skel.accessedValues[name]
-            for language in self.languages:
-                res[language] = []
-                if language in newVals:
-                    for val in newVals[language]:
-                        if val["dest"]:
-                            refData = val["dest"].serialize(parentIndexed=indexed)
-                        else:
-                            refData = None
-                        if val["rel"]:
-                            usingData = val["rel"].serialize(parentIndexed=indexed)
-                        else:
-                            usingData = None
-                        r = {"rel": usingData, "dest": refData}
-                        res[language].append(r)
+
+        if not (new_vals := skel.accessedValues.get(name)):
+            return False
         elif self.languages:
             res = {"_viurLanguageWrapper_": True}
-            newVals = skel.accessedValues[name]
             for language in self.languages:
-                res[language] = []
-                if language in newVals:
-                    val = newVals[language]
-                    if val and val["dest"]:
-                        refData = val["dest"].serialize(parentIndexed=indexed)
-                        if val["rel"]:
-                            usingData = val["rel"].serialize(parentIndexed=indexed)
-                        else:
-                            usingData = None
-                        r = {"rel": usingData, "dest": refData}
-                        res[language] = r
+                if language in new_vals:
+                    if self.multiple:
+                        res[language] = []
+                        for val in new_vals[language]:
+                            using_data, ref_data = serialize_dest_rel(val)
+                            res[language].append({"rel": using_data, "dest": ref_data})
                     else:
-                        res[language] = None
+                        if (val := new_vals[language]) and val["dest"]:
+                            using_data, ref_data = serialize_dest_rel(val)
+                            res[language] = {"rel": using_data, "dest": ref_data}
         elif self.multiple:
             res = []
-            for val in skel.accessedValues[name]:
-                if val["dest"]:
-                    refData = val["dest"].serialize(parentIndexed=indexed)
-                else:
-                    refData = None
-                if val["rel"]:
-                    usingData = val["rel"].serialize(parentIndexed=indexed)
-                else:
-                    usingData = None
-                r = {"rel": usingData, "dest": refData}
-                res.append(r)
+            for val in new_vals:
+                using_data, ref_data = serialize_dest_rel(val)
+                res.append({"rel": using_data, "dest": ref_data})
         else:
-            if skel.accessedValues[name]["dest"]:
-                refData = skel.accessedValues[name]["dest"].serialize(parentIndexed=indexed)
-            else:
-                refData = None
-            if skel.accessedValues[name]["rel"]:
-                usingData = skel.accessedValues[name]["rel"].serialize(parentIndexed=indexed)
-            else:
-                usingData = None
-            res = {"rel": usingData, "dest": refData}
-
+            using_data, ref_data = serialize_dest_rel(new_vals)
+            res = {"rel": using_data, "dest": ref_data}
         skel.dbEntity[name] = res
 
         # Ensure our indexed flag is up2date
@@ -666,7 +649,9 @@ class RelationalBone(BaseBone):
         else:
             destKey = value
             usingData = None
-        assert isinstance(destKey, str)
+
+        destKey = str(destKey)
+
         refSkel, usingSkel, errors = restoreSkels(destKey, usingData)
         if refSkel:
             resVal = {"dest": refSkel, "rel": usingSkel}
@@ -846,8 +831,9 @@ class RelationalBone(BaseBone):
         self,
         name: str,
         skel: "SkeletonInstance",
-        dbFilter: db.Query,
-        rawFilter: dict
+        query: db.Query,
+        params: dict,
+        postfix: str = "",
     ) -> t.Optional[db.Query]:
         """
         Builds a datastore query by modifying the given filter based on the RelationalBone's properties for sorting.
@@ -855,10 +841,10 @@ class RelationalBone(BaseBone):
         This method takes a datastore query and modifies its sorting behavior according to the relational bone
         properties. It also checks if the sorting is valid based on the 'refKeys' and 'using' attributes of the bone.
 
-        :param str name: The name of the bone.
-        :param SkeletonInstance skel: The skeleton instance the bone is a part of.
-        :param db.Query dbFilter: The original datastore query to be modified.
-        :param dict rawFilter: The raw filter applied to the original datastore query.
+        :param name: The name of the bone.
+        :param skel: The skeleton instance the bone is a part of.
+        :param query: The original datastore query to be modified.
+        :param params: The raw filter applied to the original datastore query.
 
         :return: The modified datastore query with updated sorting behavior.
         :rtype: t.Optional[db.Query]
@@ -866,43 +852,39 @@ class RelationalBone(BaseBone):
         :raises RuntimeError: If the sorting is invalid, e.g., using properties not in 'refKeys'
             or not a bone in 'using'.
         """
-        origFilter = dbFilter.queries
-        if origFilter is None or not "orderby" in rawFilter:  # This query is unsatisfiable or not sorted
-            return dbFilter
-        if "orderby" in rawFilter and isinstance(rawFilter["orderby"], str) and rawFilter["orderby"].startswith(
-                f"{name}."):
-            if not dbFilter.getKind() == "viur-relations" and self.multiple:  # This query has not been rewritten (yet)
-                name, skel, dbFilter, rawFilter = self._rewriteQuery(name, skel, dbFilter, rawFilter)
-            key = rawFilter["orderby"]
+        if query.queries and (orderby := params.get("orderby")) and utils.string.is_prefix(orderby, name):
+            if self.multiple and query.getKind() != "viur-relations":
+                # This query has not been rewritten (yet)
+                name, skel, query, params = self._rewriteQuery(name, skel, query, params)
+
             try:
-                unused, _type, param = key.split(".")
-                assert _type in ["dest", "rel"]
-            except:
-                return dbFilter  # We cant parse that
+                _, _type, param = orderby.split(".")
+            except ValueError as e:
+                logging.exception(f"Invalid layout of {orderby=}: {e}")
+                return query
+            if _type not in ("dest", "rel"):
+                logging.error("Invalid type {_type}")
+                return query
+
             # Ensure that the relational-filter is in refKeys
             if _type == "dest" and param not in self._ref_keys:
-                logging.warning(f"Invalid filtering! {param} is not in refKeys of RelationalBone {name}!")
-                raise RuntimeError()
-            if _type == "rel" and (self.using is None or param not in self.using()):
-                logging.warning(f"Invalid filtering! {param} is not a bone in 'using' of {name}")
-                raise RuntimeError()
+                raise RuntimeError(f"Invalid filtering! {param!r} is not in refKeys of RelationalBone {name!r}!")
+            elif _type == "rel" and (self.using is None or param not in self.using()):
+                raise RuntimeError(f"Invalid filtering! {param!r} is not a bone in 'using' of RelationalBone {name!r}")
+
             if self.multiple:
-                orderPropertyPath = f"{_type}.{param}"
-            else:  # Also inject our bonename again
-                orderPropertyPath = f"{name}.{_type}.{param}"
-            if "orderdir" in rawFilter and rawFilter["orderdir"] == "1":
-                order = (orderPropertyPath, db.SortOrder.Descending)
-            elif "orderdir" in rawFilter and rawFilter["orderdir"] == "2":
-                order = (orderPropertyPath, db.SortOrder.InvertedAscending)
-            elif "orderdir" in rawFilter and rawFilter["orderdir"] == "3":
-                order = (orderPropertyPath, db.SortOrder.InvertedDescending)
+                path = f"{_type}.{param}"
             else:
-                order = (orderPropertyPath, db.SortOrder.Ascending)
-            dbFilter = dbFilter.order(order)
+                path = f"{name}.{_type}.{param}"
+
+            order = utils.parse.sortorder(params.get("orderdir"))
+            query = query.order((path, order))
+
             if self.multiple:
-                dbFilter.setFilterHook(lambda s, filter, value: self.filterHook(name, s, filter, value))
-                dbFilter.setOrderHook(lambda s, orderings: self.orderHook(name, s, orderings))
-        return dbFilter
+                query.setFilterHook(lambda s, query, value: self.filterHook(name, s, query, value))
+                query.setOrderHook(lambda s, orderings: self.orderHook(name, s, orderings))
+
+        return query
 
     def filterHook(self, name, query, param, value):  # FIXME
         """
@@ -1099,36 +1081,41 @@ class RelationalBone(BaseBone):
 
         return result
 
-    def createRelSkelFromKey(self, key: t.Union[str, "db.Key"], rel: dict | None = None):
+    def createRelSkelFromKey(self, key: db.Key, rel: dict | None = None) -> RelDict:
+        return self.relskels_from_keys([(key, rel)])[0]
+
+    def relskels_from_keys(self, key_rel_list: list[tuple[db.Key, dict | None]]) -> list[RelDict] | None:
         """
-        Creates a relSkel instance valid for this bone from the given database key.
+        Creates a list of RelSkel instances valid for this bone from the given database key.
 
         This method retrieves the entity corresponding to the provided key from the database, unserializes it
         into a reference skeleton, and returns a dictionary containing the reference skeleton and optional
         relation data.
 
-        :param Union[str, db.Key] key: The database key of the entity for which a relSkel instance is to be created.
-        :param Union[dict, None]rel: Optional relation data to be included in the resulting dictionary. Default is None.
+        :param key_rel_list: List of tuples with the first value in the tuple is the
+            key and the second is and RelSkel or None
 
-        :return: A dictionary containing a reference skeleton and optional relation data.
+        :return: A dictionary containing a reference skeleton and optional relation data or None.
         :rtype: dict
         """
 
-        key = db.keyHelper(key, self.kind)
-        entity = db.Get(key)
-        if not entity:
-            logging.error(f"Key {key} not found")
+        if not all(db_objs := db.Get([db.keyHelper(value[0], self.kind) for value in key_rel_list])):
             return None
-        relSkel = self._refSkelCache()
-        relSkel.unserialize(entity)
-        for k in relSkel.keys():
-            # Unserialize all bones from refKeys, then drop dbEntity - otherwise all properties will be copied
-            _ = relSkel[k]
-        relSkel.dbEntity = None
-        return {
-            "dest": relSkel,
-            "rel": rel or None
-        }
+        res_rel_skels = []
+        for (key, rel), db_obj in zip(key_rel_list, db_objs):
+            dest_skel = self._refSkelCache()
+            dest_skel.unserialize(db_obj)
+            for bone_name in dest_skel:
+                # Unserialize all bones from refKeys, then drop dbEntity - otherwise all properties will be copied
+                _ = dest_skel[bone_name]
+            dest_skel.dbEntity = None
+            res_rel_skels.append(
+                {
+                    "dest": dest_skel,
+                    "rel": rel or None
+                }
+            )
+        return res_rel_skels
 
     def setBoneValue(
         self,
@@ -1154,79 +1141,67 @@ class RelationalBone(BaseBone):
         """
         assert not (bool(self.languages) ^ bool(language)), "Language is required or not supported"
         assert not append or self.multiple, "Can't append - bone is not multiple"
+
+        def tuple_check(in_value: tuple | None = None) -> bool:
+            """
+            Return False if the given value is a tuple with a length of two.
+            In addition, the first field in the tuple must be a str,int or db.key.
+            Furthermore, the second field must be a skeletonInstanceClassRef.
+            """
+            return not (isinstance(in_value, tuple) and len(in_value) == 2
+                        and isinstance(in_value[0], (str, int, db.Key))
+                        and isinstance(in_value[1], self._skeletonInstanceClassRef))
+
         if not self.multiple and not self.using:
-            if not isinstance(value, (str, db.Key)):
-                logging.error(value)
-                logging.error(type(value))
-                raise ValueError(f"You must supply exactly one Database-Key to {boneName}")
-            realValue = (value, None)
+            if not isinstance(value, (str, int, db.Key)):
+                raise ValueError(f"You must supply exactly one Database-Key str or int to {boneName}")
+            parsed_value = (value, None)
         elif not self.multiple and self.using:
-            if (
-                not isinstance(value, tuple) or len(value) != 2
-                or not isinstance(value[0], (str, db.Key))
-                or not isinstance(value[1], self._skeletonInstanceClassRef)
-            ):
+            if tuple_check(value):
                 raise ValueError(f"You must supply a tuple of (Database-Key, relSkel) to {boneName}")
-            realValue = value
+            parsed_value = value
         elif self.multiple and not self.using:
-            if (
-                not isinstance(value, (str, db.Key))
-                and not (isinstance(value, list))
-                and all(isinstance(k, (str, db.Key)) for k in value)
-            ):
+            if not isinstance(value, (str, int, db.Key)) and not (isinstance(value, list)) \
+                    and all([isinstance(val, (str, int, db.Key)) for val in value]):
                 raise ValueError(f"You must supply a Database-Key or a list hereof to {boneName}")
             if isinstance(value, list):
-                realValue = [(x, None) for x in value]
+                parsed_value = [(key, None) for key in value]
             else:
-                realValue = [(value, None)]
+                parsed_value = [(value, None)]
         else:  # which means (self.multiple and self.using)
-            if (
-                not (isinstance(value, tuple) and len(value) == 2 and isinstance(value[0], (str, db.Key))
-                     and isinstance(value[1], self._skeletonInstanceClassRef))
-                and not (isinstance(value, list)
-                         and all((isinstance(x, tuple) and len(x) == 2 and (isinstance(x[0], (str, db.Key)))
-                                  and isinstance(x[1], self._skeletonInstanceClassRef) for x in value)))
-            ):
+            if tuple_check(value) and not (isinstance(value, list) and all(tuple_check(val) for val in value)):
                 raise ValueError(f"You must supply (db.Key, RelSkel) or a list hereof to {boneName}")
-            if not isinstance(value, list):
-                realValue = [value]
+            if isinstance(value, list):
+                parsed_value = value
             else:
-                realValue = value
-        if not self.multiple:
-            rel = self.createRelSkelFromKey(realValue[0], realValue[1])
-            if not rel:
+                parsed_value = [value]
+
+        if boneName not in skel:
+            skel[boneName] = {}
+            if language:
+                skel[boneName].setdefault(language, [])
+
+        if self.multiple:
+            rel_list = self.relskels_from_keys(parsed_value)
+            if append:
+                if language:
+                    skel[boneName][language].extend(rel_list)
+                else:
+                    if not isinstance(skel[boneName], list):
+                        skel[boneName] = []
+                    skel[boneName].extend(rel_list)
+            else:
+                if language:
+                    skel[boneName][language] = rel_list
+                else:
+                    skel[boneName] = rel_list
+        else:
+            if not (rel := self.createRelSkelFromKey(parsed_value[0], parsed_value[1])):
                 return False
             if language:
-                if boneName not in skel or not isinstance(skel[boneName], dict):
-                    skel[boneName] = {}
                 skel[boneName][language] = rel
             else:
                 skel[boneName] = rel
-        else:
-            tmpRes = []
-            for val in realValue:
-                rel = self.createRelSkelFromKey(val[0], val[1])
-                if not rel:
-                    return False
-                tmpRes.append(rel)
-            if append:
-                if language:
-                    if boneName not in skel or not isinstance(skel[boneName], dict):
-                        skel[boneName] = {}
-                    if not isinstance(skel[boneName].get(language), list):
-                        skel[boneName][language] = []
-                    skel[boneName][language].extend(tmpRes)
-                else:
-                    if boneName not in skel or not isinstance(skel[boneName], list):
-                        skel[boneName] = []
-                    skel[boneName].extend(tmpRes)
-            else:
-                if language:
-                    if boneName not in skel or not isinstance(skel[boneName], dict):
-                        skel[boneName] = {}
-                    skel[boneName][language] = tmpRes
-                else:
-                    skel[boneName] = tmpRes
         return True
 
     def getReferencedBlobs(self, skel: "SkeletonInstance", name: str) -> set[str]:

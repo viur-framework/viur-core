@@ -157,7 +157,7 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
         skel = self.viewSkel()
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         if not self.canView(skel):
@@ -244,7 +244,7 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
         skel = self.editSkel()
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         if not self.canEdit(skel):
@@ -260,7 +260,7 @@ class List(SkelModule):
             return self.render.edit(skel)
 
         self.onEdit(skel)
-        skel.toDB()  # write it!
+        skel.write()  # write it!
         self.onEdited(skel)
 
         return self.render.editSuccess(skel)
@@ -297,7 +297,7 @@ class List(SkelModule):
             return self.render.add(skel)
 
         self.onAdd(skel)
-        skel.toDB()
+        skel.write()
         self.onAdded(skel)
 
         return self.render.addSuccess(skel)
@@ -321,7 +321,7 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
         skel = self.editSkel()
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         if not self.canDelete(skel):
@@ -387,7 +387,7 @@ class List(SkelModule):
         """
 
         skel = self.cloneSkel()
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         # a clone-operation is some kind of edit and add...
@@ -409,7 +409,7 @@ class List(SkelModule):
             return self.render.edit(skel, action="clone")
 
         self.onClone(skel, src_skel=src_skel)
-        assert skel.toDB()
+        assert skel.write()
         self.onCloned(skel, src_skel=src_skel)
 
         return self.render.editSuccess(skel, action="cloneSuccess")
