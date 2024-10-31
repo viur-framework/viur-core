@@ -312,9 +312,6 @@ class UserPassword(UserPrimaryAuthentication):
     @force_ssl
     @skey(allow_empty=True)
     def login(self, *, name: str | None = None, password: str | None = None, **kwargs):
-        if current.user.get():  # User is already logged in, nothing to do.
-            return self._user_module.render.loginSucceeded()
-
         if not name or not password:
             return self._user_module.render.login(self.LoginSkel(), action="login")
 
@@ -602,7 +599,6 @@ class GoogleAccount(UserPrimaryAuthentication):
     @force_ssl
     @skey(allow_empty=True)
     def login(self, token: str | None = None, *args, **kwargs):
-        # FIXME: Check if already logged in
         if not conf.user.google_client_id:
             raise errors.PreconditionFailed("Please configure conf.user.google_client_id!")
 
