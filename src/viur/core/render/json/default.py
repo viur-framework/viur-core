@@ -70,6 +70,14 @@ class DefaultRender(AbstractRenderer):
 
         return structure
 
+    def render_object(self, obj: dict):
+        """
+        Dumps the given object to JSON and set the Content-Type to application/json".
+        :param obj: Object to render
+        """
+        current.request.get().response.headers["Content-Type"] = "application/json"
+        return json.dumps(obj, cls=CustomJsonEncoder)
+
     def renderSingleBoneValue(self, value: t.Any,
                               bone: bones.BaseBone,
                               skel: SkeletonInstance,

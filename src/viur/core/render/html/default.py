@@ -247,6 +247,14 @@ class Render(AbstractRenderer):
 
         return self.getEnv().get_template(self.getTemplateFileName(template))
 
+    def render_object(self, obj: dict):
+        """
+        Corresponding function for the json Renderer.
+        This function only returns the Object.
+        :param obj: Object to render
+        """
+        return obj
+
     def render_action_template(
         self,
         default: str,

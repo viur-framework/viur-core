@@ -131,13 +131,20 @@ class List(SkelModule):
 
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
-        skel = self.viewSkel()
+        view_skel = self.viewSkel()
         if not self.canAdd():  # We can't use canView here as it would require passing a skeletonInstance.
             # As a fallback, we'll check if the user has the permissions to view at least one entry
-            qry = self.listFilter(skel.all())
+            qry = self.listFilter(view_skel.all())
             if not qry or not qry.getEntry():
                 raise errors.Unauthorized()
-        return self.render.view(skel)
+        add_skel = self.addSkel()
+        edit_skel = self.editSkel()
+        res = {
+            "viewSkel": view_skel.structure(),
+            "addSkel": add_skel.structure(),
+            "editSkel": edit_skel.structure()
+        }
+        return self.render.render_object(res)
 
     @exposed
     def view(self, key: db.Key | int | str, *args, **kwargs) -> t.Any:

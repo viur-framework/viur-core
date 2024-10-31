@@ -84,10 +84,15 @@ class Singleton(SkelModule):
 
         :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
-        skel = self.viewSkel()
+        view_skel = self.viewSkel()
         if not self.canView():
             raise errors.Unauthorized()
-        return self.render.view(skel)
+        edit_skel = self.editSkel()
+        res = {
+            "viewSkel": view_skel.structure(),
+            "editSkel": edit_skel.structure()
+        }
+        return self.render.render_object(res)
 
     @exposed
     def view(self, *args, **kwargs) -> t.Any:

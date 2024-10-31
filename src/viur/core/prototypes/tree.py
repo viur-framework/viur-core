@@ -331,23 +331,40 @@ class Tree(SkelModule):
         return self.render.list(query.fetch())
 
     @exposed
-    def structure(self, skelType: SkelType, *args, **kwargs) -> t.Any:
+    def structure(self, skelType: t.Optional[SkelType] = None, *args, **kwargs) -> t.Any:
         """
+        We do not explicitly set ‘render’ in the parameters so that it cannot be passed from outside. If it is passed
+        from outside as a parameter, it is automatically parsed to an str and is always recognised as True.
+
         :returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
             in each bone.
-
         :raises: :exc:`viur.core.errors.NotAcceptable`, when an incorrect *skelType* is provided.
         :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
+        if skelType is None:
+            res = {
+                "leaf": self.structure("leaf", render=False),
+                "node": self.structure("node", render=False)
+            }
+            return self.render.render_object(res)
         if not (skelType := self._checkSkelType(skelType)):
             raise errors.NotAcceptable(f"Invalid skelType provided.")
-        skel = self.viewSkel(skelType)
+        view_skel = self.viewSkel(skelType)
         if not self.canAdd(skelType, None):  # We can't use canView here as it would require passing a skeletonInstance.
             # As a fallback, we'll check if the user has the permissions to view at least one entry
-            qry = self.listFilter(skel.all())
+            qry = self.listFilter(view_skel.all())
             if not qry or not qry.getEntry():
                 raise errors.Unauthorized()
-        return self.render.view(skel)
+        add_skel = self.addSkel(skelType)
+        edit_skel = self.editSkel(skelType)
+        res = {
+            "viewSkel": view_skel.structure(),
+            "addSkel": add_skel.structure(),
+            "editSkel": edit_skel.structure()
+        }
+        if kwargs.get("render", True):
+            return self.render.render_object(res)
+        return res
 
     @exposed
     def view(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> t.Any:
