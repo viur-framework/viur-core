@@ -438,11 +438,12 @@ class UserPassword(UserPrimaryAuthentication):
                 )
             )
 
-        if user_skel["status"] < Status.ACTIVE:  # The account is locked or not yet validated. Abort the process.
+        # If the account is locked or not yet validated, abort the process.
+        if not self._user_module.is_active(user_skel):
             raise errors.NotFound(
                 i18n.translate(
                     key="viur.modules.user.passwordrecovery.accountlocked",
-                    defaultText="This account is currently locked. You cannot change it's password.",
+                    defaultText="This account is currently locked. You cannot change its password.",
                     hint="Attempted password recovery on a locked account"
                 )
             )
@@ -486,6 +487,7 @@ class UserPassword(UserPrimaryAuthentication):
             skel = self._user_module.editSkel()
             if not key or not skel.read(key):
                 return None
+
             skel["status"] = Status.WAITING_FOR_ADMIN_VERIFICATION \
                 if self.registrationAdminVerificationRequired else Status.ACTIVE
 
@@ -1367,6 +1369,24 @@ class User(List):
 
         return self.authenticateUser(user_key)
 
+    def is_active(self, skel: skeleton.SkeletonInstance) -> bool:
+        """
+        Hookable check if a user is defined as "active" and can login.
+
+        :param skel: The UserSkel of the user who wants to login.
+        """
+        if "status" in skel:
+            status = skel["status"]
+            if not isinstance(status, (Status, int)):
+                try:
+                    status = int(status)
+                except ValueError:
+                    status = Status.UNSET
+
+            return status >= Status.ACTIVE.value
+
+        return False
+
     def authenticateUser(self, key: db.Key, **kwargs):
         """
             Performs Log-In for the current session and the given user key.
@@ -1381,7 +1401,7 @@ class User(List):
             raise ValueError(f"Unable to authenticate unknown user {key}")
 
         # Verify that this user account is active
-        if skel["status"] < Status.ACTIVE.value:
+        if not self.is_active(skel):
             raise errors.Forbidden("The user is disabled and cannot be authenticated.")
 
         # Update session for user
@@ -1547,7 +1567,7 @@ class User(List):
     def onEdited(self, skel):
         super().onEdited(skel)
         # In case the user is set to inactive, kill all sessions
-        if "status" in skel and skel["status"] < Status.ACTIVE.value:
+        if not self.is_active(skel):
             session.killSessionByUser(skel["key"])
 
     def onDeleted(self, skel):
