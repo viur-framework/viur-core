@@ -70,7 +70,7 @@ def importBlobFromViur2(dlKey, fileName):
             marker["error"] = "Failed URL-FETCH 1"
             db.Put(marker)
             return False
-        if importDataReq.status != 200:
+        if importDataReq.status!=200:
             marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
             marker["success"] = False
             marker["error"] = "Failed URL-FETCH 2"
@@ -79,7 +79,7 @@ def importBlobFromViur2(dlKey, fileName):
         importData = json.loads(importDataReq.read())
         oldBlobName = conf.viur2import_blobsource["gsdir"] + "/" + importData["key"]
         srcBlob = storage.Blob(bucket=bucket,
-                               name=conf.viur2import_blobsource["gsdir"] + "/" + importData["key"])
+            name=conf.viur2import_blobsource["gsdir"] + "/" + importData["key"])
     else:
         oldBlobName = conf.viur2import_blobsource["gsdir"] + "/" + dlKey
         srcBlob = storage.Blob(bucket=bucket, name=conf.viur2import_blobsource["gsdir"] + "/" + dlKey)
@@ -211,7 +211,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
         sig = File.hmac_sign(data_str)
         datadump = json.dumps({"dataStr": data_str.decode('ASCII'), "sign": sig})
         resp = requests.post(conf.file_thumbnailer_url, data=datadump, headers=headers, allow_redirects=False)
-        if resp.status_code != 200:  # Error Handling
+        if resp.status_code!=200:  # Error Handling
             match resp.status_code:
                 case 302:
                     # The problem is Google resposen 302 to an auth Site when the cloudfunction was not found
@@ -258,7 +258,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
         fileName = File.sanitize_filename(data["name"])
         blob = bucket.blob(f"""{fileSkel["dlkey"]}/derived/{fileName}""")
         uploadUrls[fileSkel["dlkey"] + fileName] = blob.create_resumable_upload_session(timeout=60,
-                                                                                        content_type=data["mimeType"])
+            content_type=data["mimeType"])
 
     if not (url := getsignedurl()):
         return
@@ -497,11 +497,11 @@ class File(Tree):
 
     @staticmethod
     def create_internal_serving_url(
-        serving_url: str,
-        size: int = 0,
-        filename: str = "",
-        options: str = "",
-        download: bool = False
+            serving_url: str,
+            size: int = 0,
+            filename: str = "",
+            options: str = "",
+            download: bool = False
     ) -> str:
         """
         Helper function to generate an internal serving url (endpoint: /file/serve) from a Google serving url.
@@ -543,11 +543,11 @@ class File(Tree):
 
     @staticmethod
     def create_download_url(
-        dlkey: str,
-        filename: str,
-        derived: bool = False,
-        expires: t.Optional[datetime.timedelta | int] = datetime.timedelta(hours=1),
-        download_filename: t.Optional[str] = None
+            dlkey: str,
+            filename: str,
+            derived: bool = False,
+            expires: t.Optional[datetime.timedelta | int] = datetime.timedelta(hours=1),
+            download_filename: t.Optional[str] = None
     ) -> str:
         """
             Utility function that creates a signed download-url for the given folder/filename combination
@@ -615,24 +615,24 @@ class File(Tree):
                 # Invalid path
                 return None
 
-        if valid_until != "0" and datetime.strptime(valid_until, "%Y%m%d%H%M") < datetime.now():
+        if valid_until!="0" and datetime.strptime(valid_until, "%Y%m%d%H%M") < datetime.now():
             # Signature expired
             return None
 
-        if dlpath.count("/") != 3:
+        if dlpath.count("/")!=3:
             # Invalid path
             return None
 
         dlkey, derived, filename = dlpath.split("/", 3)
-        return FilePath(dlkey, derived != "source", filename)
+        return FilePath(dlkey, derived!="source", filename)
 
     @staticmethod
     def create_src_set(
-        file: t.Union["SkeletonInstance", dict, str],
-        expires: t.Optional[datetime.timedelta | int] = datetime.timedelta(hours=1),
-        width: t.Optional[int] = None,
-        height: t.Optional[int] = None,
-        language: t.Optional[str] = None,
+            file: t.Union["SkeletonInstance", dict, str],
+            expires: t.Optional[datetime.timedelta | int] = datetime.timedelta(hours=1),
+            width: t.Optional[int] = None,
+            height: t.Optional[int] = None,
+            language: t.Optional[str] = None,
     ) -> str:
         """
             Generates a string suitable for use as the srcset tag in html. This functionality provides the browser
@@ -672,9 +672,9 @@ class File(Tree):
         from viur.core.skeleton import SkeletonInstance  # avoid circular imports
 
         if not (
-            isinstance(file, (SkeletonInstance, dict))
-            and "dlkey" in file
-            and "derived" in file
+                isinstance(file, (SkeletonInstance, dict))
+                and "dlkey" in file
+                and "derived" in file
         ):
             logging.error("Invalid file supplied")
             return ""
@@ -700,15 +700,15 @@ class File(Tree):
         return ", ".join(src_set)
 
     def write(
-        self,
-        filename: str,
-        content: t.Any,
-        mimetype: str = "text/plain",
-        width: int = None,
-        height: int = None,
-        public: bool = False,
-        foldername: t.Optional[str | t.Iterable[str]] = None,
-        rootnode: t.Optional[db.Key] = None,
+            self,
+            filename: str,
+            content: t.Any,
+            mimetype: str = "text/plain",
+            width: int = None,
+            height: int = None,
+            public: bool = False,
+            foldername: t.Optional[str | t.Iterable[str]] = None,
+            rootnode: t.Optional[db.Key] = None,
     ) -> db.Key:
         """
         Write a file from any bytes-like object into the file module.
@@ -786,19 +786,19 @@ class File(Tree):
         fileskel["height"] = height
         fileskel["crc32c_checksum"] = base64.b64decode(blob.crc32c).hex()
         fileskel["md5_checksum"] = base64.b64decode(blob.md5_hash).hex()
+        fileskel["pending"] = False
 
         if foldername is not None:
             fileskel["parentrepo"] = parentrepokey
             fileskel["parententry"] = parentfolderkey
-            fileskel["pending"] = False
 
         fileskel.write()
         return fileskel["key"]
 
     def read(
-        self,
-        key: db.Key | int | str | None = None,
-        path: str | None = None,
+            self,
+            key: db.Key | int | str | None = None,
+            path: str | None = None,
     ) -> tuple[io.BytesIO, str]:
         """
         Read a file from the Cloud Storage.
@@ -848,14 +848,14 @@ class File(Tree):
     @exposed
     @skey
     def getUploadURL(
-        self,
-        fileName: str,
-        mimeType: str,
-        size: t.Optional[int] = None,
-        node: t.Optional[str | db.Key] = None,
-        authData: t.Optional[str] = None,
-        authSig: t.Optional[str] = None,
-        public: bool = False,
+            self,
+            fileName: str,
+            mimeType: str,
+            size: t.Optional[int] = None,
+            node: t.Optional[str | db.Key] = None,
+            authData: t.Optional[str] = None,
+            authSig: t.Optional[str] = None,
+            public: bool = False,
     ):
         filename = fileName.strip()  # VIUR4 FIXME: just for compatiblity of the parameter names
 
@@ -865,9 +865,9 @@ class File(Tree):
         # Validate the mimetype from the client seems legit
         mimetype = mimeType.strip().lower()
         if not (
-            mimetype
-            and mimetype.count("/") == 1
-            and all(ch in string.ascii_letters + string.digits + "/-.+" for ch in mimetype)
+                mimetype
+                and mimetype.count("/")==1
+                and all(ch in string.ascii_letters + string.digits + "/-.+" for ch in mimetype)
         ):
             raise errors.UnprocessableEntity(f"Invalid mime-type {mimetype!r} provided")
 
@@ -885,8 +885,8 @@ class File(Tree):
             if authData["validMimeTypes"]:
                 for validMimeType in authData["validMimeTypes"]:
                     if (
-                        validMimeType == mimetype
-                        or (validMimeType.endswith("*") and mimetype.startswith(validMimeType[:-1]))
+                            validMimeType==mimetype
+                            or (validMimeType.endswith("*") and mimetype.startswith(validMimeType[:-1]))
                     ):
                         break
                 else:
@@ -999,7 +999,7 @@ class File(Tree):
             if not self.hmac_verify(blobKey, sig):
                 raise errors.Forbidden()
 
-            if validUntil != "0" and datetime.datetime.strptime(validUntil, "%Y%m%d%H%M") < datetime.datetime.now():
+            if validUntil!="0" and datetime.datetime.strptime(validUntil, "%Y%m%d%H%M") < datetime.datetime.now():
                 blob = None
             else:
                 blob = bucket.get_blob(dlPath)
@@ -1029,7 +1029,7 @@ class File(Tree):
                 response.headers["Content-Disposition"] = content_disposition
             return blob.download_as_bytes()
 
-        if validUntil == "0" or blobKey.endswith(PUBLIC_DLKEY_SUFFIX):  # Its an indefinitely valid URL
+        if validUntil=="0" or blobKey.endswith(PUBLIC_DLKEY_SUFFIX):  # Its an indefinitely valid URL
             if blob.size < 5 * 1024 * 1024:  # Less than 5 MB - Serve directly and push it into the ede caches
                 response = current.request.get().response
                 response.headers["Content-Type"] = blob.content_type
@@ -1078,13 +1078,13 @@ class File(Tree):
 
     @exposed
     def serve(
-        self,
-        host: str,
-        key: str,
-        size: t.Optional[int] = None,
-        filename: t.Optional[str] = None,
-        options: str = "",
-        download: bool = False,
+            self,
+            host: str,
+            key: str,
+            size: t.Optional[int] = None,
+            filename: t.Optional[str] = None,
+            options: str = "",
+            download: bool = False,
     ):
         """
         Requests an image using the serving url to bypass direct Google requests.
@@ -1151,7 +1151,7 @@ class File(Tree):
     @skey(allow_empty=True)
     def add(self, skelType: SkelType, node: db.Key | int | str | None = None, *args, **kwargs):
         # We can't add files directly (they need to be uploaded
-        if skelType == "leaf":  # We need to handle leafs separately here
+        if skelType=="leaf":  # We need to handle leafs separately here
             targetKey = kwargs.get("key")
             skel = self.addSkel("leaf")
 
@@ -1181,7 +1181,7 @@ class File(Tree):
             bucket = File.get_bucket(skel["dlkey"])
 
             blobs = list(bucket.list_blobs(prefix=f"""{skel["dlkey"]}/"""))
-            if len(blobs) != 1:
+            if len(blobs)!=1:
                 logging.error("Invalid number of blobs in folder")
                 logging.error(targetKey)
                 raise errors.PreconditionFailed()
@@ -1213,7 +1213,7 @@ class File(Tree):
         old_skel = self.editSkel(skelType)
         old_skel.setEntity(skel.dbEntity)
 
-        if old_skel["name"] == skel["name"]:  # name not changed we can return
+        if old_skel["name"]==skel["name"]:  # name not changed we can return
             return
 
         # Move Blob to new name
@@ -1257,7 +1257,7 @@ class File(Tree):
         """Inject the serving url for public image files into a FileSkel"""
         # try to create a servingurl for images
         if not conf.instance.is_dev_server and skel["public"] and skel["mimetype"] \
-            and skel["mimetype"].startswith("image/") and not skel["serving_url"]:
+                and skel["mimetype"].startswith("image/") and not skel["serving_url"]:
 
             try:
                 bucket = File.get_bucket(skel['dlkey'])
