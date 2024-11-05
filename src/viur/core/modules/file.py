@@ -70,7 +70,7 @@ def importBlobFromViur2(dlKey, fileName):
             marker["error"] = "Failed URL-FETCH 1"
             db.Put(marker)
             return False
-        if importDataReq.status!=200:
+        if importDataReq.status != 200:
             marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
             marker["success"] = False
             marker["error"] = "Failed URL-FETCH 2"
@@ -211,7 +211,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
         sig = File.hmac_sign(data_str)
         datadump = json.dumps({"dataStr": data_str.decode('ASCII'), "sign": sig})
         resp = requests.post(conf.file_thumbnailer_url, data=datadump, headers=headers, allow_redirects=False)
-        if resp.status_code!=200:  # Error Handling
+        if resp.status_code != 200:  # Error Handling
             match resp.status_code:
                 case 302:
                     # The problem is Google resposen 302 to an auth Site when the cloudfunction was not found
@@ -615,16 +615,16 @@ class File(Tree):
                 # Invalid path
                 return None
 
-        if valid_until!="0" and datetime.strptime(valid_until, "%Y%m%d%H%M") < datetime.now():
+        if valid_until != "0" and datetime.strptime(valid_until, "%Y%m%d%H%M") < datetime.now():
             # Signature expired
             return None
 
-        if dlpath.count("/")!=3:
+        if dlpath.count("/") != 3:
             # Invalid path
             return None
 
         dlkey, derived, filename = dlpath.split("/", 3)
-        return FilePath(dlkey, derived!="source", filename)
+        return FilePath(dlkey, derived != "source", filename)
 
     @staticmethod
     def create_src_set(
@@ -866,7 +866,7 @@ class File(Tree):
         mimetype = mimeType.strip().lower()
         if not (
                 mimetype
-                and mimetype.count("/")==1
+                and mimetype.count("/") == 1
                 and all(ch in string.ascii_letters + string.digits + "/-.+" for ch in mimetype)
         ):
             raise errors.UnprocessableEntity(f"Invalid mime-type {mimetype!r} provided")
@@ -885,7 +885,7 @@ class File(Tree):
             if authData["validMimeTypes"]:
                 for validMimeType in authData["validMimeTypes"]:
                     if (
-                            validMimeType==mimetype
+                            validMimeType == mimetype
                             or (validMimeType.endswith("*") and mimetype.startswith(validMimeType[:-1]))
                     ):
                         break
@@ -999,7 +999,7 @@ class File(Tree):
             if not self.hmac_verify(blobKey, sig):
                 raise errors.Forbidden()
 
-            if validUntil!="0" and datetime.datetime.strptime(validUntil, "%Y%m%d%H%M") < datetime.datetime.now():
+            if validUntil != "0" and datetime.datetime.strptime(validUntil, "%Y%m%d%H%M") < datetime.datetime.now():
                 blob = None
             else:
                 blob = bucket.get_blob(dlPath)
@@ -1029,7 +1029,7 @@ class File(Tree):
                 response.headers["Content-Disposition"] = content_disposition
             return blob.download_as_bytes()
 
-        if validUntil=="0" or blobKey.endswith(PUBLIC_DLKEY_SUFFIX):  # Its an indefinitely valid URL
+        if validUntil == "0" or blobKey.endswith(PUBLIC_DLKEY_SUFFIX):  # Its an indefinitely valid URL
             if blob.size < 5 * 1024 * 1024:  # Less than 5 MB - Serve directly and push it into the ede caches
                 response = current.request.get().response
                 response.headers["Content-Type"] = blob.content_type
@@ -1151,7 +1151,7 @@ class File(Tree):
     @skey(allow_empty=True)
     def add(self, skelType: SkelType, node: db.Key | int | str | None = None, *args, **kwargs):
         # We can't add files directly (they need to be uploaded
-        if skelType=="leaf":  # We need to handle leafs separately here
+        if skelType == "leaf":  # We need to handle leafs separately here
             targetKey = kwargs.get("key")
             skel = self.addSkel("leaf")
 
@@ -1181,7 +1181,7 @@ class File(Tree):
             bucket = File.get_bucket(skel["dlkey"])
 
             blobs = list(bucket.list_blobs(prefix=f"""{skel["dlkey"]}/"""))
-            if len(blobs)!=1:
+            if len(blobs) != 1:
                 logging.error("Invalid number of blobs in folder")
                 logging.error(targetKey)
                 raise errors.PreconditionFailed()
@@ -1213,7 +1213,7 @@ class File(Tree):
         old_skel = self.editSkel(skelType)
         old_skel.setEntity(skel.dbEntity)
 
-        if old_skel["name"]==skel["name"]:  # name not changed we can return
+        if old_skel["name"] == skel["name"]:  # name not changed we can return
             return
 
         # Move Blob to new name
