@@ -29,7 +29,6 @@ from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import SkeletonInstance, skeletonByKind
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
 
-
 # Globals for connectivity
 
 VALID_FILENAME_REGEX = re.compile(
@@ -498,11 +497,11 @@ class File(Tree):
 
     @staticmethod
     def create_internal_serving_url(
-        serving_url: str,
-        size: int = 0,
-        filename: str = "",
-        options: str = "",
-        download: bool = False
+            serving_url: str,
+            size: int = 0,
+            filename: str = "",
+            options: str = "",
+            download: bool = False
     ) -> str:
         """
         Helper function to generate an internal serving url (endpoint: /file/serve) from a Google serving url.
@@ -531,12 +530,12 @@ class File(Tree):
 
         # Append additional parameters
         if params := {
-                k: v for k, v in {
-                    "download": download,
-                    "filename": filename,
-                    "options": options,
-                    "size": size,
-                }.items() if v
+            k: v for k, v in {
+                "download": download,
+                "filename": filename,
+                "options": options,
+                "size": size,
+            }.items() if v
         }:
             serving_url += f"?{urlencode(params)}"
 
@@ -544,11 +543,11 @@ class File(Tree):
 
     @staticmethod
     def create_download_url(
-        dlkey: str,
-        filename: str,
-        derived: bool = False,
-        expires: t.Optional[datetime.timedelta | int] = datetime.timedelta(hours=1),
-        download_filename: t.Optional[str] = None
+            dlkey: str,
+            filename: str,
+            derived: bool = False,
+            expires: t.Optional[datetime.timedelta | int] = datetime.timedelta(hours=1),
+            download_filename: t.Optional[str] = None
     ) -> str:
         """
             Utility function that creates a signed download-url for the given folder/filename combination
@@ -629,11 +628,11 @@ class File(Tree):
 
     @staticmethod
     def create_src_set(
-        file: t.Union["SkeletonInstance", dict, str],
-        expires: t.Optional[datetime.timedelta | int] = datetime.timedelta(hours=1),
-        width: t.Optional[int] = None,
-        height: t.Optional[int] = None,
-        language: t.Optional[str] = None,
+            file: t.Union["SkeletonInstance", dict, str],
+            expires: t.Optional[datetime.timedelta | int] = datetime.timedelta(hours=1),
+            width: t.Optional[int] = None,
+            height: t.Optional[int] = None,
+            language: t.Optional[str] = None,
     ) -> str:
         """
             Generates a string suitable for use as the srcset tag in html. This functionality provides the browser
@@ -673,9 +672,9 @@ class File(Tree):
         from viur.core.skeleton import SkeletonInstance  # avoid circular imports
 
         if not (
-            isinstance(file, (SkeletonInstance, dict))
-            and "dlkey" in file
-            and "derived" in file
+                isinstance(file, (SkeletonInstance, dict))
+                and "dlkey" in file
+                and "derived" in file
         ):
             logging.error("Invalid file supplied")
             return ""
@@ -701,16 +700,23 @@ class File(Tree):
         return ", ".join(src_set)
 
     def write(
-        self,
-        filename: str,
-        content: t.Any,
-        mimetype: str = "text/plain",
-        width: int = None,
-        height: int = None,
-        public: bool = False,
+            self,
+            filename: str,
+            content: t.Any,
+            mimetype: str = "text/plain",
+            width: int = None,
+            height: int = None,
+            public: bool = False,
+            foldername: t.Optional[str | t.Iterable[str]] = None,
+            rootnode: t.Optional[db.Key] = None,
     ) -> db.Key:
         """
-        Write a file from any buffer into the file module.
+        Write a file from any bytes-like object into the file module.
+
+        If foldername and rootnode are both set, the file is added to the repository in that folder.
+        If only foldername is set, the file is added to the default repository in that folder.
+        If only rootnode is set, the file is added to that repository in the root folder.
+        If both are not set, the file is added without a path or repository. It will not be visible in admin.
 
         :param filename: Filename to be written.
         :param content:  The file content to be written, as bytes-like object.
@@ -718,40 +724,81 @@ class File(Tree):
         :param width: Optional width information for the file.
         :param height: Optional height information for the file.
         :param public: True if the file should be publicly accessible.
+        :param foldername: Optional folder the file should be written into.
+        :param rootnode: Optional root-node of the repository to add the file to
         :return: Returns the key of the file object written. This can be associated e.g. with a FileBone.
         """
-        if not File.is_valid_filename(filename):
+        if not self.is_valid_filename(filename):
             raise ValueError(f"{filename=} is invalid")
 
+        # Check for foldername
+        if rootnode is None:
+            rootnode = self.ensureOwnModuleRootNode()
+        elif not foldername:
+            # if rootnode is set and foldername is not, save the file in the root of the rootnode
+            foldername = []
+
+        if foldername is not None:
+            foldernames = foldername
+            if isinstance(foldername, str):
+                foldernames = foldernames.replace('\\', '/')
+                foldernames = (i for i in foldernames.split('/'))
+            foldernames = (i for i in foldernames if i)
+
+            parentrepokey = rootnode.key
+            parentfolderkey = rootnode.key
+
+            for fname in foldernames:
+                currentfolder = (self.addSkel("node").all()
+                                 .filter("parentrepo", parentrepokey)
+                                 .filter("parententry", parentfolderkey)
+                                 .filter("name", fname)
+                                 .getSkel())
+                if currentfolder:
+                    parentfolderkey = currentfolder.key
+                else:
+                    newfolderskel = self.addSkel("node")
+                    newfolderskel["name"] = fname
+                    newfolderskel["parentrepo"] = parentrepokey
+                    newfolderskel["parententry"] = parentfolderkey
+                    newfolderskel.write()
+                    parentfolderkey = newfolderskel["key"]
+
+        # Save the file into the folder.
         dl_key = utils.string.random()
 
         if public:
             dl_key += PUBLIC_DLKEY_SUFFIX  # mark file as public
 
-        bucket = File.get_bucket(dl_key)
+        bucket = self.get_bucket(dl_key)
 
         blob = bucket.blob(f"{dl_key}/source/{filename}")
         blob.upload_from_file(io.BytesIO(content), content_type=mimetype)
 
-        skel = self.addSkel("leaf")
-        skel["name"] = filename
-        skel["size"] = blob.size
-        skel["mimetype"] = mimetype
-        skel["dlkey"] = dl_key
-        skel["weak"] = True
-        skel["public"] = public
-        skel["width"] = width
-        skel["height"] = height
-        skel["crc32c_checksum"] = base64.b64decode(blob.crc32c).hex()
-        skel["md5_checksum"] = base64.b64decode(blob.md5_hash).hex()
+        fileskel = self.addSkel("leaf")
+        fileskel["name"] = filename
+        fileskel["size"] = blob.size
+        fileskel["mimetype"] = mimetype
+        fileskel["dlkey"] = dl_key
+        fileskel["weak"] = foldername is None
+        fileskel["public"] = public
+        fileskel["width"] = width
+        fileskel["height"] = height
+        fileskel["crc32c_checksum"] = base64.b64decode(blob.crc32c).hex()
+        fileskel["md5_checksum"] = base64.b64decode(blob.md5_hash).hex()
+        fileskel["pending"] = False
 
-        skel.write()
-        return skel["key"]
+        if foldername is not None:
+            fileskel["parentrepo"] = parentrepokey
+            fileskel["parententry"] = parentfolderkey
+
+        fileskel.write()
+        return fileskel["key"]
 
     def read(
-        self,
-        key: db.Key | int | str | None = None,
-        path: str | None = None,
+            self,
+            key: db.Key | int | str | None = None,
+            path: str | None = None,
     ) -> tuple[io.BytesIO, str]:
         """
         Read a file from the Cloud Storage.
@@ -801,14 +848,14 @@ class File(Tree):
     @exposed
     @skey
     def getUploadURL(
-        self,
-        fileName: str,
-        mimeType: str,
-        size: t.Optional[int] = None,
-        node: t.Optional[str | db.Key] = None,
-        authData: t.Optional[str] = None,
-        authSig: t.Optional[str] = None,
-        public: bool = False,
+            self,
+            fileName: str,
+            mimeType: str,
+            size: t.Optional[int] = None,
+            node: t.Optional[str | db.Key] = None,
+            authData: t.Optional[str] = None,
+            authSig: t.Optional[str] = None,
+            public: bool = False,
     ):
         filename = fileName.strip()  # VIUR4 FIXME: just for compatiblity of the parameter names
 
@@ -818,9 +865,9 @@ class File(Tree):
         # Validate the mimetype from the client seems legit
         mimetype = mimeType.strip().lower()
         if not (
-            mimetype
-            and mimetype.count("/") == 1
-            and all(ch in string.ascii_letters + string.digits + "/-.+" for ch in mimetype)
+                mimetype
+                and mimetype.count("/") == 1
+                and all(ch in string.ascii_letters + string.digits + "/-.+" for ch in mimetype)
         ):
             raise errors.UnprocessableEntity(f"Invalid mime-type {mimetype!r} provided")
 
@@ -838,8 +885,8 @@ class File(Tree):
             if authData["validMimeTypes"]:
                 for validMimeType in authData["validMimeTypes"]:
                     if (
-                        validMimeType == mimetype
-                        or (validMimeType.endswith("*") and mimetype.startswith(validMimeType[:-1]))
+                            validMimeType == mimetype
+                            or (validMimeType.endswith("*") and mimetype.startswith(validMimeType[:-1]))
                     ):
                         break
                 else:
@@ -1031,13 +1078,13 @@ class File(Tree):
 
     @exposed
     def serve(
-        self,
-        host: str,
-        key: str,
-        size: t.Optional[int] = None,
-        filename: t.Optional[str] = None,
-        options: str = "",
-        download: bool = False,
+            self,
+            host: str,
+            key: str,
+            size: t.Optional[int] = None,
+            filename: t.Optional[str] = None,
+            options: str = "",
+            download: bool = False,
     ):
         """
         Requests an image using the serving url to bypass direct Google requests.
@@ -1382,8 +1429,8 @@ def start_delete_pending_files():
 
 def __getattr__(attr: str) -> object:
     if entry := {
-            # stuff prior viur-core < 3.7
-            "GOOGLE_STORAGE_BUCKET": ("File.get_bucket()", _private_bucket),
+        # stuff prior viur-core < 3.7
+        "GOOGLE_STORAGE_BUCKET": ("File.get_bucket()", _private_bucket),
     }.get(attr):
         msg = f"{attr} was replaced by {entry[0]}"
         warnings.warn(msg, DeprecationWarning, stacklevel=2)
