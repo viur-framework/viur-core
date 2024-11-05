@@ -79,7 +79,7 @@ def importBlobFromViur2(dlKey, fileName):
         importData = json.loads(importDataReq.read())
         oldBlobName = conf.viur2import_blobsource["gsdir"] + "/" + importData["key"]
         srcBlob = storage.Blob(bucket=bucket,
-            name=conf.viur2import_blobsource["gsdir"] + "/" + importData["key"])
+                               name=conf.viur2import_blobsource["gsdir"] + "/" + importData["key"])
     else:
         oldBlobName = conf.viur2import_blobsource["gsdir"] + "/" + dlKey
         srcBlob = storage.Blob(bucket=bucket, name=conf.viur2import_blobsource["gsdir"] + "/" + dlKey)
@@ -258,7 +258,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
         fileName = File.sanitize_filename(data["name"])
         blob = bucket.blob(f"""{fileSkel["dlkey"]}/derived/{fileName}""")
         uploadUrls[fileSkel["dlkey"] + fileName] = blob.create_resumable_upload_session(timeout=60,
-            content_type=data["mimeType"])
+                                                                                        content_type=data["mimeType"])
 
     if not (url := getsignedurl()):
         return
