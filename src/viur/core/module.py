@@ -82,7 +82,7 @@ class Method:
             Tries to parse a value according to a given type.
             May be called recursively to handle unions, lists and tuples as well.
             """
-            logging.debug(f"{annotation=} | {name=} | {value=}")
+            # logging.debug(f"{annotation=} | {name=} | {value=}")
 
             # simple types
             if annotation is str:
@@ -132,11 +132,13 @@ class Method:
                 return parse_value_by_annotation(int | str, name, value)
 
             elif isinstance(annotation, enum.EnumMeta):
-                logging.debug(f"{vars(annotation)=}")
-                for value_, member in annotation._value2member_map_.items():
-                    if str(value) == str(value_):  # Do a string comparison, it could be a IntEnum
-                        return member
-                raise errors.NotAcceptable(f"Expecting any of {_value2member_map_.keys()} for {name}")
+                try:
+                    return annotation(value)
+                except ValueError as exc:
+                    for value_, member in annotation._value2member_map_.items():
+                        if str(value) == str(value_):  # Do a string comparison, it could be a IntEnum
+                            return member
+                    raise errors.NotAcceptable(f"{' '.join(exc.args)} for {name}") from exc
 
             raise errors.NotAcceptable(f"Unhandled type {annotation=} for {name}={value!r}")
 
