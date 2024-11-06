@@ -1,4 +1,5 @@
 import copy
+import enum
 import inspect
 import types
 import typing as t
@@ -81,6 +82,8 @@ class Method:
             Tries to parse a value according to a given type.
             May be called recursively to handle unions, lists and tuples as well.
             """
+            logging.debug(f"{annotation=} | {name=} | {value=}")
+
             # simple types
             if annotation is str:
                 return str(value)
@@ -127,6 +130,13 @@ class Method:
                     return value
 
                 return parse_value_by_annotation(int | str, name, value)
+
+            elif isinstance(annotation, enum.EnumMeta):
+                logging.debug(f"{vars(annotation)=}")
+                for value_, member in annotation._value2member_map_.items():
+                    if str(value) == str(value_):  # Do a string comparison, it could be a IntEnum
+                        return member
+                raise errors.NotAcceptable(f"Expecting any of {_value2member_map_.keys()} for {name}")
 
             raise errors.NotAcceptable(f"Unhandled type {annotation=} for {name}={value!r}")
 
