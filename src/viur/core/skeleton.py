@@ -65,13 +65,13 @@ class MetaBaseSkel(type):
 
     __allowed_chars = string.ascii_letters + string.digits + "_"
 
-    def __init__(cls, name, bases, dct):
+    def __init__(cls, name, bases, dct, **kwargs):
         cls.__boneMap__ = MetaBaseSkel.generate_bonemap(cls)
 
         if not getSystemInitialized() and not cls.__name__.endswith(ABSTRACT_SKEL_CLS_SUFFIX):
             MetaBaseSkel._allSkelClasses.add(cls)
 
-        super(MetaBaseSkel, cls).__init__(name, bases, dct)
+        super().__init__(name, bases, dct)
 
     @staticmethod
     def generate_bonemap(cls):
@@ -544,8 +544,8 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 
 
 class MetaSkel(MetaBaseSkel):
-    def __init__(cls, name, bases, dct):
-        super(MetaSkel, cls).__init__(name, bases, dct)
+    def __init__(cls, name, bases, dct, **kwargs):
+        super().__init__(name, bases, dct, **kwargs)
         relNewFileName = inspect.getfile(cls) \
             .replace(str(conf.instance.project_base_path), "") \
             .replace(str(conf.instance.core_base_path), "")
