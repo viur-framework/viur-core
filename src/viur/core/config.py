@@ -804,6 +804,24 @@ class Conf(ConfigType):
     file_thumbnailer_url: t.Optional[str] = None
     # TODO: """docstring"""
 
+    file_generate_download_url_for_derives: bool | t.Iterable[str] = False
+    """
+    If True, for all derives, a download URL is created as well.
+
+    When an iterable of str is provided, for all entries that match a pattern,
+    a download URL will be created.
+
+    Example:
+    ```py
+        class Test(Skeleton):
+            image_bar = FileBone(derive=conf["derives"])
+            image_foo = FileBone(derive=conf["derives"])
+            logo = FileBone(derive=conf["derives"])
+
+        conf.file_generate_download_url_for_derives = ["test.image*"]
+    ```
+    """
+
     main_app: "Module" = None
     """Reference to our pre-build Application-Instance"""
 
