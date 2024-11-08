@@ -1,4 +1,5 @@
 import typing as t
+
 from viur.core.module import Method
 
 __all__ = [
@@ -8,6 +9,7 @@ __all__ = [
     "force_ssl",
     "internal_exposed",
     "skey",
+    "cors",
 ]
 
 
@@ -142,3 +144,15 @@ def skey(
         return decorator
 
     return decorator(func)
+
+
+def cors(
+    allow_headers: t.Iterable[str] = (),
+) -> t.Callable:
+    """Add additional CORS setting for a decorated :meth:`exposed` method."""
+    def decorator(func):
+        meth = Method.ensure(func)
+        meth.cors_allow_headers = allow_headers
+        return meth
+
+    return decorator

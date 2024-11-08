@@ -109,10 +109,10 @@ class TranslationSkel(Skeleton):
     )
 
     @classmethod
-    def toDB(cls, skelValues: SkeletonInstance, **kwargs) -> db.Key:
+    def write(cls, skelValues: SkeletonInstance, **kwargs) -> db.Key:
         # Ensure we have only lowercase keys
         skelValues["tr_key"] = skelValues["tr_key"].lower()
-        return super().toDB(skelValues, **kwargs)
+        return super().write(skelValues, **kwargs)
 
     @classmethod
     def preProcessSerializedData(cls, skelValues: SkeletonInstance, entity: db.Entity) -> db.Entity:
@@ -123,6 +123,10 @@ class TranslationSkel(Skeleton):
 
 
 class Translation(List):
+    """
+    The Translation module is a system module used by the ViUR framework for its internationalization capabilities.
+    """
+
     kindName = KINDNAME
 
     def adminInfo(self):

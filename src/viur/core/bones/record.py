@@ -1,5 +1,10 @@
 import json
+import typing as t
+
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
+
+if t.TYPE_CHECKING:
+    from ..skeleton import SkeletonInstance
 
 
 class RecordBone(BaseBone):
@@ -80,6 +85,9 @@ class RecordBone(BaseBone):
 
         return value.serialize(parentIndexed=False)
 
+    def _get_single_destinct_hash(self, value):
+        return tuple(bone._get_destinct_hash(value[name]) for name, bone in self.using.__boneMap__.items())
+
     def parseSubfieldsFromClient(self) -> bool:
         """
         Determines if the current request should attempt to parse subfields received from the client.
@@ -144,14 +152,13 @@ class RecordBone(BaseBone):
 
         return res
 
-    def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
+    def getReferencedBlobs(self, skel: "SkeletonInstance", name: str) -> set[str]:
         """
         Retrieves a set of referenced blobs for the given skeleton instance and name.
 
-        :param SkeletonInstance skel: The skeleton instance to process.
-        :param str name: The name of the bone to process.
+        :param skel: The skeleton instance to process.
+        :param name: The name of the bone to process.
         :return: A set of referenced blobs.
-        :rtype: set[str]
         """
         result = set()
 
@@ -160,10 +167,7 @@ class RecordBone(BaseBone):
             if value is None:
                 continue
             for key, bone in using_skel_cache.items():
-                if not bone.searchable:
-                    continue
-                for tag in bone.getReferencedBlobs(value, key):
-                    result.add(tag)
+                result |= bone.getReferencedBlobs(value, key)
 
         return result
 

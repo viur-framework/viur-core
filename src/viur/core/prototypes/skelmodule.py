@@ -1,4 +1,8 @@
+import os
+import yaml
+import logging
 from viur.core import Module, db
+from viur.core.config import conf
 from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
 import typing as t
 
@@ -8,7 +12,7 @@ SINGLE_ORDER_TYPE = str | tuple[str, db.SortOrder]
 Type for exactly one sort order definitions.
 """
 
-ORDER_TYPE = SINGLE_ORDER_TYPE | tuple[SINGLE_ORDER_TYPE] | list[SINGLE_ORDER_TYPE] | None
+ORDER_TYPE = SINGLE_ORDER_TYPE | tuple[SINGLE_ORDER_TYPE] | list[SINGLE_ORDER_TYPE] | dict[str, str | int] | None
 """
 Type for sort order definitions (any amount of single order definitions).
 """
@@ -17,6 +21,30 @@ DEFAULT_ORDER_TYPE = ORDER_TYPE | t.Callable[[db.Query], ORDER_TYPE]
 """
 Type for default sort order definitions.
 """
+
+
+def __load_indexes_from_file() -> dict[str, list]:
+    """
+        Loads all indexes from the index.yaml and stores it in a dictionary  sorted by the module(kind)
+        :return A dictionary of indexes per module
+    """
+    indexes_dict = {}
+    try:
+        with open(os.path.join(conf.instance.project_base_path, "index.yaml"), "r") as file:
+            indexes = yaml.safe_load(file)
+            indexes = indexes.get("indexes", [])
+            for index in indexes:
+                index["properties"] = [_property["name"] for _property in index["properties"]]
+                indexes_dict.setdefault(index["kind"], []).append(index)
+
+    except FileNotFoundError:
+        logging.warning("index.yaml not found")
+        return {}
+
+    return indexes_dict
+
+
+DATASTORE_INDEXES = __load_indexes_from_file()
 
 
 class SkelModule(Module):
@@ -36,6 +64,16 @@ class SkelModule(Module):
         For more information, refer to the function :func:`~_resolveSkelCls`.
     """
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # automatically determine kindName when not set
+        if self.kindName is None:
+            self.kindName = str(type(self).__name__).lower()
+
+        # assign index descriptions from index.yaml
+        self.indexes = DATASTORE_INDEXES.get(self.kindName, [])
+
     def _resolveSkelCls(self, *args, **kwargs) -> t.Type[Skeleton]:
         """
         Retrieve the generally associated :class:`viur.core.skeleton.Skeleton` that is used by
@@ -50,7 +88,7 @@ class SkelModule(Module):
 
         :return: Returns a Skeleton class that matches the application.
         """
-        return skeletonByKind(self.kindName if self.kindName else str(type(self).__name__).lower())
+        return skeletonByKind(self.kindName)
 
     def baseSkel(self, *args, **kwargs) -> SkeletonInstance:
         """

@@ -2,6 +2,170 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.0.rc1]
+
+- chore: Adding file deprecations (#1268)
+- chore: Drop python 3.10 support (#1175)
+- chore: Merging of `migrate_config.py` and `viur-2to3.py` into `viur-migrate` tool (#1283)
+- doc+fix: Added module docstrings, removed render defaults (#1253)
+- feat Add session `setdefault` (#1140)
+- feat: `conf.bone_html_default_allow` (#1278)
+- feat: `FileBone(public=True)` for public files (#1241)
+- feat: `render.render()` generalized action skel rendering (#1270)
+- feat: `Skeleton.patch()` for transactional read/write (#1267)
+- feat: `UriBone` (#1254)
+- feat: Add `File.get_download_url()` (#1305)
+- feat: Add `PeriodicTask` can handle `timedelta` as interval (#1133)
+- feat: Add `PhoneBone` (#1205)
+- feat: Add `read` method for `RefSkel` (#1193)
+- feat: Add `serialize_compute` and `unserialize_compute` to `BaseBone` (#1145)
+- feat: add `skel.update` and `skel.__ior__` (#1103)
+- feat: Add `sorted` feature to `MultipleConstraints` (#1186)
+- feat: Add `SpamBone` (#1209)
+- feat: Add `UidBone` (#1131)
+- feat: Add charset `v_func` for `StringBone`  (#1183)
+- feat: Add checksums for files (#1180)
+- feat: Add CORS settings and set CORS header for OPTION CORS(-preflight) requests (#1215)
+- feat: Add support for callable `defaultValue` in `BooleanBone` (#1274)
+- feat: Add support for single value  and `__default__` for multi-lang bones (#1108)
+- feat: Implement `EmailTransportSendgrid` (#1249)
+- feat: Implement `EmailTransportSmtp` (#1251)
+- feat: Implement abstract renderer (#1190)
+- feat: Introduce `conf.email.sender_default` (#1294)
+- feat: Load Session only when needed (#1277)
+- feat: Make custom jinja filter `|fileSize` deprecated (#1272)
+- feat: Make SkeletonInstance json serializable (#1262)
+- feat: Retrieve default `descr` from bone's name in its Skeleton (#1227)
+- feat+refactor: Improved and extended `Skeleton.subskel()` (#1259)
+- fix: `File.write()` didn't return `db.Key` (#1303)
+- fix: `KeyBone.singleValueUnseralize()` doesn't handle None (#1300)
+- fix: `RelationalBone.singleValueFromClient` str-cast (#1269)
+- fix: `Session.__delitem__` causes endless recursion (#1208)
+- fix: `Skeleton.subskel()` and `SkeletonInstance.clone()` (#1297)
+- fix: `SkeletonInstance` must accept `bone_map` and deprecated `clonedBoneMap` (#1286)
+- fix: `SpamBone` regression of descr-property (#1246)
+- fix: `uploadKey` wrong in `getUploadUrl` (#1301)
+- fix: Add datetime import in email.py (#1225)
+- fix: Add default param for `createRelSkelFromKey` (#1304)
+- fix: Calling `db.KeyHelper` with `None` raises a unhandled `NotImplementedError` (#1281)
+- fix: Clean-up `KeyBone` and added unserialization (#1204)
+- fix: Cleanly collect renders from Python module (#1230)
+- fix: Extend `viur_migrate` to further conf keys (#1298)
+- fix: Handle `RefSkel`s in `unserialize_compute` differently (#1295)
+- fix: handle gracefully downloadurls and srcsets with optional languages overwrite for files (#1266)
+- fix: Improve interval format warning in `PeriodicTask` (#1199)
+- fix: Improved signature test on callable `defaultValue` (#1284)
+- fix: multiple bones with languages have the wrong default value (#1282)
+- fix: provide `key_rel_list` as list of tuples and not only a list (#1291)
+- fix: refactor _tagsFromString to _tags_from_str (#1279)
+- fix: Remove urlencode (#1271)
+- fix: Rename create_serving_url into inject_serving_url (#1241)
+- fix: Test `user["status"]` at one place (#1292)
+- fix+doc: PeriodicTask (#1247)
+- refactor: `BaseBone.buildDBSort` (#1077)
+- refactor: `DatabaseAdapter` with simplified triggers (#1198)
+- refactor: `relationalBone.serialize()` (#1087)
+- refactor: `RelationalBone.setBoneValue()` (#1081)
+- refactor: `Skeleton`-API rework (#1264)
+- refactor: Improve `db.IsInTransaction`-mode in `Skeleton.patch()` (#1289)
+- refactor: Move datastore index retrieval to `SkelModule` (#1231)
+- refactor: Move special system arguments for `CallDeferred` in `make_deferred`'s signature (#1143)
+- refactor: Remove `xml` renderer (#1192)
+- refactor: Replace `db.encodeKey` by `str`-cast (#1302)
+- refactor: Send emails from `EmailTransport` instances instead of class (#1250)
+- refactor: Sub-class `Session` from `db.Entity` to behave `dict`-compliant (#1153)
+
+## [3.6.22]
+
+- fix: `default_order`-code raises `errors.Unauthorized()` on MultiQuery (#1299)
+- fix: `UserSkel.__new__()` cannot be subSkel'ed (#1296)
+
+## [3.6.21]
+
+- fix: `Skeleton.processRemovedRelations` unable to handle empty values (#1288)
+
+## [3.6.20]
+
+- fix: `File.parse_download_url()`: `too many values to unpack` (#1287)
+
+## [3.6.19]
+
+- fix: Rename `type_postfix` on `BaseBone` into `type_suffix` (#1275)
+
+## [3.6.18]
+
+- fix: Cast category to str() for ascii check (#1263)
+
+## [3.6.17]
+
+- feat: `type_postfix` on `BaseBone` and `select.access` in `UserSkel` (#1261)
+
+## [3.6.16]
+
+- fix: @access-decorator (#1257)
+- fix: Delete bones set to `None` from a Skeleton (#1258)
+
+## [3.6.15]
+
+- fix: `Skeleton.toDB()`s `is_add` determined wrong (#1248)
+- feat: Improve `CaptchaBone` (#1243)
+
+## [3.6.14]
+
+- feat: Extend `CONTRIBUTING.md` with Coding Conventions (#1233)
+- fix: `File`-module allows to upload into non-existing node (#1235)
+- fix: `MultipleConstraints` as intended (#1228)
+- fix: Improve `NumericBone.singleValueFromClient` (#1245)
+- fix: Inconsistency raises AssertionError (#1237)
+- fix: null-key always written into `viur-relations` (#1238)
+- refactor: `__build_app` function clean-up and make all modules accessible (#1240)
+- refactor: Improved `RelationalConsistency.PreventDeletion` validation (#1244)
+- refactor: Move datastore index retrieval to `SkelModule` (#1239)
+
+## [3.6.13]
+
+- doc: Fix RelationalBone docstring (#1226)
+- chore: Use `pyproject.toml` as new SSOT packaging system (#1224)
+- feat-fix: Wrap `descr` and `params.category` in `translate` object for auto translating (#1223)
+
+## [3.6.12]
+
+- feat: Add `EmailTransportAppengine` as default email transport class (#1210)
+- feat: Improve email attachments (#1216)
+- feat: Render `SelectBone` values in dict-style (#1203)
+- fix: `RecordBone.getReferencedBlobs` should collect references for all bones (#1213)
+- fix: `viur-core-migrate-config` should replace sendinblue and mailjet configs as well (#1200)
+- refactor: `email`-module/`EmailTransportMailjet` fixes (#1212)
+
+## [3.6.11]
+
+- fix: Changed `EmailTransportMailjet` mimetype detection to `puremagic` (#1196)
+
+## [3.6.10]
+
+- fix: Remove `default_order` fallback from `List` (#1195)
+- feat: store compute value on unserialize (#1107)
+- fix: Add `google.cloud.logging_v2.handlers.transports.background_thread` to the `EXCLUDED_LOGGER_DEFAULTS` (#1177)
+
+## [3.6.9]
+
+- fix: `default_order` and `query.queries` can be a list (#1188)
+- fix: Keep HTML-entities in `HtmlSerializer` (#1184)
+
+## [3.6.8]
+
+- fix: Allow dict-filters for `default_order` (#1169)
+- fix: Pre-process object for JSON encoding (#1174)
+
+## [3.6.7]
+
+- fix: `ViURJsonEncoder` doesn't handle `db.Entity` (#1171)
+- fix: codecov
+- cicd: Enable tests for python 3.12 (#1167)
+- fix: More invalid replacements in `migrate_config.py` (#1166)
+- feat: Add `EmailTransportMailjet` to `email.py` (#1162)
+- Change of LICENSE from LGPL into MIT (#1164)
+
 ## [3.6.6]
 
 - fix: Don't obfuscate any route with character replacements (#1161)
