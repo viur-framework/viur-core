@@ -2,7 +2,7 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.7.0.rc1]
+## [3.7.0.rc2]
 
 - chore: Adding file deprecations (#1268)
 - chore: Drop python 3.10 support (#1175)
@@ -35,6 +35,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - feat: Load Session only when needed (#1277)
 - feat: Make custom jinja filter `|fileSize` deprecated (#1272)
 - feat: Make SkeletonInstance json serializable (#1262)
+- feat: Provide a `User.is_active()` function (#1309)
 - feat: Retrieve default `descr` from bone's name in its Skeleton (#1227)
 - feat+refactor: Improved and extended `Skeleton.subskel()` (#1259)
 - fix: `File.write()` didn't return `db.Key` (#1303)
@@ -45,6 +46,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: `SkeletonInstance` must accept `bone_map` and deprecated `clonedBoneMap` (#1286)
 - fix: `SpamBone` regression of descr-property (#1246)
 - fix: `uploadKey` wrong in `getUploadUrl` (#1301)
+- fix: Add `__set_name__` in `__setattr__` for bones (#1312)
 - fix: Add datetime import in email.py (#1225)
 - fix: Add default param for `createRelSkelFromKey` (#1304)
 - fix: Calling `db.KeyHelper` with `None` raises a unhandled `NotImplementedError` (#1281)
@@ -58,6 +60,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: multiple bones with languages have the wrong default value (#1282)
 - fix: provide `key_rel_list` as list of tuples and not only a list (#1291)
 - fix: refactor _tagsFromString to _tags_from_str (#1279)
+- fix: Remove check if logged-in in `UserPassword.login()` (#1310)
 - fix: Remove urlencode (#1271)
 - fix: Rename create_serving_url into inject_serving_url (#1241)
 - fix: Test `user["status"]` at one place (#1292)
@@ -74,6 +77,11 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Replace `db.encodeKey` by `str`-cast (#1302)
 - refactor: Send emails from `EmailTransport` instances instead of class (#1250)
 - refactor: Sub-class `Session` from `db.Entity` to behave `dict`-compliant (#1153)
+
+## [3.6.23]
+
+- feat: Support enum type in exposed methods (#1313)
+- fix: Add `**kwargs` to skeleton meta classes (#1314)
 
 ## [3.6.22]
 
