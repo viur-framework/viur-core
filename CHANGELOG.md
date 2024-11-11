@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.23]
+
+- feat: Support enum type in exposed methods (#1313)
+- fix: Add `**kwargs` to skeleton meta classes (#1314)
+
 ## [3.6.22]
 
 - fix: `default_order`-code raises `errors.Unauthorized()` on MultiQuery (#1299)
