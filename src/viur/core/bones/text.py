@@ -2,81 +2,32 @@
 The `text` module contains the `Textbone` and a custom HTML-Parser
 to validate and extract client data for the `TextBone`.
 """
+import html
 import string
-import warnings
-from base64 import urlsafe_b64decode
-from datetime import datetime
-from html import entities as htmlentitydefs
-from html.parser import HTMLParser
 import typing as t
-
-from viur.core import db, utils
+import warnings
+from html.parser import HTMLParser
+from viur.core import db, conf
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
-_defaultTags = {
-    "validTags": [  # List of HTML-Tags which are valid
-        'b', 'a', 'i', 'u', 'span', 'div', 'p', 'img', 'ol', 'ul', 'li', 'abbr', 'sub', 'sup',
-        'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'br',
-        'hr', 'strong', 'blockquote', 'em'],
-    "validAttrs": {  # Mapping of valid parameters for each tag (if a tag is not listed here: no parameters allowed)
-        "a": ["href", "target", "title"],
-        "abbr": ["title"],
-        "span": ["title"],
-        "img": ["src", "alt", "title"],  # "srcset" must not be in this list. It will be injected by ViUR
-        "td": ["colspan", "rowspan"],
-        "p": ["data-indent"],
-        "blockquote": ["cite"]
-    },
-    "validStyles": [
-        "color"
-    ],  # List of CSS-Directives we allow
-    "validClasses": ["vitxt-*", "viur-txt-*"],  # List of valid class-names that are valid
-    "singleTags": ["br", "img", "hr"]  # List of tags, which don't have a corresponding end tag
-}
-"""
-A dictionary containing default configurations for handling HTML content in TextBone instances.
 
-- validTags (list[str]):
-    A list of valid HTML tags allowed in TextBone instances.
-- validAttrs (dict[str, list[str]]):
-    A dictionary mapping valid attributes for each tag. If a tag is not listed, no attributes are allowed for that tag.
-- validStyles (list[str]):
-   A list of allowed CSS directives for the TextBone instances.
-- validClasses (list[str]):
-    A list of valid CSS class names allowed in TextBone instances.
-- singleTags (list[str]):
-   A list of self-closing HTML tags that don't have corresponding end tags.
-"""
+class HtmlBoneConfiguration(t.TypedDict):
+    """A dictionary containing configurations for handling HTML content in TextBone instances."""
 
+    validTags: list[str]
+    """A list of valid HTML tags allowed in TextBone instances."""
 
-def parseDownloadUrl(urlStr: str) -> tuple[t.Optional[str], t.Optional[bool], t.Optional[str]]:
-    """
-    Parses a file download URL in the format `/file/download/xxxx?sig=yyyy` into its components: blobKey, derived,
-    and filename. If the URL cannot be parsed, the function returns None for each component.
+    validAttrs: dict[str, list[str]]
+    """A dictionary mapping valid attributes for each tag. If a tag is not listed, this tag accepts no attributes."""
 
-    :param str urlStr: The file download URL to be parsed.
-    :return: A tuple containing the parsed components: (blobKey, derived, filename).
-            Each component will be None if the URL could not be parsed.
-    :rtype: Tuple[Optional[str], Optional[bool], Optional[str]]
-    """
-    if not urlStr.startswith("/file/download/") or "?" not in urlStr:
-        return None, None, None
-    dataStr, sig = urlStr[15:].split("?")  # Strip /file/download/ and split on ?
-    sig = sig[4:]  # Strip sig=
-    if not utils.hmacVerify(dataStr.encode("ASCII"), sig):
-        # Invalid signature, bail out
-        return None, None, None
-    # Split the blobKey into the individual fields it should contain
-    try:
-        dlPath, validUntil, _ = urlsafe_b64decode(dataStr).decode("UTF-8").split("\0")
-    except:  # It's the old format, without an downloadFileName
-        dlPath, validUntil = urlsafe_b64decode(dataStr).decode("UTF-8").split("\0")
-    if validUntil != "0" and datetime.strptime(validUntil, "%Y%m%d%H%M") < datetime.now():
-        # Signature expired, bail out
-        return None, None, None
-    blobkey, derived, fileName = dlPath.split("/")
-    derived = derived != "source"
-    return blobkey, derived, fileName
+    validStyles: list[str]
+    """A list of allowed CSS directives for the TextBone instances."""
+
+    validClasses: list[str]
+    """A list of valid CSS class names allowed in TextBone instances."""
+
+    singleTags: list[str]
+    """A list of self-closing HTML tags that don't have corresponding end tags."""
 
 
 class CollectBlobKeys(HTMLParser):
@@ -100,12 +51,12 @@ class CollectBlobKeys(HTMLParser):
         if tag in ["a", "img"]:
             for k, v in attrs:
                 if k == "src":
-                    blobKey, _, _ = parseDownloadUrl(v)
-                    if blobKey:
-                        self.blobs.add(blobKey)
+                    file = getattr(conf.main_app.vi, "file", None)
+                    if file and (filepath := file.parse_download_url(v)):
+                        self.blobs.add(filepath.dlkey)
 
 
-class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
+class HtmlSerializer(HTMLParser):
     """
     A custom HTML parser that extends the HTMLParser class to sanitize and serialize HTML content
     by removing invalid tags and attributes while retaining the valid ones.
@@ -121,9 +72,8 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
          "\n": "",
          "\0": ""})
 
-    def __init__(self, validHtml=None, srcSet=None):
-        global _defaultTags
-        super(HtmlSerializer, self).__init__()
+    def __init__(self, validHtml: HtmlBoneConfiguration = None, srcSet=None, convert_charrefs: bool = True):
+        super().__init__(convert_charrefs=convert_charrefs)
         self.result = ""  # The final result that will be returned
         self.openTagsList = []  # List of tags that still need to be closed
         self.tagCache = []  # Tuple of tags that have been processed but not written yet
@@ -150,7 +100,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
         :param str name: The name of the character reference.
         """
         self.flushCache()
-        self.result += "&#%s;" % (name)
+        self.result += f"&#{name};"
 
     def handle_entityref(self, name):  # FIXME
         """
@@ -158,9 +108,9 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
 
         :param str name: The name of the entity reference.
         """
-        if name in htmlentitydefs.entitydefs.keys():
+        if name in html.entities.entitydefs.keys():
             self.flushCache()
-            self.result += "&%s;" % (name)
+            self.result += f"&{name};"
 
     def flushCache(self):
         """
@@ -208,21 +158,31 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
                     checker = v.lower()
                     if not (checker.startswith("http://") or checker.startswith("https://") or checker.startswith("/")):
                         continue
-                    blobKey, derived, fileName = parseDownloadUrl(v)
-                    if blobKey:
-                        v = utils.downloadUrlFor(blobKey, fileName, derived, expires=None)
+
+                    file = getattr(conf.main_app.vi, "file", None)
+                    if file and (filepath := file.parse_download_url(v)):
+                        v = file.create_download_url(
+                            filepath.dlkey,
+                            filepath.filename,
+                            filepath.is_derived,
+                            expires=None
+                        )
+
                         if self.srcSet:
                             # Build the src set with files already available. If a derived file is not yet build,
                             # getReferencedBlobs will catch it, build it, and we're going to be re-called afterwards.
-                            fileObj = db.Query("file").filter("dlkey =", blobKey) \
-                                .order(("creationdate", db.SortOrder.Ascending)).getEntry()
-                            srcSet = utils.srcSetFor(fileObj, None, self.srcSet.get("width"), self.srcSet.get("height"))
-                            cacheTagStart += ' srcSet="%s"' % srcSet
+                            srcSet = file.create_src_set(
+                                filepath.dlkey,
+                                None,
+                                self.srcSet.get("width"),
+                                self.srcSet.get("height")
+                            )
+                            cacheTagStart += f' srcSet="{srcSet}"'
                 if not tag in self.validHtml["validAttrs"].keys() or not k in self.validHtml["validAttrs"][tag]:
                     # That attribute is not valid on this tag
                     continue
                 if k.lower()[0:2] != 'on' and v.lower()[0:10] != 'javascript':
-                    cacheTagStart += ' %s="%s"' % (k, v)
+                    cacheTagStart += f' {k}="{v}"'
                 if tag == "a" and k == "target" and v.lower() == "_blank":
                     isBlankTarget = True
             if styles:
@@ -241,8 +201,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
                            [(x in value) for x in ["\"", ":", ";"]]):
                         syleRes[style] = value
                 if len(syleRes.keys()):
-                    cacheTagStart += " style=\"%s\"" % "; ".join(
-                        [("%s: %s" % (k, v)) for (k, v) in syleRes.items()])
+                    cacheTagStart += f""" style=\"{"; ".join([(f"{k}: {v}") for k, v in syleRes.items()])}\""""
             if classes:
                 validClasses = []
                 for currentClass in classes:
@@ -264,7 +223,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
                     if isOkay:
                         validClasses.append(currentClass)
                 if validClasses:
-                    cacheTagStart += " class=\"%s\"" % " ".join(validClasses)
+                    cacheTagStart += f""" class=\"{" ".join(validClasses)}\""""
             if isBlankTarget:
                 # Add rel tag to prevent the browser to pass window.opener around
                 cacheTagStart += " rel=\"noopener noreferrer\""
@@ -299,7 +258,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
                 # Close all currently open Tags until we reach the current one. If no one is found,
                 # we just close everything and ignore the tag that should have been closed
                 for endTag in self.openTagsList[:]:
-                    self.result += "</%s>" % endTag
+                    self.result += f"</{endTag}>"
                     self.openTagsList.remove(endTag)
                     if endTag == tag:
                         break
@@ -308,7 +267,7 @@ class HtmlSerializer(HTMLParser):  # html.parser.HTMLParser
         """ Append missing closing tags to the result."""
         self.flushCache()
         for tag in self.openTagsList:
-            endTag = '</%s>' % tag
+            endTag = f'</{tag}>'
             self.result += endTag
 
     def sanitize(self, instr):
@@ -333,13 +292,13 @@ class TextBone(BaseBone):
     only specific HTML tags and attributes, and enforce a maximum length. Supports the use of
     srcset for embedded images.
 
-    :param Union[None, Dict] validHtml: A dictionary containing allowed HTML tags and their attributes. Defaults
-        to _defaultTags. Must be a structured like :prop:_defaultTags
-    :param int max_length: The maximum allowed length for the content. Defaults to 200000.
+    :param validHtml: A dictionary containing allowed HTML tags and their attributes.
+        Defaults to `conf.bone_html_default_allow`.
+    :param max_length: The maximum allowed length for the content. Defaults to 200000.
     :param languages: If set, this bone can store a different content for each language
-    :param Dict[str, List] srcSet: An optional dictionary containing width and height for srcset generation.
+    :param srcSet: An optional dictionary containing width and height for srcset generation.
         Must be a dict of "width": [List of Ints], "height": [List of Ints], eg {"height": [720, 1080]}
-    :param bool indexed: Whether the content should be indexed for searching. Defaults to False.
+    :param indexed: Whether the content should be indexed for searching. Defaults to False.
     :param kwargs: Additional keyword arguments to be passed to the base class constructor.
     """
 
@@ -351,14 +310,14 @@ class TextBone(BaseBone):
     def __init__(
         self,
         *,
-        validHtml: None | dict = __undefinedC__,
+        validHtml: None | HtmlBoneConfiguration = __undefinedC__,
         max_length: int = 200000,
         srcSet: t.Optional[dict[str, list]] = None,
         indexed: bool = False,
         **kwargs
     ):
         """
-            :param validHtml: If set, must be a structure like :prop:_defaultTags
+            :param validHtml: If set, must be a structure like `conf.bone_html_default_allow`
             :param languages: If set, this bone can store a different content for each language
             :param max_length: Limit content to max_length bytes
             :param indexed: Must not be set True, unless you limit max_length accordingly
@@ -372,8 +331,7 @@ class TextBone(BaseBone):
         super().__init__(indexed=indexed, **kwargs)
 
         if validHtml == TextBone.__undefinedC__:
-            global _defaultTags
-            validHtml = _defaultTags
+            validHtml = conf.bone_html_default_allow
 
         self.validHtml = validHtml
         self.max_length = max_length
@@ -390,7 +348,7 @@ class TextBone(BaseBone):
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
         if not (err := self.isInvalid(value)):  # Returns None on success, error-str otherwise
-            return HtmlSerializer(self.validHtml, self.srcSet).sanitize(value), None
+            return HtmlSerializer(self.validHtml, self.srcSet, False).sanitize(value), None
         else:
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
@@ -457,7 +415,7 @@ class TextBone(BaseBone):
                 file_obj = db.Query("file").filter("dlkey =", blob_key) \
                     .order(("creationdate", db.SortOrder.Ascending)).getEntry()
                 if file_obj:
-                    ensureDerived(file_obj.key, "%s_%s" % (skel.kindName, name), derive_dict, skel["key"])
+                    ensureDerived(file_obj.key, f"{skel.kindName}_{name}", derive_dict, skel["key"])
 
         return blob_keys
 

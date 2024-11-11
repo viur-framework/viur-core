@@ -265,11 +265,11 @@ class SpatialBone(BaseBone):
                 lat = float(rawFilter[name + ".lat"])
                 lng = float(rawFilter[name + ".lng"])
             except:
-                logging.debug("Received invalid values for lat/lng in %s", name)
+                logging.debug(f"Received invalid values for lat/lng in {name}")
                 dbFilter.datastoreQuery = None
                 return
             if self.isInvalid((lat, lng)):
-                logging.debug("Values out of range in %s", name)
+                logging.debug(f"Values out of range in {name}")
                 dbFilter.datastoreQuery = None
                 return
             gridSizeLat, gridSizeLng = self.getGridSize()
@@ -352,7 +352,7 @@ class SpatialBone(BaseBone):
             haversine(lat, lng + gridSizeLng, lat, lng)
         ]
         dbFilter.customQueryInfo["spatialGuaranteedCorrectness"] = min(limits)
-        logging.debug("SpatialGuaranteedCorrectness: %s", dbFilter.customQueryInfo["spatialGuaranteedCorrectness"])
+        logging.debug(f"""SpatialGuaranteedCorrectness: { dbFilter.customQueryInfo["spatialGuaranteedCorrectness"]}""")
         # Filter duplicates
         tmpDict = {}
         for item in (latRight + latLeft + lngBottom + lngTop):
@@ -386,7 +386,7 @@ class SpatialBone(BaseBone):
         :rtype: bool
         """
         if append:
-            raise ValueError("append is not possible on %s bones" % self.type)
+            raise ValueError(f"append is not possible on {self.type} bones")
         assert isinstance(value, tuple) and len(value) == 2, "Value must be a tuple of (lat, lng)"
         skel[boneName] = value
 

@@ -20,10 +20,14 @@ class PageSkel(TreeSkel):
 
 
 class Page(Tree):
+    """
+    A simple page construction module, allowing to create a structure of pages.
+    """
+
     adminInfo = {
         "name": "Pages",
         "handler": "tree.nodeonly.page",
-        "icon": "cloud",
+        "icon": "cloud-fill",
         "columns": ["name", "language", "isactive"],
         "preview": {
             "Web": "/{{module}}/view/{{key}}"
@@ -41,4 +45,3 @@ class Page(Tree):
 
 
 Page.html = True
-Page.json = True

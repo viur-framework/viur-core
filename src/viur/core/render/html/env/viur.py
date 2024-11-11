@@ -1,5 +1,4 @@
 from collections import OrderedDict
-
 import logging
 import os
 import typing as t
@@ -7,16 +6,20 @@ import urllib
 import urllib.parse
 from datetime import timedelta
 from hashlib import sha512
+import jinja2
+from deprecated.sphinx import deprecated
 from qrcode import make as qrcode_make
 from qrcode.image import svg as qrcode_svg
 
 import string
 from viur.core import Method, current, db, errors, prototypes, securitykey, utils
 from viur.core.config import conf
+from viur.core.i18n import LanguageWrapper
 from viur.core.i18n import translate as translate_class
 from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
 from viur.core.request import TEMPLATE_STYLE_KEY
 from viur.core.skeleton import RelSkel, SkeletonInstance
+from viur.core.modules import file
 from ..default import Render
 
 
@@ -61,7 +64,7 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> t.Any:
             cachetime = 0
     if cachetime:
         # Calculate the cache key that entry would be stored under
-        tmpList = ["%s:%s" % (str(k), str(v)) for k, v in kwargs.items()]
+        tmpList = [f"{k}:{v}" for k, v in kwargs.items()]
         tmpList.sort()
         tmpList.extend(list(args))
         tmpList.append(path)
@@ -76,7 +79,7 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> t.Any:
         mysha512 = sha512()
         mysha512.update(str(tmpList).encode("UTF8"))
         # TODO: Add hook for optional memcache or remove these remnants
-        cacheKey = "jinja2_cache_%s" % mysha512.hexdigest()
+        cacheKey = f"jinja2_cache_{mysha512.hexdigest()}"
         res = None  # memcache.get(cacheKey)
         if res:
             return res
@@ -100,17 +103,17 @@ def execRequest(render: Render, path: str, *args, **kwargs) -> t.Any:
             request.kwargs = tmp_params  # Reset RequestParams
             request.internalRequest = lastRequestState
             request.template_style = last_template_style
-            return u"Path not found %s (failed Part was %s)" % (path, currpath)
+            return f"{path=} not found (failed at {currpath!r})"
 
     if not (isinstance(caller, Method) and caller.exposed is not None):
         request.kwargs = tmp_params  # Reset RequestParams
         request.internalRequest = lastRequestState
         request.template_style = last_template_style
-        return u"%s not callable or not exposed" % str(caller)
+        return f"{caller!r} not callable or not exposed"
     try:
         resstr = caller(*args, **kwargs)
     except Exception as e:
-        logging.error("Caught execption in execRequest while calling %s" % path)
+        logging.error(f"Caught exception in execRequest while calling {path}")
         logging.exception(e)
         raise
     request.kwargs = tmp_params
@@ -153,7 +156,7 @@ def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel"
     :returns: dict on success, False on error.
     """
     if module not in dir(conf.main_app):
-        logging.error("getSkel called with unknown module %s!" % module)
+        logging.error(f"getSkel called with unknown {module=}!")
         return False
 
     obj = getattr(conf.main_app, module)
@@ -172,8 +175,8 @@ def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel"
             return False
 
         if "canView" in dir(obj):
-            if not skel.fromDB(key):
-                logging.info("getSkel: Entry %s not found" % (key,))
+            if not skel.read(key):
+                logging.info(f"getSkel: Entry {key} not found")
                 return None
             if isinstance(obj, prototypes.singleton.Singleton):
                 isAllowed = obj.canView()
@@ -186,7 +189,7 @@ def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel"
             else:  # List and Hierarchies
                 isAllowed = obj.canView(skel)
             if not isAllowed:
-                logging.error("getSkel: Access to %s denied from canView" % (key,))
+                logging.error(f"getSkel: Access to {key} denied from canView")
                 return None
         elif "listFilter" in dir(obj):
             qry = skel.all().mergeExternalFilter({"key": str(key)})
@@ -200,7 +203,7 @@ def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel"
                 return None
 
         else:  # No Access-Test for this module
-            if not skel.fromDB(key):
+            if not skel.read(key):
                 return None
         skel.renderPreparation = render.renderBoneValue
         return skel
@@ -309,11 +312,11 @@ def getList(render: Render, module: str, skel: str = "viewSkel",
         or None on error case.
     """
     if module not in dir(conf.main_app):
-        logging.error("Jinja2-Render can't fetch a list from an unknown module %s!" % module)
+        logging.error(f"Jinja2-Render can't fetch a list from an unknown module {module}!")
         return False
     caller = getattr(conf.main_app, module)
     if "viewSkel" not in dir(caller):
-        logging.error("Jinja2-Render cannot fetch a list from %s due to missing viewSkel function" % module)
+        logging.error(f"Jinja2-Render cannot fetch a list from {module} due to missing viewSkel function")
         return False
     if _noEmptyFilter:  # Test if any value of kwargs is an empty list
         if any([isinstance(x, list) and not len(x) for x in kwargs.values()]):
@@ -416,6 +419,7 @@ def updateURL(render: Render, **kwargs) -> str:
 
 
 @jinjaGlobalFilter
+@deprecated(version="3.7.0", reason="Use Jinja filter filesizeformat instead", action="always")
 def fileSize(render: Render, value: int | float, binary: bool = False) -> str:
     """
     Jinja2 filter: Format the value in an 'human-readable' file size (i.e. 13 kB, 4.1 MB, 102 Bytes, etc).
@@ -428,53 +432,7 @@ def fileSize(render: Render, value: int | float, binary: bool = False) -> str:
 
     :returns: The formatted file size string in human readable format.
     """
-    bytes = float(value)
-    base = binary and 1024 or 1000
-
-    prefixes = [
-        (binary and 'KiB' or 'kB'),
-        (binary and 'MiB' or 'MB'),
-        (binary and 'GiB' or 'GB'),
-        (binary and 'TiB' or 'TB'),
-        (binary and 'PiB' or 'PB'),
-        (binary and 'EiB' or 'EB'),
-        (binary and 'ZiB' or 'ZB'),
-        (binary and 'YiB' or 'YB')
-    ]
-
-    if bytes == 1:
-        return '1 Byte'
-    elif bytes < base:
-        return '%d Bytes' % bytes
-
-    unit = 0
-    prefix = ""
-
-    for i, prefix in enumerate(prefixes):
-        unit = base ** (i + 2)
-        if bytes < unit:
-            break
-
-    return '%.1f %s' % ((base * bytes / unit), prefix)
-
-
-@jinjaGlobalFilter
-def urlencode(render: Render, val: str) -> str:
-    """
-    Jinja2 filter: Make a string URL-safe.
-
-    :param render: The html-renderer instance.
-    :param val: String to be quoted.
-    :returns: Quoted string.
-    """
-    # quote_plus fails if val is None
-    if not val:
-        return ""
-
-    if isinstance(val, str):
-        val = val.encode("UTF-8")
-
-    return urllib.parse.quote_plus(val)
+    return jinja2.filters.do_filesizeformat(value, binary)
 
 
 # TODO
@@ -528,7 +486,7 @@ def renderEditBone(render: Render, skel, boneName, boneErrors=None, prefix=None)
     boneParams = skel["structure"].get(boneName)
 
     if not boneParams:
-        raise ValueError("Bone %s is not part of that skeleton" % boneName)
+        raise ValueError(f"Bone {boneName} is not part of that skeleton")
 
     if not boneParams["visible"]:
         fileName = "editform_bone_hidden"
@@ -634,7 +592,7 @@ def renderEditForm(render: Render,
 
         res += sectionTpl.render(
             categoryName=category,
-            categoryClassName="".join([x for x in category if x in string.ascii_letters]),
+            categoryClassName="".join(ch for ch in str(category) if ch in string.ascii_letters),
             categoryContent=categoryContent,
             allReadOnly=allReadOnly,
             allHidden=allHidden
@@ -669,18 +627,21 @@ def embedSvg(render: Render, name: str, classes: list[str] | None = None, **kwar
         "class": " ".join(classes),
         **kwargs
     }
-    return "<img %s>" % " ".join(f"{k}=\"{v}\"" for k, v in attributes.items())
+    return f"""<img {" ".join(f'{k}="{v}"' for k, v in attributes.items())}>"""
 
 
 @jinjaGlobalFunction
-def downloadUrlFor(render: Render,
-                   fileObj: dict,
-                   expires: None | int = conf.render_html_download_url_expiration,
-                   derived: t.Optional[str] = None,
-                   downloadFileName: t.Optional[str] = None) -> t.Optional[str]:
+def downloadUrlFor(
+    render: Render,
+    fileObj: dict,
+    expires: t.Optional[int] = conf.render_html_download_url_expiration,
+    derived: t.Optional[str] = None,
+    downloadFileName: t.Optional[str] = None,
+    language: t.Optional[str] = None,
+) -> str:
     """
     Constructs a signed download-url for the given file-bone. Mostly a wrapper around
-        :meth:`viur.core.utils.downloadUrlFor`.
+        :meth:`file.File.create_download_url`.
 
         :param render: The jinja renderer instance
         :param fileObj: The file-bone (eg. skel["file"])
@@ -691,27 +652,55 @@ def downloadUrlFor(render: Render,
             Optional the filename of a derived file,
             otherwise the download-link will point to the originally uploaded file.
         :param downloadFileName: The filename to use when saving the response payload locally.
+        :param language: Language overwrite if fileObj has multiple languages and we want to explicitly specify one
         :return: THe signed download-url relative to the current domain (eg /download/...)
     """
+
+    if isinstance(fileObj, LanguageWrapper):
+        language = language or current.language.get()
+        if not language or not (fileObj := fileObj.get(language)):
+            return ""
+
     if "dlkey" not in fileObj and "dest" in fileObj:
         fileObj = fileObj["dest"]
+
     if expires:
         expires = timedelta(minutes=expires)
+
     if not isinstance(fileObj, (SkeletonInstance, dict)) or "dlkey" not in fileObj or "name" not in fileObj:
-        return None
+        logging.error("Invalid fileObj supplied")
+        return ""
+
     if derived and ("derived" not in fileObj or not isinstance(fileObj["derived"], dict)):
-        return None
+        logging.error("No derivation for this fileObj")
+        return ""
+
     if derived:
-        return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=derived, derived=True, expires=expires,
-                                    downloadFileName=downloadFileName)
-    else:
-        return utils.downloadUrlFor(folder=fileObj["dlkey"], fileName=fileObj["name"], derived=False, expires=expires,
-                                    downloadFileName=downloadFileName)
+        return file.File.create_download_url(
+            fileObj["dlkey"],
+            filename=derived,
+            derived=True,
+            expires=expires,
+            download_filename=downloadFileName,
+        )
+
+    return file.File.create_download_url(
+        fileObj["dlkey"],
+        filename=fileObj["name"],
+        expires=expires,
+        download_filename=downloadFileName
+    )
 
 
 @jinjaGlobalFunction
-def srcSetFor(render: Render, fileObj: dict, expires: t.Optional[int],
-              width: t.Optional[int] = None, height: t.Optional[int] = None) -> str:
+def srcSetFor(
+    render: Render,
+    fileObj: dict,
+    expires: t.Optional[int] = conf.render_html_download_url_expiration,
+    width: t.Optional[int] = None,
+    height: t.Optional[int] = None,
+    language: t.Optional[str] = None,
+) -> str:
     """
     Generates a string suitable for use as the srcset tag in html. This functionality provides the browser with a list
     of images in different sizes and allows it to choose the smallest file that will fill it's viewport without
@@ -727,11 +716,18 @@ def srcSetFor(render: Render, fileObj: dict, expires: t.Optional[int],
             If a given width is not available, it will be skipped.
         :param height: A list of heights that should be included in the srcset.
             If a given height is not available, it will be skipped.
-
+        :param language: Language overwrite if fileObj has multiple languages and we want to explicitly specify one
     :return: The srctag generated or an empty string if a invalid file object was supplied
     """
-    return utils.srcSetFor(fileObj, expires, width, height)
+    return file.File.create_src_set(fileObj, expires, width, height, language)
 
+
+@jinjaGlobalFunction
+def serving_url_for(render: Render, *args, **kwargs):
+    """
+    Jinja wrapper for File.create_internal_serving_url(), see there for parameter information.
+    """
+    return file.File.create_internal_serving_url(*args, **kwargs)
 
 @jinjaGlobalFunction
 def seoUrlForEntry(render: Render, *args, **kwargs):

@@ -1,66 +1,45 @@
-import base64
-import grpc
+import abc
+import datetime
+import functools
+import json
 import logging
 import os
-import pytz
-import requests
 import sys
+import time
 import traceback
-from datetime import datetime, timedelta
-from functools import wraps
 import typing as t
-from google.cloud import tasks_v2
-from google.cloud.tasks_v2.services.cloud_tasks.transports import CloudTasksGrpcTransport
-from google.protobuf import timestamp_pb2
-from time import sleep
 
-import json
+import grpc
+import requests
+from google import protobuf
+from google.cloud import tasks_v2
+
 from viur.core import current, db, errors, utils
 from viur.core.config import conf
 from viur.core.decorators import exposed, skey
 from viur.core.module import Module
 
-
-# class JsonKeyEncoder(json.JSONEncoder):
-def preprocessJsonObject(o):
-    """
-        Add support for Keys, Datetime, Bytes and db.Entities in deferred tasks.
-        This is not a subclass of json.JSONEncoder anymore, as db.Entites are a subclass of dict, which
-        is always handled from the json module itself.
-    """
-    if isinstance(o, db.Key):
-        return {".__key__": db.encodeKey(o)}
-    elif isinstance(o, datetime):
-        return {".__datetime__": o.astimezone(pytz.UTC).strftime("%d.%m.%Y %H:%M:%S")}
-    elif isinstance(o, bytes):
-        return {".__bytes__": base64.b64encode(o).decode("ASCII")}
-    elif isinstance(o, db.Entity):
-        return {".__entity__": preprocessJsonObject(dict(o)), ".__ekey__": db.encodeKey(o.key) if o.key else None}
-    elif isinstance(o, dict):
-        return {preprocessJsonObject(k): preprocessJsonObject(v) for k, v in o.items()}
-    elif isinstance(o, (list, tuple, set)):
-        return [preprocessJsonObject(x) for x in o]
-    else:
-        return o
+CUSTOM_OBJ = t.TypeVar("CUSTOM_OBJ")  # A JSON serializable object
 
 
-def jsonDecodeObjectHook(obj):
-    """
-        Inverse to JsonKeyEncoder: Check if the object matches a custom ViUR type and recreate it accordingly
-    """
-    if len(obj) == 1:
-        if ".__key__" in obj:
-            return db.Key.from_legacy_urlsafe(obj[".__key__"])
-        elif ".__datetime__" in obj:
-            value = datetime.strptime(obj[".__datetime__"], "%d.%m.%Y %H:%M:%S")
-            return datetime(value.year, value.month, value.day, value.hour, value.minute, value.second, tzinfo=pytz.UTC)
-        elif ".__bytes__" in obj:
-            return base64.b64decode(obj[".__bytes__"])
-    elif len(obj) == 2 and ".__entity__" in obj and ".__ekey__" in obj:
-        r = db.Entity(db.Key.from_legacy_urlsafe(obj[".__ekey__"]) if obj[".__ekey__"] else None)
-        r.update(obj[".__entity__"])
-        return r
-    return obj
+class CustomEnvironmentHandler(abc.ABC):
+    @abc.abstractmethod
+    def serialize(self) -> CUSTOM_OBJ:
+        """Serialize custom environment data
+
+        This function must not require any parameters and must
+        return a JSON serializable object with the desired information.
+        """
+        ...
+
+    @abc.abstractmethod
+    def restore(self, obj: CUSTOM_OBJ) -> None:
+        """Restore custom environment data
+
+        This function will receive the object from :meth:`serialize` and should write
+        the information it contains to the environment of the deferred request.
+        """
+        ...
 
 
 _gaeApp = os.environ.get("GAE_APPLICATION")
@@ -91,11 +70,13 @@ if not conf.instance.is_dev_server or os.getenv("TASKS_EMULATOR") is None:
     taskClient = tasks_v2.CloudTasksClient()
 else:
     taskClient = tasks_v2.CloudTasksClient(
-        transport=CloudTasksGrpcTransport(channel=grpc.insecure_channel(os.getenv("TASKS_EMULATOR")))
+        transport=tasks_v2.services.cloud_tasks.transports.CloudTasksGrpcTransport(
+            channel=grpc.insecure_channel(os.getenv("TASKS_EMULATOR"))
+        )
     )
     queueRegion = "local"
 
-_periodicTasks: dict[str, dict[t.Callable, int]] = {}
+_periodicTasks: dict[str, dict[t.Callable, datetime.timedelta]] = {}
 _callableTasks = {}
 _deferred_tasks = {}
 _startupTasks = []
@@ -147,7 +128,7 @@ class CallableTaskBase:
         """
             The actual code that should be run goes here.
         """
-        raise NotImplemented()
+        raise NotImplementedError()
 
 
 class TaskHandler(Module):
@@ -193,9 +174,9 @@ class TaskHandler(Module):
         """
         req = current.request.get().request
         self._validate_request()
-        data = json.loads(req.body, object_hook=jsonDecodeObjectHook)
+        data = utils.json.loads(req.body)
         if data["classID"] not in MetaQueryIter._classCache:
-            logging.error("Could not continue queryIter - %s not known on this instance" % data["classID"])
+            logging.error(f"""Could not continue queryIter - {data["classID"]} not known on this instance""")
         MetaQueryIter._classCache[data["classID"]]._qryStep(data)
 
     @exposed
@@ -214,36 +195,35 @@ class TaskHandler(Module):
                 f"""Task {req.headers.get("X-Appengine-Taskname", "")} is retried for the {retryCount}th time."""
             )
 
-        cmd, data = json.loads(req.body, object_hook=jsonDecodeObjectHook)
+        cmd, data = utils.json.loads(req.body)
         funcPath, args, kwargs, env = data
         logging.debug(f"Call task {funcPath} with {cmd=} {args=} {kwargs=} {env=}")
 
         if env:
             if "user" in env and env["user"]:
                 current.session.get()["user"] = env["user"]
+
+                # Load current user into context variable if user module is there.
+                if user_mod := getattr(conf.main_app.vi, "user", None):
+                    current.user.set(user_mod.getCurrentUser())
             if "lang" in env and env["lang"]:
                 current.language.set(env["lang"])
             if "transactionMarker" in env:
                 marker = db.Get(db.Key("viur-transactionmarker", env["transactionMarker"]))
                 if not marker:
-                    logging.info("Dropping task, transaction %s did not apply" % env["transactionMarker"])
+                    logging.info(f"""Dropping task, transaction {env["transactionMarker"]} did not apply""")
                     return
                 else:
-                    logging.info("Executing task, transaction %s did succeed" % env["transactionMarker"])
+                    logging.info(f"""Executing task, transaction {env["transactionMarker"]} did succeed""")
             if "custom" in env and conf.tasks_custom_environment_handler:
                 # Check if we need to restore additional environmental data
-                assert isinstance(conf.tasks_custom_environment_handler, tuple) \
-                       and len(conf.tasks_custom_environment_handler) == 2 \
-                       and callable(conf.tasks_custom_environment_handler[1]), \
-                    "Your customEnvironmentHandler must be a tuple of two callable if set!"
-                conf.tasks_custom_environment_handler[1](env["custom"])
+                conf.tasks_custom_environment_handler.restore(env["custom"])
         if cmd == "rel":
             caller = conf.main_app
             pathlist = [x for x in funcPath.split("/") if x]
             for currpath in pathlist:
                 if currpath not in dir(caller):
-                    logging.error("ViUR missed a deferred task! Could not resolve the path %s. "
-                                  "Failed segment was %s", funcPath, currpath)
+                    logging.error(f"Could not resolve {funcPath=} (failed part was {currpath!r})")
                     return
                 caller = getattr(caller, currpath)
             try:
@@ -254,8 +234,8 @@ class TaskHandler(Module):
                 logging.exception(e)
                 raise errors.RequestTimeout()  # Task-API should retry
         elif cmd == "unb":
-            if not funcPath in _deferred_tasks:
-                logging.error("ViUR missed a deferred task! %s(%s,%s)", funcPath, args, kwargs)
+            if funcPath not in _deferred_tasks:
+                logging.error(f"Missed deferred task {funcPath=} ({args=},{kwargs=})")
             # We call the deferred function *directly* (without walking through the mkDeferred lambda), so ensure
             # that any hit to another deferred function will defer again
 
@@ -274,7 +254,7 @@ class TaskHandler(Module):
         if not conf.instance.is_dev_server:
             self._validate_request(require_cron=True, require_taskname=False)
         if cronName not in _periodicTasks:
-            logging.warning("Got Cron request '%s' which doesn't have any tasks" % cronName)
+            logging.warning(f"Cron request {cronName} doesn't have any tasks")
         # We must defer from cron, as tasks will interpret it as a call originating from task-queue - causing deferred
         # functions to be called directly, wich causes calls with _countdown etc set to fail.
         req.DEFERRED_TASK_CALLED = True
@@ -282,8 +262,8 @@ class TaskHandler(Module):
             periodicTaskName = task.periodicTaskName.lower()
             if interval:  # Ensure this task doesn't get called to often
                 lastCall = db.Get(db.Key("viur-task-interval", periodicTaskName))
-                if lastCall and utils.utcNow() - lastCall["date"] < timedelta(minutes=interval):
-                    logging.debug("Skipping task %s - Has already run recently." % periodicTaskName)
+                if lastCall and utils.utcNow() - lastCall["date"] < interval:
+                    logging.debug(f"Task {periodicTaskName!r} has already run recently - skipping.")
                     continue
             res = self.findBoundTask(task, conf.main_app)
             try:
@@ -292,10 +272,10 @@ class TaskHandler(Module):
                 else:
                     task()  # It seems it wasn't bound - call it as a static method
             except Exception as e:
-                logging.error("Error calling periodic task %s", periodicTaskName)
+                logging.error(f"Error calling periodic task {periodicTaskName}")
                 logging.exception(e)
             else:
-                logging.debug("Successfully called task %s", periodicTaskName)
+                logging.debug(f"Successfully called task {periodicTaskName}")
             if interval:
                 # Update its last-call timestamp
                 entry = db.Entity(db.Key("viur-task-interval", periodicTaskName))
@@ -340,7 +320,7 @@ class TaskHandler(Module):
         ):
             logging.critical("Detected an attempted XSRF attack. This request did not originate from Task Queue.")
             raise errors.Forbidden()
-        if require_cron and "X-Appengine-Cron" not in req.request.headers:
+        if require_cron and "X-Appengine-Cron" not in req.headers:
             logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Cron" was not set.')
             raise errors.Forbidden()
         if require_taskname and "X-AppEngine-TaskName" not in req.headers:
@@ -385,7 +365,7 @@ TaskHandler.vi = True
 TaskHandler.html = True
 
 
-## Decorators ##
+# Decorators
 
 def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
                   tpl: None | str = None) -> t.Callable:
@@ -406,7 +386,7 @@ def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
         <pre>{{traceback|escape}}</pre>"""
 
     def outer_wrapper(func):
-        @wraps(func)
+        @functools.wraps(func)
         def inner_wrapper(*args, **kwargs):
             try:
                 retry_count = int(current.request.get().request.headers.get("X-Appengine-Taskretrycount", -1))
@@ -431,7 +411,7 @@ def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
                         signature = ", ".join(args_repr + kwargs_repr)
                         try:
                             from viur.core import email
-                            email.sendEMail(
+                            email.send_email(
                                 dests=email_recipients,
                                 tpl=tpl,
                                 stringTemplate=string_template if tpl is None else string_template,
@@ -457,7 +437,7 @@ def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
 
 def noRetry(f):
     """Prevents a deferred Function from being called a second time"""
-    logging.warning(f"Use of `@noRetry` is deprecated; Use `@retry_n_times(0)` instead!", stacklevel=2)
+    logging.warning("Use of `@noRetry` is deprecated; Use `@retry_n_times(0)` instead!", stacklevel=2)
     return retry_n_times(0)(f)
 
 
@@ -487,6 +467,23 @@ def CallDeferred(func: t.Callable) -> t.Callable:
     _target_version: Specify a version on which to run this task.
         By default, a task will be run on the same version where the wrapped method has been called.
 
+    _call_deferred: Calls the @CallDeferred decorated method directly.
+        This is for example necessary, to call a super method which is decorated with @CallDeferred.
+
+    ..  code-block:: python
+
+        # Example for use of the _call_deferred-parameter
+        class A(Module):
+            @CallDeferred
+            def task(self):
+                ...
+
+        class B(A):
+            @CallDeferred
+            def task(self):
+                super().task(_call_deferred=False)  # avoid secondary deferred call
+                ...
+
     See also:
         https://cloud.google.com/python/docs/reference/cloudtasks/latest/google.cloud.tasks_v2.types.Task
         https://cloud.google.com/python/docs/reference/cloudtasks/latest/google.cloud.tasks_v2.types.CreateTaskRequest
@@ -496,25 +493,36 @@ def CallDeferred(func: t.Callable) -> t.Callable:
 
     __undefinedFlag_ = object()
 
-    def make_deferred(func, self=__undefinedFlag_, *args, **kwargs):
-        # Extract possibly provided task flags from kwargs
-        queue = kwargs.pop("_queue", "default")
-        if "_eta" in kwargs and "_countdown" in kwargs:
+    def make_deferred(
+        func: t.Callable,
+        self=__undefinedFlag_,
+        *args,
+        _queue: str = "default",
+        _name: str | None = None,
+        _call_deferred: bool = True,
+        _target_version: str = conf.instance.app_version,
+        _eta: datetime.datetime | None = None,
+        _countdown: int = 0,
+        **kwargs
+    ):
+        if _eta is not None and _countdown:
             raise ValueError("You cannot set the _countdown and _eta argument together!")
-        taskargs = {k: kwargs.pop(f"_{k}", None) for k in ("countdown", "eta", "name", "target_version")}
 
-        logging.debug(f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, {queue=}, {taskargs=}")
+        logging.debug(
+            f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, "
+            f"{_queue=}, {_name=}, {_call_deferred=}, {_target_version=}, {_eta=}, {_countdown=}"
+        )
 
         try:
             req = current.request.get()
-        except:  # This will fail for warmup requests
+        except Exception:  # This will fail for warmup requests
             req = None
 
         if not queueRegion:
             # Run tasks inline
             logging.debug(f"{func=} will be executed inline")
 
-            @wraps(func)
+            @functools.wraps(func)
             def task():
                 if self is __undefinedFlag_:
                     return func(*args, **kwargs)
@@ -529,7 +537,11 @@ def CallDeferred(func: t.Callable) -> t.Callable:
 
             return  # Ensure no result gets passed back
 
-        if req and req.request.headers.get("X-Appengine-Taskretrycount") and "DEFERRED_TASK_CALLED" not in dir(req):
+        # It's the deferred method which is called from the task queue, this has to be called directly
+        _call_deferred &= not (req and req.request.headers.get("X-Appengine-Taskretrycount")
+                               and "DEFERRED_TASK_CALLED" not in dir(req))
+
+        if not _call_deferred:
             if self is __undefinedFlag_:
                 return func(*args, **kwargs)
 
@@ -541,28 +553,20 @@ def CallDeferred(func: t.Callable) -> t.Callable:
                 if self.__class__.__name__ == "index":
                     funcPath = func.__name__
                 else:
-                    funcPath = "%s/%s" % (self.modulePath, func.__name__)
-
+                    funcPath = f"{self.modulePath}/{func.__name__}"
                 command = "rel"
-
-            except:
-                funcPath = "%s.%s" % (func.__name__, func.__module__)
-
+            except Exception:
+                funcPath = f"{func.__name__}.{func.__module__}"
                 if self is not __undefinedFlag_:
                     args = (self,) + args  # Re-append self to args, as this function is (hopefully) unbound
-
                 command = "unb"
-
-            taskargs["url"] = "/_tasks/deferred"
-            taskargs["headers"] = {"Content-Type": "application/octet-stream"}
 
             # Try to preserve the important data from the current environment
             try:  # We might get called inside a warmup request without session
                 usr = current.session.get().get("user")
                 if "password" in usr:
                     del usr["password"]
-
-            except:
+            except Exception:
                 usr = None
 
             env = {"user": usr}
@@ -576,51 +580,46 @@ def CallDeferred(func: t.Callable) -> t.Callable:
                 # We have to ensure transaction guarantees for that task also
                 env["transactionMarker"] = db.acquireTransactionSuccessMarker()
                 # We move that task at least 90 seconds into the future so the transaction has time to settle
-                taskargs["countdown"] = max(90, taskargs.get("countdown") or 0)  # Countdown can be set to None
+                _countdown = max(90, _countdown)  # Countdown can be set to None
 
             if conf.tasks_custom_environment_handler:
                 # Check if this project relies on additional environmental variables and serialize them too
-                assert isinstance(conf.tasks_custom_environment_handler, tuple) \
-                       and len(conf.tasks_custom_environment_handler) == 2 \
-                       and callable(conf.tasks_custom_environment_handler[0]), \
-                    "Your customEnvironmentHandler must be a tuple of two callable if set!"
-                env["custom"] = conf.tasks_custom_environment_handler[0]()
+                env["custom"] = conf.tasks_custom_environment_handler.serialize()
 
             # Create task description
             task = tasks_v2.Task(
                 app_engine_http_request=tasks_v2.AppEngineHttpRequest(
-                    body=json.dumps(preprocessJsonObject((command, (funcPath, args, kwargs, env)))).encode("UTF-8"),
+                    body=utils.json.dumps((command, (funcPath, args, kwargs, env))).encode(),
                     http_method=tasks_v2.HttpMethod.POST,
-                    relative_uri=taskargs["url"],
+                    relative_uri="/_tasks/deferred",
                     app_engine_routing=tasks_v2.AppEngineRouting(
-                        version=taskargs.get("target_version", conf.instance.app_version),
+                        version=_target_version,
                     ),
                 ),
             )
-            if taskargs.get("name"):
-                task.name = taskClient.task_path(conf.instance.project_id, queueRegion, queue, taskargs["name"])
+            if _name is not None:
+                task.name = taskClient.task_path(conf.instance.project_id, queueRegion, _queue, _name)
 
             # Set a schedule time in case eta (absolut) or countdown (relative) was set.
-            eta = taskargs.get("eta")
-            if seconds := taskargs.get("countdown"):
-                eta = utils.utcNow() + timedelta(seconds=seconds)
-            if eta:
+            if seconds := _countdown:
+                _eta = utils.utcNow() + datetime.timedelta(seconds=seconds)
+            if _eta:
                 # We must send a Timestamp Protobuf instead of a date-string
-                timestamp = timestamp_pb2.Timestamp()
-                timestamp.FromDatetime(eta)
+                timestamp = protobuf.timestamp_pb2.Timestamp()
+                timestamp.FromDatetime(_eta)
                 task.schedule_time = timestamp
 
             # Use the client to build and send the task.
-            parent = taskClient.queue_path(conf.instance.project_id, queueRegion, queue)
+            parent = taskClient.queue_path(conf.instance.project_id, queueRegion, _queue)
             logging.debug(f"{parent=}, {task=}")
             taskClient.create_task(tasks_v2.CreateTaskRequest(parent=parent, task=task))
 
             logging.info(f"Created task {func.__name__}.{func.__module__} with {args=} {kwargs=} {env=}")
 
     global _deferred_tasks
-    _deferred_tasks["%s.%s" % (func.__name__, func.__module__)] = func
+    _deferred_tasks[f"{func.__name__}.{func.__module__}"] = func
 
-    @wraps(func)
+    @functools.wraps(func)
     def wrapper(*args, **kwargs):
         return make_deferred(func, *args, **kwargs)
 
@@ -633,35 +632,47 @@ def callDeferred(func):
     """
     import logging, warnings
 
-    msg = f"Use of @callDeferred is deprecated, use @CallDeferred instead."
+    msg = "Use of @callDeferred is deprecated, use @CallDeferred instead."
     logging.warning(msg, stacklevel=3)
     warnings.warn(msg, stacklevel=3)
 
     return CallDeferred(func)
 
 
-def PeriodicTask(interval: int = 0, cronName: str = "default") -> t.Callable:
+def PeriodicTask(interval: datetime.timedelta | int | float = 0, cronName: str = "default") -> t.Callable:
     """
-        Decorator to call a function periodic during maintenance.
-        Interval defines a lower bound for the call-frequency for this task;
-        it will not be called faster than each interval minutes.
-        (Note that the actual delay between two sequent might be much larger)
+        Decorator to call a function periodically during cron job execution.
 
-        :param interval: Call at most every interval minutes. 0 means call as often as possible.
+        Interval defines a lower bound for the call-frequency for the given task, specified as a timedelta.
+
+        The true interval of how often cron jobs are being executed is defined in the project's cron.yaml file.
+        This defaults to 4 hours (see https://github.com/viur-framework/viur-base/blob/main/deploy/cron.yaml).
+        In case the interval defined here is lower than 4 hours, the task will be fired once every 4 hours anyway.
+
+        :param interval: Call at most the given timedelta.
     """
-
-    def mkDecorator(fn):
-        global _periodicTasks
+    def make_decorator(fn):
+        nonlocal interval
         if fn.__name__.startswith("_"):
             raise RuntimeError("Periodic called methods cannot start with an underscore! "
                                f"Please rename {fn.__name__!r}")
-        if not cronName in _periodicTasks:
+
+        if cronName not in _periodicTasks:
             _periodicTasks[cronName] = {}
-        _periodicTasks[cronName][fn] = interval
-        fn.periodicTaskName = ("%s_%s" % (fn.__module__, fn.__qualname__)).replace(".", "_").lower()
+
+        if isinstance(interval, (int, float)) and "tasks.periodic.useminutes" in conf.compatibility:
+            logging.warning(
+                f"PeriodicTask assuming {interval=} minutes here. This is changed into seconds in future. "
+                f"Please use `datetime.timedelta(minutes={interval})` for clarification.",
+                stacklevel=2,
+            )
+            interval *= 60
+
+        _periodicTasks[cronName][fn] = utils.parse.timedelta(interval)
+        fn.periodicTaskName = f"{fn.__module__}_{fn.__qualname__}".replace(".", "_").lower()
         return fn
 
-    return mkDecorator
+    return make_decorator
 
 
 def CallableTask(fn: t.Callable) -> t.Callable:
@@ -764,7 +775,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
             parent=taskClient.queue_path(conf.instance.project_id, queueRegion, cls.queueName),
             task=tasks_v2.Task(
                 app_engine_http_request=tasks_v2.AppEngineHttpRequest(
-                    body=json.dumps(preprocessJsonObject(qryDict)).encode("UTF-8"),
+                    body=utils.json.dumps(qryDict).encode(),
                     http_method=tasks_v2.HttpMethod.POST,
                     relative_uri="/_tasks/queryIter",
                     app_engine_routing=tasks_v2.AppEngineRouting(
@@ -796,14 +807,14 @@ class QueryIter(object, metaclass=MetaQueryIter):
             try:
                 cls.handleEntry(item, qryDict["customData"])
             except:  # First exception - we'll try another time (probably/hopefully transaction collision)
-                sleep(5)
+                time.sleep(5)
                 try:
                     cls.handleEntry(item, qryDict["customData"])
                 except Exception as e:  # Second exception - call error_handler
                     try:
                         doCont = cls.handleError(item, qryDict["customData"], e)
                     except Exception as e:
-                        logging.error("handleError failed on %s - bailing out" % item)
+                        logging.error(f"handleError failed on {item} - bailing out")
                         logging.exception(e)
                         doCont = False
                     if not doCont:
@@ -826,14 +837,14 @@ class QueryIter(object, metaclass=MetaQueryIter):
             Warning: If your query has an sortOrder other than __key__ and you modify that property here
             it is possible to encounter that object later one *again* (as it may jump behind the current cursor).
         """
-        logging.debug("handleEntry called on %s with %s." % (cls, entry))
+        logging.debug(f"handleEntry called on {cls} with {entry}.")
 
     @classmethod
     def handleFinish(cls, totalCount: int, customData):
         """
             Overridable hook that indicates the current run has been finished.
         """
-        logging.debug("handleFinish called on %s with %s total Entries processed" % (cls, totalCount))
+        logging.debug(f"handleFinish called on {cls} with {totalCount} total Entries processed")
 
     @classmethod
     def handleError(cls, entry, customData, exception) -> bool:
@@ -841,7 +852,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
             Handle a error occurred in handleEntry.
             If this function returns True, the queryIter continues, otherwise it breaks and prints the current cursor.
         """
-        logging.debug("handleError called on %s with %s." % (cls, entry))
+        logging.debug(f"handleError called on {cls} with {entry}.")
         logging.exception(exception)
         return True
 

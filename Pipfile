@@ -1,5 +1,4 @@
 # pipenv install --dev
-# pipenv requirements --hash >src/viur/core/requirements.txt
 
 [[source]]
 url = "https://pypi.org/simple"
@@ -7,39 +6,12 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-google-auth = "~=2.0"
-google-cloud-datastore = "~=2.0"
-google-cloud-iam = "~=2.0"
-google-cloud-logging = "~=3.0"
-google-cloud-secret-manager = "~=2.0"
-google-cloud-storage = "~=2.0"
-google-cloud-tasks = "~=2.0"
-google-resumable-media = "~=2.0"
-googleapis-common-protos = { version = "~=1.0", extras = ["grpc"] }
-google-api-core = { version = "~=2.0", extras = ["grpc"] }
-gunicorn = "~=21.0"
-jinja2 = "~=3.0"
-jsonschema = "~=4.0"
-pillow = "~=10.0"
-pyotp = "~=2.0"
-pytz = "~=2023.0"
-pyyaml = "~=6.0"
-qrcode = "~=7.0"
-requests = "~=2.0"
-tzlocal = "~=5.0"
-user-agents = "~=2.0"
-urllib3 = "==1.26.18"  # for appengine-python-standard used by some projects (https://github.com/GoogleCloudPlatform/appengine-python-standard/blob/main/setup.py#L28)
-viur-datastore = "~=1.0"
-webob = "~=1.0"
-appengine-python-standard = "~=1.0"
-
-[dev-packages]
-build="*"
+build = "*"
 pycodestyle = "*"
-twine="*"
+twine = "*"
 
 [requires]
-python_version = "3.10"
+python_version = "3.12"
 
 [scripts]
 clean = "rm -rf dist build src/viur_core.egg-info"

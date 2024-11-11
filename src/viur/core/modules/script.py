@@ -1,9 +1,10 @@
-from viur.core.bones import *
-from viur.core.prototypes.tree import Tree, TreeSkel
-from viur.core import db, conf, current, skeleton, tasks
-from viur.core.prototypes.tree import Tree
 import re
-
+import typing as t
+from viur.core.bones import *
+from viur.core.prototypes.tree import Tree, TreeSkel, SkelType
+from viur.core import db, conf, current, skeleton, tasks, errors
+from viur.core.decorators import exposed
+from viur.core.i18n import translate
 
 # pre-compile patterns for vfuncs
 DIRECTORY_PATTERN = re.compile(r'^[a-zA-Z0-9äöüÄÖÜ_-]*$')
@@ -70,8 +71,21 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
         indexed=False
     )
 
+    access = SelectBone(
+        descr="Required access rights to run this Script",
+        values=lambda: {
+            right: translate("server.modules.user.accessright.%s" % right, defaultText=right)
+            for right in sorted(conf.user.access_rights)
+        },
+        multiple=True,
+    )
+
 
 class Script(Tree):
+    """
+    Script is a system module used to serve a filesystem for scripts used by ViUR Scriptor and ViUR CLI.
+    """
+
     leafSkelCls = ScriptLeafSkel
     nodeSkelCls = ScriptNodeSkel
 
@@ -87,6 +101,17 @@ class Script(Tree):
             return []
 
         return [{"name": "Scripts", "key": self.ensureOwnModuleRootNode().key}]
+
+    @exposed
+    def view(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> t.Any:
+        try:
+            return super().view(skelType, key, *args, **kwargs)
+        except errors.NotFound:
+            # When key is not found, try to interpret key as path
+            if skel := self.viewSkel(skelType).all().mergeExternalFilter({"path": key}).getSkel():
+                return super().view(skelType, skel["key"], *args, **kwargs)
+
+            raise
 
     def onEdit(self, skelType, skel):
         self.update_path(skel)
@@ -113,7 +138,7 @@ class Script(Tree):
             # only update when path changed
             if new_path != skel["path"]:
                 skel["path"] = new_path  # self.onEdit() is NOT required, as it resolves the path again.
-                skel.toDB()
+                skel.write()
                 self.onEdited(skel_type, skel)  # triggers this recursion for nodes, again.
 
         if cursor := query.getCursor():
@@ -128,13 +153,10 @@ class Script(Tree):
         key = skel["parententry"]
         while key:
             parent_skel = self.viewSkel("node")
-            if not parent_skel.fromDB(key) or parent_skel["key"] == skel["parentrepo"]:
+            if not parent_skel.read(key) or parent_skel["key"] == skel["parentrepo"]:
                 break
 
             path.insert(0, parent_skel["name"])
             key = parent_skel["parententry"]
 
         skel["path"] = "/".join(path)
-
-
-Script.json = True

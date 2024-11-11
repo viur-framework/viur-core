@@ -2,24 +2,34 @@ import datetime
 import hashlib
 import logging
 import os
+import re
+import typing as t
 import warnings
 from pathlib import Path
-import typing as t
 
 import google.auth
 
 from viur.core.version import __version__
 
 if t.TYPE_CHECKING:  # pragma: no cover
+    from viur.core.bones.text import HtmlBoneConfiguration
     from viur.core.email import EmailTransport
     from viur.core.skeleton import SkeletonInstance
     from viur.core.module import Module
+    from viur.core.tasks import CustomEnvironmentHandler
+
 
 # Construct an alias with a generic type to be able to write Multiple[str]
 # TODO: Backward compatible implementation, refactor when viur-core
 #       becomes >= Python 3.12 with a type statement (PEP 695)
 _T = t.TypeVar("_T")
 Multiple: t.TypeAlias = list[_T] | tuple[_T] | set[_T] | frozenset[_T]  # TODO: Refactor for Python 3.12
+
+
+class CaptchaDefaultCredentialsType(t.TypedDict):
+    """Expected type of global captcha credential, see :attr:`Security.captcha_default_credentials`"""
+    sitekey: str
+    secret: str
 
 
 class ConfigType:
@@ -270,7 +280,7 @@ class Admin(ConfigType):
     """secondary color for viur-admin"""
 
     module_groups: dict[str, dict[t.Literal["name", "icon", "sortindex"], str | int]] = {}
-    """Module Groups for the VI
+    """Module Groups for the admin tool
 
     Group modules in the sidebar in categories (groups).
 
@@ -278,12 +288,12 @@ class Admin(ConfigType):
         conf.admin.module_groups = {
             "content": {
                 "name": "Content",
-                "icon": "text-file",
+                "icon": "file-text-fill",
                 "sortindex": 10,
             },
             "shop": {
                 "name": "Shop",
-                "icon": "cart",
+                "icon": "cart-fill",
                 "sortindex": 20,
             },
         }
@@ -372,8 +382,8 @@ class Security(ConfigType):
     Use security.enableStrictTransportSecurity to set this property"""
 
     x_frame_options: t.Optional[
-        tuple[t.Literal["deny", "sameorigin", "allow-from"],
-              t.Optional[str]]] = ("sameorigin", None)
+        tuple[t.Literal["deny", "sameorigin", "allow-from"], t.Optional[str]]
+    ] = ("sameorigin", None)
     """If set, ViUR will emit an X-Frame-Options header
 
     In case of allow-from, the second parameters must be the host-url.
@@ -389,13 +399,82 @@ class Security(ConfigType):
     x_permitted_cross_domain_policies: t.Optional[t.Literal["none", "master-only", "by-content-type", "all"]] = "none"
     """Unless set to logical none; ViUR will emit a X-Permitted-Cross-Domain-Policies with each request"""
 
-    captcha_default_credentials: t.Optional[dict[t.Literal["sitekey", "secret"], str]] = None
-    """The default sitekey and secret to use for the captcha-bone.
+    captcha_default_credentials: t.Optional[CaptchaDefaultCredentialsType] = None
+    """The default sitekey and secret to use for the :class:`CaptchaBone`.
     If set, must be a dictionary of "sitekey" and "secret".
+    """
+
+    captcha_enforce_always: bool = False
+    """By default a captcha of the :class:`CaptchaBone` must not be solved on a local development server
+    or by a root user. But for development it can be helpful to test the implementation
+    on a local development server. Setting this flag to True, disables this behavior and
+    enforces always a valid captcha.
     """
 
     password_recovery_key_length: int = 42
     """Length of the Password recovery key"""
+
+    closed_system: bool = False
+    """If `True` it activates a mode in which only authenticated users can access all routes."""
+
+    admin_allowed_paths: t.Iterable[str] = [
+        "vi",
+        "vi/skey",
+        "vi/settings",
+        "vi/user/auth_*",
+        "vi/user/f2_*",
+        "vi/user/getAuthMethods",  # FIXME: deprecated, use `login` for this
+        "vi/user/login",
+    ]
+    """Specifies admin tool paths which are being accessible without authenticated user."""
+
+    closed_system_allowed_paths: t.Iterable[str] = admin_allowed_paths + [
+        "",  # index site
+        "json/skey",
+        "json/user/auth_*",
+        "json/user/f2_*",
+        "json/user/getAuthMethods",  # FIXME: deprecated, use `login` for this
+        "json/user/login",
+        "user/auth_*",
+        "user/f2_*",
+        "user/getAuthMethods",  # FIXME: deprecated, use `login` for this
+        "user/login",
+    ]
+    """Paths that are accessible without authentication in a closed system, see `closed_system` for details."""
+
+    # CORS Settings
+
+    cors_origins: t.Iterable[str | re.Pattern] | t.Literal["*"] = []
+    """Allowed origins
+    Access-Control-Allow-Origin
+
+    Pattern should be case-insensitive, for example:
+        >>> re.compile(r"^http://localhost:(\d{4,5})/?$", flags=re.IGNORECASE)
+    """  # noqa
+
+    cors_origins_use_wildcard: bool = False
+    """Use * for Access-Control-Allow-Origin -- if possible"""
+
+    cors_methods: t.Iterable[str] = ["get", "head", "post", "options"]  # , "put", "patch", "delete"]
+    """Access-Control-Request-Method"""
+
+    cors_allow_headers: t.Iterable[str | re.Pattern] | t.Literal["*"] = []
+    """Access-Control-Request-Headers
+
+    Can also be set for specific @exposed methods with the @cors decorator.
+
+    Pattern should be case-insensitive, for example:
+        >>> re.compile(r"^X-ViUR-.*$", flags=re.IGNORECASE)
+    """
+
+    cors_allow_credentials: bool = False
+    """
+    Set Access-Control-Allow-Credentials to true
+    to support fetch requests with credentials: include
+    """
+
+    cors_max_age: datetime.timedelta | None = None
+    """Allow caching"""
 
     _mapping = {
         "contentSecurityPolicy": "content_security_policy",
@@ -454,19 +533,9 @@ class Email(ConfigType):
     log_retention: datetime.timedelta = datetime.timedelta(days=30)
     """For how long we'll keep successfully send emails in the viur-emails table"""
 
-    transport_class: t.Type["EmailTransport"] = None
-    """Class that actually delivers the email using the service provider
+    transport_class: "EmailTransport" = None
+    """EmailTransport instance that actually delivers the email using the service provider
     of choice. See email.py for more details
-    """
-
-    sendinblue_api_key: t.Optional[str] = None
-    """API Key for SendInBlue (now Brevo) for the EmailTransportSendInBlue
-    """
-
-    sendinblue_thresholds: tuple[int] | list[int] = (1000, 500, 100)
-    """Warning thresholds for remaining email quota
-
-    Used by email.EmailTransportSendInBlue.check_sib_quota
     """
 
     send_from_local_development_server: bool = False
@@ -477,6 +546,12 @@ class Email(ConfigType):
     recipient_override: str | list[str] | t.Callable[[], str | list[str]] | t.Literal[False] = None
     """If set, all outgoing emails will be sent to this address
     (overriding the 'dests'-parameter in email.sendEmail)
+    """
+
+    sender_default: str = f"viur@{_project_id}.appspotmail.com"
+    """This sender is used by default for emails.
+    It can be overridden for a specific email by passing the `sender` argument
+    to :meth:`core.email.send_email` or for all emails with :attr:`sender_override`.
     """
 
     sender_override: str | None = None
@@ -512,11 +587,12 @@ class I18N(ConfigType):
     language_alias_map: dict[str, str] = {}
     """Allows mapping of certain languages to one translation (i.e. us->en)"""
 
-    language_method: t.Literal["session", "url", "domain"] = "session"
+    language_method: t.Literal["session", "url", "domain", "header"] = "session"
     """Defines how translations are applied:
         - session: Per Session
         - url: inject language prefix in url
         - domain: one domain per language
+        - header: Per Http-Header
     """
 
     language_module_map: dict[str, dict[str, str]] = {}
@@ -635,16 +711,101 @@ class Conf(ConfigType):
     bone_boolean_str2true: Multiple[str | int] = ("true", "yes", "1")
     """Allowed values that define a str to evaluate to true"""
 
+    bone_html_default_allow: "HtmlBoneConfiguration" = {
+        "validTags": [
+            "a",
+            "abbr",
+            "b",
+            "blockquote",
+            "br",
+            "div",
+            "em",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "hr",
+            "i",
+            "img",
+            "li",
+            "ol",
+            "p",
+            "span",
+            "strong",
+            "sub",
+            "sup",
+            "table",
+            "tbody",
+            "td",
+            "tfoot",
+            "th",
+            "thead",
+            "tr",
+            "u",
+            "ul",
+        ],
+        "validAttrs": {
+            "a": [
+                "href",
+                "target",
+                "title",
+            ],
+            "abbr": [
+                "title",
+            ],
+            "blockquote": [
+                "cite",
+            ],
+            "img": [
+                "src",
+                "alt",
+                "title",
+            ],
+            "p": [
+                "data-indent",
+            ],
+            "span": [
+                "title",
+            ],
+            "td": [
+                "colspan",
+                "rowspan",
+            ],
+
+        },
+        "validStyles": [
+            "color",
+        ],
+        "validClasses": [
+            "vitxt-*",
+            "viur-txt-*"
+        ],
+        "singleTags": [
+            "br",
+            "hr",
+            "img",
+        ]
+    }
+    """
+    A dictionary containing default configurations for handling HTML content in TextBone instances.
+    """
+
     cache_environment_key: t.Optional[t.Callable[[], str]] = None
     """If set, this function will be called for each cache-attempt
     and the result will be included in the computed cache-key"""
 
+    # FIXME VIUR4: REMOVE ALL COMPATIBILITY MODES!
     compatibility: Multiple[str] = [
         "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
         "json.bone.structure.keytuples",  # use classic structure notation: `"structure = [["key", {...}] ...]` (#649)
         "json.bone.structure.inlists",  # dump skeleton structure with every JSON list response (#774 for details)
+        "tasks.periodic.useminutes",  # Interpret int/float values for @PeriodicTask as minutes
+        #                               instead of seconds (#1133 for details)
+        "bone.select.structure.values.keytuple",  # render old-style tuple-list in SelectBone's values structure (#1203)
     ]
-    """Backward compatibility flags; Remove to enforce new layout."""
+    """Backward compatibility flags; Remove to enforce new style."""
 
     db_engine: str = "viur.datastore"
     """Database engine module"""
@@ -677,14 +838,20 @@ class Conf(ConfigType):
     max_post_params_count: int = 250
     """Upper limit of the amount of parameters we accept per request. Prevents Hash-Collision-Attacks"""
 
+    param_filter_function: t.Callable[[str, str], bool] = lambda _, key, value: key.startswith("_")
+    """
+    Function which decides if a request parameter should be used or filtered out.
+    Returning True means to filter out.
+    """
+
     moduleconf_admin_info: dict[str, t.Any] = {
-        "icon": "icon-settings",
+        "icon": "gear-fill",
         "display": "hidden",
     }
     """Describing the internal ModuleConfig-module"""
 
     script_admin_info: dict[str, t.Any] = {
-        "icon": "icon-hashtag",
+        "icon": "file-code-fill",
         "display": "hidden",
     }
     """Describing the Script module"""
@@ -708,17 +875,39 @@ class Conf(ConfigType):
     ]
     """Priority, in which skeletons are loaded"""
 
-    tasks_custom_environment_handler: tuple[t.Callable[[], t.Any], t.Callable[[t.Any], None]] = None
-    """
-    Preserve additional environment in deferred tasks.
+    _tasks_custom_environment_handler: t.Optional["CustomEnvironmentHandler"] = None
 
-    If set, it must be a tuple of two functions (serialize_env, restore_env)
-    for serializing/restoring environment data.
-    The `serialize_env` function must not require any parameters and must
-    return a JSON serializable object with the desired information.
-    The function `restore_env` will receive this object and should write
-    the information it contains to the environment of the deferred request.
-    """
+    @property
+    def tasks_custom_environment_handler(self) -> t.Optional["CustomEnvironmentHandler"]:
+        """
+        Preserve additional environment in deferred tasks.
+
+        If set, it must be an instance of CustomEnvironmentHandler
+        for serializing/restoring environment data.
+        """
+        return self._tasks_custom_environment_handler
+
+    @tasks_custom_environment_handler.setter
+    def tasks_custom_environment_handler(self, value: "CustomEnvironmentHandler") -> None:
+        from .tasks import CustomEnvironmentHandler
+        if isinstance(value, CustomEnvironmentHandler) or value is None:
+            self._tasks_custom_environment_handler = value
+        elif isinstance(value, tuple):
+            if len(value) != 2:
+                raise ValueError(f"Expected a (serialize_env_func, restore_env_func) pair")
+            warnings.warn(
+                f"tuple is deprecated, please provide a CustomEnvironmentHandler object!",
+                DeprecationWarning, stacklevel=2,
+            )
+            # Construct an CustomEnvironmentHandler class on the fly to be backward compatible
+            cls = type("ProjectCustomEnvironmentHandler", (CustomEnvironmentHandler,),
+                       # serialize and restore will be bound methods.
+                       # Therefore, consume the self argument with lambda.
+                       {"serialize": lambda self: value[0](),
+                        "restore": lambda self, obj: value[1](obj)})
+            self._tasks_custom_environment_handler = cls()
+        else:
+            raise ValueError(f"Invalid type {type(value)}. Expected a CustomEnvironmentHandler object.")
 
     valid_application_ids: list[str] = []
     """Which application-ids we're supposed to run on"""

@@ -38,7 +38,7 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refreshKey: 
     from viur.core.skeleton import skeletonByKind, updateRelations
     deriveFuncMap = conf.file_derivations
     skel = skeletonByKind("file")()
-    if not skel.fromDB(key):
+    if not skel.read(key):
         logging.info("File-Entry went missing in ensureDerived")
         return
     if not skel["derived"]:
@@ -48,11 +48,11 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refreshKey: 
     skel["derived"]["files"] = skel["derived"].get("files") or {}
     resDict = {}  # Will contain new or updated resultDicts that will be merged into our file
     for calleeKey, params in deriveMap.items():
-        fullSrcKey = "%s_%s" % (srcKey, calleeKey)
+        fullSrcKey = f"{srcKey}_{calleeKey}"
         paramsHash = sha256(str(params).encode("UTF-8")).hexdigest()  # Hash over given params (dict?)
         if skel["derived"]["deriveStatus"].get(fullSrcKey) != paramsHash:
             if calleeKey not in deriveFuncMap:
-                logging.warning("File-Deriver %s not found - skipping!" % calleeKey)
+                logging.warning(f"File-Deriver {calleeKey} not found - skipping!")
                 continue
             callee = deriveFuncMap[calleeKey]
             callRes = callee(skel, skel["derived"]["files"], params)
@@ -88,10 +88,10 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refreshKey: 
         if refreshKey:
             def refreshTxn():
                 skel = skeletonByKind(refreshKey.kind)()
-                if not skel.fromDB(refreshKey):
+                if not skel.read(refreshKey):
                     return
                 skel.refresh()
-                skel.toDB(update_relations=False)
+                skel.write(update_relations=False)
 
             db.RunInTransaction(refreshTxn)
 
@@ -128,13 +128,9 @@ class FileBone(TreeLeafBone):
 
     kind = "file"
     """The kind of this bone is 'file'"""
+
     type = "relational.tree.leaf.file"
     """The type of this bone is 'relational.tree.leaf.file'."""
-    refKeys = ["name", "key", "mimetype", "dlkey", "size", "width", "height", "derived"]
-    """
-    The list of reference keys for this bone includes "name", "key", "mimetype", "dlkey", "size", "width",
-    "height", and "derived".
-    """
 
     def __init__(
         self,
@@ -142,6 +138,16 @@ class FileBone(TreeLeafBone):
         derive: None | dict[str, t.Any] = None,
         maxFileSize: None | int = None,
         validMimeTypes: None | list[str] = None,
+        refKeys: t.Optional[t.Iterable[str]] = (
+            "name",
+            "mimetype",
+            "size",
+            "width",
+            "height",
+            "derived",
+            "public",
+        ),
+        public: bool = False,
         **kwargs
     ):
         r"""
@@ -170,12 +176,11 @@ class FileBone(TreeLeafBone):
                 validMimeTypes=["application/pdf", "image/*"]
 
         """
-        super().__init__(**kwargs)
+        super().__init__(refKeys=refKeys, **kwargs)
 
-        if "dlkey" not in self.refKeys:
-            self.refKeys.append("dlkey")
-
+        self.refKeys.add("dlkey")
         self.derive = derive
+        self.public = public
         self.validMimeTypes = validMimeTypes
         self.maxFileSize = maxFileSize
 
@@ -197,6 +202,10 @@ class FileBone(TreeLeafBone):
         if self.maxFileSize:
             if value["dest"]["size"] > self.maxFileSize:
                 return "File too large."
+
+        if value["dest"]["public"] != self.public:
+            return f"Only files marked public={self.public!r} are allowed."
+
         return None
 
     def postSavedHandler(self, skel, boneName, key):
@@ -221,7 +230,7 @@ class FileBone(TreeLeafBone):
             if isinstance(values, dict):
                 values = [values]
             for val in values:  # Ensure derives getting build for each file referenced in this relation
-                ensureDerived(val["dest"]["key"], "%s_%s" % (skel.kindName, boneName), self.derive)
+                ensureDerived(val["dest"]["key"], f"{skel.kindName}_{boneName}", self.derive)
 
         values = skel[boneName]
         if self.derive and values:
@@ -274,7 +283,7 @@ class FileBone(TreeLeafBone):
         def recreateFileEntryIfNeeded(val):
             # Recreate the (weak) filenetry referenced by the relation *val*. (ViUR2 might have deleted them)
             skel = skeletonByKind("file")()
-            if skel.fromDB(val["key"]):  # This file-object exist, no need to recreate it
+            if skel.read(val["key"]):  # This file-object exist, no need to recreate it
                 return
             skel["key"] = val["key"]
             skel["name"] = val["name"]
@@ -285,7 +294,7 @@ class FileBone(TreeLeafBone):
             skel["height"] = val["height"]
             skel["weak"] = True
             skel["pending"] = False
-            k = skel.toDB()
+            skel.write()
 
         from viur.core.modules.file import importBlobFromViur2
         super().refresh(skel, boneName)
@@ -304,5 +313,6 @@ class FileBone(TreeLeafBone):
 
     def structure(self) -> dict:
         return super().structure() | {
-            "valid_mime_types": self.validMimeTypes
+            "valid_mime_types": self.validMimeTypes,
+            "public": self.public,
         }

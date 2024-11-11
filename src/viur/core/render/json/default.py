@@ -1,12 +1,13 @@
 import json
+import typing as t
 from enum import Enum
 
-from viur.core import bones, utils, db, current
+from viur.core import bones, db, current
+from viur.core.render.abstract import AbstractRenderer
 from viur.core.skeleton import SkeletonInstance
 from viur.core.i18n import translate
 from viur.core.config import conf
 from datetime import datetime
-import typing as t
 
 
 class CustomJsonEncoder(json.JSONEncoder):
@@ -15,23 +16,24 @@ class CustomJsonEncoder(json.JSONEncoder):
     """
 
     def default(self, o: t.Any) -> t.Any:
+
         if isinstance(o, translate):
             return str(o)
         elif isinstance(o, datetime):
             return o.isoformat()
         elif isinstance(o, db.Key):
-            return db.encodeKey(o)
+            return str(o)
         elif isinstance(o, Enum):
             return o.value
+        elif isinstance(o, set):
+            return tuple(o)
+        elif isinstance(o, SkeletonInstance):
+            return {bone_name: o[bone_name] for bone_name in o}
         return json.JSONEncoder.default(self, o)
 
 
-class DefaultRender(object):
+class DefaultRender(AbstractRenderer):
     kind = "json"
-
-    def __init__(self, parent=None, *args, **kwargs):
-        super(DefaultRender, self).__init__(*args, **kwargs)
-        self.parent = parent
 
     @staticmethod
     def render_structure(structure: dict):
@@ -110,7 +112,7 @@ class DefaultRender(object):
         elif bone.languages:
             res = {}
             for language in bone.languages:
-                if boneVal and language in boneVal and boneVal[language]:
+                if boneVal and language in boneVal and boneVal[language] is not None:
                     res[language] = self.renderSingleBoneValue(boneVal[language], bone, skel, key)
                 else:
                     res[language] = None
@@ -130,12 +132,23 @@ class DefaultRender(object):
             return None
         elif isinstance(skel, dict):
             return skel
+
         res = {}
+
         for key, bone in skel.items():
             res[key] = self.renderBoneValue(bone, skel, key)
-        if injectDownloadURL and "dlkey" in skel and "name" in skel:
-            res["downloadUrl"] = utils.downloadUrlFor(skel["dlkey"], skel["name"], derived=False,
-                                                      expires=conf.render_json_download_url_expiration)
+
+        if (
+            injectDownloadURL
+            and (file := getattr(conf.main_app, "file", None))
+            and "dlkey" in skel
+            and "name" in skel
+        ):
+            res["downloadUrl"] = file.create_download_url(
+                skel["dlkey"],
+                skel["name"],
+                expires=conf.render_json_download_url_expiration
+            )
         return res
 
     def renderEntry(self, skel: SkeletonInstance, actionName, params=None):
@@ -220,7 +233,12 @@ class DefaultRender(object):
         return json.dumps("OKAY")
 
     def listRootNodes(self, rootNodes, *args, **kwargs):
-        for rn in rootNodes:
-            rn["key"] = db.encodeKey(rn["key"])
-
         return json.dumps(rootNodes, cls=CustomJsonEncoder)
+
+    def render(self, action: str, skel: t.Optional[SkeletonInstance] = None, **kwargs):
+        """
+        Universal rendering function.
+
+        Handles an action and a skeleton. It shall be used by any action, in future.
+        """
+        return self.renderEntry(skel, action, params=kwargs)

@@ -25,7 +25,7 @@ class Singleton(SkelModule):
 
         :returns: Current context DB-key
         """
-        return "%s-modulekey" % self.editSkel().kindName
+        return f"{self.editSkel().kindName}-modulekey"
 
     def viewSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -110,7 +110,7 @@ class Singleton(SkelModule):
 
         key = db.Key(self.editSkel().kindName, self.getKey())
 
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         self.onView(skel)
@@ -139,18 +139,19 @@ class Singleton(SkelModule):
 
         key = db.Key(self.editSkel().kindName, self.getKey())
         skel = self.editSkel()
-        if not skel.fromDB(key):  # Its not there yet; we need to set the key again
+        if not skel.read(key):  # Its not there yet; we need to set the key again
             skel["key"] = key
 
         if (
             not kwargs  # no data supplied
-            or not skel.fromClient(kwargs)  # failure on reading into the bones
+            or not current.request.get().isPostRequest  # failure if not using POST-method
+            or not skel.fromClient(kwargs, amend=True)  # failure on reading into the bones
             or utils.parse.bool(kwargs.get("bounce"))  # review before changing
         ):
             return self.render.edit(skel)
 
         self.onEdit(skel)
-        skel.toDB()
+        skel.write()
         self.onEdited(skel)
         return self.render.editSuccess(skel)
 
@@ -163,7 +164,7 @@ class Singleton(SkelModule):
         skel = self.viewSkel()
         key = db.Key(self.viewSkel().kindName, self.getKey())
 
-        if not skel.fromDB(key):
+        if not skel.read(key):
             return None
 
         return skel
@@ -192,7 +193,7 @@ class Singleton(SkelModule):
         if user["access"] and "root" in user["access"]:
             return True
 
-        if user["access"] and "%s-edit" % self.viewSkel.kindName in user["access"]:
+        if user["access"] and f"{self.moduleName}-edit" in user["access"]:
             return True
 
         return False
@@ -220,7 +221,7 @@ class Singleton(SkelModule):
         if user["access"] and "root" in user["access"]:
             return True
 
-        if user["access"] and "%s-edit" % self.moduleName in user["access"]:
+        if user["access"] and f"{self.moduleName}-edit" in user["access"]:
             return True
 
         return False
@@ -246,7 +247,7 @@ class Singleton(SkelModule):
             return False
         if user["access"] and "root" in user["access"]:
             return True
-        if user["access"] and "%s-view" % self.moduleName in user["access"]:
+        if user["access"] and f"{self.moduleName}-view" in user["access"]:
             return True
         return False
 
@@ -273,10 +274,10 @@ class Singleton(SkelModule):
 
         .. seealso:: :func:`edit`, :func:`onEdit`
         """
-        logging.info("Entry changed: %s" % skel["key"])
+        logging.info(f"""Entry changed: {skel["key"]!r}""")
         flushCache(key=skel["key"])
         if user := current.user.get():
-            logging.info("User: %s (%s)" % (user["name"], user["key"]))
+            logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
     def onView(self, skel: SkeletonInstance):
         """
@@ -293,5 +294,4 @@ class Singleton(SkelModule):
 
 
 Singleton.admin = True
-Singleton.html = True
 Singleton.vi = True
