@@ -362,6 +362,7 @@ class SkeletonInstance:
             if value is None:
                 del self.boneMap[key]
             else:
+                value.__set_name__(self.skeletonCls, key)
                 self.boneMap[key] = value
         elif key == "renderPreparation":
             super().__setattr__(key, value)
