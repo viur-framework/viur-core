@@ -624,12 +624,14 @@ class User(ConfigType):
         "admin",
         "scriptor",
     ]
-    """Additional access rights available for users on this project.
+    """Additional access flags available for users on this project.
 
-    There are three default rights:
+    There are three default flags:
     - `root` is allowed to view/add/edit/delete any module, regardless of role or other settings
     - `admin` is allowed to use the ViUR administration tool
-    - `scriptor` is allowed to use the ViUR scripting tool
+    - `scriptor` is allowed to use the ViUR scripting features directly within the admin
+      This does not affect scriptor actions which are configured for modules, as they allow for
+      fine grained usage rule definitions.
     """
 
     roles: dict[str, str] = {

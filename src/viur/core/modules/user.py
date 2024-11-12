@@ -1249,11 +1249,19 @@ class User(List):
     def get_role_defaults(self, role: str) -> set[str]:
         """
         Returns a set of default access rights for a given role.
-        """
-        if role in ("viewer", "editor", "admin"):
-            return {"admin", "scriptor"}
 
-        return set()
+        Defaults to "admin" usage for any role > "user"
+        and "scriptor" usage for "admin" role.
+        """
+        ret = set()
+
+        if role in ("viewer", "editor", "admin"):
+            ret.add("admin")
+
+        if role == "admin":
+            ret.add("scriptor")
+
+        return ret
 
     def addSkel(self):
         skel = super().addSkel().clone()
