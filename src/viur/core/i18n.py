@@ -301,7 +301,7 @@ class TranslationExtension(jinja2.Extension):
                     raise SyntaxError()
                 lastToken = None
         if lastToken:  # TODO: what's this? what it is doing?
-            logging.debug(f"final append {lastToken = }")
+            # logging.debug(f"final append {lastToken = }")
             args.append(lastToken.value)
         if not 0 < len(args) <= 3:
             raise SyntaxError("Translation-Key missing or excess parameters!")
