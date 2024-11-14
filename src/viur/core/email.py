@@ -325,7 +325,11 @@ def send_email(
     # First, ensure we're able to send email at all
     transport_class = conf.email.transport_class  # First, ensure we're able to send email at all
     if not isinstance(transport_class, EmailTransport):
-        raise ValueError(f"No or invalid email transportclass specified! ({transport_class=})")
+        raise ValueError(
+            f"No or invalid email transport class specified! ({transport_class=}). "
+            "In ViUR-core >= 3.7 the transport_class must be an instanced object, so maybe it's "
+            f"`conf.email.transport_class = {transport_class.__name__}()` which must be assigned."
+        )
 
     # Ensure that all recipient parameters (dest, cc, bcc) are a list
     dests = normalize_to_list(dests)
