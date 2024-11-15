@@ -189,6 +189,13 @@ class Translation(List):
     def get_public(self, *, languages: list[str] = None) -> dict[str, str] | dict[str, dict[str, str]]:
         """
         Dumps public translations as JSON.
+
+        Example calls:
+
+        - `/json/_translation/get_public` get public translations for current language
+        - `/json/_translation/get_public?languages=en` for english translations
+        - `/json/_translation/get_public?languages=en&languages=de` for english and german translations
+        - `/json/_translation/get_public?languages=*` for all available languages
         """
         if not utils.string.is_prefix(self.render.kind, "json"):
             raise errors.BadRequest("Can only use this function on JSON-based renders")

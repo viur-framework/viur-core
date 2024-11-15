@@ -177,7 +177,7 @@ class translate:
             as the key/defaultText may have different meanings in the
             target language.
         :param force_lang: Use this language instead the one of the request.
-        :param public:
+        :param public: Flag for public translations, which can be obtained via /json/_translate/get_public.
         """
         super().__init__()
 
