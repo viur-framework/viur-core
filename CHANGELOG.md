@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.24]
+
+- feat: `SkelModule.structure()` with actions and with access control (#1321)
+
 ## [3.6.23]
 
 - feat: Support enum type in exposed methods (#1313)

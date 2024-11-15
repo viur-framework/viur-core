@@ -331,23 +331,40 @@ class Tree(SkelModule):
         return self.render.list(query.fetch())
 
     @exposed
-    def structure(self, skelType: SkelType, *args, **kwargs) -> t.Any:
+    def structure(self, skelType: SkelType, action: t.Optional[str] = "view") -> t.Any:
         """
-        :returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
-            in each bone.
+            :returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
+                in each bone.
 
-        :raises: :exc:`viur.core.errors.NotAcceptable`, when an incorrect *skelType* is provided.
-        :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
+            :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
-        if not (skelType := self._checkSkelType(skelType)):
-            raise errors.NotAcceptable(f"Invalid skelType provided.")
-        skel = self.viewSkel(skelType)
-        if not self.canAdd(skelType, None):  # We can't use canView here as it would require passing a skeletonInstance.
-            # As a fallback, we'll check if the user has the permissions to view at least one entry
-            qry = self.listFilter(skel.all())
-            if not qry or not qry.getEntry():
-                raise errors.Unauthorized()
-        return self.render.view(skel)
+        # FIXME: In ViUR > 3.7 this could also become dynamic (ActionSkel paradigm).
+        match action:
+            case "view":
+                skel = self.viewSkel(skelType)
+                if not self.canView(skelType, skel):
+                    raise errors.Unauthorized()
+
+            case "edit":
+                skel = self.editSkel(skelType)
+                if not self.canEdit(skelType, skel):
+                    raise errors.Unauthorized()
+
+            case "add":
+                if not self.canAdd(skelType):
+                    raise errors.Unauthorized()
+
+                skel = self.addSkel(skelType)
+
+            case "clone":
+                skel = self.cloneSkel(skelType)
+                if not (self.canAdd(skelType) and self.canEdit(skelType, skel)):
+                    raise errors.Unauthorized()
+
+            case _:
+                raise errors.NotImplemented(f"The action {action!r} is not implemented.")
+
+        return self.render.view(skel, action=f"structure.{skelType}.{action}")
 
     @exposed
     def view(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> t.Any:
@@ -718,15 +735,19 @@ class Tree(SkelModule):
         :param skel: The entry we check for
         :return: True if the current session is authorized to view that entry, False otherwise
         """
-        queryObj = self.viewSkel(skelType).all().mergeExternalFilter({"key": skel["key"]})
-        queryObj = self.listFilter(queryObj)  # Access control
-        if queryObj is None:
+        query = self.viewSkel(skelType).all()
+
+        if key := skel["key"]:
+            query.mergeExternalFilter({"key": key})
+
+        query = self.listFilter(query)  # Access control
+
+        if query is None or not query.getEntry():
             return False
-        if not queryObj.getEntry():
-            return False
+
         return True
 
-    def canAdd(self, skelType: SkelType, parentNodeSkel: t.Optional[SkeletonInstance]) -> bool:
+    def canAdd(self, skelType: SkelType, parentNodeSkel: t.Optional[SkeletonInstance] = None) -> bool:
         """
         Access control function for adding permission.
 

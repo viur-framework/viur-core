@@ -124,20 +124,40 @@ class List(SkelModule):
         return self.render.view(skel)
 
     @exposed
-    def structure(self, *args, **kwargs) -> t.Any:
+    def structure(self, action: t.Optional[str] = "view") -> t.Any:
         """
             :returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
                 in each bone.
 
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
-        skel = self.viewSkel()
-        if not self.canAdd():  # We can't use canView here as it would require passing a skeletonInstance.
-            # As a fallback, we'll check if the user has the permissions to view at least one entry
-            qry = self.listFilter(skel.all())
-            if not qry or not qry.getEntry():
-                raise errors.Unauthorized()
-        return self.render.view(skel)
+        # FIXME: In ViUR > 3.7 this could also become dynamic (ActionSkel paradigm).
+        match action:
+            case "view":
+                skel = self.viewSkel()
+                if not self.canView(skel):
+                    raise errors.Unauthorized()
+
+            case "edit":
+                skel = self.editSkel()
+                if not self.canEdit(skel):
+                    raise errors.Unauthorized()
+
+            case "add":
+                if not self.canAdd():
+                    raise errors.Unauthorized()
+
+                skel = self.addSkel()
+
+            case "clone":
+                skel = self.cloneSkel()
+                if not (self.canAdd() and self.canEdit(skel)):
+                    raise errors.Unauthorized()
+
+            case _:
+                raise errors.NotImplemented(f"The action {action!r} is not implemented.")
+
+        return self.render.view(skel, action=f"structure.{action}")
 
     @exposed
     def view(self, key: db.Key | int | str, *args, **kwargs) -> t.Any:
@@ -444,14 +464,15 @@ class List(SkelModule):
             :return: True if the current session is authorized to view that entry, False otherwise
         """
         # We log the key we're querying by hand so we don't have to lock on the entire kind in our query
-        db.currentDbAccessLog.get(set()).add(skel["key"])
-        query = self.viewSkel().all(_excludeFromAccessLog=True).mergeExternalFilter({"key": skel["key"]})
+        query = self.viewSkel().all(_excludeFromAccessLog=True)
+
+        if key := skel["key"]:
+            db.currentDbAccessLog.get(set()).add(key)
+            query.mergeExternalFilter({"key": key})
+
         query = self.listFilter(query)  # Access control
 
-        if query is None:
-            return False
-
-        if not query.getEntry():
+        if query is None or not query.getEntry():
             return False
 
         return True
