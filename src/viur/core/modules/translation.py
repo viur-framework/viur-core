@@ -1,8 +1,10 @@
 import enum
+import json
 import logging
+import os
 from datetime import timedelta as td
-
-from viur.core import conf, db, utils
+from viur.core import conf, db, utils, current, errors
+from viur.core.decorators import exposed
 from viur.core.bones import *
 from viur.core.i18n import KINDNAME, initializeTranslations, systemTranslations, translate
 from viur.core.prototypes.list import List
@@ -108,6 +110,14 @@ class TranslationSkel(Skeleton):
         defaultValue=Creator.USER,
     )
 
+    public = BooleanBone(
+        descr=translate(
+            "core.translationskel.public.descr",
+            "Is this translation public?",
+        ),
+        defaultValue=False,
+    )
+
     @classmethod
     def toDB(cls, skelValues: SkeletonInstance, **kwargs) -> db.Key:
         # Ensure we have only lowercase keys
@@ -173,4 +183,43 @@ class Translation(List):
         systemTranslations.clear()
         initializeTranslations()
 
-    _last_reload = None
+    _last_reload = None  # Cut my strings into pieces, this is my last reload...
+
+    @exposed
+    def get_public(self, *, languages: list[str] = None) -> dict[str, str] | dict[str, dict[str, str]]:
+        """
+        Dumps public translations as JSON.
+        """
+        if not utils.string.is_prefix(self.render.kind, "json"):
+            raise errors.BadRequest("Can only use this function on JSON-based renders")
+
+        current.request.get().response.headers["Content-Type"] = "application/json"
+
+        if (
+            not (conf.debug.disable_cache and current.request.get().disableCache)
+            and any(os.getenv("HTTP_HOST", "") in x for x in conf.i18n.domain_language_mapping)
+        ):
+            # cache it 7 days
+            current.request.get().response.headers["Cache-Control"] = f"public, max-age={7 * 24 * 60 * 60}"
+
+        if languages:
+            if len(languages) == 1 and languages[0] == "*":
+                languages = conf.i18n.available_dialects
+
+            return json.dumps({
+                lang: {
+                    tr_key: str(translate(tr_key, force_lang=lang))
+                    for tr_key, values in systemTranslations.items()
+                    if values.get("_public_")
+                }
+                for lang in languages
+            })
+
+        return json.dumps({
+            tr_key: str(translate(tr_key))
+            for tr_key, values in systemTranslations.items()
+            if values.get("_public_")
+        })
+
+
+Translation.json = True
