@@ -530,6 +530,10 @@ class Router:
         path_found = True
 
         for part in self.path_list:
+            # TODO: Solve differently on renderer rewrite.
+            if "initialize" in caller:
+                caller["initialize"]()
+
             # TODO: Remove canAccess guards... solve differently.
             if "canAccess" in caller and not caller["canAccess"]():
                 # We have a canAccess function guarding that object,

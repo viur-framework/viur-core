@@ -3,29 +3,37 @@ import fnmatch
 import json
 import logging
 from viur.core import Module, conf, current, errors
-from viur.core.decorators import *
-from viur.core.render.json import skey as json_render_skey
+from viur.core.decorators import exposed, skey
+from viur.core.render.json import skey as json_render_skey, initialize
 from viur.core.render.json.default import CustomJsonEncoder, DefaultRender
-# noinspection PyUnresolvedReferences
-from viur.core.render.vi.user import UserRender as user  # this import must exist!
+from viur.core.render.json.user import UserRender
 from viur.core.skeleton import SkeletonInstance
+from deprecated.sphinx import deprecated
 
 
 class default(DefaultRender):
     kind = "json.vi"
 
 
-__all__ = [default]
+class user(UserRender):
+    kind = "json.vi.user"
+
+
+__all__ = [default, user]
 
 
 @exposed
 def timestamp(*args, **kwargs):
     d = datetime.datetime.now()
-    current.request.get().response.headers["Content-Type"] = "application/json"
     return json.dumps(d.strftime("%Y-%m-%dT%H-%M-%S"))
 
 
 @exposed
+@deprecated(
+    version="3.7.0",
+    reason="Don't use this anymore; Use /vi/your-module/structure + the wanted skeleton for that.",
+    action="always"
+)
 def getStructure(module):
     """
     Returns all available skeleton structures for a given module.
@@ -66,7 +74,6 @@ def getStructure(module):
                 if isinstance(skel, SkeletonInstance):
                     res[stype] = DefaultRender.render_structure(skel.structure())
 
-    current.request.get().response.headers["Content-Type"] = "application/json"
     return json.dumps(res or None, cls=CustomJsonEncoder)
 
 
@@ -116,7 +123,7 @@ def dumpConfig():
             k.replace("_", "."): v for k, v in conf.admin.items(True)
         }
     }
-    current.request.get().response.headers["Content-Type"] = "application/json"
+
     return json.dumps(res, cls=CustomJsonEncoder)
 
 
@@ -125,8 +132,6 @@ def getVersion(*args, **kwargs):
     """
     Returns viur-core version number
     """
-    current.request.get().response.headers["Content-Type"] = "application/json"
-
     version = conf.version
 
     # always fill up to 4 parts
@@ -139,17 +144,6 @@ def getVersion(*args, **kwargs):
 
     # Hide patch level + appendix to non-authorized users
     return json.dumps((version[0], version[1], None, None))
-
-
-def canAccess(*args, **kwargs) -> bool:
-    """
-    General access restrictions for the vi-render.
-    """
-
-    if (cuser := current.user.get()) and any(right in cuser["access"] for right in ("root", "admin")):
-        return True
-
-    return any(fnmatch.fnmatch(current.request.get().path, pat) for pat in conf.security.admin_allowed_paths)
 
 
 @exposed
@@ -179,8 +173,18 @@ def get_settings():
     if conf.user.google_client_id:
         fields["admin.user.google.clientID"] = conf.user.google_client_id
 
-    current.request.get().response.headers["Content-Type"] = "application/json"
     return json.dumps(fields, cls=CustomJsonEncoder)
+
+
+def canAccess(*args, **kwargs) -> bool:
+    """
+    General access restrictions for the vi-render.
+    """
+
+    if (cuser := current.user.get()) and any(right in cuser["access"] for right in ("root", "admin")):
+        return True
+
+    return any(fnmatch.fnmatch(current.request.get().path, pat) for pat in conf.security.admin_allowed_paths)
 
 
 def _postProcessAppObj(obj):
@@ -189,8 +193,11 @@ def _postProcessAppObj(obj):
     obj["config"] = dumpConfig
     obj["settings"] = get_settings
     obj["getStructure"] = getStructure
-    obj["canAccess"] = canAccess
     obj["setLanguage"] = setLanguage
     obj["getVersion"] = getVersion
     obj["index"] = index
+
+    # So nicely solved...
+    obj["canAccess"] = canAccess
+    obj["initialize"] = initialize
     return obj

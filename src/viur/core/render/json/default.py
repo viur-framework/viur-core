@@ -177,7 +177,6 @@ class DefaultRender(AbstractRenderer):
             "values": vals,
         }
 
-        current.request.get().response.headers["Content-Type"] = "application/json"
         return json.dumps(res, cls=CustomJsonEncoder)
 
     def view(self, skel: SkeletonInstance, action: str = "view", params=None, **kwargs):
@@ -214,7 +213,6 @@ class DefaultRender(AbstractRenderer):
             "orders": orders
         }
 
-        current.request.get().response.headers["Content-Type"] = "application/json"
         return json.dumps(res, cls=CustomJsonEncoder)
 
     def add(self, skel: SkeletonInstance, action: str = "add", params=None, **kwargs):

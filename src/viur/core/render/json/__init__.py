@@ -20,8 +20,6 @@ def skey(amount: int = 1, *args, **kwargs) -> str:
 
     See module securitykey for details.
     """
-    current.request.get().response.headers["Content-Type"] = "application/json"
-
     if amount == 1:
         return json.dumps(securitykey.create())
 
@@ -34,6 +32,16 @@ def skey(amount: int = 1, *args, **kwargs) -> str:
     return json.dumps([securitykey.create() for _ in range(amount)])
 
 
-def _postProcessAppObj(obj):  # Register our SKey function
+def initialize():
+    """
+    Default initialization as application/json for JSON-render
+    """
+    current.request.get().response.headers["Content-Type"] = "application/json"
+
+
+def _postProcessAppObj(obj):
     obj["skey"] = skey
+
+    # So nicely solved...
+    obj["initialize"] = initialize
     return obj
