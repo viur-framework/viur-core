@@ -3,6 +3,7 @@ import random
 import typing as t
 from viur.core import i18n, current
 from viur.core.bones import NumericBone
+from viur.core.bones.base import getSystemInitialized
 
 
 class SpamBone(NumericBone):
@@ -46,10 +47,11 @@ class SpamBone(NumericBone):
         """
         The descr-property is generated and uses session variables to construct the question.
         """
-
-        # The session is not available during startup
-        if not (session := current.session.get()):
+        # This descr can only be evaluated on initialized systems.
+        if not getSystemInitialized():
             return None
+
+        session = current.session.get()
 
         a = session.get("spambone.value.a")
         b = session.get("spambone.value.b")
