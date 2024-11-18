@@ -364,7 +364,7 @@ class Tree(SkelModule):
             case _:
                 raise errors.NotImplemented(f"The action {action!r} is not implemented.")
 
-        return self.render.view(skel, action=f"structure.{skelType}.{action}")
+        return self.render.render(f"structure.{skelType}.{action}", skel)
 
     @exposed
     def view(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> t.Any:

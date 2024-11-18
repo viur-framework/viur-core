@@ -157,7 +157,7 @@ class List(SkelModule):
             case _:
                 raise errors.NotImplemented(f"The action {action!r} is not implemented.")
 
-        return self.render.view(skel, action=f"structure.{action}")
+        return self.render.render(f"structure.{action}", skel)
 
     @exposed
     def view(self, key: db.Key | int | str, *args, **kwargs) -> t.Any:
