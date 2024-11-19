@@ -5,6 +5,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 ## [3.6.24]
 
 - feat: `SkelModule.structure()` with actions and with access control (#1321)
+- feat: Public translations interface (#1323)
 
 ## [3.6.23]
 
