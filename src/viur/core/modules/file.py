@@ -519,11 +519,11 @@ class File(Tree):
             # Signature expired
             return None
 
-        if dlpath.count("/") != 3:
+        if dlpath.count("/") != 2:
             # Invalid path
             return None
 
-        dlkey, derived, filename = dlpath.split("/", 3)
+        dlkey, derived, filename = dlpath.split("/")
         return FilePath(dlkey, derived != "source", filename)
 
     @staticmethod
