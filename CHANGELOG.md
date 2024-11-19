@@ -6,6 +6,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 
 - feat: `SkelModule.structure()` with actions and with access control (#1321)
 - feat: Public translations interface (#1323)
+- fix: `File.parse_download_url()` handles dlpath wrong (#1328)
 
 ## [3.6.23]
 
