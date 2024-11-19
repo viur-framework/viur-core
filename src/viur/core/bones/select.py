@@ -121,15 +121,23 @@ class SelectBone(BaseBone):
         return val
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
-        if not str(value):
+        if issubclass(self._values, enum.Enum) and isinstance(value, self._values):
+            return value, None
+
+        value = str(value)
+        if not value:
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value selected")]
+
         for key in self.values.keys():
-            if str(key) == str(value):
+            if str(key) == value:
                 if isinstance(self._values, enum.EnumMeta):
                     return self._values(key), None
+
                 return key, None
+
         return self.getEmptyValue(), [
-            ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value selected")]
+            ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value selected")
+        ]
 
     def structure(self) -> dict:
         return super().structure() | {
