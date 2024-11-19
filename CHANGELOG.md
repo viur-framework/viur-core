@@ -2,7 +2,7 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.7.0.rc2]
+## [3.7.0.rc3]
 
 - chore: Adding file deprecations (#1268)
 - chore: Drop python 3.10 support (#1175)
@@ -13,11 +13,13 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - feat: `FileBone(public=True)` for public files (#1241)
 - feat: `render.render()` generalized action skel rendering (#1270)
 - feat: `Skeleton.patch()` for transactional read/write (#1267)
+- feat: `SkelModule.structure()` with actions and with access control (#1321)
 - feat: `UriBone` (#1254)
 - feat: Add `File.get_download_url()` (#1305)
 - feat: Add `PeriodicTask` can handle `timedelta` as interval (#1133)
 - feat: Add `PhoneBone` (#1205)
 - feat: Add `read` method for `RefSkel` (#1193)
+- feat: Add `scriptor` access flag (#1032)
 - feat: Add `serialize_compute` and `unserialize_compute` to `BaseBone` (#1145)
 - feat: add `skel.update` and `skel.__ior__` (#1103)
 - feat: Add `sorted` feature to `MultipleConstraints` (#1186)
@@ -41,10 +43,13 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: `File.write()` didn't return `db.Key` (#1303)
 - fix: `KeyBone.singleValueUnseralize()` doesn't handle None (#1300)
 - fix: `RelationalBone.singleValueFromClient` str-cast (#1269)
+- fix: `SelectBone.singleValueFromClient()` can't handle `Enum` values (#1320)
 - fix: `Session.__delitem__` causes endless recursion (#1208)
 - fix: `Skeleton.subskel()` and `SkeletonInstance.clone()` (#1297)
 - fix: `SkeletonInstance` must accept `bone_map` and deprecated `clonedBoneMap` (#1286)
+- fix: `SpamBone` consumes default iterator once (#1326)
 - fix: `SpamBone` regression of descr-property (#1246)
+- fix: `SpamBone`'s descr not available without session (#1324)
 - fix: `uploadKey` wrong in `getUploadUrl` (#1301)
 - fix: Add `__set_name__` in `__setattr__` for bones (#1312)
 - fix: Add datetime import in email.py (#1225)
@@ -52,12 +57,15 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: Calling `db.KeyHelper` with `None` raises a unhandled `NotImplementedError` (#1281)
 - fix: Clean-up `KeyBone` and added unserialization (#1204)
 - fix: Cleanly collect renders from Python module (#1230)
+- fix: Comment out annoying `"final append..."` logs (#1319)
 - fix: Extend `viur_migrate` to further conf keys (#1298)
 - fix: Handle `RefSkel`s in `unserialize_compute` differently (#1295)
 - fix: handle gracefully downloadurls and srcsets with optional languages overwrite for files (#1266)
 - fix: Improve interval format warning in `PeriodicTask` (#1199)
+- fix: Improve ValueError message on invalid `email.transport_class` (#1318)
 - fix: Improved signature test on callable `defaultValue` (#1284)
 - fix: multiple bones with languages have the wrong default value (#1282)
+- fix: Name `f"server.modules.user.accessright.{right}"` correctly (#1317)
 - fix: provide `key_rel_list` as list of tuples and not only a list (#1291)
 - fix: refactor _tagsFromString to _tags_from_str (#1279)
 - fix: Remove check if logged-in in `UserPassword.login()` (#1310)
