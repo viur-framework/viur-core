@@ -150,9 +150,23 @@ class translate:
     translation issues with bones, which can now take an instance of this class as it's description/hints.
     """
 
-    __slots__ = ["key", "defaultText", "hint", "translationCache", "force_lang"]
+    __slots__ = (
+        "key",
+        "defaultText",
+        "hint",
+        "translationCache",
+        "force_lang",
+        "public",
+    )
 
-    def __init__(self, key: str, defaultText: str = None, hint: str = None, force_lang: str = None):
+    def __init__(
+        self,
+        key: str,
+        defaultText: str = None,
+        hint: str = None,
+        force_lang: str = None,
+        public: bool = False,
+    ):
         """
         :param key: The unique key defining this text fragment.
             Usually it's a path/filename and a unique descriptor in that file
@@ -163,16 +177,20 @@ class translate:
             as the key/defaultText may have different meanings in the
             target language.
         :param force_lang: Use this language instead the one of the request.
+        :param public: Flag for public translations, which can be obtained via /json/_translate/get_public.
         """
         super().__init__()
-        key = str(key)  # ensure key is a str
-        self.key = key.lower()
+
+        self.key = str(key).lower()
         self.defaultText = defaultText or key
         self.hint = hint
+
         self.translationCache = None
         if force_lang is not None and force_lang not in conf.i18n.available_dialects:
             raise ValueError(f"The language {force_lang=} is not available")
+
         self.force_lang = force_lang
+        self.public = public
 
     def __repr__(self) -> str:
         return f"<translate object for {self.key} with force_lang={self.force_lang}>"
@@ -210,6 +228,7 @@ class translate:
                     default_text=self.defaultText,
                     filename=filename,
                     lineno=lineno,
+                    public=self.public,
                 )
 
             self.translationCache = self.merge_alias(systemTranslations.get(self.key, {}))
@@ -271,15 +290,19 @@ class TranslationExtension(jinja2.Extension):
     force the use of a specific language, not the language of the request.
     """
 
-    tags = {"translate"}
+    tags = {
+        "translate",
+    }
 
     def parse(self, parser):
         # Parse the translate tag
         global systemTranslations
+
         args = []  # positional args for the `_translate()` method
         kwargs = {}  # keyword args (force_lang + substitute vars) for the `_translate()` method
         lineno = parser.stream.current.lineno
         filename = parser.stream.filename
+
         # Parse arguments (args and kwargs) until the current block ends
         lastToken = None
         while parser.stream.current.type != 'block_end':
@@ -300,14 +323,19 @@ class TranslationExtension(jinja2.Extension):
                 else:
                     raise SyntaxError()
                 lastToken = None
+
         if lastToken:  # TODO: what's this? what it is doing?
             # logging.debug(f"final append {lastToken = }")
             args.append(lastToken.value)
+
         if not 0 < len(args) <= 3:
             raise SyntaxError("Translation-Key missing or excess parameters!")
+
         args += [""] * (3 - len(args))
         args += [kwargs]
         tr_key = args[0].lower()
+        public = kwargs.pop("_public_", False) or False
+
         if tr_key not in systemTranslations:
             add_missing_translation(
                 key=tr_key,
@@ -316,6 +344,7 @@ class TranslationExtension(jinja2.Extension):
                 filename=filename,
                 lineno=lineno,
                 variables=list(kwargs.keys()),
+                public=public,
             )
 
         translations = translate.merge_alias(systemTranslations.get(tr_key, {}))
@@ -368,7 +397,9 @@ def initializeTranslations() -> None:
 
         translations = {
             "_default_text_": entity.get("default_text") or None,
+            "_public_": entity.get("public") or False,
         }
+
         for lang, translation in entity["translations"].items():
             if lang not in conf.i18n.available_dialects:
                 # Don't store unknown languages in the memory
@@ -377,6 +408,7 @@ def initializeTranslations() -> None:
                 # Skip empty values
                 continue
             translations[lang] = translation
+
         systemTranslations[entity["tr_key"]] = translations
 
 
@@ -389,6 +421,7 @@ def add_missing_translation(
     filename: str | None = None,
     lineno: int | None = None,
     variables: list[str] = None,
+    public: bool = False,
 ) -> None:
     """Add missing translations to datastore"""
     try:
@@ -425,11 +458,13 @@ def add_missing_translation(
     skel["usage_lineno"] = lineno
     skel["usage_variables"] = variables or []
     skel["creator"] = Creator.VIUR
+    skel["public"] = public
     skel.write()
 
     # Add to system translation to avoid triggering this method again
     systemTranslations[key] = {
         "_default_text_": default_text or None,
+        "_public_": public,
     }
 
 
