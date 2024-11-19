@@ -38,10 +38,11 @@ def setSystemInitialized():
     """
     global __system_initialized
     from viur.core.skeleton import iterAllSkelClasses
-    __system_initialized = True
+
     for skelCls in iterAllSkelClasses():
         skelCls.setSystemInitialized()
 
+    __system_initialized = True
 
 def getSystemInitialized():
     """

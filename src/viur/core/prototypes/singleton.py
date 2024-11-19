@@ -77,17 +77,29 @@ class Singleton(SkelModule):
         return self.render.view(skel)
 
     @exposed
-    def structure(self, *args, **kwargs) -> t.Any:
+    def structure(self, action: t.Optional[str] = "view") -> t.Any:
         """
-        :returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
-            in each bone.
+            :returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
+                in each bone.
 
-        :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
+            :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
-        skel = self.viewSkel()
-        if not self.canView():
-            raise errors.Unauthorized()
-        return self.render.view(skel)
+        # FIXME: In ViUR > 3.7 this could also become dynamic (ActionSkel paradigm).
+        match action:
+            case "view":
+                skel = self.viewSkel()
+                if not self.canView():
+                    raise errors.Unauthorized()
+
+            case "edit":
+                skel = self.editSkel()
+                if not self.canEdit():
+                    raise errors.Unauthorized()
+
+            case _:
+                raise errors.NotImplemented(f"The action {action!r} is not implemented.")
+
+        return self.render.render(f"structure.{action}", skel)
 
     @exposed
     def view(self, *args, **kwargs) -> t.Any:
