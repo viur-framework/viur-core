@@ -5,14 +5,15 @@ from viur.core.bones.base import BaseBone
 
 DEFAULT_VALUE_T: t.TypeAlias = bool | None | list[bool] | dict[str, list[bool] | bool]
 
+
 class BooleanBone(BaseBone):
     """
     Represents a boolean data type, which can have two possible values: `True` or `False`.
+    It also allows for `None` to specify the "not yet set"-state.
     BooleanBones cannot be defined as `multiple=True`.
 
-    :param defaultValue: The default value of the `BooleanBone` instance. Defaults to `False`.
-    :type defaultValue: bool
-    :raises ValueError: If the `defaultValue` is not a boolean value (`True` or `False`).
+    :param defaultValue: The default value of the `BooleanBone` instance. Defaults to `None` (unset).
+    :raises ValueError: If the `defaultValue` is not either a boolean value (`True` or `False`) or `None`.
     """
     type = "bool"
 
