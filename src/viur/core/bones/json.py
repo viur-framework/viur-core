@@ -68,14 +68,14 @@ class JsonBone(RawBone):
                             ReadFromClientError(ReadFromClientErrorSeverity.Invalid, f"Invalid JSON supplied: {e!s}")
                         ]
 
-                try:
-                    jsonschema.validate(value, self.schema)
-                except (jsonschema.exceptions.ValidationError, jsonschema.exceptions.SchemaError) as e:
-                    return self.getEmptyValue(), [
-                        ReadFromClientError(
-                            ReadFromClientErrorSeverity.Invalid,
-                            f"Invalid JSON for schema supplied: {e!s}")
-                        ]
+            try:
+                jsonschema.validate(value, self.schema)
+            except (jsonschema.exceptions.ValidationError, jsonschema.exceptions.SchemaError) as e:
+                return self.getEmptyValue(), [
+                    ReadFromClientError(
+                        ReadFromClientErrorSeverity.Invalid,
+                        f"Invalid JSON for schema supplied: {e!s}")
+                    ]
 
         return super().singleValueFromClient(value, skel, bone_name, client_data)
 
