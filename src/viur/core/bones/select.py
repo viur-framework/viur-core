@@ -121,7 +121,7 @@ class SelectBone(BaseBone):
         return val
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
-        if issubclass(self._values, enum.Enum) and isinstance(value, self._values):
+        if isinstance(self._values, enum.EnumMeta) and isinstance(value, self._values):
             return value, None
 
         value = str(value)
