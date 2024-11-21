@@ -599,7 +599,13 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
         return bone.setBoneValue(skel, boneName, value, append, language)
 
     @classmethod
-    def fromClient(cls, skel: SkeletonInstance, data: dict[str, list[str] | str], amend: bool = False) -> bool:
+    def fromClient(
+        cls,
+        skel: SkeletonInstance,
+        data: dict[str, list[str] | str],
+        amend: bool = False,
+        trust: bool = False,
+    ) -> bool:
         """
             Load supplied *data* into Skeleton.
 
@@ -616,6 +622,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
             :param data: Dictionary from which the data is read.
             :param amend: Defines whether content of data may be incomplete to amend the skel,
                 which is useful for edit-actions.
+            :param trust: data from a `trust`ed source is allowed to modify readonly-bones as well.
 
             :returns: True if all data was successfully read and complete. \
             False otherwise (e.g. some required fields where missing or where invalid).
@@ -624,7 +631,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
         skel.errors = []
 
         for key, bone in skel.items():
-            if bone.readOnly:
+            if not trust and bone.readOnly:
                 continue
 
             if errors := bone.fromClient(skel, key, data):
@@ -1020,7 +1027,13 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return db.Query(skel.kindName, srcSkelClass=skel, **kwargs)
 
     @classmethod
-    def fromClient(cls, skel: SkeletonInstance, data: dict[str, list[str] | str], amend: bool = False) -> bool:
+    def fromClient(
+        cls,
+        skel: SkeletonInstance,
+        data: dict[str, list[str] | str],
+        amend: bool = False,
+        trust: bool = False,
+    ) -> bool:
         """
             This function works similar to :func:`~viur.core.skeleton.Skeleton.setValues`, except that
             the values retrieved from *data* are checked against the bones and their validity checks.
@@ -1035,6 +1048,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             :param data: Dictionary from which the data is read.
             :param amend: Defines whether content of data may be incomplete to amend the skel,
                 which is useful for edit-actions.
+            :param trust: data from a `trust`ed source is allowed to modify readonly-bones as well.
 
             :returns: True if all data was successfully read and complete. \
             False otherwise (e.g. some required fields where missing or where invalid).
@@ -1042,7 +1056,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         assert skel.renderPreparation is None, "Cannot modify values while rendering"
 
         # Load data into this skeleton
-        complete = bool(data) and super().fromClient(skel, data, amend=amend)
+        complete = bool(data) and super().fromClient(skel, data, amend=amend, trust=trust)
 
         if (
             not data  # in case data is empty
@@ -1541,6 +1555,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         check: t.Optional[dict | t.Callable[[SkeletonInstance], None]] = None,
         create: t.Optional[bool | dict | t.Callable[[SkeletonInstance], None]] = None,
         update_relations: bool = True,
+        trust: bool = True,
         retry: int = 0,
     ) -> SkeletonInstance:
         """
@@ -1564,6 +1579,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         :param create: Allows to specify a dict or initial callable that is executed in case the Skeleton with the
             given key does not exist.
         :param update_relations: Trigger update relations task on success. Defaults to False.
+        :param trust: Use internal `fromClient` with trusted data (may change readonly-bones)
         :param retry: On ViurDatastoreError, retry for this amount of times.
 
         If the function does not raise an Exception, all went well. The function always returns the input Skeleton.
@@ -1606,7 +1622,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             # Set values
             if isinstance(values, dict):
-                if values and not skel.fromClient(values, amend=True):
+                if values and not skel.fromClient(values, amend=True, trust=trust):
                     raise ReadFromClientException(skel.errors)
 
                 # Special-feature: "+" and "-" prefix for simple calculations
