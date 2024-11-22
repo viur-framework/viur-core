@@ -603,8 +603,9 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
         cls,
         skel: SkeletonInstance,
         data: dict[str, list[str] | str],
+        *,
         amend: bool = False,
-        trust: bool = False,
+        ignore: t.Optional[t.Iterable[str]] = None,
     ) -> bool:
         """
             Load supplied *data* into Skeleton.
@@ -622,7 +623,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
             :param data: Dictionary from which the data is read.
             :param amend: Defines whether content of data may be incomplete to amend the skel,
                 which is useful for edit-actions.
-            :param trust: data from a `trust`ed source is allowed to modify readonly-bones as well.
+            :param ignore: optional list of bones to be ignored; Defaults to all readonly-bones when set to None.
 
             :returns: True if all data was successfully read and complete. \
             False otherwise (e.g. some required fields where missing or where invalid).
@@ -631,7 +632,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
         skel.errors = []
 
         for key, bone in skel.items():
-            if not trust and bone.readOnly:
+            if (ignore is None and bone.readOnly) or key in ignore or ():
                 continue
 
             if errors := bone.fromClient(skel, key, data):
@@ -1031,8 +1032,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         cls,
         skel: SkeletonInstance,
         data: dict[str, list[str] | str],
+        *,
         amend: bool = False,
-        trust: bool = False,
+        ignore: t.Optional[t.Iterable[str]] = None,
     ) -> bool:
         """
             This function works similar to :func:`~viur.core.skeleton.Skeleton.setValues`, except that
@@ -1048,7 +1050,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             :param data: Dictionary from which the data is read.
             :param amend: Defines whether content of data may be incomplete to amend the skel,
                 which is useful for edit-actions.
-            :param trust: data from a `trust`ed source is allowed to modify readonly-bones as well.
+            :param ignore: optional list of bones to be ignored; Defaults to all readonly-bones when set to None.
 
             :returns: True if all data was successfully read and complete. \
             False otherwise (e.g. some required fields where missing or where invalid).
@@ -1056,7 +1058,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         assert skel.renderPreparation is None, "Cannot modify values while rendering"
 
         # Load data into this skeleton
-        complete = bool(data) and super().fromClient(skel, data, amend=amend, trust=trust)
+        complete = bool(data) and super().fromClient(skel, data, amend=amend, ignore=ignore)
 
         if (
             not data  # in case data is empty
@@ -1555,7 +1557,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         check: t.Optional[dict | t.Callable[[SkeletonInstance], None]] = None,
         create: t.Optional[bool | dict | t.Callable[[SkeletonInstance], None]] = None,
         update_relations: bool = True,
-        trust: bool = True,
+        ignore: t.Optional[t.Iterable[str]] = (),
         retry: int = 0,
     ) -> SkeletonInstance:
         """
@@ -1604,7 +1606,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     skel["key"] = db.keyHelper(key or skel["key"], skel.kindName)
 
                 if isinstance(create, dict):
-                    if create and not skel.fromClient(create, amend=True):
+                    if create and not skel.fromClient(create, amend=True, ignore=ignore):
                         raise ReadFromClientException(skel.errors)
                 elif callable(create):
                     create(skel)
@@ -1622,7 +1624,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             # Set values
             if isinstance(values, dict):
-                if values and not skel.fromClient(values, amend=True, trust=trust):
+                if values and not skel.fromClient(values, amend=True, ignore=ignore):
                     raise ReadFromClientException(skel.errors)
 
                 # Special-feature: "+" and "-" prefix for simple calculations
