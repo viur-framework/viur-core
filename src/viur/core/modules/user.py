@@ -1377,7 +1377,7 @@ class User(List):
 
         return self.authenticateUser(user_key)
 
-    def is_active(self, skel: skeleton.SkeletonInstance) -> bool:
+    def is_active(self, skel: skeleton.SkeletonInstance) -> bool | None:
         """
         Hookable check if a user is defined as "active" and can login.
 
@@ -1393,7 +1393,7 @@ class User(List):
 
             return status >= Status.ACTIVE.value
 
-        return False
+        return None
 
     def authenticateUser(self, key: db.Key, **kwargs):
         """
@@ -1574,8 +1574,9 @@ class User(List):
 
     def onEdited(self, skel):
         super().onEdited(skel)
+
         # In case the user is set to inactive, kill all sessions
-        if not self.is_active(skel):
+        if self.is_active(skel) is False:
             session.killSessionByUser(skel["key"])
 
     def onDeleted(self, skel):
