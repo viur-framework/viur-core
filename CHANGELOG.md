@@ -2,6 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.25]
+
+- fix: Revert changes from #1323 (#1332)
+- fix: Store written db_obj in `toDB` on source skel (#1333)
+- fix: `JsonBone` validate `object` and `list` too (#1329)
+
 ## [3.6.24]
 
 - feat: `SkelModule.structure()` with actions and with access control (#1321)
