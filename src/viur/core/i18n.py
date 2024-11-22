@@ -180,8 +180,8 @@ class translate:
         :param public: Flag for public translations, which can be obtained via /json/_translate/get_public.
         """
         super().__init__()
-
-        self.key = str(key).lower()
+        key = str(key)  # ensure key is a str
+        self.key = key.lower()
         self.defaultText = defaultText or key
         self.hint = hint
 
