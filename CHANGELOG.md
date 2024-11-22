@@ -2,11 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.7.0.rc3]
+## [3.7.0.rc4]
 
 - chore: Adding file deprecations (#1268)
 - chore: Drop python 3.10 support (#1175)
 - chore: Merging of `migrate_config.py` and `viur-2to3.py` into `viur-migrate` tool (#1283)
+- doc: Updated `BooleanBone` docstring (forgotten in #988)
 - doc+fix: Added module docstrings, removed render defaults (#1253)
 - feat Add session `setdefault` (#1140)
 - feat: `conf.bone_html_default_allow` (#1278)
@@ -37,7 +38,8 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - feat: Load Session only when needed (#1277)
 - feat: Make custom jinja filter `|fileSize` deprecated (#1272)
 - feat: Make SkeletonInstance json serializable (#1262)
-- feat: Provide a `User.is_active()` function (#1309)
+- feat: Provide `ignore`-parameter for `Skeleton.fromClient` (#1330)
+- feat: Provide `User.is_active()` function (#1309)
 - feat: Retrieve default `descr` from bone's name in its Skeleton (#1227)
 - feat+refactor: Improved and extended `Skeleton.subskel()` (#1259)
 - fix: `File.write()` didn't return `db.Key` (#1303)
@@ -51,6 +53,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: `SpamBone` regression of descr-property (#1246)
 - fix: `SpamBone`'s descr not available without session (#1324)
 - fix: `uploadKey` wrong in `getUploadUrl` (#1301)
+- fix: `User.is_active()` without status-bone (#1331)
 - fix: Add `__set_name__` in `__setattr__` for bones (#1312)
 - fix: Add datetime import in email.py (#1225)
 - fix: Add default param for `createRelSkelFromKey` (#1304)
@@ -61,6 +64,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: Extend `viur_migrate` to further conf keys (#1298)
 - fix: Handle `RefSkel`s in `unserialize_compute` differently (#1295)
 - fix: handle gracefully downloadurls and srcsets with optional languages overwrite for files (#1266)
+- fix: Hotfix bugfix for `SelectBone.singleValueFromClient`
 - fix: Improve interval format warning in `PeriodicTask` (#1199)
 - fix: Improve ValueError message on invalid `email.transport_class` (#1318)
 - fix: Improved signature test on callable `defaultValue` (#1284)
