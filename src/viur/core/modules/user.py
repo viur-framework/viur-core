@@ -1393,7 +1393,7 @@ class User(List):
 
             return status >= Status.ACTIVE.value
 
-        return False
+        return True
 
     def authenticateUser(self, key: db.Key, **kwargs):
         """
