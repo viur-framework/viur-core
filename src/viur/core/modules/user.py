@@ -439,7 +439,7 @@ class UserPassword(UserPrimaryAuthentication):
             )
 
         # If the account is locked or not yet validated, abort the process.
-        if not self._user_module.is_active(user_skel):
+        if self._user_module.is_active(user_skel) is False:
             raise errors.NotFound(
                 i18n.translate(
                     key="viur.modules.user.passwordrecovery.accountlocked",
@@ -1377,7 +1377,7 @@ class User(List):
 
         return self.authenticateUser(user_key)
 
-    def is_active(self, skel: skeleton.SkeletonInstance) -> bool:
+    def is_active(self, skel: skeleton.SkeletonInstance) -> bool | None:
         """
         Hookable check if a user is defined as "active" and can login.
 
@@ -1393,7 +1393,7 @@ class User(List):
 
             return status >= Status.ACTIVE.value
 
-        return True
+        return None
 
     def authenticateUser(self, key: db.Key, **kwargs):
         """
@@ -1409,7 +1409,7 @@ class User(List):
             raise ValueError(f"Unable to authenticate unknown user {key}")
 
         # Verify that this user account is active
-        if not self.is_active(skel):
+        if self.is_active(skel) is False:
             raise errors.Forbidden("The user is disabled and cannot be authenticated.")
 
         # Update session for user
@@ -1574,8 +1574,9 @@ class User(List):
 
     def onEdited(self, skel):
         super().onEdited(skel)
+
         # In case the user is set to inactive, kill all sessions
-        if not self.is_active(skel):
+        if self.is_active(skel) is False:
             session.killSessionByUser(skel["key"])
 
     def onDeleted(self, skel):
