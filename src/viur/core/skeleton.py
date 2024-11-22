@@ -1179,11 +1179,15 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         # END of __txn_update subfunction
 
+        src_skel = skel
+
         # Run our SaveTxn
         if db.IsInTransaction():
             key, db_obj, skel, change_list, is_add = __txn_update(skel)
         else:
             key, db_obj, skel, change_list, is_add = db.RunInTransaction(__txn_update, skel)
+
+        src_skel.dbEntity = db_obj
 
         for bone_name, bone in skel.items():
             bone.postSavedHandler(skel, bone_name, key)
