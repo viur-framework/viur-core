@@ -180,6 +180,8 @@ class translate:
         :param public: Flag for public translations, which can be obtained via /json/_translate/get_public.
         """
         super().__init__()
+        if not isinstance(key, str):
+            logging.warning(f"Got non-string (type {type(key)}) as {key=}!", exc_info=True)
         key = str(key)  # ensure key is a str
         self.key = key.lower()
         self.defaultText = defaultText or key
