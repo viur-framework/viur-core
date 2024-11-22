@@ -439,7 +439,7 @@ class UserPassword(UserPrimaryAuthentication):
             )
 
         # If the account is locked or not yet validated, abort the process.
-        if self._user_module.is_active(user_skel) is False:
+        if not self._user_module.is_active(user_skel):
             raise errors.NotFound(
                 i18n.translate(
                     key="viur.modules.user.passwordrecovery.accountlocked",
@@ -1409,7 +1409,7 @@ class User(List):
             raise ValueError(f"Unable to authenticate unknown user {key}")
 
         # Verify that this user account is active
-        if self.is_active(skel) is False:
+        if not self.is_active(skel):
             raise errors.Forbidden("The user is disabled and cannot be authenticated.")
 
         # Update session for user
