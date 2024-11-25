@@ -632,7 +632,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
         skel.errors = []
 
         for key, bone in skel.items():
-            if (ignore is None and bone.readOnly) or key in ignore or ():
+            if (ignore is None and bone.readOnly) or key in (ignore or ()):
                 continue
 
             if errors := bone.fromClient(skel, key, data):

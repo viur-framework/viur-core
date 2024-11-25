@@ -2,7 +2,7 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.7.0.rc4]
+## [3.7.0.rc5]
 
 - chore: Adding file deprecations (#1268)
 - chore: Drop python 3.10 support (#1175)
