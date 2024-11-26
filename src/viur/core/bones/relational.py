@@ -1081,8 +1081,10 @@ class RelationalBone(BaseBone):
 
         return result
 
-    def createRelSkelFromKey(self, key: db.Key, rel: dict | None = None) -> RelDict:
-        return self.relskels_from_keys([(key, rel)])[0]
+    def createRelSkelFromKey(self, key: db.Key, rel: dict | None = None) -> RelDict | None:
+        if rel_skel := self.relskels_from_keys([(key, rel)]):
+            return rel_skel[0]
+        return None
 
     def relskels_from_keys(self, key_rel_list: list[tuple[db.Key, dict | None]]) -> list[RelDict]:
         """
