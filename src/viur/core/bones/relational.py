@@ -1084,7 +1084,7 @@ class RelationalBone(BaseBone):
     def createRelSkelFromKey(self, key: db.Key, rel: dict | None = None) -> RelDict:
         return self.relskels_from_keys([(key, rel)])[0]
 
-    def relskels_from_keys(self, key_rel_list: list[tuple[db.Key, dict | None]]) -> list[RelDict] | None:
+    def relskels_from_keys(self, key_rel_list: list[tuple[db.Key, dict | None]]) -> list[RelDict]:
         """
         Creates a list of RelSkel instances valid for this bone from the given database key.
 
@@ -1095,12 +1095,11 @@ class RelationalBone(BaseBone):
         :param key_rel_list: List of tuples with the first value in the tuple is the
             key and the second is and RelSkel or None
 
-        :return: A dictionary containing a reference skeleton and optional relation data or None.
-        :rtype: dict
+        :return: A dictionary containing a reference skeleton and optional relation data.
         """
 
         if not all(db_objs := db.Get([db.keyHelper(value[0], self.kind) for value in key_rel_list])):
-            return None
+            return []  # return emtpy data when not all data is found
         res_rel_skels = []
         for (key, rel), db_obj in zip(key_rel_list, db_objs):
             dest_skel = self._refSkelCache()
