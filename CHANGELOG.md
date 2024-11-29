@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.26]
+
+- feat: `pattern`-parameter for `Translation.get_public()` (#1337)
+- fix: Correct `translation_key_prefix_skeleton_bonename` and `translation_key_prefix_bonename` (#1336)
+
 ## [3.6.25]
 
 - fix: Revert changes from #1323 (#1332)
