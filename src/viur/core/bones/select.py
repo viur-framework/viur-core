@@ -19,13 +19,13 @@ SelectBoneMultiple = list[SelectBoneValue]
 
 
 def translation_key_prefix_skeleton_bonename(bones_instance: BaseBone) -> str:
-    """Generate a translation key prefix based on the skeleton name"""
+    """Generate a translation key prefix based on the skeleton and bone name"""
     return f'skeleton.{bones_instance.skel_cls.__name__.lower().removesuffix("skel")}.{bones_instance.name}.'
 
 
 def translation_key_prefix_bonename(bones_instance: BaseBone) -> str:
-    """Generate a translation key prefix based on the skeleton and bone name"""
-    return f'skeleton.{bones_instance.skel_cls.__name__.lower().removesuffix("skel")}.{bones_instance.name}.'
+    """Generate a translation key prefix based on the bone name"""
+    return f'bone.{bones_instance.name}.'
 
 
 class SelectBone(BaseBone):

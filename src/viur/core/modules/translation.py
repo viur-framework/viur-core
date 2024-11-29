@@ -1,4 +1,5 @@
 import enum
+import fnmatch
 import json
 import logging
 import os
@@ -190,14 +191,24 @@ class Translation(List):
     _last_reload = None  # Cut my strings into pieces, this is my last reload...
 
     @exposed
-    def get_public(self, *, languages: list[str] = None) -> dict[str, str] | dict[str, dict[str, str]]:
+    def get_public(
+        self,
+        *,
+        languages: list[str] = [],
+        pattern: str = "*",
+    ) -> dict[str, str] | dict[str, dict[str, str]]:
         """
         Dumps public translations as JSON.
+
+        :param languages: Allows to request a specific language.
+        :param pattern: Provide an fnmatch-style key filter pattern
 
         Example calls:
 
         - `/json/_translation/get_public` get public translations for current language
         - `/json/_translation/get_public?languages=en` for english translations
+        - `/json/_translation/get_public?languages=en&pattern=bool.*` for english translations,
+            but only keys starting with "bool."
         - `/json/_translation/get_public?languages=en&languages=de` for english and german translations
         - `/json/_translation/get_public?languages=*` for all available languages
         """
@@ -221,7 +232,7 @@ class Translation(List):
                 lang: {
                     tr_key: str(translate(tr_key, force_lang=lang))
                     for tr_key, values in systemTranslations.items()
-                    if values.get("_public_")
+                    if values.get("_public_") and fnmatch.fnmatch(tr_key, pattern)
                 }
                 for lang in languages
             })
@@ -229,7 +240,7 @@ class Translation(List):
         return json.dumps({
             tr_key: str(translate(tr_key))
             for tr_key, values in systemTranslations.items()
-            if values.get("_public_")
+            if values.get("_public_") and fnmatch.fnmatch(tr_key, pattern)
         })
 
 

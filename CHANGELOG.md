@@ -2,7 +2,7 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.7.0.rc5]
+## [3.7.0.rc6]
 
 - chore: Adding file deprecations (#1268)
 - chore: Drop python 3.10 support (#1175)
@@ -57,6 +57,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: Add `__set_name__` in `__setattr__` for bones (#1312)
 - fix: Add datetime import in email.py (#1225)
 - fix: Add default param for `createRelSkelFromKey` (#1304)
+- fix: Allow `list` in `SpatialBone` `setBoneValue` (#1335)
 - fix: Calling `db.KeyHelper` with `None` raises a unhandled `NotImplementedError` (#1281)
 - fix: Clean-up `KeyBone` and added unserialization (#1204)
 - fix: Cleanly collect renders from Python module (#1230)
@@ -75,6 +76,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: Remove check if logged-in in `UserPassword.login()` (#1310)
 - fix: Remove urlencode (#1271)
 - fix: Rename create_serving_url into inject_serving_url (#1241)
+- fix: Return a `list` instead of `None` in `RelationalBone.relskels_from_keys` (#1334)
 - fix: Test `user["status"]` at one place (#1292)
 - fix+doc: PeriodicTask (#1247)
 - refactor: `BaseBone.buildDBSort` (#1077)
@@ -89,6 +91,11 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Replace `db.encodeKey` by `str`-cast (#1302)
 - refactor: Send emails from `EmailTransport` instances instead of class (#1250)
 - refactor: Sub-class `Session` from `db.Entity` to behave `dict`-compliant (#1153)
+
+## [3.6.26]
+
+- feat: `pattern`-parameter for `Translation.get_public()` (#1337)
+- fix: Correct `translation_key_prefix_skeleton_bonename` and `translation_key_prefix_bonename` (#1336)
 
 ## [3.6.25]
 
