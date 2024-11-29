@@ -203,7 +203,8 @@ class Translation(List):
 
         - `/json/_translation/get_public` get public translations for current language
         - `/json/_translation/get_public?languages=en` for english translations
-        - `/json/_translation/get_public?languages=en&pattern=bool.*` for english translations, only keys starting with "bool."
+        - `/json/_translation/get_public?languages=en&pattern=bool.*` for english translations,
+            but only keys starting with "bool."
         - `/json/_translation/get_public?languages=en&languages=de` for english and german translations
         - `/json/_translation/get_public?languages=*` for all available languages
         """
