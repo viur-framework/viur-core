@@ -138,7 +138,13 @@ def getCurrentUser(render: Render) -> t.Optional[SkeletonInstance]:
 
 
 @jinjaGlobalFunction
-def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel") -> dict | bool | None:
+def getSkel(
+    render: Render,
+    module: str,
+    key: str = None,
+    skel: str = "viewSkel",
+    skel_args: tuple[t.Any] = (),
+) -> dict | bool | None:
     """
     Jinja2 global: Fetch an entry from a given module, and return the data as a dict,
     prepared for direct use in the output.
@@ -153,25 +159,25 @@ def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel"
 
     :returns: dict on success, False on error.
     """
-    if module not in dir(conf.main_app):
-        logging.error(f"getSkel called with unknown {module=}!")
-        return False
+    if not (obj := getattr(conf.main_app, module, None)):
+        raise ValueError(f"getSkel: Can't read a skeleton from unknown module {module!r}")
 
-    obj = getattr(conf.main_app, module)
+    if not getattr(obj, "html", False):
+        raise PermissionError(f"getSkel: module {module!r} is not allowed to be accessed")
 
-    if skel in dir(obj):
-        skel = getattr(obj, skel)()
+    # Retrieve a skeleton
+    skel = getattr(obj, skel)(*skel_args)
+    if not isinstance(skel, SkeletonInstance):
+        raise RuntimeError("getSkel: Invalid skel name provided")
 
-        if isinstance(obj, prototypes.singleton.Singleton) and not key:
-            # We fetching the entry from a singleton - No key needed
-            key = db.Key(skel.kindName, obj.getKey())
-        elif not key:
-            logging.info("getSkel called without a valid key")
-            return False
+    if isinstance(obj, prototypes.singleton.Singleton) and not key:
+        # We fetching the entry from a singleton - No key needed
+        key = db.Key(skel.kindName, obj.getKey())
 
-        if not isinstance(skel, SkeletonInstance):
-            return False
+    elif not key:
+        raise ValueError("getSkel has to be called with a valid key!")
 
+<<<<<<< Updated upstream
         if "canView" in dir(obj):
             if not skel.fromDB(key):
                 logging.info(f"getSkel: Entry {key} not found")
@@ -195,18 +201,54 @@ def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel"
             if not qry:
                 logging.info("listFilter permits getting entry, returning None")
                 return None
+=======
+    if "canView" in dir(obj):
+        if not skel.read(key):
+            logging.info(f"getSkel: Entry {key!r} not found")
+            return None
+>>>>>>> Stashed changes
 
-            skel = qry.getSkel()
-            if not skel:
-                return None
+        if isinstance(obj, prototypes.singleton.Singleton):
+            isAllowed = obj.canView()
 
+<<<<<<< Updated upstream
         else:  # No Access-Test for this module
             if not skel.fromDB(key):
                 return None
         skel.renderPreparation = render.renderBoneValue
         return skel
+=======
+        elif isinstance(obj, prototypes.tree.Tree):
+            if skel["key"].kind == obj.nodeSkelCls.kindName:
+                isAllowed = obj.canView("node", skel)
+            else:
+                isAllowed = obj.canView("leaf", skel)
+>>>>>>> Stashed changes
 
-    return False
+        else:  # List and Hierarchies
+            isAllowed = obj.canView(skel)
+
+        if not isAllowed:
+            logging.error(f"getSkel: Access to {key} denied from canView")
+            return None
+
+    elif "listFilter" in dir(obj):
+        qry = skel.all().mergeExternalFilter({"key": str(key)})
+        qry = obj.listFilter(qry)
+        if not qry:
+            logging.info("listFilter permits getting entry, returning None")
+            return None
+
+        skel = qry.getSkel()
+        if not skel:
+            return None
+
+    else:  # No Access-Test for this module
+        if not skel.read(key):
+            return None
+
+    skel.renderPreparation = render.renderBoneValue
+    return skel
 
 
 @jinjaGlobalFunction
@@ -295,40 +337,58 @@ def modulePath(render: Render) -> str:
 
 
 @jinjaGlobalFunction
-def getList(render: Render, module: str, skel: str = "viewSkel",
-            _noEmptyFilter: bool = False, *args, **kwargs) -> bool | None | list[SkeletonInstance]:
+def getList(
+    render: Render,
+    module: str,
+    skel: str = "viewSkel",
+    *,
+    skel_args: tuple[t.Any] = (),
+    _noEmptyFilter: bool = False,
+    **kwargs
+) -> bool | None | list[SkeletonInstance]:
     """
     Jinja2 global: Fetches a list of entries which match the given filter criteria.
 
     :param render: The html-renderer instance.
     :param module: Name of the module from which list should be fetched.
     :param skel: Name of the skeleton that is used to fetching the list.
+    :param skel_arg: Optional skeleton argument to be passed to the skel-function (e.g. for Tree-Modules)
     :param _noEmptyFilter: If True, this function will not return any results if at least one
         parameter is an empty list. This is useful to prevent filtering (e.g. by key) not being
         performed because the list is empty.
     :returns: Returns a dict that contains the "skellist" and "cursor" information,
         or None on error case.
     """
-    if module not in dir(conf.main_app):
-        logging.error(f"Jinja2-Render can't fetch a list from an unknown module {module}!")
-        return False
-    caller = getattr(conf.main_app, module)
-    if "viewSkel" not in dir(caller):
-        logging.error(f"Jinja2-Render cannot fetch a list from {module} due to missing viewSkel function")
-        return False
-    if _noEmptyFilter:  # Test if any value of kwargs is an empty list
-        if any([isinstance(x, list) and not len(x) for x in kwargs.values()]):
-            return []
-    query = getattr(caller, "viewSkel")(skel).all()
-    query.mergeExternalFilter(kwargs)
+    if not (caller := getattr(conf.main_app, module, None)):
+        raise ValueError(f"getList: Can't fetch a list from unknown module {module!r}")
+
+    if not getattr(caller, "html", False):
+        raise PermissionError(f"getList: module {module!r} is not allowed to be fetched in HTML!")
+
+    # Retrieve a skeleton
+    skel = getattr(caller, skel)(*skel_args)
+    if not isinstance(skel, SkeletonInstance):
+        raise RuntimeError("getList: Invalid skel name provided")
+
+    # Test if any value of kwargs is an empty list
+    if _noEmptyFilter and any(isinstance(value, list) and not value for value in kwargs.values()):
+        return []
+
+    # Create initial query
+    query = skel.all().mergeExternalFilter(kwargs)
+
     if "listFilter" in dir(caller):
         query = caller.listFilter(query)
+
     if query is None:
         return None
+
     mylist = query.fetch()
+
     if mylist:
         for skel in mylist:
             skel.renderPreparation = render.renderBoneValue
+
     return mylist
 
 
