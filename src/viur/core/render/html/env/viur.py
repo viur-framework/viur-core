@@ -156,6 +156,7 @@ def getSkel(
     :param key: Requested entity-key in an urlsafe-format. If the module is a Singleton
     application, the parameter can be omitted.
     :param skel: Specifies and optionally different data-model
+    :param skel_arg: Optional skeleton arguments to be passed to the skel-function (e.g. for Tree-Modules)
 
     :returns: dict on success, False on error.
     """
@@ -318,10 +319,11 @@ def getList(
     :param render: The html-renderer instance.
     :param module: Name of the module from which list should be fetched.
     :param skel: Name of the skeleton that is used to fetching the list.
-    :param skel_arg: Optional skeleton argument to be passed to the skel-function (e.g. for Tree-Modules)
+    :param skel_arg: Optional skeleton arguments to be passed to the skel-function (e.g. for Tree-Modules)
     :param _noEmptyFilter: If True, this function will not return any results if at least one
         parameter is an empty list. This is useful to prevent filtering (e.g. by key) not being
         performed because the list is empty.
+
     :returns: Returns a dict that contains the "skellist" and "cursor" information,
         or None on error case.
     """
