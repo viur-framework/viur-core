@@ -191,7 +191,7 @@ def getSkel(
             else:
                 isAllowed = obj.canView("leaf", skel)
 
-        else:  # List and Hierarchies
+        else:
             isAllowed = obj.canView(skel)
 
         if not isAllowed:
