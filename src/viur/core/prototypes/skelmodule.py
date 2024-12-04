@@ -64,7 +64,7 @@ class SkelModule(Module):
         For more information, refer to the function :func:`~_resolveSkelCls`.
     """
 
-    default_order: DEFAULT_ORDER_TYPE = "sortindex"
+    default_order: DEFAULT_ORDER_TYPE = None
     """
     Allows to specify a default order for this module, which is applied when no other order is specified.
 
