@@ -177,53 +177,19 @@ def getSkel(
     elif not key:
         raise ValueError("getSkel has to be called with a valid key!")
 
-<<<<<<< Updated upstream
-        if "canView" in dir(obj):
-            if not skel.fromDB(key):
-                logging.info(f"getSkel: Entry {key} not found")
-                return None
-            if isinstance(obj, prototypes.singleton.Singleton):
-                isAllowed = obj.canView()
-            elif isinstance(obj, prototypes.tree.Tree):
-                k = db.Key(key)
-                if k.kind.endswith("_rootNode"):
-                    isAllowed = obj.canView("node", skel)
-                else:
-                    isAllowed = obj.canView("leaf", skel)
-            else:  # List and Hierarchies
-                isAllowed = obj.canView(skel)
-            if not isAllowed:
-                logging.error(f"getSkel: Access to {key} denied from canView")
-                return None
-        elif "listFilter" in dir(obj):
-            qry = skel.all().mergeExternalFilter({"key": str(key)})
-            qry = obj.listFilter(qry)
-            if not qry:
-                logging.info("listFilter permits getting entry, returning None")
-                return None
-=======
     if "canView" in dir(obj):
         if not skel.read(key):
             logging.info(f"getSkel: Entry {key!r} not found")
             return None
->>>>>>> Stashed changes
 
         if isinstance(obj, prototypes.singleton.Singleton):
             isAllowed = obj.canView()
 
-<<<<<<< Updated upstream
-        else:  # No Access-Test for this module
-            if not skel.fromDB(key):
-                return None
-        skel.renderPreparation = render.renderBoneValue
-        return skel
-=======
         elif isinstance(obj, prototypes.tree.Tree):
             if skel["key"].kind == obj.nodeSkelCls.kindName:
                 isAllowed = obj.canView("node", skel)
             else:
                 isAllowed = obj.canView("leaf", skel)
->>>>>>> Stashed changes
 
         else:  # List and Hierarchies
             isAllowed = obj.canView(skel)
