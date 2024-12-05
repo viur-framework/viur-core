@@ -330,7 +330,10 @@ def getList(
         raise ValueError(f"getList: Can't fetch a list from unknown module {module!r}")
 
     if not getattr(caller, "html", False):
-        raise PermissionError(f"getList: module {module!r} is not allowed to be fetched in HTML!")
+        raise PermissionError(f"getList: module {module!r} is not allowed to be accessed from html")
+
+    if not hasattr(caller, "listFilter"):
+        raise NotImplementedError(f"getList: The module {module!r} is not designed for a list retrieval")
 
     # Retrieve a skeleton
     skel = getattr(caller, skel)(*skel_args)
@@ -344,9 +347,8 @@ def getList(
     # Create initial query
     query = skel.all().mergeExternalFilter(kwargs)
 
-    if hasattr(obj, "listFilter"):
-        if query := caller.listFilter(query):
-            caller._apply_default_order(query)
+    if query := caller.listFilter(query):
+        caller._apply_default_order(query)
 
     if query is None:
         return None
