@@ -184,18 +184,18 @@ def getSkel(
             return None
 
         if isinstance(obj, prototypes.singleton.Singleton):
-            isAllowed = obj.canView()
+            is_allowed = obj.canView()
 
         elif isinstance(obj, prototypes.tree.Tree):
             if skel["key"].kind == obj.nodeSkelCls.kindName:
-                isAllowed = obj.canView("node", skel)
+                is_allowed = obj.canView("node", skel)
             else:
-                isAllowed = obj.canView("leaf", skel)
+                is_allowed = obj.canView("leaf", skel)
 
         else:
-            isAllowed = obj.canView(skel)
+            is_allowed = obj.canView(skel)
 
-        if not isAllowed:
+        if not is_allowed:
             logging.error(f"getSkel: Access to {key} denied from canView")
             return None
 
