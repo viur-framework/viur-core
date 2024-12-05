@@ -146,7 +146,7 @@ class FileBone(TreeLeafBone):
             "height",
             "derived",
             "public",
-            "servingurl"
+            "servingurl",
         ),
         public: bool = False,
         **kwargs
