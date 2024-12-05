@@ -178,7 +178,7 @@ def getSkel(
     elif not key:
         raise ValueError("getSkel has to be called with a valid key!")
 
-    if "canView" in dir(obj):
+    if hasattr(obj, "canView"):
         if not skel.read(key):
             logging.info(f"getSkel: Entry {key!r} not found")
             return None
@@ -199,15 +199,14 @@ def getSkel(
             logging.error(f"getSkel: Access to {key} denied from canView")
             return None
 
-    elif "listFilter" in dir(obj):
+    elif hasattr(obj, "listFilter"):
         qry = skel.all().mergeExternalFilter({"key": str(key)})
         qry = obj.listFilter(qry)
         if not qry:
             logging.info("listFilter permits getting entry, returning None")
             return None
 
-        skel = qry.getSkel()
-        if not skel:
+        if not (skel := qry.getSkel()):
             return None
 
     else:  # No Access-Test for this module
@@ -345,7 +344,7 @@ def getList(
     # Create initial query
     query = skel.all().mergeExternalFilter(kwargs)
 
-    if "listFilter" in dir(caller):
+    if hasattr(obj, "listFilter"):
         query = caller.listFilter(query)
 
     if query is None:
