@@ -1,7 +1,7 @@
 import os
 import yaml
 import logging
-from viur.core import Module, db
+from viur.core import Module, db, current
 from viur.core.config import conf
 from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
 import typing as t
@@ -64,6 +64,14 @@ class SkelModule(Module):
         For more information, refer to the function :func:`~_resolveSkelCls`.
     """
 
+    default_order: DEFAULT_ORDER_TYPE = None
+    """
+    Allows to specify a default order for this module, which is applied when no other order is specified.
+
+    Setting a default_order might result in the requirement of additional indexes, which are being raised
+    and must be specified.
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -100,3 +108,42 @@ class SkelModule(Module):
         By default, baseSkel is used by :func:`~viewSkel`, :func:`~addSkel`, and :func:`~editSkel`.
         """
         return self._resolveSkelCls(*args, **kwargs)()
+
+    def _apply_default_order(self, query: db.Query):
+        """
+        Apply the setting from `default_order` to a given db.Query.
+
+        The `default_order` will only be applied when the query has no other order, or is on a multquery.
+        """
+
+        # Apply default_order when possible!
+        if (
+                self.default_order
+                and query.queries
+                and not isinstance(query.queries, list)
+                and not query.queries.orders
+                and not current.request.get().kwargs.get("search")
+        ):
+            if callable(default_order := self.default_order):
+                default_order = default_order(query)
+
+            if isinstance(default_order, dict):
+                logging.debug(f"Applying filter {default_order=}")
+                query.mergeExternalFilter(default_order)
+
+            elif default_order:
+                logging.debug(f"Applying {default_order=}")
+
+                # FIXME: This ugly test can be removed when there is type that abstracts SortOrders
+                if (
+                    isinstance(default_order, str)
+                    or (
+                        isinstance(default_order, tuple)
+                        and len(default_order) == 2
+                        and isinstance(default_order[0], str)
+                        and isinstance(default_order[1], db.SortOrder)
+                    )
+                ):
+                    query.order(default_order)
+                else:
+                    query.order(*default_order)

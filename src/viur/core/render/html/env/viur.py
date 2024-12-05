@@ -322,7 +322,8 @@ def getList(render: Render, module: str, skel: str = "viewSkel",
     query = getattr(caller, "viewSkel")(skel).all()
     query.mergeExternalFilter(kwargs)
     if "listFilter" in dir(caller):
-        query = caller.listFilter(query)
+        if query := caller.listFilter(query):
+            caller._apply_default_order(query)
     if query is None:
         return None
     mylist = query.fetch()
