@@ -8,7 +8,6 @@ such as displaying country names and handling country codes (e.g., ISO 3166-1 al
 from collections import OrderedDict
 from viur.core.bones.select import SelectBone
 
-
 ISO3CODES = {
     "abw": "Aruba",
     "afg": "Afghanistan",
@@ -746,6 +745,12 @@ ISO3TOISO2 = {  # Convert iso3 to iso2 codes
 ISO2TOISO3 = {v: k for k, v in ISO3TOISO2.items()}  # Build the invert map
 """A built Map of ISO2 to ISO3 country codes"""
 
+subgroup_mappings = {
+    'dach': ['de', 'at', 'ch'],
+    'eu': ['at', 'be', 'bg', 'hr', 'cy', 'cz', 'dk', 'ee', 'fi', 'fr', 'de', 'gr', 'hu', 'ie', 'it', 'lv', 'lt', 'lu',
+           'mt', 'nl', 'pl', 'pt', 'ro', 'sk', 'si', 'es', 'se'],
+}
+
 
 class SelectCountryBone(SelectBone):
     """
@@ -755,7 +760,10 @@ class SelectCountryBone(SelectBone):
     countries. It inherits from the BaseBone class and extends it to support country-specific functionalities,
     such as displaying country names and handling country codes (e.g., ISO 3166-1 alpha-2 or alpha-3).
 
-    :params List[str] countries: A list of countries supported by the bone, typically represented by their codes.
+    :param codes: The version of the ISO-Codes, either 2 or 3
+    :param values: Optional, either a str representing a predefined group (currently "dach" and "eu"), a list of
+         ISO-Codes (must match the Code-Length from `codes`), or a dict with matching iso-codes as keys and
+         the full country-names as values.
     """
     type = "select.country"
     ISO2 = 2
@@ -764,10 +772,25 @@ class SelectCountryBone(SelectBone):
     def __init__(self, *, codes=ISO2, values=None, **kwargs):
         global ISO2CODES, ISO3CODES
         assert codes in [self.ISO2, self.ISO3]
-        assert values is None
+        # assert values is None
+
+        if values is None:
+            values = OrderedDict(sorted((ISO2CODES if codes == self.ISO2 else ISO3CODES).items(), key=lambda i: i[1]))
+        else:
+            if isinstance(values, str):
+                values = subgroup_mappings[values]
+                if codes == self.ISO3:
+                    values = [ISO2TOISO3[i] for i in values]
+            if isinstance(values, list):
+                if codes == self.ISO2:
+                    values = {k: ISO2CODES[k] for k in values}
+                elif codes == self.ISO3:
+                    values = {k: ISO3CODES[k] for k in values}
+            if isinstance(values, dict):
+                values = OrderedDict(sorted(values.items(), key=lambda i: i[1]))
 
         super().__init__(
-            values=OrderedDict(sorted((ISO2CODES if codes == self.ISO2 else ISO3CODES).items(), key=lambda i: i[1])),
+            values=values,
             **kwargs
         )
 
@@ -782,9 +805,9 @@ class SelectCountryBone(SelectBone):
         using the `ISO3TOISO2` or `ISO2TOISO3` dictionaries. If the conversion is successful, the converted code is
         returned; otherwise, the original value is returned.
 
-        :params val: The value to be unserialized, typically a string representing an ISO country code.
+        :param val: The value to be unserialized, typically a string representing an ISO country code.
 
-        :returns: The unserialized value, either the original or converted ISO country code.
+        :return: The unserialized value, either the original or converted ISO country code.
         """
         if isinstance(val, str) and len(val) == 3 and self.codes == self.ISO2:
             # We got an ISO3 code from the db, but are using ISO2
