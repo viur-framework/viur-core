@@ -6,7 +6,7 @@ from viur.core.bones import KeyBone, SortIndexBone
 from viur.core.cache import flushCache
 from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.tasks import CallDeferred
-from .skelmodule import SkelModule, DEFAULT_ORDER_TYPE
+from .skelmodule import SkelModule
 
 
 SkelType = t.Literal["node", "leaf"]
@@ -47,13 +47,7 @@ class Tree(SkelModule):
     nodeSkelCls = None
     leafSkelCls = None
 
-    default_order: DEFAULT_ORDER_TYPE = "sortindex"
-    """
-    Allows to specify a default order for this module, which is applied when no other order is specified.
-
-    Setting a default_order might result in the requirement of additional indexes, which are being raised
-    and must be specified.
-    """
+    default_order = "sortindex"
 
     def __init__(self, moduleName, modulePath, *args, **kwargs):
         assert self.nodeSkelCls, f"Need to specify at least nodeSkelCls for {self.__class__.__name__!r}"
@@ -295,39 +289,7 @@ class Tree(SkelModule):
         if not (query := self.listFilter(self.viewSkel(skelType).all().mergeExternalFilter(kwargs))):
             raise errors.Unauthorized()
 
-        # Apply default_order when possible!
-        # TODO: refactor: Duplicate code in prototypes.List
-        if (
-                self.default_order
-                and query.queries
-                and not isinstance(query.queries, list)
-                and not query.queries.orders
-                and not current.request.get().kwargs.get("search")
-        ):
-            if callable(default_order := self.default_order):
-                default_order = default_order(query)
-
-            if isinstance(default_order, dict):
-                logging.debug(f"Applying filter {default_order=}")
-                query.mergeExternalFilter(default_order)
-
-            elif default_order:
-                logging.debug(f"Applying {default_order=}")
-
-                # FIXME: This ugly test can be removed when there is type that abstracts SortOrders
-                if (
-                    isinstance(default_order, str)
-                    or (
-                        isinstance(default_order, tuple)
-                        and len(default_order) == 2
-                        and isinstance(default_order[0], str)
-                        and isinstance(default_order[1], db.SortOrder)
-                    )
-                ):
-                    query.order(default_order)
-                else:
-                    query.order(*default_order)
-
+        self._apply_default_order(query)
         return self.render.list(query.fetch())
 
     @exposed

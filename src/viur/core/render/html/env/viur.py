@@ -345,7 +345,8 @@ def getList(
     query = skel.all().mergeExternalFilter(kwargs)
 
     if hasattr(obj, "listFilter"):
-        query = caller.listFilter(query)
+        if query := caller.listFilter(query):
+            caller._apply_default_order(query)
 
     if query is None:
         return None
