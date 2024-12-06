@@ -2,7 +2,7 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.7.0.rc6]
+## [3.7.0.rc7]
 
 - chore: Adding file deprecations (#1268)
 - chore: Drop python 3.10 support (#1175)
@@ -55,6 +55,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: `uploadKey` wrong in `getUploadUrl` (#1301)
 - fix: `User.is_active()` without status-bone (#1331)
 - fix: Add `__set_name__` in `__setattr__` for bones (#1312)
+- fix: add `servingurl`  to `FileBone`s default `refKeys` setting (#1344)
 - fix: Add datetime import in email.py (#1225)
 - fix: Add default param for `createRelSkelFromKey` (#1304)
 - fix: Allow `list` in `SpatialBone` `setBoneValue` (#1335)
@@ -69,6 +70,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: Improve interval format warning in `PeriodicTask` (#1199)
 - fix: Improve ValueError message on invalid `email.transport_class` (#1318)
 - fix: Improved signature test on callable `defaultValue` (#1284)
+- fix: Lower deprecations for `Skeleton.fromDB/toDB` (#1345)
 - fix: multiple bones with languages have the wrong default value (#1282)
 - fix: Name `f"server.modules.user.accessright.{right}"` correctly (#1317)
 - fix: provide `key_rel_list` as list of tuples and not only a list (#1291)
@@ -91,6 +93,12 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Replace `db.encodeKey` by `str`-cast (#1302)
 - refactor: Send emails from `EmailTransport` instances instead of class (#1250)
 - refactor: Sub-class `Session` from `db.Entity` to behave `dict`-compliant (#1153)
+
+## [3.6.27]
+
+- feat: add more filter-options to `SelectCountryBone` (#1346)
+- fix+refactor: html-render `getSkel()` and `getList()` (#1341)
+- fix: `SkelModule.default_order` generalized (#1340)
 
 ## [3.6.26]
 
