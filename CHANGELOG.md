@@ -94,7 +94,11 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Send emails from `EmailTransport` instances instead of class (#1250)
 - refactor: Sub-class `Session` from `db.Entity` to behave `dict`-compliant (#1153)
 
-## [3.6.27]
+## [3.6.28]
+
+- fix: Hotfix for refactored `getSkel()` ported down from 3.7 source (#1341)
+
+## [3.6.27] - (broken)
 
 - feat: add more filter-options to `SelectCountryBone` (#1346)
 - fix+refactor: html-render `getSkel()` and `getList()` (#1341)
