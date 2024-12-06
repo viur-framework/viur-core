@@ -176,7 +176,7 @@ def getSkel(
         key = db.Key(skel.kindName, obj.getKey())
 
     elif not key:
-        raise ValueError("getSkel has to be called with a valid key!")
+        raise ValueError(f"getSkel has to be called with a valid key! Got {key!r}")
 
     if hasattr(obj, "canView"):
         if not skel.read(key):
