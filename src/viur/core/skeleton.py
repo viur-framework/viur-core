@@ -1098,7 +1098,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     @deprecated(
         version="3.7.0",
         reason="Use skel.read() instead of skel.fromDB()",
-        action="always"
+        action="once"
     )
     def fromDB(cls, skel: SkeletonInstance, key: KeyType) -> bool:
         """
@@ -1153,7 +1153,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     @deprecated(
         version="3.7.0",
         reason="Use skel.write() instead of skel.toDB()",
-        action="always"
+        action="once"
     )
     def toDB(cls, skel: SkeletonInstance, update_relations: bool = True, **kwargs) -> db.Key:
         """
