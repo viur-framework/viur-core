@@ -179,7 +179,7 @@ def getSkel(
         raise ValueError(f"getSkel has to be called with a valid key! Got {key!r}")
 
     if hasattr(obj, "canView"):
-        if not skel.read(key):
+        if not skel.fromDB(key):
             logging.info(f"getSkel: Entry {key!r} not found")
             return None
 
@@ -210,7 +210,7 @@ def getSkel(
             return None
 
     else:  # No Access-Test for this module
-        if not skel.read(key):
+        if not skel.fromDB(key):
             return None
 
     skel.renderPreparation = render.renderBoneValue
