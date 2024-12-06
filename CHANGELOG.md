@@ -2,6 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.27]
+
+- feat: add more filter-options to `SelectCountryBone` (#1346)
+- fix+refactor: html-render `getSkel()` and `getList()` (#1341)
+- fix: `SkelModule.default_order` generalized (#1340)
+
 ## [3.6.26]
 
 - feat: `pattern`-parameter for `Translation.get_public()` (#1337)
