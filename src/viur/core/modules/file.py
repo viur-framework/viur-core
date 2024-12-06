@@ -387,6 +387,9 @@ class FileLeafSkel(TreeSkel):
     serving_url = StringBone(
         descr="Serving-URL",
         readOnly=True,
+        params={
+            "tooltip": "The 'serving_url' is only available in public file repositories.",
+        }
     )
 
     def preProcessBlobLocks(self, locks):
@@ -1263,7 +1266,7 @@ class File(Tree):
                 and skel["mimetype"].startswith("image/") and not skel["serving_url"]:
 
             try:
-                bucket = File.get_bucket(skel['dlkey'])
+                bucket = File.get_bucket(skel["dlkey"])
                 skel["serving_url"] = images.get_serving_url(
                     None,
                     secure_url=True,
