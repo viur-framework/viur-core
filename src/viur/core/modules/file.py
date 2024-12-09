@@ -1261,19 +1261,26 @@ class File(Tree):
 
     def inject_serving_url(self, skel: SkeletonInstance) -> None:
         """Inject the serving url for public image files into a FileSkel"""
-        # try to create a servingurl for images
-        if not conf.instance.is_dev_server and skel["public"] and skel["mimetype"] \
-                and skel["mimetype"].startswith("image/") and not skel["serving_url"]:
+        if (
+                skel["public"]
+                and skel["mimetype"]
+                and skel["mimetype"].startswith("image/")
+                and not skel["serving_url"]
+        ):
+            bucket = File.get_bucket(skel["dlkey"])
+            filename = f"/gs/{bucket.name}/{skel['dlkey']}/source/{skel['name']}"
+
+            # Trying this on local development server will raise a
+            # `google.appengine.runtime.apiproxy_errors.RPCFailedError`
+            if conf.instance.is_dev_server:
+                logging.warning(f"Can't inject serving_url for {filename!r} on local development server")
+                return
 
             try:
-                bucket = File.get_bucket(skel["dlkey"])
-                skel["serving_url"] = images.get_serving_url(
-                    None,
-                    secure_url=True,
-                    filename=f"/gs/{bucket.name}/{skel['dlkey']}/source/{skel['name']}",
-                )
+                skel["serving_url"] = images.get_serving_url(None, secure_url=True, filename=filename)
+
             except Exception as e:
-                logging.warning("Error while creating serving url")
+                logging.warning(f"Failed to create serving_url for {filename!r} with exception {e!r}")
                 logging.exception(e)
 
 

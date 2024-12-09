@@ -183,3 +183,15 @@ class RecordBone(BaseBone):
         return super().structure() | {
             "format": self.format,
             "using": self.using().structure()}
+
+    def refresh(self, skel, bone_name):
+        using_skel = self.using()
+
+        for idx, lang, value in self.iter_bone_value(skel, bone_name):
+            if value is None:
+                continue
+
+            using_skel.unserialize(value)
+
+            for key, bone in using_skel.items():
+                bone.refresh(using_skel, key)
