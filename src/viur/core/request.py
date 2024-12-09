@@ -372,7 +372,8 @@ class Router:
                                                                             raise_exception=False):
                         template = conf.main_app.render.getEnv().get_template(filename)
                         try:
-                            uses_unsafe_inline = "unsafe-inline" in conf.security.content_security_policy["enforce"]["style-src"]
+                            uses_unsafe_inline = \
+                                "unsafe-inline" in conf.security.content_security_policy["enforce"]["style-src"]
                         except (KeyError, TypeError):  # Not set
                             uses_unsafe_inline = False
                         if uses_unsafe_inline:
