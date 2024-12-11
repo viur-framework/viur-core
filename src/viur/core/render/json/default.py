@@ -233,6 +233,7 @@ class DefaultRender(AbstractRenderer):
         return json.dumps("OKAY")
 
     def listRootNodes(self, rootNodes, *args, **kwargs):
+        current.request.get().response.headers["Content-Type"] = "application/json"
         return json.dumps(rootNodes, cls=CustomJsonEncoder)
 
     def render(self, action: str, skel: t.Optional[SkeletonInstance] = None, **kwargs):

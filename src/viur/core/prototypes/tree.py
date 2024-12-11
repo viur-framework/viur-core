@@ -1,5 +1,6 @@
 import logging
 import typing as t
+from deprecated.sphinx import deprecated
 from viur.core import utils, errors, db, current
 from viur.core.decorators import *
 from viur.core.bones import KeyBone, SortIndexBone
@@ -138,6 +139,38 @@ class Tree(SkelModule):
         """
         return self.baseSkel(skelType, *args, **kwargs)
 
+    def rootnodeSkel(
+        self,
+        *,
+        identifier: str = "rep_module_repo",
+        ensure: bool | dict | t.Callable[[SkeletonInstance], None] = False,
+    ) -> SkeletonInstance:
+        """
+        Retrieve a new :class:`viur.core.skeleton.SkeletonInstance` that is used by the application
+        for rootnode entries.
+
+        The default is a SkeletonInstance returned by :func:`~baseSkel`, with a preset key created from identifier.
+
+        :param identifier: Unique identifier (name) for this rootnode.
+        :param ensure: If provided, ensures that the skeleton is available, and created with optionally provided values.
+
+        :return: Returns a SkeletonInstance for handling root nodes.
+        """
+        skel = self.baseSkel("node")
+
+        skel["key"] = db.Key(skel.kindName, identifier)
+        skel["rootNode"] = True
+
+        if ensure not in (False, None):
+            return skel.read(create=ensure)
+
+        return skel
+
+    @deprecated(
+        version="3.7.0",
+        reason="Use rootnodeSkel(ensure=True) instead.",
+        action="always"
+    )
     def ensureOwnModuleRootNode(self) -> db.Entity:
         """
         Ensures, that general root-node for the current module exists.
@@ -145,9 +178,7 @@ class Tree(SkelModule):
 
         :returns: The entity of the root-node.
         """
-        key = "rep_module_repo"
-        kindName = self.viewSkel("node").kindName
-        return db.GetOrInsert(db.Key(kindName, key), creationdate=utils.utcNow(), rootNode=1)
+        return self.rootnodeSkel(ensure=True).dbEntity
 
     def getAvailableRootNodes(self, *args, **kwargs) -> list[dict[t.Literal["name", "key"], str]]:
         """
