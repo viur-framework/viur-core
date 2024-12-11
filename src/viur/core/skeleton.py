@@ -1112,6 +1112,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         skel: SkeletonInstance,
         key: t.Optional[KeyType] = None,
         *,
+        create: bool | dict | t.Callable[[SkeletonInstance], None] = False,
         _check_legacy: bool = True
     ) -> t.Optional[SkeletonInstance]:
         """
@@ -1126,6 +1127,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             :param key: A :class:`viur.core.db.Key`, string, or int; from which the data shall be fetched.
                 If not provided, skel["key"] will be used.
+            :param create: Allows to specify a dict or initial callable that is executed in case the Skeleton with the
+                given key does not exist, it will be created.
 
             :returns: None on error, or the given SkeletonInstance on success.
 
@@ -1143,11 +1146,20 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         except (ValueError, NotImplementedError):  # This key did not parse
             return None
 
-        if not (db_res := db.Get(db_key)):
+        if db_res := db.Get(db_key):
+            skel.setEntity(db_res)
+            return skel
+        elif create in (False,  None):
             return None
+        elif isinstance(create, dict):
+            if create and not skel.fromClient(create, amend=True):
+                raise ReadFromClientException(skel.errors)
+        elif callable(create):
+            create(skel)
+        elif create is not True:
+            raise ValueError("'create' must either be dict, a callable or True.")
 
-        skel.setEntity(db_res)
-        return skel
+        return skel.write()
 
     @classmethod
     @deprecated(

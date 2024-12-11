@@ -40,6 +40,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - feat: Make SkeletonInstance json serializable (#1262)
 - feat: Provide `ignore`-parameter for `Skeleton.fromClient` (#1330)
 - feat: Provide `User.is_active()` function (#1309)
+- feat: Public-files repos and improved rootnodes
 - feat: Retrieve default `descr` from bone's name in its Skeleton (#1227)
 - feat+refactor: Improved and extended `Skeleton.subskel()` (#1259)
 - fix: `File.write()` didn't return `db.Key` (#1303)

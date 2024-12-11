@@ -428,7 +428,18 @@ class FileNodeSkel(TreeSkel):
     rootNode = BooleanBone(
         descr="Is RootNode",
         defaultValue=False,
+        readOnly=True,
+        visible=False,
     )
+
+    public = BooleanBone(
+        descr="Is public?",
+        defaultValue=False,
+        readOnly=True,
+        visible=False,
+    )
+
+    viurCurrentSeoKeys = None
 
 
 class File(Tree):
@@ -858,6 +869,9 @@ class File(Tree):
 
             if not self.canAdd("leaf", rootNode):
                 raise errors.Forbidden()
+
+            if rootNode and public != bool(rootNode.get("public")):
+                raise errors.Forbidden("Cannot upload a public file into private repository or vice versa")
 
             maxSize = None  # The user has some file/add permissions, don't restrict fileSize
 
