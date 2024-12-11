@@ -415,9 +415,18 @@ class Router:
                     if filename := conf.main_app.render.getTemplateFileName((f"{error_info['status']}", "error"),
                                                                             raise_exception=False):
                         template = conf.main_app.render.getEnv().get_template(filename)
-                        nonce = utils.string.random(16)
+                        try:
+                            uses_unsafe_inline = \
+                                "unsafe-inline" in conf.security.content_security_policy["enforce"]["style-src"]
+                        except (KeyError, TypeError):  # Not set
+                            uses_unsafe_inline = False
+                        if uses_unsafe_inline:
+                            logging.info("Using style-src:unsafe-inline, don't create a nonce")
+                            nonce = None
+                        else:
+                            nonce = utils.string.random(16)
+                            extendCsp({"style-src": [f"nonce-{nonce}"]})
                         res = template.render(error_info, nonce=nonce)
-                        extendCsp({"style-src": [f"nonce-{nonce}"]})
                     else:
                         res = (f'<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'
                                f'<title>{error_info["status"]} - {error_info["reason"]}</title>'
