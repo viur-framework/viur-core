@@ -214,7 +214,7 @@ class FileBone(TreeLeafBone):
         def handleDerives(values):
             if isinstance(values, dict):
                 values = [values]
-            for val in values:  # Ensure derives getting build for each file referenced in this relation
+            for val in (values or ()):  # Ensure derives getting build for each file referenced in this relation
                 ensureDerived(val["dest"]["key"], f"{skel.kindName}_{boneName}", self.derive)
 
         values = skel[boneName]
