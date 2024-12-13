@@ -126,6 +126,9 @@ class SelectBone(BaseBone):
         return val
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
+        if isinstance(value, enum.Enum):
+            value = value.value
+
         if not str(value):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value selected")]
         for key in self.values.keys():
