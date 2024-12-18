@@ -288,7 +288,7 @@ class Method:
                     # Callable directly tests access
                     if callable(acc):
                         try:
-                            if acc(*args,**kwargs):
+                            if acc(*args, **kwargs):
                                 ok = True
                                 break
                         except TypeError:
