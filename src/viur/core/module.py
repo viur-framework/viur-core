@@ -287,9 +287,14 @@ class Method:
 
                     # Callable directly tests access
                     if callable(acc):
-                        if acc():
-                            ok = True
-                            break
+                        try:
+                            if acc(*args,**kwargs):
+                                ok = True
+                                break
+                        except TypeError:
+                            if acc():
+                                ok = True
+                                break
 
                         continue
 
