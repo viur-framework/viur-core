@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.29]
+
+- fix: Don't create a CSP nonce if unsafe-inline is enabled (#1347)
+
 ## [3.6.28]
 
 - fix: Hotfix for refactored `getSkel()` ported down from 3.7 source (#1341)
