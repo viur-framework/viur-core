@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.30]
+
+- fix: `SelectBone.singleValueFromClient` doesn't accept `Enum` (#1320, #1351)
+
 ## [3.6.29]
 
 - fix: Don't create a CSP nonce if unsafe-inline is enabled (#1347)
