@@ -2,7 +2,7 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.7.0.rc8]
+## [3.7.0]
 
 - chore: Adding file deprecations (#1268)
 - chore: Drop python 3.10 support (#1175)
@@ -94,6 +94,10 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Replace `db.encodeKey` by `str`-cast (#1302)
 - refactor: Send emails from `EmailTransport` instances instead of class (#1250)
 - refactor: Sub-class `Session` from `db.Entity` to behave `dict`-compliant (#1153)
+
+## [3.6.30]
+
+- fix: `SelectBone.singleValueFromClient` doesn't accept `Enum` (#1320, #1351)
 
 ## [3.6.29]
 
