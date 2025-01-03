@@ -424,9 +424,10 @@ class RelationalBone(BaseBone):
         super().serialize(skel, name, parentIndexed)
 
         # Clean old properties from entry (prevent name collision)
-        for key in skel.dbEntity:
+        for key in tuple(skel.dbEntity.keys()):
             if key.startswith(f"{name}."):
                 del skel.dbEntity[key]
+
         indexed = self.indexed and parentIndexed
 
         if not (new_vals := skel.accessedValues.get(name)):
