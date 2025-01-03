@@ -1319,6 +1319,7 @@ class BaseBone(object):
             for e in errors:
                 if e.severity in [ReadFromClientErrorSeverity.Invalid, ReadFromClientErrorSeverity.NotSet]:
                     # If an invalid datatype (or a non-parseable structure) have been passed, abort the store
+                    logging.error(e)
                     return False
         if not append and not language:
             skel[boneName] = val
