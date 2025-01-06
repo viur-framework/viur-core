@@ -432,7 +432,7 @@ class List(SkelModule):
 
         query = self.listFilter(query)  # Access control
 
-        if query is None or not query.getEntry():
+        if query is None or (key and not query.getEntry()):
             return False
 
         return True

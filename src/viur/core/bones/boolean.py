@@ -95,7 +95,15 @@ class BooleanBone(BaseBone):
         """
         if append:
             raise ValueError(f"append is not possible on {self.type} bones")
-        skel[boneName] = utils.parse.bool(value)
+
+        if language:
+            if not self.languages or language not in self.languages:
+                return False
+
+            skel[boneName][language] = utils.parse.bool(value)
+        else:
+            skel[boneName] = utils.parse.bool(value)
+
         return True
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
