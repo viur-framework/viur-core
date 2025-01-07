@@ -2,6 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.1]
+
+- fix: `RelationalBone`: dict size change during iteration (#1359)
+- fix: `BooleanBone.setBoneValue` doesn't respect language (#1358)
+- fix: Regression from `canView()` refactoring (#1357)
+
 ## [3.7.0]
 
 - chore: Adding file deprecations (#1268)
