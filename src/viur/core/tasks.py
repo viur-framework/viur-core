@@ -360,7 +360,6 @@ class TaskHandler(Module):
         return self.render.addSuccess(skel)
 
 
-TaskHandler.admin = True
 TaskHandler.vi = True
 TaskHandler.html = True
 

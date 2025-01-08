@@ -10,6 +10,7 @@ import sys
 import time
 import typing as t
 import warnings
+import logics
 from deprecated.sphinx import deprecated
 from functools import partial
 from itertools import chain
@@ -18,7 +19,9 @@ from viur.core.bones import (
     BaseBone,
     DateBone,
     KeyBone,
+    RawBone,
     ReadFromClientException,
+    RecordBone,
     RelationalBone,
     RelationalConsistency,
     RelationalUpdateLevel,
@@ -33,7 +36,13 @@ from viur.core.bones.base import (
     ReadFromClientErrorSeverity,
     getSystemInitialized,
 )
-from viur.core.tasks import CallDeferred, CallableTask, CallableTaskBase, QueryIter
+from viur.core.tasks import (
+    CallableTask,
+    CallableTaskBase,
+    CallDeferred,
+    DeleteEntitiesIter,
+    QueryIter,
+)
 
 _UNDEFINED = object()
 ABSTRACT_SKEL_CLS_SUFFIX = "AbstractSkel"
@@ -630,6 +639,8 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
         """
         complete = True
         skel.errors = []
+
+        print(data)
 
         for key, bone in skel.items():
             if (ignore is None and bone.readOnly) or key in (ignore or ()):
@@ -2091,6 +2102,96 @@ def processVacuumRelationsChunk(
             email.send_email(dests=notify, stringTemplate=txt, skel=None)
         except Exception as exc:  # noqa; OverQuota, whatever
             logging.exception(f"Failed to notify {notify}")
+
+
+### TaskClearKind
+
+@CallableTask
+class TaskClearKind(CallableTaskBase):
+    key = "TaskClearKind"
+    name = "Clear all entities of a kind"
+    descr = "This task can be called to clean your database from a specific kind."
+
+    def canCall(self):
+        user = current.user.get()
+        return user and "root" in user["access"]
+
+    class dataSkel(RelSkel):
+        kinds = SelectBone(
+            descr="Kind",
+            values=listKnownSkeletons,
+            required=True,
+            multiple=True
+        )
+
+        # class FilterRow(RelSkel):
+        #     name = StringBone(
+        #         required=True,
+        #     )
+        #
+        #     op = SelectBone(
+        #         required=True,
+        #         values={
+        #             " ": "=",
+        #             "$lt": "<",
+        #             "$gt": ">",
+        #             "$lk": "like",
+        #         },
+        #         defaultValue=" ",
+        #     )
+        #
+        #     value = StringBone(
+        #         required=True,
+        #     )
+        #
+        # filters = RecordBone(
+        #     descr="Filter",
+        #     using=FilterRow,
+        #     multiple=True,
+        #     format="$(name)$(op)=$(value)"
+        # )
+
+        condition = RawBone(
+            descr="Condition",
+            required=True,
+            defaultValue="False  # Fused, doesn't delete anything!\n",
+            params={
+                "tooltip": "Enter a Logics expression here to filter entries by specific skeleton values."
+            },
+        )
+
+    def execute(self, **kwargs):
+        user = current.user.get()
+        if not (user and "root" in user["access"]):
+            raise errors.Unauhtorized()
+
+        skel = self.dataSkel()
+        if not skel.fromClient(kwargs):
+            return self.render.action("add", skel)
+
+        try:
+            condition = logics.Logics(skel["condition"])
+        except logics.ParseException as e:
+            raise errors.BadRequest(f"Error parsing condition {e}")
+
+        class TaskClearKindIter(DeleteEntitiesIter):
+            @classmethod
+            def handleEntry(cls, skel, data):
+                if condition.run(skel):
+                    logging.warning(f"{skel['key']!r} is a candidate for being deleted")
+                    # super().handleEntry(skel, data)
+                else:
+                    logging.info(f"{skel['key']!r} is ingored")
+
+        for kind in skel["kinds"]:
+            q = skeletonByKind(kind)().all()
+
+            # print(skel["filters"])
+            # for flt in skel["filters"]:
+            #     print(flt)
+            #     q.mergeExternalFilter({flt["name"] + flt["op"]: flt["value"]})
+
+            TaskClearKindIter.startIterOnQuery(q)
 
 
 # Forward our references to SkelInstance to the database (needed for queries)
