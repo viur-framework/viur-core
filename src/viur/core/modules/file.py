@@ -764,7 +764,7 @@ class File(Tree):
         :param public: True if the file should be publicly accessible.
         :return: Returns the key of the file object written. This can be associated e.g. with a FileBone.
         """
-        logging.info(f"{filename=} {mimetype=} {width=} {height=} {public=}")
+        # logging.info(f"{filename=} {mimetype=} {width=} {height=} {public=}")
         if not File.is_valid_filename(filename):
             raise ValueError(f"{filename=} is invalid")
 
