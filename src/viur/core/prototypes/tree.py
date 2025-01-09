@@ -1092,9 +1092,13 @@ class Tree(SkelModule):
                     raise errors.NotAcceptable(f"Missing required parameter {'parententry'!r}")
 
         def query(parententry):
-            q = self.viewSkel("node").all().filter("parententry", parententry)
+            q = self.viewSkel("node").all()
+            q.mergeExternalFilter(kwargs | {"parententry": parententry})
+
             if not (q := self.listFilter(q)):
                 raise errors.Unauthorized()
+
+            self._apply_default_order(q)
 
             ret = [
                 self.render.renderSkelValues(skel) | {"_skeltype": "node", "_children": query(skel["key"])}
@@ -1102,9 +1106,13 @@ class Tree(SkelModule):
             ]
 
             if self.leafSkelCls:
-                q = self.viewSkel("node").all().filter("parententry", parententry)
+                q = self.viewSkel("leaf").all()
+                q.mergeExternalFilter(kwargs | {"parententry": parententry})
+
                 if not (q := self.listFilter(q)):
                     raise errors.Unauthorized()
+
+                self._apply_default_order(q)
 
                 ret += [
                     self.render.renderSkelValues(skel) | {"_skeltype": "leaf"}
