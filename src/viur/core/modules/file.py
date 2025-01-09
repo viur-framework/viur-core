@@ -393,7 +393,7 @@ class FileLeafSkel(TreeSkel):
     )
 
     @classmethod
-    def __inject_serving_url(cls, skel: SkeletonInstance) -> None:
+    def _inject_serving_url(cls, skel: SkeletonInstance) -> None:
         """Inject the serving url for public image files into a FileSkel"""
         if (
             skel["public"]
@@ -435,11 +435,11 @@ class FileLeafSkel(TreeSkel):
                     skel["downloadUrl"] = importData
                 skel["pendingparententry"] = None
 
-        cls.__inject_serving_url(skel)
+        cls._inject_serving_url(skel)
 
     @classmethod
     def write(cls, skel, **kwargs):
-        cls.__inject_serving_url(skel)
+        cls._inject_serving_url(skel)
         return super().write(skel, **kwargs)
 
 
@@ -554,7 +554,7 @@ class File(Tree):
         This is needed to hide requests to Google as they are internally be routed, and can be the result of a
         legal requirement like GDPR.
 
-        :param serving_url: Is the original serving URL as generated from FileLeafSkel.__inject_serving_url()
+        :param serving_url: Is the original serving URL as generated from FileLeafSkel._inject_serving_url()
         :param size: Optional size setting
         :param filename: Optonal filename setting
         :param options: Additional options parameter-pass through to /file/serve
