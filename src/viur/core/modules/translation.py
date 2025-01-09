@@ -195,56 +195,66 @@ class Translation(List):
     _last_reload = None  # Cut my strings into pieces, this is my last reload...
 
     @exposed
-    def get_public(
+    def dump(
         self,
         *,
-        languages: list[str] = [],
-        pattern: str = "*",
+        pattern: str,
+        language: list[str] = [],
     ) -> dict[str, str] | dict[str, dict[str, str]]:
         """
-        Dumps public translations as JSON.
+        Dumps translations as JSON.
 
-        :param languages: Allows to request a specific language.
-        :param pattern: Provide an fnmatch-style key filter pattern
+        :param pattern: Required, provide an fnmatch-style key filter pattern for the translations keys to dump.
+        :param language: Allows to request a specific language.
 
         Example calls:
 
-        - `/json/_translation/get_public` get public translations for current language
-        - `/json/_translation/get_public?languages=en` for english translations
-        - `/json/_translation/get_public?languages=en&pattern=bool.*` for english translations,
-            but only keys starting with "bool."
-        - `/json/_translation/get_public?languages=en&languages=de` for english and german translations
-        - `/json/_translation/get_public?languages=*` for all available languages
+        - `/json/_translation/dump?pattern=viur.*` get viur.*-translations for current language
+        - `/json/_translation/dump?pattern=viur.*&language=en` for english translations
+        - `/json/_translation/dump?pattern=viur.*&language=en&language=de` for english and german translations
+        - `/json/_translation/dump?pattern=viur.*&language=*` for all available language
         """
         if not utils.string.is_prefix(self.render.kind, "json"):
             raise errors.BadRequest("Can only use this function on JSON-based renders")
+
+        # The pattern may not be a matcher for all!
+        if not pattern.strip("*?."):
+            raise errors.BadRequest("Pattern is too generic.")
+
+        # Required to provide
+        cuser = current.user.get()
 
         current.request.get().response.headers["Content-Type"] = "application/json"
 
         if (
             not (conf.debug.disable_cache and current.request.get().disableCache)
-            and any(os.getenv("HTTP_HOST", "") in x for x in conf.i18n.domain_language_mapping)
+            and any(os.getenv("HTTP_HOST", "") in l for l in conf.i18n.domain_language_mapping)
         ):
             # cache it 7 days
             current.request.get().response.headers["Cache-Control"] = f"public, max-age={7 * 24 * 60 * 60}"
 
-        if languages:
-            if len(languages) == 1 and languages[0] == "*":
-                languages = conf.i18n.available_dialects
+        if language:
+            if len(language) == 1 and language[0] == "*":
+                language = conf.i18n.available_dialects
 
-            return json.dumps({
-                lang: {
-                    tr_key: str(translate(tr_key, force_lang=lang))
-                    for tr_key, values in systemTranslations.items()
-                    if values.get("_public_") and fnmatch.fnmatch(tr_key, pattern)
-                }
-                for lang in languages
-            })
+            if len(language) > 1:
+                return json.dumps({
+                    lang: {
+                        tr_key: str(translate(tr_key, force_lang=lang))
+                        for tr_key, values in systemTranslations.items()
+                        if (cuser or values.get("_public_")) and fnmatch.fnmatch(tr_key, pattern)
+                    }
+                    for lang in language
+                })
+            else:
+                language = language.pop()
+        else:
+            language = current.language.get()
 
         return json.dumps({
-            tr_key: str(translate(tr_key))
+            tr_key: str(translate(tr_key, force_lang=language))
             for tr_key, values in systemTranslations.items()
-            if values.get("_public_") and fnmatch.fnmatch(tr_key, pattern)
+            if (cuser or values.get("_public_")) and fnmatch.fnmatch(tr_key, pattern)
         })
 
 
