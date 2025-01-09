@@ -294,7 +294,7 @@ class Tree(SkelModule):
                 case 0:
                     raise errors.Unauthorized()
                 case 1:
-                    parententry = repos.pop()["key"]
+                    parententry = repos[0]["key"]
                 case _:
                     raise errors.NotAcceptable(f"Missing required parameter {'parententry'!r}")
 
