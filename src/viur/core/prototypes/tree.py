@@ -287,6 +287,20 @@ class Tree(SkelModule):
     ## External exposed functions
 
     @exposed
+    def index(self, skelType: SkelType = "node", parententry: t.Optional[db.Key | int | str] = None, **kwargs):
+        if not parententry:
+            repos = self.getAvailableRootNodes(**kwargs)
+            match len(repos):
+                case 0:
+                    raise errors.Unauthorized()
+                case 1:
+                    parententry = repos.pop()["key"]
+                case _:
+                    raise errors.NotAcceptable(f"Missing required parameter {'parententry'!r}")
+
+        return self.list(skelType=skelType, parententry=parententry, **kwargs)
+
+    @exposed
     def listRootNodes(self, *args, **kwargs) -> t.Any:
         """
         Renders a list of all available repositories for the current user using the
