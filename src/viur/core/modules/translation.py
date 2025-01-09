@@ -228,7 +228,7 @@ class Translation(List):
 
         if (
             not (conf.debug.disable_cache and current.request.get().disableCache)
-            and any(os.getenv("HTTP_HOST", "") in l for l in conf.i18n.domain_language_mapping)
+            and any(os.getenv("HTTP_HOST", "") in dlm for dlm in conf.i18n.domain_language_mapping)
         ):
             # cache it 7 days
             current.request.get().response.headers["Cache-Control"] = f"public, max-age={7 * 24 * 60 * 60}"

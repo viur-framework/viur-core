@@ -100,7 +100,8 @@ class SelectBone(BaseBone):
                 values = {
                     key: label if isinstance(label, translate) else translate(
                         f"{prefix}{label}", str(label),
-                        f"value {key} for {self.name}<{type(self).__name__}> in {self.skel_cls.__name__} in {self.skel_cls}"
+                        f"value {key} for {self.name}<{type(self).__name__}> "
+                        + f"in {self.skel_cls.__name__} in {self.skel_cls}"
                     )
                     for key, label in values.items()
                 }
