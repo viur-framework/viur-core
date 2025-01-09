@@ -1,4 +1,5 @@
 import logging
+import json
 import typing as t
 from deprecated.sphinx import deprecated
 from viur.core import utils, errors, db, current
@@ -7,6 +8,7 @@ from viur.core.bones import KeyBone, SortIndexBone
 from viur.core.cache import flushCache
 from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.tasks import CallDeferred
+from viur.core.render.json.default import CustomJsonEncoder
 from .skelmodule import SkelModule
 
 
@@ -1049,6 +1051,69 @@ class Tree(SkelModule):
 
             if self.leafSkelCls:
                 self._clone_recursive("leaf", src_skel["key"], skel["key"], skel["parentrepo"])
+
+    # Helpers
+
+    @exposed
+    def dump(
+        self,
+        parententry: t.Optional[db.Key | int | str] = None,
+        depth: int = 3, limit:
+        int = 30,
+        **kwargs
+    ) -> str:
+        """
+        Dumps a Tree's content as JSON, based on a parententry.
+
+        :param parententry: Parententry to dump; If not given, the fuction tries to figure out a single parent entry.
+        :param depth: Depth to dump children. Can only be a maxiumum of 3.
+        :param limit: Limit of entries on each level.
+        """
+        if not utils.string.is_prefix(self.render.kind, "json"):
+            raise errors.BadRequest("Can only use this function on JSON-based renders")
+
+        current.request.get().response.headers["Content-Type"] = "application/json"
+
+        if depth < 1 or depth > 3:
+            raise errors.NotAcceptable(f"{'limit'!r} out of bounds, must be between 1 and 99")
+
+        if limit < 1 or limit > 30:
+            raise errors.NotAcceptable(f"{'limit'!r} out of bounds, must be between 1 and 99")
+
+        if not parententry:
+            repos = self.getAvailableRootNodes(**kwargs)
+
+            match len(repos):
+                case 0:
+                    raise errors.Unauthorized()
+                case 1:
+                    parententry = repos.pop()["key"]
+                case _:
+                    raise errors.NotAcceptable(f"Missing required parameter {'parententry'!r}")
+
+        def query(parententry):
+            q = self.viewSkel("node").all().filter("parententry", parententry)
+            if not (q := self.listFilter(q)):
+                raise errors.Unauthorized()
+
+            ret = [
+                self.render.renderSkelValues(skel) | {"_skeltype": "node", "_children": query(skel["key"])}
+                for skel in q.fetch(limit=limit)
+            ]
+
+            if self.leafSkelCls:
+                q = self.viewSkel("node").all().filter("parententry", parententry)
+                if not (q := self.listFilter(q)):
+                    raise errors.Unauthorized()
+
+                ret += [
+                    self.render.renderSkelValues(skel) | {"_skeltype": "leaf"}
+                    for skel in q.fetch(limit=limit)
+                ]
+
+            return ret
+
+        return json.dumps(query(parententry), cls=CustomJsonEncoder)
 
 
 Tree.vi = True
