@@ -205,7 +205,12 @@ class translate:
 
             from viur.core.render.html.env.viur import translate as jinja_translate
 
-            if self.key not in systemTranslations and conf.i18n.add_missing_translations:
+            if (
+                not self.key.startswith("core.")
+                and not self.key.startswith("viur.")
+                and self.key not in systemTranslations
+                and conf.i18n.add_missing_translations
+            ):
                 # This translation seems to be new and should be added
                 filename = lineno = None
                 is_jinja = False
@@ -428,6 +433,10 @@ def add_missing_translation(
     public: bool = False,
 ) -> None:
     """Add missing translations to datastore"""
+
+    logging.error(f"{key=} {hint=} {default_text=} {filename=} {lineno=} {variables=} {public=}")
+    raise RuntimeError("ICH WILL DAS NICHT")
+
     try:
         from viur.core.modules.translation import TranslationSkel, Creator
     except ImportError as exc:

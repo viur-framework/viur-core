@@ -92,17 +92,18 @@ class SelectBone(BaseBone):
 
                 assert isinstance(values, (dict, OrderedDict))
 
-            prefix = self.translation_key_prefix
-            if callable(prefix):
-                prefix = prefix(self)
+            if self.languages:
+                prefix = self.translation_key_prefix
+                if callable(prefix):
+                    prefix = prefix(self)
 
-            values = {
-                key: label if isinstance(label, translate) else translate(
-                    f"{prefix}{label}", str(label),
-                    f"value {key} for {self.name}<{type(self).__name__}> in {self.skel_cls.__name__} in {self.skel_cls}"
-                )
-                for key, label in values.items()
-            }
+                values = {
+                    key: label if isinstance(label, translate) else translate(
+                        f"{prefix}{label}", str(label),
+                        f"value {key} for {self.name}<{type(self).__name__}> in {self.skel_cls.__name__} in {self.skel_cls}"
+                    )
+                    for key, label in values.items()
+                }
 
             return values
 

@@ -21,25 +21,29 @@ class TranslationSkel(Skeleton):
     kindName = KINDNAME
 
     tr_key = StringBone(
+        required=True,
         descr=translate(
-            "core.translationskel.tr_key.descr",
+            "viur.core.translationskel.tr_key.descr",
             "Translation key",
         ),
         searchable=True,
-        unique=UniqueValue(UniqueLockMethod.SameValue, False,
-                           "This translation key exist already"),
+        unique=UniqueValue(
+            UniqueLockMethod.SameValue,
+            False,
+            "This translation key exist already"
+        ),
     )
 
     translations = StringBone(
         descr=translate(
-            "core.translationskel.translations.descr",
+            "viur.core.translationskel.translations.descr",
             "Translations",
         ),
         searchable=True,
         languages=conf.i18n.available_dialects,
         params={
             "tooltip": translate(
-                "core.translationskel.translations.tooltip",
+                "viur.core.translationskel.translations.tooltip",
                 "The languages {{main}} are required,\n {{accent}} can be filled out"
             )(main=", ".join(conf.i18n.available_languages),
               accent=", ".join(conf.i18n.language_alias_map.keys())),
@@ -48,7 +52,7 @@ class TranslationSkel(Skeleton):
 
     translations_missing = SelectBone(
         descr=translate(
-            "core.translationskel.translations_missing.descr",
+            "viur.core.translationskel.translations_missing.descr",
             "Translation missing for language",
         ),
         multiple=True,
@@ -64,21 +68,21 @@ class TranslationSkel(Skeleton):
 
     default_text = StringBone(
         descr=translate(
-            "core.translationskel.default_text.descr",
+            "viur.core.translationskel.default_text.descr",
             "Fallback value",
         ),
     )
 
     hint = StringBone(
         descr=translate(
-            "core.translationskel.hint.descr",
+            "viur.core.translationskel.hint.descr",
             "Hint / Context (internal only)",
         ),
     )
 
     usage_filename = StringBone(
         descr=translate(
-            "core.translationskel.usage_filename.descr",
+            "viur.core.translationskel.usage_filename.descr",
             "Used and added from this file",
         ),
         readOnly=True,
@@ -86,7 +90,7 @@ class TranslationSkel(Skeleton):
 
     usage_lineno = NumericBone(
         descr=translate(
-            "core.translationskel.usage_lineno.descr",
+            "viur.core.translationskel.usage_lineno.descr",
             "Used and added from this lineno",
         ),
         readOnly=True,
@@ -94,7 +98,7 @@ class TranslationSkel(Skeleton):
 
     usage_variables = StringBone(
         descr=translate(
-            "core.translationskel.usage_variables.descr",
+            "viur.core.translationskel.usage_variables.descr",
             "Receives these substitution variables",
         ),
         readOnly=True,
@@ -103,7 +107,7 @@ class TranslationSkel(Skeleton):
 
     creator = SelectBone(
         descr=translate(
-            "core.translationskel.creator.descr",
+            "viur.core.translationskel.creator.descr",
             "Creator",
         ),
         readOnly=True,
@@ -113,24 +117,24 @@ class TranslationSkel(Skeleton):
 
     public = BooleanBone(
         descr=translate(
-            "core.translationskel.public.descr",
+            "viur.core.translationskel.public.descr",
             "Is this translation public?",
         ),
         defaultValue=False,
     )
 
     @classmethod
-    def write(cls, skelValues: SkeletonInstance, **kwargs) -> db.Key:
+    def write(cls, skel: SkeletonInstance, **kwargs) -> db.Key:
         # Ensure we have only lowercase keys
-        skelValues["tr_key"] = skelValues["tr_key"].lower()
-        return super().write(skelValues, **kwargs)
+        skel["tr_key"] = skel["tr_key"].lower()
+        return super().write(skel, **kwargs)
 
     @classmethod
-    def preProcessSerializedData(cls, skelValues: SkeletonInstance, entity: db.Entity) -> db.Entity:
+    def preProcessSerializedData(cls, skel: SkeletonInstance, entity: db.Entity) -> db.Entity:
         # Backward-compatibility: re-add the key for viur-core < v3.6
         # TODO: Remove in ViUR4
-        entity["key"] = skelValues["tr_key"]
-        return super().preProcessSerializedData(skelValues, entity)
+        entity["key"] = skel["tr_key"]
+        return super().preProcessSerializedData(skel, entity)
 
 
 class Translation(List):
