@@ -221,7 +221,7 @@ class Translation(List):
         if not pattern.strip("*?."):
             raise errors.BadRequest("Pattern is too generic.")
 
-        # Required to provide
+        # Only authenticated users may see private translations
         cuser = current.user.get()
 
         current.request.get().response.headers["Content-Type"] = "application/json"
