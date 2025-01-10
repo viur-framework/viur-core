@@ -1058,16 +1058,19 @@ class Tree(SkelModule):
     def dump(
         self,
         parententry: t.Optional[db.Key | int | str] = None,
-        depth: int = 3, 
+        depth: int = 3,
         limit: int = 30,
         **kwargs
     ) -> str:
         """
         Dumps a Tree's content as JSON, based on a parententry.
 
+        This function is very limited in its bounds, and shall only be used for quick retrieval of small tree structures
+        and for debugging purposes.
+
         :param parententry: Parententry to dump; If not given, the fuction tries to figure out a single parent entry.
         :param depth: Depth to dump children. Can only be a maxiumum of 3.
-        :param limit: Limit of entries on each level.
+        :param limit: Limit of entries on each level, can be maximum of 30 per level and type.
         """
         if not utils.string.is_prefix(self.render.kind, "json"):
             raise errors.BadRequest("Can only use this function on JSON-based renders")
@@ -1075,10 +1078,10 @@ class Tree(SkelModule):
         current.request.get().response.headers["Content-Type"] = "application/json"
 
         if depth < 1 or depth > 3:
-            raise errors.NotAcceptable(f"'depth' out of bounds, must be between 1 and 3")
+            raise errors.NotAcceptable("'depth' out of bounds")
 
         if limit < 1 or limit > 30:
-            raise errors.NotAcceptable(f"'limit' out of bounds, must be between 1 and 30")
+            raise errors.NotAcceptable("'limit' out of bounds")
 
         if not parententry:
             repos = self.getAvailableRootNodes(**kwargs)
@@ -1091,7 +1094,8 @@ class Tree(SkelModule):
                 case _:
                     raise errors.NotAcceptable(f"Missing required parameter {'parententry'!r}")
 
-        def query(parententry, _depth : int = 0):
+        def query(parententry, _depth: int = 1):
+            # fetch the nodes
             q = self.viewSkel("node").all()
             q.mergeExternalFilter(kwargs | {"parententry": parententry})
 
@@ -1100,11 +1104,18 @@ class Tree(SkelModule):
 
             self._apply_default_order(q)
 
-            ret = [
-                self.render.renderSkelValues(skel) |({"_skeltype": "node", "_children": query(skel["key"], _depth + 1)} if _depth + 1 <= depth else {})
-                for skel in q.fetch(limit=limit)
-            ]
+            ret = []
+            for skel in q.fetch(limit=limit):
+                node = self.render.renderSkelValues(skel)
+                node["_skeltype"] = "node"
 
+                # recurse into children
+                if _depth < depth:
+                    node["_children"] = query(skel["key"], _depth + 1)
+
+                ret.append(node)
+
+            # fetch the leafs (when this is a tree)
             if self.leafSkelCls:
                 q = self.viewSkel("leaf").all()
                 q.mergeExternalFilter(kwargs | {"parententry": parententry})
