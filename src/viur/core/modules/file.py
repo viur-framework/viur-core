@@ -392,6 +392,31 @@ class FileLeafSkel(TreeSkel):
         }
     )
 
+    @classmethod
+    def _inject_serving_url(cls, skel: SkeletonInstance) -> None:
+        """Inject the serving url for public image files into a FileSkel"""
+        if (
+            skel["public"]
+            and skel["mimetype"]
+            and skel["mimetype"].startswith("image/")
+            and not skel["serving_url"]
+        ):
+            bucket = File.get_bucket(skel["dlkey"])
+            filename = f"/gs/{bucket.name}/{skel['dlkey']}/source/{skel['name']}"
+
+            # Trying this on local development server will raise a
+            # `google.appengine.runtime.apiproxy_errors.RPCFailedError`
+            if conf.instance.is_dev_server:
+                logging.warning(f"Can't inject serving_url for {filename!r} on local development server")
+                return
+
+            try:
+                skel["serving_url"] = images.get_serving_url(None, secure_url=True, filename=filename)
+
+            except Exception as e:
+                logging.warning(f"Failed to create serving_url for {filename!r} with exception {e!r}")
+                logging.exception(e)
+
     def preProcessBlobLocks(self, locks):
         """
             Ensure that our dlkey is locked even if we don't have a filebone here
@@ -401,16 +426,21 @@ class FileLeafSkel(TreeSkel):
         return locks
 
     @classmethod
-    def refresh(cls, skelValues):
-        super().refresh(skelValues)
+    def refresh(cls, skel):
+        super().refresh(skel)
         if conf.viur2import_blobsource:
-            importData = importBlobFromViur2(skelValues["dlkey"], skelValues["name"])
+            importData = importBlobFromViur2(skel["dlkey"], skel["name"])
             if importData:
-                if not skelValues["downloadUrl"]:
-                    skelValues["downloadUrl"] = importData
-                skelValues["pendingparententry"] = None
+                if not skel["downloadUrl"]:
+                    skel["downloadUrl"] = importData
+                skel["pendingparententry"] = None
 
-        conf.main_app.file.inject_serving_url(skelValues)
+        cls._inject_serving_url(skel)
+
+    @classmethod
+    def write(cls, skel, **kwargs):
+        cls._inject_serving_url(skel)
+        return super().write(skel, **kwargs)
 
 
 class FileNodeSkel(TreeSkel):
@@ -524,7 +554,7 @@ class File(Tree):
         This is needed to hide requests to Google as they are internally be routed, and can be the result of a
         legal requirement like GDPR.
 
-        :param serving_url: Is the original serving URL as generated from inject_serving_url()
+        :param serving_url: Is the original serving URL as generated from FileLeafSkel._inject_serving_url()
         :param size: Optional size setting
         :param filename: Optonal filename setting
         :param options: Additional options parameter-pass through to /file/serve
@@ -734,6 +764,7 @@ class File(Tree):
         :param public: True if the file should be publicly accessible.
         :return: Returns the key of the file object written. This can be associated e.g. with a FileBone.
         """
+        # logging.info(f"{filename=} {mimetype=} {width=} {height=} {public=}")
         if not File.is_valid_filename(filename):
             raise ValueError(f"{filename=} is invalid")
 
@@ -1167,8 +1198,6 @@ class File(Tree):
             skel["weak"] = rootNode is None
             skel["crc32c_checksum"] = base64.b64decode(blob.crc32c).hex()
             skel["md5_checksum"] = base64.b64decode(blob.md5_hash).hex()
-            self.inject_serving_url(skel)
-
             skel.write()
 
             # Add updated download-URL as the auto-generated isn't valid yet
@@ -1249,8 +1278,6 @@ class File(Tree):
         bucket.copy_blob(old_blob, bucket, new_path, if_generation_match=0)
         bucket.delete_blob(old_path)
 
-        self.inject_serving_url(skel)
-
     def mark_for_deletion(self, dlkey: str) -> None:
         """
         Adds a marker to the datastore that the file specified as *dlkey* can be deleted.
@@ -1272,30 +1299,6 @@ class File(Tree):
         fileObj["dlkey"] = str(dlkey)
 
         db.Put(fileObj)
-
-    def inject_serving_url(self, skel: SkeletonInstance) -> None:
-        """Inject the serving url for public image files into a FileSkel"""
-        if (
-                skel["public"]
-                and skel["mimetype"]
-                and skel["mimetype"].startswith("image/")
-                and not skel["serving_url"]
-        ):
-            bucket = File.get_bucket(skel["dlkey"])
-            filename = f"/gs/{bucket.name}/{skel['dlkey']}/source/{skel['name']}"
-
-            # Trying this on local development server will raise a
-            # `google.appengine.runtime.apiproxy_errors.RPCFailedError`
-            if conf.instance.is_dev_server:
-                logging.warning(f"Can't inject serving_url for {filename!r} on local development server")
-                return
-
-            try:
-                skel["serving_url"] = images.get_serving_url(None, secure_url=True, filename=filename)
-
-            except Exception as e:
-                logging.warning(f"Failed to create serving_url for {filename!r} with exception {e!r}")
-                logging.exception(e)
 
 
 @PeriodicTask(interval=datetime.timedelta(hours=4))
