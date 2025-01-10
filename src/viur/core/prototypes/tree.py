@@ -1058,8 +1058,8 @@ class Tree(SkelModule):
     def dump(
         self,
         parententry: t.Optional[db.Key | int | str] = None,
-        depth: int = 3, limit:
-        int = 30,
+        depth: int = 3, 
+        limit: int = 30,
         **kwargs
     ) -> str:
         """
@@ -1075,10 +1075,10 @@ class Tree(SkelModule):
         current.request.get().response.headers["Content-Type"] = "application/json"
 
         if depth < 1 or depth > 3:
-            raise errors.NotAcceptable(f"{'limit'!r} out of bounds, must be between 1 and 99")
+            raise errors.NotAcceptable(f"'depth' out of bounds, must be between 1 and 3")
 
         if limit < 1 or limit > 30:
-            raise errors.NotAcceptable(f"{'limit'!r} out of bounds, must be between 1 and 99")
+            raise errors.NotAcceptable(f"'limit' out of bounds, must be between 1 and 30")
 
         if not parententry:
             repos = self.getAvailableRootNodes(**kwargs)
@@ -1091,7 +1091,7 @@ class Tree(SkelModule):
                 case _:
                     raise errors.NotAcceptable(f"Missing required parameter {'parententry'!r}")
 
-        def query(parententry):
+        def query(parententry, _depth : int = 0):
             q = self.viewSkel("node").all()
             q.mergeExternalFilter(kwargs | {"parententry": parententry})
 
@@ -1101,7 +1101,7 @@ class Tree(SkelModule):
             self._apply_default_order(q)
 
             ret = [
-                self.render.renderSkelValues(skel) | {"_skeltype": "node", "_children": query(skel["key"])}
+                self.render.renderSkelValues(skel) |({"_skeltype": "node", "_children": query(skel["key"], _depth + 1)} if _depth + 1 <= depth else {})
                 for skel in q.fetch(limit=limit)
             ]
 
