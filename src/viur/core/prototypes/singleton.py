@@ -56,6 +56,10 @@ class Singleton(SkelModule):
     ## External exposed functions
 
     @exposed
+    def index(self):
+        return self.view()
+
+    @exposed
     @skey
     def preview(self, *args, **kwargs) -> t.Any:
         """
