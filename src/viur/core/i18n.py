@@ -74,6 +74,7 @@ Of course you can create skeletons / entries in the datastore in your project
 on your own. Just use the TranslateSkel).
 """  # FIXME: grammar, rst syntax
 import datetime
+import fnmatch
 import jinja2.ext as jinja2
 import logging
 import traceback
@@ -157,6 +158,7 @@ class translate:
         "translationCache",
         "force_lang",
         "public",
+        "add_missing",
     )
 
     def __init__(
@@ -166,6 +168,7 @@ class translate:
         hint: str = None,
         force_lang: str = None,
         public: bool = False,
+        add_missing: bool = False,
     ):
         """
         :param key: The unique key defining this text fragment.
@@ -195,6 +198,7 @@ class translate:
 
         self.force_lang = force_lang
         self.public = public
+        self.add_missing = add_missing
 
     def __repr__(self) -> str:
         return f"<translate object for {self.key} with force_lang={self.force_lang}>"
@@ -205,48 +209,59 @@ class translate:
 
             from viur.core.render.html.env.viur import translate as jinja_translate
 
-            if (
-                not self.key.startswith("core.")
-                and not self.key.startswith("viur.")
-                and self.key not in systemTranslations
-                and conf.i18n.add_missing_translations
-            ):
-                # This translation seems to be new and should be added
-                filename = lineno = None
-                is_jinja = False
-                for frame, line in traceback.walk_stack(None):
-                    if filename is None:
-                        # Use the first frame as fallback.
-                        # In case of calling this class directly,
-                        # this is anyway the caller we're looking for.
-                        filename = frame.f_code.co_filename
-                        lineno = frame.f_lineno
-                    if frame.f_code == jinja_translate.__code__:
-                        # The call was caused by our jinja method
-                        is_jinja = True
-                    if is_jinja and not frame.f_code.co_filename.endswith(".py"):
-                        # Look for the latest html, macro (not py) where the
-                        # translate method has been used, that's our caller
-                        filename = frame.f_code.co_filename
-                        lineno = line
-                        break
+            if self.key not in systemTranslations:
+                # either the translate()-object has add_missing set
+                if not (add_missing := self.add_missing):
+                    # otherwise, use configuration flag
+                    add_missing = conf.i18n.add_missing_translations
 
-                add_missing_translation(
-                    key=self.key,
-                    hint=self.hint,
-                    default_text=self.defaultText,
-                    filename=filename,
-                    lineno=lineno,
-                    public=self.public,
-                )
+                    # match against fnmatch pattern, when given
+                    if isinstance(add_missing, str):
+                        add_missing = fnmatch.fnmatch(self.key, add_missing)
+                    elif isinstance(add_missing, t.Iterable):
+                        add_missing = any(fnmatch.fnmatch(self.key, pat) for pat in add_missing)
+                    else:
+                        add_missing = bool(add_missing)
+
+                if add_missing:
+                    # This translation seems to be new and should be added
+                    filename = lineno = None
+                    is_jinja = False
+                    for frame, line in traceback.walk_stack(None):
+                        if filename is None:
+                            # Use the first frame as fallback.
+                            # In case of calling this class directly,
+                            # this is anyway the caller we're looking for.
+                            filename = frame.f_code.co_filename
+                            lineno = frame.f_lineno
+                        if frame.f_code == jinja_translate.__code__:
+                            # The call was caused by our jinja method
+                            is_jinja = True
+                        if is_jinja and not frame.f_code.co_filename.endswith(".py"):
+                            # Look for the latest html, macro (not py) where the
+                            # translate method has been used, that's our caller
+                            filename = frame.f_code.co_filename
+                            lineno = line
+                            break
+
+                    add_missing_translation(
+                        key=self.key,
+                        hint=self.hint,
+                        default_text=self.defaultText,
+                        filename=filename,
+                        lineno=lineno,
+                        public=self.public,
+                    )
 
             self.translationCache = self.merge_alias(systemTranslations.get(self.key, {}))
 
         if (lang := self.force_lang) is None:
             # The default case: use the request language
             lang = current.language.get()
+
         if value := self.translationCache.get(lang):
             return value
+
         # Use the default text from datastore or from the caller arguments
         return self.translationCache.get("_default_text_") or self.defaultText
 

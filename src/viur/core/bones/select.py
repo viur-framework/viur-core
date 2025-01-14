@@ -46,6 +46,7 @@ class SelectBone(BaseBone):
         ] = None,
         values: dict | list | tuple | t.Callable | enum.EnumMeta = (),
         translation_key_prefix: str | t.Callable[[t.Self], str] = "",
+        add_missing_translations: bool = False,
         **kwargs
     ):
         """
@@ -61,6 +62,7 @@ class SelectBone(BaseBone):
         """
         super().__init__(defaultValue=defaultValue, **kwargs)
         self.translation_key_prefix = translation_key_prefix
+        self.add_missing_translations = add_missing_translations
 
         # handle list/tuple as dicts
         if isinstance(values, (list, tuple)):
@@ -92,19 +94,19 @@ class SelectBone(BaseBone):
 
                 assert isinstance(values, (dict, OrderedDict))
 
-            if self.languages:
-                prefix = self.translation_key_prefix
-                if callable(prefix):
-                    prefix = prefix(self)
+            prefix = self.translation_key_prefix
+            if callable(prefix):
+                prefix = prefix(self)
 
-                values = {
-                    key: label if isinstance(label, translate) else translate(
-                        f"{prefix}{label}", str(label),
-                        f"value {key} for {self.name}<{type(self).__name__}> "
-                        + f"in {self.skel_cls.__name__} in {self.skel_cls}"
-                    )
-                    for key, label in values.items()
-                }
+            values = {
+                key: label if isinstance(label, translate) else translate(
+                    f"{prefix}{key}", str(label),
+                    f"value {key} for {self.name}<{type(self).__name__}> "
+                    + f"in {self.skel_cls.__name__} in {self.skel_cls}",
+                    add_missing=self.add_missing_translations,
+                )
+                for key, label in values.items()
+            }
 
             return values
 

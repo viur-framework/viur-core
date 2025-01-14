@@ -606,13 +606,17 @@ class I18N(ConfigType):
         res |= self.language_alias_map
         return list(res.keys())
 
-    add_missing_translations: bool = False
-    """Add missing translation into datastore.
+    add_missing_translations: bool | str | t.Iterable[str] = False
+    """Add missing translation into datastore, optionally with given fnmatch-patterns.
 
     If a key is not found in the translation table when a translation is
     rendered, a database entry is created with the key and hint and
     default value (if set) so that the translations
     can be entered in the administration.
+
+    Instead of setting add_missing_translations to a boolean, it can also be set to
+    a pattern or iterable of fnmatch-patterns; Only translation keys matching these
+    patterns will be automatically added.
     """
 
 
