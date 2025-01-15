@@ -502,6 +502,8 @@ class RelationalBone(BaseBone):
         :param boneName: The name of the relational bone.
         :param key: The key of the saved skeleton instance.
         """
+        if key is None:  # RecordBone container has no key
+            return
         if not skel[boneName]:
             values = []
         elif self.multiple and self.languages:

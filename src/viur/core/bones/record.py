@@ -1,5 +1,6 @@
 import json
 import typing as t
+import logging
 
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
@@ -102,6 +103,21 @@ class RecordBone(BaseBone):
                 ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Incomplete data")
             )
         return usingSkel, usingSkel.errors
+
+    def postSavedHandler(self, skel: "SkeletonInstance", boneName: str, key: str) -> None:
+        super().postSavedHandler(skel, boneName, key)
+        try:
+            logging.info(f"Record bone {boneName=} | {key=} has been saved")
+            logging.debug(f"Record bone {skel=} has been saved")
+            for idx, lang, value in self.iter_bone_value(skel, boneName):
+                using = self.using()
+                using.unserialize(value)
+                logging.debug(f"{using=}")
+                for bone_name, bone in using.items():
+                    bone.postSavedHandler(using, bone_name, None)
+        except Exception as e:
+            logging.exception(e)
+
 
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
