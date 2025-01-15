@@ -791,9 +791,9 @@ class QueryIter(object, metaclass=MetaQueryIter):
         qry.origKind = qryDict["origKind"]
         qry.queries.distinct = qryDict["distinct"]
         if qry.srcSkel:
-            qryIter = qry.fetch(100)
+            qryIter = qry.fetch(5)
         else:
-            qryIter = qry.run(100)
+            qryIter = qry.run(5)
         for item in qryIter:
             try:
                 cls.handleEntry(item, qryDict["customData"])

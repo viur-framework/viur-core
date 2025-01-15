@@ -212,15 +212,12 @@ class FileBone(TreeLeafBone):
         super().postSavedHandler(skel, boneName, key)
         from viur.core.skeleton import RelSkel, Skeleton
 
-        logging.debug(f"{skel}")
-        logging.debug(f"{skel.skeletonCls}")
         if issubclass(skel.skeletonCls, Skeleton):
             prefix = f"{skel.kindName}_{boneName}"
-        elif issubclass(skel.skeletonCls, RelSkel):
+        elif issubclass(skel.skeletonCls, RelSkel):  # RelSkel is just a container and has no kindname
             prefix = f"{skel.skeletonCls.__name__}_{boneName}"
         else:
             raise NotImplementedError(f"Cannot handle {skel.skeletonCls=}")
-        logging.debug(f"{prefix}: {skel.skeletonCls}")
 
         def handleDerives(values):
             if isinstance(values, dict):

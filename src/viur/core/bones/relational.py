@@ -491,7 +491,7 @@ class RelationalBone(BaseBone):
 
         return tuple(parts)
 
-    def postSavedHandler(self, skel: "SkeletonInstance", boneName: str, key: db.Key) -> None:
+    def postSavedHandler(self, skel, boneName, key) -> None:
         """
         Handle relational updates after a skeleton is saved.
 
@@ -502,7 +502,7 @@ class RelationalBone(BaseBone):
         :param boneName: The name of the relational bone.
         :param key: The key of the saved skeleton instance.
         """
-        if key is None:  # RecordBone container has no key
+        if key is None:  # RelSkel container (e.g. RecordBone) has no key, it's covered by it's parent
             return
         if not skel[boneName]:
             values = []
