@@ -112,6 +112,13 @@ class RecordBone(BaseBone):
             for bone_name, bone in using.items():
                 bone.postSavedHandler(using, bone_name, None)
 
+    def refresh(self, skel, boneName) -> None:
+        super().refresh(skel, boneName)
+        for idx, lang, value in self.iter_bone_value(skel, boneName):
+            using = self.using()
+            using.unserialize(value)
+            for bone_name, bone in using.items():
+                bone.refresh(using, bone_name)
 
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
