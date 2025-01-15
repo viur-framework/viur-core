@@ -1,6 +1,5 @@
 import json
 import typing as t
-import logging
 
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
