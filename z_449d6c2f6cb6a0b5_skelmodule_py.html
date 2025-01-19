@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_449d6c2f6cb6a0b5_tree_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.6.10">coverage.py v7.6.10</a>,
-            created at 2025-01-19 21:01 +0000
+            created at 2025-01-19 21:13 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -117,7 +117,7 @@
     <p class="mis show_mis"><span class="n"><a id="t33" href="#t33">33</a></span><span class="t">        <span class="key">with</span> <span class="nam">open</span><span class="op">(</span><span class="nam">os</span><span class="op">.</span><span class="nam">path</span><span class="op">.</span><span class="nam">join</span><span class="op">(</span><span class="nam">conf</span><span class="op">.</span><span class="nam">instance</span><span class="op">.</span><span class="nam">project_base_path</span><span class="op">,</span> <span class="str">"index.yaml"</span><span class="op">)</span><span class="op">,</span> <span class="str">"r"</span><span class="op">)</span> <span class="key">as</span> <span class="nam">file</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t34" href="#t34">34</a></span><span class="t">            <span class="nam">indexes</span> <span class="op">=</span> <span class="nam">yaml</span><span class="op">.</span><span class="nam">safe_load</span><span class="op">(</span><span class="nam">file</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t35" href="#t35">35</a></span><span class="t">            <span class="nam">indexes</span> <span class="op">=</span> <span class="nam">indexes</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">"indexes"</span><span class="op">,</span> <span class="op">[</span><span class="op">]</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t36" href="#t36">36</a></span><span class="t">            <span class="key">for</span> <span class="nam">index</span> <span class="key">in</span> <span class="nam">indexes</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t36" href="#t36">36</a></span><span class="t">            <span class="key">for</span> <span class="nam">index</span> <span class="key">in</span> <span class="nam">indexes</span> <span class="key">or</span> <span class="op">(</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t37" href="#t37">37</a></span><span class="t">                <span class="nam">index</span><span class="op">[</span><span class="str">"properties"</span><span class="op">]</span> <span class="op">=</span> <span class="op">[</span><span class="nam">_property</span><span class="op">[</span><span class="str">"name"</span><span class="op">]</span> <span class="key">for</span> <span class="nam">_property</span> <span class="key">in</span> <span class="nam">index</span><span class="op">[</span><span class="str">"properties"</span><span class="op">]</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t38" href="#t38">38</a></span><span class="t">                <span class="nam">indexes_dict</span><span class="op">.</span><span class="nam">setdefault</span><span class="op">(</span><span class="nam">index</span><span class="op">[</span><span class="str">"kind"</span><span class="op">]</span><span class="op">,</span> <span class="op">[</span><span class="op">]</span><span class="op">)</span><span class="op">.</span><span class="nam">append</span><span class="op">(</span><span class="nam">index</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t39" href="#t39">39</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -240,7 +240,7 @@
             <a class="nav" href="z_449d6c2f6cb6a0b5_tree_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.6.10">coverage.py v7.6.10</a>,
-            created at 2025-01-19 21:01 +0000
+            created at 2025-01-19 21:13 +0000
         </p>
     </div>
 </footer>
