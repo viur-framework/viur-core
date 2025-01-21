@@ -1760,8 +1760,7 @@ class RefSkel(RelSkel):
     @classmethod
     def fromSkel(cls, kindName: str, *args: list[str]) -> t.Type[RefSkel]:
         """
-            Creates a relSkel from a skeleton-class using only the bones explicitly named
-            in \*args
+            Creates a ``RefSkel`` from a skeleton-class using only the bones explicitly named in ``args``.
 
             :param args: List of bone names we'll adapt
             :return: A new instance of RefSkel
