@@ -1093,13 +1093,13 @@ class BaseBone(object):
         """
         pass  # We do nothing by default
 
-    def postSavedHandler(self, skel: 'viur.core.skeleton.SkeletonInstance', boneName: str, key: str):
+    def postSavedHandler(self, skel: "SkeletonInstance", boneName: str, key: db.Key | None) -> None:
         """
             Can be overridden to perform further actions after the main entity has been written.
 
             :param boneName: Name of this bone
             :param skel: The skeleton this bone belongs to
-            :param key: The (new?) Database Key we've written to
+            :param key: The (new?) Database Key we've written to. In case of a RelSkel the key is None.
         """
         pass
 
