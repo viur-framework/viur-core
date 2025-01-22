@@ -1045,7 +1045,6 @@ class BaseBone(object):
                 return f"K-{keyHash(value)}"
             raise NotImplementedError(f"Type {type(value)} can't be safely used in an uniquePropertyIndex")
 
-        logging.debug(f"_hashValueForUniquePropertyIndex: {value=}")
         if not value and not self.unique.lockEmpty:
             return []  # We are zero/empty string and these should not be locked
         if not self.multiple:
