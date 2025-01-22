@@ -205,7 +205,7 @@ class Router:
         return path
 
     def _process(self):
-        if self.method not in ("get", "post", "head"):
+        if self.method not in ("get", "post", "head", "options"):
             logging.error(f"{self.method=} not supported")
             return
 
@@ -537,6 +537,10 @@ class Router:
         if caller.exposed is False and not self.internalRequest:
             raise errors.NotFound()
 
+        # Fill the Allow header of the response with the allowed HTTP methods
+        if self.method == "options":
+            self.response.headers["Allow"] = ", ".join(sorted(caller.methods)).upper()
+
         # Check for @force_ssl flag
         if not self.internalRequest \
                 and caller.ssl \
@@ -572,6 +576,13 @@ class Router:
 
         # Now call the routed method!
         res = caller(*self.args, **kwargs)
+
+        if self.method == "options":
+            # OPTIONS request doesn't have a body
+            del self.response.app_iter
+            del self.response.content_type
+            self.response.status = "204 No Content"
+            return
 
         if not isinstance(res, bytes):  # Convert the result to bytes if it is not already!
             res = str(res).encode("UTF-8")
