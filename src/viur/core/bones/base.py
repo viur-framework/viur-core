@@ -1299,7 +1299,7 @@ class BaseBone(object):
         the value is valid. If the value is invalid, no modification occurs. The function supports appending values to
         bones with multiple=True and setting or appending language-specific values for bones that support languages.
         """
-        assert not (bool(self.languages) ^ bool(language)), "Language is required or not supported"
+        assert not (bool(self.languages) ^ bool(language)), f"language is required or not supported on {boneName!r}"
         assert not append or self.multiple, "Can't append - bone is not multiple"
 
         if not append and self.multiple:
