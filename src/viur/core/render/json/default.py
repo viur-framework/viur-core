@@ -1,12 +1,12 @@
+import fnmatch
 import json
-from enum import Enum
-
-from viur.core import bones, utils, db, current
-from viur.core.skeleton import SkeletonInstance
-from viur.core.i18n import translate
-from viur.core.config import conf
-from datetime import datetime
 import typing as t
+from datetime import datetime
+from enum import Enum
+from viur.core import bones, current, db
+from viur.core.config import conf
+from viur.core.i18n import translate
+from viur.core.skeleton import SkeletonInstance
 
 
 class CustomJsonEncoder(json.JSONEncoder):
@@ -86,12 +86,12 @@ class DefaultRender(object):
         if isinstance(bone, bones.RelationalBone):
             if isinstance(value, dict):
                 return {
-                    "dest": self.renderSkelValues(value["dest"], injectDownloadURL=isinstance(bone, bones.FileBone)),
-                    "rel": (self.renderSkelValues(value["rel"], injectDownloadURL=isinstance(bone, bones.FileBone))
+                    "dest": self.renderSkelValues(value["dest"], isinstance(bone, bones.FileBone), True),
+                    "rel": (self.renderSkelValues(value["rel"], isinstance(bone, bones.FileBone), True)
                             if value["rel"] else None),
                 }
         elif isinstance(bone, bones.RecordBone):
-            return self.renderSkelValues(value)
+            return self.renderSkelValues(value, sub_skel=True)
         elif isinstance(bone, bones.PasswordBone):
             return ""
         else:
@@ -120,11 +120,18 @@ class DefaultRender(object):
             res = self.renderSingleBoneValue(boneVal, bone, skel, key)
         return res
 
-    def renderSkelValues(self, skel: SkeletonInstance, injectDownloadURL: bool = False) -> t.Optional[dict]:
+    def renderSkelValues(
+        self,
+        skel: SkeletonInstance,
+        injectDownloadURL: bool = False,
+        sub_skel: bool = False
+    ) -> t.Optional[dict]:
         """
         Prepares values of one :class:`viur.core.skeleton.Skeleton` or a list of skeletons for output.
 
         :param skel: Skeleton which contents will be processed.
+        :param injectDownloadURL: If True 'downloadUrl' is injected in the result.
+        :param sub_skel: Skeleton inside a Relation- or Recordbone.
         """
         if skel is None:
             return None
@@ -132,9 +139,27 @@ class DefaultRender(object):
             return skel
 
         res = {}
+        request_data = current.request_data.get()
+        if not request_data.get("viur-bone_list"):
+            if bone_list := current.request.get().request.headers.get("x-viur-bonelist"):
+                bone_list = bone_list.split(",")
+                if "key" not in bone_list:
+                    bone_list.append("key")
+                if "name" not in bone_list:
+                    bone_list.append("name")
+                request_data["viur-bone_list"] = bone_list
+            else:
+                request_data["viur-bone_list"] = None
 
-        for key, bone in skel.items():
-            res[key] = self.renderBoneValue(bone, skel, key)
+        if request_data["viur-bone_list"] and not sub_skel:
+            for bone_name, bone in skel.items():
+                for accept_bone_name in request_data["viur-bone_list"]:
+                    if fnmatch.fnmatch(bone_name, accept_bone_name):
+                        res[bone_name] = self.renderBoneValue(bone, skel, bone_name)
+
+        else:
+            for bone_name, bone in skel.items():
+                res[bone_name] = self.renderBoneValue(bone, skel, bone_name)
 
         if (
             injectDownloadURL
