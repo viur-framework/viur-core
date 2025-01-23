@@ -2,6 +2,13 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.31]
+
+- fix: a `not caseSensitive` bone should lock the lower value (#1378)
+- fix: skip `cached_property` in `Module._update_methods` (#1377)
+- fix: determine a better path for a new `TranslateSkel` (#1367)
+- fix: Ensure derives are generated in `FileBone` inside a `RecordBone` too (#1370)
+
 ## [3.6.30]
 
 - fix: `SelectBone.singleValueFromClient` doesn't accept `Enum` (#1320, #1351)
