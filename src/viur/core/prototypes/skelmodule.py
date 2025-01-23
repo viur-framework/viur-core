@@ -108,7 +108,45 @@ class SkelModule(Module):
 
         By default, baseSkel is used by :func:`~viewSkel`, :func:`~addSkel`, and :func:`~editSkel`.
         """
-        return self._resolveSkelCls(*args, **kwargs)()
+        return self._resolveSkelCls(**kwargs)()
+
+    def skel(
+        self,
+        bones: t.Iterable[str] = (),
+        bones_from_request: bool = False,
+        **kwargs,
+    ) -> SkeletonInstance:
+        """
+        Retrieve module-specific skeleton, optionally as subskel.
+
+        :param bones: ALlows to specify a list of bones to form a subskel.
+        :param bones_from_request: Evaluates header X-VIUR-BONELIST to contain a comma-separated list of bones.
+            Using this parameter enforces that the Skeleton class has a subskel named "*" for required bones that
+            must exist.
+
+        The parameters `bones` and `bones_from_request` can be combined.
+        """
+        skel_cls = self._resolveSkelCls(**kwargs)
+        bones = set(bones) if bones else set()
+
+        if (
+            bones_from_request  # feature generally enabled?
+            and skel_cls.subSkels.get("*")  # a named subSkel "*"" must exist
+            # and (bonelist := current.request.get().kwargs.get("x-viur-bonelist"))  # param must be given (DEBUG!)
+            and (bonelist := current.request.get().request.headers.get("x-viur-bonelist"))  # header must be given
+        ):
+            bones |= {bone.strip() for bone in bonelist.split(",")}
+
+        # Return a subskel?
+        if bones:
+            # When coming from outside of a request, "*" must always be contained.
+            if bones_from_request:
+                return skel_cls.subskel("*", bones=bones)
+
+            return skel_cls.subskel(bones=bones)
+
+        # Otherwise, return full skeleton
+        return skel_cls()
 
     def _apply_default_order(self, query: db.Query):
         """

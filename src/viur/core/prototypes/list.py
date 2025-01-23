@@ -37,7 +37,7 @@ class List(SkelModule):
 
             :return: Returns a Skeleton instance for viewing an entry.
         """
-        return self.baseSkel(*args, **kwargs)
+        return self.skel(bones_from_request=True, **kwargs)
 
     def addSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
