@@ -188,7 +188,6 @@ class SkelModule(Module):
         else:
             self.onEdited(skel)
 
-        print(is_add)
         if is_add:
             return self.render.addSuccess(skel)
 
