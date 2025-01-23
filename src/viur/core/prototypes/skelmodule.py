@@ -34,7 +34,7 @@ def __load_indexes_from_file() -> dict[str, list]:
         with open(os.path.join(conf.instance.project_base_path, "index.yaml"), "r") as file:
             indexes = yaml.safe_load(file)
             indexes = indexes.get("indexes", [])
-            for index in indexes:
+            for index in indexes or ():
                 index["properties"] = [_property["name"] for _property in index["properties"]]
                 indexes_dict.setdefault(index["kind"], []).append(index)
 
