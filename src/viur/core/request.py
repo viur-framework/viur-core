@@ -339,7 +339,7 @@ class Router:
             path = self._select_language(path)[1:]
 
             # Check for closed system
-            if conf.security.closed_system:
+            if conf.security.closed_system and self.method != "options":
                 if not current.user.get():
                     if not any(fnmatch.fnmatch(path, pat) for pat in conf.security.closed_system_allowed_paths):
                         raise errors.Unauthorized()
