@@ -352,6 +352,8 @@ class StringBone(BaseBone):
             raise NotImplementedError()
 
         if not self.caseSensitive and (val := skel[name]) is not None:
+            if self.multiple:
+                val = [v.lower() for v in val]
             return self._hashValueForUniquePropertyIndex(val.lower())
 
         return super().getUniquePropertyIndexValues(skel, name)
