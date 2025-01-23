@@ -181,7 +181,7 @@ class SkelModule(Module):
         else:
             self.onEdit(skel)
 
-        skel.toDB()
+        skel.write()
 
         if is_add:
             self.onAdded(skel)
