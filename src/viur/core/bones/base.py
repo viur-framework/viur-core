@@ -1299,7 +1299,7 @@ class BaseBone(object):
         the value is valid. If the value is invalid, no modification occurs. The function supports appending values to
         bones with multiple=True and setting or appending language-specific values for bones that support languages.
         """
-        assert not (bool(self.languages) ^ bool(language)), "Language is required or not supported"
+        assert not (bool(self.languages) ^ bool(language)), f"language is required or not supported on {boneName!r}"
         assert not append or self.multiple, "Can't append - bone is not multiple"
 
         if not append and self.multiple:
@@ -1447,14 +1447,14 @@ class BaseBone(object):
         ret = {
             "descr": self.descr,
             "type": self.type,
-            "required": self.required,
+            "required": self.required and not self.readOnly,
             "params": self.params,
             "visible": self.visible,
             "readonly": self.readOnly,
             "unique": self.unique.method.value if self.unique else False,
             "languages": self.languages,
             "emptyvalue": self.getEmptyValue(),
-            "indexed": self.indexed
+            "indexed": self.indexed,
         }
 
         # Provide a defaultvalue, if it's not a function.
@@ -1470,6 +1470,8 @@ class BaseBone(object):
             }
         else:
             ret["multiple"] = self.multiple
+
+        # Provide compute information
         if self.compute:
             ret["compute"] = {
                 "method": self.compute.interval.method.name
