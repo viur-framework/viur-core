@@ -351,10 +351,12 @@ class StringBone(BaseBone):
             # Not yet implemented as it's unclear if we should keep each language distinct or not
             raise NotImplementedError()
 
-        if not self.caseSensitive and (val := skel[name]) is not None:
+        if not self.caseSensitive and (value := skel[name]) is not None:
             if self.multiple:
-                val = [v.lower() for v in val]
-            return self._hashValueForUniquePropertyIndex(val.lower())
+                value = [v.lower() for v in value]
+            else:
+                value = value.lower()
+            return self._hashValueForUniquePropertyIndex(value)
 
         return super().getUniquePropertyIndexValues(skel, name)
 
