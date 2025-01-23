@@ -455,6 +455,52 @@ class Tree(SkelModule):
 
         return self.render.addSuccess(skel)
 
+    @force_ssl
+    @force_post
+    @exposed
+    @skey
+    @access("root")
+    def add_or_edit(self, skelType: SkelType, key: db.Key | int | str, **kwargs) -> t.Any:
+        """
+        This function is intended to be used by importers.
+        Only "root"-users are allowed to use it.
+        """
+        if not (skelType := self._checkSkelType(skelType)):
+            raise errors.NotAcceptable("Invalid skelType provided.")
+
+        kind_name = self.nodeSkelCls.kindName if skelType == "node" else self.leafSkelCls.kindName
+
+        db_key = db.keyHelper(key, targetKind=kind_name, adjust_kind=kind_name)
+        is_add = not bool(db.Get(db_key))
+
+        if is_add:
+            skel = self.addSkel(skelType)
+        else:
+            skel = self.editSkel(skelType)
+
+        skel["key"] = db_key
+
+        if (
+            not kwargs  # no data supplied
+            or not skel.fromClient(kwargs)  # failure on reading into the bones
+        ):
+            # render the skeleton in the version it could as far as it could be read.
+            return self.render.render("add_or_edit", skel)
+
+        if is_add:
+            self.onAdd(skelType, skel)
+        else:
+            self.onEdit(skelType, skel)
+
+        skel.write()
+
+        if is_add:
+            self.onAdded(skelType, skel)
+            return self.render.addSuccess(skel)
+
+        self.onEdited(skelType, skel)
+        return self.render.editSuccess(skel)
+
     @exposed
     @force_ssl
     @skey(allow_empty=True)
