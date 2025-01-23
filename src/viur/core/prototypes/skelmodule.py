@@ -2,6 +2,7 @@ import os
 import yaml
 import logging
 from viur.core import Module, db, current
+from viur.core.decorators import *
 from viur.core.config import conf
 from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
 import typing as t
@@ -147,3 +148,48 @@ class SkelModule(Module):
                     query.order(default_order)
                 else:
                     query.order(*default_order)
+
+    @force_ssl
+    @force_post
+    @exposed
+    @skey
+    @access("root")
+    def add_or_edit(self, key: db.Key | int | str, **kwargs) -> t.Any:
+        """
+        This function is intended to be used by importers.
+        Only "root"-users are allowed to use it.
+        """
+        db_key = db.keyHelper(key, targetKind=self.kindName, adjust_kind=self.kindName)
+        is_add = not bool(db.Get(db_key))
+
+        if is_add:
+            skel = self.addSkel()
+        else:
+            skel = self.editSkel()
+
+        skel["key"] = db_key
+
+        if (
+            not kwargs  # no data supplied
+            or not skel.fromClient(kwargs)  # failure on reading into the bones
+        ):
+            # render the skeleton in the version it could as far as it could be read.
+            return self.render.render("add_or_edit", skel)
+
+        if is_add:
+            self.onAdd(skel)
+        else:
+            self.onEdit(skel)
+
+        skel.toDB()
+
+        if is_add:
+            self.onAdded(skel)
+        else:
+            self.onEdited(skel)
+
+        print(is_add)
+        if is_add:
+            return self.render.addSuccess(skel)
+
+        return self.render.editSuccess(skel)
