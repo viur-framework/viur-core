@@ -309,6 +309,13 @@ class StringBone(BaseBone):
             # Not yet implemented as it's unclear if we should keep each language distinct or not
             raise NotImplementedError()
 
+        if not self.caseSensitive and (value := skel[name]) is not None:
+            if self.multiple:
+                value = [v.lower() for v in value]
+            else:
+                value = value.lower()
+            return self._hashValueForUniquePropertyIndex(value)
+
         return super().getUniquePropertyIndexValues(skel, name)
 
     def refresh(self, skel: "SkeletonInstance", bone_name: str) -> None:

@@ -9,11 +9,12 @@ import copy
 import hashlib
 import inspect
 import logging
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from collections.abc import Iterable
-from enum import Enum
 import typing as t
+from collections.abc import Iterable
+from dataclasses import dataclass, field
+from datetime import timedelta
+from enum import Enum
+
 from viur.core import db, utils, current, i18n
 from viur.core.config import conf
 
@@ -1147,7 +1148,10 @@ class BaseBone(object):
 
         return query
 
-    def _hashValueForUniquePropertyIndex(self, value: str | int) -> list[str]:
+    def _hashValueForUniquePropertyIndex(
+        self,
+        value: str | int | float | db.Key | list[str | int | float | db.Key],
+    ) -> list[str]:
         """
         Generates a hash of the given value for creating unique property indexes.
 
@@ -1155,16 +1159,17 @@ class BaseBone(object):
         for constructing unique property indexes. Derived bone classes should overwrite this method to
         implement their own logic for hashing values.
 
-        :param value: The value to be hashed, which can be a string, integer, or a float.
+        :param value: The value(s) to be hashed.
 
         :return: A list containing a string representation of the hashed value. If the bone is multiple,
                 the list may contain more than one hashed value.
         """
-        def hashValue(value: str | int) -> str:
+
+        def hashValue(value: str | int | float | db.Key) -> str:
             h = hashlib.sha256()
             h.update(str(value).encode("UTF-8"))
             res = h.hexdigest()
-            if isinstance(value, int) or isinstance(value, float):
+            if isinstance(value, int | float):
                 return f"I-{res}"
             elif isinstance(value, str):
                 return f"S-{res}"
@@ -1181,9 +1186,9 @@ class BaseBone(object):
 
         if not value and not self.unique.lockEmpty:
             return []  # We are zero/empty string and these should not be locked
-        if not self.multiple:
+        if not self.multiple and not isinstance(value, list):
             return [hashValue(value)]
-        # We have an multiple bone here
+        # We have a multiple bone or multiple values here
         if not isinstance(value, list):
             value = [value]
         tmpList = [hashValue(x) for x in value]
@@ -1227,13 +1232,13 @@ class BaseBone(object):
         """
         pass  # We do nothing by default
 
-    def postSavedHandler(self, skel: 'viur.core.skeleton.SkeletonInstance', boneName: str, key: str):
+    def postSavedHandler(self, skel: "SkeletonInstance", boneName: str, key: db.Key | None) -> None:
         """
             Can be overridden to perform further actions after the main entity has been written.
 
             :param boneName: Name of this bone
             :param skel: The skeleton this bone belongs to
-            :param key: The (new?) Database Key we've written to
+            :param key: The (new?) Database Key we've written to. In case of a RelSkel the key is None.
         """
         pass
 

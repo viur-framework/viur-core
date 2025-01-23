@@ -226,12 +226,20 @@ class FileBone(TreeLeafBone):
         the derived files directly.
         """
         super().postSavedHandler(skel, boneName, key)
+        from viur.core.skeleton import RelSkel, Skeleton
+
+        if issubclass(skel.skeletonCls, Skeleton):
+            prefix = f"{skel.kindName}_{boneName}"
+        elif issubclass(skel.skeletonCls, RelSkel):  # RelSkel is just a container and has no kindname
+            prefix = f"{skel.skeletonCls.__name__}_{boneName}"
+        else:
+            raise NotImplementedError(f"Cannot handle {skel.skeletonCls=}")
 
         def handleDerives(values):
             if isinstance(values, dict):
                 values = [values]
             for val in (values or ()):  # Ensure derives getting build for each file referenced in this relation
-                ensureDerived(val["dest"]["key"], f"{skel.kindName}_{boneName}", self.derive)
+                ensureDerived(val["dest"]["key"], prefix, self.derive)
 
         values = skel[boneName]
         if self.derive and values:

@@ -1,5 +1,6 @@
 import copy
 import enum
+import functools
 import inspect
 import types
 import typing as t
@@ -540,7 +541,7 @@ class Module:
         for key in dir(self):
             if key[0] == "_":
                 continue
-            if isinstance(getattr(self.__class__, key, None), property):
+            if isinstance(getattr(self.__class__, key, None), (property, functools.cached_property)):
                 continue
 
             prop = getattr(self, key)
