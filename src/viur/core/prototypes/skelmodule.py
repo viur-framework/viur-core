@@ -185,10 +185,7 @@ class SkelModule(Module):
 
         if is_add:
             self.onAdded(skel)
-        else:
-            self.onEdited(skel)
-
-        if is_add:
             return self.render.addSuccess(skel)
 
+        self.onEdited(skel)
         return self.render.editSuccess(skel)
