@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.6.32]
+
+- feat: Backport request preflight checks for 3.6 (#1383)
+
 ## [3.6.31]
 
 - fix: a `not caseSensitive` bone should lock the lower value (#1378)
