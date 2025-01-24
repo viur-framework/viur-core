@@ -1,14 +1,10 @@
-import re
 import typing as t
 from viur.core.bones import *
 from viur.core.prototypes.tree import Tree, TreeSkel, SkelType
+from viur.core.modules.file import File
 from viur.core import db, conf, current, skeleton, tasks, errors
 from viur.core.decorators import exposed
 from viur.core.i18n import translate
-
-# pre-compile patterns for vfuncs
-DIRECTORY_PATTERN = re.compile(r'^[a-zA-Z0-9äöüÄÖÜ_-]*$')
-FILE_PATTERN = re.compile(r'^[a-zA-Z0-9äöüÄÖÜ_-]+?.py$')
 
 
 class BaseScriptAbstractSkel(TreeSkel):
@@ -24,7 +20,7 @@ class BaseScriptAbstractSkel(TreeSkel):
         # Set script name when provided, so that the path can be regenerated
         if name := data.get("name"):
             skel["name"] = name
-            conf.main_app.vi.script.update_path(skel)
+            conf.main_app.script.update_path(skel)
 
         ret = super().fromClient(skel, data, *args, **kwargs)
 
@@ -54,7 +50,7 @@ class ScriptNodeSkel(BaseScriptAbstractSkel):
     name = StringBone(
         descr="Folder",
         required=True,
-        vfunc=lambda value: not DIRECTORY_PATTERN.match(value)
+        vfunc=lambda value: None if File.is_valid_filename(value) else "Foldername is invalid"
     )
 
 
@@ -63,12 +59,16 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
 
     name = StringBone(
         descr="Filename",
-        vfunc=lambda value: not FILE_PATTERN.match(value),
+        required=True,
+        vfunc=lambda value:
+            None if File.is_valid_filename(value) and value.endswith(".py")
+            else "Filename is invalid or doesn't have a '.py'-suffix",
     )
 
     script = RawBone(
         descr="Code",
-        indexed=False
+        indexed=False,
+        required=True,
     )
 
     access = SelectBone(
