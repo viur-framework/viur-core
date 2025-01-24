@@ -12,7 +12,7 @@ class BaseScriptAbstractSkel(TreeSkel):
     path = StringBone(
         descr="Path",
         readOnly=True,
-        unique=UniqueValue(UniqueLockMethod.SameValue, True, "This path name is already taken!")
+        unique=UniqueValue(UniqueLockMethod.SameValue, True, "This path is already taken!")
     )
 
     @classmethod
@@ -61,7 +61,7 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
         descr="Filename",
         required=True,
         vfunc=lambda value:
-            None if File.is_valid_filename(value) and value.endswith(".py")
+            None if File.is_valid_filename(value) and value.endswith(".py") and value.removesuffix(".py")
             else "Filename is invalid or doesn't have a '.py'-suffix",
     )
 
