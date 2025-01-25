@@ -579,12 +579,12 @@ class File(Tree):
 
         # Append additional parameters
         if params := {
-            k: v for k, v in {
-                "download": download,
-                "filename": filename,
-                "options": options,
-                "size": size,
-            }.items() if v
+                k: v for k, v in {
+                    "download": download,
+                    "filename": filename,
+                    "options": options,
+                    "size": size,
+                }.items() if v
         }:
             serving_url += f"?{urlencode(params)}"
 
@@ -1454,8 +1454,8 @@ def start_delete_pending_files():
 
 def __getattr__(attr: str) -> object:
     if entry := {
-        # stuff prior viur-core < 3.7
-        "GOOGLE_STORAGE_BUCKET": ("File.get_bucket()", _private_bucket),
+            # stuff prior viur-core < 3.7
+            "GOOGLE_STORAGE_BUCKET": ("File.get_bucket()", _private_bucket),
     }.get(attr):
         msg = f"{attr} was replaced by {entry[0]}"
         warnings.warn(msg, DeprecationWarning, stacklevel=2)
