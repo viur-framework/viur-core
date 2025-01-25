@@ -1285,7 +1285,6 @@ class File(Tree):
 
     def onAdded(self, skelType: SkelType, skel: SkeletonInstance) -> None:
         super().onAdded(skelType, skel)
-        logging.info(f"Added  {skel=}")
         if skel["mimetype"].startswith("image/"):
             if skel["size"] > self.IMAGE_META_MAX_SIZE:
                 logging.warning(f'File size {skel['size']} exceeds limit {self.IMAGE_META_MAX_SIZE=}')
