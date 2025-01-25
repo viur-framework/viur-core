@@ -2,6 +2,17 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.2]
+
+- feat: Provide `add_or_edit` root-only endpoint for importers (#1380)
+- fix: Provide bone name with assertion message (#1375)
+- fix: `errors` not marked as a reserved word (#1374)
+- doc: Fix `SyntaxWarning: invalid escape sequence '\*'` (#1372)
+- fix: `SkelModule` not able to handle empty index definitions (#1373)
+- fix: Render bones which are `readOnly=True` not as `required=True` (#1371)
+- feat: Provide default `index`-function for `Tree` and `Singleton` (#1365)
+- fix: `FileLeafSkel._inject_serving_url()` is the better choice (#1362)
+
 ## [3.7.1]
 
 - fix: `RelationalBone`: dict size change during iteration (#1359)
@@ -100,6 +111,17 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Replace `db.encodeKey` by `str`-cast (#1302)
 - refactor: Send emails from `EmailTransport` instances instead of class (#1250)
 - refactor: Sub-class `Session` from `db.Entity` to behave `dict`-compliant (#1153)
+
+## [3.6.32]
+
+- feat: Backport request preflight checks for 3.6 (#1383)
+
+## [3.6.31]
+
+- fix: a `not caseSensitive` bone should lock the lower value (#1378)
+- fix: skip `cached_property` in `Module._update_methods` (#1377)
+- fix: determine a better path for a new `TranslateSkel` (#1367)
+- fix: Ensure derives are generated in `FileBone` inside a `RecordBone` too (#1370)
 
 ## [3.6.30]
 
