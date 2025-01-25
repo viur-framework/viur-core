@@ -70,8 +70,9 @@ __all__ = [
 ]
 
 # Show DeprecationWarning from the viur-core
-warnings.filterwarnings("always", category=DeprecationWarning, module=r"viur\.core.*")
-
+warnings.filterwarnings("once", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning, module=r"viur\.datastore.*",
+                        message="'clonedBoneMap' was renamed into 'bone_map'")
 
 def setDefaultLanguage(lang: str):
     """
