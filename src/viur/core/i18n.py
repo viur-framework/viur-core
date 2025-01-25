@@ -75,7 +75,6 @@ on your own. Just use the TranslateSkel).
 """  # FIXME: grammar, rst syntax
 import datetime
 import fnmatch
-import jinja2.ext as jinja2
 import logging
 import sys
 import traceback
@@ -164,6 +163,7 @@ class translate:
         "filename",
         "lineno",
         "add_missing",
+        "default_variables",
     )
 
     def __init__(
@@ -174,6 +174,7 @@ class translate:
         force_lang: str = None,
         public: bool = False,
         add_missing: bool = False,
+        default_variables: dict[str, t.Any] | None = None,
         caller_is_jinja: bool = False,
     ):
         """
@@ -187,6 +188,7 @@ class translate:
             target language.
         :param force_lang: Use this language instead the one of the request.
         :param public: Flag for public translations, which can be obtained via /json/_translate/get_public.
+        :param default_variables: Default values for variable substitution.
         :param caller_is_jinja: Is the call caused by our jinja method?
         """
         super().__init__()
@@ -205,6 +207,7 @@ class translate:
         self.force_lang = force_lang
         self.public = public
         self.add_missing = add_missing
+        self.default_variables = default_variables or {}
         self.filename, self.lineno = None, None
 
         if self.key not in systemTranslations and conf.i18n.add_missing_translations:
@@ -231,7 +234,6 @@ class translate:
     def __str__(self) -> str:
         if self.translationCache is None:
             global systemTranslations
-
 
             if self.key not in systemTranslations:
                 # either the translate()-object has add_missing set
@@ -265,21 +267,24 @@ class translate:
             lang = current.language.get()
 
         if value := self.translationCache.get(lang):
-            return value
+            return self.substitute_vars(value, **self.default_variables)
 
         # Use the default text from datastore or from the caller arguments
-        return self.translationCache.get("_default_text_") or self.defaultText
+        return self.substitute_vars(
+            self.translationCache.get("_default_text_") or self.defaultText,
+            **self.default_variables
+        )
 
     def translate(self, **kwargs) -> str:
         """Substitute the given kwargs in the translated or default text."""
-        return self.substitute_vars(str(self), **kwargs)
+        return self.substitute_vars(str(self), **(self.default_variables | kwargs))
 
-    def __call__(self, **kwargs):
+    def __call__(self, **kwargs) -> str:
         """Just an alias for translate"""
         return self.translate(**kwargs)
 
     @staticmethod
-    def substitute_vars(value: str, **kwargs):
+    def substitute_vars(value: str, **kwargs) -> str:
         """Substitute vars in a translation
 
         Variables has to start with two braces (`{{`), followed by the variable
