@@ -1312,8 +1312,8 @@ class File(Tree):
         file_obj.seek(0)
         try:
             img = Image.open(file_obj)
-        except Image.UnidentifiedImageError:  # Can't load this image
-            logging.error(f'Cannot open {skel["key"]} | {skel["name"]} to set image meta data', exc_info=True)
+        except Image.UnidentifiedImageError as e:  # Can't load this image
+            logging.exception(f'Cannot open {skel["key"]} | {skel["name"]} to set image meta data: {e}')
             return
 
         skel.patch(
