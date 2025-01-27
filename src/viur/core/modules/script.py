@@ -68,7 +68,6 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
     script = RawBone(
         descr="Code",
         indexed=False,
-        required=True,
     )
 
     access = SelectBone(
