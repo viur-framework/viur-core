@@ -465,7 +465,6 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
     @deprecated(
         version="3.7.0",
         reason="Function renamed. Use subskel function as alternative implementation.",
-        action="always"
     )
     def subSkel(cls, *subskel_names, fullClone: bool = False, **kwargs) -> SkeletonInstance:
         return cls.subskel(*subskel_names, clone=fullClone)  # FIXME: REMOVE WITH VIUR4
@@ -1099,7 +1098,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     @deprecated(
         version="3.7.0",
         reason="Use skel.read() instead of skel.fromDB()",
-        action="once"
     )
     def fromDB(cls, skel: SkeletonInstance, key: KeyType) -> bool:
         """
@@ -1166,7 +1164,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     @deprecated(
         version="3.7.0",
         reason="Use skel.write() instead of skel.toDB()",
-        action="once"
     )
     def toDB(cls, skel: SkeletonInstance, update_relations: bool = True, **kwargs) -> db.Key:
         """
