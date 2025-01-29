@@ -306,7 +306,7 @@ class RelationalBone(BaseBone):
             self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
         except AssertionError:
             raise NotImplementedError(
-                f"Skeleton {self.skel_cls!r} {self.__class__.__name__} {self.name!r}: Kind {self.kind!s} unknown"
+                f"Skeleton {self.skel_cls!r} {self.__class__.__name__} {self.name!r}: Kind {self.kind!r} unknown"
             )
 
         self._skeletonInstanceClassRef = SkeletonInstance
