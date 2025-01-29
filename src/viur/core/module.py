@@ -43,8 +43,9 @@ class Method:
         self.signature = inspect.signature(self._func)
 
         # Guards
-        self.skey = None
+        self.skey = False
         self.access = None
+        self.decorators = []
 
     def __get__(self, obj, objtype=None):
         """
@@ -207,7 +208,7 @@ class Method:
         # - args            = either parsed_args, or parsed_args + remaining args if the function accepts *args
         # - kwargs          = either parsed_kwars, or parsed_kwargs | remaining kwargs if the function accepts **kwargs
         # - varargs         = indicator that the args also contain variable args (*args)
-        # - varkwards       = indicator that variable kwargs (**kwargs) are also contained in the kwargs
+        # - varkwargs       = indicator that variable kwargs (**kwargs) are also contained in the kwargs
         #
 
         # Extend args to any varargs, and redefine args
@@ -224,91 +225,11 @@ class Method:
             kwargs = parsed_kwargs
 
         # Trace message for final call configuration
-        if trace := conf.debug.trace:
+        if conf.debug.trace:
             logging.debug(f"calling {self._func=} with cleaned {args=}, {kwargs=}")
-
-        # evaluate skey guard setting?
-        if self.skey and not current.request.get().skey_checked:  # skey guardiance is only required once per request
-            if trace:
-                logging.debug(f"@skey {self.skey=}")
-
-            security_key = kwargs.pop(self.skey["name"], "")
-
-            # validation is necessary?
-            if allow_empty := self.skey["allow_empty"]:
-                # allow_empty can be callable, to detect programmatically
-                if callable(allow_empty):
-                    required = not allow_empty(args, kwargs)
-                # or allow_empty can be a sequence of allowed keys
-                elif isinstance(allow_empty, (list, tuple)):
-                    required = any(k for k in kwargs.keys() if k not in allow_empty)
-                # otherwise, varargs or varkwargs may not be empty.
-                else:
-                    required = varargs or varkwargs or security_key
-                    if trace:
-                        logging.debug(f"@skey {required=} because either {varargs=} or {varkwargs=} or {security_key=}")
-            else:
-                required = True
-
-            if required:
-                if trace:
-                    logging.debug(f"@skey wanted, validating {security_key!r}")
-
-                from viur.core import securitykey
-                payload = securitykey.validate(security_key, **self.skey["extra_kwargs"])
-                current.request.get().skey_checked = True
-
-                if not payload or (self.skey["validate"] and not self.skey["validate"](payload)):
-                    raise errors.PreconditionFailed(
-                        self.skey["message"] or f"Missing or invalid parameter {self.skey['name']!r}"
-                    )
-
-                if self.skey["forward_payload"]:
-                    kwargs |= {self.skey["forward_payload"]: payload}
-
-        # evaluate access guard setting?
-        if self.access:
-            user = current.user.get()
-
-            if trace := conf.debug.trace:
-                logging.debug(f"@access {user=} {self.access=}")
-
-            if not user:
-                if offer_login := self.access["offer_login"]:
-                    raise errors.Redirect(offer_login if isinstance(offer_login, str) else "/user/login")
-
-                raise errors.Unauthorized(self.access["message"]) if self.access["message"] else errors.Unauthorized()
-
-            ok = "root" in user["access"]
-
-            if not ok and self.access["access"]:
-                for acc in self.access["access"]:
-                    if trace:
-                        logging.debug(f"@access checking {acc=}")
-
-                    # Callable directly tests access
-                    if callable(acc):
-                        if acc():
-                            ok = True
-                            break
-
-                        continue
-
-                    # Otherwise, check for access rights
-                    if isinstance(acc, str):
-                        acc = (acc, )
-
-                    assert isinstance(acc, (tuple, list, set))
-
-                    if all(a in user["access"] for a in acc):
-                        ok = True
-                        break
-
-            if trace:
-                logging.debug(f"@access {ok=}")
-
-            if not ok:
-                raise errors.Forbidden(self.access["message"]) if self.access["message"] else errors.Forbidden()
+        # call decorators in reversed because they are added in the reversed order
+        for func in reversed(self.decorators):
+            func(args=args, kwargs=kwargs, varargs=varargs, varkwargs=varkwargs)
 
         # call with instance when provided
         if self._instance:
