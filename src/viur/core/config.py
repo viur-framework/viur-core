@@ -558,7 +558,7 @@ class Email(ConfigType):
     """If set, this sender will be used, regardless of what the templates advertise as sender"""
 
     admin_recipients: str | list[str] | t.Callable[[], str | list[str]] = None
-    """Sets recipients for mails send with :meth:`email.send_emailToAdmins`.
+    """Sets recipients for mails send with :meth:`email.send_email_to_admins`.
     If not set, all root users will be used."""
 
     _mapping = {

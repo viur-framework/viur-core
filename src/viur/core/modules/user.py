@@ -1620,7 +1620,7 @@ def createNewUserIfNotExists():
             msg = f"ViUR created a new admin-user for you!\nUsername: {uname}\nPassword: {pw}"
 
             logging.warning(msg)
-            email.send_emailToAdmins("New ViUR password", msg)
+            email.send_email_to_admins("New ViUR password", msg)
 
 
 # DEPRECATED ATTRIBUTES HANDLING

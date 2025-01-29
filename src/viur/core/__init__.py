@@ -254,7 +254,7 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
             and (not conf.instance.is_dev_server or conf.debug.dev_server_cloud_logging)):
         from viur.core import email
         try:
-            email.send_emailToAdmins(
+            email.send_email_to_admins(
                 "Debug mode enabled",
                 "ViUR just started a new Instance with call tracing enabled! This might log sensitive information!"
             )

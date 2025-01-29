@@ -42,8 +42,8 @@ lookup = {
     "toDB": "write",
     "fromDB": "read",
     re.compile(r"\bsubSkel\b"): "subskel",
-    "sendEMail": "send_email",
     "sendEMailToAdmins": "send_email_to_admins",
+    "sendEMail": "send_email",
 
     # WARNING: THESE MUST BE KEPT AT THE END, THE ORDER MATTERS!!!!
     "projectID": "conf.instance.project_id",
