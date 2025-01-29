@@ -1006,7 +1006,7 @@ class RelationalBone(BaseBone):
                         res.append(f"src.{orderKey}")
         return res
 
-    def refresh(self, skel: "SkeletonInstance", name: str):
+    def refresh(self, skel: "SkeletonInstance", name: str) -> None:
         """
         Refreshes all values that might be cached from other entities in the provided skeleton.
 
