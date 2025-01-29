@@ -535,7 +535,7 @@ class Email(ConfigType):
 
     transport_class: "EmailTransport" = None
     """EmailTransport instance that actually delivers the email using the service provider
-    of choice. See email.py for more details
+    of choice. See :module:`core.email` for more details
     """
 
     send_from_local_development_server: bool = False
@@ -558,7 +558,7 @@ class Email(ConfigType):
     """If set, this sender will be used, regardless of what the templates advertise as sender"""
 
     admin_recipients: str | list[str] | t.Callable[[], str | list[str]] = None
-    """Sets recipients for mails send with :meth:`email.send_email_to_admins`.
+    """Sets recipients for mails send with :meth:`core.email.send_email_to_admins`.
     If not set, all root users will be used."""
 
     _mapping = {
