@@ -38,13 +38,13 @@ class Method:
         self.methods = ("GET", "POST", "HEAD", "OPTIONS")
         self.seo_language_map = None
         self.cors_allow_headers = None
+        self.additional_descr = {}
+        self.skey = None
 
         # Inspection
         self.signature = inspect.signature(self._func)
 
         # Guards
-        self.skey = False
-        self.access = None
         self.guards = []
 
     def __get__(self, obj, objtype=None):
@@ -215,8 +215,8 @@ class Method:
         args = tuple(parsed_args + varargs)
 
         # always take "skey"-parameter name, when configured, as parsed_kwargs
-        if self.skey and self.skey["name"] in kwargs:
-            parsed_kwargs[self.skey["name"]] = kwargs.pop(self.skey["name"])
+        if self.skey and self.skey in kwargs:
+            parsed_kwargs[self.skey] = kwargs.pop(self.skey)
 
         # When varkwargs are accepted, merge parsed_kwargs and kwargs, otherwise just use parsed_kwargs
         if varkwargs := varkwargs and bool(kwargs):
@@ -243,7 +243,7 @@ class Method:
         """
         return_doc = t.get_type_hints(self._func).get("return")
 
-        ret = {
+        return {
             "args": {
                 param.name: {
                     "type": str(param.annotation) if param.annotation is not inspect.Parameter.empty else None,
@@ -255,15 +255,7 @@ class Method:
             "accepts": self.methods,
             "docs": self._func.__doc__.strip() if self._func.__doc__ else None,
             "aliases": tuple(self.seo_language_map.keys()) if self.seo_language_map else None,
-        }
-
-        if self.skey:
-            ret["skey"] = self.skey["name"]
-
-        if self.access:
-            ret["access"] = [str(access) for access in self.access["access"]]  # must be a list to be JSON-serializable
-
-        return ret
+        } | self.additional_descr
 
     def register(self, target: dict, name: str, language: str | None = None):
         """

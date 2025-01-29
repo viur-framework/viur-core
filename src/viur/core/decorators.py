@@ -144,10 +144,14 @@ def access(
 
         if not ok:
             raise errors.Forbidden(access_config["message"]) if access_config["message"] else errors.Forbidden()
+
     def decorator(func):
         meth = Method.ensure(func)
-        meth.access = access_config
         meth.guards.append(validate)
+
+        # extend additional access descr, must be a list to be JSON-serializable
+        meth.additional_descr["access"] = [str(access) for access in access_config["access"]]
+
         return meth
 
     return decorator
@@ -223,8 +227,12 @@ def skey(
 
     def decorator(func):
         meth = Method.ensure(func)
-        meth.skey = skey_config
+        meth.skey = skey_config["name"]
         meth.guards.append(validate)
+
+        # extend additional access descr, must be a list to be JSON-serializable
+        meth.additional_descr["access"] = skey_config["name"]
+
         return meth
 
     if func is None:
