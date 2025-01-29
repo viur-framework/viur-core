@@ -45,7 +45,7 @@ class Method:
         # Guards
         self.skey = False
         self.access = None
-        self.decorators = []
+        self.guards = []
 
     def __get__(self, obj, objtype=None):
         """
@@ -228,7 +228,7 @@ class Method:
         if conf.debug.trace:
             logging.debug(f"calling {self._func=} with cleaned {args=}, {kwargs=}")
         # call decorators in reversed because they are added in the reversed order
-        for func in reversed(self.decorators):
+        for func in reversed(self.guards):
             func(args=args, kwargs=kwargs, varargs=varargs, varkwargs=varkwargs)
 
         # call with instance when provided

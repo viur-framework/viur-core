@@ -147,7 +147,7 @@ def access(
     def decorator(func):
         meth = Method.ensure(func)
         meth.access = access_config
-        meth.decorators.append(validate)
+        meth.guards.append(validate)
         return meth
 
     return decorator
@@ -224,7 +224,7 @@ def skey(
     def decorator(func):
         meth = Method.ensure(func)
         meth.skey = skey_config
-        meth.decorators.append(validate)
+        meth.guards.append(validate)
         return meth
 
     if func is None:
