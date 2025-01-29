@@ -301,7 +301,14 @@ class RelationalBone(BaseBone):
         """
         super().setSystemInitialized()
         from viur.core.skeleton import RefSkel, SkeletonInstance
-        self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
+
+        try:
+            self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
+        except AssertionError:
+            raise NotImplementedError(
+                f"Skeleton {self.skel_cls!r} {self.__class__.__name__} {self.name!r}: Kind {self.kind!r} unknown"
+            )
+
         self._skeletonInstanceClassRef = SkeletonInstance
         self._ref_keys = set(self._refSkelCache.__boneMap__.keys())
 
