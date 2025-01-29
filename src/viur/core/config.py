@@ -545,7 +545,7 @@ class Email(ConfigType):
 
     recipient_override: str | list[str] | t.Callable[[], str | list[str]] | t.Literal[False] = None
     """If set, all outgoing emails will be sent to this address
-    (overriding the 'dests'-parameter in email.sendEmail)
+    (overriding the 'dests'-parameter in :meth:`core.email.send_email`)
     """
 
     sender_default: str = f"viur@{_project_id}.appspotmail.com"
@@ -558,7 +558,8 @@ class Email(ConfigType):
     """If set, this sender will be used, regardless of what the templates advertise as sender"""
 
     admin_recipients: str | list[str] | t.Callable[[], str | list[str]] = None
-    """Sets recipients for mails send with email.sendEMailToAdmins. If not set, all root users will be used."""
+    """Sets recipients for mails send with :meth:`email.send_emailToAdmins`.
+    If not set, all root users will be used."""
 
     _mapping = {
         "logRetention": "log_retention",

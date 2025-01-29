@@ -190,7 +190,7 @@ class TaskHandler(Module):
         retryCount = req.headers.get("X-Appengine-Taskretrycount", None)
         if retryCount and int(retryCount) == self.retryCountWarningThreshold:
             from viur.core import email
-            email.sendEMailToAdmins(
+            email.send_emailToAdmins(
                 "Deferred task retry counter exceeded warning threshold",
                 f"""Task {req.headers.get("X-Appengine-Taskname", "")} is retried for the {retryCount}th time."""
             )
