@@ -1,5 +1,7 @@
 from .base import (
     BaseBone,
+    CloneBehavior,
+    CloneStrategy,
     Compute,
     ComputeInterval,
     ComputeMethod,
@@ -9,8 +11,6 @@ from .base import (
     ReadFromClientException,
     UniqueLockMethod,
     UniqueValue,
-    CloneBehavior,
-    CloneStrategy,
 )
 from .boolean import BooleanBone
 from .captcha import CaptchaBone
@@ -50,6 +50,8 @@ __all = [
     "BaseBone",
     "BooleanBone",
     "CaptchaBone",
+    "CloneBehavior",
+    "CloneStrategy",
     "ColorBone",
     "Compute",
     "ComputeInterval",
@@ -84,8 +86,8 @@ __all = [
     "UidBone",
     "UniqueLockMethod",
     "UniqueValue",
-    "UserBone",
     "UriBone",
+    "UserBone",
     "translation_key_prefix_bonename",
     "translation_key_prefix_skeleton_bonename",
 ]
