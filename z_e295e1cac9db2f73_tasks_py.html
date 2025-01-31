@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_f59508c4bce93e29___init___py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.6.10">coverage.py v7.6.10</a>,
-            created at 2025-01-29 23:04 +0000
+            created at 2025-01-31 08:05 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -274,7 +274,7 @@
     <p class="mis show_mis"><span class="n"><a id="t190" href="#t190">190</a></span><span class="t">        <span class="nam">retryCount</span> <span class="op">=</span> <span class="nam">req</span><span class="op">.</span><span class="nam">headers</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">"X-Appengine-Taskretrycount"</span><span class="op">,</span> <span class="key">None</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t191" href="#t191">191</a></span><span class="t">        <span class="key">if</span> <span class="nam">retryCount</span> <span class="key">and</span> <span class="nam">int</span><span class="op">(</span><span class="nam">retryCount</span><span class="op">)</span> <span class="op">==</span> <span class="nam">self</span><span class="op">.</span><span class="nam">retryCountWarningThreshold</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t192" href="#t192">192</a></span><span class="t">            <span class="key">from</span> <span class="nam">viur</span><span class="op">.</span><span class="nam">core</span> <span class="key">import</span> <span class="nam">email</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t193" href="#t193">193</a></span><span class="t">            <span class="nam">email</span><span class="op">.</span><span class="nam">sendEMailToAdmins</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t193" href="#t193">193</a></span><span class="t">            <span class="nam">email</span><span class="op">.</span><span class="nam">send_email_to_admins</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t194" href="#t194">194</a></span><span class="t">                <span class="str">"Deferred task retry counter exceeded warning threshold"</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t195" href="#t195">195</a></span><span class="t">                <span class="fst">f"""</span><span class="fst">Task </span><span class="op">{</span><span class="nam">req</span><span class="op">.</span><span class="nam">headers</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">"X-Appengine-Taskname"</span><span class="op">,</span> <span class="str">""</span><span class="op">)</span><span class="op">}</span><span class="fst"> is retried for the </span><span class="op">{</span><span class="nam">retryCount</span><span class="op">}</span><span class="fst">th time.</span><span class="fst">"""</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t196" href="#t196">196</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -967,7 +967,7 @@
             <a class="nav" href="z_f59508c4bce93e29___init___py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.6.10">coverage.py v7.6.10</a>,
-            created at 2025-01-29 23:04 +0000
+            created at 2025-01-31 08:05 +0000
         </p>
     </div>
 </footer>
