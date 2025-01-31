@@ -430,7 +430,7 @@ class BaseBone(object):
             if self.unique and self.readOnly:
                 self.clone_behavior = CloneBehavior(CloneStrategy.SET_DEFAULT)
             else:
-               self.clone_behavior = CloneBehavior(CloneStrategy.COPY_VALUE)
+                self.clone_behavior = CloneBehavior(CloneStrategy.COPY_VALUE)
             # TODO: Any different setting for computed bones?
         elif isinstance(clone_behavior, CloneStrategy):
             self.clone_behavior = CloneBehavior(strategy=clone_behavior)
