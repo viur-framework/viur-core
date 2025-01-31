@@ -7,6 +7,7 @@ built, such as string, numeric, and date/time bones.
 
 import copy
 import dataclasses
+import enum
 import hashlib
 import inspect
 import logging
@@ -14,10 +15,9 @@ import typing as t
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import timedelta
-from enum import Enum, auto
-import enum
+from enum import Enum
 
-from viur.core import db, utils, current, i18n
+from viur.core import current, db, i18n, utils
 from viur.core.config import conf
 
 if t.TYPE_CHECKING:
@@ -207,30 +207,50 @@ class Compute:
 
 
 class CloneStrategy(enum.StrEnum):
+    """Strategy for selecting the value of a cloned skeleton"""
+
     SET_NULL = enum.auto()
+    """Sets the cloned bone value to None."""
+
     SET_DEFAULT = enum.auto()
+    """Sets the cloned bone value to its defaultValue."""
+
     SET_EMPTY = enum.auto()
+    """Sets the cloned bone value to its emptyValue."""
+
     COPY_VALUE = enum.auto()
+    """Copies the bone value from the source skeleton."""
+
     CUSTOM = enum.auto()
+    """Uses a custom-defined logic for setting the cloned value.
+    Requires :attr:`CloneBehavior.custom_func` to be set.
+    """
+
 
 class CloneCustomFunc(t.Protocol):
-    def __call__(self, skel: "SkeletonInstance", src_skel: "SkeletonInstance", bone_name:str) -> t.Any: ...
+    """Type for a custom clone function assigned to :attr:`CloneBehavior.custom_func`"""
+
+    def __call__(self, skel: "SkeletonInstance", src_skel: "SkeletonInstance", bone_name: str) -> t.Any: ...
+
 
 @dataclass
 class CloneBehavior:
+    """Strategy configuration for selecting the value of a cloned skeleton"""
+
     strategy: CloneStrategy
-    custom_func: callable = None
+    """The strategy used to select a value from a cloned skeleton"""
+
+    custom_func: CloneCustomFunc = None
+    """custom-defined logic for setting the cloned value
+    Only required when :attr:`strategy` is set to :attr:`CloneStrategy.CUSTOM`.
+    """
 
     def __post_init__(self):
+        """Validate this configuration."""
         if self.strategy == CloneStrategy.CUSTOM and self.custom_func is None:
             raise ValueError("CloneStrategy is CUSTOM, but custom_func is not set")
         elif self.strategy != CloneStrategy.CUSTOM and self.custom_func is not None:
             raise ValueError("custom_func is set, but CloneStrategy is not CUSTOM")
-        # if not ((self.strategy == CloneStrategy.CUSTOM) ^ (self.custom_func is None)):
-        #     raise ValueError("custom_func is not defined")
-
-
-
 
 
 class BaseBone(object):
@@ -1295,18 +1315,19 @@ class BaseBone(object):
         """
         pass
 
-    def clone_value(self, skel: "SkeletonInstance", src_skel:"SkeletonInstance", bone_name: str) -> None:
+    def clone_value(self, skel: "SkeletonInstance", src_skel: "SkeletonInstance", bone_name: str) -> None:
+        """Clone / Set the value for this bone depending on :attr:`clone_behavior`"""
         logging.debug(f"{bone_name=} | {self.clone_behavior=}")
         match self.clone_behavior.strategy:
             case CloneStrategy.COPY_VALUE:
                 try:
                     skel.accessedValues[bone_name] = copy.deepcopy(src_skel.accessedValues[bone_name])
                 except KeyError:
-                    pass # bone_name is not in accessedValues, no need to clone_behavior
+                    pass  # bone_name is not in accessedValues, no need to clone_behavior
                 try:
                     skel.renderAccessedValues[bone_name] = copy.deepcopy(src_skel.renderAccessedValues[bone_name])
                 except KeyError:
-                    pass # bone_name is not in renderAccessedValues, no need to clone_behavior
+                    pass  # bone_name is not in renderAccessedValues, no need to clone_behavior
             case CloneStrategy.SET_NULL:
                 skel.accessedValues[bone_name] = None
             case CloneStrategy.SET_DEFAULT:
