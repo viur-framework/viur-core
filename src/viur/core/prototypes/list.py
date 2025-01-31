@@ -350,7 +350,7 @@ class List(SkelModule):
     @skey(allow_empty=True)
     def clone(self, key: db.Key | str | int, **kwargs):
         """
-        Clone an existing entry, and render the entry, eventually with error notes on incorrect data.
+        CloneBehavior an existing entry, and render the entry, eventually with error notes on incorrect data.
         Data is taken by any other arguments in *kwargs*.
 
         The function performs several access control checks on the requested entity before it is added.
@@ -376,7 +376,7 @@ class List(SkelModule):
 
         # Remember source skel and unset the key for clone operation!
         src_skel = skel
-        skel = skel.clone()
+        skel = skel.clone(apply_clone_strategy=True)
         skel["key"] = None
 
         # Check all required preconditions for clone

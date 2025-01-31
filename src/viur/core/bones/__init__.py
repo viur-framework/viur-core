@@ -9,6 +9,8 @@ from .base import (
     ReadFromClientException,
     UniqueLockMethod,
     UniqueValue,
+    CloneBehavior,
+    CloneStrategy,
 )
 from .boolean import BooleanBone
 from .captcha import CaptchaBone
