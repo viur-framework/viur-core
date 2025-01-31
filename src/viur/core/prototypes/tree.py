@@ -1,4 +1,5 @@
 import logging
+import json
 import typing as t
 from deprecated.sphinx import deprecated
 from viur.core import utils, errors, db, current
@@ -7,6 +8,7 @@ from viur.core.bones import KeyBone, SortIndexBone
 from viur.core.cache import flushCache
 from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.tasks import CallDeferred
+from viur.core.render.json.default import CustomJsonEncoder
 from .skelmodule import SkelModule
 
 
@@ -1109,6 +1111,105 @@ class Tree(SkelModule):
 
             if self.leafSkelCls:
                 self._clone_recursive("leaf", src_skel["key"], skel["key"], skel["parentrepo"])
+
+    # Helpers
+
+    def get_content(
+        self,
+        parententry: t.Optional[db.Key | int | str] = None,
+        depth: int = 99,
+        limit: int = 99,
+        _level: int = 1,
+        **kwargs
+    ) -> t.Dict:
+        """
+        Reads the content of a given parententry recursively into a dict.
+
+        :param parententry: Parententry to dump; If not given, the fuction tries to figure out a single parent entry.
+        :param depth: Depth to dump children.
+        :param limit: Limit of entries on each level.
+        """
+        if not utils.string.is_prefix(self.render.kind, "json"):
+            raise errors.BadRequest("Can only use this function on JSON-based renders")
+
+        if not parententry:
+            repos = self.getAvailableRootNodes(**kwargs)
+
+            match len(repos):
+                case 0:
+                    raise errors.Unauthorized()
+                case 1:
+                    parententry = repos[0]["key"]
+                case _:
+                    raise errors.NotAcceptable(f"Missing required parameter {'parententry'!r}")
+
+        # fetch the nodes
+        q = self.viewSkel("node").all()
+        q.mergeExternalFilter(kwargs | {"parententry": parententry})
+
+        if not (q := self.listFilter(q)):
+            raise errors.Unauthorized()
+
+        self._apply_default_order(q)
+
+        ret = []
+        for skel in q.fetch(limit=limit):
+            node = self.render.renderSkelValues(skel)
+            node["_skeltype"] = "node"
+
+            # recurse into children
+            if _level < depth:
+                node["_children"] = self.get_content(skel["key"], depth=depth, limit=limit, _level=_level + 1, **kwargs)
+
+            ret.append(node)
+
+        # fetch the leafs (when this is a tree)
+        if self.leafSkelCls:
+            q = self.viewSkel("leaf").all()
+            q.mergeExternalFilter(kwargs | {"parententry": parententry})
+
+            if not (q := self.listFilter(q)):
+                raise errors.Unauthorized()
+
+            self._apply_default_order(q)
+
+            ret += [
+                self.render.renderSkelValues(skel) | {"_skeltype": "leaf"}
+                for skel in q.fetch(limit=limit)
+            ]
+
+        return ret
+
+    @exposed
+    def dump(
+        self,
+        parententry: t.Optional[db.Key | int | str] = None,
+        depth: int = 3,
+        limit: int = 30,
+        **kwargs
+    ) -> str:
+        """
+        Dumps a Tree's content as JSON, based on a parententry.
+
+        This function is very limited in its bounds, and shall only be used for quick retrieval of small tree structures
+        and for debugging purposes.
+
+        :param parententry: Parententry to dump; If not given, the fuction tries to figure out a single parent entry.
+        :param depth: Depth to dump children. Can only be a maxiumum of 3.
+        :param limit: Limit of entries on each level, can be maximum of 30 per level and type.
+        """
+        if not utils.string.is_prefix(self.render.kind, "json"):
+            raise errors.BadRequest("Can only use this function on JSON-based renders")
+
+        current.request.get().response.headers["Content-Type"] = "application/json"
+
+        if depth < 1 or depth > 3:
+            raise errors.NotAcceptable("'depth' out of bounds")
+
+        if limit < 1 or limit > 30:
+            raise errors.NotAcceptable("'limit' out of bounds")
+
+        return json.dumps(self.get_content(parententry, limit=limit, depth=depth, **kwargs), cls=CustomJsonEncoder)
 
 
 Tree.vi = True
