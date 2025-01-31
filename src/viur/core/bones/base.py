@@ -1323,11 +1323,11 @@ class BaseBone(object):
                 try:
                     skel.accessedValues[bone_name] = copy.deepcopy(src_skel.accessedValues[bone_name])
                 except KeyError:
-                    pass  # bone_name is not in accessedValues, no need to clone_behavior
+                    pass  # bone_name is not in accessedValues, cannot clone it
                 try:
                     skel.renderAccessedValues[bone_name] = copy.deepcopy(src_skel.renderAccessedValues[bone_name])
                 except KeyError:
-                    pass  # bone_name is not in renderAccessedValues, no need to clone_behavior
+                    pass  # bone_name is not in renderAccessedValues, cannot clone it
             case CloneStrategy.SET_NULL:
                 skel.accessedValues[bone_name] = None
             case CloneStrategy.SET_DEFAULT:
