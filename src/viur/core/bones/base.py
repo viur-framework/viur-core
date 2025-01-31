@@ -428,7 +428,7 @@ class BaseBone(object):
 
         self.compute = compute
 
-        if clone_behavior is None: # auto choose
+        if clone_behavior is None:  # auto choose
             if self.unique and self.readOnly:
                 self.clone_behavior = CloneBehavior(CloneStrategy.SET_DEFAULT)
             else:
