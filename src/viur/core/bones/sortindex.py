@@ -25,7 +25,7 @@ class SortIndexBone(NumericBone):
         defaultValue: int | float = lambda *args, **kwargs: time.time(),
         descr: str = "SortIndex",
         precision: int = 8,
-        clone_behavior = CloneBehavior(CloneStrategy.SET_DEFAULT),
+        clone_behavior=CloneBehavior(CloneStrategy.SET_DEFAULT),
         **kwargs
     ):
         super().__init__(
