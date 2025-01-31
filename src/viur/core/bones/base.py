@@ -230,7 +230,9 @@ class CloneStrategy(enum.StrEnum):
 class CloneCustomFunc(t.Protocol):
     """Type for a custom clone function assigned to :attr:`CloneBehavior.custom_func`"""
 
-    def __call__(self, skel: "SkeletonInstance", src_skel: "SkeletonInstance", bone_name: str) -> t.Any: ...
+    def __call__(self, skel: "SkeletonInstance", src_skel: "SkeletonInstance", bone_name: str) -> t.Any:
+        """Return the value for the cloned bone"""
+        ...
 
 
 @dataclass
@@ -1547,7 +1549,9 @@ class BaseBone(object):
             "languages": self.languages,
             "emptyvalue": self.getEmptyValue(),
             "indexed": self.indexed,
-            "clone_behavior": dataclasses.asdict(self.clone_behavior),
+            "clone_behavior": {
+                "strategy": self.clone_behavior.strategy,
+            },
         }
 
         # Provide a defaultvalue, if it's not a function.
