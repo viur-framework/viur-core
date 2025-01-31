@@ -622,7 +622,7 @@ class EmailTransportBrevo(EmailTransport):
                     logging.info(f"Already send an email for {limit = }.")
                     break
 
-                sendEMailToAdmins(
+                send_email_to_admins(
                     f"SendInBlue email budget {credits} ({idx}. warning)",
                     f"The SendInBlue email budget reached {credits} credits "
                     f"for {data['email']}. Please increase soon.",
