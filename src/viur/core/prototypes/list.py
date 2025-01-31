@@ -4,7 +4,7 @@ from viur.core import current, db, errors, utils
 from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
-from viur.core.bones import BaseBone
+from viur.core.bones import SortIndexBone
 from .skelmodule import SkelModule
 
 
@@ -386,6 +386,10 @@ class List(SkelModule):
             or not skel.fromClient(kwargs)  # failure on reading into the bones
             or utils.parse.bool(kwargs.get("bounce"))  # review before changing
         ):
+            for bone_name, bone in skel.items():
+                if not isinstance(bone, SortIndexBone):
+                    continue
+                skel[bone_name] = bone.getDefaultValue(skel)
             return self.render.edit(skel, action="clone")
 
         self.onClone(skel, src_skel=src_skel)
