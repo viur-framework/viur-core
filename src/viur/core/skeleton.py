@@ -1112,27 +1112,26 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         key: t.Optional[KeyType] = None,
         *,
         create: bool | dict | t.Callable[[SkeletonInstance], None] = False,
-        weak: bool = False,
+        adjust_kind: bool = False,
         _check_legacy: bool = True
     ) -> t.Optional[SkeletonInstance]:
         """
-            Read Skeleton with *key* from the datastore into the Skeleton.
-            If not key is given, skel["key"] will be used.
+        Read Skeleton with *key* from the datastore into the Skeleton.
+        If not key is given, skel["key"] will be used.
 
-            Reads all available data of entity kind *kindName* and the key *key*
-            from the Datastore into the Skeleton structure's bones. Any previous
-            data of the bones will discard.
+        Reads all available data of entity kind *kindName* and the key *key*
+        from the Datastore into the Skeleton structure's bones. Any previous
+        data of the bones will discard.
 
-            To store a Skeleton object to the Datastore, see :func:`~viur.core.skeleton.Skeleton.write`.
+        To store a Skeleton object to the Datastore, see :func:`~viur.core.skeleton.Skeleton.write`.
 
-            :param key: A :class:`viur.core.db.Key`, string, or int; from which the data shall be fetched.
-                If not provided, skel["key"] will be used.
-            :param create: Allows to specify a dict or initial callable that is executed in case the Skeleton with the
-                given key does not exist, it will be created.
-            :param weak: Will try to adjust a valid, given key with a different kindname to the kindname of the skel.
+        :param key: A :class:`viur.core.db.Key`, string, or int; from which the data shall be fetched.
+            If not provided, skel["key"] will be used.
+        :param create: Allows to specify a dict or initial callable that is executed in case the Skeleton with the
+            given key does not exist, it will be created.
+        :param adjust_kind: Will try to adjust a valid, given key with a different kindname to the kindname of the skel.
 
-            :returns: None on error, or the given SkeletonInstance on success.
-
+        :returns: None on error, or the given SkeletonInstance on success.
         """
         # FIXME VIUR4: Stay backward compatible, call sub-classed fromDB if available first!
         if _check_legacy and "fromDB" in cls.__dict__:
@@ -1143,7 +1142,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         assert skel.renderPreparation is None, "Cannot modify values while rendering"
 
         try:
-            db_key = db.keyHelper(key or skel["key"], skel.kindName, adjust_kind=weak)
+            db_key = db.keyHelper(key or skel["key"], skel.kindName, adjust_kind=adjust_kind)
         except (ValueError, NotImplementedError):  # This key did not parse
             return None
 
@@ -1776,20 +1775,20 @@ class RefSkel(RelSkel):
         newClass.__boneMap__ = bone_map
         return newClass
 
-    def read(self, key: t.Optional[db.Key | str | int] = None, weak: bool = False) -> SkeletonInstance:
+    def read(self, key: t.Optional[db.Key | str | int] = None, adjust_kind: bool = False) -> SkeletonInstance:
         """
         Read full skeleton instance referenced by the RefSkel from the database.
 
         Can be used for reading the full Skeleton from a RefSkel.
         The `key` parameter also allows to read another, given key from the related kind.
 
-        :param weak: Will try to adjust a valid, given key with a different kindname to the kindname of the skel.
+        :param adjust_kind: Will try to adjust a valid, given key with a different kindname to the kindname of the skel.
 
         :raise ValueError: If the entry is no longer in the database.
         """
         skel = skeletonByKind(self.kindName)()
 
-        if not skel.read(key or self["key"], weak=weak):
+        if not skel.read(key or self["key"], adjust_kind=adjust_kind):
             raise ValueError(f"""The key {key or self["key"]!r} seems to be gone""")
 
         return skel
