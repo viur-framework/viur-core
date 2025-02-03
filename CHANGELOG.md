@@ -2,6 +2,16 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.3]
+
+- fix: Check for preflight requests in closed_systems (#1382)
+- fix: Email methods has been renamed (#1395)
+- fix: Improve and standardize `Script` module `vfuncs` (#1388)
+- fix: Improve error reporting for unknown `RelationalBone` kinds (#1393)
+- fix: Remove overwriting `action` from `@deprecated` decorator (#1389)
+- fix: Use variable instead of custom name joining for public bucket (#1397)
+- refactor: `RelationalBone.refresh()` (#1392)
+
 ## [3.7.2]
 
 - feat: Provide `add_or_edit` root-only endpoint for importers (#1380)
