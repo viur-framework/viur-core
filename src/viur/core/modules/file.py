@@ -512,7 +512,7 @@ class File(Tree):
                 return _public_bucket
 
             raise ValueError(
-                f"""The bucket 'public-dot-{_PROJECT_ID}' does not exist! Please create it with ACL access."""
+                f"""The bucket '{PUBLIC_BUCKET_NAME}' does not exist! Please create it with ACL access."""
             )
 
         return _private_bucket
