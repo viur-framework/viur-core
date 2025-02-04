@@ -98,7 +98,7 @@ class Tree(SkelModule):
 
         :return: Returns a Skeleton instance for viewing an entry.
         """
-        return self.baseSkel(skelType, *args, **kwargs)
+        return self.skel(bones_from_request=True, skelType=skelType, **kwargs)
 
     def addSkel(self, skelType: SkelType, *args, **kwargs) -> SkeletonInstance:
         """
