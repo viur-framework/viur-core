@@ -1112,7 +1112,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         key: t.Optional[KeyType] = None,
         *,
         create: bool | dict | t.Callable[[SkeletonInstance], None] = False,
-        adjust_kind: bool = False,
         _check_legacy: bool = True
     ) -> t.Optional[SkeletonInstance]:
         """
@@ -1129,7 +1128,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             If not provided, skel["key"] will be used.
         :param create: Allows to specify a dict or initial callable that is executed in case the Skeleton with the
             given key does not exist, it will be created.
-        :param adjust_kind: Will try to adjust a valid, given key with a different kindname to the kindname of the skel.
 
         :returns: None on error, or the given SkeletonInstance on success.
         """
@@ -1142,7 +1140,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         assert skel.renderPreparation is None, "Cannot modify values while rendering"
 
         try:
-            db_key = db.keyHelper(key or skel["key"], skel.kindName, adjust_kind=adjust_kind)
+            db_key = db.keyHelper(key or skel["key"].id_or_name, skel.kindName)
         except (ValueError, NotImplementedError):  # This key did not parse
             return None
 
@@ -1775,20 +1773,18 @@ class RefSkel(RelSkel):
         newClass.__boneMap__ = bone_map
         return newClass
 
-    def read(self, key: t.Optional[db.Key | str | int] = None, adjust_kind: bool = False) -> SkeletonInstance:
+    def read(self, key: t.Optional[db.Key | str | int] = None) -> SkeletonInstance:
         """
         Read full skeleton instance referenced by the RefSkel from the database.
 
         Can be used for reading the full Skeleton from a RefSkel.
         The `key` parameter also allows to read another, given key from the related kind.
 
-        :param adjust_kind: Will try to adjust a valid, given key with a different kindname to the kindname of the skel.
-
         :raise ValueError: If the entry is no longer in the database.
         """
         skel = skeletonByKind(self.kindName)()
 
-        if not skel.read(key or self["key"], adjust_kind=adjust_kind):
+        if not skel.read(key or self["key"].id_or_name):
             raise ValueError(f"""The key {key or self["key"]!r} seems to be gone""")
 
         return skel

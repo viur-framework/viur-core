@@ -1033,7 +1033,7 @@ class RelationalBone(BaseBone):
 
             if value["dest"]:
                 try:
-                    target_skel = value["dest"].read(adjust_kind=True)
+                    target_skel = value["dest"].read()
                 except ValueError:
                     logging.error(
                         f"{name}: The key {value['dest']['key']!r} ({value['dest'].get('name')!r}) seems to be gone"
