@@ -70,7 +70,7 @@ class Tree(SkelModule):
 
         return None
 
-    def _resolveSkelCls(self, skelType: SkelType, *args, **kwargs) -> t.Type[Skeleton]:
+    def _resolveSkelCls(self, *, skelType: SkelType, **kwargs) -> t.Type[Skeleton]:
         if not (skelType := self._checkSkelType(skelType)):
             raise ValueError("Unsupported skelType")
 
@@ -79,15 +79,17 @@ class Tree(SkelModule):
 
         return self.nodeSkelCls
 
-    def baseSkel(self, skelType: SkelType, *args, **kwargs) -> SkeletonInstance:
+    # FIXME: In VIUR4 skelType will become a kwargs-only-parameter
+    def baseSkel(self, skelType: SkelType, **kwargs) -> SkeletonInstance:
         """
         Return unmodified base skeleton for the given skelType.
 
         .. seealso:: :func:`addSkel`, :func:`editSkel`, :func:`viewSkel`, :func:`~baseSkel`
         """
-        return self._resolveSkelCls(skelType, *args, **kwargs)()
+        return self._resolveSkelCls(skelType=skelType, **kwargs)()
 
-    def viewSkel(self, skelType: SkelType, *args, **kwargs) -> SkeletonInstance:
+    # FIXME: In VIUR4 skelType will become a kwargs-only-parameter
+    def viewSkel(self, skelType: SkelType, **kwargs) -> SkeletonInstance:
         """
         Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
         for viewing an existing entry from the tree.
@@ -98,9 +100,10 @@ class Tree(SkelModule):
 
         :return: Returns a Skeleton instance for viewing an entry.
         """
-        return self.skel(bones_from_request=True, skelType=skelType, **kwargs)
+        return self.skel(skelType=skelType, **kwargs)
 
-    def addSkel(self, skelType: SkelType, *args, **kwargs) -> SkeletonInstance:
+    # FIXME: In VIUR4 skelType will become a kwargs-only-parameter
+    def addSkel(self, skelType: SkelType, **kwargs) -> SkeletonInstance:
         """
         Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
         for adding an entry to the tree.
@@ -111,9 +114,10 @@ class Tree(SkelModule):
 
         :return: Returns a Skeleton instance for adding an entry.
         """
-        return self.baseSkel(skelType, *args, **kwargs)
+        return self.skel(skelType=skelType, **kwargs)
 
-    def editSkel(self, skelType: SkelType, *args, **kwargs) -> SkeletonInstance:
+    # FIXME: In VIUR4 skelType will become a kwargs-only-parameter
+    def editSkel(self, skelType: SkelType, **kwargs) -> SkeletonInstance:
         """
         Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
         for editing an existing entry from the tree.
@@ -124,9 +128,10 @@ class Tree(SkelModule):
 
         :return: Returns a Skeleton instance for editing an entry.
         """
-        return self.baseSkel(skelType, *args, **kwargs)
+        return self.skel(skelType=skelType, **kwargs)
 
-    def cloneSkel(self, skelType: SkelType, *args, **kwargs) -> SkeletonInstance:
+    # FIXME: In VIUR4 skelType will become a kwargs-only-parameter
+    def cloneSkel(self, skelType: SkelType, **kwargs) -> SkeletonInstance:
         """
         Retrieve a new :class:`viur.core.skeleton.SkeletonInstance` that is used by the application
         for cloning an existing entry of the tree.
@@ -137,7 +142,7 @@ class Tree(SkelModule):
 
         :return: Returns a SkeletonInstance for cloning an entry.
         """
-        return self.baseSkel(skelType, *args, **kwargs)
+        return self.skel(skelType=skelType, **kwargs)
 
     def rootnodeSkel(
         self,
@@ -246,14 +251,14 @@ class Tree(SkelModule):
             db.Put(node)
 
         # Fix all nodes
-        q = db.Query(self.viewSkel("node").kindName).filter("parententry =", parentNode)
+        q = db.Query(self.viewSkel(skelType="node").kindName).filter("parententry =", parentNode)
         for repo in q.iter():
             self.updateParentRepo(repo.key, newRepoKey, depth=depth + 1)
             db.RunInTransaction(fixTxn, repo.key, newRepoKey)
 
         # Fix the leafs on this level
         if self.leafSkelCls:
-            q = db.Query(self.viewSkel("leaf").kindName).filter("parententry =", parentNode)
+            q = db.Query(self.viewSkel(skelType="leaf").kindName).filter("parententry =", parentNode)
             for repo in q.iter():
                 db.RunInTransaction(fixTxn, repo.key, newRepoKey)
 
@@ -269,12 +274,12 @@ class Tree(SkelModule):
         """
         lastLevel = []
         for x in range(0, 99):
-            currentNodeSkel = self.viewSkel("node")
+            currentNodeSkel = self.viewSkel(skelType="node")
             if not currentNodeSkel.read(key):
                 return []  # Either invalid key or listFilter prevented us from fetching anything
             if currentNodeSkel["parententry"] == currentNodeSkel["parentrepo"]:  # We reached the top level
                 break
-            levelQry = self.viewSkel("node").all().filter("parententry =", currentNodeSkel["parententry"])
+            levelQry = self.viewSkel(skelType="node").all().filter("parententry =", currentNodeSkel["parententry"])
             currentLevel = [{"skel": x,
                              "active": x["key"] == currentNodeSkel["key"],
                              "children": lastLevel if x["key"] == currentNodeSkel["key"] else []}
@@ -330,8 +335,10 @@ class Tree(SkelModule):
         if not (skelType := self._checkSkelType(skelType)):
             raise errors.NotAcceptable("Invalid skelType provided.")
 
+        skel = self.viewSkel(skelType=skelType, allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
+
         # The general access control is made via self.listFilter()
-        if not (query := self.listFilter(self.viewSkel(skelType).all().mergeExternalFilter(kwargs))):
+        if not (query := self.listFilter(skel.all().mergeExternalFilter(kwargs))):
             raise errors.Unauthorized()
 
         self._apply_default_order(query)
@@ -348,24 +355,27 @@ class Tree(SkelModule):
         # FIXME: In ViUR > 3.7 this could also become dynamic (ActionSkel paradigm).
         match action:
             case "view":
-                skel = self.viewSkel(skelType)
-                if not self.canView(skelType, skel):
+                skel = self.viewSkel(
+                    skelType=skelType,
+                    allow_client_defined=utils.string.is_prefix(self.render.kind, "json")
+                )
+                if not self.canView(skelType=skelType, skel=skel):
                     raise errors.Unauthorized()
 
             case "edit":
-                skel = self.editSkel(skelType)
-                if not self.canEdit(skelType, skel):
+                skel = self.editSkel(skelType=skelType)
+                if not self.canEdit(skelType=skelType, skel=skel):
                     raise errors.Unauthorized()
 
             case "add":
-                if not self.canAdd(skelType):
+                if not self.canAdd(skelType=skelType):
                     raise errors.Unauthorized()
 
-                skel = self.addSkel(skelType)
+                skel = self.addSkel(skelType=skelType)
 
             case "clone":
-                skel = self.cloneSkel(skelType)
-                if not (self.canAdd(skelType) and self.canEdit(skelType, skel)):
+                skel = self.cloneSkel(skelType=skelType)
+                if not (self.canAdd(skelType) and self.canEdit(skelType=skelType, skel=skel)):
                     raise errors.Unauthorized()
 
             case _:
@@ -395,11 +405,11 @@ class Tree(SkelModule):
         if not (skelType := self._checkSkelType(skelType)):
             raise errors.NotAcceptable(f"Invalid skelType provided.")
 
-        skel = self.viewSkel(skelType)
+        skel = self.viewSkel(skelType=skelType, allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
         if not skel.read(key):
             raise errors.NotFound()
 
-        if not self.canView(skelType, skel):
+        if not self.canView(skelType=skelType, skel=skel):
             raise errors.Unauthorized()
 
         self.onView(skelType, skel)
@@ -430,11 +440,11 @@ class Tree(SkelModule):
         if not (skelType := self._checkSkelType(skelType)):
             raise errors.NotAcceptable(f"Invalid skelType provided.")
 
-        skel = self.addSkel(skelType)
-        parentNodeSkel = self.editSkel("node")
+        skel = self.addSkel(skelType=skelType)
+        parentNodeSkel = self.editSkel(skelType="node")
         if not parentNodeSkel.read(node):
             raise errors.NotFound("The provided parent node could not be found.")
-        if not self.canAdd(skelType, parentNodeSkel):
+        if not self.canAdd(skelType=skelType, parentNodeSkel=parentNodeSkel):
             raise errors.Unauthorized()
 
         skel["parententry"] = parentNodeSkel["key"]
@@ -474,9 +484,9 @@ class Tree(SkelModule):
         is_add = not bool(db.Get(db_key))
 
         if is_add:
-            skel = self.addSkel(skelType)
+            skel = self.addSkel(skelType=skelType)
         else:
-            skel = self.editSkel(skelType)
+            skel = self.editSkel(skelType=skelType)
 
         skel["key"] = db_key
 
@@ -526,11 +536,11 @@ class Tree(SkelModule):
         if not (skelType := self._checkSkelType(skelType)):
             raise errors.NotAcceptable(f"Invalid skelType provided.")
 
-        skel = self.editSkel(skelType)
+        skel = self.editSkel(skelType=skelType)
         if not skel.read(key):
             raise errors.NotFound()
 
-        if not self.canEdit(skelType, skel):
+        if not self.canEdit(skelType=skelType, skel=skel):
             raise errors.Unauthorized()
 
         if (
@@ -571,11 +581,11 @@ class Tree(SkelModule):
         if not (skelType := self._checkSkelType(skelType)):
             raise errors.NotAcceptable(f"Invalid skelType provided.")
 
-        skel = self.editSkel(skelType)
+        skel = self.editSkel(skelType=skelType)
         if not skel.read(key):
             raise errors.NotFound()
 
-        if not self.canDelete(skelType, skel):
+        if not self.canDelete(skelType=skelType, skel=skel):
             raise errors.Unauthorized()
 
         if skelType == "node":
@@ -596,16 +606,16 @@ class Tree(SkelModule):
 
         :param parentKey: URL-safe key of the node which children should be deleted.
         """
-        nodeKey = db.keyHelper(parentKey, self.viewSkel("node").kindName)
+        nodeKey = db.keyHelper(parentKey, self.viewSkel(skelType="node").kindName)
         if self.leafSkelCls:
-            for leaf in db.Query(self.viewSkel("leaf").kindName).filter("parententry =", nodeKey).iter():
-                leafSkel = self.viewSkel("leaf")
+            for leaf in db.Query(self.viewSkel(skelType="leaf").kindName).filter("parententry =", nodeKey).iter():
+                leafSkel = self.viewSkel(skelType="leaf")
                 if not leafSkel.read(leaf.key):
                     continue
                 leafSkel.delete()
-        for node in db.Query(self.viewSkel("node").kindName).filter("parententry =", nodeKey).iter():
+        for node in db.Query(self.viewSkel(skelType="node").kindName).filter("parententry =", nodeKey).iter():
             self.deleteRecursive(node.key)
-            nodeSkel = self.viewSkel("node")
+            nodeSkel = self.viewSkel(skelType="node")
             if not nodeSkel.read(node.key):
                 continue
             nodeSkel.delete()
@@ -634,7 +644,7 @@ class Tree(SkelModule):
         if not (skelType := self._checkSkelType(skelType)):
             raise errors.NotAcceptable(f"Invalid skelType provided.")
 
-        skel = self.editSkel(skelType)  # srcSkel - the skeleton to be moved
+        skel = self.editSkel(skelType=skelType)  # srcSkel - the skeleton to be moved
         parentNodeSkel = self.baseSkel("node")  # destSkel - the node it should be moved into
 
         if not skel.read(key):
@@ -661,7 +671,8 @@ class Tree(SkelModule):
         for _ in range(0, 99):
             if currLevel.key == skel["key"]:
                 break
-            if currLevel.get("rootNode") or currLevel.get("is_root_node"):
+            # TODO: Remove "rootNode"-fallback with VIUR4
+            if currLevel.get("is_root_node") or currLevel.get("rootNode"):
                 # We reached a rootNode, so this is okay
                 break
             currLevel = db.Get(currLevel["parententry"])
@@ -717,12 +728,21 @@ class Tree(SkelModule):
         if not (skelType := self._checkSkelType(skelType)):
             raise errors.NotAcceptable(f"Invalid skelType provided.")
 
-        skel = self.cloneSkel(skelType)
+        skel = self.cloneSkel(skelType=skelType)
         if not skel.read(key):
             raise errors.NotFound()
 
+        if parententry := kwargs.get("parententry"):
+            if not (parentNodeSkel := self.editSkel(skelType="node").read(parententry)):
+                raise errors.NotFound("The provided parent node could not be found.")
+        else:
+            parentNodeSkel = None
+
         # a clone-operation is some kind of edit and add...
-        if not (self.canEdit(skelType, skel) and self.canAdd(skelType, kwargs.get("parententry"))):
+        if not (
+            self.canEdit(skelType=skelType, skel=skel)
+            and self.canAdd(skelType=skelType, parentNodeSkel=parentNodeSkel)
+        ):
             raise errors.Unauthorized()
 
         # Remember source skel and unset the key for clone operation!
@@ -788,7 +808,7 @@ class Tree(SkelModule):
         :param skel: The entry we check for
         :return: True if the current session is authorized to view that entry, False otherwise
         """
-        query = self.viewSkel(skelType).all()
+        query = self.viewSkel(skelType=skelType).all()
 
         if key := skel["key"]:
             query.mergeExternalFilter({"key": key})
@@ -1057,7 +1077,7 @@ class Tree(SkelModule):
 
         logging.debug(f"_clone_recursive {skel_type=}, {src_key=}, {target_key=}, {target_repo=}, {cursor=}")
 
-        q = self.cloneSkel(skel_type).all().filter("parententry", src_key).order("sortindex")
+        q = self.cloneSkel(skelType=skel_type).all().filter("parententry", src_key).order("sortindex")
         q.setCursor(cursor)
 
         count = 0

@@ -27,32 +27,6 @@ class Singleton(SkelModule):
         """
         return f"{self.editSkel().kindName}-modulekey"
 
-    def viewSkel(self, *args, **kwargs) -> SkeletonInstance:
-        """
-        Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
-        for viewing the existing entry.
-
-        The default is a Skeleton instance returned by :func:`~baseSkel`.
-
-        .. seealso:: :func:`addSkel`, :func:`editSkel`, :func:`~baseSkel`
-
-        :return: Returns a Skeleton instance for viewing the singleton entry.
-        """
-        return self.skel(bones_from_request=True, **kwargs)
-
-    def editSkel(self, *args, **kwargs) -> SkeletonInstance:
-        """
-        Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
-        for editing the existing entry.
-
-        The default is a Skeleton instance returned by :func:`~baseSkel`.
-
-        .. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`~baseSkel`
-
-        :return: Returns a Skeleton instance for editing the entry.
-        """
-        return self.baseSkel(*args, **kwargs)
-
     ## External exposed functions
 
     @exposed
@@ -75,7 +49,7 @@ class Singleton(SkelModule):
         if not self.canPreview():
             raise errors.Unauthorized()
 
-        skel = self.viewSkel()
+        skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
         skel.fromClient(kwargs)
 
         return self.render.view(skel)
@@ -91,7 +65,7 @@ class Singleton(SkelModule):
         # FIXME: In ViUR > 3.7 this could also become dynamic (ActionSkel paradigm).
         match action:
             case "view":
-                skel = self.viewSkel()
+                skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
                 if not self.canView():
                     raise errors.Unauthorized()
 
@@ -120,7 +94,7 @@ class Singleton(SkelModule):
         :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
 
-        skel = self.viewSkel()
+        skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
         if not self.canView():
             raise errors.Unauthorized()
 
