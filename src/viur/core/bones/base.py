@@ -1319,7 +1319,6 @@ class BaseBone(object):
 
     def clone_value(self, skel: "SkeletonInstance", src_skel: "SkeletonInstance", bone_name: str) -> None:
         """Clone / Set the value for this bone depending on :attr:`clone_behavior`"""
-        logging.debug(f"{bone_name=} | {self.clone_behavior=}")
         match self.clone_behavior.strategy:
             case CloneStrategy.COPY_VALUE:
                 try:
