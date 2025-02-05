@@ -1994,21 +1994,23 @@ class TaskUpdateSearchIndex(CallableTaskBase):
             for kindname in listKnownSkeletons():
                 logging.info(f"Rebuilding search index for {kindname=}")
                 self._run(kindname, notify)
+
+            return
+
+        if specific_key:
+            try:
+                specific_key = db.Key.from_legacy_urlsafe(specific_key)
+                kindname = specific_key.kind
+            except Exception:
+                pass  # just ignore, and use value of specific_key further.
+
+        if not kindname:
+            raise errors.BadRequest("Cannot run on unknown kind")
+
+        if specific_key:
+            self._run(kindname, notify, key=str(specific_key))
         else:
-            if specific_key:
-                try:
-                    specific_key = db.Key.from_legacy_urlsafe(specific_key)
-                    kindname = specific_key.kind
-                except Exception:
-                    pass  # just ignore, and use value of specific_key further.
-
-            if not kindname:
-                raise errors.BadRequest("Cannot run on unknown kind")
-
-            if specific_key:
-                self._run(kindname, notify, key=str(specific_key))
-            else:
-                self._run(kindname, notify)
+            self._run(kindname, notify)
 
     @staticmethod
     def _run(kindname: str, notify: str, **kwargs):
