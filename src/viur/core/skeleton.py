@@ -1258,9 +1258,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     # Serialize bone into entity
                     try:
                         bone.serialize(skel, bone_name, True)
-                    except Exception:
-                        logging.error(f"Failed to serialize {bone_name} {bone} {skel.accessedValues[bone_name]}")
-                        raise
+                    except Exception as e:
+                        logging.exception(e)
 
                 # Obtain referenced blobs
                 blob_list.update(bone.getReferencedBlobs(skel, bone_name))

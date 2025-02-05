@@ -68,7 +68,10 @@ class BooleanBone(BaseBone):
 
             :param name: The property-name this bone has in its Skeleton (not the description!)
         """
-        if not isinstance(skel[boneName], bool):
+        if self.languages:
+            for lang in self.languages:
+                skel[boneName][lang] = utils.parse.bool(skel[boneName][lang], conf.bone_boolean_str2true)
+        else:
             skel[boneName] = utils.parse.bool(skel[boneName], conf.bone_boolean_str2true)
 
     def setBoneValue(
@@ -114,7 +117,7 @@ class BooleanBone(BaseBone):
             values.
             The serialized value should be suitable for storage in the database.
         """
-        return utils.parse.bool(value)
+        return utils.parse.bool(value, conf.bone_boolean_str2true)
 
     def buildDBFilter(
         self,
