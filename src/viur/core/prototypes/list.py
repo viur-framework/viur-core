@@ -350,7 +350,7 @@ class List(SkelModule):
     @skey(allow_empty=True)
     def clone(self, key: db.Key | str | int, **kwargs):
         """
-        CloneBehavior an existing entry, and render the entry, eventually with error notes on incorrect data.
+        Clone an existing entry, and render the entry, eventually with error notes on incorrect data.
         Data is taken by any other arguments in *kwargs*.
 
         The function performs several access control checks on the requested entity before it is added.
