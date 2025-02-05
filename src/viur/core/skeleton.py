@@ -2004,8 +2004,8 @@ class TaskUpdateSearchIndex(CallableTaskBase):
                 try:
                     specific_key = db.Key.from_legacy_urlsafe(specific_key)
                     skelname = specific_key.kind
-                except:
-                    pass
+                except Exception:
+                    pass  # just ignore, and use value of specific_key further.
 
             if not skelname:
                 raise errors.BadRequest("Cannot run on unknown kind")
@@ -2035,11 +2035,13 @@ class RebuildSearchIndex(QueryIter):
         QueryIter.handleFinish(totalCount, customData)
         if not customData["notify"]:
             return
+
         txt = (
             f"{conf.instance.project_id}: Rebuild search index finished for {customData['module']}\n\n"
             f"ViUR finished to rebuild the search index for module {customData['module']}.\n"
             f"{totalCount} records updated in total on this kind."
         )
+
         try:
             email.send_email(dests=customData["notify"], stringTemplate=txt, skel=None)
         except Exception as exc:  # noqa; OverQuota, whatever
