@@ -70,7 +70,7 @@ class BooleanBone(BaseBone):
         """
         if self.languages:
             for lang in self.languages:
-                skel[boneName][lang] = utils.parse.bool(skel[boneName][lang], conf.bone_boolean_str2true)
+                skel[boneName][lang] = utils.parse.bool(skel[boneName][name], conf.bone_boolean_str2true) if lang in skel[name] else self.getDefaultValue(skel)
         else:
             skel[boneName] = utils.parse.bool(skel[boneName], conf.bone_boolean_str2true)
 
