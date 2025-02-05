@@ -1968,13 +1968,23 @@ class TaskUpdateSearchIndex(CallableTaskBase):
         return user is not None and "root" in user["access"]
 
     def dataSkel(self):
-        modules = ["*"] + listKnownSkeletons()
-        modules.sort()
         skel = BaseSkeleton().clone()
-        skel.module = SelectBone(descr="Module", values={x: translate(x) for x in modules}, required=True)
+
+        skel.skelname = SelectBone(
+            descr="Kind",
+            values={"*": "*"} | {name: translate(name) for name in sorted(listKnownSkeletons())},
+        )
+
+        skel.specific_key = StringBone(
+            descr="Key",
+            params={
+                "tooltip": "Optional: Key of one entry to refresh, ignores the kind selected above."
+            }
+        )
+
         return skel
 
-    def execute(self, module, *args, **kwargs):
+    def execute(self, skelname, specific_key, *args, **kwargs):
         usr = current.user.get()
         if not usr:
             logging.warning("Don't know who to inform after rebuilding finished")
@@ -1982,20 +1992,36 @@ class TaskUpdateSearchIndex(CallableTaskBase):
         else:
             notify = usr["name"]
 
-        if module == "*":
-            for module in listKnownSkeletons():
-                logging.info("Rebuilding search index for module %r", module)
-                self._run(module, notify)
+        if skelname == "*":
+            if specific_key:
+                raise errors.BadRequest(f"Cannot run on all kinds with {specific_key=}")
+
+            for skelname in listKnownSkeletons():
+                logging.info(f"Rebuilding search index for {skelname=}")
+                self._run(skelname, notify)
         else:
-            self._run(module, notify)
+            if specific_key:
+                try:
+                    specific_key = db.Key.from_legacy_urlsafe(specific_key)
+                    skelname = specific_key.kind
+                except:
+                    pass
+
+            if not skelname:
+                raise errors.BadRequest("Cannot run on unknown kind")
+
+            self._run(skelname, notify, **{"key": str(specific_key)})
 
     @staticmethod
-    def _run(module: str, notify: str):
-        Skel = skeletonByKind(module)
-        if not Skel:
+    def _run(module: str, notify: str, **kwargs):
+        skel_cls = skeletonByKind(module)
+        if not skel_cls:
             logging.error("TaskUpdateSearchIndex: Invalid module")
             return
-        RebuildSearchIndex.startIterOnQuery(Skel().all(), {"notify": notify, "module": module})
+
+        q = skel_cls().all()
+        q.mergeExternalFilter(kwargs)
+        RebuildSearchIndex.startIterOnQuery(q, {"notify": notify, "module": module})
 
 
 class RebuildSearchIndex(QueryIter):
