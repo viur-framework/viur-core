@@ -1,6 +1,6 @@
 """
 ViUR-core
-Copyright © 2024 Mausbrand Informationssysteme GmbH
+Copyright © 2025 Mausbrand Informationssysteme GmbH
 
 https://core.docs.viur.dev
 Licensed under the MIT license. See LICENSE for more information.
@@ -70,8 +70,9 @@ __all__ = [
 ]
 
 # Show DeprecationWarning from the viur-core
-warnings.filterwarnings("always", category=DeprecationWarning, module=r"viur\.core.*")
-
+warnings.filterwarnings("once", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning, module=r"viur\.datastore.*",
+                        message="'clonedBoneMap' was renamed into 'bone_map'")
 
 def setDefaultLanguage(lang: str):
     """
@@ -253,7 +254,7 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
             and (not conf.instance.is_dev_server or conf.debug.dev_server_cloud_logging)):
         from viur.core import email
         try:
-            email.sendEMailToAdmins(
+            email.send_email_to_admins(
                 "Debug mode enabled",
                 "ViUR just started a new Instance with call tracing enabled! This might log sensitive information!"
             )

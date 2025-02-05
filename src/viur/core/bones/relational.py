@@ -301,7 +301,14 @@ class RelationalBone(BaseBone):
         """
         super().setSystemInitialized()
         from viur.core.skeleton import RefSkel, SkeletonInstance
-        self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
+
+        try:
+            self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
+        except AssertionError:
+            raise NotImplementedError(
+                f"Skeleton {self.skel_cls!r} {self.__class__.__name__} {self.name!r}: Kind {self.kind!r} unknown"
+            )
+
         self._skeletonInstanceClassRef = SkeletonInstance
         self._ref_keys = set(self._refSkelCache.__boneMap__.keys())
 
@@ -1006,7 +1013,7 @@ class RelationalBone(BaseBone):
                         res.append(f"src.{orderKey}")
         return res
 
-    def refresh(self, skel: "SkeletonInstance", boneName: str):
+    def refresh(self, skel: "SkeletonInstance", name: str) -> None:
         """
         Refreshes all values that might be cached from other entities in the provided skeleton.
 
@@ -1017,40 +1024,24 @@ class RelationalBone(BaseBone):
         :param SkeletonInstance skel: The skeleton containing the bone to be refreshed.
         :param str boneName: The name of the bone to be refreshed.
         """
-
-        def updateInplace(relDict):
-            """
-                Fetches the entity referenced by valDict["dest.key"] and updates all dest.* keys
-                accordingly
-            """
-            if not (isinstance(relDict, dict) and "dest" in relDict):
-                logging.error(f"Invalid dictionary in updateInplace: {relDict}")
-                return
-            newValues = db.Get(db.keyHelper(relDict["dest"]["key"], self.kind))
-            if newValues is None:
-                logging.info(f"""The key {relDict["dest"]["key"]} does not exist""")
-                return
-            for boneName in self._ref_keys:
-                if boneName != "key" and boneName in newValues:
-                    relDict["dest"].dbEntity[boneName] = newValues[boneName]
-
-        if not skel[boneName] or self.updateLevel == RelationalUpdateLevel.OnValueAssignment:
+        if not skel[name] or self.updateLevel == RelationalUpdateLevel.OnValueAssignment:
             return
 
-        # logging.debug("Refreshing RelationalBone %s of %s" % (boneName, skel.kindName))
-        if isinstance(skel[boneName], dict) and "dest" not in skel[boneName]:  # multi lang
-            for l in skel[boneName]:
-                if isinstance(skel[boneName][l], dict):
-                    updateInplace(skel[boneName][l])
-                elif isinstance(skel[boneName][l], list):
-                    for k in skel[boneName][l]:
-                        updateInplace(k)
-        else:
-            if isinstance(skel[boneName], dict):
-                updateInplace(skel[boneName])
-            elif isinstance(skel[boneName], list):
-                for k in skel[boneName]:
-                    updateInplace(k)
+        for idx, lang, value in self.iter_bone_value(skel, name):
+            if value is None:
+                continue
+
+            if value["dest"]:
+                try:
+                    target_skel = value["dest"].read()
+                except ValueError:
+                    logging.error(
+                        f"{name}: The key {value['dest']['key']!r} ({value['dest'].get('name')!r}) seems to be gone"
+                    )
+                    continue
+
+                for key in self.refKeys:
+                    value["dest"][key] = target_skel[key]
 
     def getSearchTags(self, skel: "SkeletonInstance", name: str) -> set[str]:
         """

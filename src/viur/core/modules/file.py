@@ -1,26 +1,28 @@
 import base64
 import datetime
-import google.auth
 import hashlib
 import hmac
 import html
 import io
 import json
 import logging
-import PIL
-import PIL.ImageCms
 import re
-import requests
 import string
 import typing as t
 import warnings
 from collections import namedtuple
-from google.appengine.api import images, blobstore
 from urllib.parse import quote as urlquote, urlencode
 from urllib.request import urlopen
 
+import PIL
+import PIL.ImageCms
+import google.auth
+import requests
+from PIL import Image
+from google.appengine.api import blobstore, images
 from google.cloud import storage
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
+
 from viur.core import conf, current, db, errors, utils
 from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
 from viur.core.decorators import *
@@ -28,7 +30,6 @@ from viur.core.i18n import LanguageWrapper
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import SkeletonInstance, skeletonByKind
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
-
 
 # Globals for connectivity
 
@@ -477,6 +478,9 @@ class File(Tree):
     DOWNLOAD_URL_PREFIX = "/file/download/"
     INTERNAL_SERVING_URL_PREFIX = "/file/serve/"
     MAX_FILENAME_LEN = 256
+    IMAGE_META_MAX_SIZE: t.Final[int] = 10 * 1024 ** 2
+    """Maximum size of image files that should be analysed in :meth:`set_image_meta`.
+    Default: 10 MiB"""
 
     leafSkelCls = FileLeafSkel
     nodeSkelCls = FileNodeSkel
@@ -508,7 +512,7 @@ class File(Tree):
                 return _public_bucket
 
             raise ValueError(
-                f"""The bucket 'public-dot-{_PROJECT_ID}' does not exist! Please create it with ACL access."""
+                f"""The bucket '{PUBLIC_BUCKET_NAME}' does not exist! Please create it with ACL access."""
             )
 
         return _private_bucket
@@ -1198,7 +1202,9 @@ class File(Tree):
             skel["weak"] = rootNode is None
             skel["crc32c_checksum"] = base64.b64decode(blob.crc32c).hex()
             skel["md5_checksum"] = base64.b64decode(blob.md5_hash).hex()
+            self.onAdd("leaf", skel)
             skel.write()
+            self.onAdded("leaf", skel)
 
             # Add updated download-URL as the auto-generated isn't valid yet
             skel["downloadUrl"] = self.create_download_url(skel["dlkey"], skel["name"])
@@ -1214,7 +1220,6 @@ class File(Tree):
         dlkey: t.Optional[str] = None,
         filename: t.Optional[str] = None,
         derived: bool = False,
-
     ):
         """
         Request a download url for a given file
@@ -1277,6 +1282,46 @@ class File(Tree):
 
         bucket.copy_blob(old_blob, bucket, new_path, if_generation_match=0)
         bucket.delete_blob(old_path)
+
+    def onAdded(self, skelType: SkelType, skel: SkeletonInstance) -> None:
+        super().onAdded(skelType, skel)
+        if skel["mimetype"].startswith("image/"):
+            if skel["size"] > self.IMAGE_META_MAX_SIZE:
+                logging.warning(f'File size {skel['size']} exceeds limit {self.IMAGE_META_MAX_SIZE=}')
+                return
+            self.set_image_meta(skel["key"])
+
+    @CallDeferred
+    def set_image_meta(self, key: db.Key) -> None:
+        """Write image metadata (height and width) to FileSkel"""
+        skel = self.editSkel("leaf", key)
+        if not skel.read(key):
+            logging.error(f"File {key} does not exist")
+            return
+        if skel["width"] and skel["height"]:
+            logging.info(f'File {skel["key"]} has already {skel["width"]=} and {skel["height"]=}')
+            return
+        file_name = html.unescape(skel["name"])
+        blob = self.get_bucket(skel["dlkey"]).get_blob(f"""{skel["dlkey"]}/source/{file_name}""")
+        if not blob:
+            logging.error(f'Blob {skel["dlkey"]}/source/{file_name} is missing in Cloud Storage!')
+            return
+
+        file_obj = io.BytesIO()
+        blob.download_to_file(file_obj)
+        file_obj.seek(0)
+        try:
+            img = Image.open(file_obj)
+        except Image.UnidentifiedImageError as e:  # Can't load this image
+            logging.exception(f'Cannot open {skel["key"]} | {skel["name"]} to set image meta data: {e}')
+            return
+
+        skel.patch(
+            values={
+                "width": img.width,
+                "height": img.height,
+            },
+        )
 
     def mark_for_deletion(self, dlkey: str) -> None:
         """

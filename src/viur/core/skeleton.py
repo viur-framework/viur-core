@@ -465,7 +465,6 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
     @deprecated(
         version="3.7.0",
         reason="Function renamed. Use subskel function as alternative implementation.",
-        action="always"
     )
     def subSkel(cls, *subskel_names, fullClone: bool = False, **kwargs) -> SkeletonInstance:
         return cls.subskel(*subskel_names, clone=fullClone)  # FIXME: REMOVE WITH VIUR4
@@ -689,7 +688,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
             This function causes a refresh of all relational bones and their associated
             information.
         """
-        logging.debug(f"""Refreshing {skel["key"]=}""")
+        logging.debug(f"""Refreshing {skel["key"]!r} ({skel.get("name")!r})""")
 
         for key, bone in skel.items():
             if not isinstance(bone, BaseBone):
@@ -1099,7 +1098,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     @deprecated(
         version="3.7.0",
         reason="Use skel.read() instead of skel.fromDB()",
-        action="once"
     )
     def fromDB(cls, skel: SkeletonInstance, key: KeyType) -> bool:
         """
@@ -1166,7 +1164,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     @deprecated(
         version="3.7.0",
         reason="Use skel.write() instead of skel.toDB()",
-        action="once"
     )
     def toDB(cls, skel: SkeletonInstance, update_relations: bool = True, **kwargs) -> db.Key:
         """
@@ -1749,7 +1746,9 @@ class RelSkel(BaseSkeleton):
         """
         if not isinstance(values, db.Entity):
             self.dbEntity = db.Entity()
-            self.dbEntity.update(values)
+
+            if values:
+                self.dbEntity.update(values)
         else:
             self.dbEntity = values
 
@@ -1917,7 +1916,7 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: t.Optional
         :param cursor: The database cursor for the current request as we only process five entities at once and then
             defer again.
     """
-    logging.debug(f"Starting updateRelations for {destKey} ; {minChangeTime=},{changedBone=}, {cursor=}")
+    logging.debug(f"Starting updateRelations for {destKey=}; {minChangeTime=}, {changedBone=}, {cursor=}")
     updateListQuery = (
         db.Query("viur-relations")
         .filter("dest.__key__ =", destKey)
