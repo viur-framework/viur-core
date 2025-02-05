@@ -2010,7 +2010,7 @@ class TaskUpdateSearchIndex(CallableTaskBase):
             if not skelname:
                 raise errors.BadRequest("Cannot run on unknown kind")
 
-            self._run(skelname, notify, **{"key": str(specific_key)})
+            self._run(skelname, notify, key=str(specific_key))
 
     @staticmethod
     def _run(module: str, notify: str, **kwargs):
