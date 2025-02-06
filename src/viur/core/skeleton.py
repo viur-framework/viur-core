@@ -1251,16 +1251,13 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
                 if not (bone_name in skel.accessedValues or bone.compute) and bone_name not in skel.dbEntity:
                     _ = skel[bone_name]  # Ensure the datastore is filled with the default value
+
                 if (
                     bone_name in skel.accessedValues or bone.compute  # We can have a computed value on store
                     or bone_name not in skel.dbEntity  # It has not been written and is not in the database
                 ):
                     # Serialize bone into entity
-                    try:
-                        bone.serialize(skel, bone_name, True)
-                    except Exception:
-                        logging.error(f"Failed to serialize {bone_name} {bone} {skel.accessedValues[bone_name]}")
-                        raise
+                    bone.serialize(skel, bone_name, True)
 
                 # Obtain referenced blobs
                 blob_list.update(bone.getReferencedBlobs(skel, bone_name))
