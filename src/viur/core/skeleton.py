@@ -1257,7 +1257,13 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     or bone_name not in skel.dbEntity  # It has not been written and is not in the database
                 ):
                     # Serialize bone into entity
-                    bone.serialize(skel, bone_name, True)
+                    try:
+                        bone.serialize(skel, bone_name, True)
+                    except Exception as e:
+                        logging.error(
+                            f"Failed to serialize {bone_name=} ({bone=}): {skel.accessedValues[bone_name]=}"
+                        )
+                        raise e
 
                 # Obtain referenced blobs
                 blob_list.update(bone.getReferencedBlobs(skel, bone_name))
