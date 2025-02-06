@@ -287,27 +287,48 @@ class FileBone(TreeLeafBone):
         references in the bone value, imports the blobs from ViUR 2, and recreates the file entries if
         needed using the inner function.
         """
-        from viur.core.skeleton import skeletonByKind
-
-        def recreateFileEntryIfNeeded(val):
-            # Recreate the (weak) filenetry referenced by the relation *val*. (ViUR2 might have deleted them)
-            skel = skeletonByKind("file")()
-            if skel.read(val["key"]):  # This file-object exist, no need to recreate it
-                return
-            skel["key"] = val["key"]
-            skel["name"] = val["name"]
-            skel["mimetype"] = val["mimetype"]
-            skel["dlkey"] = val["dlkey"]
-            skel["size"] = val["size"]
-            skel["width"] = val["width"]
-            skel["height"] = val["height"]
-            skel["weak"] = True
-            skel["pending"] = False
-            skel.write()
-
-        from viur.core.modules.file import importBlobFromViur2
         super().refresh(skel, boneName)
+
+        for _, _, value in self.iter_bone_value(skel, boneName):
+            # Patch any empty serving_url when public file
+            if (
+                value
+                and (value := value["dest"])
+                and value["public"]
+                and value["mimetype"]
+                and value["mimetype"].startswith("image/")
+                and not value["serving_url"]
+            ):
+                logging.info(f"Patching public image with empty serving_url {value['key']!r} ({value['name']!r})")
+                try:
+                    file_skel = value.read()
+                except ValueError:
+                    continue
+
+                file_skel.patch(lambda skel: skel.refresh(), update_relations=False)
+                value["serving_url"] = file_skel["serving_url"]
+
+        # FIXME: REMOVE THIS WITH VIUR4
         if conf.viur2import_blobsource:
+            from viur.core.modules.file import importBlobFromViur2
+            from viur.core.skeleton import skeletonByKind
+
+            def recreateFileEntryIfNeeded(val):
+                # Recreate the (weak) filenetry referenced by the relation *val*. (ViUR2 might have deleted them)
+                skel = skeletonByKind("file")()
+                if skel.read(val["key"]):  # This file-object exist, no need to recreate it
+                    return
+                skel["key"] = val["key"]
+                skel["name"] = val["name"]
+                skel["mimetype"] = val["mimetype"]
+                skel["dlkey"] = val["dlkey"]
+                skel["size"] = val["size"]
+                skel["width"] = val["width"]
+                skel["height"] = val["height"]
+                skel["weak"] = True
+                skel["pending"] = False
+                skel.write()
+
             # Just ensure the file get's imported as it may not have an file entry
             val = skel[boneName]
             if isinstance(val, list):
