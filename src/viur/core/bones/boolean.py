@@ -60,7 +60,7 @@ class BooleanBone(BaseBone):
             return True
         return not bool(value)
 
-    def refresh(self, skel: 'viur.core.skeleton.SkeletonInstance', boneName: str) -> None:
+    def refresh(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> None:
         """
             Inverse of serialize. Evaluates whats
             read from the datastore and populates
@@ -70,9 +70,10 @@ class BooleanBone(BaseBone):
         """
         if self.languages:
             for lang in self.languages:
-                skel[boneName][lang] = utils.parse.bool(skel[boneName][name], conf.bone_boolean_str2true) if lang in skel[name] else self.getDefaultValue(skel)
+                skel[name][lang] = utils.parse.bool(skel[name][lang], conf.bone_boolean_str2true) \
+                    if lang in skel[name] else self.getDefaultValue(skel)
         else:
-            skel[boneName] = utils.parse.bool(skel[boneName], conf.bone_boolean_str2true)
+            skel[name] = utils.parse.bool(skel[name], conf.bone_boolean_str2true)
 
     def setBoneValue(
         self,
