@@ -9,7 +9,7 @@ from viur.core.decorators import exposed
 from viur.core.bones import *
 from viur.core.i18n import KINDNAME, initializeTranslations, systemTranslations, translate
 from viur.core.prototypes.list import List
-from viur.core.skeleton import Skeleton, SkeletonInstance
+from viur.core.skeleton import Skeleton, SkeletonInstance, ViurTagsSearchAdapter
 
 
 class Creator(enum.Enum):
@@ -20,12 +20,17 @@ class Creator(enum.Enum):
 class TranslationSkel(Skeleton):
     kindName = KINDNAME
 
+    database_adapters = [
+        ViurTagsSearchAdapter(max_length=256),
+    ]
+
     tr_key = StringBone(
         descr=translate(
             "core.translationskel.tr_key.descr",
             "Translation key",
         ),
         searchable=True,
+        required=True,
         unique=UniqueValue(UniqueLockMethod.SameValue, False,
                            "This translation key exist already"),
     )
@@ -37,6 +42,8 @@ class TranslationSkel(Skeleton):
         ),
         searchable=True,
         languages=conf.i18n.available_dialects,
+        escape_html=False,
+        max_length=1024,
         params={
             "tooltip": translate(
                 "core.translationskel.translations.tooltip",
