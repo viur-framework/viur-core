@@ -31,6 +31,7 @@ class TranslationSkel(Skeleton):
         ),
         searchable=True,
         required=True,
+        min_length=1,
         unique=UniqueValue(UniqueLockMethod.SameValue, False,
                            "This translation key exist already"),
     )
