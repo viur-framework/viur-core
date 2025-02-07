@@ -257,6 +257,7 @@ class translate:
                         default_text=self.defaultText,
                         filename=self.filename,
                         lineno=self.lineno,
+                        variables=list(self.default_variables.keys()),
                         public=self.public,
                     )
 
