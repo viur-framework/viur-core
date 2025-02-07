@@ -81,6 +81,7 @@ class TranslationSkel(Skeleton):
     )
 
     default_text = StringBone(
+        escape_html=False,
         descr=translate(
             "core.translationskel.default_text.descr",
             "Fallback value",
