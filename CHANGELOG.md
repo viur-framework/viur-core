@@ -2,6 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.4]
+
+- fix: `FileBone.refresh()` should fix `serving_url` (#1404)
+- fix: `BooleanBone.refresh()` doesn't respect language (#1407)
+- feat: Add missing `onAdd` and `onAdded` calls in `File` module and implement `set_image_meta` (#1391)
+
 ## [3.7.3]
 
 - fix: Check for preflight requests in closed_systems (#1382)
