@@ -24,12 +24,22 @@ class TranslationSkel(Skeleton):
         ViurTagsSearchAdapter(max_length=256),
     ]
 
+    name = StringBone(
+        descr="Name",
+        visible=False,
+        compute=Compute(
+            fn=lambda skel: str(skel["tr_key"]),
+            interval=ComputeInterval(ComputeMethod.OnWrite),
+        ),
+    )
+
     tr_key = StringBone(
         descr=translate(
             "core.translationskel.tr_key.descr",
             "Translation key",
         ),
         searchable=True,
+        escape_html=False,
         required=True,
         min_length=1,
         unique=UniqueValue(UniqueLockMethod.SameValue, False,
