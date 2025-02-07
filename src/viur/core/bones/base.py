@@ -6,6 +6,8 @@ built, such as string, numeric, and date/time bones.
 """
 
 import copy
+import dataclasses
+import enum
 import hashlib
 import inspect
 import logging
@@ -15,7 +17,7 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
 
-from viur.core import db, utils, current, i18n
+from viur.core import current, db, i18n, utils
 from viur.core.config import conf
 
 if t.TYPE_CHECKING:
@@ -204,6 +206,55 @@ class Compute:
     raw: bool = True  # defines whether the value returned by fn is used as is, or is passed through bone.fromClient
 
 
+class CloneStrategy(enum.StrEnum):
+    """Strategy for selecting the value of a cloned skeleton"""
+
+    SET_NULL = enum.auto()
+    """Sets the cloned bone value to None."""
+
+    SET_DEFAULT = enum.auto()
+    """Sets the cloned bone value to its defaultValue."""
+
+    SET_EMPTY = enum.auto()
+    """Sets the cloned bone value to its emptyValue."""
+
+    COPY_VALUE = enum.auto()
+    """Copies the bone value from the source skeleton."""
+
+    CUSTOM = enum.auto()
+    """Uses a custom-defined logic for setting the cloned value.
+    Requires :attr:`CloneBehavior.custom_func` to be set.
+    """
+
+
+class CloneCustomFunc(t.Protocol):
+    """Type for a custom clone function assigned to :attr:`CloneBehavior.custom_func`"""
+
+    def __call__(self, skel: "SkeletonInstance", src_skel: "SkeletonInstance", bone_name: str) -> t.Any:
+        """Return the value for the cloned bone"""
+        ...
+
+
+@dataclass
+class CloneBehavior:
+    """Strategy configuration for selecting the value of a cloned skeleton"""
+
+    strategy: CloneStrategy
+    """The strategy used to select a value from a cloned skeleton"""
+
+    custom_func: CloneCustomFunc = None
+    """custom-defined logic for setting the cloned value
+    Only required when :attr:`strategy` is set to :attr:`CloneStrategy.CUSTOM`.
+    """
+
+    def __post_init__(self):
+        """Validate this configuration."""
+        if self.strategy == CloneStrategy.CUSTOM and self.custom_func is None:
+            raise ValueError("CloneStrategy is CUSTOM, but custom_func is not set")
+        elif self.strategy != CloneStrategy.CUSTOM and self.custom_func is not None:
+            raise ValueError("custom_func is set, but CloneStrategy is not CUSTOM")
+
+
 class BaseBone(object):
     """
     The BaseBone class serves as the base class for all bone types in the ViUR framework.
@@ -260,6 +311,7 @@ class BaseBone(object):
         unique: None | UniqueValue = None,
         vfunc: callable = None,  # fixme: Rename this, see below.
         visible: bool = True,
+        clone_behavior: CloneBehavior | CloneStrategy | None = None,
     ):
         """
         Initializes a new Bone.
@@ -375,6 +427,19 @@ class BaseBone(object):
             self._prevent_compute = False
 
         self.compute = compute
+
+        if clone_behavior is None:  # auto choose
+            if self.unique and self.readOnly:
+                self.clone_behavior = CloneBehavior(CloneStrategy.SET_DEFAULT)
+            else:
+                self.clone_behavior = CloneBehavior(CloneStrategy.COPY_VALUE)
+            # TODO: Any different setting for computed bones?
+        elif isinstance(clone_behavior, CloneStrategy):
+            self.clone_behavior = CloneBehavior(strategy=clone_behavior)
+        elif isinstance(clone_behavior, CloneBehavior):
+            self.clone_behavior = clone_behavior
+        else:
+            raise TypeError(f"'clone_behavior' must be an instance of Clone, but {clone_behavior=} was specified")
 
     def __set_name__(self, owner: "Skeleton", name: str) -> None:
         self.skel_cls = owner
@@ -1252,6 +1317,29 @@ class BaseBone(object):
         """
         pass
 
+    def clone_value(self, skel: "SkeletonInstance", src_skel: "SkeletonInstance", bone_name: str) -> None:
+        """Clone / Set the value for this bone depending on :attr:`clone_behavior`"""
+        match self.clone_behavior.strategy:
+            case CloneStrategy.COPY_VALUE:
+                try:
+                    skel.accessedValues[bone_name] = copy.deepcopy(src_skel.accessedValues[bone_name])
+                except KeyError:
+                    pass  # bone_name is not in accessedValues, cannot clone it
+                try:
+                    skel.renderAccessedValues[bone_name] = copy.deepcopy(src_skel.renderAccessedValues[bone_name])
+                except KeyError:
+                    pass  # bone_name is not in renderAccessedValues, cannot clone it
+            case CloneStrategy.SET_NULL:
+                skel.accessedValues[bone_name] = None
+            case CloneStrategy.SET_DEFAULT:
+                skel.accessedValues[bone_name] = self.getDefaultValue(skel)
+            case CloneStrategy.SET_EMPTY:
+                skel.accessedValues[bone_name] = self.getEmptyValue()
+            case CloneStrategy.CUSTOM:
+                skel.accessedValues[bone_name] = self.clone_behavior.custom_func(skel, src_skel, bone_name)
+            case other:
+                raise NotImplementedError(other)
+
     def refresh(self, skel: 'viur.core.skeleton.SkeletonInstance', boneName: str) -> None:
         """
             Refresh all values we might have cached from other entities.
@@ -1460,6 +1548,9 @@ class BaseBone(object):
             "languages": self.languages,
             "emptyvalue": self.getEmptyValue(),
             "indexed": self.indexed,
+            "clone_behavior": {
+                "strategy": self.clone_behavior.strategy,
+            },
         }
 
         # Provide a defaultvalue, if it's not a function.

@@ -1027,11 +1027,8 @@ class RelationalBone(BaseBone):
         if not skel[name] or self.updateLevel == RelationalUpdateLevel.OnValueAssignment:
             return
 
-        for idx, lang, value in self.iter_bone_value(skel, name):
-            if value is None:
-                continue
-
-            if value["dest"]:
+        for _, _, value in self.iter_bone_value(skel, name):
+            if value and value["dest"]:
                 try:
                     target_skel = value["dest"].read()
                 except ValueError:

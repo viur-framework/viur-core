@@ -567,7 +567,6 @@ class Email(ConfigType):
         "sendFromLocalDevelopmentServer": "send_from_local_development_server",
         "recipientOverride": "recipient_override",
         "senderOverride": "sender_override",
-        "admin_recipients": "admin_recipients",
         "sendInBlue.apiKey": "sendinblue_api_key",
         "sendInBlue.thresholds": "sendinblue_thresholds",
     }

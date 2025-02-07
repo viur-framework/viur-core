@@ -727,7 +727,7 @@ class Tree(SkelModule):
 
         # Remember source skel and unset the key for clone operation!
         src_skel = skel
-        skel = skel.clone()
+        skel = skel.clone(apply_clone_strategy=True)
         skel["key"] = None
 
         # make parententry required and writeable when provided

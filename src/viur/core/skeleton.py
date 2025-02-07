@@ -10,9 +10,11 @@ import sys
 import time
 import typing as t
 import warnings
-from deprecated.sphinx import deprecated
 from functools import partial
 from itertools import chain
+
+from deprecated.sphinx import deprecated
+
 from viur.core import conf, current, db, email, errors, translate, utils
 from viur.core.bones import (
     BaseBone,
@@ -399,16 +401,23 @@ class SkeletonInstance:
             raise ValueError("Unsupported Type")
         return self
 
-    def clone(self):
+    def clone(self, *, apply_clone_strategy: bool = False) -> t.Self:
         """
         Clones a SkeletonInstance into a modificable, stand-alone instance.
         This will also allow to modify the underlying data model.
         """
         res = SkeletonInstance(self.skeletonCls, bone_map=self.boneMap, clone=True)
-        res.accessedValues = copy.deepcopy(self.accessedValues)
+        if apply_clone_strategy:
+            for bone_name, bone_instance in self.items():
+                bone_instance.clone_value(res, self, bone_name)
+        else:
+            res.accessedValues = copy.deepcopy(self.accessedValues)
         res.dbEntity = copy.deepcopy(self.dbEntity)
         res.is_cloned = True
-        res.renderAccessedValues = copy.deepcopy(self.renderAccessedValues)
+        if not apply_clone_strategy:
+            res.renderAccessedValues = copy.deepcopy(self.renderAccessedValues)
+        # else: Depending on the strategy the values are cloned in bone_instance.clone_value too
+
         return res
 
     def ensure_is_cloned(self):
@@ -1251,6 +1260,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
                 if not (bone_name in skel.accessedValues or bone.compute) and bone_name not in skel.dbEntity:
                     _ = skel[bone_name]  # Ensure the datastore is filled with the default value
+
                 if (
                     bone_name in skel.accessedValues or bone.compute  # We can have a computed value on store
                     or bone_name not in skel.dbEntity  # It has not been written and is not in the database
@@ -1258,9 +1268,11 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     # Serialize bone into entity
                     try:
                         bone.serialize(skel, bone_name, True)
-                    except Exception:
-                        logging.error(f"Failed to serialize {bone_name} {bone} {skel.accessedValues[bone_name]}")
-                        raise
+                    except Exception as e:
+                        logging.error(
+                            f"Failed to serialize {bone_name=} ({bone=}): {skel.accessedValues[bone_name]=}"
+                        )
+                        raise e
 
                 # Obtain referenced blobs
                 blob_list.update(bone.getReferencedBlobs(skel, bone_name))

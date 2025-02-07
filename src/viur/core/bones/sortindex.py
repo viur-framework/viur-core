@@ -1,5 +1,7 @@
 import typing as t
 import time
+
+from viur.core.bones.base import CloneBehavior, CloneStrategy
 from viur.core.bones.numeric import NumericBone
 
 
@@ -23,11 +25,13 @@ class SortIndexBone(NumericBone):
         defaultValue: int | float = lambda *args, **kwargs: time.time(),
         descr: str = "SortIndex",
         precision: int = 8,
+        clone_behavior=CloneBehavior(CloneStrategy.SET_DEFAULT),
         **kwargs
     ):
         super().__init__(
             defaultValue=defaultValue,
             descr=descr,
             precision=precision,
+            clone_behavior=clone_behavior,
             **kwargs
         )
