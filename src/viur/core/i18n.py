@@ -202,7 +202,7 @@ class translate:
         self.public = public
         self.filename, self.lineno = None, None
 
-        if self.key not in systemTranslations and conf.i18n.add_missing_translations:
+        if conf.i18n.add_missing_translations and self.key not in systemTranslations:
             # This translation seems to be new and should be added
             for frame, line in traceback.walk_stack(sys._getframe(0).f_back):
                 if self.filename is None:
@@ -227,7 +227,7 @@ class translate:
         if self.translationCache is None:
             global systemTranslations
 
-            if self.key not in systemTranslations and conf.i18n.add_missing_translations:
+            if conf.i18n.add_missing_translations and self.key not in systemTranslations:
                 # This translation seems to be new and should be added
 
                 add_missing_translation(
@@ -344,7 +344,7 @@ class TranslationExtension(jinja2.Extension):
         tr_key = args[0].lower()
         public = kwargs.pop("_public_", False) or False
 
-        if tr_key not in systemTranslations:
+        if conf.i18n.add_missing_translations and tr_key not in systemTranslations:
             add_missing_translation(
                 key=tr_key,
                 hint=args[1],
