@@ -14,16 +14,18 @@ SkelType = t.Literal["node", "leaf"]
 
 
 class TreeSkel(Skeleton):
-    parententry = KeyBone(
+    parententry = KeyBone(  # TODO VIUR4: Why is this not a RelationalBone?
         descr="Parent",
         visible=False,
         readOnly=True,
     )
-    parentrepo = KeyBone(
+
+    parentrepo = KeyBone(  # TODO VIUR4: Why is this not a RelationalBone?
         descr="BaseRepo",
         visible=False,
         readOnly=True,
     )
+
     sortindex = SortIndexBone(
         visible=False,
         readOnly=True,
@@ -432,6 +434,8 @@ class Tree(SkelModule):
 
         skel = self.addSkel(skelType)
         parentNodeSkel = self.editSkel("node")
+
+        # TODO VIUR4: Why is this parameter called "node"?
         if not parentNodeSkel.read(node):
             raise errors.NotFound("The provided parent node could not be found.")
         if not self.canAdd(skelType, parentNodeSkel):
@@ -478,6 +482,10 @@ class Tree(SkelModule):
         else:
             skel = self.editSkel(skelType)
 
+        skel = skel.ensure_is_cloned()
+        skel.parententry.required = True
+        skel.parententry.readOnly = False
+
         skel["key"] = db_key
 
         if (
@@ -486,6 +494,17 @@ class Tree(SkelModule):
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self.render.render("add_or_edit", skel)
+
+        # Ensure the parententry exists
+        parentNodeSkel = self.editSkel("node")
+        if not parentNodeSkel.read(skel["parententry"]):
+            raise errors.NotFound("The provided parent node could not be found.")
+        if not self.canAdd(skelType, parentNodeSkel):
+            raise errors.Unauthorized()
+
+        skel["parententry"] = parentNodeSkel["key"]
+        # parentrepo may not exist in parentNodeSkel as it may be an rootNode
+        skel["parentrepo"] = parentNodeSkel["parentrepo"] or parentNodeSkel["key"]
 
         if is_add:
             self.onAdd(skelType, skel)
