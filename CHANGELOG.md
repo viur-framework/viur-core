@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.6]
+
+- fix: `Tree.add_or_edit()` should require for parententry (#1410)
+- fix: Custom decorators do not work with `Method`-wrapper (#1394)
+
 ## [3.7.5]
 
 - feat: Implement `CloneBehavior` + `CloneStrategy` for a bone-individual clone behavior (#1401)
