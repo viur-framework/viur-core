@@ -439,7 +439,6 @@ def add_missing_translation(
     """Add missing translations to datastore"""
 
     logging.error(f"{key=} {hint=} {default_text=} {filename=} {lineno=} {variables=} {public=}")
-    raise RuntimeError("ICH WILL DAS NICHT")
 
     try:
         from viur.core.modules.translation import TranslationSkel, Creator

@@ -34,7 +34,6 @@ class TranslationSkel(Skeleton):
     )
 
     tr_key = StringBone(
-        required=True,
         descr=translate(
             "viur.core.translationskel.tr_key.descr",
             "Translation key",
