@@ -36,7 +36,7 @@ def translate(
 
     See also :class:`core.i18n.TranslationExtension`.
     """
-    return translate_class(key, default_text, hint, force_lang)(**kwargs)
+    return translate_class(key, default_text, hint, force_lang, caller_is_jinja=True)(**kwargs)
 
 
 @jinjaGlobalFunction

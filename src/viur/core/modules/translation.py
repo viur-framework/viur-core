@@ -9,7 +9,7 @@ from viur.core.decorators import exposed
 from viur.core.bones import *
 from viur.core.i18n import KINDNAME, initializeTranslations, systemTranslations, translate
 from viur.core.prototypes.list import List
-from viur.core.skeleton import Skeleton, SkeletonInstance
+from viur.core.skeleton import Skeleton, SkeletonInstance, ViurTagsSearchAdapter
 
 
 class Creator(enum.Enum):
@@ -20,6 +20,19 @@ class Creator(enum.Enum):
 class TranslationSkel(Skeleton):
     kindName = KINDNAME
 
+    database_adapters = [
+        ViurTagsSearchAdapter(max_length=256),
+    ]
+
+    name = StringBone(
+        descr="Name",
+        visible=False,
+        compute=Compute(
+            fn=lambda skel: str(skel["tr_key"]),
+            interval=ComputeInterval(ComputeMethod.OnWrite),
+        ),
+    )
+
     tr_key = StringBone(
         required=True,
         descr=translate(
@@ -27,6 +40,9 @@ class TranslationSkel(Skeleton):
             "Translation key",
         ),
         searchable=True,
+        escape_html=False,
+        required=True,
+        min_length=1,
         unique=UniqueValue(
             UniqueLockMethod.SameValue,
             False,
@@ -41,6 +57,8 @@ class TranslationSkel(Skeleton):
         ),
         searchable=True,
         languages=conf.i18n.available_dialects,
+        escape_html=False,
+        max_length=1024,
         params={
             "tooltip": translate(
                 "viur.core.translationskel.translations.tooltip",
@@ -67,6 +85,7 @@ class TranslationSkel(Skeleton):
     )
 
     default_text = StringBone(
+        escape_html=False,
         descr=translate(
             "viur.core.translationskel.default_text.descr",
             "Fallback value",

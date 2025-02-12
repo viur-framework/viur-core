@@ -1312,7 +1312,8 @@ class User(List):
     def getCurrentUser(self):
         session = current.session.get()
 
-        if session and session.loaded and (user := session.get("user")):
+        req = current.request.get()
+        if session and (session.loaded or req.is_deferred) and (user := session.get("user")):
             skel = self.baseSkel()
             skel.setEntity(user)
             return skel
@@ -1620,7 +1621,7 @@ def createNewUserIfNotExists():
             msg = f"ViUR created a new admin-user for you!\nUsername: {uname}\nPassword: {pw}"
 
             logging.warning(msg)
-            email.sendEMailToAdmins("New ViUR password", msg)
+            email.send_email_to_admins("New ViUR password", msg)
 
 
 # DEPRECATED ATTRIBUTES HANDLING

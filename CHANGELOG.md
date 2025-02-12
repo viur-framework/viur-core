@@ -2,10 +2,50 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.6]
+
+- fix: `Tree.add_or_edit()` should require for parententry (#1410)
+- fix: Custom decorators do not work with `Method`-wrapper (#1394)
+
+## [3.7.5]
+
+- feat: Implement `CloneBehavior` + `CloneStrategy` for a bone-individual clone behavior (#1401)
+- fix: `conf.i18n.add_missing_translations` the right way (#1409)
+- fix: f-string not Python < 3.12 compatible
+- fix: Load user in a deferred task (#1406)
+- fix: Make translations usable (#1408)
+
+## [3.7.4]
+
+- feat: Add missing `onAdd` and `onAdded` calls in `File` module and implement `set_image_meta` (#1391)
+- fix: `BooleanBone.refresh()` doesn't respect language (#1407)
+- fix: `FileBone.refresh()` should fix `serving_url` (#1404)
+
+## [3.7.3]
+
+- fix: Check for preflight requests in closed_systems (#1382)
+- fix: Email methods has been renamed (#1395)
+- fix: Improve and standardize `Script` module `vfuncs` (#1388)
+- fix: Improve error reporting for unknown `RelationalBone` kinds (#1393)
+- fix: Remove overwriting `action` from `@deprecated` decorator (#1389)
+- fix: Use variable instead of custom name joining for public bucket (#1397)
+- refactor: `RelationalBone.refresh()` (#1392)
+
+## [3.7.2]
+
+- doc: Fix `SyntaxWarning: invalid escape sequence '\*'` (#1372)
+- feat: Provide `add_or_edit` root-only endpoint for importers (#1380)
+- feat: Provide default `index`-function for `Tree` and `Singleton` (#1365)
+- fix: `errors` not marked as a reserved word (#1374)
+- fix: `FileLeafSkel._inject_serving_url()` is the better choice (#1362)
+- fix: `SkelModule` not able to handle empty index definitions (#1373)
+- fix: Provide bone name with assertion message (#1375)
+- fix: Render bones which are `readOnly=True` not as `required=True` (#1371)
+
 ## [3.7.1]
 
-- fix: `RelationalBone`: dict size change during iteration (#1359)
 - fix: `BooleanBone.setBoneValue` doesn't respect language (#1358)
+- fix: `RelationalBone`: dict size change during iteration (#1359)
 - fix: Regression from `canView()` refactoring (#1357)
 
 ## [3.7.0]
@@ -100,6 +140,17 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Replace `db.encodeKey` by `str`-cast (#1302)
 - refactor: Send emails from `EmailTransport` instances instead of class (#1250)
 - refactor: Sub-class `Session` from `db.Entity` to behave `dict`-compliant (#1153)
+
+## [3.6.32]
+
+- feat: Backport request preflight checks for 3.6 (#1383)
+
+## [3.6.31]
+
+- fix: a `not caseSensitive` bone should lock the lower value (#1378)
+- fix: skip `cached_property` in `Module._update_methods` (#1377)
+- fix: determine a better path for a new `TranslateSkel` (#1367)
+- fix: Ensure derives are generated in `FileBone` inside a `RecordBone` too (#1370)
 
 ## [3.6.30]
 
