@@ -368,12 +368,12 @@ class TranslationExtension(jinja2.Extension):
 
         args += [""] * (3 - len(args))
         args += [kwargs]
-        tr_key = args[0].lower()
+        name = args[0].lower()
         public = kwargs.pop("_public_", False) or False
 
-        if conf.i18n.add_missing_translations and tr_key not in systemTranslations:
+        if conf.i18n.add_missing_translations and name not in systemTranslations:
             add_missing_translation(
-                key=tr_key,
+                key=name,
                 hint=args[1],
                 default_text=args[2],
                 filename=filename,
@@ -382,7 +382,7 @@ class TranslationExtension(jinja2.Extension):
                 public=public,
             )
 
-        translations = translate.merge_alias(systemTranslations.get(tr_key, {}))
+        translations = translate.merge_alias(systemTranslations.get(name, {}))
         args[1] = translations.get("_default_text_") or args[1]
         args = [jinja2.nodes.Const(x) for x in args]
         args.append(jinja2.nodes.Const(translations))
@@ -410,20 +410,20 @@ def initializeTranslations() -> None:
     for lang in dir(languages):
         if lang.startswith("__"):
             continue
-        for tr_key, tr_value in getattr(languages, lang).items():
-            systemTranslations.setdefault(tr_key, {})[lang] = tr_value
+        for name, tr_value in getattr(languages, lang).items():
+            systemTranslations.setdefault(name, {})[lang] = tr_value
 
     # Load translations from datastore into systemTranslations
     # TODO: iter() would be more memory efficient, but unfortunately takes much longer than run()
     # for entity in db.Query(KINDNAME).iter():
     for entity in db.Query(KINDNAME).run(10_000):
-        if "tr_key" not in entity:
-            logging.warning(f"translations entity {entity.key} has no tr_key set --> Call migration")
+        if "name" not in entity:
+            logging.warning(f"translations entity {entity.key} has no name set --> Call migration")
             migrate_translation(entity.key)
             # Before the migration has run do a quick modification to get it loaded as is
-            entity["tr_key"] = entity["key"] or entity.key.name
-        if not entity.get("tr_key"):
-            logging.error(f'translations entity {entity.key} has an empty {entity["tr_key"]=} set. Skipping.')
+            entity["name"] = entity["key"] or entity.key.name
+        if not entity.get("name"):
+            logging.error(f'translations entity {entity.key} has an empty {entity["name"]=} set. Skipping.')
             continue
         if entity and not isinstance(entity["translations"], dict):
             logging.error(f'translations entity {entity.key} has invalid '
@@ -444,7 +444,7 @@ def initializeTranslations() -> None:
                 continue
             translations[lang] = translation
 
-        systemTranslations[entity["tr_key"]] = translations
+        systemTranslations[entity["name"]] = translations
 
 
 @tasks.CallDeferred
@@ -472,10 +472,10 @@ def add_missing_translation(
 
     # Ensure lowercase key
     key = key.lower()
-    entity = db.Query(KINDNAME).filter("tr_key =", key).getEntry()
+    entity = db.Query(KINDNAME).filter("name =", key).getEntry()
     if entity is not None:
         # Ensure it doesn't exist to avoid datastore conflicts
-        logging.warning(f"Found an entity with tr_key={key}. "
+        logging.warning(f"Found an entity with name={key}. "
                         f"Probably an other instance was faster.")
         return
 
@@ -489,7 +489,7 @@ def add_missing_translation(
 
     logging.info(f"Add missing translation {key}")
     skel = TranslationSkel()
-    skel["tr_key"] = key
+    skel["name"] = key
     skel["default_text"] = default_text or None
     skel["hint"] = hint or None
     skel["usage_filename"] = filename
@@ -519,8 +519,8 @@ def migrate_translation(
     from viur.core.modules.translation import TranslationSkel
     logging.info(f"Migrate translation {key}")
     entity: db.Entity = db.Get(key)
-    if "tr_key" not in entity:
-        entity["tr_key"] = entity["key"] or key.name
+    if "name" not in entity:
+        entity["name"] = entity["key"] or key.name
     if "translation" in entity:
         if not isinstance(dict, entity["translation"]):
             logging.error("translation is not a dict?")

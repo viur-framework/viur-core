@@ -9,7 +9,7 @@ from viur.core.decorators import exposed
 from viur.core.bones import *
 from viur.core.i18n import KINDNAME, initializeTranslations, systemTranslations, translate
 from viur.core.prototypes.list import List
-from viur.core.skeleton import Skeleton, SkeletonInstance, ViurTagsSearchAdapter
+from viur.core.skeleton import Skeleton, ViurTagsSearchAdapter
 
 
 class Creator(enum.Enum):
@@ -25,28 +25,26 @@ class TranslationSkel(Skeleton):
     ]
 
     name = StringBone(
-        descr="Name",
-        visible=False,
-        compute=Compute(
-            fn=lambda skel: str(skel["tr_key"]),
-            interval=ComputeInterval(ComputeMethod.OnWrite),
-        ),
-    )
-
-    tr_key = StringBone(
         descr=translate(
-            "viur.core.translationskel.tr_key.descr",
+            "viur.core.translationskel.name.descr",
             "Translation key",
         ),
         searchable=True,
         escape_html=False,
-        required=True,
-        min_length=1,
+        readOnly=True,
         unique=UniqueValue(
             UniqueLockMethod.SameValue,
             False,
-            "This translation key exist already"
+            "This translation key already exists"
         ),
+    )
+
+    # FIXME: Remove with VIUR4
+    tr_key = StringBone(
+        descr="Translation key (OLD - DEPRECATED!)",
+        escape_html=False,
+        readOnly=True,
+        visible=False,
     )
 
     translations = StringBone(
@@ -142,17 +140,22 @@ class TranslationSkel(Skeleton):
     )
 
     @classmethod
-    def write(cls, skel: SkeletonInstance, **kwargs) -> db.Key:
-        # Ensure we have only lowercase keys
-        skel["tr_key"] = skel["tr_key"].lower()
-        return super().write(skel, **kwargs)
+    def read(cls, skel, *args, **kwargs):
+        if skel := super().read(skel, *args, **kwargs):
+            if skel["tr_key"]:
+                skel["name"] = skel["tr_key"]
+                skel["tr_key"] = None
+
+        return skel
 
     @classmethod
-    def preProcessSerializedData(cls, skel: SkeletonInstance, entity: db.Entity) -> db.Entity:
-        # Backward-compatibility: re-add the key for viur-core < v3.6
-        # TODO: Remove in ViUR4
-        entity["key"] = skel["tr_key"]
-        return super().preProcessSerializedData(skel, entity)
+    def write(cls, skel, **kwargs):
+
+        # Create the key from the name on initial write!
+        if not skel["key"]:
+            skel["key"] = db.Key(KINDNAME, skel["name"].lower())
+
+        return super().write(skel, **kwargs)
 
 
 class Translation(List):
@@ -184,6 +187,14 @@ class Translation(List):
     roles = {
         "admin": "*",
     }
+
+    def addSkel(self):
+        skel = super().addSkel().ensure_is_cloned()
+        skel.name.readOnly = False
+        skel.name.required = True
+        return skel
+
+    cloneSkel = addSkel
 
     def onAdded(self, *args, **kwargs):
         super().onAdded(*args, **kwargs)
@@ -259,9 +270,9 @@ class Translation(List):
             if len(language) > 1:
                 return json.dumps({
                     lang: {
-                        tr_key: str(translate(tr_key, force_lang=lang))
-                        for tr_key, values in systemTranslations.items()
-                        if (cuser or values.get("_public_")) and any(fnmatch.fnmatch(tr_key, pat) for pat in pattern)
+                        name: str(translate(name, force_lang=lang))
+                        for name, values in systemTranslations.items()
+                        if (cuser or values.get("_public_")) and any(fnmatch.fnmatch(name, pat) for pat in pattern)
                     }
                     for lang in language
                 })
@@ -271,9 +282,9 @@ class Translation(List):
             language = current.language.get()
 
         return json.dumps({
-            tr_key: str(translate(tr_key, force_lang=language))
-            for tr_key, values in systemTranslations.items()
-            if (cuser or values.get("_public_")) and any(fnmatch.fnmatch(tr_key, pat) for pat in pattern)
+            name: str(translate(name, force_lang=language))
+            for name, values in systemTranslations.items()
+            if (cuser or values.get("_public_")) and any(fnmatch.fnmatch(name, pat) for pat in pattern)
         })
 
 
