@@ -472,11 +472,11 @@ def add_missing_translation(
 
     # Ensure lowercase key
     key = key.lower()
-    entity = db.Query(KINDNAME).filter("name =", key).getEntry()
-    if entity is not None:
+
+    # Check if key already exists
+    if db.Get(db.Key(KINDNAME, key)):
         # Ensure it doesn't exist to avoid datastore conflicts
-        logging.warning(f"Found an entity with name={key}. "
-                        f"Probably an other instance was faster.")
+        logging.warning(f"Found an entity with {key=}. Probably an other instance was faster.")
         return
 
     if isinstance(filename, str):
