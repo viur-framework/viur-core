@@ -216,13 +216,13 @@ class Translation(List):
     def dump(
         self,
         *,
-        pattern: str,
+        pattern: list[str] = [],
         language: list[str] = [],
     ) -> dict[str, str] | dict[str, dict[str, str]]:
         """
         Dumps translations as JSON.
 
-        :param pattern: Required, provide an fnmatch-style key filter pattern for the translations keys to dump.
+        :param pattern: Required, provide fnmatch-style tramslaton key filter patterns of the translations wanted.
         :param language: Allows to request a specific language.
 
         Example calls:
@@ -236,8 +236,9 @@ class Translation(List):
             raise errors.BadRequest("Can only use this function on JSON-based renders")
 
         # The pattern may not be a matcher for all!
-        if not pattern.strip("*?."):
-            raise errors.BadRequest("Pattern is too generic.")
+        for pat in pattern:
+            if not pat.strip("*?."):
+                raise errors.BadRequest("Pattern is too generic.")
 
         # Only authenticated users may see private translations
         cuser = current.user.get()
@@ -260,7 +261,7 @@ class Translation(List):
                     lang: {
                         tr_key: str(translate(tr_key, force_lang=lang))
                         for tr_key, values in systemTranslations.items()
-                        if (cuser or values.get("_public_")) and fnmatch.fnmatch(tr_key, pattern)
+                        if (cuser or values.get("_public_")) and any(fnmatch.fnmatch(tr_key, pat) for pat in pattern)
                     }
                     for lang in language
                 })
@@ -272,7 +273,7 @@ class Translation(List):
         return json.dumps({
             tr_key: str(translate(tr_key, force_lang=language))
             for tr_key, values in systemTranslations.items()
-            if (cuser or values.get("_public_")) and fnmatch.fnmatch(tr_key, pattern)
+            if (cuser or values.get("_public_")) and any(fnmatch.fnmatch(tr_key, pat) for pat in pattern)
         })
 
 
