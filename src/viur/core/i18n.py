@@ -460,7 +460,7 @@ def add_missing_translation(
 ) -> None:
     """Add missing translations to datastore"""
 
-    logging.error(f"{key=} {hint=} {default_text=} {filename=} {lineno=} {variables=} {public=}")
+    logging.info(f"add_missing_translation {key=} {hint=} {default_text=} {filename=} {lineno=} {variables=} {public=}")
 
     try:
         from viur.core.modules.translation import TranslationSkel, Creator

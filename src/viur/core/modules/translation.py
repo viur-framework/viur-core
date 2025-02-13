@@ -173,7 +173,26 @@ class Translation(List):
             "views": [
                 {
                     "name": translate(
-                        "core.translations.view.missing",
+                        "viur.core.translations.view.system",
+                        "ViUR System translations",
+                    ),
+                    "filter": {
+                        "name$lk": "viur.",
+                    }
+                },
+                {
+                    "name": translate(
+                        "viur.core.translations.view.public",
+                        "Public translations",
+                    ),
+                    "filter": {
+                        "public": True,
+                    }
+                }
+            ] + [
+                {
+                    "name": translate(
+                        "viur.core.translations.view.missing",
                         "Missing translations for {{lang}}",
                     )(lang=lang),
                     "filter": {
