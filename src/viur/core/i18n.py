@@ -74,7 +74,7 @@ Of course you can create skeletons / entries in the datastore in your project
 on your own. Just use the TranslateSkel).
 """  # FIXME: grammar, rst syntax
 import datetime
-import jinja2.ext as jinja2
+import fnmatch
 import logging
 import sys
 import traceback
@@ -154,15 +154,16 @@ class translate:
     """
 
     __slots__ = (
-        "key",
-        "defaultText",
-        "hint",
-        "translationCache",
-        "force_lang",
-        "public",
         "add_missing",
+        "default_variables",
+        "defaultText",
         "filename",
+        "force_lang",
+        "hint",
+        "key",
         "lineno",
+        "public",
+        "translationCache",
     )
 
     def __init__(
@@ -173,6 +174,7 @@ class translate:
         force_lang: str = None,
         public: bool = False,
         add_missing: bool = False,
+        default_variables: dict[str, t.Any] | None = None,
         caller_is_jinja: bool = False,
     ):
         """
@@ -186,6 +188,7 @@ class translate:
             target language.
         :param force_lang: Use this language instead the one of the request.
         :param public: Flag for public translations, which can be obtained via /json/_translate/get_public.
+        :param default_variables: Default values for variable substitution.
         :param caller_is_jinja: Is the call caused by our jinja method?
         """
         super().__init__()
@@ -203,6 +206,8 @@ class translate:
         self.translationCache = None
         self.force_lang = force_lang
         self.public = public
+        self.add_missing = add_missing
+        self.default_variables = default_variables or {}
         self.filename, self.lineno = None, None
 
         if conf.i18n.add_missing_translations and self.key not in systemTranslations:
@@ -230,17 +235,31 @@ class translate:
         if self.translationCache is None:
             global systemTranslations
 
-            if conf.i18n.add_missing_translations and self.key not in systemTranslations:
-                # This translation seems to be new and should be added
+            if self.key not in systemTranslations:
+                # either the translate()-object has add_missing set
+                if not (add_missing := self.add_missing):
+                    # otherwise, use configuration flag
+                    add_missing = conf.i18n.add_missing_translations
 
-                add_missing_translation(
-                    key=self.key,
-                    hint=self.hint,
-                    default_text=self.defaultText,
-                    filename=self.filename,
-                    lineno=self.lineno,
-                    public=self.public,
-                )
+                    # match against fnmatch pattern, when given
+                    if isinstance(add_missing, str):
+                        add_missing = fnmatch.fnmatch(self.key, add_missing)
+                    elif isinstance(add_missing, t.Iterable):
+                        add_missing = any(fnmatch.fnmatch(self.key, pat) for pat in add_missing)
+                    else:
+                        add_missing = bool(add_missing)
+
+                if add_missing:
+                    # This translation seems to be new and should be added
+                    add_missing_translation(
+                        key=self.key,
+                        hint=self.hint,
+                        default_text=self.defaultText,
+                        filename=self.filename,
+                        lineno=self.lineno,
+                        variables=list(self.default_variables.keys()),
+                        public=self.public,
+                    )
 
             self.translationCache = self.merge_alias(systemTranslations.get(self.key, {}))
 
@@ -249,21 +268,24 @@ class translate:
             lang = current.language.get()
 
         if value := self.translationCache.get(lang):
-            return value
+            return self.substitute_vars(value, **self.default_variables)
 
         # Use the default text from datastore or from the caller arguments
-        return self.translationCache.get("_default_text_") or self.defaultText
+        return self.substitute_vars(
+            self.translationCache.get("_default_text_") or self.defaultText,
+            **self.default_variables
+        )
 
     def translate(self, **kwargs) -> str:
         """Substitute the given kwargs in the translated or default text."""
-        return self.substitute_vars(str(self), **kwargs)
+        return self.substitute_vars(str(self), **(self.default_variables | kwargs))
 
-    def __call__(self, **kwargs):
+    def __call__(self, **kwargs) -> str:
         """Just an alias for translate"""
         return self.translate(**kwargs)
 
     @staticmethod
-    def substitute_vars(value: str, **kwargs):
+    def substitute_vars(value: str, **kwargs) -> str:
         """Substitute vars in a translation
 
         Variables has to start with two braces (`{{`), followed by the variable

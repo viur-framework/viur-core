@@ -84,11 +84,11 @@ class TranslationSkel(Skeleton):
     )
 
     default_text = StringBone(
-        escape_html=False,
         descr=translate(
             "viur.core.translationskel.default_text.descr",
             "Fallback value",
         ),
+        escape_html=False,
     )
 
     hint = StringBone(
