@@ -301,7 +301,14 @@ class RelationalBone(BaseBone):
         """
         super().setSystemInitialized()
         from viur.core.skeleton import RefSkel, SkeletonInstance
-        self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
+
+        try:
+            self._refSkelCache = RefSkel.fromSkel(self.kind, *self.refKeys)
+        except AssertionError:
+            raise NotImplementedError(
+                f"Skeleton {self.skel_cls!r} {self.__class__.__name__} {self.name!r}: Kind {self.kind!r} unknown"
+            )
+
         self._skeletonInstanceClassRef = SkeletonInstance
         self._ref_keys = set(self._refSkelCache.__boneMap__.keys())
 
@@ -405,74 +412,54 @@ class RelationalBone(BaseBone):
 
         :raises AssertionError: If a programming error is detected.
         """
+
+        def serialize_dest_rel(in_value: dict | None = None) -> (dict | None, dict | None):
+            if not in_value:
+                return None, None
+            if dest_val := in_value.get("dest"):
+                ref_data_serialized = dest_val.serialize(parentIndexed=indexed)
+            else:
+                ref_data_serialized = None
+            if rel_data := in_value.get("rel"):
+                using_data_serialized = rel_data.serialize(parentIndexed=indexed)
+            else:
+                using_data_serialized = None
+
+            return using_data_serialized, ref_data_serialized
+
+
         super().serialize(skel, name, parentIndexed)
+
         # Clean old properties from entry (prevent name collision)
-        for k in list(skel.dbEntity.keys()):
-            if k.startswith(f"{name}."):
-                del skel.dbEntity[k]
+        for key in tuple(skel.dbEntity.keys()):
+            if key.startswith(f"{name}."):
+                del skel.dbEntity[key]
+
         indexed = self.indexed and parentIndexed
-        if name not in skel.accessedValues:
-            return
-        elif not skel.accessedValues[name]:
-            res = None
-        elif self.languages and self.multiple:
-            res = {"_viurLanguageWrapper_": True}
-            newVals = skel.accessedValues[name]
-            for language in self.languages:
-                res[language] = []
-                if language in newVals:
-                    for val in newVals[language]:
-                        if val["dest"]:
-                            refData = val["dest"].serialize(parentIndexed=indexed)
-                        else:
-                            refData = None
-                        if val["rel"]:
-                            usingData = val["rel"].serialize(parentIndexed=indexed)
-                        else:
-                            usingData = None
-                        r = {"rel": usingData, "dest": refData}
-                        res[language].append(r)
+
+        if not (new_vals := skel.accessedValues.get(name)):
+            return False
         elif self.languages:
             res = {"_viurLanguageWrapper_": True}
-            newVals = skel.accessedValues[name]
             for language in self.languages:
-                res[language] = []
-                if language in newVals:
-                    val = newVals[language]
-                    if val and val["dest"]:
-                        refData = val["dest"].serialize(parentIndexed=indexed)
-                        if val["rel"]:
-                            usingData = val["rel"].serialize(parentIndexed=indexed)
-                        else:
-                            usingData = None
-                        r = {"rel": usingData, "dest": refData}
-                        res[language] = r
+                if language in new_vals:
+                    if self.multiple:
+                        res[language] = []
+                        for val in new_vals[language]:
+                            using_data, ref_data = serialize_dest_rel(val)
+                            res[language].append({"rel": using_data, "dest": ref_data})
                     else:
-                        res[language] = None
+                        if (val := new_vals[language]) and val["dest"]:
+                            using_data, ref_data = serialize_dest_rel(val)
+                            res[language] = {"rel": using_data, "dest": ref_data}
         elif self.multiple:
             res = []
-            for val in skel.accessedValues[name]:
-                if val["dest"]:
-                    refData = val["dest"].serialize(parentIndexed=indexed)
-                else:
-                    refData = None
-                if val["rel"]:
-                    usingData = val["rel"].serialize(parentIndexed=indexed)
-                else:
-                    usingData = None
-                r = {"rel": usingData, "dest": refData}
-                res.append(r)
+            for val in new_vals:
+                using_data, ref_data = serialize_dest_rel(val)
+                res.append({"rel": using_data, "dest": ref_data})
         else:
-            if skel.accessedValues[name]["dest"]:
-                refData = skel.accessedValues[name]["dest"].serialize(parentIndexed=indexed)
-            else:
-                refData = None
-            if skel.accessedValues[name]["rel"]:
-                usingData = skel.accessedValues[name]["rel"].serialize(parentIndexed=indexed)
-            else:
-                usingData = None
-            res = {"rel": usingData, "dest": refData}
-
+            using_data, ref_data = serialize_dest_rel(new_vals)
+            res = {"rel": using_data, "dest": ref_data}
         skel.dbEntity[name] = res
 
         # Ensure our indexed flag is up2date
@@ -495,7 +482,7 @@ class RelationalBone(BaseBone):
 
         return tuple(parts)
 
-    def postSavedHandler(self, skel: "SkeletonInstance", boneName: str, key: db.Key) -> None:
+    def postSavedHandler(self, skel, boneName, key) -> None:
         """
         Handle relational updates after a skeleton is saved.
 
@@ -506,6 +493,8 @@ class RelationalBone(BaseBone):
         :param boneName: The name of the relational bone.
         :param key: The key of the saved skeleton instance.
         """
+        if key is None:  # RelSkel container (e.g. RecordBone) has no key, it's covered by it's parent
+            return
         if not skel[boneName]:
             values = []
         elif self.multiple and self.languages:
@@ -1024,7 +1013,7 @@ class RelationalBone(BaseBone):
                         res.append(f"src.{orderKey}")
         return res
 
-    def refresh(self, skel: "SkeletonInstance", boneName: str):
+    def refresh(self, skel: "SkeletonInstance", name: str) -> None:
         """
         Refreshes all values that might be cached from other entities in the provided skeleton.
 
@@ -1035,40 +1024,21 @@ class RelationalBone(BaseBone):
         :param SkeletonInstance skel: The skeleton containing the bone to be refreshed.
         :param str boneName: The name of the bone to be refreshed.
         """
-
-        def updateInplace(relDict):
-            """
-                Fetches the entity referenced by valDict["dest.key"] and updates all dest.* keys
-                accordingly
-            """
-            if not (isinstance(relDict, dict) and "dest" in relDict):
-                logging.error(f"Invalid dictionary in updateInplace: {relDict}")
-                return
-            newValues = db.Get(db.keyHelper(relDict["dest"]["key"], self.kind))
-            if newValues is None:
-                logging.info(f"""The key {relDict["dest"]["key"]} does not exist""")
-                return
-            for boneName in self._ref_keys:
-                if boneName != "key" and boneName in newValues:
-                    relDict["dest"].dbEntity[boneName] = newValues[boneName]
-
-        if not skel[boneName] or self.updateLevel == RelationalUpdateLevel.OnValueAssignment:
+        if not skel[name] or self.updateLevel == RelationalUpdateLevel.OnValueAssignment:
             return
 
-        # logging.debug("Refreshing RelationalBone %s of %s" % (boneName, skel.kindName))
-        if isinstance(skel[boneName], dict) and "dest" not in skel[boneName]:  # multi lang
-            for l in skel[boneName]:
-                if isinstance(skel[boneName][l], dict):
-                    updateInplace(skel[boneName][l])
-                elif isinstance(skel[boneName][l], list):
-                    for k in skel[boneName][l]:
-                        updateInplace(k)
-        else:
-            if isinstance(skel[boneName], dict):
-                updateInplace(skel[boneName])
-            elif isinstance(skel[boneName], list):
-                for k in skel[boneName]:
-                    updateInplace(k)
+        for _, _, value in self.iter_bone_value(skel, name):
+            if value and value["dest"]:
+                try:
+                    target_skel = value["dest"].read()
+                except ValueError:
+                    logging.error(
+                        f"{name}: The key {value['dest']['key']!r} ({value['dest'].get('name')!r}) seems to be gone"
+                    )
+                    continue
+
+                for key in self.refKeys:
+                    value["dest"][key] = target_skel[key]
 
     def getSearchTags(self, skel: "SkeletonInstance", name: str) -> set[str]:
         """
@@ -1102,10 +1072,12 @@ class RelationalBone(BaseBone):
 
         return result
 
-    def createRelSkelFromKey(self, key: db.Key, rel: dict | None) -> RelDict:
-        return self.relskels_from_keys([(key, rel)])[0]
+    def createRelSkelFromKey(self, key: db.Key, rel: dict | None = None) -> RelDict | None:
+        if rel_skel := self.relskels_from_keys([(key, rel)]):
+            return rel_skel[0]
+        return None
 
-    def relskels_from_keys(self, key_rel_list: list[tuple[db.Key, dict | None]]) -> list[RelDict] | None:
+    def relskels_from_keys(self, key_rel_list: list[tuple[db.Key, dict | None]]) -> list[RelDict]:
         """
         Creates a list of RelSkel instances valid for this bone from the given database key.
 
@@ -1116,12 +1088,11 @@ class RelationalBone(BaseBone):
         :param key_rel_list: List of tuples with the first value in the tuple is the
             key and the second is and RelSkel or None
 
-        :return: A dictionary containing a reference skeleton and optional relation data or None.
-        :rtype: dict
+        :return: A dictionary containing a reference skeleton and optional relation data.
         """
 
         if not all(db_objs := db.Get([db.keyHelper(value[0], self.kind) for value in key_rel_list])):
-            return None
+            return []  # return emtpy data when not all data is found
         res_rel_skels = []
         for (key, rel), db_obj in zip(key_rel_list, db_objs):
             dest_skel = self._refSkelCache()

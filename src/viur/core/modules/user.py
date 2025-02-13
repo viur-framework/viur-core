@@ -94,7 +94,7 @@ class UserSkel(skeleton.Skeleton):
         descr=i18n.translate("viur.user.bone.access", defaultText="Access rights"),
         type_suffix="access",
         values=lambda: {
-            right: i18n.translate(f"server.modules.user.accessright.{right}", defaultText=right)
+            right: i18n.translate(f"viur.modules.user.accessright.{right}", defaultText=right)
             for right in sorted(conf.user.access_rights)
         },
         multiple=True,
@@ -120,7 +120,7 @@ class UserSkel(skeleton.Skeleton):
         visible=False
     )
 
-    def __new__(cls):
+    def __new__(cls, *args, **kwargs):
         """
         Constructor for the UserSkel-class, with the capability
         to dynamically add bones required for the configured
@@ -135,7 +135,7 @@ class UserSkel(skeleton.Skeleton):
             provider.patch_user_skel(cls)
 
         cls.__boneMap__ = skeleton.MetaBaseSkel.generate_bonemap(cls)
-        return super().__new__(cls)
+        return super().__new__(cls, *args, **kwargs)
 
     @classmethod
     def write(cls, skel, *args, **kwargs):
@@ -312,9 +312,6 @@ class UserPassword(UserPrimaryAuthentication):
     @force_ssl
     @skey(allow_empty=True)
     def login(self, *, name: str | None = None, password: str | None = None, **kwargs):
-        if current.user.get():  # User is already logged in, nothing to do.
-            return self._user_module.render.loginSucceeded()
-
         if not name or not password:
             return self._user_module.render.login(self.LoginSkel(), action="login")
 
@@ -336,18 +333,9 @@ class UserPassword(UserPrimaryAuthentication):
         # next, check if the password hash matches
         is_okay &= secrets.compare_digest(password_data.get("pwhash", b"-invalid-"), password_hash)
 
-        # next, check if the user account is active
-        is_okay &= (user_skel["status"] or 0) >= Status.ACTIVE.value
-
         if not is_okay:
             self.loginRateLimit.decrementQuota()  # Only failed login attempts will count to the quota
-            skel = self.LoginSkel()
-            return self._user_module.render.login(
-                skel,
-                action="login",
-                loginFailed=True,  # FIXME: Is this still being used?
-                accountStatus=user_skel["status"]  # FIXME: Is this still being used?
-            )
+            return self._user_module.render.login(self.LoginSkel(), action="login")
 
         # check if iterations are below current security standards, and update if necessary.
         if iterations < PBKDF2_DEFAULT_ITERATIONS:
@@ -450,11 +438,12 @@ class UserPassword(UserPrimaryAuthentication):
                 )
             )
 
-        if user_skel["status"] != Status.ACTIVE:  # The account is locked or not yet validated. Abort the process.
+        # If the account is locked or not yet validated, abort the process.
+        if not self._user_module.is_active(user_skel):
             raise errors.NotFound(
                 i18n.translate(
                     key="viur.modules.user.passwordrecovery.accountlocked",
-                    defaultText="This account is currently locked. You cannot change it's password.",
+                    defaultText="This account is currently locked. You cannot change its password.",
                     hint="Attempted password recovery on a locked account"
                 )
             )
@@ -498,6 +487,7 @@ class UserPassword(UserPrimaryAuthentication):
             skel = self._user_module.editSkel()
             if not key or not skel.read(key):
                 return None
+
             skel["status"] = Status.WAITING_FOR_ADMIN_VERIFICATION \
                 if self.registrationAdminVerificationRequired else Status.ACTIVE
 
@@ -609,7 +599,6 @@ class GoogleAccount(UserPrimaryAuthentication):
     @force_ssl
     @skey(allow_empty=True)
     def login(self, token: str | None = None, *args, **kwargs):
-        # FIXME: Check if already logged in
         if not conf.user.google_client_id:
             raise errors.PreconditionFailed("Please configure conf.user.google_client_id!")
 
@@ -1260,11 +1249,19 @@ class User(List):
     def get_role_defaults(self, role: str) -> set[str]:
         """
         Returns a set of default access rights for a given role.
-        """
-        if role in ("viewer", "editor", "admin"):
-            return {"admin"}
 
-        return set()
+        Defaults to "admin" usage for any role > "user"
+        and "scriptor" usage for "admin" role.
+        """
+        ret = set()
+
+        if role in ("viewer", "editor", "admin"):
+            ret.add("admin")
+
+        if role == "admin":
+            ret.add("scriptor")
+
+        return ret
 
     def addSkel(self):
         skel = super().addSkel().clone()
@@ -1315,7 +1312,8 @@ class User(List):
     def getCurrentUser(self):
         session = current.session.get()
 
-        if session and session.loaded and (user := session.get("user")):
+        req = current.request.get()
+        if session and (session.loaded or req.is_deferred) and (user := session.get("user")):
             skel = self.baseSkel()
             skel.setEntity(user)
             return skel
@@ -1380,6 +1378,24 @@ class User(List):
 
         return self.authenticateUser(user_key)
 
+    def is_active(self, skel: skeleton.SkeletonInstance) -> bool | None:
+        """
+        Hookable check if a user is defined as "active" and can login.
+
+        :param skel: The UserSkel of the user who wants to login.
+        """
+        if "status" in skel:
+            status = skel["status"]
+            if not isinstance(status, (Status, int)):
+                try:
+                    status = int(status)
+                except ValueError:
+                    status = Status.UNSET
+
+            return status >= Status.ACTIVE.value
+
+        return None
+
     def authenticateUser(self, key: db.Key, **kwargs):
         """
             Performs Log-In for the current session and the given user key.
@@ -1394,7 +1410,7 @@ class User(List):
             raise ValueError(f"Unable to authenticate unknown user {key}")
 
         # Verify that this user account is active
-        if skel["status"] < Status.ACTIVE.value:
+        if not self.is_active(skel):
             raise errors.Forbidden("The user is disabled and cannot be authenticated.")
 
         # Update session for user
@@ -1559,8 +1575,9 @@ class User(List):
 
     def onEdited(self, skel):
         super().onEdited(skel)
+
         # In case the user is set to inactive, kill all sessions
-        if "status" in skel and skel["status"] < Status.ACTIVE.value:
+        if self.is_active(skel) is False:
             session.killSessionByUser(skel["key"])
 
     def onDeleted(self, skel):
@@ -1604,7 +1621,7 @@ def createNewUserIfNotExists():
             msg = f"ViUR created a new admin-user for you!\nUsername: {uname}\nPassword: {pw}"
 
             logging.warning(msg)
-            email.sendEMailToAdmins("New ViUR password", msg)
+            email.send_email_to_admins("New ViUR password", msg)
 
 
 # DEPRECATED ATTRIBUTES HANDLING

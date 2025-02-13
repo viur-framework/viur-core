@@ -1,7 +1,8 @@
 import os
 import yaml
 import logging
-from viur.core import Module, db
+from viur.core import Module, db, current
+from viur.core.decorators import *
 from viur.core.config import conf
 from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
 import typing as t
@@ -33,7 +34,7 @@ def __load_indexes_from_file() -> dict[str, list]:
         with open(os.path.join(conf.instance.project_base_path, "index.yaml"), "r") as file:
             indexes = yaml.safe_load(file)
             indexes = indexes.get("indexes", [])
-            for index in indexes:
+            for index in indexes or ():
                 index["properties"] = [_property["name"] for _property in index["properties"]]
                 indexes_dict.setdefault(index["kind"], []).append(index)
 
@@ -62,6 +63,14 @@ class SkelModule(Module):
         `Animal` refers to a Skeleton named `AnimalSkel` and its kindName is `animal`.
 
         For more information, refer to the function :func:`~_resolveSkelCls`.
+    """
+
+    default_order: DEFAULT_ORDER_TYPE = None
+    """
+    Allows to specify a default order for this module, which is applied when no other order is specified.
+
+    Setting a default_order might result in the requirement of additional indexes, which are being raised
+    and must be specified.
     """
 
     def __init__(self, *args, **kwargs):
@@ -100,3 +109,83 @@ class SkelModule(Module):
         By default, baseSkel is used by :func:`~viewSkel`, :func:`~addSkel`, and :func:`~editSkel`.
         """
         return self._resolveSkelCls(*args, **kwargs)()
+
+    def _apply_default_order(self, query: db.Query):
+        """
+        Apply the setting from `default_order` to a given db.Query.
+
+        The `default_order` will only be applied when the query has no other order, or is on a multquery.
+        """
+
+        # Apply default_order when possible!
+        if (
+                self.default_order
+                and query.queries
+                and not isinstance(query.queries, list)
+                and not query.queries.orders
+                and not current.request.get().kwargs.get("search")
+        ):
+            if callable(default_order := self.default_order):
+                default_order = default_order(query)
+
+            if isinstance(default_order, dict):
+                logging.debug(f"Applying filter {default_order=}")
+                query.mergeExternalFilter(default_order)
+
+            elif default_order:
+                logging.debug(f"Applying {default_order=}")
+
+                # FIXME: This ugly test can be removed when there is type that abstracts SortOrders
+                if (
+                    isinstance(default_order, str)
+                    or (
+                        isinstance(default_order, tuple)
+                        and len(default_order) == 2
+                        and isinstance(default_order[0], str)
+                        and isinstance(default_order[1], db.SortOrder)
+                    )
+                ):
+                    query.order(default_order)
+                else:
+                    query.order(*default_order)
+
+    @force_ssl
+    @force_post
+    @exposed
+    @skey
+    @access("root")
+    def add_or_edit(self, key: db.Key | int | str, **kwargs) -> t.Any:
+        """
+        This function is intended to be used by importers.
+        Only "root"-users are allowed to use it.
+        """
+        db_key = db.keyHelper(key, targetKind=self.kindName, adjust_kind=self.kindName)
+        is_add = not bool(db.Get(db_key))
+
+        if is_add:
+            skel = self.addSkel()
+        else:
+            skel = self.editSkel()
+
+        skel["key"] = db_key
+
+        if (
+            not kwargs  # no data supplied
+            or not skel.fromClient(kwargs)  # failure on reading into the bones
+        ):
+            # render the skeleton in the version it could as far as it could be read.
+            return self.render.render("add_or_edit", skel)
+
+        if is_add:
+            self.onAdd(skel)
+        else:
+            self.onEdit(skel)
+
+        skel.write()
+
+        if is_add:
+            self.onAdded(skel)
+            return self.render.addSuccess(skel)
+
+        self.onEdited(skel)
+        return self.render.editSuccess(skel)

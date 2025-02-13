@@ -1,5 +1,7 @@
 from .base import (
     BaseBone,
+    CloneBehavior,
+    CloneStrategy,
     Compute,
     ComputeInterval,
     ComputeMethod,
@@ -48,6 +50,8 @@ __all = [
     "BaseBone",
     "BooleanBone",
     "CaptchaBone",
+    "CloneBehavior",
+    "CloneStrategy",
     "ColorBone",
     "Compute",
     "ComputeInterval",
@@ -82,8 +86,8 @@ __all = [
     "UidBone",
     "UniqueLockMethod",
     "UniqueValue",
-    "UserBone",
     "UriBone",
+    "UserBone",
     "translation_key_prefix_bonename",
     "translation_key_prefix_skeleton_bonename",
 ]

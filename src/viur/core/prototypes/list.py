@@ -5,7 +5,7 @@ from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
 from viur.core.bones import BaseBone
-from .skelmodule import SkelModule, DEFAULT_ORDER_TYPE
+from .skelmodule import SkelModule
 
 
 class List(SkelModule):
@@ -19,14 +19,6 @@ class List(SkelModule):
     """
     handler = "list"
     accessRights = ("add", "edit", "view", "delete", "manage")
-
-    default_order: DEFAULT_ORDER_TYPE = None
-    """
-    Allows to specify a default order for this module, which is applied when no other order is specified.
-
-    Setting a default_order might result in the requirement of additional indexes, which are being raised
-    and must be specified.
-    """
 
     def viewSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -124,20 +116,40 @@ class List(SkelModule):
         return self.render.view(skel)
 
     @exposed
-    def structure(self, *args, **kwargs) -> t.Any:
+    def structure(self, action: t.Optional[str] = "view") -> t.Any:
         """
             :returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
                 in each bone.
 
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
-        skel = self.viewSkel()
-        if not self.canAdd():  # We can't use canView here as it would require passing a skeletonInstance.
-            # As a fallback, we'll check if the user has the permissions to view at least one entry
-            qry = self.listFilter(skel.all())
-            if not qry or not qry.getEntry():
-                raise errors.Unauthorized()
-        return self.render.view(skel)
+        # FIXME: In ViUR > 3.7 this could also become dynamic (ActionSkel paradigm).
+        match action:
+            case "view":
+                skel = self.viewSkel()
+                if not self.canView(skel):
+                    raise errors.Unauthorized()
+
+            case "edit":
+                skel = self.editSkel()
+                if not self.canEdit(skel):
+                    raise errors.Unauthorized()
+
+            case "add":
+                if not self.canAdd():
+                    raise errors.Unauthorized()
+
+                skel = self.addSkel()
+
+            case "clone":
+                skel = self.cloneSkel()
+                if not (self.canAdd() and self.canEdit(skel)):
+                    raise errors.Unauthorized()
+
+            case _:
+                raise errors.NotImplemented(f"The action {action!r} is not implemented.")
+
+        return self.render.render(f"structure.{action}", skel)
 
     @exposed
     def view(self, key: db.Key | int | str, *args, **kwargs) -> t.Any:
@@ -184,38 +196,11 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
         # The general access control is made via self.listFilter()
-        query = self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs))
-        if query and query.queries and not isinstance(query.queries, list):
-            # Apply default order when specified
-            if self.default_order and not query.queries.orders and not current.request.get().kwargs.get("search"):
-                # TODO: refactor: Duplicate code in prototypes.Tree
-                if callable(default_order := self.default_order):
-                    default_order = default_order(query)
+        if not (query := self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs))):
+            raise errors.Unauthorized()
 
-                if isinstance(default_order, dict):
-                    logging.debug(f"Applying filter {default_order=}")
-                    query.mergeExternalFilter(default_order)
-
-                elif default_order:
-                    logging.debug(f"Applying {default_order=}")
-
-                    # FIXME: This ugly test can be removed when there is type that abstracts SortOrders
-                    if (
-                        isinstance(default_order, str)
-                        or (
-                            isinstance(default_order, tuple)
-                            and len(default_order) == 2
-                            and isinstance(default_order[0], str)
-                            and isinstance(default_order[1], db.SortOrder)
-                        )
-                    ):
-                        query.order(default_order)
-                    else:
-                        query.order(*default_order)
-
-            return self.render.list(query.fetch())
-
-        raise errors.Unauthorized()
+        self._apply_default_order(query)
+        return self.render.list(query.fetch())
 
     @force_ssl
     @exposed
@@ -391,7 +376,7 @@ class List(SkelModule):
 
         # Remember source skel and unset the key for clone operation!
         src_skel = skel
-        skel = skel.clone()
+        skel = skel.clone(apply_clone_strategy=True)
         skel["key"] = None
 
         # Check all required preconditions for clone
@@ -439,14 +424,15 @@ class List(SkelModule):
             :return: True if the current session is authorized to view that entry, False otherwise
         """
         # We log the key we're querying by hand so we don't have to lock on the entire kind in our query
-        db.currentDbAccessLog.get(set()).add(skel["key"])
-        query = self.viewSkel().all(_excludeFromAccessLog=True).mergeExternalFilter({"key": skel["key"]})
+        query = self.viewSkel().all(_excludeFromAccessLog=True)
+
+        if key := skel["key"]:
+            db.currentDbAccessLog.get(set()).add(key)
+            query.mergeExternalFilter({"key": key})
+
         query = self.listFilter(query)  # Access control
 
-        if query is None:
-            return False
-
-        if not query.getEntry():
+        if query is None or (key and not query.getEntry()):
             return False
 
         return True

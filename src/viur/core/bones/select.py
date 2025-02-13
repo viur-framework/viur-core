@@ -19,13 +19,13 @@ SelectBoneMultiple = list[SelectBoneValue]
 
 
 def translation_key_prefix_skeleton_bonename(bones_instance: BaseBone) -> str:
-    """Generate a translation key prefix based on the skeleton name"""
+    """Generate a translation key prefix based on the skeleton and bone name"""
     return f'skeleton.{bones_instance.skel_cls.__name__.lower().removesuffix("skel")}.{bones_instance.name}.'
 
 
 def translation_key_prefix_bonename(bones_instance: BaseBone) -> str:
-    """Generate a translation key prefix based on the skeleton and bone name"""
-    return f'skeleton.{bones_instance.skel_cls.__name__.lower().removesuffix("skel")}.{bones_instance.name}.'
+    """Generate a translation key prefix based on the bone name"""
+    return f'bone.{bones_instance.name}.'
 
 
 class SelectBone(BaseBone):
@@ -121,15 +121,23 @@ class SelectBone(BaseBone):
         return val
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
-        if not str(value):
+        if isinstance(self._values, enum.EnumMeta) and isinstance(value, self._values):
+            return value, None
+
+        value = str(value)
+        if not value:
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value selected")]
+
         for key in self.values.keys():
-            if str(key) == str(value):
+            if str(key) == value:
                 if isinstance(self._values, enum.EnumMeta):
                     return self._values(key), None
+
                 return key, None
+
         return self.getEmptyValue(), [
-            ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value selected")]
+            ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value selected")
+        ]
 
     def structure(self) -> dict:
         return super().structure() | {

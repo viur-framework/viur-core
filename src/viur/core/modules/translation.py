@@ -1,12 +1,15 @@
 import enum
+import fnmatch
+import json
 import logging
+import os
 from datetime import timedelta as td
-
-from viur.core import conf, db, utils
+from viur.core import conf, db, utils, current, errors
+from viur.core.decorators import exposed
 from viur.core.bones import *
 from viur.core.i18n import KINDNAME, initializeTranslations, systemTranslations, translate
 from viur.core.prototypes.list import List
-from viur.core.skeleton import Skeleton, SkeletonInstance
+from viur.core.skeleton import Skeleton, SkeletonInstance, ViurTagsSearchAdapter
 
 
 class Creator(enum.Enum):
@@ -17,12 +20,28 @@ class Creator(enum.Enum):
 class TranslationSkel(Skeleton):
     kindName = KINDNAME
 
+    database_adapters = [
+        ViurTagsSearchAdapter(max_length=256),
+    ]
+
+    name = StringBone(
+        descr="Name",
+        visible=False,
+        compute=Compute(
+            fn=lambda skel: str(skel["tr_key"]),
+            interval=ComputeInterval(ComputeMethod.OnWrite),
+        ),
+    )
+
     tr_key = StringBone(
         descr=translate(
             "core.translationskel.tr_key.descr",
             "Translation key",
         ),
         searchable=True,
+        escape_html=False,
+        required=True,
+        min_length=1,
         unique=UniqueValue(UniqueLockMethod.SameValue, False,
                            "This translation key exist already"),
     )
@@ -34,6 +53,8 @@ class TranslationSkel(Skeleton):
         ),
         searchable=True,
         languages=conf.i18n.available_dialects,
+        escape_html=False,
+        max_length=1024,
         params={
             "tooltip": translate(
                 "core.translationskel.translations.tooltip",
@@ -60,6 +81,7 @@ class TranslationSkel(Skeleton):
     )
 
     default_text = StringBone(
+        escape_html=False,
         descr=translate(
             "core.translationskel.default_text.descr",
             "Fallback value",
@@ -106,6 +128,14 @@ class TranslationSkel(Skeleton):
         readOnly=True,
         values=Creator,
         defaultValue=Creator.USER,
+    )
+
+    public = BooleanBone(
+        descr=translate(
+            "core.translationskel.public.descr",
+            "Is this translation public?",
+        ),
+        defaultValue=False,
     )
 
     @classmethod
@@ -177,4 +207,60 @@ class Translation(List):
         systemTranslations.clear()
         initializeTranslations()
 
-    _last_reload = None
+    _last_reload = None  # Cut my strings into pieces, this is my last reload...
+
+    @exposed
+    def get_public(
+        self,
+        *,
+        languages: list[str] = [],
+        pattern: str = "*",
+    ) -> dict[str, str] | dict[str, dict[str, str]]:
+        """
+        Dumps public translations as JSON.
+
+        :param languages: Allows to request a specific language.
+        :param pattern: Provide an fnmatch-style key filter pattern
+
+        Example calls:
+
+        - `/json/_translation/get_public` get public translations for current language
+        - `/json/_translation/get_public?languages=en` for english translations
+        - `/json/_translation/get_public?languages=en&pattern=bool.*` for english translations,
+            but only keys starting with "bool."
+        - `/json/_translation/get_public?languages=en&languages=de` for english and german translations
+        - `/json/_translation/get_public?languages=*` for all available languages
+        """
+        if not utils.string.is_prefix(self.render.kind, "json"):
+            raise errors.BadRequest("Can only use this function on JSON-based renders")
+
+        current.request.get().response.headers["Content-Type"] = "application/json"
+
+        if (
+            not (conf.debug.disable_cache and current.request.get().disableCache)
+            and any(os.getenv("HTTP_HOST", "") in x for x in conf.i18n.domain_language_mapping)
+        ):
+            # cache it 7 days
+            current.request.get().response.headers["Cache-Control"] = f"public, max-age={7 * 24 * 60 * 60}"
+
+        if languages:
+            if len(languages) == 1 and languages[0] == "*":
+                languages = conf.i18n.available_dialects
+
+            return json.dumps({
+                lang: {
+                    tr_key: str(translate(tr_key, force_lang=lang))
+                    for tr_key, values in systemTranslations.items()
+                    if values.get("_public_") and fnmatch.fnmatch(tr_key, pattern)
+                }
+                for lang in languages
+            })
+
+        return json.dumps({
+            tr_key: str(translate(tr_key))
+            for tr_key, values in systemTranslations.items()
+            if values.get("_public_") and fnmatch.fnmatch(tr_key, pattern)
+        })
+
+
+Translation.json = True

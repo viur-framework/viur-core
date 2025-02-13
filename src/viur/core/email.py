@@ -325,7 +325,11 @@ def send_email(
     # First, ensure we're able to send email at all
     transport_class = conf.email.transport_class  # First, ensure we're able to send email at all
     if not isinstance(transport_class, EmailTransport):
-        raise ValueError(f"No or invalid email transportclass specified! ({transport_class=})")
+        raise ValueError(
+            f"No or invalid email transport class specified! ({transport_class=}). "
+            "In ViUR-core >= 3.7 the transport_class must be an instanced object, so maybe it's "
+            f"`conf.email.transport_class = {transport_class.__name__}()` which must be assigned."
+        )
 
     # Ensure that all recipient parameters (dest, cc, bcc) are a list
     dests = normalize_to_list(dests)
@@ -378,7 +382,7 @@ def send_email(
     if conf.email.sender_override:
         sender = conf.email.sender_override
     elif sender is None:
-        sender = f'viur@{conf.instance.project_id}.appspotmail.com'
+        sender = conf.email.sender_default
 
     subject, body = conf.emailRenderer(dests, tpl, stringTemplate, skel, **kwargs)
 
@@ -618,7 +622,7 @@ class EmailTransportBrevo(EmailTransport):
                     logging.info(f"Already send an email for {limit = }.")
                     break
 
-                sendEMailToAdmins(
+                send_email_to_admins(
                     f"SendInBlue email budget {credits} ({idx}. warning)",
                     f"The SendInBlue email budget reached {credits} credits "
                     f"for {data['email']}. Please increase soon.",

@@ -1,28 +1,31 @@
 import logging
 import typing as t
+from deprecated.sphinx import deprecated
 from viur.core import utils, errors, db, current
 from viur.core.decorators import *
 from viur.core.bones import KeyBone, SortIndexBone
 from viur.core.cache import flushCache
 from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.tasks import CallDeferred
-from .skelmodule import SkelModule, DEFAULT_ORDER_TYPE
+from .skelmodule import SkelModule
 
 
 SkelType = t.Literal["node", "leaf"]
 
 
 class TreeSkel(Skeleton):
-    parententry = KeyBone(
+    parententry = KeyBone(  # TODO VIUR4: Why is this not a RelationalBone?
         descr="Parent",
         visible=False,
         readOnly=True,
     )
-    parentrepo = KeyBone(
+
+    parentrepo = KeyBone(  # TODO VIUR4: Why is this not a RelationalBone?
         descr="BaseRepo",
         visible=False,
         readOnly=True,
     )
+
     sortindex = SortIndexBone(
         visible=False,
         readOnly=True,
@@ -47,13 +50,7 @@ class Tree(SkelModule):
     nodeSkelCls = None
     leafSkelCls = None
 
-    default_order: DEFAULT_ORDER_TYPE = "sortindex"
-    """
-    Allows to specify a default order for this module, which is applied when no other order is specified.
-
-    Setting a default_order might result in the requirement of additional indexes, which are being raised
-    and must be specified.
-    """
+    default_order = "sortindex"
 
     def __init__(self, moduleName, modulePath, *args, **kwargs):
         assert self.nodeSkelCls, f"Need to specify at least nodeSkelCls for {self.__class__.__name__!r}"
@@ -144,6 +141,38 @@ class Tree(SkelModule):
         """
         return self.baseSkel(skelType, *args, **kwargs)
 
+    def rootnodeSkel(
+        self,
+        *,
+        identifier: str = "rep_module_repo",
+        ensure: bool | dict | t.Callable[[SkeletonInstance], None] = False,
+    ) -> SkeletonInstance:
+        """
+        Retrieve a new :class:`viur.core.skeleton.SkeletonInstance` that is used by the application
+        for rootnode entries.
+
+        The default is a SkeletonInstance returned by :func:`~baseSkel`, with a preset key created from identifier.
+
+        :param identifier: Unique identifier (name) for this rootnode.
+        :param ensure: If provided, ensures that the skeleton is available, and created with optionally provided values.
+
+        :return: Returns a SkeletonInstance for handling root nodes.
+        """
+        skel = self.baseSkel("node")
+
+        skel["key"] = db.Key(skel.kindName, identifier)
+        skel["rootNode"] = True
+
+        if ensure not in (False, None):
+            return skel.read(create=ensure)
+
+        return skel
+
+    @deprecated(
+        version="3.7.0",
+        reason="Use rootnodeSkel(ensure=True) instead.",
+        action="always"
+    )
     def ensureOwnModuleRootNode(self) -> db.Entity:
         """
         Ensures, that general root-node for the current module exists.
@@ -151,9 +180,7 @@ class Tree(SkelModule):
 
         :returns: The entity of the root-node.
         """
-        key = "rep_module_repo"
-        kindName = self.viewSkel("node").kindName
-        return db.GetOrInsert(db.Key(kindName, key), creationdate=utils.utcNow(), rootNode=1)
+        return self.rootnodeSkel(ensure=True).dbEntity
 
     def getAvailableRootNodes(self, *args, **kwargs) -> list[dict[t.Literal["name", "key"], str]]:
         """
@@ -262,6 +289,20 @@ class Tree(SkelModule):
     ## External exposed functions
 
     @exposed
+    def index(self, skelType: SkelType = "node", parententry: t.Optional[db.Key | int | str] = None, **kwargs):
+        if not parententry:
+            repos = self.getAvailableRootNodes(**kwargs)
+            match len(repos):
+                case 0:
+                    raise errors.Unauthorized()
+                case 1:
+                    parententry = repos[0]["key"]
+                case _:
+                    raise errors.NotAcceptable(f"Missing required parameter {'parententry'!r}")
+
+        return self.list(skelType=skelType, parententry=parententry, **kwargs)
+
+    @exposed
     def listRootNodes(self, *args, **kwargs) -> t.Any:
         """
         Renders a list of all available repositories for the current user using the
@@ -292,57 +333,47 @@ class Tree(SkelModule):
             raise errors.NotAcceptable("Invalid skelType provided.")
 
         # The general access control is made via self.listFilter()
-        query = self.listFilter(self.viewSkel(skelType).all().mergeExternalFilter(kwargs))
-        if query and query.queries and not isinstance(query.queries, list):
-            # Apply default order when specified
-            if self.default_order and not query.queries.orders and not current.request.get().kwargs.get("search"):
-                # TODO: refactor: Duplicate code in prototypes.List
-                if callable(default_order := self.default_order):
-                    default_order = default_order(query)
+        if not (query := self.listFilter(self.viewSkel(skelType).all().mergeExternalFilter(kwargs))):
+            raise errors.Unauthorized()
 
-                if isinstance(default_order, dict):
-                    logging.debug(f"Applying filter {default_order=}")
-                    query.mergeExternalFilter(default_order)
-
-                elif default_order:
-                    logging.debug(f"Applying {default_order=}")
-
-                    # FIXME: This ugly test can be removed when there is type that abstracts SortOrders
-                    if (
-                        isinstance(default_order, str)
-                        or (
-                            isinstance(default_order, tuple)
-                            and len(default_order) == 2
-                            and isinstance(default_order[0], str)
-                            and isinstance(default_order[1], db.SortOrder)
-                        )
-                    ):
-                        query.order(default_order)
-                    else:
-                        query.order(*default_order)
-
-            return self.render.list(query.fetch())
-
-        raise errors.Unauthorized()
+        self._apply_default_order(query)
+        return self.render.list(query.fetch())
 
     @exposed
-    def structure(self, skelType: SkelType, *args, **kwargs) -> t.Any:
+    def structure(self, skelType: SkelType, action: t.Optional[str] = "view") -> t.Any:
         """
-        :returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
-            in each bone.
+            :returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
+                in each bone.
 
-        :raises: :exc:`viur.core.errors.NotAcceptable`, when an incorrect *skelType* is provided.
-        :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
+            :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
-        if not (skelType := self._checkSkelType(skelType)):
-            raise errors.NotAcceptable(f"Invalid skelType provided.")
-        skel = self.viewSkel(skelType)
-        if not self.canAdd(skelType, None):  # We can't use canView here as it would require passing a skeletonInstance.
-            # As a fallback, we'll check if the user has the permissions to view at least one entry
-            qry = self.listFilter(skel.all())
-            if not qry or not qry.getEntry():
-                raise errors.Unauthorized()
-        return self.render.view(skel)
+        # FIXME: In ViUR > 3.7 this could also become dynamic (ActionSkel paradigm).
+        match action:
+            case "view":
+                skel = self.viewSkel(skelType)
+                if not self.canView(skelType, skel):
+                    raise errors.Unauthorized()
+
+            case "edit":
+                skel = self.editSkel(skelType)
+                if not self.canEdit(skelType, skel):
+                    raise errors.Unauthorized()
+
+            case "add":
+                if not self.canAdd(skelType):
+                    raise errors.Unauthorized()
+
+                skel = self.addSkel(skelType)
+
+            case "clone":
+                skel = self.cloneSkel(skelType)
+                if not (self.canAdd(skelType) and self.canEdit(skelType, skel)):
+                    raise errors.Unauthorized()
+
+            case _:
+                raise errors.NotImplemented(f"The action {action!r} is not implemented.")
+
+        return self.render.render(f"structure.{skelType}.{action}", skel)
 
     @exposed
     def view(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> t.Any:
@@ -403,6 +434,8 @@ class Tree(SkelModule):
 
         skel = self.addSkel(skelType)
         parentNodeSkel = self.editSkel("node")
+
+        # TODO VIUR4: Why is this parameter called "node"?
         if not parentNodeSkel.read(node):
             raise errors.NotFound("The provided parent node could not be found.")
         if not self.canAdd(skelType, parentNodeSkel):
@@ -425,6 +458,67 @@ class Tree(SkelModule):
         self.onAdded(skelType, skel)
 
         return self.render.addSuccess(skel)
+
+    @force_ssl
+    @force_post
+    @exposed
+    @skey
+    @access("root")
+    def add_or_edit(self, skelType: SkelType, key: db.Key | int | str, **kwargs) -> t.Any:
+        """
+        This function is intended to be used by importers.
+        Only "root"-users are allowed to use it.
+        """
+        if not (skelType := self._checkSkelType(skelType)):
+            raise errors.NotAcceptable("Invalid skelType provided.")
+
+        kind_name = self.nodeSkelCls.kindName if skelType == "node" else self.leafSkelCls.kindName
+
+        db_key = db.keyHelper(key, targetKind=kind_name, adjust_kind=kind_name)
+        is_add = not bool(db.Get(db_key))
+
+        if is_add:
+            skel = self.addSkel(skelType)
+        else:
+            skel = self.editSkel(skelType)
+
+        skel = skel.ensure_is_cloned()
+        skel.parententry.required = True
+        skel.parententry.readOnly = False
+
+        skel["key"] = db_key
+
+        if (
+            not kwargs  # no data supplied
+            or not skel.fromClient(kwargs)  # failure on reading into the bones
+        ):
+            # render the skeleton in the version it could as far as it could be read.
+            return self.render.render("add_or_edit", skel)
+
+        # Ensure the parententry exists
+        parentNodeSkel = self.editSkel("node")
+        if not parentNodeSkel.read(skel["parententry"]):
+            raise errors.NotFound("The provided parent node could not be found.")
+        if not self.canAdd(skelType, parentNodeSkel):
+            raise errors.Unauthorized()
+
+        skel["parententry"] = parentNodeSkel["key"]
+        # parentrepo may not exist in parentNodeSkel as it may be an rootNode
+        skel["parentrepo"] = parentNodeSkel["parentrepo"] or parentNodeSkel["key"]
+
+        if is_add:
+            self.onAdd(skelType, skel)
+        else:
+            self.onEdit(skelType, skel)
+
+        skel.write()
+
+        if is_add:
+            self.onAdded(skelType, skel)
+            return self.render.addSuccess(skel)
+
+        self.onEdited(skelType, skel)
+        return self.render.editSuccess(skel)
 
     @exposed
     @force_ssl
@@ -652,7 +746,7 @@ class Tree(SkelModule):
 
         # Remember source skel and unset the key for clone operation!
         src_skel = skel
-        skel = skel.clone()
+        skel = skel.clone(apply_clone_strategy=True)
         skel["key"] = None
 
         # make parententry required and writeable when provided
@@ -713,15 +807,19 @@ class Tree(SkelModule):
         :param skel: The entry we check for
         :return: True if the current session is authorized to view that entry, False otherwise
         """
-        queryObj = self.viewSkel(skelType).all().mergeExternalFilter({"key": skel["key"]})
-        queryObj = self.listFilter(queryObj)  # Access control
-        if queryObj is None:
+        query = self.viewSkel(skelType).all()
+
+        if key := skel["key"]:
+            query.mergeExternalFilter({"key": key})
+
+        query = self.listFilter(query)  # Access control
+
+        if query is None or (key and not query.getEntry()):
             return False
-        if not queryObj.getEntry():
-            return False
+
         return True
 
-    def canAdd(self, skelType: SkelType, parentNodeSkel: t.Optional[SkeletonInstance]) -> bool:
+    def canAdd(self, skelType: SkelType, parentNodeSkel: t.Optional[SkeletonInstance] = None) -> bool:
         """
         Access control function for adding permission.
 

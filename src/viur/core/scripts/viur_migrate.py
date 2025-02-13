@@ -42,6 +42,8 @@ lookup = {
     "toDB": "write",
     "fromDB": "read",
     re.compile(r"\bsubSkel\b"): "subskel",
+    "sendEMailToAdmins": "send_email_to_admins",
+    "sendEMail": "send_email",
 
     # WARNING: THESE MUST BE KEPT AT THE END, THE ORDER MATTERS!!!!
     "projectID": "conf.instance.project_id",
@@ -157,6 +159,8 @@ for old_key, new_attr in {
     "viur.static.embedSvg.path": "static_embed_svg_path",
     "viur.tasks.customEnvironmentHandler": "tasks_custom_environment_handler",
     "viur.user.roles": "user.roles",
+    "viur.user.google.clientID": "user.google_client_id",
+    "viur.user.google.gsuiteDomains": "user.google_gsuite_domains",
     "viur.validApplicationIDs": "valid_application_ids",
     "viur.version": "version",
 }.items():

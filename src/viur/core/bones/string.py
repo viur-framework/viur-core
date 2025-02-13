@@ -28,6 +28,7 @@ class StringBone(BaseBone):
         max_length: int | None = 254,
         min_length: int | None = None,
         natural_sorting: bool | t.Callable = False,
+        escape_html: bool = True,
         **kwargs
     ):
         """
@@ -42,6 +43,8 @@ class StringBone(BaseBone):
             `True` enables sorting according to DIN 5007 Variant 2.
             With passing a `callable`, a custom transformer method can be set
             that creates the value for the index property.
+        :param escape_html: Replace some characters in the string with HTML-safe sequences with
+            using :meth:`utils.string.escape` for safe use in HTML.
         :param kwargs: Inherited arguments from the BaseBone.
         """
         # fixme: Remove in viur-core >= 4
@@ -67,6 +70,7 @@ class StringBone(BaseBone):
         elif not natural_sorting:
             self.natural_sorting = None
         # else: keep self.natural_sorting as is
+        self.escape_html = escape_html
 
     def type_coerce_single_value(self, value: t.Any) -> str:
         """Convert a value to a string (if not already)
@@ -167,9 +171,12 @@ class StringBone(BaseBone):
         Returns None and the escaped value if the value would be valid for
         this bone, otherwise the empty value and an error-message.
         """
-
         if not (err := self.isInvalid(str(value))):
-            return utils.string.escape(value, self.max_length), None
+            if self.escape_html:
+                return utils.string.escape(value, self.max_length), None
+            elif self.max_length:
+                return value[:self.max_length], None
+            return value, None
 
         return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
@@ -308,6 +315,13 @@ class StringBone(BaseBone):
         if self.languages:
             # Not yet implemented as it's unclear if we should keep each language distinct or not
             raise NotImplementedError()
+
+        if not self.caseSensitive and (value := skel[name]) is not None:
+            if self.multiple:
+                value = [v.lower() for v in value]
+            else:
+                value = value.lower()
+            return self._hashValueForUniquePropertyIndex(value)
 
         return super().getUniquePropertyIndexValues(skel, name)
 

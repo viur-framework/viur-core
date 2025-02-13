@@ -535,7 +535,7 @@ class Email(ConfigType):
 
     transport_class: "EmailTransport" = None
     """EmailTransport instance that actually delivers the email using the service provider
-    of choice. See email.py for more details
+    of choice. See :module:`core.email` for more details
     """
 
     send_from_local_development_server: bool = False
@@ -545,14 +545,21 @@ class Email(ConfigType):
 
     recipient_override: str | list[str] | t.Callable[[], str | list[str]] | t.Literal[False] = None
     """If set, all outgoing emails will be sent to this address
-    (overriding the 'dests'-parameter in email.sendEmail)
+    (overriding the 'dests'-parameter in :meth:`core.email.send_email`)
+    """
+
+    sender_default: str = f"viur@{_project_id}.appspotmail.com"
+    """This sender is used by default for emails.
+    It can be overridden for a specific email by passing the `sender` argument
+    to :meth:`core.email.send_email` or for all emails with :attr:`sender_override`.
     """
 
     sender_override: str | None = None
     """If set, this sender will be used, regardless of what the templates advertise as sender"""
 
     admin_recipients: str | list[str] | t.Callable[[], str | list[str]] = None
-    """Sets recipients for mails send with email.sendEMailToAdmins. If not set, all root users will be used."""
+    """Sets recipients for mails send with :meth:`core.email.send_email_to_admins`.
+    If not set, all root users will be used."""
 
     _mapping = {
         "logRetention": "log_retention",
@@ -560,7 +567,6 @@ class Email(ConfigType):
         "sendFromLocalDevelopmentServer": "send_from_local_development_server",
         "recipientOverride": "recipient_override",
         "senderOverride": "sender_override",
-        "admin_recipients": "admin_recipients",
         "sendInBlue.apiKey": "sendinblue_api_key",
         "sendInBlue.thresholds": "sendinblue_thresholds",
     }
@@ -613,8 +619,20 @@ class I18N(ConfigType):
 class User(ConfigType):
     """User, session, login related settings"""
 
-    access_rights: Multiple[str] = ["root", "admin"]
-    """Additional access rights available on this project"""
+    access_rights: Multiple[str] = [
+        "root",
+        "admin",
+        "scriptor",
+    ]
+    """Additional access flags available for users on this project.
+
+    There are three default flags:
+    - `root` is allowed to view/add/edit/delete any module, regardless of role or other settings
+    - `admin` is allowed to use the ViUR administration tool
+    - `scriptor` is allowed to use the ViUR scripting features directly within the admin
+      This does not affect scriptor actions which are configured for modules, as they allow for
+      fine grained usage rule definitions.
+    """
 
     roles: dict[str, str] = {
         "custom": "Custom",
@@ -623,7 +641,22 @@ class User(ConfigType):
         "editor": "Editor",
         "admin": "Administrator",
     }
-    """User roles available on this project"""
+    """User roles available on this project.
+
+    The roles can be individually defined per module, see `Module.roles`.
+
+    The default roles can be described as follows:
+
+    - `custom` for users with a custom-settings via the `User.access`-bone; includes root users.
+    - `user` for users without any additonal rights. They can log-in and view themselves, or particular modules which
+      just check for authenticated users.
+    - `viewer` for users who should only view content.
+    - `editor` for users who are allowed to edit particular content. They mostly can `view` and `edit`, but not `add`
+      or `delete`.
+    - `admin` for users with administration privileges. They can edit any data, but still aren't `root`.
+
+    The preset roles are for guidiance, and already fit to most projects.
+    """
 
     session_life_time: int = 60 * 60
     """Default is 60 minutes lifetime for ViUR sessions"""

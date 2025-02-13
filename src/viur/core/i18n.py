@@ -74,11 +74,13 @@ Of course you can create skeletons / entries in the datastore in your project
 on your own. Just use the TranslateSkel).
 """  # FIXME: grammar, rst syntax
 import datetime
-import jinja2.ext as jinja2
 import logging
+import sys
 import traceback
 import typing as t
 from pathlib import Path
+
+import jinja2.ext as jinja2
 
 from viur.core import current, db, languages, tasks
 from viur.core.config import conf
@@ -150,9 +152,26 @@ class translate:
     translation issues with bones, which can now take an instance of this class as it's description/hints.
     """
 
-    __slots__ = ["key", "defaultText", "hint", "translationCache", "force_lang"]
+    __slots__ = (
+        "key",
+        "defaultText",
+        "hint",
+        "translationCache",
+        "force_lang",
+        "public",
+        "filename",
+        "lineno",
+    )
 
-    def __init__(self, key: str, defaultText: str = None, hint: str = None, force_lang: str = None):
+    def __init__(
+        self,
+        key: str,
+        defaultText: str = None,
+        hint: str = None,
+        force_lang: str = None,
+        public: bool = False,
+        caller_is_jinja: bool = False,
+    ):
         """
         :param key: The unique key defining this text fragment.
             Usually it's a path/filename and a unique descriptor in that file
@@ -163,16 +182,43 @@ class translate:
             as the key/defaultText may have different meanings in the
             target language.
         :param force_lang: Use this language instead the one of the request.
+        :param public: Flag for public translations, which can be obtained via /json/_translate/get_public.
+        :param caller_is_jinja: Is the call caused by our jinja method?
         """
         super().__init__()
+
+        if not isinstance(key, str):
+            logging.warning(f"Got non-string (type {type(key)}) as {key=}!", exc_info=True)
+
+        if force_lang is not None and force_lang not in conf.i18n.available_dialects:
+            raise ValueError(f"The language {force_lang=} is not available")
+
         key = str(key)  # ensure key is a str
         self.key = key.lower()
         self.defaultText = defaultText or key
         self.hint = hint
         self.translationCache = None
-        if force_lang is not None and force_lang not in conf.i18n.available_dialects:
-            raise ValueError(f"The language {force_lang=} is not available")
         self.force_lang = force_lang
+        self.public = public
+        self.filename, self.lineno = None, None
+
+        if conf.i18n.add_missing_translations and self.key not in systemTranslations:
+            # This translation seems to be new and should be added
+            for frame, line in traceback.walk_stack(sys._getframe(0).f_back):
+                if self.filename is None:
+                    # Use the first frame as fallback.
+                    # In case of calling this class directly,
+                    # this is anyway the caller we're looking for.
+                    self.filename = frame.f_code.co_filename
+                    self.lineno = frame.f_lineno
+                    if not caller_is_jinja:
+                        break
+                if caller_is_jinja and not frame.f_code.co_filename.endswith(".py"):
+                    # Look for the latest html, macro (not py) where the
+                    # translate method has been used, that's our caller
+                    self.filename = frame.f_code.co_filename
+                    self.lineno = line
+                    break
 
     def __repr__(self) -> str:
         return f"<translate object for {self.key} with force_lang={self.force_lang}>"
@@ -181,35 +227,16 @@ class translate:
         if self.translationCache is None:
             global systemTranslations
 
-            from viur.core.render.html.env.viur import translate as jinja_translate
-
-            if self.key not in systemTranslations and conf.i18n.add_missing_translations:
+            if conf.i18n.add_missing_translations and self.key not in systemTranslations:
                 # This translation seems to be new and should be added
-                filename = lineno = None
-                is_jinja = False
-                for frame, line in traceback.walk_stack(None):
-                    if filename is None:
-                        # Use the first frame as fallback.
-                        # In case of calling this class directly,
-                        # this is anyway the caller we're looking for.
-                        filename = frame.f_code.co_filename
-                        lineno = frame.f_lineno
-                    if frame.f_code == jinja_translate.__code__:
-                        # The call was caused by our jinja method
-                        is_jinja = True
-                    if is_jinja and not frame.f_code.co_filename.endswith(".py"):
-                        # Look for the latest html, macro (not py) where the
-                        # translate method has been used, that's our caller
-                        filename = frame.f_code.co_filename
-                        lineno = line
-                        break
 
                 add_missing_translation(
                     key=self.key,
                     hint=self.hint,
                     default_text=self.defaultText,
-                    filename=filename,
-                    lineno=lineno,
+                    filename=self.filename,
+                    lineno=self.lineno,
+                    public=self.public,
                 )
 
             self.translationCache = self.merge_alias(systemTranslations.get(self.key, {}))
@@ -271,15 +298,19 @@ class TranslationExtension(jinja2.Extension):
     force the use of a specific language, not the language of the request.
     """
 
-    tags = {"translate"}
+    tags = {
+        "translate",
+    }
 
     def parse(self, parser):
         # Parse the translate tag
         global systemTranslations
+
         args = []  # positional args for the `_translate()` method
         kwargs = {}  # keyword args (force_lang + substitute vars) for the `_translate()` method
         lineno = parser.stream.current.lineno
         filename = parser.stream.filename
+
         # Parse arguments (args and kwargs) until the current block ends
         lastToken = None
         while parser.stream.current.type != 'block_end':
@@ -300,15 +331,20 @@ class TranslationExtension(jinja2.Extension):
                 else:
                     raise SyntaxError()
                 lastToken = None
+
         if lastToken:  # TODO: what's this? what it is doing?
-            logging.debug(f"final append {lastToken = }")
+            # logging.debug(f"final append {lastToken = }")
             args.append(lastToken.value)
+
         if not 0 < len(args) <= 3:
             raise SyntaxError("Translation-Key missing or excess parameters!")
+
         args += [""] * (3 - len(args))
         args += [kwargs]
         tr_key = args[0].lower()
-        if tr_key not in systemTranslations:
+        public = kwargs.pop("_public_", False) or False
+
+        if conf.i18n.add_missing_translations and tr_key not in systemTranslations:
             add_missing_translation(
                 key=tr_key,
                 hint=args[1],
@@ -316,6 +352,7 @@ class TranslationExtension(jinja2.Extension):
                 filename=filename,
                 lineno=lineno,
                 variables=list(kwargs.keys()),
+                public=public,
             )
 
         translations = translate.merge_alias(systemTranslations.get(tr_key, {}))
@@ -368,7 +405,9 @@ def initializeTranslations() -> None:
 
         translations = {
             "_default_text_": entity.get("default_text") or None,
+            "_public_": entity.get("public") or False,
         }
+
         for lang, translation in entity["translations"].items():
             if lang not in conf.i18n.available_dialects:
                 # Don't store unknown languages in the memory
@@ -377,6 +416,7 @@ def initializeTranslations() -> None:
                 # Skip empty values
                 continue
             translations[lang] = translation
+
         systemTranslations[entity["tr_key"]] = translations
 
 
@@ -389,6 +429,7 @@ def add_missing_translation(
     filename: str | None = None,
     lineno: int | None = None,
     variables: list[str] = None,
+    public: bool = False,
 ) -> None:
     """Add missing translations to datastore"""
     try:
@@ -425,11 +466,13 @@ def add_missing_translation(
     skel["usage_lineno"] = lineno
     skel["usage_variables"] = variables or []
     skel["creator"] = Creator.VIUR
+    skel["public"] = public
     skel.write()
 
     # Add to system translation to avoid triggering this method again
     systemTranslations[key] = {
         "_default_text_": default_text or None,
+        "_public_": public,
     }
 
 

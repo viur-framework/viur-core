@@ -190,7 +190,7 @@ class TaskHandler(Module):
         retryCount = req.headers.get("X-Appengine-Taskretrycount", None)
         if retryCount and int(retryCount) == self.retryCountWarningThreshold:
             from viur.core import email
-            email.sendEMailToAdmins(
+            email.send_email_to_admins(
                 "Deferred task retry counter exceeded warning threshold",
                 f"""Task {req.headers.get("X-Appengine-Taskname", "")} is retried for the {retryCount}th time."""
             )
@@ -202,6 +202,9 @@ class TaskHandler(Module):
         if env:
             if "user" in env and env["user"]:
                 current.session.get()["user"] = env["user"]
+                # FIXME: We do not have a fully loaded session from the cookie here,
+                #        but only a partial session.
+                #        But we still leave `loaded` on False, which leads to problems.
 
                 # Load current user into context variable if user module is there.
                 if user_mod := getattr(conf.main_app.vi, "user", None):

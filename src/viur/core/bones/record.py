@@ -103,6 +103,22 @@ class RecordBone(BaseBone):
             )
         return usingSkel, usingSkel.errors
 
+    def postSavedHandler(self, skel, boneName, key) -> None:
+        super().postSavedHandler(skel, boneName, key)
+        for idx, lang, value in self.iter_bone_value(skel, boneName):
+            using = self.using()
+            using.unserialize(value)
+            for bone_name, bone in using.items():
+                bone.postSavedHandler(using, bone_name, None)
+
+    def refresh(self, skel, boneName) -> None:
+        super().refresh(skel, boneName)
+        for idx, lang, value in self.iter_bone_value(skel, boneName):
+            using = self.using()
+            using.unserialize(value)
+            for bone_name, bone in using.items():
+                bone.refresh(using, bone_name)
+
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
         Collects search tags from the 'using' skeleton instance for the given bone.
@@ -183,3 +199,15 @@ class RecordBone(BaseBone):
         return super().structure() | {
             "format": self.format,
             "using": self.using().structure()}
+
+    def refresh(self, skel, bone_name):
+        using_skel = self.using()
+
+        for idx, lang, value in self.iter_bone_value(skel, bone_name):
+            if value is None:
+                continue
+
+            using_skel.unserialize(value)
+
+            for key, bone in using_skel.items():
+                bone.refresh(using_skel, key)

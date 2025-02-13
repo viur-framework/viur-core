@@ -58,7 +58,7 @@ class MetaBaseSkel(type):
         "clone",
         "cursor",
         "delete",
-        "patch",
+        "errors",
         "fromClient",
         "fromDB",
         "get",
@@ -68,6 +68,7 @@ class MetaBaseSkel(type):
         "limit",
         "orderby",
         "orderdir",
+        "patch",
         "postDeletedHandler",
         "postSavedHandler",
         "preProcessBlobLocks",
@@ -87,13 +88,13 @@ class MetaBaseSkel(type):
 
     __allowed_chars = string.ascii_letters + string.digits + "_"
 
-    def __init__(cls, name, bases, dct):
+    def __init__(cls, name, bases, dct, **kwargs):
         cls.__boneMap__ = MetaBaseSkel.generate_bonemap(cls)
 
         if not getSystemInitialized() and not cls.__name__.endswith(ABSTRACT_SKEL_CLS_SUFFIX):
             MetaBaseSkel._allSkelClasses.add(cls)
 
-        super(MetaBaseSkel, cls).__init__(name, bases, dct)
+        super().__init__(name, bases, dct)
 
     @staticmethod
     def generate_bonemap(cls):
@@ -152,8 +153,8 @@ class SkeletonInstance(t.Generic[Skeleton_Cls]):
         *,
         bones: t.Iterable[str] = (),
         bone_map: t.Optional[t.Dict[str, BaseBone]] = None,
-        full_clone: bool = False,
-        # BELOW IS DEPRECATED!
+        clone: bool = False,
+        # FIXME: BELOW IS DEPRECATED!
         clonedBoneMap: t.Optional[t.Dict[str, BaseBone]] = None,
     ):
         """
@@ -163,7 +164,7 @@ class SkeletonInstance(t.Generic[Skeleton_Cls]):
         :param bones: If given, defines an iterable of bones that are take into the SkeletonInstance.
             The order of the bones defines the order in the SkeletonInstance.
         :param bone_map: A pre-defined bone map to use, or extend.
-        :param full_clone: If set True, performs a full clone of the used bone map, to be entirely stand-alone.
+        :param clone: If set True, performs a cloning of the used bone map, to be entirely stand-alone.
         """
 
         # TODO: Remove with ViUR-core 3.8; required by viur-datastore :'-(
@@ -190,27 +191,32 @@ class SkeletonInstance(t.Generic[Skeleton_Cls]):
                 else:
                     keys.extend(fnmatch.filter(skel_cls.__boneMap__.keys(), name))
 
-            if full_clone:
+            if clone:
                 bone_map |= {k: copy.deepcopy(skel_cls.__boneMap__[k]) for k in keys if skel_cls.__boneMap__[k]}
             else:
                 bone_map |= {k: skel_cls.__boneMap__[k] for k in keys if skel_cls.__boneMap__[k]}
 
-        elif full_clone:
-            bone_map |= copy.deepcopy(skel_cls.__boneMap__)
+        elif clone:
+            if bone_map:
+                bone_map = copy.deepcopy(bone_map)
+            else:
+                bone_map = copy.deepcopy(skel_cls.__boneMap__)
 
         # generated or use provided bone_map
         if bone_map:
             self.boneMap = bone_map
-            for v in self.boneMap.values():
-                v.isClonedInstance = True
 
         else:  # No Subskel, no Clone
             self.boneMap = skel_cls.__boneMap__.copy()
 
+        if clone:
+            for v in self.boneMap.values():
+                v.isClonedInstance = True
+
         self.accessedValues = {}
         self.dbEntity = None
         self.errors = []
-        self.is_cloned = full_clone
+        self.is_cloned = clone
         self.renderAccessedValues = {}
         self.renderPreparation = None
         self.skeletonCls: Skeleton_Cls = skel_cls
@@ -360,6 +366,7 @@ class SkeletonInstance(t.Generic[Skeleton_Cls]):
             if value is None:
                 del self.boneMap[key]
             else:
+                value.__set_name__(self.skeletonCls, key)
                 self.boneMap[key] = value
         elif key == "renderPreparation":
             super().__setattr__(key, value)
@@ -395,16 +402,23 @@ class SkeletonInstance(t.Generic[Skeleton_Cls]):
             raise ValueError("Unsupported Type")
         return self
 
-    def clone(self):
+    def clone(self, *, apply_clone_strategy: bool = False) -> t.Self:
         """
         Clones a SkeletonInstance into a modificable, stand-alone instance.
         This will also allow to modify the underlying data model.
         """
-        res = SkeletonInstance(self.skeletonCls, full_clone=True)
-        res.accessedValues = copy.deepcopy(self.accessedValues)
+        res = SkeletonInstance(self.skeletonCls, bone_map=self.boneMap, clone=True)
+        if apply_clone_strategy:
+            for bone_name, bone_instance in self.items():
+                bone_instance.clone_value(res, self, bone_name)
+        else:
+            res.accessedValues = copy.deepcopy(self.accessedValues)
         res.dbEntity = copy.deepcopy(self.dbEntity)
         res.is_cloned = True
-        res.renderAccessedValues = copy.deepcopy(self.renderAccessedValues)
+        if not apply_clone_strategy:
+            res.renderAccessedValues = copy.deepcopy(self.renderAccessedValues)
+        # else: Depending on the strategy the values are cloned in bone_instance.clone_value too
+
         return res
 
     def ensure_is_cloned(self):
@@ -461,17 +475,16 @@ class BaseSkeleton(metaclass=MetaBaseSkel):
     @deprecated(
         version="3.7.0",
         reason="Function renamed. Use subskel function as alternative implementation.",
-        action="always"
     )
-    def subSkel(cls, *subskel_names, full_clone: bool = False, **kwargs) -> SkeletonInstance:
-        return cls.subskel(*subskel_names, full_clone=full_clone)  # FIXME: REMOVE WITH VIUR4
+    def subSkel(cls, *subskel_names, fullClone: bool = False, **kwargs) -> SkeletonInstance:
+        return cls.subskel(*subskel_names, clone=fullClone)  # FIXME: REMOVE WITH VIUR4
 
     @classmethod
     def subskel(
         cls,
         *names: str,
         bones: t.Iterable[str] = (),
-        full_clone: bool = False,
+        clone: bool = False,
     ) -> SkeletonInstance:
         """
             Creates a new sub-skeleton from the current skeleton.
@@ -512,7 +525,7 @@ class BaseSkeleton(metaclass=MetaBaseSkel):
             :param bones: Allows to specify an iterator of bone names (more precisely, fnmatch-wildards) which allow
                 to freely define a subskel. If *only* this parameter is given, the order of the specification also
                 defines, the order of the list. Otherwise, the original order as defined in the skeleton is kept.
-            :param full_clone: If set True, performs a full clone of the used bone map, to be entirely stand-alone.
+            :param clone: If set True, performs a cloning of the used bone map, to be entirely stand-alone.
 
             :return: The sub-skeleton of the specified type.
         """
@@ -539,7 +552,7 @@ class BaseSkeleton(metaclass=MetaBaseSkel):
         if not bones:
             raise ValueError("The given subskel definition doesn't contain any bones!")
 
-        return cls(bones=bones, full_clone=full_clone)
+        return cls(bones=bones, clone=clone)
 
     @classmethod
     def setSystemInitialized(cls):
@@ -596,7 +609,14 @@ class BaseSkeleton(metaclass=MetaBaseSkel):
         return bone.setBoneValue(skel, boneName, value, append, language)
 
     @classmethod
-    def fromClient(cls, skel: SkeletonInstance[t.Self], data: dict[str, list[str] | str], amend: bool = False) -> bool:
+    def fromClient(
+        cls,
+        skel: SkeletonInstance[t.Self],
+        data: dict[str, list[str] | str],
+        *,
+        amend: bool = False,
+        ignore: t.Optional[t.Iterable[str]] = None,
+    ) -> bool:
         """
             Load supplied *data* into Skeleton.
 
@@ -613,6 +633,7 @@ class BaseSkeleton(metaclass=MetaBaseSkel):
             :param data: Dictionary from which the data is read.
             :param amend: Defines whether content of data may be incomplete to amend the skel,
                 which is useful for edit-actions.
+            :param ignore: optional list of bones to be ignored; Defaults to all readonly-bones when set to None.
 
             :returns: True if all data was successfully read and complete. \
             False otherwise (e.g. some required fields where missing or where invalid).
@@ -621,7 +642,7 @@ class BaseSkeleton(metaclass=MetaBaseSkel):
         skel.errors = []
 
         for key, bone in skel.items():
-            if bone.readOnly:
+            if (ignore is None and bone.readOnly) or key in (ignore or ()):
                 continue
 
             if errors := bone.fromClient(skel, key, data):
@@ -677,7 +698,7 @@ class BaseSkeleton(metaclass=MetaBaseSkel):
             This function causes a refresh of all relational bones and their associated
             information.
         """
-        logging.debug(f"""Refreshing {skel["key"]=}""")
+        logging.debug(f"""Refreshing {skel["key"]!r} ({skel.get("name")!r})""")
 
         for key, bone in skel.items():
             if not isinstance(bone, BaseBone):
@@ -691,8 +712,9 @@ class BaseSkeleton(metaclass=MetaBaseSkel):
 
 
 class MetaSkel(MetaBaseSkel):
-    def __init__(cls, name, bases, dct):
-        super(MetaSkel, cls).__init__(name, bases, dct)
+
+    def __init__(cls, name, bases, dct, **kwargs):
+        super().__init__(name, bases, dct, **kwargs)
 
         relNewFileName = inspect.getfile(cls) \
             .replace(str(conf.instance.project_base_path), "") \
@@ -1016,7 +1038,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return db.Query(skel.kindName, srcSkelClass=skel, **kwargs)
 
     @classmethod
-    def fromClient(cls, skel: SkeletonInstance, data: dict[str, list[str] | str], amend: bool = False) -> bool:
+    def fromClient(
+        cls,
+        skel: SkeletonInstance,
+        data: dict[str, list[str] | str],
+        *,
+        amend: bool = False,
+        ignore: t.Optional[t.Iterable[str]] = None,
+    ) -> bool:
         """
             This function works similar to :func:`~viur.core.skeleton.Skeleton.setValues`, except that
             the values retrieved from *data* are checked against the bones and their validity checks.
@@ -1031,6 +1060,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             :param data: Dictionary from which the data is read.
             :param amend: Defines whether content of data may be incomplete to amend the skel,
                 which is useful for edit-actions.
+            :param ignore: optional list of bones to be ignored; Defaults to all readonly-bones when set to None.
 
             :returns: True if all data was successfully read and complete. \
             False otherwise (e.g. some required fields where missing or where invalid).
@@ -1038,7 +1068,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         assert skel.renderPreparation is None, "Cannot modify values while rendering"
 
         # Load data into this skeleton
-        complete = bool(data) and super().fromClient(skel, data, amend=amend)
+        complete = bool(data) and super().fromClient(skel, data, amend=amend, ignore=ignore)
 
         if (
             not data  # in case data is empty
@@ -1078,7 +1108,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     @deprecated(
         version="3.7.0",
         reason="Use skel.read() instead of skel.fromDB()",
-        action="always"
     )
     def fromDB(cls, skel: SkeletonInstance, key: KeyType) -> bool:
         """
@@ -1092,6 +1121,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         skel: SkeletonInstance,
         key: t.Optional[KeyType] = None,
         *,
+        create: bool | dict | t.Callable[[SkeletonInstance], None] = False,
         _check_legacy: bool = True
     ) -> t.Optional[SkeletonInstance]:
         """
@@ -1106,6 +1136,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             :param key: A :class:`viur.core.db.Key`, string, or int; from which the data shall be fetched.
                 If not provided, skel["key"] will be used.
+            :param create: Allows to specify a dict or initial callable that is executed in case the Skeleton with the
+                given key does not exist, it will be created.
 
             :returns: None on error, or the given SkeletonInstance on success.
 
@@ -1123,17 +1155,25 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         except (ValueError, NotImplementedError):  # This key did not parse
             return None
 
-        if not (db_res := db.Get(db_key)):
+        if db_res := db.Get(db_key):
+            skel.setEntity(db_res)
+            return skel
+        elif create in (False, None):
             return None
+        elif isinstance(create, dict):
+            if create and not skel.fromClient(create, amend=True):
+                raise ReadFromClientException(skel.errors)
+        elif callable(create):
+            create(skel)
+        elif create is not True:
+            raise ValueError("'create' must either be dict, a callable or True.")
 
-        skel.setEntity(db_res)
-        return skel
+        return skel.write()
 
     @classmethod
     @deprecated(
         version="3.7.0",
         reason="Use skel.write() instead of skel.toDB()",
-        action="always"
     )
     def toDB(cls, skel: SkeletonInstance, update_relations: bool = True, **kwargs) -> db.Key:
         """
@@ -1221,6 +1261,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
                 if not (bone_name in skel.accessedValues or bone.compute) and bone_name not in skel.dbEntity:
                     _ = skel[bone_name]  # Ensure the datastore is filled with the default value
+
                 if (
                     bone_name in skel.accessedValues or bone.compute  # We can have a computed value on store
                     or bone_name not in skel.dbEntity  # It has not been written and is not in the database
@@ -1228,9 +1269,11 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     # Serialize bone into entity
                     try:
                         bone.serialize(skel, bone_name, True)
-                    except Exception:
-                        logging.error(f"Failed to serialize {bone_name} {bone} {skel.accessedValues[bone_name]}")
-                        raise
+                    except Exception as e:
+                        logging.error(
+                            f"Failed to serialize {bone_name=} ({bone=}): {skel.accessedValues[bone_name]=}"
+                        )
+                        raise e
 
                 # Obtain referenced blobs
                 blob_list.update(bone.getReferencedBlobs(skel, bone_name))
@@ -1537,6 +1580,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         check: t.Optional[dict | t.Callable[[SkeletonInstance], None]] = None,
         create: t.Optional[bool | dict | t.Callable[[SkeletonInstance], None]] = None,
         update_relations: bool = True,
+        ignore: t.Optional[t.Iterable[str]] = (),
         retry: int = 0,
     ) -> SkeletonInstance:
         """
@@ -1560,6 +1604,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         :param create: Allows to specify a dict or initial callable that is executed in case the Skeleton with the
             given key does not exist.
         :param update_relations: Trigger update relations task on success. Defaults to False.
+        :param trust: Use internal `fromClient` with trusted data (may change readonly-bones)
         :param retry: On ViurDatastoreError, retry for this amount of times.
 
         If the function does not raise an Exception, all went well. The function always returns the input Skeleton.
@@ -1584,7 +1629,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     skel["key"] = db.keyHelper(key or skel["key"], skel.kindName)
 
                 if isinstance(create, dict):
-                    if create and not skel.fromClient(create, amend=True):
+                    if create and not skel.fromClient(create, amend=True, ignore=ignore):
                         raise ReadFromClientException(skel.errors)
                 elif callable(create):
                     create(skel)
@@ -1602,7 +1647,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             # Set values
             if isinstance(values, dict):
-                if values and not skel.fromClient(values, amend=True):
+                if values and not skel.fromClient(values, amend=True, ignore=ignore):
                     raise ReadFromClientException(skel.errors)
 
                 # Special-feature: "+" and "-" prefix for simple calculations
@@ -1714,7 +1759,9 @@ class RelSkel(BaseSkeleton):
         """
         if not isinstance(values, db.Entity):
             self.dbEntity = db.Entity()
-            self.dbEntity.update(values)
+
+            if values:
+                self.dbEntity.update(values)
         else:
             self.dbEntity = values
 
@@ -1726,8 +1773,7 @@ class RefSkel(RelSkel):
     @classmethod
     def fromSkel(cls, kindName: str, *args: list[str]) -> t.Type[RefSkel]:
         """
-            Creates a relSkel from a skeleton-class using only the bones explicitly named
-            in \*args
+            Creates a ``RefSkel`` from a skeleton-class using only the bones explicitly named in ``args``.
 
             :param args: List of bone names we'll adapt
             :return: A new instance of RefSkel
@@ -1837,18 +1883,24 @@ def processRemovedRelations(removedKey, cursor=None):
             raise ValueError(f"processRemovedRelations detects inconsistency on src={entry['src'].key!r}")
 
         if entry["viur_relational_consistency"] == RelationalConsistency.SetNull.value:
-            for key, _bone in skel.items():
-                if isinstance(_bone, RelationalBone):
-                    relVal = skel[key]
-                    if isinstance(relVal, dict) and relVal["dest"]["key"] == removedKey:
-                        # FIXME: Should never happen: "key" not in relVal["dest"]
-                        # skel.setBoneValue(key, None)
-                        skel[key] = None
-                    elif isinstance(relVal, list):
-                        skel[key] = [x for x in relVal if x["dest"]["key"] != removedKey]
-                    else:
-                        raise NotImplementedError(f"No handling for {type(relVal)=}")
-            skel.write(update_relations=False)
+            found = False
+
+            for key, bone in skel.items():
+                if isinstance(bone, RelationalBone):
+                    if relational_value := skel[key]:
+                        if isinstance(relational_value, dict) and relational_value["dest"]["key"] == removedKey:
+                            skel[key] = None
+                            found = True
+
+                        elif isinstance(relational_value, list):
+                            skel[key] = [entry for entry in relational_value if entry["dest"]["key"] != removedKey]
+                            found = True
+
+                        else:
+                            raise NotImplementedError(f"In {entry['src'].key!r}, no handling for {relational_value=}")
+
+            if found:
+                skel.write(update_relations=False)
 
         else:
             logging.critical(f"""Cascade deletion of {skel["key"]!r}""")
@@ -1877,7 +1929,7 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: t.Optional
         :param cursor: The database cursor for the current request as we only process five entities at once and then
             defer again.
     """
-    logging.debug(f"Starting updateRelations for {destKey} ; {minChangeTime=},{changedBone=}, {cursor=}")
+    logging.debug(f"Starting updateRelations for {destKey=}; {minChangeTime=}, {changedBone=}, {cursor=}")
     updateListQuery = (
         db.Query("viur-relations")
         .filter("dest.__key__ =", destKey)
