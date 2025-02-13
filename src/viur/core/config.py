@@ -997,5 +997,5 @@ class Conf(ConfigType):
 
 
 conf = Conf(
-    strict_mode=os.getenv("VIUR_CORE_CONFIG_STRICT_MODE", "").lower() == "true",
+    strict_mode=os.getenv("VIUR_CORE_CONFIG_STRICT_MODE", "").lower() != "false",
 )
