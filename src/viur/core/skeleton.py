@@ -40,7 +40,7 @@ _UNDEFINED = object()
 ABSTRACT_SKEL_CLS_SUFFIX = "AbstractSkel"
 KeyType: t.TypeAlias = db.Key | str | int
 
-Skeleton_Cls = t.TypeVar("Skeleton_Cls", bound=t.Type["BaseSkeleton"], covariant=True)
+Skeleton_Cls = t.TypeVar("Skeleton_Cls", bound="BaseSkeleton")
 
 
 class MetaBaseSkel(type):
@@ -149,7 +149,7 @@ class SkeletonInstance(t.Generic[Skeleton_Cls]):
 
     def __init__(
         self,
-        skel_cls: Skeleton_Cls,
+        skel_cls: t.Type[Skeleton_Cls],
         *,
         bones: t.Iterable[str] = (),
         bone_map: t.Optional[t.Dict[str, BaseBone]] = None,
@@ -219,7 +219,7 @@ class SkeletonInstance(t.Generic[Skeleton_Cls]):
         self.is_cloned = clone
         self.renderAccessedValues = {}
         self.renderPreparation = None
-        self.skeletonCls: Skeleton_Cls = skel_cls
+        self.skeletonCls: t.Type[Skeleton_Cls] = skel_cls
 
     def items(self, yieldBoneValues: bool = False) -> t.Iterable[tuple[str, BaseBone]]:
         if yieldBoneValues:
@@ -1823,12 +1823,12 @@ class SkelList(list, t.Generic[Skeleton_Cls]):
         "renderPreparation",
     )
 
-    def __init__(self, baseSkel: Skeleton_Cls = None):
+    def __init__(self, baseSkel: SkeletonInstance[Skeleton_Cls] = None):
         """
             :param baseSkel: The baseclass for all entries in this list
         """
         super().__init__()
-        self.baseSkel: Skeleton_Cls = baseSkel or {}
+        self.baseSkel: SkeletonInstance[Skeleton_Cls] | dict = baseSkel or {}
         self.getCursor = lambda: None
         self.get_orders = lambda: None
         self.renderPreparation = None
