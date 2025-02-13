@@ -194,7 +194,7 @@ class UserAuthentication(Module, abc.ABC):
         super().__init__(moduleName, modulePath)
         self._user_module = userModule
 
-    def can_handle(self, skel: skeleton.SkeletonInstance) -> bool:
+    def can_handle(self, skel: skeleton.SkeletonInstance[UserSkel]) -> bool:
         return True
 
     @classmethod
