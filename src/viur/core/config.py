@@ -800,12 +800,13 @@ class Conf(ConfigType):
 
     # FIXME VIUR4: REMOVE ALL COMPATIBILITY MODES!
     compatibility: Multiple[str] = [
-        "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
-        "json.bone.structure.keytuples",  # use classic structure notation: `"structure = [["key", {...}] ...]` (#649)
-        "json.bone.structure.inlists",  # dump skeleton structure with every JSON list response (#774 for details)
-        "tasks.periodic.useminutes",  # Interpret int/float values for @PeriodicTask as minutes
-        #                               instead of seconds (#1133 for details)
-        "bone.select.structure.values.keytuple",  # render old-style tuple-list in SelectBone's values structure (#1203)
+        # "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
+        # "json.bone.structure.keytuples",  # use classic structure notation: `"structure = [["key", {...}] ...]` (#649)
+        # "json.bone.structure.inlists",  # dump skeleton structure with every JSON list response (#774 for details)
+        # "tasks.periodic.useminutes",  # Interpret int/float values for @PeriodicTask as minutes
+        # #                               instead of seconds (#1133 for details)
+        # "bone.select.structure.values.keytuple",  # render old-style tuple-list in SelectBone's
+        #                                             values structure (#1203)
     ]
     """Backward compatibility flags; Remove to enforce new style."""
 
