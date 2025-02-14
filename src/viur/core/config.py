@@ -805,7 +805,8 @@ class Conf(ConfigType):
         # "json.bone.structure.inlists",  # dump skeleton structure with every JSON list response (#774 for details)
         # "tasks.periodic.useminutes",  # Interpret int/float values for @PeriodicTask as minutes
         # #                               instead of seconds (#1133 for details)
-        # "bone.select.structure.values.keytuple",  # render old-style tuple-list in SelectBone's values structure (#1203)
+        # "bone.select.structure.values.keytuple",  # render old-style tuple-list in SelectBone's
+        #                                             values structure (#1203)
     ]
     """Backward compatibility flags; Remove to enforce new style."""
 
