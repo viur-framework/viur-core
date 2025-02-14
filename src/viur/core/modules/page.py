@@ -37,10 +37,9 @@ class Page(Tree):
     viewTemplate = "page_view"
 
     def getAvailableRootNodes(self, *args, **kwargs):
-        repo = self.ensureOwnModuleRootNode()
         return [{
             "name": "pages",
-            "key": repo.key
+            "key": self.rootnodeSkel(ensure=True)["key"],
         }]
 
 
