@@ -99,7 +99,10 @@ class Script(Tree):
         if not current.user.get():
             return []
 
-        return [{"name": "Scripts", "key": self.ensureOwnModuleRootNode().key}]
+        return [{
+            "name": "Scripts",
+            "key": self.rootnodeSkel(ensure=True)["key"],
+        }]
 
     @exposed
     def view(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> t.Any:
