@@ -37,7 +37,7 @@ class List(SkelModule):
 
             :return: Returns a Skeleton instance for viewing an entry.
         """
-        return self.baseSkel(*args, **kwargs)
+        return self.skel(**kwargs)
 
     def addSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -55,7 +55,7 @@ class List(SkelModule):
 
             :return: Returns a Skeleton instance for adding an entry.
         """
-        return self.baseSkel(*args, **kwargs)
+        return self.skel(**kwargs)
 
     def editSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -72,7 +72,7 @@ class List(SkelModule):
 
             :return: Returns a Skeleton instance for editing an entry.
         """
-        return self.baseSkel(*args, **kwargs)
+        return self.skel(**kwargs)
 
     def cloneSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -89,7 +89,7 @@ class List(SkelModule):
 
         :return: Returns a SkeletonInstance for editing an entry.
         """
-        return self.baseSkel(*args, **kwargs)
+        return self.skel(**kwargs)
 
     ## External exposed functions
 
@@ -110,7 +110,7 @@ class List(SkelModule):
         if not self.canPreview():
             raise errors.Unauthorized()
 
-        skel = self.viewSkel()
+        skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
         skel.fromClient(kwargs)
 
         return self.render.view(skel)
@@ -126,7 +126,7 @@ class List(SkelModule):
         # FIXME: In ViUR > 3.7 this could also become dynamic (ActionSkel paradigm).
         match action:
             case "view":
-                skel = self.viewSkel()
+                skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
                 if not self.canView(skel):
                     raise errors.Unauthorized()
 
@@ -195,8 +195,10 @@ class List(SkelModule):
 
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
+        skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
+
         # The general access control is made via self.listFilter()
-        if not (query := self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs))):
+        if not (query := self.listFilter(skel.all().mergeExternalFilter(kwargs))):
             raise errors.Unauthorized()
 
         self._apply_default_order(query)
@@ -323,10 +325,13 @@ class List(SkelModule):
             :return: The rendered entity or list.
         """
         if args and args[0]:
+            skel = self.viewSkel(
+                allow_client_defined=utils.string.is_prefix(self.render.kind, "json"),
+                _excludeFromAccessLog=True,
+            )
+
             # We probably have a Database or SEO-Key here
-            seoKey = str(args[0]).lower()
-            skel = self.viewSkel().all(_excludeFromAccessLog=True).filter("viur.viurActiveSeoKeys =", seoKey).getSkel()
-            if skel:
+            if skel := skel.all().filter("viur.viurActiveSeoKeys =", str(args[0]).lower()).getSkel():
                 db.currentDbAccessLog.get(set()).add(skel["key"])
                 if not self.canView(skel):
                     raise errors.Forbidden()

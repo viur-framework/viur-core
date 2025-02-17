@@ -1,7 +1,7 @@
 import os
 import yaml
 import logging
-from viur.core import Module, db, current
+from viur.core import Module, db, current, errors
 from viur.core.decorators import *
 from viur.core.config import conf
 from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
@@ -47,6 +47,8 @@ def __load_indexes_from_file() -> dict[str, list]:
 
 DATASTORE_INDEXES = __load_indexes_from_file()
 
+X_VIUR_BONELIST = "X-VIUR-BONELIST"
+"""Defines the header parameter that might contain a client-defined bone list."""
 
 class SkelModule(Module):
     """
@@ -109,6 +111,45 @@ class SkelModule(Module):
         By default, baseSkel is used by :func:`~viewSkel`, :func:`~addSkel`, and :func:`~editSkel`.
         """
         return self._resolveSkelCls(*args, **kwargs)()
+
+    def skel(
+        self,
+        *,
+        bones: t.Iterable[str] = (),
+        allow_client_defined: bool = False,
+        **kwargs,
+    ) -> SkeletonInstance:
+        """
+        Retrieve module-specific skeleton, optionally as subskel.
+
+        :param bones: Allows to specify a list of bones to form a subskel.
+        :param allow_client_defined: Evaluates header X-VIUR-BONELIST to contain a comma-separated list of bones.
+            Using this parameter enforces that the Skeleton class has a subskel named "*" for required bones that
+            must exist.
+
+        The parameters `bones` and `allow_client_defined` can be combined.
+        """
+        skel_cls = self._resolveSkelCls(**kwargs)
+        bones = set(bones) if bones else set()
+
+        if allow_client_defined:
+            # if bonelist := current.request.get().kwargs.get(X_VIUR_BONELIST.lower()):  # DEBUG
+            if bonelist := current.request.get().request.headers.get(X_VIUR_BONELIST):
+                if "*" not in skel_cls.subSkels:  # a named star-subskel "*"" must exist!
+                    raise errors.BadRequest(f"Use of {X_VIUR_BONELIST!r} requires a defined star-subskel")
+
+                bones |= {bone.strip() for bone in bonelist.split(",")}
+
+        # Return a subskel?
+        if bones:
+            # When coming from outside of a request, "*" is always involved.
+            if allow_client_defined:
+                return skel_cls.subskel("*", bones=bones)
+
+            return skel_cls.subskel(bones=bones)
+
+        # Otherwise, return full skeleton
+        return skel_cls()  # FIXME: This is fishy, it should return a baseSkel(), but then some customer project break
 
     def _apply_default_order(self, query: db.Query):
         """
