@@ -2,6 +2,25 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.6]
+
+- fix: `Tree.add_or_edit()` should require for parententry (#1410)
+- fix: Custom decorators do not work with `Method`-wrapper (#1394)
+
+## [3.7.5]
+
+- feat: Implement `CloneBehavior` + `CloneStrategy` for a bone-individual clone behavior (#1401)
+- fix: `conf.i18n.add_missing_translations` the right way (#1409)
+- fix: f-string not Python < 3.12 compatible
+- fix: Load user in a deferred task (#1406)
+- fix: Make translations usable (#1408)
+
+## [3.7.4]
+
+- feat: Add missing `onAdd` and `onAdded` calls in `File` module and implement `set_image_meta` (#1391)
+- fix: `BooleanBone.refresh()` doesn't respect language (#1407)
+- fix: `FileBone.refresh()` should fix `serving_url` (#1404)
+
 ## [3.7.3]
 
 - fix: Check for preflight requests in closed_systems (#1382)
@@ -14,19 +33,19 @@ This file documents any relevant changes done to ViUR-core since version 3.
 
 ## [3.7.2]
 
-- feat: Provide `add_or_edit` root-only endpoint for importers (#1380)
-- fix: Provide bone name with assertion message (#1375)
-- fix: `errors` not marked as a reserved word (#1374)
 - doc: Fix `SyntaxWarning: invalid escape sequence '\*'` (#1372)
-- fix: `SkelModule` not able to handle empty index definitions (#1373)
-- fix: Render bones which are `readOnly=True` not as `required=True` (#1371)
+- feat: Provide `add_or_edit` root-only endpoint for importers (#1380)
 - feat: Provide default `index`-function for `Tree` and `Singleton` (#1365)
+- fix: `errors` not marked as a reserved word (#1374)
 - fix: `FileLeafSkel._inject_serving_url()` is the better choice (#1362)
+- fix: `SkelModule` not able to handle empty index definitions (#1373)
+- fix: Provide bone name with assertion message (#1375)
+- fix: Render bones which are `readOnly=True` not as `required=True` (#1371)
 
 ## [3.7.1]
 
-- fix: `RelationalBone`: dict size change during iteration (#1359)
 - fix: `BooleanBone.setBoneValue` doesn't respect language (#1358)
+- fix: `RelationalBone`: dict size change during iteration (#1359)
 - fix: Regression from `canView()` refactoring (#1357)
 
 ## [3.7.0]
