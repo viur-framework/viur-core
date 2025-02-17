@@ -210,7 +210,7 @@ class translate:
         self.default_variables = default_variables or {}
         self.filename, self.lineno = None, None
 
-        if conf.i18n.add_missing_translations and self.key not in systemTranslations:
+        if (add_missing or conf.i18n.add_missing_translations) and self.key not in systemTranslations:
             # This translation seems to be new and should be added
             for frame, line in traceback.walk_stack(sys._getframe(0).f_back):
                 if self.filename is None:

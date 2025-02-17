@@ -10,6 +10,7 @@ from pathlib import Path
 import google.auth
 
 from viur.core.version import __version__
+from viur.core.current import user as current_user
 
 if t.TYPE_CHECKING:  # pragma: no cover
     from viur.core.bones.text import HtmlBoneConfiguration
@@ -618,6 +619,11 @@ class I18N(ConfigType):
     a pattern or iterable of fnmatch-patterns; Only translation keys matching these
     patterns will be automatically added.
     """
+
+    dump_can_view: t.Callable[[str], bool] = lambda _key: bool(current_user.get())
+    """Customizable callback for translation.dump() to verify if a specific translation key can be queried.
+
+    This logic is omitted for translations flagged public."""
 
 
 class User(ConfigType):

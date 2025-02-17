@@ -270,9 +270,6 @@ class Translation(List):
             if not pat.strip("*?."):
                 raise errors.BadRequest("Pattern is too generic.")
 
-        # Only authenticated users may see private translations
-        cuser = current.user.get()
-
         current.request.get().response.headers["Content-Type"] = "application/json"
 
         if (
@@ -291,7 +288,8 @@ class Translation(List):
                     lang: {
                         name: str(translate(name, force_lang=lang))
                         for name, values in systemTranslations.items()
-                        if (cuser or values.get("_public_")) and any(fnmatch.fnmatch(name, pat) for pat in pattern)
+                        if (conf.i18n.dump_can_view(name) or values.get("_public_"))
+                        and any(fnmatch.fnmatch(name, pat) for pat in pattern)
                     }
                     for lang in language
                 })
@@ -303,7 +301,8 @@ class Translation(List):
         return json.dumps({
             name: str(translate(name, force_lang=language))
             for name, values in systemTranslations.items()
-            if (cuser or values.get("_public_")) and any(fnmatch.fnmatch(name, pat) for pat in pattern)
+            if (conf.i18n.dump_can_view(name) or values.get("_public_"))
+            and any(fnmatch.fnmatch(name, pat) for pat in pattern)
         })
 
 
