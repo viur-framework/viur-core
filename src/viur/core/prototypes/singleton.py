@@ -25,7 +25,7 @@ class Singleton(SkelModule):
 
         :returns: Current context DB-key
         """
-        return f"{self.editSkel().kindName}-modulekey"
+        return f"{self._resolveSkelCls().kindName}-modulekey"
 
     def viewSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
