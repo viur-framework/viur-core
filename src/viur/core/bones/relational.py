@@ -603,74 +603,34 @@ class RelationalBone(BaseBone):
         return self.using is not None
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
-        oldValues = skel[bone_name]
+        errors = []
 
-        def restoreSkels(key, usingData, index=None):
-            refSkel, usingSkel = self._getSkels()
-            isEntryFromBackup = False  # If the referenced entry has been deleted, restore information from backup
-            entry = None
-            dbKey = None
-            errors = []
-            try:
-                dbKey = db.keyHelper(key, self.kind)
-                entry = db.Get(dbKey)
-                assert entry
-            except:  # Invalid key or something like that
-                logging.info(f"Invalid reference key >{key}< detected on bone '{bone_name}'")
-                if isinstance(oldValues, dict):
-                    if oldValues["dest"]["key"] == dbKey:
-                        entry = oldValues["dest"]
-                        isEntryFromBackup = True
-                elif isinstance(oldValues, list):
-                    for dbVal in oldValues:
-                        if dbVal["dest"]["key"] == dbKey:
-                            entry = dbVal["dest"]
-                            isEntryFromBackup = True
-            if isEntryFromBackup:
-                refSkel = entry
-            elif entry:
-                refSkel.dbEntity = entry
-                for k in refSkel.keys():
-                    # Unserialize all bones from refKeys, then drop dbEntity - otherwise all properties will be copied
-                    _ = refSkel[k]
-                refSkel.dbEntity = None
-            else:
-                if index:
-                    errors.append(
-                        ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value submitted",
-                                            [str(index)]))
-                else:
-                    errors.append(
-                        ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value submitted"))
-                return None, None, errors  # We could not parse this
-            if usingSkel:
-                if not usingSkel.fromClient(usingData):
-                    usingSkel.errors.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Incomplete data"))
-                if index:
-                    for error in usingSkel.errors:
-                        error.fieldPath.insert(0, str(index))
-                errors.extend(usingSkel.errors)
-            return refSkel, usingSkel, errors
-
-        if self.using and isinstance(value, dict):
-            usingData = value
-            destKey = usingData["key"]
-            del usingData["key"]
+        if isinstance(value, dict):
+            dest_key = value.pop("key", None)
         else:
-            destKey = value
-            usingData = None
+            dest_key = value
+            value = {}
 
-        destKey = str(destKey)
+        if self.using:
+            rel = self.using()
+            if not rel.fromClient(value):
+                errors.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Incomplete data"))
 
-        refSkel, usingSkel, errors = restoreSkels(destKey, usingData)
-        if refSkel:
-            resVal = {"dest": refSkel, "rel": usingSkel}
-            err = self.isInvalid(resVal)
-            if err:
-                return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
-            return resVal, errors
+            errors.extend(rel.errors)
         else:
-            return self.getEmptyValue(), errors
+            rel = None
+
+        if ret := self.createRelSkelFromKey(dest_key, None):
+            ret["rel"] = rel
+
+            if err := self.isInvalid(ret):
+                ret = self.getEmptyValue()
+                errors.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err))
+
+            return ret, errors
+
+        errors.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value submitted"))
+        return self.getEmptyValue(), errors
 
     def _rewriteQuery(self, name, skel, dbFilter, rawFilter):
         """
