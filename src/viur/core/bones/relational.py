@@ -620,8 +620,9 @@ class RelationalBone(BaseBone):
         else:
             rel = None
 
-        if ret := self.createRelSkelFromKey(dest_key, None):
-            ret["rel"] = rel
+        # FIXME VIUR4: createRelSkelFromKey doesn't accept an instance of a RelSkel...
+        if ret := self.createRelSkelFromKey(dest_key, None):  # ...therefore we need to first give None...
+            ret["rel"] = rel  # ...and then assign it manually.
 
             if err := self.isInvalid(ret):
                 ret = self.getEmptyValue()
@@ -1051,8 +1052,9 @@ class RelationalBone(BaseBone):
         :return: A dictionary containing a reference skeleton and optional relation data.
         """
 
-        if not all(db_objs := db.Get([db.keyHelper(value[0], self.kind) for value in key_rel_list])):
-            return []  # return emtpy data when not all data is found
+        if not all(db_objs := db.Get([db.keyHelper(value[0], self.kind, adjust_kind=True) for value in key_rel_list])):
+            return []  # return empty list when not all data is found
+
         res_rel_skels = []
         for (key, rel), db_obj in zip(key_rel_list, db_objs):
             dest_skel = self._refSkelCache()
@@ -1067,6 +1069,7 @@ class RelationalBone(BaseBone):
                     "rel": rel or None
                 }
             )
+
         return res_rel_skels
 
     def setBoneValue(
