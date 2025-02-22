@@ -227,11 +227,11 @@ def skey(
 
     def decorator(func):
         meth = Method.ensure(func)
-        meth.skey = skey_config["name"]
+        meth.skey = skey_config
         meth.guards.append(validate)
 
         # extend additional access descr, must be a list to be JSON-serializable
-        meth.additional_descr["access"] = skey_config["name"]
+        meth.additional_descr["skey"] = skey_config["name"]
 
         return meth
 

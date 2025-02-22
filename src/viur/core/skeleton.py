@@ -1453,7 +1453,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 blob_lock_obj["is_stale"] = False
                 db.Put(blob_lock_obj)
 
-            return skel.dbEntity.key, skel, change_list, is_add
+            return skel.dbEntity.key, write_skel, change_list, is_add
 
         # Parse provided key, if any, and set it to skel["key"]
         if key:
