@@ -2,6 +2,14 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.7]
+
+- fix: `Skeleton.write()` returns full skeleton (#1421)
+- fix: Hotfix for #1391: missing skeltype-check (#1420)
+- fix: Hotfix for decorator `@skey` introduced by #1394 (#1419)
+- fix: Keep `None` in `BooleanBones` (#1418)
+- fix: Replace deprecated `ensureOwnModuleRootNode` with `rootnodeSkel` (#1414)
+
 ## [3.7.6]
 
 - fix: `Tree.add_or_edit()` should require for parententry (#1410)
