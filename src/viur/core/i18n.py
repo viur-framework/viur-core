@@ -194,7 +194,11 @@ class translate:
         super().__init__()
 
         if not isinstance(key, str):
+            # TODO: ViUR4: raise a ValueError instead of the warning
             logging.warning(f"Got non-string (type {type(key)}) as {key=}!", exc_info=True)
+            if isinstance(key, translate):
+                # Because of the string cast below, we would otherwise have a translated string as key
+                key = key.key
 
         if force_lang is not None and force_lang not in conf.i18n.available_dialects:
             raise ValueError(f"The language {force_lang=} is not available")
