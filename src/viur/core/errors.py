@@ -14,7 +14,7 @@ class HTTPException(Exception):
 
         from .i18n import translate  # fixme: This might be done better
         self.name = name
-        self.descr = str(translate(descr))
+        self.descr = str(translate(descr, add_missing=False))
 
     def process(self):
         pass
