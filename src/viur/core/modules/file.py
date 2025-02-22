@@ -1284,12 +1284,13 @@ class File(Tree):
         bucket.delete_blob(old_path)
 
     def onAdded(self, skelType: SkelType, skel: SkeletonInstance) -> None:
-        super().onAdded(skelType, skel)
-        if skel["mimetype"].startswith("image/"):
+        if skelType == "leaf" and skel["mimetype"].startswith("image/"):
             if skel["size"] > self.IMAGE_META_MAX_SIZE:
                 logging.warning(f"File size {skel['size']} exceeds limit {self.IMAGE_META_MAX_SIZE=}")
                 return
             self.set_image_meta(skel["key"])
+
+        super().onAdded(skelType, skel)
 
     @CallDeferred
     def set_image_meta(self, key: db.Key) -> None:
