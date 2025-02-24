@@ -1249,7 +1249,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             # Merge values and assemble unique properties
             # Move accessed Values from srcSkel over to skel
             skel.accessedValues = write_skel.accessedValues
-            skel["key"] = db_key  # Ensure key stays set
+
+            write_skel["key"] = skel["key"] = db_key  # Ensure key stays set
+            write_skel.dbEntity = skel.dbEntity  # update write_skel's dbEntity
 
             for bone_name, bone in skel.items():
                 if bone_name == "key":  # Explicitly skip key on top-level - this had been set above
@@ -1301,7 +1303,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                                 # TODO: Use a custom exception class which is catchable with an try/except
                                 raise ValueError(
                                     f"The unique value {skel[bone_name]!r} of bone {bone_name!r} "
-                                    f"has been recently claimed!")
+                                    f"has been recently claimed (by {new_lock_key=}).")
                         else:
                             # This value is locked for the first time, create a new lock-object
                             lock_obj = db.Entity(new_lock_key)
