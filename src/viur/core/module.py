@@ -215,8 +215,8 @@ class Method:
         args = tuple(parsed_args + varargs)
 
         # always take "skey"-parameter name, when configured, as parsed_kwargs
-        if self.skey and self.skey in kwargs:
-            parsed_kwargs[self.skey] = kwargs.pop(self.skey)
+        if self.skey and self.skey["name"] in kwargs:
+            parsed_kwargs[self.skey["name"]] = kwargs.pop(self.skey["name"])
 
         # When varkwargs are accepted, merge parsed_kwargs and kwargs, otherwise just use parsed_kwargs
         if varkwargs := varkwargs and bool(kwargs):
