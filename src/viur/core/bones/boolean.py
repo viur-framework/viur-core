@@ -1,7 +1,7 @@
 import typing as t
+
 from viur.core import conf, db, utils
 from viur.core.bones.base import BaseBone
-
 
 DEFAULT_VALUE_T: t.TypeAlias = bool | None | list[bool] | dict[str, list[bool] | bool]
 
@@ -72,7 +72,9 @@ class BooleanBone(BaseBone):
             for lang in self.languages:
                 skel[name][lang] = utils.parse.bool(skel[name][lang], conf.bone_boolean_str2true) \
                     if lang in skel[name] else self.getDefaultValue(skel)
-        else:
+        elif skel[name] != self.getEmptyValue():
+            # Enforce a boolean if the bone is not empty (Maybe the empty value is explicit set to None).
+            # So in this case we keep the empty value (e.g. the None) as is.
             skel[name] = utils.parse.bool(skel[name], conf.bone_boolean_str2true)
 
     def setBoneValue(
@@ -118,6 +120,9 @@ class BooleanBone(BaseBone):
             values.
             The serialized value should be suitable for storage in the database.
         """
+        if value == self.getEmptyValue():
+            # Keep the bones empty, maybe the empty value is explicit set to None
+            return value
         return utils.parse.bool(value, conf.bone_boolean_str2true)
 
     def buildDBFilter(
