@@ -37,7 +37,7 @@ class List(SkelModule):
 
             :return: Returns a Skeleton instance for viewing an entry.
         """
-        return self.skel(**kwargs)
+        return self.baseSkel(**kwargs)
 
     def addSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -55,7 +55,7 @@ class List(SkelModule):
 
             :return: Returns a Skeleton instance for adding an entry.
         """
-        return self.skel(**kwargs)
+        return self.baseSkel(**kwargs)
 
     def editSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -72,7 +72,7 @@ class List(SkelModule):
 
             :return: Returns a Skeleton instance for editing an entry.
         """
-        return self.skel(**kwargs)
+        return self.baseSkel(**kwargs)
 
     def cloneSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -89,7 +89,7 @@ class List(SkelModule):
 
         :return: Returns a SkeletonInstance for editing an entry.
         """
-        return self.skel(**kwargs)
+        return self.baseSkel(**kwargs)
 
     ## External exposed functions
 

@@ -38,7 +38,7 @@ class Singleton(SkelModule):
 
         :return: Returns a Skeleton instance for viewing the singleton entry.
         """
-        return self.skel(**kwargs)
+        return self.baseSkel(**kwargs)
 
     def editSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -51,7 +51,7 @@ class Singleton(SkelModule):
 
         :return: Returns a Skeleton instance for editing the entry.
         """
-        return self.skel(**kwargs)
+        return self.baseSkel(**kwargs)
 
     ## External exposed functions
 
