@@ -110,7 +110,7 @@ class SkelModule(Module):
 
         By default, baseSkel is used by :func:`~viewSkel`, :func:`~addSkel`, and :func:`~editSkel`.
         """
-        return self._resolveSkelCls(*args, **kwargs)()
+        return self.skel(**kwargs)
 
     def skel(
         self,
