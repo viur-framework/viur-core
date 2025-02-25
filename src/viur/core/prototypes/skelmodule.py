@@ -149,8 +149,7 @@ class SkelModule(Module):
             return skel_cls.subskel(bones=bones)
 
         # Otherwise, return full skeleton
-        # return skel_cls()  # FIXME: VIUR4...
-        return self.baseSkel(**kwargs)
+        return skel_cls()
 
     def _apply_default_order(self, query: db.Query):
         """
