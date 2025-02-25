@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.8]
+
+- fix: `NumericBone` ignores precision on read & write (#1425)
+- fix: Hotfix for `Skeleton.write()` with wrong dbEntity (#1424)
+
 ## [3.7.7]
 
 - fix: `Skeleton.write()` returns full skeleton (#1421)
