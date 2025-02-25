@@ -63,8 +63,12 @@ class RecordBone(BaseBone):
 
         if isinstance(value, list) and value:
             value = value[0]
-
-        assert isinstance(value, dict), f"Read something from the datastore thats not a dict: {type(value)}"
+        if not isinstance(value, dict):
+            # import SkeletonInstance only when we have no dict
+            from ..skeleton import SkeletonInstance  # noqa: E402 # import works only here because circular imports
+            if not isinstance(value, SkeletonInstance):
+                raise TypeError(
+                    f"Read something from the datastore thats not a dict or a SkeletonInstance: {type(value)}")
 
         usingSkel = self.using()
         usingSkel.unserialize(value)
