@@ -1979,37 +1979,63 @@ class TaskUpdateSearchIndex(CallableTaskBase):
     def canCall(self) -> bool:
         """Checks wherever the current user can execute this task"""
         user = current.user.get()
-        return user is not None and "root" in user["access"]
+        return user and "root" in user["access"]
 
     def dataSkel(self):
-        modules = ["*"] + listKnownSkeletons()
-        modules.sort()
         skel = BaseSkeleton().clone()
-        skel.module = SelectBone(descr="Module", values={x: translate(x) for x in modules}, required=True)
+
+        skel.kindname = SelectBone(
+            descr="Kind",
+            values={"*": "*"} | {name: translate(name) for name in sorted(listKnownSkeletons())},
+        )
+
+        skel.specific_key = StringBone(
+            descr="Key",
+            params={
+                "tooltip": "Optional: Key of one entry to refresh, ignores the kind selected above."
+            }
+        )
+
         return skel
 
-    def execute(self, module, *args, **kwargs):
-        usr = current.user.get()
-        if not usr:
-            logging.warning("Don't know who to inform after rebuilding finished")
-            notify = None
-        else:
-            notify = usr["name"]
+    def execute(self, kindname, specific_key, *args, **kwargs):
+        notify = current.user.get()["name"]  # canCall ensures that there is a user!
 
-        if module == "*":
-            for module in listKnownSkeletons():
-                logging.info("Rebuilding search index for module %r", module)
-                self._run(module, notify)
+        if kindname == "*":
+            if specific_key:
+                raise errors.BadRequest(f"Cannot run on all kinds with {specific_key=}")
+
+            for kindname in listKnownSkeletons():
+                logging.info(f"Rebuilding search index for {kindname=}")
+                self._run(kindname, notify)
+
+            return
+
+        if specific_key:
+            try:
+                specific_key = db.Key.from_legacy_urlsafe(specific_key)
+                kindname = specific_key.kind
+            except Exception:
+                pass  # just ignore, and use value of specific_key further.
+
+        if not kindname:
+            raise errors.BadRequest("Cannot run on unknown kind")
+
+        if specific_key:
+            self._run(kindname, notify, key=str(specific_key))
         else:
-            self._run(module, notify)
+            self._run(kindname, notify)
 
     @staticmethod
-    def _run(module: str, notify: str):
-        Skel = skeletonByKind(module)
-        if not Skel:
+    def _run(kindname: str, notify: str, **kwargs):
+        skel_cls = skeletonByKind(kindname)
+        if not skel_cls:
             logging.error("TaskUpdateSearchIndex: Invalid module")
             return
-        RebuildSearchIndex.startIterOnQuery(Skel().all(), {"notify": notify, "module": module})
+
+        q = skel_cls().all()
+        q.mergeExternalFilter(kwargs)
+        RebuildSearchIndex.startIterOnQuery(q, {"notify": notify, "kindname": kindname})
 
 
 class RebuildSearchIndex(QueryIter):
@@ -2023,11 +2049,13 @@ class RebuildSearchIndex(QueryIter):
         QueryIter.handleFinish(totalCount, customData)
         if not customData["notify"]:
             return
+
         txt = (
-            f"{conf.instance.project_id}: Rebuild search index finished for {customData['module']}\n\n"
-            f"ViUR finished to rebuild the search index for module {customData['module']}.\n"
+            f"{conf.instance.project_id}: Rebuild search index finished for {customData['kindname']}\n\n"
+            f"ViUR finished to rebuild the search index for module {customData['kindname']}.\n"
             f"{totalCount} records updated in total on this kind."
         )
+
         try:
             email.send_email(dests=customData["notify"], stringTemplate=txt, skel=None)
         except Exception as exc:  # noqa; OverQuota, whatever
