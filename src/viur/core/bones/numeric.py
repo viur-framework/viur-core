@@ -80,6 +80,21 @@ class NumericBone(BaseBone):
 
         return super().__setattr__(key, value)
 
+    def singleValueUnserialize(self, val):
+        if val is not None:
+            try:
+                if self.precision:
+                    return float(f"{val:.{self.precision}f}")
+
+                return int(val)
+            except ValueError:
+                return self.getDefaultValue()
+
+        return val
+
+    def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+        return self.singleValueUnserialize(value)  # same logic for unserialize here!
+
     def isInvalid(self, value):
         """
         This method checks if a given value is invalid (e.g., NaN) for the NumericBone instance.
