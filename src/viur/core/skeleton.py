@@ -1931,6 +1931,7 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: t.Optional
             defer again.
     """
     logging.debug(f"Starting updateRelations for {destKey=}; {minChangeTime=}, {changedBone=}, {cursor=}")
+    current.request_data.get()["__update_relations_bone"] = changedBone
     updateListQuery = (
         db.Query("viur-relations")
         .filter("dest.__key__ =", destKey)
