@@ -18,6 +18,7 @@ if t.TYPE_CHECKING:  # pragma: no cover
     from viur.core.skeleton import SkeletonInstance
     from viur.core.module import Module
     from viur.core.tasks import CustomEnvironmentHandler
+    from viur.core import i18n
 
 
 # Construct an alias with a generic type to be able to write Multiple[str]
@@ -607,7 +608,8 @@ class I18N(ConfigType):
         res |= self.language_alias_map
         return list(res.keys())
 
-    add_missing_translations: bool | str | t.Iterable[str] = False
+    add_missing_translations: (bool | str | t.Iterable[str] | "i18n.AddMissing"
+                               | t.Callable[["i18n.translate"], t.Union[bool, "i18n.AddMissing"]]) = False
     """Add missing translation into datastore, optionally with given fnmatch-patterns.
 
     If a key is not found in the translation table when a translation is
@@ -618,6 +620,7 @@ class I18N(ConfigType):
     Instead of setting add_missing_translations to a boolean, it can also be set to
     a pattern or iterable of fnmatch-patterns; Only translation keys matching these
     patterns will be automatically added.
+    If a callable is provided, it will be called with the translation object to make a complex decision.
     """
 
     dump_can_view: t.Callable[[str], bool] = lambda _key: bool(current_user.get())

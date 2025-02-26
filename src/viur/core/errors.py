@@ -12,11 +12,11 @@ class HTTPException(Exception):
         super(HTTPException, self).__init__()
         self.status = status
 
-        from .i18n import translate  # fixme: This might be done better
+        from .i18n import translate, AddMissing  # fixme: This might be done better
         self.name = name
-        self.descr = str(translate(descr, add_missing=False))
+        self.descr = str(translate(descr, add_missing=AddMissing.NEVER))
 
-    def process(self):
+    def process(self):  # TODO: What is the purpose of this method?
         pass
 
 

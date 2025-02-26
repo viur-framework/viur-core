@@ -74,6 +74,7 @@ Of course you can create skeletons / entries in the datastore in your project
 on your own. Just use the TranslateSkel).
 """  # FIXME: grammar, rst syntax
 import datetime
+import enum
 import fnmatch
 import logging
 import sys
@@ -82,7 +83,6 @@ import typing as t
 from pathlib import Path
 
 import jinja2.ext as jinja2
-
 from viur.core import current, db, languages, tasks
 from viur.core.config import conf
 
@@ -91,6 +91,23 @@ systemTranslations = {}
 
 KINDNAME = "viur-translations"
 """Kindname for the translations"""
+
+
+class AddMissing(enum.IntEnum):
+    """
+    An indicator flag for the `add_missing` parameter of the `translate`
+    to make this decision final and ignore the `conf.i18n.add_missing_translations` configuration.
+    """
+
+    NEVER = enum.auto()
+    """This translation will never be added, regardless of any config.
+    It's like a final `False`.
+    """
+
+    ALWAYS = enum.auto()
+    """This translation will be always be added, regardless of any config.
+    It's like a final `True`.
+    """
 
 
 class LanguageWrapper(dict):
@@ -173,7 +190,7 @@ class translate:
         hint: str = None,
         force_lang: str = None,
         public: bool = False,
-        add_missing: bool = False,
+        add_missing: bool | AddMissing = False,
         default_variables: dict[str, t.Any] | None = None,
         caller_is_jinja: bool = False,
     ):
@@ -214,7 +231,11 @@ class translate:
         self.default_variables = default_variables or {}
         self.filename, self.lineno = None, None
 
-        if (add_missing or conf.i18n.add_missing_translations) and self.key not in systemTranslations:
+        if (
+            add_missing is not AddMissing.NEVER
+            and (add_missing or conf.i18n.add_missing_translations)
+            and self.key not in systemTranslations
+        ):
             # This translation seems to be new and should be added
             for frame, line in traceback.walk_stack(sys._getframe(0).f_back):
                 if self.filename is None:
@@ -241,7 +262,7 @@ class translate:
 
             if self.key not in systemTranslations:
                 # either the translate()-object has add_missing set
-                if not (add_missing := self.add_missing):
+                if not (add_missing := self.add_missing) and not isinstance(add_missing, AddMissing):
                     # otherwise, use configuration flag
                     add_missing = conf.i18n.add_missing_translations
 
@@ -249,11 +270,13 @@ class translate:
                     if isinstance(add_missing, str):
                         add_missing = fnmatch.fnmatch(self.key, add_missing)
                     elif isinstance(add_missing, t.Iterable):
-                        add_missing = any(fnmatch.fnmatch(self.key, pat) for pat in add_missing)
+                        add_missing = bool(any(fnmatch.fnmatch(self.key, pat) for pat in add_missing))
+                    elif callable(add_missing):
+                        add_missing = add_missing(self)
                     else:
                         add_missing = bool(add_missing)
 
-                if add_missing:
+                if add_missing is True or add_missing is AddMissing.ALWAYS:
                     # This translation seems to be new and should be added
                     add_missing_translation(
                         key=self.key,
