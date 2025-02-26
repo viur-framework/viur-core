@@ -89,24 +89,6 @@ def IsInTransaction() -> bool:
     return __client__.current_transaction is not None
 
 
-def acquireTransactionSuccessMarker() -> str:
-    """
-        Generates a token that will be written to the firestore (under "viur-transactionmarker") if the transaction
-        completes successfully. Currently only used by deferredTasks to check if the task should actually execute
-        or if the transaction it was created in failed.
-        :return: Name of the entry in viur-transactionmarker
-    """
-    txn = __client__.current_transaction
-    assert txn, "acquireTransactionSuccessMarker cannot be called outside an transaction"
-    marker = binascii.b2a_hex(txn.id).decode("ASCII")
-    if not "viurTxnMarkerSet" in dir(txn):
-        e = Entity(Key("viur-transactionmarker", marker))
-        e["creationdate"] = datetime.datetime.now()
-        Put(e)
-        txn.viurTxnMarkerSet = True
-    return marker
-
-
 def RunInTransaction(callee: t.Callable, *args, **kwargs) -> t.Any:
     """
         Runs the function given in :param:callee inside a transaction.
@@ -130,7 +112,7 @@ def RunInTransaction(callee: t.Callable, *args, **kwargs) -> t.Any:
     return res
 
 
-def Count(kind: str = None, up_to= 2 ** 31 - 1, queryDefinition: QueryDefinition = None) -> t.Union[Key, t.List[Key]]:
+def Count(kind: str = None, up_to=2 ** 31 - 1, queryDefinition: QueryDefinition = None) -> t.Union[Key, t.List[Key]]:
     if not kind:
         kind = queryDefinition.kind
 
@@ -138,7 +120,7 @@ def Count(kind: str = None, up_to= 2 ** 31 - 1, queryDefinition: QueryDefinition
     if queryDefinition and queryDefinition.filters:
         for k, v in queryDefinition.filters.items():
             key, op = k.split(" ")
-            if not isinstance(v, list): # multi equal filters
+            if not isinstance(v, list):  # multi equal filters
                 v = [v]
             for val in v:
                 f = datastore.query.PropertyFilter(key, op, val)
@@ -167,7 +149,7 @@ def runSingleFilter(query: QueryDefinition, limit: int) -> t.List[Entity]:
         if query.filters:
             for k, v in query.filters.items():
                 key, op = k.split(" ")
-                if not isinstance(v, list): # multi equal filters
+                if not isinstance(v, list):  # multi equal filters
                     v = [v]
                 for val in v:
 
@@ -175,10 +157,14 @@ def runSingleFilter(query: QueryDefinition, limit: int) -> t.List[Entity]:
                     qry.add_filter(filter=f)
 
         if query.orders:
-            hasInvertedOrderings = any([x[1] in [SortOrder.InvertedAscending, SortOrder.InvertedDescending]
-                                    for x in query.orders])
-            qry.order = [x[0] if x[1] in [SortOrder.Ascending, SortOrder.InvertedDescending] else "-" + x[0]
-                            for x in query.orders]
+            hasInvertedOrderings = any(
+                [x[1] in [SortOrder.InvertedAscending, SortOrder.InvertedDescending]
+                for x in query.orders]
+            )
+            qry.order = [
+                x[0] if x[1] in [SortOrder.Ascending, SortOrder.InvertedDescending] else "-" + x[0]
+                for x in query.orders
+            ]
 
         if query.distinct:
             qry.distinct_on = query.distinct

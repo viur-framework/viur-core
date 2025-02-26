@@ -67,7 +67,7 @@ def keyHelper(inKey: t.Union[Key, str, int], targetKind: str,
         # Try to parse key from str
         try:
             decodedKey = normalizeKey(Key.from_legacy_urlsafe(inKey))
-        except:
+        except Exception:
             decodedKey = None
 
         # If it did decode, recall keyHelper with Key object
@@ -138,7 +138,7 @@ def acquireTransactionSuccessMarker() -> str:
     txn = currentTransaction.get()
     assert txn, "acquireTransactionSuccessMarker cannot be called outside an transaction"
     marker = txn["key"]  # binascii.b2a_hex(txn["key"]).decode("ASCII")
-    if not "viurTxnMarkerSet" in txn:
+    if "viurTxnMarkerSet" not in txn:
         e = Entity(Key("viur-transactionmarker", marker))
         e["creationdate"] = datetime.datetime.utcnow()
         Put(e)

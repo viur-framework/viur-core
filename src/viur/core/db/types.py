@@ -31,10 +31,14 @@ _, projectID = google.auth.default(scopes=["https://www.googleapis.com/auth/data
 
 
 class SortOrder(enum.Enum):
-    Ascending = 1  # Sort A->Z
-    Descending = 2  # Sort Z->A
-    InvertedAscending = 3  # Fetch Z->A, then flip the results (useful in pagination to go from a start cursor backwards)
-    InvertedDescending = 4  # Fetch A->Z, then flip the results (useful in pagination)
+    Ascending = 1
+    """Sort A->Z"""
+    Descending = 2
+    """Sort Z->A"""
+    InvertedAscending = 3
+    """Fetch Z->A, then flip the results (useful in pagination to go from a start cursor backwards)"""
+    InvertedDescending = 4
+    """Fetch A->Z, then flip the results (useful in pagination)"""
 
 
 class SkelListRef(list):
@@ -158,8 +162,8 @@ class Key(Datastore_key):
 
 class Entity(Datastore_entity):
     """
-        The python representation of one datastore entity. The values of this entity are stored inside this dictionary,
-        while the meta-data (it's key, the list of properties excluded from indexing and our version) as property values.
+    The python representation of one datastore entity. The values of this entity are stored inside this dictionary,
+    while the meta-data (it's key, the list of properties excluded from indexing and our version) as property values.
     """
 
     def __init__(self, key: t.Optional[Key] = None, exclude_from_indexes: t.Optional[t.Optional[str]] = None):
