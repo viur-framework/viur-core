@@ -159,13 +159,19 @@ def startDataAccessLog() -> t.Set[t.Union[Key, str]]:
     return old
 
 
-def endDataAccessLog(outerAccessLog: t.Optional[t.Set[t.Union[Key, str]]] = None) -> t.Optional[t.Set[t.Union[Key, str]]]:
+def endDataAccessLog(
+    outerAccessLog: t.Optional[t.Set[t.Union[Key, str]]] = None,
+) -> t.Optional[t.Set[t.Union[Key, str]]]:
     """
-        Retrieves the set of entries accessed so far. To clean up and restart the log, call :func:`viur.datastore.startAccessDataLog`.
-        If you called :func:`server.db.startAccessDataLog` before, you can re-apply the old log using
-        the outerAccessLog param. Otherwise, it will disable the access log.
-        :param outerAccessLog: State of your log returned by :func:`server.db.startAccessDataLog`
-        :return: t.Set of entries accessed
+    Retrieves the set of entries accessed so far.
+
+    To clean up and restart the log, call :func:`viur.datastore.startAccessDataLog`.
+
+    If you called :func:`server.db.startAccessDataLog` before, you can re-apply the old log using
+    the outerAccessLog param. Otherwise, it will disable the access log.
+
+    :param outerAccessLog: State of your log returned by :func:`server.db.startAccessDataLog`
+    :return: t.Set of entries accessed
     """
     res = currentDbAccessLog.get()
     if isinstance(outerAccessLog, set):

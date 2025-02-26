@@ -158,8 +158,10 @@ def runSingleFilter(query: QueryDefinition, limit: int) -> t.List[Entity]:
 
         if query.orders:
             hasInvertedOrderings = any(
-                [x[1] in [SortOrder.InvertedAscending, SortOrder.InvertedDescending]
-                for x in query.orders]
+                [
+                    x[1] in [SortOrder.InvertedAscending, SortOrder.InvertedDescending]
+                    for x in query.orders
+                ]
             )
             qry.order = [
                 x[0] if x[1] in [SortOrder.Ascending, SortOrder.InvertedDescending] else "-" + x[0]
