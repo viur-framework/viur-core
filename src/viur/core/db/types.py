@@ -20,12 +20,12 @@ if t.TYPE_CHECKING:
 
 # The property name pointing to an entities key in a query
 KEY_SPECIAL_PROPERTY = "__key__"
-# List of types that can be used in a datastore query
+# t.Optional of types that can be used in a datastore query
 DATASTORE_BASE_TYPES = t.Union[None, str, int, float, bool, datetime.datetime, datetime.date, datetime.time, 'Key']  #
 # Pointer to the current transaction this thread may be currently in
 currentTransaction = ContextVar("CurrentTransaction", default=None)
 # If set to a set for the current thread/request, we'll log all entities / kinds accessed
-currentDbAccessLog: ContextVar[Optional[Set[Union[Key, str]]]] = ContextVar("Database-Accesslog", default=None)
+currentDbAccessLog: ContextVar[t.Optional[Set[Union[Key, str]]]] = ContextVar("Database-Accesslog", default=None)
 # The current projectID, which can't be imported from transport.pyx
 _, projectID = google.auth.default(scopes=["https://www.googleapis.com/auth/datastore"])
 
@@ -162,7 +162,7 @@ class Entity(Datastore_entity):
         while the meta-data (it's key, the list of properties excluded from indexing and our version) as property values.
     """
 
-    def __init__(self, key: Optional[Key] = None, exclude_from_indexes: Optional[List[str]] = None):
+    def __init__(self, key: t.Optional[Key] = None, exclude_from_indexes: t.Optional[t.Optional[str]] = None):
         super(Entity, self).__init__(key, exclude_from_indexes or [])
         assert not key or isinstance(key, Key), "Key must be a Key-Object (or None for an embedded entity)"
 
@@ -172,11 +172,27 @@ class QueryDefinition:
     """
         A single Query that will be run against the datastore.
     """
-    kind: Optional[str]  # The datastore kind to run the query on. Can be None for kindles queries.
-    filters: Dict[str, DATASTORE_BASE_TYPES]  # A dictionary of constrains to apply to the query.
-    orders: List[Tuple[str, SortOrder]]  # The list of fields to sort the results by.
-    distinct: Union[None, List[str]] = None  # If set, a list of fields that we should return distinct values of
-    limit: int = 30  # The maximum amount of entities that should be returned
-    startCursor: Optional[str] = None  # If set, we'll only return entities that appear after this cursor in the index.
-    endCursor: Optional[str] = None  # If set, we'll only return entities up to this cursor in the index.
-    currentCursor: Optional[str] = None  # Will be set after this query has been run, pointing after the last entity returned
+
+    kind: t.Optional[str]
+    """The datastore kind to run the query on. Can be None for kindles queries."""
+
+    filters: t.Dict[str, DATASTORE_BASE_TYPES]
+    """A dictionary of constrains to apply to the query."""
+
+    orders: t.Optional[t.Tuple[str, SortOrder]]
+    """The list of fields to sort the results by."""
+
+    distinct: t.Union[None, t.Optional[str]] = None
+    """If set, a list of fields that we should return distinct values of"""
+
+    limit: int = 30
+    """The maximum amount of entities that should be returned"""
+
+    startCursor: t.Optional[str] = None
+    """If set, we'll only return entities that appear after this cursor in the index."""
+
+    endCursor: t.Optional[str] = None
+    """If set, we'll only return entities up to this cursor in the index."""
+
+    currentCursor: t.Optional[str] = None
+    """Will be set after this query has been run, pointing after the last entity returned"""

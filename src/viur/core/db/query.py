@@ -75,8 +75,13 @@ class Query(object):
         self.kind = kind
         self.srcSkel = srcSkelClass
         self.queries: t.Union[None, QueryDefinition, t.List[QueryDefinition]] = QueryDefinition(kind, {}, [])
-        cbSignature = t.Union[None, t.Callable[[Query, str, t.Union[DATASTORE_BASE_TYPES, t.List[DATASTORE_BASE_TYPES]]], t.Union[
-            None, t.Tuple[str, t.Union[DATASTORE_BASE_TYPES, t.List[DATASTORE_BASE_TYPES]]]]]]
+        cbSignature = t.Union[
+            None,
+            t.Callable[
+                [Query, str, t.Union[DATASTORE_BASE_TYPES, t.List[DATASTORE_BASE_TYPES]]],
+                t.Union[None, t.Tuple[str, t.Union[DATASTORE_BASE_TYPES, t.List[DATASTORE_BASE_TYPES]]]]
+            ]
+        ]
         self._filterHook: cbSignature = None
         self._orderHook: cbSignature = None
         # Sometimes, the default merge functionality from MultiQuery is not sufficient

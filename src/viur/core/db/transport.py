@@ -17,7 +17,7 @@ Get = __client__.get
 Delete = __client__.delete
 
 
-#def allocate_id(kind_name):
+# FIXME: def allocate_id(kind_name):
 def AllocateIDs(kind_name):  # FIXME: Rename into allocate_id() when re-integrating into viur-core, accept only str!
     """
     Allocates a new, free unique id for a given kind_name.
@@ -75,7 +75,7 @@ def Delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
     """
     # accessLog = currentDbAccessLog.get()
     if isinstance(keys, list):
-        #if isinstance(accessLog, set):
+        # if isinstance(accessLog, set):
         #    accessLog.update(set(keys))
         return __client__.delete_multi(keys)
 
@@ -84,47 +84,51 @@ def Delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
 
     return __client__.delete(keys)
 
+
 def IsInTransaction() -> bool:
-	return __client__.current_transaction is not None
+    return __client__.current_transaction is not None
+
 
 def acquireTransactionSuccessMarker() -> str:
-	"""
-		Generates a token that will be written to the firestore (under "viur-transactionmarker") if the transaction
-		completes successfully. Currently only used by deferredTasks to check if the task should actually execute
-		or if the transaction it was created in failed.
-		:return: Name of the entry in viur-transactionmarker
-	"""
-	txn = __client__.current_transaction
-	assert txn, "acquireTransactionSuccessMarker cannot be called outside an transaction"
-	marker = binascii.b2a_hex(txn.id).decode("ASCII")
-	if not "viurTxnMarkerSet" in dir(txn):
-		e = Entity(Key("viur-transactionmarker", marker))
-		e["creationdate"] = datetime.datetime.now()
-		Put(e)
-		txn.viurTxnMarkerSet = True
-	return marker
+    """
+        Generates a token that will be written to the firestore (under "viur-transactionmarker") if the transaction
+        completes successfully. Currently only used by deferredTasks to check if the task should actually execute
+        or if the transaction it was created in failed.
+        :return: Name of the entry in viur-transactionmarker
+    """
+    txn = __client__.current_transaction
+    assert txn, "acquireTransactionSuccessMarker cannot be called outside an transaction"
+    marker = binascii.b2a_hex(txn.id).decode("ASCII")
+    if not "viurTxnMarkerSet" in dir(txn):
+        e = Entity(Key("viur-transactionmarker", marker))
+        e["creationdate"] = datetime.datetime.now()
+        Put(e)
+        txn.viurTxnMarkerSet = True
+    return marker
+
 
 def RunInTransaction(callee: t.Callable, *args, **kwargs) -> t.Any:
-	"""
-		Runs the function given in :param:callee inside a transaction.
-		Inside a transaction it's guaranteed that
-		- either all or no changes are written to the datastore
-		- no other transaction is currently reading/writing the entities accessed
+    """
+        Runs the function given in :param:callee inside a transaction.
+        Inside a transaction it's guaranteed that
+        - either all or no changes are written to the datastore
+        - no other transaction is currently reading/writing the entities accessed
 
-		See (transactions)[https://cloud.google.com/datastore/docs/concepts/cloud-datastore-transactions] for more
-		information.
+        See (transactions)[https://cloud.google.com/datastore/docs/concepts/cloud-datastore-transactions] for more
+        information.
 
-		..Warning: The datastore may produce unexpected results if a entity that have been written inside a transaction
-			is read (or returned in a query) again. In this case you will the the *old* state of that entity. Keep that
-			in mind if wrapping functions to run in a transaction that may have not been designed to handle this case.
-		:param callee: The function that will be run inside a transaction
-		:param args: All args will be passed into the callee
-		:param kwargs: All kwargs will be passed into the callee
-		:return: Whatever the callee function returned
-	"""
-	with __client__.transaction():
-		res = callee(*args, **kwargs)
-	return res
+        ..Warning: The datastore may produce unexpected results if a entity that have been written inside a transaction
+            is read (or returned in a query) again. In this case you will the the *old* state of that entity. Keep that
+            in mind if wrapping functions to run in a transaction that may have not been designed to handle this case.
+        :param callee: The function that will be run inside a transaction
+        :param args: All args will be passed into the callee
+        :param kwargs: All kwargs will be passed into the callee
+        :return: Whatever the callee function returned
+    """
+    with __client__.transaction():
+        res = callee(*args, **kwargs)
+    return res
+
 
 def Count(kind: str = None, up_to= 2 ** 31 - 1, queryDefinition: QueryDefinition = None) -> t.Union[Key, t.List[Key]]:
     if not kind:
@@ -189,5 +193,6 @@ def runSingleFilter(query: QueryDefinition, limit: int) -> t.List[Entity]:
     if hasInvertedOrderings:
         res.reverse()
     return res
+
 
 __all__ = [AllocateIDs, Delete, Get, Put, RunInTransaction, Count]
