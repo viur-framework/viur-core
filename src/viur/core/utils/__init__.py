@@ -85,7 +85,7 @@ def seoUrlToFunction(module: str, function: str, render: t.Optional[str] = None)
     return "/".join(pathComponents)
 
 
-def normalizeKey(key: t.Union[None, 'db.KeyClass']) -> t.Union[None, 'db.KeyClass']:
+def normalizeKey(key: t.Union[None, db.Key]) -> t.Union[None, db.Key]:
     """
         Normalizes a datastore key (replacing _application with the current one)
 
