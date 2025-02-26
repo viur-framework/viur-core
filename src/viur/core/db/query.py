@@ -80,10 +80,12 @@ class Query(object):
         self._filterHook: cbSignature = None
         self._orderHook: cbSignature = None
         # Sometimes, the default merge functionality from MultiQuery is not sufficient
-        self._customMultiQueryMerge: t.Union[None, t.Callable[[Query, t.List[t.List[Entity]], int], t.List[Entity]]] = None
+        self._customMultiQueryMerge: t.Union[None, t.Callable[[Query, t.List[t.List[Entity]], int], t.List[Entity]]] \
+            = None
         # Some (Multi-)Queries need a different amount of results per subQuery than actually returned
         self._calculateInternalMultiQueryLimit: t.Union[None, t.Callable[[Query, int], int]] = None
-        # Allow carrying custom data along with the query. Currently only used by spartialBone to record the guranteed correctnes
+        # Allow carrying custom data along with the query.
+        # Currently only used by spartialBone to record the guranteed correctness
         self.customQueryInfo = {}
         self.origKind = kind
         self._lastEntry = None
@@ -145,7 +147,7 @@ class Query(object):
         """
         if self.srcSkel is None:
             raise NotImplementedError("This query has not been created using skel.all()")
-        if self.queries is None:  # This query is allready unsatifiable and adding more constrains to this wont change this
+        if self.queries is None:  # This query is already unsatifiable and adding more constraints won't change this
             return self
         skel = self.srcSkel
         if "search" in filters:
@@ -176,8 +178,12 @@ class Query(object):
             endCursor = filters["endcursor"]
         if startCursor or endCursor:
             self.setCursor(startCursor, endCursor)
-        if "limit" in filters and str(filters["limit"]).isdigit() and int(filters["limit"]) > 0 and int(
-            filters["limit"]) <= 100:
+        if (
+            "limit" in filters
+            and str(filters["limit"]).isdigit()
+            and int(filters["limit"]) > 0
+            and int(filters["limit"]) <= 100
+        ):
             self.limit(int(filters["limit"]))
         return self
 
@@ -464,7 +470,8 @@ class Query(object):
                     continue
                 seenKeys.add(key)
                 res.append(entry)
-        # Fixme: What about filters that mix different inequality filters - we'll now simply ignore any implicit sortorder
+        # FIXME: What about filters that mix different inequality filters?
+        # Currently, we'll now simply ignore any implicit sortorder.
         return self._resortResult(res, {}, self.queries[0].orders)
 
     def _resortResult(self, entities: t.List[Entity], filters: t.Dict[str, DATASTORE_BASE_TYPES],
@@ -484,11 +491,11 @@ class Query(object):
             # Descent into the target until we reach the property we're looking for
             if isinstance(fieldVars, tuple):
                 for fv in fieldVars:
-                    if not fv in src:
+                    if fv not in src:
                         return None
                     src = src[fv]
             else:
-                if not fieldVars in src:
+                if fieldVars not in src:
                     return (str(type(None)), 0)
                 src = src[fieldVars]
             # Lists are handled differently, here the smallest or largest value determines it's position in the result
@@ -533,9 +540,14 @@ class Query(object):
             Jump to parentKind if necessary (used in relations)
         """
         resultList = list(resultList)
-        if resultList and resultList[0].key.kind != self.origKind and resultList[0].key.parent and \
-            resultList[0].key.parent.kind == self.origKind:
+        if (
+            resultList
+            and resultList[0].key.kind != self.origKind
+            and resultList[0].key.parent
+            and resultList[0].key.parent.kind == self.origKind
+        ):
             return list(Get(list(dict.fromkeys([x.key.parent for x in resultList]))))
+
         return resultList
 
     def run(self, limit: int = -1) -> t.List[Entity]:
