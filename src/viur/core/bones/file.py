@@ -8,7 +8,7 @@ metadata.
 from hashlib import sha256
 from time import time
 import typing as t
-from viur.core import conf, db
+from viur.core import conf, db, current
 from viur.core.bones.treeleaf import TreeLeafBone
 from viur.core.tasks import CallDeferred
 
@@ -226,6 +226,8 @@ class FileBone(TreeLeafBone):
         the derived files directly.
         """
         super().postSavedHandler(skel, boneName, key)
+        if current.request.get().is_deferred and current.request_data.get().get("__update_relations_bone") == "derived":
+            return
         from viur.core.skeleton import RelSkel, Skeleton
 
         if issubclass(skel.skeletonCls, Skeleton):
