@@ -911,7 +911,7 @@ class Conf(ConfigType):
         else:
             raise ValueError(f"Invalid type {type(value)}. Expected a CustomEnvironmentHandler object.")
 
-    tasks_default_queues : dict[str, str] = {
+    tasks_default_queues: dict[str, str] = {
         "__default__": "default",
     }
     """
