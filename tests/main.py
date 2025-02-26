@@ -54,46 +54,11 @@ def monkey_patch():
     sys.modules["google.cloud.logging.handlers"] = tmp = mock.Mock()
     tmp.CloudLoggingHandler = NoopHandler
 
+    sys.modules["google.cloud._helpers"] = tmp = mock.Mock()
+    tmp.CloudLoggingHandler = NoopHandler
+
     sys.modules["google.cloud.logging_v2.handlers.handlers"] = tmp = mock.Mock()
     tmp.EXCLUDED_LOGGER_DEFAULTS = []
-
-    db_attr = (
-        "!Entity",
-        "!Key",
-        "!KeyClass",
-        "acquireTransactionSuccessMarker",
-        "AllocateIDs",
-        "cache",
-        "CollisionError",
-        "Count",
-        "DATASTORE_BASE_TYPES",
-        "Delete",
-        "endDataAccessLog",
-        "fixUnindexableProperties",
-        "Get",
-        "GetOrInsert",
-        "IsInTransaction",
-        "KEY_SPECIAL_PROPERTY",
-        "keyHelper",
-        "Put",
-        "Query",
-        "QueryDefinition",
-        "RunInTransaction",
-        "SortOrder",
-        "startDataAccessLog",
-    )
-
-    viur_datastore = mock.Mock()
-
-    for attr in db_attr:
-        # classes must not be instances of MagicMock, otherwise isinstance checks does not work
-        if attr.startswith("!"):
-            setattr(viur_datastore, attr[1:], mock.MagicMock)
-        else:
-            setattr(viur_datastore, attr, mock.MagicMock())
-
-    viur_datastore.config = {}
-    sys.modules["viur.datastore"] = viur_datastore
 
     os.environ["GAE_VERSION"] = "v42"
     os.environ["GAE_ENV"] = "unittestenv"
