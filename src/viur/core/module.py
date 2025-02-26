@@ -85,7 +85,10 @@ class Method:
             Tries to parse a value according to a given type.
             May be called recursively to handle unions, lists and tuples as well.
             """
-            # logging.debug(f"{annotation=} | {name=} | {value=}")
+            logging.debug(f"{annotation=} | {name=} | {value=}")
+            logging.debug(f"{annotation is types.NoneType=}")
+            logging.debug(f"{types.NoneType=}")
+            logging.debug(f"{annotation is param.empty=}")
 
             # simple types
             if annotation is str:
@@ -96,11 +99,17 @@ class Method:
                 return float(value)
             elif annotation is bool:
                 return utils.parse.bool(value)
-            elif annotation is types.NoneType:
-                return None
+            elif annotation is types.NoneType or annotation is None:
+                logging.debug(f"IS NONE!!!")
+                if value in (None, "None", "null"):
+                    logging.debug(f"IS NONE VALUE!!!")
+                    return None
+                logging.debug(f"IS NOT NONE VALUE!!!")
+                raise ValueError(f"Expected None for parameter {name}. Got: {value!r}")
 
             # complex types
             origin_type = t.get_origin(annotation)
+            logging.debug(f"{annotation=} | {name=} | {value=} | {origin_type=}")
 
             if origin_type is list and len(annotation.__args__) == 1:
                 if not isinstance(value, list):
@@ -157,7 +166,8 @@ class Method:
             if self._instance and i == 0 and param_name == "self":
                 continue
 
-            param_type = param.annotation if param.annotation is not param.empty else None
+            param_type = param.annotation
+            logging.debug(f"{param=} | {param_name=} | {param_type=} | {param.annotation=}")
             param_required = param.default is param.empty
 
             # take positional parameters first
@@ -168,7 +178,7 @@ class Method:
                 try:
                     value = next(args_iter)
 
-                    if param_type:
+                    if param_type is not param.empty:
                         value = parse_value_by_annotation(param_type, param_name, value)
 
                     parsed_args.append(value)
@@ -186,7 +196,7 @@ class Method:
             ):
                 value = kwargs.pop(param_name)
 
-                if param_type:
+                if param_type is not param.empty:
                     value = parse_value_by_annotation(param_type, param_name, value)
 
                 parsed_kwargs[param_name] = value
