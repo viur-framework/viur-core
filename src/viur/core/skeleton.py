@@ -1853,7 +1853,7 @@ def listKnownSkeletons() -> list[str]:
     """
         :return: A list of all known kindnames (all kindnames for which a skeleton is defined)
     """
-    return list(MetaBaseSkel._skelCache.keys())[:]
+    return sorted(MetaBaseSkel._skelCache.keys())
 
 
 def iterAllSkelClasses() -> t.Iterable[Skeleton]:
