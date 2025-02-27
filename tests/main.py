@@ -51,10 +51,8 @@ def monkey_patch():
         resource = mock.Mock()
         labels = mock.Mock()
 
-    sys.modules["google.cloud.logging.handlers"] = tmp = mock.Mock()
+    sys.modules["google.cloud"] = tmp = mock.Mock()
     tmp.CloudLoggingHandler = NoopHandler
-
-    sys.modules["google.cloud.logging_v2.handlers.handlers"] = tmp = mock.Mock()
     tmp.EXCLUDED_LOGGER_DEFAULTS = []
 
     os.environ["GAE_VERSION"] = "v42"
