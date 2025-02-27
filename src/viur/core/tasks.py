@@ -456,7 +456,9 @@ def CallDeferred(func: t.Callable) -> t.Callable:
     In addition to the arguments for the wrapped methods you can set these:
 
     _queue: Specify the queue in which the task should be pushed.
-        "default" is the default value. The queue must exist (use the queue.yaml).
+        If no value is given, the queue name set in `conf.tasks_default_queues`
+        will be used. If the config does not have a value for this task, "default"
+        is used as the default. The queue must exist (use the queue.yaml).
 
     _countdown: Specify a time in seconds after which the task should be called.
         This time is relative to the moment where the wrapped method has been called.
@@ -500,7 +502,7 @@ def CallDeferred(func: t.Callable) -> t.Callable:
         func: t.Callable,
         self=__undefinedFlag_,
         *args,
-        _queue: str = "default",
+        _queue: str = None,
         _name: str | None = None,
         _call_deferred: bool = True,
         _target_version: str = conf.instance.app_version,
@@ -563,6 +565,11 @@ def CallDeferred(func: t.Callable) -> t.Callable:
                 if self is not __undefinedFlag_:
                     args = (self,) + args  # Re-append self to args, as this function is (hopefully) unbound
                 command = "unb"
+
+            if _queue is None:
+                _queue = conf.tasks_default_queues.get(
+                    funcPath, conf.tasks_default_queues.get("__default__", "default")
+                )
 
             # Try to preserve the important data from the current environment
             try:  # We might get called inside a warmup request without session
