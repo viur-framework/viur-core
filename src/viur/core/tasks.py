@@ -285,21 +285,6 @@ class TaskHandler(Module):
                 entry["date"] = utils.utcNow()
                 db.Put(entry)
         logging.debug("Periodic tasks complete")
-        for currentTask in db.Query("viur-queued-tasks").iter():  # Look for queued tasks
-            db.Delete(currentTask.key())
-            if currentTask["taskid"] in _callableTasks:
-                task = _callableTasks[currentTask["taskid"]]()
-                tmpDict = {}
-                for k in currentTask.keys():
-                    if k == "taskid":
-                        continue
-                    tmpDict[k] = json.loads(currentTask[k])
-                try:
-                    task.execute(**tmpDict)
-                except Exception as e:
-                    logging.error("Error executing Task")
-                    logging.exception(e)
-        logging.debug("Scheduled tasks complete")
 
     def _validate_request(
         self,
