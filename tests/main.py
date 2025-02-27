@@ -51,7 +51,7 @@ def monkey_patch():
         resource = mock.Mock()
         labels = mock.Mock()
 
-    sys.modules["google.cloud"] = tmp = mock.Mock()
+    sys.modules["google.cloud"] = tmp = mock.MagicMock()
     tmp.CloudLoggingHandler = NoopHandler
     tmp.EXCLUDED_LOGGER_DEFAULTS = []
 
