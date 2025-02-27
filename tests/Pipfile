@@ -5,6 +5,7 @@ name = "pypi"
 
 [packages]
 appengine-python-standard = "~=1.0"
+google-cloud-datastore = "~=2.0"
 googleapis-common-protos = {version = "~=1.0", extras = ["grpc"]}
 jinja2 = "~=3.0"
 jsonschema = "~=4.0"
