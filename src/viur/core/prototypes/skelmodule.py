@@ -1,7 +1,7 @@
 import os
 import yaml
 import logging
-from viur.core import Module, db, current
+from viur.core import Module, db, current, errors
 from viur.core.decorators import *
 from viur.core.config import conf
 from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
@@ -47,6 +47,8 @@ def __load_indexes_from_file() -> dict[str, list]:
 
 DATASTORE_INDEXES = __load_indexes_from_file()
 
+X_VIUR_BONELIST = "X-VIUR-BONELIST"
+"""Defines the header parameter that might contain a client-defined bone list."""
 
 class SkelModule(Module):
     """
@@ -99,7 +101,7 @@ class SkelModule(Module):
         """
         return skeletonByKind(self.kindName)
 
-    def baseSkel(self, *args, **kwargs) -> SkeletonInstance:
+    def baseSkel(self, **kwargs) -> SkeletonInstance:
         """
         Returns an instance of an unmodified base skeleton for this module.
 
@@ -108,7 +110,84 @@ class SkelModule(Module):
 
         By default, baseSkel is used by :func:`~viewSkel`, :func:`~addSkel`, and :func:`~editSkel`.
         """
-        return self._resolveSkelCls(*args, **kwargs)()
+        return self._resolveSkelCls(**kwargs)()
+
+    def viewSkel(self, **kwargs) -> SkeletonInstance:
+        """
+        Retrieve a new instance of a :class:`viur.core.skeleton.SkeletonInstance` that is used by the application
+        for viewing an existing entry from the list.
+
+        The default is a Skeleton instance returned by :func:`~baseSkel`.
+
+        This SkeletonInstance can be post-processed (just returning a subskel or manually removing single bones) - which
+        is the recommended way to ensure a given user cannot see certain fields. A Jinja-Template may choose not to
+        display certain bones, but if the json or xml render is attached (or the user can use the vi or admin render)
+        he could still see all values. This also prevents the user from filtering by these bones, so no binary search
+        is possible.
+
+        :param client_derive: Allows to
+
+        .. seealso:: :func:`addSkel`, :func:`editSkel`, :func:`~baseSkel`
+
+        :return: Returns a Skeleton instance for viewing an entry.
+        """
+        return self.skel(**kwargs)
+
+    def editSkel(self, **kwargs) -> SkeletonInstance:
+        """
+        Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
+        for editing an existing entry from the list.
+
+        The default is a Skeleton instance returned by :func:`~baseSkel`.
+
+        Like in :func:`viewSkel`, the skeleton can be post-processed. Bones that are being removed aren't visible
+        and cannot be set, but it's also possible to just set a bone to readOnly (revealing it's value to the user,
+        but preventing any modification.
+
+        .. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`~baseSkel`
+
+        :return: Returns a Skeleton instance for editing an entry.
+        """
+        return self.skel(**kwargs)
+
+    def skel(
+        self,
+        *,
+        bones: t.Iterable[str] = (),
+        allow_client_defined: bool = False,
+        **kwargs,
+    ) -> SkeletonInstance:
+        """
+        Retrieve module-specific skeleton, optionally as subskel.
+
+        :param bones: Allows to specify a list of bones to form a subskel.
+        :param client_derive: Evaluates header X-VIUR-BONELIST to contain a comma-separated list of bones.
+            Using this parameter enforces that the Skeleton class has a subskel named "*" for required bones that
+            must exist.
+
+        The parameters `bones` and `bones_from_request` can be combined.
+        """
+        skel_cls = self._resolveSkelCls(**kwargs)
+        bones = set(bones) if bones else set()
+
+        if allow_client_defined:
+            if bonelist := current.request.get().kwargs.get(X_VIUR_BONELIST.lower()):  # DEBUG
+            # if bonelist := current.request.get().request.headers.get(X_VIUR_BONELIST)
+                if "*" not in skel_cls.subSkels:  # a named star-subskel "*"" must exist!
+                    raise errors.BadRequest(f"Use of {X_VIUR_BONELIST!r} requires for a star-subskel")
+
+                bones |= {bone.strip() for bone in bonelist.split(",")}
+
+        # Return a subskel?
+        if bones:
+            # When coming from outside of a request, "*" is always involved.
+            if allow_client_defined:
+                return skel_cls.subskel("*", bones=bones)
+
+            return skel_cls.subskel(bones=bones)
+
+        # Otherwise, return full skeleton
+        return skel_cls()  # FIXME: This is fishy, it should return a baseSkel(), but then some customer project break
 
     def _apply_default_order(self, query: db.Query):
         """

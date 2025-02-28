@@ -20,26 +20,7 @@ class List(SkelModule):
     handler = "list"
     accessRights = ("add", "edit", "view", "delete", "manage")
 
-    def viewSkel(self, *args, **kwargs) -> SkeletonInstance:
-        """
-            Retrieve a new instance of a :class:`viur.core.skeleton.SkeletonInstance` that is used by the application
-            for viewing an existing entry from the list.
-
-            The default is a Skeleton instance returned by :func:`~baseSkel`.
-
-            This SkeletonInstance can be post-processed (just returning a subskel or manually removing single bones) - which
-            is the recommended way to ensure a given user cannot see certain fields. A Jinja-Template may choose not to
-            display certain bones, but if the json or xml render is attached (or the user can use the vi or admin render)
-            he could still see all values. This also prevents the user from filtering by these bones, so no binary search
-            is possible.
-
-            .. seealso:: :func:`addSkel`, :func:`editSkel`, :func:`~baseSkel`
-
-            :return: Returns a Skeleton instance for viewing an entry.
-        """
-        return self.baseSkel(*args, **kwargs)
-
-    def addSkel(self, *args, **kwargs) -> SkeletonInstance:
+    def addSkel(self, **kwargs) -> SkeletonInstance:
         """
             Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
             for adding an entry to the list.
@@ -55,26 +36,9 @@ class List(SkelModule):
 
             :return: Returns a Skeleton instance for adding an entry.
         """
-        return self.baseSkel(*args, **kwargs)
+        return self.skel(**kwargs)
 
-    def editSkel(self, *args, **kwargs) -> SkeletonInstance:
-        """
-            Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
-            for editing an existing entry from the list.
-
-            The default is a Skeleton instance returned by :func:`~baseSkel`.
-
-            Like in :func:`viewSkel`, the skeleton can be post-processed. Bones that are being removed aren't visible
-            and cannot be set, but it's also possible to just set a bone to readOnly (revealing it's value to the user,
-            but preventing any modification.
-
-            .. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`~baseSkel`
-
-            :return: Returns a Skeleton instance for editing an entry.
-        """
-        return self.baseSkel(*args, **kwargs)
-
-    def cloneSkel(self, *args, **kwargs) -> SkeletonInstance:
+    def cloneSkel(self, **kwargs) -> SkeletonInstance:
         """
         Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
         for cloning an existing entry from the list.
@@ -89,7 +53,7 @@ class List(SkelModule):
 
         :return: Returns a SkeletonInstance for editing an entry.
         """
-        return self.baseSkel(*args, **kwargs)
+        return self.skel(**kwargs)
 
     ## External exposed functions
 
@@ -110,7 +74,7 @@ class List(SkelModule):
         if not self.canPreview():
             raise errors.Unauthorized()
 
-        skel = self.viewSkel()
+        skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
         skel.fromClient(kwargs)
 
         return self.render.view(skel)
@@ -126,7 +90,7 @@ class List(SkelModule):
         # FIXME: In ViUR > 3.7 this could also become dynamic (ActionSkel paradigm).
         match action:
             case "view":
-                skel = self.viewSkel()
+                skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
                 if not self.canView(skel):
                     raise errors.Unauthorized()
 
@@ -168,7 +132,7 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.NotFound`, when no entry with the given *key* was found.
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
-        skel = self.viewSkel()
+        skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
         if not skel.read(key):
             raise errors.NotFound()
 
@@ -195,8 +159,10 @@ class List(SkelModule):
 
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
+        skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
+
         # The general access control is made via self.listFilter()
-        if not (query := self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs))):
+        if not (query := self.listFilter(skel.all().mergeExternalFilter(kwargs))):
             raise errors.Unauthorized()
 
         self._apply_default_order(query)
@@ -323,10 +289,13 @@ class List(SkelModule):
             :return: The rendered entity or list.
         """
         if args and args[0]:
+            skel = self.viewSkel(
+                allow_client_defined=utils.string.is_prefix(self.render.kind, "json"),
+                _excludeFromAccessLog=True,
+            )
+
             # We probably have a Database or SEO-Key here
-            seoKey = str(args[0]).lower()
-            skel = self.viewSkel().all(_excludeFromAccessLog=True).filter("viur.viurActiveSeoKeys =", seoKey).getSkel()
-            if skel:
+            if skel := skel.all().filter("viur.viurActiveSeoKeys =", str(args[0]).lower()).getSkel():
                 db.currentDbAccessLog.get(set()).add(skel["key"])
                 if not self.canView(skel):
                     raise errors.Forbidden()
