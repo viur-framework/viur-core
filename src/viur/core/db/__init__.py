@@ -3,6 +3,9 @@ from .config import conf as config
 from .errors import *
 from .query import Query
 from .transport import AllocateIDs, Delete, Get, Put, RunInTransaction, Count
+# new exports for 3.8
+from .transport import allocate_ids
+
 from .types import (
     currentDbAccessLog,
     DATASTORE_BASE_TYPES,
@@ -71,4 +74,6 @@ __all__ = [
     "UnavailableError",
     "NoMutationResultsError",
     "cache",
+    #new exports
+    "allocate_ids"
 ]

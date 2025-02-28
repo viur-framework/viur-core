@@ -1,4 +1,5 @@
 from __future__ import annotations
+from deprecated.sphinx import deprecated
 from .overrides import key_from_protobuf, entity_from_protobuf
 from .types import Key, Entity, QueryDefinition, SortOrder, currentDbAccessLog
 from google.cloud import datastore
@@ -17,15 +18,20 @@ Get = __client__.get
 Delete = __client__.delete
 
 
-# FIXME: def allocate_id(kind_name):
-def AllocateIDs(kind_name):  # FIXME: Rename into allocate_id() when re-integrating into viur-core, accept only str!
+def allocate_ids(kind_name: str, num_ids: int = 1, retry=None, timeout=None) -> list[Key]:
+    if type(kind_name) is not str:
+        raise TypeError("kind_name must be a string")
+    return __client__.allocate_ids(Key(kind_name), num_ids, retry, timeout)
+
+@deprecated(version="3.8.0", reason="Use allocate_ids instead", action="always")
+def AllocateIDs(kind_name):
     """
     Allocates a new, free unique id for a given kind_name.
     """
     if isinstance(kind_name, Key):  # so ein Murks...
         kind_name = kind_name.kind
 
-    return __client__.allocate_ids(Key(kind_name), 1)[0]
+    return allocate_ids(kind_name)[0]
 
 
 def Get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None]:
