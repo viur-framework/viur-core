@@ -2,37 +2,15 @@ from . import cache
 from .config import conf as config
 from .errors import *
 from .query import Query
-from .transport import AllocateIDs, Delete, Get, Put, RunInTransaction, Count
+
+from .transport import AllocateIDs, Count, Delete, Get, Put, RunInTransaction
+from .types import (DATASTORE_BASE_TYPES, Entity, KEY_SPECIAL_PROPERTY, Key, QueryDefinition, SkelListRef, SortOrder,
+                    currentDbAccessLog)
+from .utils import (GetOrInsert, IsInTransaction, acquireTransactionSuccessMarker, encodeKey, endDataAccessLog,
+                    fixUnindexableProperties, keyHelper, normalizeKey, startDataAccessLog)
 # new exports for 3.8
-from .transport import allocate_ids
+from .transport import allocate_ids, get, delete, put, is_in_transaction, run_in_transaction, count
 
-from .types import (
-    currentDbAccessLog,
-    DATASTORE_BASE_TYPES,
-    Entity,
-    KEY_SPECIAL_PROPERTY,
-    Key,
-    QueryDefinition,
-    SkelListRef,
-    SortOrder,
-)
-from .utils import (
-    acquireTransactionSuccessMarker,
-    encodeKey,
-    endDataAccessLog,
-    fixUnindexableProperties,
-    GetOrInsert,
-    IsInTransaction,
-    keyHelper,
-    normalizeKey,
-    startDataAccessLog,
-)
-
-import logging
-
-# silencing requests' debugging
-logging.getLogger("requests").setLevel(logging.ERROR)
-logging.getLogger("urllib3").setLevel(logging.ERROR)
 
 __all__ = [
     "KEY_SPECIAL_PROPERTY",
@@ -74,6 +52,12 @@ __all__ = [
     "UnavailableError",
     "NoMutationResultsError",
     "cache",
-    #new exports
-    "allocate_ids"
+    # new exports
+    "allocate_ids",
+    "get",
+    "put",
+    "is_in_transaction",
+    "run_in_transaction",
+    "count"
+
 ]
