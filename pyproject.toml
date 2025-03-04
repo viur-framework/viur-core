@@ -30,7 +30,6 @@ dependencies = [
     "tzlocal~=5.0",
     "urllib3==1.26.18", # for appengine-python-standard used by some projects (https://github.com/GoogleCloudPlatform/appengine-python-standard/blob/main/setup.py#L28)
     "user-agents~=2.0",
-    "viur-datastore~=1.0",
     "webob~=1.0",
 ]
 requires-python = ">=3.10"
