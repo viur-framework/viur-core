@@ -90,7 +90,7 @@ class NumericBone(BaseBone):
             except ValueError:
                 return self.getDefaultValue()
 
-        return va
+        return val
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
         return self.singleValueUnserialize(value)  # same logic for unserialize here!
