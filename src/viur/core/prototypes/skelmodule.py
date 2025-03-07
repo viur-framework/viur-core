@@ -47,8 +47,9 @@ def __load_indexes_from_file() -> dict[str, list]:
 
 DATASTORE_INDEXES = __load_indexes_from_file()
 
-X_VIUR_BONELIST = "X-VIUR-BONELIST"
+X_VIUR_BONELIST: t.Final[str] = "X-VIUR-BONELIST"
 """Defines the header parameter that might contain a client-defined bone list."""
+
 
 class SkelModule(Module):
     """
@@ -115,17 +116,19 @@ class SkelModule(Module):
     def skel(
         self,
         *,
-        bones: t.Iterable[str] = (),
         allow_client_defined: bool = False,
+        bones: tuple[str, ...] | t.List[str] = (),
+        exclude_bones: tuple[str, ...] | t.List[str] = (),
         **kwargs,
     ) -> SkeletonInstance:
         """
         Retrieve module-specific skeleton, optionally as subskel.
 
-        :param bones: Allows to specify a list of bones to form a subskel.
         :param allow_client_defined: Evaluates header X-VIUR-BONELIST to contain a comma-separated list of bones.
             Using this parameter enforces that the Skeleton class has a subskel named "*" for required bones that
             must exist.
+        :param bones: Allows to specify a list of bones to form a subskel.
+        :param exclude_bones: Provide a list of bones which are always excluded.
 
         The parameters `bones` and `allow_client_defined` can be combined.
         """
@@ -139,14 +142,25 @@ class SkelModule(Module):
                     raise errors.BadRequest(f"Use of {X_VIUR_BONELIST!r} requires a defined star-subskel")
 
                 bones |= {bone.strip() for bone in bonelist.split(",")}
+            else:
+                allow_client_defined = False  # is not client-defined!
+
+        bones.difference_update(exclude_bones)
 
         # Return a subskel?
         if bones:
             # When coming from outside of a request, "*" is always involved.
             if allow_client_defined:
+                current.request.get().response.vary = (X_VIUR_BONELIST, *(current.request.get().response.vary or ()))
                 return skel_cls.subskel("*", bones=bones)
 
-            return skel_cls.subskel(bones=bones)
+            return skel_cls(bones=bones)
+
+        elif exclude_bones:
+            # Return full skel, without generally excluded bones
+            bones.update(skel_cls.__boneMap__.keys())
+            bones.difference_update(exclude_bones)
+            return skel_cls(bones=bones)
 
         # Otherwise, return full skeleton
         return skel_cls()
