@@ -84,7 +84,7 @@ class NumericBone(BaseBone):
         if val is not None:
             try:
                 if self.precision:
-                    return float(f"{val:.{self.precision}f}")
+                    return round(float(val), self.precision)
 
                 return int(val)
             except ValueError:
