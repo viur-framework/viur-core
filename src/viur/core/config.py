@@ -911,6 +911,23 @@ class Conf(ConfigType):
         else:
             raise ValueError(f"Invalid type {type(value)}. Expected a CustomEnvironmentHandler object.")
 
+    tasks_default_queues: dict[str, str] = {
+        "__default__": "default",
+    }
+    """
+    @CallDeferred tasks run in the Cloud Tasks Queue "default" by default.
+    One way to run them in a different task queue is to use the `_queue` parameter
+    when calling the task.
+    However, as this is not possible for existing or low-hanging calls,
+    default values can be defined here for each task.
+    To do this, the task path must be mapped to the queue name:
+    ```
+    conf.tasks_default_queues["updateRelations.viur.core.skeleton"] = "update_relations"
+    ```
+    The queue (in the example: `"update_relations"`) must exist.
+    The default queue can be changed by overwriting `"__default__"`.
+    """
+
     valid_application_ids: list[str] = []
     """Which application-ids we're supposed to run on"""
 
