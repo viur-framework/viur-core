@@ -84,13 +84,13 @@ class NumericBone(BaseBone):
         if val is not None:
             try:
                 if self.precision:
-                    return float(f"{val:.{self.precision}f}")
+                    return round(float(val), self.precision)
 
                 return int(val)
             except ValueError:
                 return self.getDefaultValue()
 
-        return val
+        return va
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
         return self.singleValueUnserialize(value)  # same logic for unserialize here!
