@@ -1,5 +1,6 @@
 from datetime import timedelta as td
-import unittest
+
+from abstract import ViURTestCase
 
 S = "Mein Kumpel aus 's-Hertogenbosch, meinte:\n" \
     "<strong>\"So ein Feuerball, Jungeee!\"</strong>\n" \
@@ -9,11 +10,7 @@ E = "Mein Kumpel aus &#39;s-Hertogenbosch, meinte: " \
     "&#40;&#61;&gt; vgl. New Kids&#41;"""
 
 
-class TestUtils(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        from main import monkey_patch
-        monkey_patch()
+class TestUtils(ViURTestCase):
 
     def test_string_unescape(self):
         from viur.core import utils
@@ -28,7 +25,7 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(utils.string.escape(S), E)
 
     def test_json(self):
-        from viur.core import utils, db
+        from viur.core import utils
         import datetime
 
         # key = db.Key("test", "hello world")

@@ -1,13 +1,11 @@
-import unittest
-
 import mock
 
+from abstract import ViURTestCase
 
-class TestTextBone_fromClient(unittest.TestCase):
+
+class TestTextBone_fromClient(ViURTestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        from main import monkey_patch
-        monkey_patch()
         from viur.core import conf
         conf.main_app = mock.MagicMock()
         conf.main_app.vi = None
