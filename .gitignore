@@ -5,7 +5,11 @@
 dist
 viur_core.egg-info
 .env
+
+# tests
 tests/htmlcov
-tests/.coverage
+.coverage
+coverage.svg
+
 .pypirc
 build
