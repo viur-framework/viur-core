@@ -34,12 +34,12 @@ def AllocateIDs(kind_name):
 
 def get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None]:
     """
-           Retrieves an entity (or a list thereof) from datastore.
-           If only a single key has been given we'll return the entity or none in case the key has not been found,
-           otherwise a list of all entities that have been looked up (which may be empty)
-           :param keys: A datastore key (or a list thereof) to lookup
-           :return: The entity (or None if it has not been found), or a list of entities.
-       """
+   Retrieves an entity (or a list thereof) from datastore.
+   If only a single key has been given we'll return the entity or none in case the key has not been found,
+   otherwise a list of all entities that have been looked up (which may be empty)
+   :param keys: A datastore key (or a list thereof) to lookup
+   :return: The entity (or None if it has not been found), or a list of entities.
+   """
     # accessLog = currentDbAccessLog.get()
 
     if isinstance(keys, list):
@@ -63,9 +63,9 @@ def Get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None
 
 def put(entities: t.Union[Entity, t.List[Entity]]):
     """
-        Save an entity in the Cloud Datastore.
-        Also ensures that no string-key with an digit-only name can be used.
-        :param entity: The entity to be saved to the datastore.
+    Save an entity in the Cloud Datastore.
+    Also ensures that no string-key with a digit-only name can be used.
+    :param entities: The entities to be saved to the datastore.
     """
     if isinstance(entities, Entity):
         entities = entities,
@@ -84,9 +84,9 @@ def Put(entities: t.Union[Entity, t.List[Entity]]) -> t.Union[Entity, None]:
 
 def delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
     """
-           Deletes the entities with the given key(s) from the datastore.
-           :param keys: A Key (or a t.List of Keys) to delete
-       """
+    Deletes the entities with the given key(s) from the datastore.
+    :param keys: A Key (or a t.List of Keys) to delete
+    """
     # accessLog = currentDbAccessLog.get()
     if isinstance(keys, list):
         # if isinstance(accessLog, set):
@@ -115,22 +115,22 @@ def IsInTransaction() -> bool:
 
 def run_in_transaction(func: t.Callable, *args, **kwargs) -> t.Any:
     """
-            Runs the function given in :param:callee inside a transaction.
-            Inside a transaction it's guaranteed that
-            - either all or no changes are written to the datastore
-            - no other transaction is currently reading/writing the entities accessed
+    Runs the function given in :param:callee inside a transaction.
+    Inside a transaction it's guaranteed that
+    - either all or no changes are written to the datastore
+    - no other transaction is currently reading/writing the entities accessed
 
-            See (transactions)[https://cloud.google.com/datastore/docs/concepts/cloud-datastore-transactions] for more
-            information.
+    See (transactions)[https://cloud.google.com/datastore/docs/concepts/cloud-datastore-transactions] for more
+    information.
 
-            ..Warning: The datastore may produce unexpected results if a entity that have been written inside a transaction
-                is read (or returned in a query) again. In this case you will the the *old* state of that entity. Keep that
-                in mind if wrapping functions to run in a transaction that may have not been designed to handle this case.
-            :param callee: The function that will be run inside a transaction
-            :param args: All args will be passed into the callee
-            :param kwargs: All kwargs will be passed into the callee
-            :return: Whatever the callee function returned
-        """
+    ..Warning: The datastore may produce unexpected results if an entity that have been written inside a transaction
+        is read (or returned in a query) again. In this case you will the the *old* state of that entity. Keep that
+        in mind if wrapping functions to run in a transaction that may have not been designed to handle this case.
+    :param func: The function that will be run inside a transaction
+    :param args: All args will be passed into the callee
+    :param kwargs: All kwargs will be passed into the callee
+    :return: Whatever the callee function returned
+    """
     # todo retry when failed ?
     with __client__.transaction():
         res = func(*args, **kwargs)
@@ -161,17 +161,19 @@ def count(kind: str = None, up_to=2 ** 31 - 1, queryDefinition: QueryDefinition 
     result = aggregation_query.count(alias="total").fetch(limit=up_to)
     return list(result)[0][0].value
 
+
 @deprecated(version="3.8.0", reason="Use 'db.count' instead", action="always")
 def Count(kind: str = None, up_to=2 ** 31 - 1, queryDefinition: QueryDefinition = None) -> int:
     return count(kind, up_to, queryDefinition)
 
+
 def runSingleFilter(query: QueryDefinition, limit: int) -> t.List[Entity]:
     """
-        Internal helper function that runs a single query definition on the datastore and returns a list of
-        entities found.
-        :param query: The querydefinition (filters, orders, distinct etc) to run against the datastore
-        :param limit: How many results shoult at most be returned
-        :return: The first *limit* entities that matches this query
+    Internal helper function that runs a single query definition on the datastore and returns a list of
+    entities found.
+    :param query: The querydefinition (filters, orders, distinct etc.) to run against the datastore
+    :param limit: How many results should at most be returned
+    :return: The first *limit* entities that matches this query
     """
     qry = __client__.query(kind=query.kind)
     startCursor = None
