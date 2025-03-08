@@ -30,7 +30,7 @@ jobs:
         run: |
           cd viur/tests
           python -m pip install -U pip
-          python -m pip install -e ..
+          python -m pip install -e ..[testing]
           python -m pip install -U coverage coverage-badge
 
       - name: Run the tests
