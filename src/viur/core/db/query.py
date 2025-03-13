@@ -4,7 +4,6 @@ import base64
 import copy
 import functools
 import logging
-import operator
 import typing as t
 
 from .config import conf
@@ -15,11 +14,18 @@ from .types import (
     KEY_SPECIAL_PROPERTY,
     QueryDefinition,
     SortOrder,
+    TFilters,
+    TOrders,
 )
 from .utils import IsInTransaction
 
 if t.TYPE_CHECKING:
     from viur.core.skeleton import SkeletonInstance, SkelList
+
+TOrderHook = t.TypeVar("TOrderHook", bound=t.Callable[["Query", TOrders], TOrders])
+TFilterHook = t.TypeVar("TFilterHook", bound=t.Callable[
+    ["Query", str, DATASTORE_BASE_TYPES | list[DATASTORE_BASE_TYPES]], TFilters
+])
 
 
 def _entryMatchesQuery(entry: Entity, singleFilter: dict) -> bool:
@@ -71,26 +77,19 @@ class Query(object):
         :param srcSkelClass: If set, enables data-model depended queries (like relational queries) as well as the
             :meth:fetch method
         """
-        super(Query, self).__init__()
+        super().__init__()
         self.kind = kind
         self.srcSkel = srcSkelClass
         self.queries: t.Union[None, QueryDefinition, t.List[QueryDefinition]] = QueryDefinition(kind, {}, [])
-        cbSignature = t.Union[
-            None,
-            t.Callable[
-                [Query, str, t.Union[DATASTORE_BASE_TYPES, t.List[DATASTORE_BASE_TYPES]]],
-                t.Union[None, t.Tuple[str, t.Union[DATASTORE_BASE_TYPES, t.List[DATASTORE_BASE_TYPES]]]]
-            ]
-        ]
-        self._filterHook: cbSignature = None
-        self._orderHook: cbSignature = None
+        self._filterHook: TFilterHook | None = None
+        self._orderHook: TOrderHook | None = None
         # Sometimes, the default merge functionality from MultiQuery is not sufficient
         self._customMultiQueryMerge: t.Union[None, t.Callable[[Query, t.List[t.List[Entity]], int], t.List[Entity]]] \
             = None
         # Some (Multi-)Queries need a different amount of results per subQuery than actually returned
         self._calculateInternalMultiQueryLimit: t.Union[None, t.Callable[[Query, int], int]] = None
         # Allow carrying custom data along with the query.
-        # Currently only used by SpartialBone to record the guaranteed correctness
+        # Currently only used by SpatialBone to record the guaranteed correctness
         self.customQueryInfo = {}
         self.origKind = kind
         self._lastEntry = None
@@ -101,7 +100,7 @@ class Query(object):
         #     if isinstance(accessLog, set):
         #         accessLog.add(kind)
 
-    def setFilterHook(self, hook: t.Callable) -> t.Optional[t.Callable]:
+    def setFilterHook(self, hook: TFilterHook) -> TFilterHook | None:
         """
         Installs *hook* as a callback function for new filters.
 
@@ -117,7 +116,7 @@ class Query(object):
         self._filterHook = hook
         return old
 
-    def setOrderHook(self, hook: t.Callable) -> t.Callable:
+    def setOrderHook(self, hook: TOrderHook) -> TOrderHook | None:
         """
         Installs *hook* as a callback function for new orderings.
 
@@ -278,7 +277,7 @@ class Query(object):
 
         .. code-block:: python
 
-            query = Query( "Person" )
+            query = Query("Person")
             query.order(("bday" db.SortOrder.Ascending), ("age", db.SortOrder.Descending))
 
         sorts every Person in order of their birthday, starting with January 1.
@@ -307,7 +306,7 @@ class Query(object):
 
 
         :param orderings: The properties to sort by, in sort order.
-            Each argument must be a (string, direction) 2-tuple.
+            Each argument must be a (name, direction) 2-tuple.
         :returns: Returns the query itself for chaining.
         """
         if self.queries is None:
@@ -325,8 +324,6 @@ class Query(object):
                     f"Invalid ordering {order}, it has to be a tuple. Try: `(\"{order}\", SortOrder.Ascending)`")
 
             orders.append(order)
-
-        orderings = tuple(orders)
 
         if self._orderHook is not None:
             try:

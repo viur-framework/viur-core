@@ -40,6 +40,8 @@ class SortOrder(enum.Enum):
     """Fetch A->Z, then flip the results (useful in pagination)"""
 
 
+
+
 class Key(Datastore_key):
     """
         The python representation of one datastore key. Unlike the original implementation, we don't store a
@@ -149,6 +151,10 @@ class Entity(Datastore_entity):
         assert not key or isinstance(key, Key), "Key must be a Key-Object (or None for an embedded entity)"
 
 
+TOrders :t.TypeAlias = list[tuple[str, SortOrder]]
+TFilters:t.TypeAlias = dict[str, DATASTORE_BASE_TYPES | list[DATASTORE_BASE_TYPES]]
+
+
 @dataclass
 class QueryDefinition:
     """
@@ -158,10 +164,10 @@ class QueryDefinition:
     kind: t.Optional[str]
     """The datastore kind to run the query on. Can be None for kindles queries."""
 
-    filters: dict[str, DATASTORE_BASE_TYPES | list[DATASTORE_BASE_TYPES]]
+    filters: TFilters
     """A dictionary of constrains to apply to the query."""
 
-    orders: t.Optional[list[tuple[str, SortOrder]]]
+    orders: t.Optional[TOrders]
     """The list of fields to sort the results by."""
 
     distinct: t.Optional[list[str]] = None
