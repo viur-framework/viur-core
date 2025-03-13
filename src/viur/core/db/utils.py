@@ -1,5 +1,6 @@
 import datetime
 import typing as t
+
 from .transport import Get, Put, RunInTransaction
 from .types import Entity, Key, currentDbAccessLog, currentTransaction
 
@@ -40,10 +41,10 @@ def fixUnindexableProperties(entry: Entity) -> Entity:
 
 def normalizeKey(key: t.Union[None, Key]) -> t.Union[None, Key]:
     """
-        Normalizes a datastore key (replacing _application with the current one)
+    Normalizes a datastore key (replacing _application with the current one)
 
-        :param key: Key to be normalized.
-        :return: Normalized key in string representation.
+    :param key: Key to be normalized.
+    :return: Normalized key in string representation.
     """
     if key is None:
         return None
@@ -54,9 +55,13 @@ def normalizeKey(key: t.Union[None, Key]) -> t.Union[None, Key]:
     return Key(key.kind, key.id_or_name, parent=parent)
 
 
-def keyHelper(inKey: t.Union[Key, str, int], targetKind: str,
-              additionalAllowedKinds: t.Union[t.List[str], t.Tuple[str]] = (),
-              adjust_kind: bool = False) -> Key:
+def keyHelper(
+    inKey: t.Union[Key, str, int],
+    targetKind: str,
+    additionalAllowedKinds: t.Union[t.List[str],
+    t.Tuple[str]] = (),
+    adjust_kind: bool = False,
+) -> Key:
     if isinstance(inKey, Key):
         if inKey.kind != targetKind and inKey.kind not in additionalAllowedKinds:
             if not adjust_kind:
@@ -96,14 +101,14 @@ def IsInTransaction() -> bool:
 
 def GetOrInsert(key: Key, **kwargs) -> Entity:
     """
-        Either creates a new entity with the given key, or returns the existing one.
+    Either creates a new entity with the given key, or returns the existing one.
 
-        Its guaranteed that there is no race-condition here; it will never overwrite an
-        previously created entity. Extra keyword arguments passed to this function will be
-        used to populate the entity if it has to be created; otherwise they are ignored.
+    Its guaranteed that there is no race-condition here; it will never overwrite an
+    previously created entity. Extra keyword arguments passed to this function will be
+    used to populate the entity if it has to be created; otherwise they are ignored.
 
-        :param key: The key which will be fetched or created.
-        :returns: Returns the fetched or newly created Entity.
+    :param key: The key which will be fetched or created.
+    :returns: Returns the fetched or newly created Entity.
     """
 
     def txn(key, kwargs):

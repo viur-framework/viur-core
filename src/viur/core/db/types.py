@@ -3,20 +3,15 @@ The constants, global variables and container classes used in the datastore api
 """
 from __future__ import annotations
 
-import base64
 import datetime
 import enum
-import google.auth
-import google.auth
 import typing as t
-
 from contextvars import ContextVar
 from dataclasses import dataclass
-from google.cloud._helpers import _to_bytes, _ensure_tuple_or_list
-from google.cloud.datastore import _app_engine_key_pb2, Key as Datastore_key, Entity as Datastore_entity
 
-if t.TYPE_CHECKING:
-    from viur.core.skeleton import SkeletonInstance
+import google.auth
+import google.auth
+from google.cloud.datastore import Entity as Datastore_entity, Key as Datastore_key
 
 # The property name pointing to an entities key in a query
 KEY_SPECIAL_PROPERTY = "__key__"
@@ -39,7 +34,6 @@ class SortOrder(enum.Enum):
     """Fetch Z->A, then flip the results (useful in pagination to go from a start cursor backwards)"""
     InvertedDescending = 4
     """Fetch A->Z, then flip the results (useful in pagination)"""
-
 
 
 class Key(Datastore_key):

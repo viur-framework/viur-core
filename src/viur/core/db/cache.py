@@ -33,15 +33,15 @@ __all__ = [
     "get",
     "put",
     "delete",
-    "LocalMemcache"
+    "LocalMemcache",
 ]
 
 
 def get(keys: t.Union[str, Key, t.List[str], t.List[Key]]) -> t.Dict[str, dict]:
     """
-        Reads data form the memcache.
-        :param t.Union[str, Key, t.List[str], t.List[Key]] keys: Unique identifier(s) for one or more entry(s).
-        :return: A dict with the entry(s) that found in the memcache.
+    Reads data form the memcache.
+    :param keys: Unique identifier(s) for one or more entry(s).
+    :return: A dict with the entry(s) that found in the memcache.
     """
     if not check_for_memcache():
         return {}
@@ -60,9 +60,9 @@ def get(keys: t.Union[str, Key, t.List[str], t.List[Key]]) -> t.Dict[str, dict]:
 
 def put(data: t.Union[Entity, t.Dict[Key, Entity], t.List[Entity]]):
     """
-        Writes Data to the memcache.
+    Writes Data to the memcache.
 
-        :param t.Union[Entity, t.Dict[Key, Entity], t.List[Entity]] data: Data to write
+    :param data: Data to write
     """
     if not check_for_memcache():
         return
@@ -87,9 +87,9 @@ def put(data: t.Union[Entity, t.Dict[Key, Entity], t.List[Entity]]):
 
 def delete(keys: t.Union[str, Key, t.List[str], t.List[Key]]) -> None:
     """
-        Deletes an Entry form memcache.
+    Deletes an Entry form memcache.
 
-        :param t.Union[str, Key, t.List[str], t.List[Key]] keys: Unique identifier(s) for one or more entry(s).
+    :param keys: Unique identifier(s) for one or more entry(s).
     """
     if not check_for_memcache():
         return
@@ -106,7 +106,7 @@ def delete(keys: t.Union[str, Key, t.List[str], t.List[Key]]) -> None:
 
 def flush():
     """
-        Deletes everything in memcache.
+    Deletes everything in memcache.
     """
     if not check_for_memcache():
         return
@@ -118,7 +118,7 @@ def flush():
 
 def get_size(obj: t.Any) -> int:
     """
-        Utility function that counts the size of an object in bytes.
+    Utility function that counts the size of an object in bytes.
     """
     if isinstance(obj, dict):
         return sum(get_size([k, v]) for k, v in obj.items())

@@ -34,12 +34,12 @@ def AllocateIDs(kind_name):
 
 def get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None]:
     """
-   Retrieves an entity (or a list thereof) from datastore.
-   If only a single key has been given we'll return the entity or none in case the key has not been found,
-   otherwise a list of all entities that have been looked up (which may be empty)
-   :param keys: A datastore key (or a list thereof) to lookup
-   :return: The entity (or None if it has not been found), or a list of entities.
-   """
+    Retrieves an entity (or a list thereof) from datastore.
+    If only a single key has been given we'll return the entity or none in case the key has not been found,
+    otherwise a list of all entities that have been looked up (which may be empty)
+    :param keys: A datastore key (or a list thereof) to lookup
+    :return: The entity (or None if it has not been found), or a list of entities.
+    """
     # accessLog = currentDbAccessLog.get()
 
     if isinstance(keys, list):

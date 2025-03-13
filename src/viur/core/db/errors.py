@@ -1,18 +1,14 @@
-"""This file provides viur.datastore exception/error hierarchy.
+"""This file provides viur.core.db exception/error hierarchy.
 
 We are mapping the error status of the rest api to that hierarchy in
 CANONICAL_ERROR_CODE_MAP.
 """
-import json
-import logging
-import requests
-from .config import conf
 
 
 class ViurDatastoreError(ValueError):
     """Base Exception class for viur-datastore errors.
 
-    Can be used as a catch all Exception/Error.
+    Can be used as a catch-all Exception/Error.
     """
     pass
 
