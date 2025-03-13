@@ -58,8 +58,7 @@ def normalizeKey(key: t.Union[None, Key]) -> t.Union[None, Key]:
 def keyHelper(
     inKey: t.Union[Key, str, int],
     targetKind: str,
-    additionalAllowedKinds: t.Union[t.List[str],
-    t.Tuple[str]] = (),
+    additionalAllowedKinds: t.Union[t.List[str], t.Tuple[str]] = (),
     adjust_kind: bool = False,
 ) -> Key:
     if isinstance(inKey, Key):

@@ -1,6 +1,7 @@
-from .types import Entity, Key
+from google.cloud.datastore.helpers import _get_meaning, _get_value_from_value_pb
 from google.cloud.datastore_v1.types import entity as entity_pb2
-from google.cloud.datastore.helpers import _get_value_from_value_pb, _get_meaning
+
+from .types import Entity, Key
 
 
 def key_from_protobuf(pb):  # !!! 100% Copy, only uses our Key Class

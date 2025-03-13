@@ -2,15 +2,13 @@ from . import cache
 from .config import conf as config
 from .errors import *
 from .query import Query
-
-from .transport import AllocateIDs, Count, Delete, Get, Put, RunInTransaction
+# new exports for 3.8
+from .transport import AllocateIDs, Count, Delete, Get, Put, RunInTransaction, allocate_ids, count, delete, get, \
+    is_in_transaction, put, run_in_transaction
 from .types import (DATASTORE_BASE_TYPES, Entity, KEY_SPECIAL_PROPERTY, Key, QueryDefinition, SortOrder,
                     currentDbAccessLog)
 from .utils import (GetOrInsert, IsInTransaction, acquireTransactionSuccessMarker, encodeKey, endDataAccessLog,
                     fixUnindexableProperties, keyHelper, normalizeKey, startDataAccessLog)
-# new exports for 3.8
-from .transport import allocate_ids, get, delete, put, is_in_transaction, run_in_transaction, count
-
 
 __all__ = [
     "KEY_SPECIAL_PROPERTY",
