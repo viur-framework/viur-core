@@ -25,7 +25,7 @@ DATASTORE_BASE_TYPES = t.Union[None, str, int, float, bool, datetime.datetime, d
 # Pointer to the current transaction this thread may be currently in
 currentTransaction = ContextVar("CurrentTransaction", default=None)
 # If set to a set for the current thread/request, we'll log all entities / kinds accessed
-currentDbAccessLog: ContextVar[t.Optional[Set[Union[Key, str]]]] = ContextVar("Database-Accesslog", default=None)
+currentDbAccessLog: ContextVar[t.Optional[set[t.Union[Key, str]]]] = ContextVar("Database-Accesslog", default=None)
 # The current projectID, which can't be imported from transport.pyx
 _, projectID = google.auth.default(scopes=["https://www.googleapis.com/auth/datastore"])
 
@@ -40,30 +40,6 @@ class SortOrder(enum.Enum):
     InvertedDescending = 4
     """Fetch A->Z, then flip the results (useful in pagination)"""
 
-
-class SkelListRef(list):
-    """
-        This class is used to hold multiple skeletons together with other, commonly used information.
-
-        SkelLists are returned by Skel().all()...fetch()-constructs and provide additional information
-        about the data base query, for fetching additional entries.
-
-        :ivar cursor: Holds the cursor within a query.
-        :vartype cursor: str
-    """
-
-    __slots__ = ["baseSkel", "getCursor", "get_orders", "customQueryInfo", "renderPreparation"]
-
-    def __init__(self, baseSkel: t.Optional["SkeletonInstance"] = None):
-        """
-            :param baseSkel: The baseclass for all entries in this list
-        """
-        super(SkelListRef, self).__init__()
-        self.baseSkel = baseSkel or {}
-        self.getCursor = lambda: None
-        self.get_orders = lambda: None
-        self.renderPreparation = None
-        self.customQueryInfo = {}
 
 
 class Key(Datastore_key):

@@ -13,13 +13,12 @@ from .types import (
     Entity,
     KEY_SPECIAL_PROPERTY,
     QueryDefinition,
-    SkelListRef,
     SortOrder,
 )
 from .utils import IsInTransaction
 
 if t.TYPE_CHECKING:
-    from viur.core.skeleton import SkeletonInstance
+    from viur.core.skeleton import SkeletonInstance, SkelList
 
 
 def _entryMatchesQuery(entry: Entity, singleFilter: dict) -> bool:
@@ -629,7 +628,7 @@ class Query(object):
         else:
             return Count(queryDefinition=self.queries, up_to=up_to)
 
-    def fetch(self, limit: int = -1) -> SkelListRef['SkeletonInstance'] | None:
+    def fetch(self, limit: int = -1) -> "SkelList['SkeletonInstance']" | None:
         """
             Run this query and fetch results as :class:`server.skeleton.SkelList`.
 
@@ -649,7 +648,8 @@ class Query(object):
             :raises: :exc:`BadQueryError` if an IN filter in combination with a sort order on
                 another property is provided
         """
-        assert conf["SkeletonInstanceRef"] is not None, "conf['SkeletonInstanceRef'] has not been set!"
+        from viur.core.skeleton import SkelList, SkeletonInstance
+
         if self.srcSkel is None:
             raise NotImplementedError("This query has not been created using skel.all()")
         # limit = limit if limit != -1 else self._limit
@@ -660,9 +660,9 @@ class Query(object):
         dbRes = self.run(limit)
         if dbRes is None:
             return None
-        res = SkelListRef(self.srcSkel)
+        res = SkelList(self.srcSkel)
         for e in dbRes:
-            skelInstance = conf["SkeletonInstanceRef"](self.srcSkel.skeletonCls, clonedBoneMap=self.srcSkel.boneMap)
+            skelInstance = SkeletonInstance(self.srcSkel.skeletonCls, bone_map=self.srcSkel.boneMap)
             skelInstance.dbEntity = e
             res.append(skelInstance)
         res.getCursor = lambda: self.getCursor()

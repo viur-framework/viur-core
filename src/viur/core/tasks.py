@@ -320,7 +320,8 @@ class TaskHandler(Module):
         """Lists all user-callable tasks which are callable by this user"""
         global _callableTasks
 
-        tasks = db.SkelListRef()
+        from viur.core.skeleton import SkelList
+        tasks = SkelList()
         tasks.extend([{
             "key": x.key,
             "name": str(x.name),
@@ -646,6 +647,7 @@ def PeriodicTask(interval: datetime.timedelta | int | float = 0, cronName: str =
 
         :param interval: Call at most the given timedelta.
     """
+
     def make_decorator(fn):
         nonlocal interval
         if fn.__name__.startswith("_"):

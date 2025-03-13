@@ -4,7 +4,7 @@ from .errors import *
 from .query import Query
 
 from .transport import AllocateIDs, Count, Delete, Get, Put, RunInTransaction
-from .types import (DATASTORE_BASE_TYPES, Entity, KEY_SPECIAL_PROPERTY, Key, QueryDefinition, SkelListRef, SortOrder,
+from .types import (DATASTORE_BASE_TYPES, Entity, KEY_SPECIAL_PROPERTY, Key, QueryDefinition, SortOrder,
                     currentDbAccessLog)
 from .utils import (GetOrInsert, IsInTransaction, acquireTransactionSuccessMarker, encodeKey, endDataAccessLog,
                     fixUnindexableProperties, keyHelper, normalizeKey, startDataAccessLog)
@@ -16,7 +16,6 @@ __all__ = [
     "KEY_SPECIAL_PROPERTY",
     "DATASTORE_BASE_TYPES",
     "SortOrder",
-    "SkelListRef",
     "Entity",
     "QueryDefinition",
     "Key",
@@ -58,6 +57,5 @@ __all__ = [
     "put",
     "is_in_transaction",
     "run_in_transaction",
-    "count"
-
+    "count",
 ]
