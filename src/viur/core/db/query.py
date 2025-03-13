@@ -267,7 +267,7 @@ class Query(object):
                         self.queries.orders = [(field, SortOrder.Ascending)] + (self.queries.orders or [])
         return self
 
-    def order(self, *orderings: t.Tuple[str, "SortOrder"]) -> t.Self:
+    def order(self, *orderings: t.Tuple[str, SortOrder]) -> t.Self:
         """
         Specify a query sorting.
 
@@ -481,7 +481,7 @@ class Query(object):
         entities:
         t.List[Entity],
         filters: t.Dict[str, DATASTORE_BASE_TYPES],
-        orders: t.List[t.Tuple[str, "SortOrder"]],
+        orders: t.List[t.Tuple[str, SortOrder]],
     ) -> t.List[Entity]:
         """
         Internal helper that takes a (deduplicated) list of entities that has been fetched from different internal

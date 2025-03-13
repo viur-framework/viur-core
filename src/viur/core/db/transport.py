@@ -21,7 +21,7 @@ def allocate_ids(kind_name: str, num_ids: int = 1, retry=None, timeout=None) -> 
     return __client__.allocate_ids(Key(kind_name), num_ids, retry, timeout)
 
 
-@deprecated(version="3.8.0", reason="Use 'db.allocate_ids' instead", action="always")
+@deprecated(version="3.8.0", reason="Use 'db.allocate_ids' instead")
 def AllocateIDs(kind_name):
     """
     Allocates a new, free unique id for a given kind_name.
@@ -56,7 +56,7 @@ def get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None
     return __client__.get(keys)
 
 
-@deprecated(version="3.8.0", reason="Use 'db.get' instead", action="always")
+@deprecated(version="3.8.0", reason="Use 'db.get' instead")
 def Get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None]:
     return get(keys)
 
@@ -77,7 +77,7 @@ def put(entities: t.Union[Entity, t.List[Entity]]):
     return __client__.put_multi(entities=entities)
 
 
-@deprecated(version="3.8.0", reason="Use 'db.put' instead", action="always")
+@deprecated(version="3.8.0", reason="Use 'db.put' instead")
 def Put(entities: t.Union[Entity, t.List[Entity]]) -> t.Union[Entity, None]:
     return put(entities)
 
@@ -99,7 +99,7 @@ def delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
     return __client__.delete(keys)
 
 
-@deprecated(version="3.8.0", reason="Use 'db.delete' instead", action="always")
+@deprecated(version="3.8.0", reason="Use 'db.delete' instead")
 def Delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
     return delete(keys)
 
@@ -108,7 +108,7 @@ def is_in_transaction() -> bool:
     return __client__.current_transaction is not None
 
 
-@deprecated(version="3.8.0", reason="Use 'db.is_in_transaction' instead", action="always")
+@deprecated(version="3.8.0", reason="Use 'db.is_in_transaction' instead")
 def IsInTransaction() -> bool:
     return is_in_transaction()
 
@@ -137,7 +137,7 @@ def run_in_transaction(func: t.Callable, *args, **kwargs) -> t.Any:
     return res
 
 
-@deprecated(version="3.8.0", reason="Use 'db.run_in_transaction' instead", action="always")
+@deprecated(version="3.8.0", reason="Use 'db.run_in_transaction' instead")
 def RunInTransaction(callee: t.Callable, *args, **kwargs) -> t.Any:
     return run_in_transaction(callee, *args, **kwargs)
 
@@ -162,7 +162,7 @@ def count(kind: str = None, up_to=2 ** 31 - 1, queryDefinition: QueryDefinition 
     return list(result)[0][0].value
 
 
-@deprecated(version="3.8.0", reason="Use 'db.count' instead", action="always")
+@deprecated(version="3.8.0", reason="Use 'db.count' instead")
 def Count(kind: str = None, up_to=2 ** 31 - 1, queryDefinition: QueryDefinition = None) -> int:
     return count(kind, up_to, queryDefinition)
 

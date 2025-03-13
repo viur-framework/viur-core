@@ -418,7 +418,7 @@ def send_email(
     return True
 
 
-@deprecated(version="3.7.0", reason="Use send_email instead", action="always")
+@deprecated(version="3.7.0", reason="Use send_email instead")
 def sendEMail(*args, **kwargs):
     return send_email(*args, **kwargs)
 
@@ -460,7 +460,7 @@ def send_email_to_admins(subject: str, body: str, *args, **kwargs) -> bool:
     return False
 
 
-@deprecated(version="3.7.0", reason="Use send_email_to_admins instead", action="always")
+@deprecated(version="3.7.0", reason="Use send_email_to_admins instead")
 def sendEMailToAdmins(*args, **kwargs):
     return send_email_to_admins(*args, **kwargs)
 
@@ -636,7 +636,7 @@ class EmailTransportBrevo(EmailTransport):
         db.Put(entity)
 
 
-@deprecated(version="3.7.0", reason="Sendinblue is now Brevo; Use EmailTransportBrevo instead", action="always")
+@deprecated(version="3.7.0", reason="Sendinblue is now Brevo; Use EmailTransportBrevo instead")
 class EmailTransportSendInBlue(EmailTransportBrevo):
     ...
 
