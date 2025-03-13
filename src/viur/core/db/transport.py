@@ -198,7 +198,7 @@ def runSingleFilter(query: QueryDefinition, limit: int) -> t.List[Entity]:
                 ]
             )
             qry.order = [
-                x[0] if x[1] in [SortOrder.Ascending, SortOrder.InvertedDescending] else "-" + x[0]
+                x[0] if x[1] in [SortOrder.Ascending, SortOrder.InvertedDescending] else f"-{x[0]}"
                 for x in query.orders
             ]
 

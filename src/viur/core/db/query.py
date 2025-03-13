@@ -227,20 +227,20 @@ class Query(object):
             self.queries = []
             if op == "!=":
                 newFilter = copy.deepcopy(origQuery)
-                newFilter.filters["%s <" % field] = value
+                newFilter.filters[f"{field} <"] = value
                 self.queries.append(newFilter)
                 newFilter = copy.deepcopy(origQuery)
-                newFilter.filters["%s >" % field] = value
+                newFilter.filters[f"{field} >"] = value
                 self.queries.append(newFilter)
             else:  # IN filter
                 if not (isinstance(value, list) or isinstance(value, tuple)):
                     raise ValueError("Value must be list or tuple if using IN filter!")
                 for val in value:
                     newFilter = copy.deepcopy(origQuery)
-                    newFilter.filters["%s =" % field] = val
+                    newFilter.filters[f"{field} ="] = val
                     self.queries.append(newFilter)
         else:
-            filterStr = "%s %s" % (field, op)
+            filterStr = f"{field} {op}"
             if isinstance(self.queries, list):
                 for singeFilter in self.queries:
                     if filterStr not in singeFilter.filters:
@@ -576,7 +576,7 @@ class Query(object):
         """
         if self.queries is None:
             if conf["traceQueries"]:
-                logging.debug("Query on %s aborted as being not satisfiable" % self.kind)
+                logging.debug(f"Query on {self.kind} aborted as being not satisfiable")
             return []
 
         if self._fulltextQueryString:
@@ -623,7 +623,7 @@ class Query(object):
         """
         if self.queries is None:
             if conf["traceQueries"]:
-                logging.debug("Query on %s aborted as being not satisfiable" % self.kind)
+                logging.debug(f"Query on {self.kind} aborted as being not satisfiable")
             return -1
         elif isinstance(self.queries, list):
             raise ValueError("No count on Multiqueries")
@@ -751,4 +751,4 @@ class Query(object):
         return res
 
     def __repr__(self):
-        return "<db.Query on %s with queries %s>" % (self.kind, self.queries)
+        return f"<db.Query on {self.kind} with queries {self.queries}>"
