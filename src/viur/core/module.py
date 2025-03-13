@@ -96,8 +96,10 @@ class Method:
                 return float(value)
             elif annotation is bool:
                 return utils.parse.bool(value)
-            elif annotation is types.NoneType:
-                return None
+            elif annotation is types.NoneType or annotation is None:
+                if value in (None, "None", "null"):
+                    return None
+                raise ValueError(f"Expected None for parameter {name}. Got: {value!r}")
 
             # complex types
             origin_type = t.get_origin(annotation)
@@ -157,7 +159,7 @@ class Method:
             if self._instance and i == 0 and param_name == "self":
                 continue
 
-            param_type = param.annotation if param.annotation is not param.empty else None
+            param_type = param.annotation
             param_required = param.default is param.empty
 
             # take positional parameters first
@@ -168,7 +170,7 @@ class Method:
                 try:
                     value = next(args_iter)
 
-                    if param_type:
+                    if param_type is not param.empty:
                         value = parse_value_by_annotation(param_type, param_name, value)
 
                     parsed_args.append(value)
@@ -186,7 +188,7 @@ class Method:
             ):
                 value = kwargs.pop(param_name)
 
-                if param_type:
+                if param_type is not param.empty:
                     value = parse_value_by_annotation(param_type, param_name, value)
 
                 parsed_kwargs[param_name] = value

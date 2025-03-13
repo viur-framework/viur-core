@@ -1264,24 +1264,26 @@ class File(Tree):
 
     def onEdit(self, skelType: SkelType, skel: SkeletonInstance):
         super().onEdit(skelType, skel)
-        old_skel = self.editSkel(skelType)
-        old_skel.setEntity(skel.dbEntity)
 
-        if old_skel["name"] == skel["name"]:  # name not changed we can return
-            return
+        if skelType == "leaf":
+            old_skel = self.editSkel(skelType)
+            old_skel.setEntity(skel.dbEntity)
 
-        # Move Blob to new name
-        # https://cloud.google.com/storage/docs/copying-renaming-moving-objects
-        old_path = f"{skel['dlkey']}/source/{html.unescape(old_skel['name'])}"
-        new_path = f"{skel['dlkey']}/source/{html.unescape(skel['name'])}"
+            if old_skel["name"] == skel["name"]:  # name not changed we can return
+                return
 
-        bucket = File.get_bucket(skel['dlkey'])
+            # Move Blob to new name
+            # https://cloud.google.com/storage/docs/copying-renaming-moving-objects
+            old_path = f"{skel['dlkey']}/source/{html.unescape(old_skel['name'])}"
+            new_path = f"{skel['dlkey']}/source/{html.unescape(skel['name'])}"
 
-        if not (old_blob := bucket.get_blob(old_path)):
-            raise errors.Gone()
+            bucket = File.get_bucket(skel['dlkey'])
 
-        bucket.copy_blob(old_blob, bucket, new_path, if_generation_match=0)
-        bucket.delete_blob(old_path)
+            if not (old_blob := bucket.get_blob(old_path)):
+                raise errors.Gone()
+
+            bucket.copy_blob(old_blob, bucket, new_path, if_generation_match=0)
+            bucket.delete_blob(old_path)
 
     def onAdded(self, skelType: SkelType, skel: SkeletonInstance) -> None:
         if skelType == "leaf" and skel["mimetype"].startswith("image/"):

@@ -1,10 +1,11 @@
 import datetime
 import logging
 import time
-from viur.core.tasks import DeleteEntitiesIter
-from viur.core.config import conf  # this import has to stay alone due partial import
-from viur.core import db, utils, tasks, current
 import typing as t
+
+from viur.core import current, db, tasks, utils
+from viur.core.config import conf  # this import has to stay alone due partial import
+from viur.core.tasks import DeleteEntitiesIter
 
 """
     Provides the session implementation for the Google AppEngine™ based on the datastore.
@@ -24,6 +25,9 @@ import typing as t
 """
 
 _SENTINEL: t.Final[object] = object()
+
+TObserver = t.TypeVar("TObserver", bound=t.Callable[[db.Entity], None])
+"""Type of the observer for :meth:`Session.on_delete`"""
 
 
 class Session(db.Entity):
@@ -51,6 +55,8 @@ class Session(db.Entity):
     use_session_cookie = True  # If True, issue the cookie without a lifeTime (will disappear on browser close)
     cookie_name = f"""viur_cookie_{conf.instance.project_id}"""
     GUEST_USER = "__guest__"
+
+    _ON_DELETE_OBSERVER = []
 
     def __init__(self):
         super().__init__()
@@ -226,6 +232,31 @@ class Session(db.Entity):
             self.changed = True
         return super().setdefault(key, default)
 
+    @classmethod
+    def on_delete(cls, func: TObserver, /) -> TObserver:
+        """Decorator to register an observer for the _session delete event_."""
+        cls._ON_DELETE_OBSERVER.append(func)
+        return func
+
+    @classmethod
+    def dispatch_on_delete(cls, entry: db.Entity) -> None:
+        """Call the observers for the _session delete event_."""
+        for observer in cls._ON_DELETE_OBSERVER:
+            observer(entry)
+
+
+class DeleteSessionsIter(DeleteEntitiesIter):
+    """
+    QueryIter to delete all session entities encountered.
+
+    Each deleted entity triggers a _session delete event_
+    which is dispatched by :meth:`Session.dispatch_on_delete`.
+    """
+
+    @classmethod
+    def handleEntry(cls, entry: db.Entity, customData: t.Any) -> None:
+        db.Delete(entry.key)
+        Session.dispatch_on_delete(entry)
 
 
 @tasks.CallDeferred
@@ -243,8 +274,7 @@ def killSessionByUser(user: t.Optional[t.Union[str, "db.Key", None]] = None):
     logging.info(f"Invalidating all sessions for {user=}")
 
     query = db.Query(Session.kindName).filter("user =", str(user))
-    for obj in query.iter():
-        db.Delete(obj.key)
+    DeleteSessionsIter.startIterOnQuery(query)
 
 
 @tasks.PeriodicTask(interval=datetime.timedelta(hours=4))
@@ -253,4 +283,4 @@ def start_clear_sessions():
         Removes old (expired) Sessions
     """
     query = db.Query(Session.kindName).filter("lastseen <", time.time() - (conf.user.session_life_time + 300))
-    DeleteEntitiesIter.startIterOnQuery(query)
+    DeleteSessionsIter.startIterOnQuery(query)

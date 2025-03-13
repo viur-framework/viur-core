@@ -1853,7 +1853,7 @@ def listKnownSkeletons() -> list[str]:
     """
         :return: A list of all known kindnames (all kindnames for which a skeleton is defined)
     """
-    return list(MetaBaseSkel._skelCache.keys())[:]
+    return sorted(MetaBaseSkel._skelCache.keys())
 
 
 def iterAllSkelClasses() -> t.Iterable[Skeleton]:
@@ -1931,6 +1931,8 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: t.Optional
             defer again.
     """
     logging.debug(f"Starting updateRelations for {destKey=}; {minChangeTime=}, {changedBone=}, {cursor=}")
+    if request_data := current.request_data.get():
+        request_data["__update_relations_bone"] = changedBone
     updateListQuery = (
         db.Query("viur-relations")
         .filter("dest.__key__ =", destKey)
