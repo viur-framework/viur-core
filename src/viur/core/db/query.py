@@ -4,6 +4,7 @@ import base64
 import copy
 import functools
 import logging
+import operator
 import typing as t
 
 from .config import conf
@@ -57,7 +58,7 @@ def _entryMatchesQuery(entry: Entity, singleFilter: dict) -> bool:
 
 class Query(object):
     """
-    Base Class for querying the datastore. It's API is similar to the google.cloud.datastore.query API,
+    Base Class for querying the datastore. Its API is similar to the google.cloud.datastore.query API,
     but it provides the necessary hooks for relational or random queries, the fulltext search as well as support
     for IN filters.
     """
@@ -89,7 +90,7 @@ class Query(object):
         # Some (Multi-)Queries need a different amount of results per subQuery than actually returned
         self._calculateInternalMultiQueryLimit: t.Union[None, t.Callable[[Query, int], int]] = None
         # Allow carrying custom data along with the query.
-        # Currently only used by spartialBone to record the guranteed correctness
+        # Currently only used by SpartialBone to record the guaranteed correctness
         self.customQueryInfo = {}
         self.origKind = kind
         self._lastEntry = None
@@ -105,8 +106,8 @@ class Query(object):
         Installs *hook* as a callback function for new filters.
 
         *hook* will be called each time a new filter constrain is added to the query.
-        This allows e. g. the relationalBone to rewrite constrains added after the initial
-        processing of the query has been done (e. g. by ``listFilter()`` methods).
+        This allows e.g. the relationalBone to rewrite constrains added after the initial
+        processing of the query has been done (e.g. by ``listFilter()`` methods).
 
         :param hook: The function to register as callback.
             A value of None removes the currently active hook.
@@ -135,7 +136,7 @@ class Query(object):
         Safely merges filters according to the data model.
 
         Its only valid to call this function if the query has been created using
-        :func:`server.skeleton.Skeleton.all`.
+        :func:`core.skeleton.Skeleton.all`.
 
         It's safe to pass filters received from an external source (a user);
         unknown/invalid filters will be ignored, so the query-object is kept in a
@@ -266,7 +267,7 @@ class Query(object):
                         self.queries.orders = [(field, SortOrder.Ascending)] + (self.queries.orders or [])
         return self
 
-    def order(self, *orderings: t.Tuple[str, 'SortOrder']) -> t.Self:
+    def order(self, *orderings: t.Tuple[str, "SortOrder"]) -> t.Self:
         """
         Specify a query sorting.
 
@@ -300,7 +301,7 @@ class Query(object):
         included in the query results.
 
         If the sort order property has different types in different entities -
-        e.g. if bob['id'] is an int and fred['id'] is a string - the entities will be
+        e.g. if bob["id"] is an int and fred["id"] is a string - the entities will be
         grouped first by the property type, then sorted within type. No attempt is
         made to compare property values across types.
 
@@ -406,9 +407,9 @@ class Query(object):
         Get a valid cursor from the last run of this query.
 
         The source of this cursor varies depending on what the last call was:
-        - :func:`server.db.Query.run`: A cursor that points immediately behind the
+        - :meth:`run`: A cursor that points immediately behind the
             last result pulled off the returned iterator.
-        - :func:`server.db.Query.get`:: A cursor that points immediately behind the
+        - :meth:`get`: A cursor that points immediately behind the
             last result in the returned list.
 
         :returns: A cursor that can be used in subsequent query requests or None if that query does not support
@@ -480,7 +481,7 @@ class Query(object):
         entities:
         t.List[Entity],
         filters: t.Dict[str, DATASTORE_BASE_TYPES],
-        orders: t.List[t.Tuple[str, 'SortOrder']],
+        orders: t.List[t.Tuple[str, "SortOrder"]],
     ) -> t.List[Entity]:
         """
         Internal helper that takes a (deduplicated) list of entities that has been fetched from different internal
@@ -562,7 +563,7 @@ class Query(object):
 
         It is more efficient to use *limit* if the number of results is known.
 
-        If queried data is wanted as instances of Skeletons, :func:`server.db.Query.fetch`
+        If queried data is wanted as instances of Skeletons, :meth:`fetch`
         should be used.
 
         :param limit: Limits the query to the defined maximum entities.
@@ -632,14 +633,14 @@ class Query(object):
 
     def fetch(self, limit: int = -1) -> "SkelList['SkeletonInstance']" | None:
         """
-        Run this query and fetch results as :class:`server.skeleton.SkelList`.
+        Run this query and fetch results as :class:`core.skeleton.SkelList`.
 
-        This function is similar to :func:`server.db.Query.run`, but returns a
-        :class:`server.skeleton.SkelList` instance instead of Entities.
+        This function is similar to :meth:`run`, but returns a
+        :class:`core.skeleton.SkelList` instance instead of Entities.
 
         :warning: The query must be limited!
 
-        If queried data is wanted as instances of Entity, :func:`server.db.Query.run`
+        If queried data is wanted as instances of Entity, :meth:`run`
         should be used.
 
         :param limit: Limits the query to the defined maximum entities.
@@ -679,7 +680,7 @@ class Query(object):
         over a large result-set, as it hasn't have to be pulled in advance
         from the datastore.
 
-        This function intentionally ignores a limit set by :func:`server.db.Query.limit`.
+        This function intentionally ignores a limit set by :meth:`limit`.
 
         :warning: If iterating over a large result set, make sure the query supports cursors. \
         Otherwise, it might not return all results as the AppEngine doesn't maintain the view \
@@ -708,13 +709,13 @@ class Query(object):
         except (IndexError, TypeError):  # Empty result-set
             return None
 
-    def getSkel(self) -> t.Optional['SkeletonInstance']:
+    def getSkel(self) -> t.Optional["SkeletonInstance"]:
         """
-        Returns a matching :class:`server.db.skeleton.Skeleton` instance for the
+        Returns a matching :class:`core.db.skeleton.Skeleton` instance for the
         current query.
 
         It's only possible to use this function if this query has been created using
-        :func:`server.skeleton.Skeleton.all`.
+        :func:`core.skeleton.Skeleton.all`.
 
         :returns: The Skeleton or None if the result-set is empty.
         """
@@ -750,5 +751,5 @@ class Query(object):
         # res._distinct = self._distinct
         return res
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<db.Query on {self.kind} with queries {self.queries}>"

@@ -13,16 +13,20 @@ import google.auth
 import google.auth
 from google.cloud.datastore import Entity as Datastore_entity, Key as Datastore_key
 
-# The property name pointing to an entities key in a query
 KEY_SPECIAL_PROPERTY = "__key__"
-# t.Optional of types that can be used in a datastore query
-DATASTORE_BASE_TYPES = t.Union[None, str, int, float, bool, datetime.datetime, datetime.date, datetime.time, 'Key']  #
-# Pointer to the current transaction this thread may be currently in
+"""The property name pointing to an entities key in a query"""
+
+DATASTORE_BASE_TYPES = t.Union[None, str, int, float, bool, datetime.datetime, datetime.date, datetime.time, "Key"]
+"""Types that can be used in a datastore query"""
+
 currentTransaction = ContextVar("CurrentTransaction", default=None)
-# If set to a set for the current thread/request, we'll log all entities / kinds accessed
+"""Pointer to the current transaction this thread may be currently in"""
+
 currentDbAccessLog: ContextVar[t.Optional[set[t.Union[Key, str]]]] = ContextVar("Database-Accesslog", default=None)
-# The current projectID, which can't be imported from transport.pyx
+"""If set to a set for the current thread/request, we'll log all entities / kinds accessed"""
+
 _, projectID = google.auth.default(scopes=["https://www.googleapis.com/auth/datastore"])
+"""The current projectID, which can't be imported from transport.py"""
 
 
 class SortOrder(enum.Enum):
@@ -136,27 +140,31 @@ class Entity(Datastore_entity):
     while the meta-data (it's key, the list of properties excluded from indexing and our version) as property values.
     """
 
-    def __init__(self, key: t.Optional[Key] = None, exclude_from_indexes: t.Optional[t.Optional[str]] = None):
-        super(Entity, self).__init__(key, exclude_from_indexes or [])
+    def __init__(
+        self,
+        key: t.Optional[Key] = None,
+        exclude_from_indexes: t.Optional[list[str]] = None,
+    ) -> None:
+        super().__init__(key, exclude_from_indexes or [])
         assert not key or isinstance(key, Key), "Key must be a Key-Object (or None for an embedded entity)"
 
 
 @dataclass
 class QueryDefinition:
     """
-        A single Query that will be run against the datastore.
+    A single Query that will be run against the datastore.
     """
 
     kind: t.Optional[str]
     """The datastore kind to run the query on. Can be None for kindles queries."""
 
-    filters: t.Dict[str, DATASTORE_BASE_TYPES]
+    filters: dict[str, DATASTORE_BASE_TYPES | list[DATASTORE_BASE_TYPES]]
     """A dictionary of constrains to apply to the query."""
 
-    orders: t.Optional[t.Tuple[str, SortOrder]]
+    orders: t.Optional[list[tuple[str, SortOrder]]]
     """The list of fields to sort the results by."""
 
-    distinct: t.Union[None, t.Optional[str]] = None
+    distinct: t.Optional[list[str]] = None
     """If set, a list of fields that we should return distinct values of"""
 
     limit: int = 30
