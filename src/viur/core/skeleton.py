@@ -1824,7 +1824,7 @@ class SkelList(list):
         "renderPreparation",
     )
 
-    def __init__(self, baseSkel=None):
+    def __init__(self, baseSkel: t.Optional["SkeletonInstance"] = None):
         """
             :param baseSkel: The baseclass for all entries in this list
         """
@@ -2106,10 +2106,6 @@ def processVacuumRelationsChunk(
             email.send_email(dests=notify, stringTemplate=txt, skel=None)
         except Exception as exc:  # noqa; OverQuota, whatever
             logging.exception(f"Failed to notify {notify}")
-
-
-# Forward our references to SkelInstance to the database (needed for queries)
-db.config["SkeletonInstanceRef"] = SkeletonInstance
 
 # DEPRECATED ATTRIBUTES HANDLING
 
