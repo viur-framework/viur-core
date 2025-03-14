@@ -799,7 +799,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         return self._user_module.render.edit(
             self.OtpSkel(),
             params={
-                "name": i18n.translate("viur.core.modules.user." + self.NAME),
+                "name": i18n.translate(f"viur.core.modules.user.{self.NAME}"),
                 "action_name": self.ACTION_NAME,
                 "action_url": f"{self.modulePath}/{self.ACTION_NAME}",
             },
@@ -843,7 +843,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
             return self._user_module.render.edit(
                 skel,
-                name=i18n.translate("viur.core.modules.user.auth." + self.NAME),
+                name=i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
                 action_name=self.ACTION_NAME,
                 action_url=f"{self.modulePath}/{self.ACTION_NAME}",
                 tpl=self.second_factor_login_template
@@ -981,7 +981,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             return self._user_module.render.second_factor_add(
                 tpl=self.second_factor_add_template,
                 action_name=self.ACTION_NAME,
-                name=i18n.translate("viur.core.modules.user.auth." + self.NAME),
+                name=i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
                 add_url=self.add_url,
                 otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))
         else:
@@ -989,7 +989,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
                 return self._user_module.render.second_factor_add(
                     tpl=self.second_factor_add_template,
                     action_name=self.ACTION_NAME,
-                    name=i18n.translate("viur.core.modules.user.auth." + self.NAME),
+                    name=i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
                     add_url=self.add_url,
                     otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))  # to add errors
 
@@ -997,7 +997,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             AuthenticatorOTP.set_otp_app_secret(otp_app_secret)
             return self._user_module.render.second_factor_add_success(
                 action_name=self.ACTION_NAME,
-                name=i18n.translate("viur.core.modules.user.auth." + self.NAME),
+                name=i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
             )
 
     def can_handle(self, skel: skeleton.SkeletonInstance) -> bool:
@@ -1073,7 +1073,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         return self._user_module.render.edit(
             TimeBasedOTP.OtpSkel(),
             params={
-                "name": i18n.translate("viur.core.modules.user.auth." + self.NAME),
+                "name": i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
                 "action_name": self.ACTION_NAME,
                 "action_url": self.action_url,
             },
@@ -1112,7 +1112,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
         return self._user_module.render.edit(
             skel,
-            name=i18n.translate("viur.core.modules.user.auth." + self.NAME),
+            name=i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
             action_name=self.ACTION_NAME,
             action_url=self.action_url,
             tpl=self.second_factor_login_template,
