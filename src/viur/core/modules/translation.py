@@ -3,7 +3,7 @@ import fnmatch
 import json
 import logging
 import os
-from datetime import timedelta as td
+import datetime
 from viur.core import conf, db, utils, current, errors
 from viur.core.decorators import exposed
 from viur.core.bones import *
@@ -150,7 +150,6 @@ class TranslationSkel(Skeleton):
 
     @classmethod
     def write(cls, skel, **kwargs):
-
         # Create the key from the name on initial write!
         if not skel["key"]:
             skel["key"] = db.Key(KINDNAME, skel["name"].lower())
@@ -208,6 +207,10 @@ class Translation(List):
     }
 
     def addSkel(self):
+        """
+        Returns a custom TranslationSkel where the name is editable.
+        The name becomes part of the key.
+        """
         skel = super().addSkel().ensure_is_cloned()
         skel.name.readOnly = False
         skel.name.required = True
@@ -230,10 +233,11 @@ class Translation(List):
     def _reload_translations(self):
         if (
             self._last_reload is not None
-            and self._last_reload - utils.utcNow() < td(minutes=10)
+            and self._last_reload - utils.utcNow() < datetime.timedelta(minutes=10)
         ):
             # debounce: translations has been reload recently, skip this
             return None
+
         logging.info("Reload translations")
         # TODO: this affects only the current instance
         self._last_reload = utils.utcNow()
