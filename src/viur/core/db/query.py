@@ -7,7 +7,7 @@ import logging
 import typing as t
 
 from .config import conf
-from .transport import Count, Get, runSingleFilter
+from .transport import Count, Get, run_single_filter
 from .types import (
     DATASTORE_BASE_TYPES,
     Entity,
@@ -17,7 +17,7 @@ from .types import (
     TFilters,
     TOrders,
 )
-from .utils import IsInTransaction
+from . import utils
 
 if t.TYPE_CHECKING:
     from viur.core.skeleton import SkeletonInstance, SkelList
@@ -444,7 +444,7 @@ class Query(object):
         """
         return self.kind
 
-    def _runSingleFilterQuery(self, query: QueryDefinition, limit: int) -> t.List[Entity]:
+    def _run_single_filter_query(self, query: QueryDefinition, limit: int) -> t.List[Entity]:
         """
         Internal helper function that runs a single query definition on the datastore and returns a list of
         entities found.
@@ -452,31 +452,30 @@ class Query(object):
         :param limit: How many results should at most be returned
         :return: The first *limit* entities that matches this query
         """
-        return runSingleFilter(query, limit)
+        return run_single_filter(query, limit)
 
-    def _mergeMultiQueryResults(self, inputRes: t.List[t.List[Entity]]) -> t.List[Entity]:
+    def _merge_multi_query_results(self, input_result: t.List[t.List[Entity]]) -> t.List[Entity]:
         """
         Merge the lists of entries into a single list; removing duplicates and restoring sort-order
-        :param inputRes: Nested Lists of Entries returned by each individual query run
+        :param input_result: Nested Lists of Entries returned by each individual query run
         :return: Sorted & deduplicated list of entries
         """
-        seenKeys = set()
+        seen_keys = set()
         res = []
-        for subList in inputRes:
+        for subList in input_result:
             for entry in subList:
                 key = entry.key
-                if key in seenKeys:
+                if key in seen_keys:
                     continue
-                seenKeys.add(key)
+                seen_keys.add(key)
                 res.append(entry)
         # FIXME: What about filters that mix different inequality filters?
         # Currently, we'll now simply ignore any implicit sortorder.
-        return self._resortResult(res, {}, self.queries[0].orders)
+        return self._resort_result(res, {}, self.queries[0].orders)
 
-    def _resortResult(
+    def _resort_result(
         self,
-        entities:
-        t.List[Entity],
+        entities: t.List[Entity],
         filters: t.Dict[str, DATASTORE_BASE_TYPES],
         orders: t.List[t.Tuple[str, SortOrder]],
     ) -> t.List[Entity]:
@@ -578,7 +577,7 @@ class Query(object):
             return []
 
         if self._fulltextQueryString:
-            if IsInTransaction():
+            if utils.is_in_transaction():
                 raise ValueError("Can't run fulltextSearch inside transactions!")  # InvalidStateError FIXME!
             qryStr = self._fulltextQueryString
             self._fulltextQueryString = None  # Reset, so the adapter can still work with this query
@@ -596,7 +595,7 @@ class Query(object):
             res = []
             # We run all queries first (preventing multiple round-trips to the server)
             for singleQuery in self.queries:
-                res.append(self._runSingleFilterQuery(singleQuery, limit if limit != -1 else singleQuery.limit))
+                res.append(self._run_single_filter_query(singleQuery, limit if limit != -1 else singleQuery.limit))
             # Wait for the actual results to arrive and convert the protobuffs to Entries
             res = [self._fixKind(x) for x in res]
             if self._customMultiQueryMerge:
@@ -604,9 +603,9 @@ class Query(object):
                 res = self._customMultiQueryMerge(self, res, limit if limit != -1 else self.queries[0].limit)
             else:
                 # We must merge (and sort) the results ourself
-                res = self._mergeMultiQueryResults(res)
+                res = self._merge_multi_query_results(res)
         else:  # We have just one single query
-            res = self._fixKind(self._runSingleFilterQuery(self.queries, limit if limit != -1 else self.queries.limit))
+            res = self._fixKind(self._run_single_filter_query(self.queries, limit if limit != -1 else self.queries.limit))
         if res:
             self._lastEntry = res[-1]
         return res
@@ -688,7 +687,7 @@ class Query(object):
         elif isinstance(self.queries, list):
             raise ValueError("No iter on Multiqueries")
         while True:
-            qryRes = self._runSingleFilterQuery(self.queries, 20)
+            qryRes = self._run_single_filter_query(self.queries, 20)
             yield from qryRes
             if not self.queries.currentCursor:  # We reached the end of that query
                 break

@@ -3,12 +3,12 @@ from .config import conf as config
 from .errors import *
 from .query import Query
 # new exports for 3.8
-from .transport import AllocateIDs, Count, Delete, Get, Put, RunInTransaction, allocate_ids, count, delete, get, \
-    is_in_transaction, put, run_in_transaction
+from .transport import (AllocateIDs, Count, Delete, Get, Put, RunInTransaction, allocate_ids, count, delete, get, put,
+                        run_in_transaction)
 from .types import (DATASTORE_BASE_TYPES, Entity, KEY_SPECIAL_PROPERTY, Key, QueryDefinition, SortOrder,
                     currentDbAccessLog)
-from .utils import (GetOrInsert, IsInTransaction, acquireTransactionSuccessMarker, encodeKey, endDataAccessLog,
-                    fixUnindexableProperties, keyHelper, normalizeKey, startDataAccessLog)
+from .utils import (GetOrInsert, IsInTransaction, is_in_transaction, acquireTransactionSuccessMarker, encodeKey,
+                    endDataAccessLog, fix_unindexable_properties, keyHelper, normalizeKey, startDataAccessLog)
 
 __all__ = [
     "KEY_SPECIAL_PROPERTY",
@@ -18,7 +18,7 @@ __all__ = [
     "QueryDefinition",
     "Key",
     "Query",
-    "fixUnindexableProperties",
+    "fix_unindexable_properties",
     "normalizeKey",
     "keyHelper",
     "Get",

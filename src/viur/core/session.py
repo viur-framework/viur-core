@@ -121,7 +121,7 @@ class Session(db.Entity):
 
         dbSession = db.Entity(db.Key(self.kindName, self.cookie_key))
 
-        dbSession["data"] = db.fixUnindexableProperties(self)
+        dbSession["data"] = db.fix_unindexable_properties(self)
         dbSession["static_security_key"] = self.static_security_key
         dbSession["lastseen"] = time.time()
         dbSession["user"] = str(user_key)  # allow filtering for users

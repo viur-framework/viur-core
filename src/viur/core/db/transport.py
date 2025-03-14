@@ -104,12 +104,9 @@ def Delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
     return delete(keys)
 
 
-def is_in_transaction() -> bool:
-    return __client__.current_transaction is not None
-
-
-@deprecated(version="3.8.0", reason="Use 'db.is_in_transaction' instead")
+@deprecated(version="3.8.0", reason="Use 'db.utils.is_in_transaction' instead")
 def IsInTransaction() -> bool:
+    from .utils import is_in_transaction  # noqa: E402 # import works only here because circular imports
     return is_in_transaction()
 
 
@@ -167,14 +164,15 @@ def Count(kind: str = None, up_to=2 ** 31 - 1, queryDefinition: QueryDefinition 
     return count(kind, up_to, queryDefinition)
 
 
-def runSingleFilter(query: QueryDefinition, limit: int) -> t.List[Entity]:
+def run_single_filter(query: QueryDefinition, limit: int) -> t.List[Entity]:
     """
-    Internal helper function that runs a single query definition on the datastore and returns a list of
-    entities found.
-    :param query: The querydefinition (filters, orders, distinct etc.) to run against the datastore
-    :param limit: How many results should at most be returned
-    :return: The first *limit* entities that matches this query
+        Internal helper function that runs a single query definition on the datastore and returns a list of
+        entities found.
+        :param query: The querydefinition (filters, orders, distinct etc.) to run against the datastore
+        :param limit: How many results should at most be returned
+        :return: The first *limit* entities that matches this query
     """
+
     qry = __client__.query(kind=query.kind)
     startCursor = None
     endCursor = None
@@ -215,6 +213,11 @@ def runSingleFilter(query: QueryDefinition, limit: int) -> t.List[Entity]:
     if hasInvertedOrderings:
         res.reverse()
     return res
+
+
+@deprecated(version="3.8.0", reason="Use 'run_single_filter' instead")
+def runSingleFilter(query: QueryDefinition, limit: int) -> t.List[Entity]:
+    run_single_filter(query, limit)
 
 
 __all__ = [AllocateIDs, Delete, Get, Put, RunInTransaction, Count]

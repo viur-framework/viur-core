@@ -1,41 +1,44 @@
 import datetime
+from deprecated.sphinx import deprecated
 import typing as t
 
 from .transport import Get, Put, RunInTransaction
 from .types import Entity, Key, currentDbAccessLog, currentTransaction
 
 
-def fixUnindexableProperties(entry: Entity) -> Entity:
+def fix_unindexable_properties(entry: Entity) -> Entity:
     """
         Recursively walk the given Entity and add all properties to the list of unindexed properties if they contain
-        a string longer than 500 bytes (which is maximum size of a string that can be indexed). The datastore would
+        a string longer than 1500 bytes (which is maximum size of a string that can be indexed). The datastore would
         return an error otherwise.
+        https://cloud.google.com/datastore/docs/concepts/limits?hl=en#limits
     :param entry: The entity to fix (inplace)
     :return: The fixed entity
     """
 
-    def hasUnindexableProperty(prop):
+    def has_unindexable_property(prop):
         if isinstance(prop, dict):
-            return any([hasUnindexableProperty(x) for x in prop.values()])
+            return any([has_unindexable_property(x) for x in prop.values()])
         elif isinstance(prop, list):
-            return any([hasUnindexableProperty(x) for x in prop])
+            return any([has_unindexable_property(x) for x in prop])
         elif isinstance(prop, (str, bytes)):
-            return len(prop) >= 500
+            return len(prop) >= 1500
         else:
             return False
 
-    resList = set()
-    for k, v in entry.items():
-        if hasUnindexableProperty(v):
-            if isinstance(v, dict):
-                innerEntry = Entity()
-                innerEntry.update(v)
-                entry[k] = fixUnindexableProperties(innerEntry)
-                if isinstance(v, Entity):
-                    innerEntry.key = v.key
-            else:
-                resList.add(k)
-    entry.exclude_from_indexes = resList
+    unindexable_properties = set()
+    for key, value in entry.items():
+        if not has_unindexable_property(value):
+            continue
+        if isinstance(value, dict):
+            inner_entity = Entity()
+            inner_entity.update(value)
+            entry[key] = fix_unindexable_properties(inner_entity)
+            if isinstance(value, Entity):
+                inner_entity.key = value.key
+        else:
+            unindexable_properties.add(key)
+    entry.exclude_from_indexes = unindexable_properties
     return entry
 
 
@@ -94,8 +97,13 @@ def keyHelper(
     raise NotImplementedError(f"Unsupported key type {type(inKey)}")
 
 
-def IsInTransaction() -> bool:
+def is_in_transaction() -> bool:
     return currentTransaction.get() is not None
+
+
+@deprecated(version="3.8.0", reason="Use 'db.utils.is_in_transaction' instead")
+def IsInTransaction() -> bool:
+    return is_in_transaction()
 
 
 def GetOrInsert(key: Key, **kwargs) -> Entity:
