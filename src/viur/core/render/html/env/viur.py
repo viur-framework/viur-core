@@ -449,7 +449,7 @@ def updateURL(render: Render, **kwargs) -> str:
 
 
 @jinjaGlobalFilter
-@deprecated(version="3.7.0", reason="Use Jinja filter filesizeformat instead", action="always")
+@deprecated(version="3.7.0", reason="Use Jinja filter filesizeformat instead")
 def fileSize(render: Render, value: int | float, binary: bool = False) -> str:
     """
     Jinja2 filter: Format the value in an 'human-readable' file size (i.e. 13 kB, 4.1 MB, 102 Bytes, etc).

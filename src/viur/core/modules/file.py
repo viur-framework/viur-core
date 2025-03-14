@@ -58,7 +58,7 @@ def importBlobFromViur2(dlKey, fileName):
 
     if not conf.viur2import_blobsource:
         return False
-    existingImport = db.Get(db.Key("viur-viur2-blobimport", dlKey))
+    existingImport = db.get(db.Key("viur-viur2-blobimport", dlKey))
     if existingImport:
         if existingImport["success"]:
             return existingImport["dlurl"]
@@ -70,13 +70,13 @@ def importBlobFromViur2(dlKey, fileName):
             marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
             marker["success"] = False
             marker["error"] = "Failed URL-FETCH 1"
-            db.Put(marker)
+            db.put(marker)
             return False
         if importDataReq.status != 200:
             marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
             marker["success"] = False
             marker["error"] = "Failed URL-FETCH 2"
-            db.Put(marker)
+            db.put(marker)
             return False
         importData = json.loads(importDataReq.read())
         oldBlobName = conf.viur2import_blobsource["gsdir"] + "/" + importData["key"]
@@ -90,7 +90,7 @@ def importBlobFromViur2(dlKey, fileName):
         marker["success"] = False
         marker["error"] = "Local SRC-Blob missing"
         marker["oldBlobName"] = oldBlobName
-        db.Put(marker)
+        db.put(marker)
         return False
     bucket.rename_blob(srcBlob, f"{dlKey}/source/{fileName}")
     marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
@@ -98,7 +98,7 @@ def importBlobFromViur2(dlKey, fileName):
     marker["old_src_key"] = dlKey
     marker["old_src_name"] = fileName
     marker["dlurl"] = File.create_download_url(dlKey, fileName, False, None)
-    db.Put(marker)
+    db.put(marker)
     return marker["dlurl"]
 
 
@@ -1346,7 +1346,7 @@ class File(Tree):
         fileObj["itercount"] = 0
         fileObj["dlkey"] = str(dlkey)
 
-        db.Put(fileObj)
+        db.put(fileObj)
 
 
 @PeriodicTask(interval=datetime.timedelta(hours=4))
@@ -1360,19 +1360,19 @@ def startCheckForUnreferencedBlobs():
 @CallDeferred
 def doCheckForUnreferencedBlobs(cursor=None):
     def getOldBlobKeysTxn(dbKey):
-        obj = db.Get(dbKey)
+        obj = db.get(dbKey)
         res = obj["old_blob_references"] or []
         if obj["is_stale"]:
-            db.Delete(dbKey)
+            db.delete(dbKey)
         else:
             obj["has_old_blob_references"] = False
             obj["old_blob_references"] = []
-            db.Put(obj)
+            db.put(obj)
         return res
 
     query = db.Query("viur-blob-locks").filter("has_old_blob_references", True).setCursor(cursor)
     for lockObj in query.run(100):
-        oldBlobKeys = db.RunInTransaction(getOldBlobKeysTxn, lockObj.key)
+        oldBlobKeys = db.run_in_transaction(getOldBlobKeysTxn, lockObj.key)
         for blobKey in oldBlobKeys:
             if db.Query("viur-blob-locks").filter("active_blob_references =", blobKey).getEntry():
                 # This blob is referenced elsewhere
@@ -1387,7 +1387,7 @@ def doCheckForUnreferencedBlobs(cursor=None):
             fileObj["itercount"] = 0
             fileObj["dlkey"] = str(blobKey)
             logging.info(f"Stale blob marked dirty, {blobKey}")
-            db.Put(fileObj)
+            db.put(fileObj)
     newCursor = query.getCursor()
     if newCursor:
         doCheckForUnreferencedBlobs(newCursor)
@@ -1410,10 +1410,10 @@ def doCleanupDeletedFiles(cursor=None):
         query.setCursor(cursor)
     for file in query.run(100):
         if "dlkey" not in file:
-            db.Delete(file.key)
+            db.delete(file.key)
         elif db.Query("viur-blob-locks").filter("active_blob_references =", file["dlkey"]).getEntry():
             logging.info(f"""is referenced, {file["dlkey"]}""")
-            db.Delete(file.key)
+            db.delete(file.key)
         else:
             if file["itercount"] > maxIterCount:
                 logging.info(f"""Finally deleting, {file["dlkey"]}""")
@@ -1421,7 +1421,7 @@ def doCleanupDeletedFiles(cursor=None):
                 blobs = bucket.list_blobs(prefix=f"""{file["dlkey"]}/""")
                 for blob in blobs:
                     blob.delete()
-                db.Delete(file.key)
+                db.delete(file.key)
                 # There should be exactly 1 or 0 of these
                 for f in skeletonByKind("file")().all().filter("dlkey =", file["dlkey"]).fetch(99):
                     f.delete()
@@ -1435,7 +1435,7 @@ def doCleanupDeletedFiles(cursor=None):
             else:
                 logging.debug(f"""Increasing count, {file["dlkey"]}""")
                 file["itercount"] += 1
-                db.Put(file)
+                db.put(file)
     newCursor = query.getCursor()
     if newCursor:
         doCleanupDeletedFiles(newCursor)

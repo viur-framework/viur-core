@@ -67,7 +67,7 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refreshKey: 
                     }
 
     def updateTxn(key, resDict):
-        obj = db.Get(key)
+        obj = db.get(key)
         if not obj:  # File-object got deleted during building of our derives
             return
         obj["derived"] = obj.get("derived") or {}
@@ -77,10 +77,10 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refreshKey: 
             obj["derived"]["deriveStatus"][k] = v["version"]
             for fileName, fileDict in v["files"].items():
                 obj["derived"]["files"][fileName] = fileDict
-        db.Put(obj)
+        db.put(obj)
 
     if resDict:  # Write updated results back and queue updateRelationsTask
-        db.RunInTransaction(updateTxn, key, resDict)
+        db.run_in_transaction(updateTxn, key, resDict)
         # Queue that updateRelations call at least 30 seconds into the future, so that other ensureDerived calls from
         # the same FileBone have the chance to finish, otherwise that updateRelations Task will call postSavedHandler
         # on that FileBone again - re-queueing any ensureDerivedCalls that have not finished yet.
@@ -93,7 +93,7 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refreshKey: 
                 skel.refresh()
                 skel.write(update_relations=False)
 
-            db.RunInTransaction(refreshTxn)
+            db.run_in_transaction(refreshTxn)
 
 
 class FileBone(TreeLeafBone):

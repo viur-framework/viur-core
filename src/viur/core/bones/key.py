@@ -65,7 +65,7 @@ class KeyBone(BaseBone):
                 return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
             if self.check:
-                if db.Get(key) is None:
+                if db.get(key) is None:
                     return self.getEmptyValue(), [
                         ReadFromClientError(
                             ReadFromClientErrorSeverity.Invalid,
