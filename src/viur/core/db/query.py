@@ -605,7 +605,8 @@ class Query(object):
                 # We must merge (and sort) the results ourself
                 res = self._merge_multi_query_results(res)
         else:  # We have just one single query
-            res = self._fixKind(self._run_single_filter_query(self.queries, limit if limit != -1 else self.queries.limit))
+            res = self._fixKind(self._run_single_filter_query(
+                    self.queries, limit if limit != -1 else self.queries.limit))
         if res:
             self._lastEntry = res[-1]
         return res
