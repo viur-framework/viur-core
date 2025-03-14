@@ -3,13 +3,13 @@ import fnmatch
 import json
 import logging
 import os
-from datetime import timedelta as td
+import datetime
 from viur.core import conf, db, utils, current, errors
 from viur.core.decorators import exposed
 from viur.core.bones import *
 from viur.core.i18n import KINDNAME, initializeTranslations, systemTranslations, translate
 from viur.core.prototypes.list import List
-from viur.core.skeleton import Skeleton, SkeletonInstance, ViurTagsSearchAdapter
+from viur.core.skeleton import Skeleton, ViurTagsSearchAdapter
 
 
 class Creator(enum.Enum):
@@ -25,30 +25,31 @@ class TranslationSkel(Skeleton):
     ]
 
     name = StringBone(
-        descr="Name",
-        visible=False,
-        compute=Compute(
-            fn=lambda skel: str(skel["tr_key"]),
-            interval=ComputeInterval(ComputeMethod.OnWrite),
-        ),
-    )
-
-    tr_key = StringBone(
         descr=translate(
-            "core.translationskel.tr_key.descr",
+            "viur.core.translationskel.name.descr",
             "Translation key",
         ),
         searchable=True,
         escape_html=False,
-        required=True,
-        min_length=1,
-        unique=UniqueValue(UniqueLockMethod.SameValue, False,
-                           "This translation key exist already"),
+        readOnly=True,
+        unique=UniqueValue(
+            UniqueLockMethod.SameValue,
+            False,
+            "This translation key already exists"
+        ),
+    )
+
+    # FIXME: Remove with VIUR4
+    tr_key = StringBone(
+        descr="Translation key (OLD - DEPRECATED!)",
+        escape_html=False,
+        readOnly=True,
+        visible=False,
     )
 
     translations = StringBone(
         descr=translate(
-            "core.translationskel.translations.descr",
+            "viur.core.translationskel.translations.descr",
             "Translations",
         ),
         searchable=True,
@@ -57,7 +58,7 @@ class TranslationSkel(Skeleton):
         max_length=1024,
         params={
             "tooltip": translate(
-                "core.translationskel.translations.tooltip",
+                "viur.core.translationskel.translations.tooltip",
                 "The languages {{main}} are required,\n {{accent}} can be filled out"
             )(main=", ".join(conf.i18n.available_languages),
               accent=", ".join(conf.i18n.language_alias_map.keys())),
@@ -66,7 +67,7 @@ class TranslationSkel(Skeleton):
 
     translations_missing = SelectBone(
         descr=translate(
-            "core.translationskel.translations_missing.descr",
+            "viur.core.translationskel.translations_missing.descr",
             "Translation missing for language",
         ),
         multiple=True,
@@ -81,23 +82,23 @@ class TranslationSkel(Skeleton):
     )
 
     default_text = StringBone(
-        escape_html=False,
         descr=translate(
-            "core.translationskel.default_text.descr",
+            "viur.core.translationskel.default_text.descr",
             "Fallback value",
         ),
+        escape_html=False,
     )
 
     hint = StringBone(
         descr=translate(
-            "core.translationskel.hint.descr",
+            "viur.core.translationskel.hint.descr",
             "Hint / Context (internal only)",
         ),
     )
 
     usage_filename = StringBone(
         descr=translate(
-            "core.translationskel.usage_filename.descr",
+            "viur.core.translationskel.usage_filename.descr",
             "Used and added from this file",
         ),
         readOnly=True,
@@ -105,7 +106,7 @@ class TranslationSkel(Skeleton):
 
     usage_lineno = NumericBone(
         descr=translate(
-            "core.translationskel.usage_lineno.descr",
+            "viur.core.translationskel.usage_lineno.descr",
             "Used and added from this lineno",
         ),
         readOnly=True,
@@ -113,7 +114,7 @@ class TranslationSkel(Skeleton):
 
     usage_variables = StringBone(
         descr=translate(
-            "core.translationskel.usage_variables.descr",
+            "viur.core.translationskel.usage_variables.descr",
             "Receives these substitution variables",
         ),
         readOnly=True,
@@ -122,7 +123,7 @@ class TranslationSkel(Skeleton):
 
     creator = SelectBone(
         descr=translate(
-            "core.translationskel.creator.descr",
+            "viur.core.translationskel.creator.descr",
             "Creator",
         ),
         readOnly=True,
@@ -132,24 +133,28 @@ class TranslationSkel(Skeleton):
 
     public = BooleanBone(
         descr=translate(
-            "core.translationskel.public.descr",
+            "viur.core.translationskel.public.descr",
             "Is this translation public?",
         ),
         defaultValue=False,
     )
 
     @classmethod
-    def write(cls, skelValues: SkeletonInstance, **kwargs) -> db.Key:
-        # Ensure we have only lowercase keys
-        skelValues["tr_key"] = skelValues["tr_key"].lower()
-        return super().write(skelValues, **kwargs)
+    def read(cls, skel, *args, **kwargs):
+        if skel := super().read(skel, *args, **kwargs):
+            if skel["tr_key"]:
+                skel["name"] = skel["tr_key"]
+                skel["tr_key"] = None
+
+        return skel
 
     @classmethod
-    def preProcessSerializedData(cls, skelValues: SkeletonInstance, entity: db.Entity) -> db.Entity:
-        # Backward-compatibility: re-add the key for viur-core < v3.6
-        # TODO: Remove in ViUR4
-        entity["key"] = skelValues["tr_key"]
-        return super().preProcessSerializedData(skelValues, entity)
+    def write(cls, skel, **kwargs):
+        # Create the key from the name on initial write!
+        if not skel["key"]:
+            skel["key"] = db.Key(KINDNAME, skel["name"].lower())
+
+        return super().write(skel, **kwargs)
 
 
 class Translation(List):
@@ -167,7 +172,26 @@ class Translation(List):
             "views": [
                 {
                     "name": translate(
-                        "core.translations.view.missing",
+                        "viur.core.translations.view.system",
+                        "ViUR System translations",
+                    ),
+                    "filter": {
+                        "name$lk": "viur.",
+                    }
+                },
+                {
+                    "name": translate(
+                        "viur.core.translations.view.public",
+                        "Public translations",
+                    ),
+                    "filter": {
+                        "public": True,
+                    }
+                }
+            ] + [
+                {
+                    "name": translate(
+                        "viur.core.translations.view.missing",
                         "Missing translations for {{lang}}",
                     )(lang=lang),
                     "filter": {
@@ -181,6 +205,18 @@ class Translation(List):
     roles = {
         "admin": "*",
     }
+
+    def addSkel(self):
+        """
+        Returns a custom TranslationSkel where the name is editable.
+        The name becomes part of the key.
+        """
+        skel = super().addSkel().ensure_is_cloned()
+        skel.name.readOnly = False
+        skel.name.required = True
+        return skel
+
+    cloneSkel = addSkel
 
     def onAdded(self, *args, **kwargs):
         super().onAdded(*args, **kwargs)
@@ -197,10 +233,11 @@ class Translation(List):
     def _reload_translations(self):
         if (
             self._last_reload is not None
-            and self._last_reload - utils.utcNow() < td(minutes=10)
+            and self._last_reload - utils.utcNow() < datetime.timedelta(minutes=10)
         ):
             # debounce: translations has been reload recently, skip this
             return None
+
         logging.info("Reload translations")
         # TODO: this affects only the current instance
         self._last_reload = utils.utcNow()
@@ -210,56 +247,66 @@ class Translation(List):
     _last_reload = None  # Cut my strings into pieces, this is my last reload...
 
     @exposed
-    def get_public(
+    def dump(
         self,
         *,
-        languages: list[str] = [],
-        pattern: str = "*",
+        pattern: list[str] = [],
+        language: list[str] = [],
     ) -> dict[str, str] | dict[str, dict[str, str]]:
         """
-        Dumps public translations as JSON.
+        Dumps translations as JSON.
 
-        :param languages: Allows to request a specific language.
-        :param pattern: Provide an fnmatch-style key filter pattern
+        :param pattern: Required, provide fnmatch-style tramslaton key filter patterns of the translations wanted.
+        :param language: Allows to request a specific language.
 
         Example calls:
 
-        - `/json/_translation/get_public` get public translations for current language
-        - `/json/_translation/get_public?languages=en` for english translations
-        - `/json/_translation/get_public?languages=en&pattern=bool.*` for english translations,
-            but only keys starting with "bool."
-        - `/json/_translation/get_public?languages=en&languages=de` for english and german translations
-        - `/json/_translation/get_public?languages=*` for all available languages
+        - `/json/_translation/dump?pattern=viur.*` get viur.*-translations for current language
+        - `/json/_translation/dump?pattern=viur.*&language=en` for english translations
+        - `/json/_translation/dump?pattern=viur.*&language=en&language=de` for english and german translations
+        - `/json/_translation/dump?pattern=viur.*&language=*` for all available language
         """
         if not utils.string.is_prefix(self.render.kind, "json"):
             raise errors.BadRequest("Can only use this function on JSON-based renders")
+
+        # The pattern may not be a matcher for all!
+        for pat in pattern:
+            if not pat.strip("*?."):
+                raise errors.BadRequest("Pattern is too generic.")
 
         current.request.get().response.headers["Content-Type"] = "application/json"
 
         if (
             not (conf.debug.disable_cache and current.request.get().disableCache)
-            and any(os.getenv("HTTP_HOST", "") in x for x in conf.i18n.domain_language_mapping)
+            and any(os.getenv("HTTP_HOST", "") in dlm for dlm in conf.i18n.domain_language_mapping)
         ):
             # cache it 7 days
             current.request.get().response.headers["Cache-Control"] = f"public, max-age={7 * 24 * 60 * 60}"
 
-        if languages:
-            if len(languages) == 1 and languages[0] == "*":
-                languages = conf.i18n.available_dialects
+        if language:
+            if len(language) == 1 and language[0] == "*":
+                language = conf.i18n.available_dialects
 
-            return json.dumps({
-                lang: {
-                    tr_key: str(translate(tr_key, force_lang=lang))
-                    for tr_key, values in systemTranslations.items()
-                    if values.get("_public_") and fnmatch.fnmatch(tr_key, pattern)
-                }
-                for lang in languages
-            })
+            if len(language) > 1:
+                return json.dumps({
+                    lang: {
+                        name: str(translate(name, force_lang=lang))
+                        for name, values in systemTranslations.items()
+                        if (conf.i18n.dump_can_view(name) or values.get("_public_"))
+                        and any(fnmatch.fnmatch(name, pat) for pat in pattern)
+                    }
+                    for lang in language
+                })
+            else:
+                language = language.pop()
+        else:
+            language = current.language.get()
 
         return json.dumps({
-            tr_key: str(translate(tr_key))
-            for tr_key, values in systemTranslations.items()
-            if values.get("_public_") and fnmatch.fnmatch(tr_key, pattern)
+            name: str(translate(name, force_lang=language))
+            for name, values in systemTranslations.items()
+            if (conf.i18n.dump_can_view(name) or values.get("_public_"))
+            and any(fnmatch.fnmatch(name, pat) for pat in pattern)
         })
 
 
