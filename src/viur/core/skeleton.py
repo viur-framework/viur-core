@@ -1081,7 +1081,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             if boneInstance.unique:
                 lockValues = boneInstance.getUniquePropertyIndexValues(skel, boneName)
                 for lockValue in lockValues:
-                    dbObj = db.Get(db.Key(f"{skel.kindName}_{boneName}_uniquePropertyIndex", lockValue))
+                    dbObj = db.get(db.Key(f"{skel.kindName}_{boneName}_uniquePropertyIndex", lockValue))
                     if dbObj and (not skel["key"] or dbObj["references"] != skel["key"].id_or_name):
                         # This value is taken (sadly, not by us)
                         complete = False
@@ -1154,7 +1154,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         except (ValueError, NotImplementedError):  # This key did not parse
             return None
 
-        if db_res := db.Get(db_key):
+        if db_res := db.get(db_key):
             skel.setEntity(db_res)
             return skel
         elif create in (False,  None):
@@ -1236,7 +1236,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 is_add = True
             else:
                 db_key = db.keyHelper(db_key, skel.kindName)
-                if db_obj := db.Get(db_key):
+                if db_obj := db.get(db_key):
                     skel.dbEntity = db_obj
                     old_copy = {k: v for k, v in skel.dbEntity.items()}
                     is_add = False
@@ -1295,7 +1295,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     new_lock_kind = f"{skel.kindName}_{bone_name}_uniquePropertyIndex"
                     for new_lock_value in new_unique_values:
                         new_lock_key = db.Key(new_lock_kind, new_lock_value)
-                        if lock_db_obj := db.Get(new_lock_key):
+                        if lock_db_obj := db.get(new_lock_key):
 
                             # There's already a lock for that value, check if we hold it
                             if lock_db_obj["references"] != skel.dbEntity.key.id_or_name:
@@ -1308,7 +1308,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                             # This value is locked for the first time, create a new lock-object
                             lock_obj = db.Entity(new_lock_key)
                             lock_obj["references"] = skel.dbEntity.key.id_or_name
-                            db.Put(lock_obj)
+                            db.put(lock_obj)
                         if new_lock_value in old_unique_values:
                             old_unique_values.remove(new_lock_value)
                     skel.dbEntity["viur"][f"{bone_name}_uniqueIndexValue"] = new_unique_values
@@ -1318,7 +1318,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                         # Try to delete the old lock
 
                         old_lock_key = db.Key(f"{skel.kindName}_{bone_name}_uniquePropertyIndex", old_unique_value)
-                        if old_lock_obj := db.Get(old_lock_key):
+                        if old_lock_obj := db.get(old_lock_key):
                             if old_lock_obj["references"] != skel.dbEntity.key.id_or_name:
 
                                 # We've been supposed to have that lock - but we don't.
@@ -1326,7 +1326,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                                 logging.critical("Detected Database corruption! A Value-Lock had been reassigned!")
                             else:
                                 # It's our lock which we don't need anymore
-                                db.Delete(old_lock_key)
+                                db.delete(old_lock_key)
                         else:
                             logging.critical("Detected Database corruption! Could not delete stale lock-object!")
 
@@ -1422,7 +1422,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 fixDotNames(skel.dbEntity)
 
             # Write the core entry back
-            db.Put(skel.dbEntity)
+            db.put(skel.dbEntity)
 
             # Now write the blob-lock object
             blob_list = skel.preProcessBlobLocks(blob_list)
@@ -1433,7 +1433,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 logging.error(msg)
                 raise ValueError(msg)
 
-            if not is_add and (old_blob_lock_obj := db.Get(db.Key("viur-blob-locks", db_key.id_or_name))):
+            if not is_add and (old_blob_lock_obj := db.get(db.Key("viur-blob-locks", db_key.id_or_name))):
                 removed_blobs = set(old_blob_lock_obj.get("active_blob_references", [])) - blob_list
                 old_blob_lock_obj["active_blob_references"] = list(blob_list)
                 if old_blob_lock_obj["old_blob_references"] is None:
@@ -1446,14 +1446,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
                 old_blob_lock_obj["has_old_blob_references"] = bool(old_blob_lock_obj["old_blob_references"])
                 old_blob_lock_obj["is_stale"] = False
-                db.Put(old_blob_lock_obj)
+                db.put(old_blob_lock_obj)
             else:  # We need to create a new blob-lock-object
                 blob_lock_obj = db.Entity(db.Key("viur-blob-locks", skel.dbEntity.key.id_or_name))
                 blob_lock_obj["active_blob_references"] = list(blob_list)
                 blob_lock_obj["old_blob_references"] = []
                 blob_lock_obj["has_old_blob_references"] = False
                 blob_lock_obj["is_stale"] = False
-                db.Put(blob_lock_obj)
+                db.put(blob_lock_obj)
 
             return skel.dbEntity.key, write_skel, change_list, is_add
 
@@ -1465,7 +1465,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         if db.IsInTransaction():
             key, skel, change_list, is_add = __txn_write(skel)
         else:
-            key, skel, change_list, is_add = db.RunInTransaction(__txn_write, skel)
+            key, skel, change_list, is_add = db.run_in_transaction(__txn_write, skel)
 
         for bone_name, bone in skel.items():
             bone.postSavedHandler(skel, bone_name, key)
@@ -1516,7 +1516,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     flushList = []
                     for lockValue in viur_data.get(f"{boneName}_uniqueIndexValue") or []:
                         lockKey = db.Key(f"{skel.kindName}_{boneName}_uniquePropertyIndex", lockValue)
-                        lockObj = db.Get(lockKey)
+                        lockObj = db.get(lockKey)
                         if not lockObj:
                             logging.error(f"{lockKey=} missing!")
                         elif lockObj["references"] != key.id_or_name:
@@ -1525,15 +1525,15 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                         else:
                             flushList.append(lockObj)
                     if flushList:
-                        db.Delete(flushList)
+                        db.delete(flushList)
 
             # Delete the blob-key lock object
             lockObjectKey = db.Key("viur-blob-locks", key.id_or_name)
-            lockObj = db.Get(lockObjectKey)
+            lockObj = db.get(lockObjectKey)
 
             if lockObj is not None:
                 if lockObj["old_blob_references"] is None and lockObj["active_blob_references"] is None:
-                    db.Delete(lockObjectKey)  # Nothing to do here
+                    db.delete(lockObjectKey)  # Nothing to do here
                 else:
                     if lockObj["old_blob_references"] is None:
                         # No old stale entries, move active_blob_references -> old_blob_references
@@ -1544,9 +1544,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     lockObj["active_blob_references"] = []  # There are no active ones left
                     lockObj["is_stale"] = True
                     lockObj["has_old_blob_references"] = True
-                    db.Put(lockObj)
+                    db.put(lockObj)
 
-            db.Delete(key)
+            db.delete(key)
             processRemovedRelations(key)
 
         if key := (key or skel["key"]):
@@ -1560,7 +1560,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         if db.IsInTransaction():
             __txn_delete(skel, key)
         else:
-            db.RunInTransaction(__txn_delete, skel, key)
+            db.run_in_transaction(__txn_delete, skel, key)
 
         for boneName, bone in skel.items():
             bone.postDeletedHandler(skel, boneName, key)
@@ -1672,7 +1672,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             # Retry loop
             while True:
                 try:
-                    return db.RunInTransaction(__update_txn)
+                    return db.run_in_transaction(__update_txn)
 
                 except db.ViurDatastoreError as e:
                     retry -= 1
@@ -1962,7 +1962,7 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: t.Optional
         if db.IsInTransaction():
             updateTxn(skel, srcRel["src"].key, srcRel.key)
         else:
-            db.RunInTransaction(updateTxn, skel, srcRel["src"].key, srcRel.key)
+            db.run_in_transaction(updateTxn, skel, srcRel["src"].key, srcRel.key)
     nextCursor = updateListQuery.getCursor()
     if len(updateList) == 5 and nextCursor:
         updateRelations(destKey, minChangeTime, changedBone, nextCursor)
@@ -2082,13 +2082,13 @@ def processVacuumRelationsChunk(
         except AssertionError:
             # The referenced skeleton does not exist in this data model -> drop that relation object
             logging.info(f"Deleting {relation_object.key} which refers to unknown kind {src_kind}")
-            db.Delete(relation_object)
+            db.delete(relation_object)
             count_removed += 1
             continue
         if src_prop not in skel:
             logging.info(f"Deleting {relation_object.key} which refers to "
                          f"non-existing RelationalBone {src_prop} of {src_kind}")
-            db.Delete(relation_object)
+            db.delete(relation_object)
             count_removed += 1
     logging.info(f"END processVacuumRelationsChunk {module}, "
                  f"{count_total} records processed, {count_removed} removed")

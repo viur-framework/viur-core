@@ -212,7 +212,7 @@ class TaskHandler(Module):
             if "lang" in env and env["lang"]:
                 current.language.set(env["lang"])
             if "transactionMarker" in env:
-                marker = db.Get(db.Key("viur-transactionmarker", env["transactionMarker"]))
+                marker = db.get(db.Key("viur-transactionmarker", env["transactionMarker"]))
                 if not marker:
                     logging.info(f"""Dropping task, transaction {env["transactionMarker"]} did not apply""")
                     return
@@ -264,7 +264,7 @@ class TaskHandler(Module):
         for task, interval in _periodicTasks[cronName].items():  # Call all periodic tasks bound to that queue
             periodicTaskName = task.periodicTaskName.lower()
             if interval:  # Ensure this task doesn't get called to often
-                lastCall = db.Get(db.Key("viur-task-interval", periodicTaskName))
+                lastCall = db.get(db.Key("viur-task-interval", periodicTaskName))
                 if lastCall and utils.utcNow() - lastCall["date"] < interval:
                     logging.debug(f"Task {periodicTaskName!r} has already run recently - skipping.")
                     continue
@@ -283,7 +283,7 @@ class TaskHandler(Module):
                 # Update its last-call timestamp
                 entry = db.Entity(db.Key("viur-task-interval", periodicTaskName))
                 entry["date"] = utils.utcNow()
-                db.Put(entry)
+                db.put(entry)
         logging.debug("Periodic tasks complete")
 
     def _validate_request(
@@ -870,4 +870,4 @@ class DeleteEntitiesIter(QueryIter):
         if isinstance(entry, SkeletonInstance):
             entry.delete()
         else:
-            db.Delete(entry.key)
+            db.delete(entry.key)

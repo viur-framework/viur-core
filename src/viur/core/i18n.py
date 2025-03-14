@@ -488,7 +488,7 @@ def migrate_translation(
     """
     from viur.core.modules.translation import TranslationSkel
     logging.info(f"Migrate translation {key}")
-    entity: db.Entity = db.Get(key)
+    entity: db.Entity = db.get(key)
     if "tr_key" not in entity:
         entity["tr_key"] = entity["key"] or key.name
     if "translation" in entity:
@@ -504,7 +504,7 @@ def migrate_translation(
         logging.exception(exc)
         if "unique value" in exc.args[0] and "recently claimed" in exc.args[0]:
             logging.info(f"Delete duplicate entry {key}: {entity}")
-            db.Delete(key)
+            db.delete(key)
         else:
             raise exc
 

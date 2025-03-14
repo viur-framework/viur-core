@@ -2,7 +2,7 @@ import datetime
 from deprecated.sphinx import deprecated
 import typing as t
 
-from .transport import Get, Put, RunInTransaction
+from .transport import get, put, run_in_transaction
 from .types import Entity, Key, currentDbAccessLog, currentTransaction
 
 
@@ -110,7 +110,7 @@ def GetOrInsert(key: Key, **kwargs) -> Entity:
     """
     Either creates a new entity with the given key, or returns the existing one.
 
-    Its guaranteed that there is no race-condition here; it will never overwrite an
+    Its guaranteed that there is no race-condition here; it will never overwrite a
     previously created entity. Extra keyword arguments passed to this function will be
     used to populate the entity if it has to be created; otherwise they are ignored.
 
@@ -119,17 +119,17 @@ def GetOrInsert(key: Key, **kwargs) -> Entity:
     """
 
     def txn(key, kwargs):
-        obj = Get(key)
+        obj = get(key)
         if not obj:
             obj = Entity(key)
             for k, v in kwargs.items():
                 obj[k] = v
-            Put(obj)
+            put(obj)
         return obj
 
-    if IsInTransaction():
+    if is_in_transaction():
         return txn(key, kwargs)
-    return RunInTransaction(txn, key, kwargs)
+    return run_in_transaction(txn, key, kwargs)
 
 
 def encodeKey(key: Key) -> str:
@@ -153,7 +153,7 @@ def acquireTransactionSuccessMarker() -> str:
     if "viurTxnMarkerSet" not in txn:
         e = Entity(Key("viur-transactionmarker", marker))
         e["creationdate"] = datetime.datetime.utcnow()
-        Put(e)
+        put(e)
         txn["viurTxnMarkerSet"] = True
     return marker
 

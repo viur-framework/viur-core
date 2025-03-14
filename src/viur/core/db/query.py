@@ -380,6 +380,7 @@ class Query(object):
         :param limit: The maximum number of entities.
         :returns: Returns the query itself for chaining.
         """
+        # TODO Add a check for the limit (<=100) ?
         if isinstance(self.queries, QueryDefinition):
             self.queries.limit = limit
         elif isinstance(self.queries, list):
@@ -657,14 +658,14 @@ class Query(object):
             logging.error(("Limit", limit))
             raise NotImplementedError(
                 "This query is not limited! You must specify an upper bound using limit() between 1 and 100")
-        dbRes = self.run(limit)
-        if dbRes is None:
+
+        if not (db_res := self.run(limit)):
             return None
         res = SkelList(self.srcSkel)
-        for e in dbRes:
-            skelInstance = SkeletonInstance(self.srcSkel.skeletonCls, bone_map=self.srcSkel.boneMap)
-            skelInstance.dbEntity = e
-            res.append(skelInstance)
+        for e in db_res:
+            skel_instance = SkeletonInstance(self.srcSkel.skeletonCls, bone_map=self.srcSkel.boneMap)
+            skel_instance.dbEntity = e
+            res.append(skel_instance)
         res.getCursor = lambda: self.getCursor()
         res.get_orders = lambda: self.get_orders()
         return res
@@ -688,8 +689,7 @@ class Query(object):
         elif isinstance(self.queries, list):
             raise ValueError("No iter on Multiqueries")
         while True:
-            qryRes = self._run_single_filter_query(self.queries, 20)
-            yield from qryRes
+            yield from self._run_single_filter_query(self.queries, 100)
             if not self.queries.currentCursor:  # We reached the end of that query
                 break
             self.queries.startCursor = self.queries.currentCursor
@@ -718,8 +718,8 @@ class Query(object):
         """
         if self.srcSkel is None:
             raise NotImplementedError("This query has not been created using skel.all()")
-        res = self.getEntry()
-        if res is None:
+
+        if not (res:= self.getEntry()):
             return None
         self.srcSkel.setEntity(res)
         return self.srcSkel

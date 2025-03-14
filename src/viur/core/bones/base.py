@@ -1054,7 +1054,7 @@ class BaseBone(object):
                 from viur.core.skeleton import RefSkel  # noqa: E402 # import works only here because circular imports
 
                 if issubclass(skel.skeletonCls, RefSkel):  # we have a ref skel we must load the complete Entity
-                    db_obj = db.Get(skel["key"])
+                    db_obj = db.get(skel["key"])
                     last_update = db_obj.get(f"_viur_compute_{name}_")
                 else:
                     last_update = skel.dbEntity.get(f"_viur_compute_{name}_")
@@ -1064,15 +1064,15 @@ class BaseBone(object):
                     # if so, recompute and refresh updated value
                     skel.accessedValues[name] = value = self._compute(skel, name)
                     def transact():
-                        db_obj = db.Get(skel["key"])
+                        db_obj = db.get(skel["key"])
                         db_obj[f"_viur_compute_{name}_"] = now
                         db_obj[name] = value
-                        db.Put(db_obj)
+                        db.put(db_obj)
 
                     if db.IsInTransaction():
                         transact()
                     else:
-                        db.RunInTransaction(transact)
+                        db.run_in_transaction(transact)
 
                     return True
 

@@ -136,7 +136,7 @@ class RelationalBone(BaseBone):
             - RelationalConsistency.PreventDeletion
                 Will prevent deleting the referenced entity as long as it's selected in this bone (calling
                 skel.delete() on the referenced entity will raise errors.Locked). It's still (technically)
-                possible to remove the underlying datastore entity using db.Delete manually, but this *must not*
+                possible to remove the underlying datastore entity using db.delete manually, but this *must not*
                 be used on a skeleton object as it will leave a whole bunch of references in a stale state.
 
             - RelationalConsistency.SetNull
@@ -228,7 +228,7 @@ class RelationalBone(BaseBone):
                     :param RelationalConsistency.PreventDeletion:
                         Will prevent deleting the referenced entity as long as it's
                         selected in this bone (calling skel.delete() on the referenced entity will raise errors.Locked).
-                        It's still (technically) possible to remove the underlying datastore entity using db.Delete
+                        It's still (technically) possible to remove the underlying datastore entity using db.delete
                         manually, but this *must not* be used on a skeleton object as it will leave a whole bunch of
                         references in a stale state.
 
@@ -521,10 +521,10 @@ class RelationalBone(BaseBone):
         for dbObj in dbVals.iter():
             try:
                 if not dbObj["dest"].key in [x["dest"]["key"] for x in values]:  # Relation has been removed
-                    db.Delete(dbObj.key)
+                    db.delete(dbObj.key)
                     continue
             except:  # This entry is corrupt
-                db.Delete(dbObj.key)
+                db.delete(dbObj.key)
             else:  # Relation: Updated
                 data = [x for x in values if x["dest"]["key"] == dbObj["dest"].key][0]
                 # Write our (updated) values in
@@ -539,7 +539,7 @@ class RelationalBone(BaseBone):
                 dbObj["viur_relational_consistency"] = self.consistency.value
                 dbObj["viur_foreign_keys"] = list(self.refKeys)
                 dbObj["viurTags"] = srcEntity.get("viurTags")  # Copy tags over so we can still use our searchengine
-                db.Put(dbObj)
+                db.put(dbObj)
                 values.remove(data)
         # Add any new Relation
         for val in values:
@@ -557,7 +557,7 @@ class RelationalBone(BaseBone):
             dbObj["viur_relational_updateLevel"] = self.updateLevel.value
             dbObj["viur_relational_consistency"] = self.consistency.value
             dbObj["viur_foreign_keys"] = list(self._ref_keys)
-            db.Put(dbObj)
+            db.put(dbObj)
 
     def postDeletedHandler(self, skel: "SkeletonInstance", boneName: str, key: db.Key) -> None:
         """
@@ -575,7 +575,7 @@ class RelationalBone(BaseBone):
         query.filter("viur_dest_kind =", self.kind)
         query.filter("viur_src_property =", boneName)
         query.filter("src.__key__ =", key)
-        db.Delete([entity for entity in query.run()])
+        db.delete([entity for entity in query.run()])
 
     def isInvalid(self, key) -> None:
         """
@@ -613,7 +613,7 @@ class RelationalBone(BaseBone):
             errors = []
             try:
                 dbKey = db.keyHelper(key, self.kind)
-                entry = db.Get(dbKey)
+                entry = db.get(dbKey)
                 assert entry
             except:  # Invalid key or something like that
                 logging.info(f"Invalid reference key >{key}< detected on bone '{bone_name}'")
@@ -1091,7 +1091,7 @@ class RelationalBone(BaseBone):
         :return: A dictionary containing a reference skeleton and optional relation data.
         """
 
-        if not all(db_objs := db.Get([db.keyHelper(value[0], self.kind) for value in key_rel_list])):
+        if not all(db_objs := db.get([db.keyHelper(value[0], self.kind) for value in key_rel_list])):
             return []  # return emtpy data when not all data is found
         res_rel_skels = []
         for (key, rel), db_obj in zip(key_rel_list, db_objs):
