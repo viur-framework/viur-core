@@ -1503,7 +1503,6 @@ class BaseBone(object):
                 if not cloned_skel.read(skel["key"]):
                     raise ValueError(f"{skel["key"]=} does no longer exist. Cannot compute a broken relation")
             else:
-                logging.debug(f"Cloning {skel["key"]=}")
                 cloned_skel = skel.clone()
             cloned_skel[bone_name] = None  # remove value form accessedValues to avoid endless recursion
             compute_fn_args["skel"] = cloned_skel
@@ -1514,7 +1513,6 @@ class BaseBone(object):
         if "bone_name" in compute_fn_parameters:
             compute_fn_args["bone_name"] = bone_name
 
-        # logging.debug(f"{self.compute.fn=} | {compute_fn_args=} | {self=}")
         ret = self.compute.fn(**compute_fn_args)
 
         def unserialize_raw_value(raw_value: list[dict] | dict | None):

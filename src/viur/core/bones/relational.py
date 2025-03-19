@@ -1028,12 +1028,9 @@ class RelationalBone(BaseBone):
             return
 
         for _, _, value in self.iter_bone_value(skel, name):
-            # logging.debug(f"refresh {self=} {value=}")
             if value and value["dest"]:
                 try:
-                    # logging.debug(f"{value["dest"]=}")
                     target_skel = value["dest"].read()
-                    # logging.debug(f"{target_skel=}")
                 except ValueError:
                     logging.error(
                         f"{name}: The key {value['dest']['key']!r} ({value['dest'].get('name')!r}) seems to be gone"

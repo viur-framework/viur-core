@@ -800,16 +800,13 @@ class QueryIter(object, metaclass=MetaQueryIter):
             qryIter = qry.run(5)
         for item in qryIter:
             try:
-                logging.debug(f"Attempt 1 @ {item["key"]} / {qryDict["totalCount"]}")
                 cls.handleEntry(item, qryDict["customData"])
             except:  # First exception - we'll try another time (probably/hopefully transaction collision)
                 time.sleep(5)
                 try:
-                    logging.debug(f"Attempt 2 @ {item["key"]} / {qryDict["totalCount"]}")
                     cls.handleEntry(item, qryDict["customData"])
                 except Exception as e:  # Second exception - call error_handler
                     try:
-                        logging.debug(f"Attempt 3 @ {item["key"]} / {qryDict["totalCount"]}")
                         doCont = cls.handleError(item, qryDict["customData"], e)
                     except Exception as e:
                         logging.error(f"handleError failed on {item} - bailing out")
