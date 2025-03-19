@@ -13,15 +13,23 @@ class TestNumericBone(unittest.TestCase):
 
     def test_isEmpty_default_bone(self):
         from viur.core.bones import NumericBone
-        self._run_tests(NumericBone())
+        self._run_tests(bone := NumericBone())
+        self.assertTrue(bone.isEmpty(SMALL_FLOAT), msg=vars(bone))
 
     def test_isEmpty_emptyNone(self):
         from viur.core.bones import NumericBone
-        self._run_tests(NumericBone(getEmptyValueFunc=lambda: None))
+        self._run_tests(bone := NumericBone(getEmptyValueFunc=lambda: None))
+        self.assertFalse(bone.isEmpty(SMALL_FLOAT), msg=vars(bone))
 
     def test_isEmpty_precision(self):
         from viur.core.bones import NumericBone
-        self._run_tests(NumericBone(precision=2))
+        self._run_tests(bone := NumericBone(precision=2))
+        self.assertTrue(bone.isEmpty(SMALL_FLOAT), msg=vars(bone))
+
+    def test_isEmpty_high_precision(self):
+        from viur.core.bones import NumericBone
+        self._run_tests(bone := NumericBone(precision=8))
+        self.assertFalse(bone.isEmpty(SMALL_FLOAT), msg=vars(bone))
 
     def test_isEmpty_precision_emptyNone(self):
         from viur.core.bones import NumericBone
@@ -35,9 +43,6 @@ class TestNumericBone(unittest.TestCase):
         self.assertFalse(bone.isEmpty(123.456))
         self.assertFalse(bone.isEmpty(LARGE_INT))
         self.assertFalse(bone.isEmpty(LARGE_FLOAT))
-        if bone.precision != 0:
-            self.assertFalse(bone.isEmpty(SMALL_FLOAT), msg=vars(bone))
-
         self.assertTrue(bone.isEmpty(""))
         self.assertTrue(bone.isEmpty(None))
         self.assertTrue(bone.isEmpty([]))
@@ -55,6 +60,7 @@ class TestNumericBone(unittest.TestCase):
         self.assertEqual(42.6, bone._convert_to_numeric(42.6))
         self.assertEqual(42.6, bone._convert_to_numeric("42.6"))
         self.assertEqual(42.6, bone._convert_to_numeric("42,6"))
+        self.assertEqual(42.6, bone._convert_to_numeric({"val": "42,6", "idx": "42,6"}))
         self.assertIsInstance(bone._convert_to_numeric(42), float)
         with self.assertRaises(TypeError):
             bone._convert_to_numeric(None)
@@ -62,6 +68,11 @@ class TestNumericBone(unittest.TestCase):
             bone._convert_to_numeric("xyz")
         with self.assertRaises(ValueError):
             bone._convert_to_numeric("1.2.3")
+        # rounding
+        self.assertEqual(42.12, bone._convert_to_numeric(42.1234))
+        self.assertEqual(42.0, bone._convert_to_numeric(42.00001))
+        self.assertEqual(42.07, bone._convert_to_numeric(42.066))
+        self.assertEqual(42.06, bone._convert_to_numeric(42.064))
 
         bone = NumericBone(precision=0)
         self.assertEqual(42, bone._convert_to_numeric(42))
@@ -70,6 +81,8 @@ class TestNumericBone(unittest.TestCase):
         self.assertEqual(42, bone._convert_to_numeric(42.0))
         self.assertEqual(42, bone._convert_to_numeric("42.6"))
         self.assertEqual(42, bone._convert_to_numeric("42,6"))
+        self.assertEqual(42, bone._convert_to_numeric({"val": "42,6", "idx": "42,6"}))
+        self.assertEqual(42, bone._convert_to_numeric({"val": "42", "idx": "42"}))
         with self.assertRaises(ValueError):
             bone._convert_to_numeric("123.456,5")
         self.assertIsInstance(bone._convert_to_numeric(42), int)
