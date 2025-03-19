@@ -83,12 +83,9 @@ class NumericBone(BaseBone):
     def singleValueUnserialize(self, val):
         if val is not None:
             try:
-                if self.precision:
-                    return round(float(val), self.precision)
-
-                return int(val)
-            except ValueError:
-                return self.getDefaultValue()
+                return self._convert_to_numeric(val)
+            except (ValueError, TypeError):
+                return self.getDefaultValue(None)  # FIXME: callable needs the skeleton instance
 
         return val
 
@@ -220,10 +217,12 @@ class NumericBone(BaseBone):
         """Convert a value to an int or float considering the precision.
 
         If the value is not convertable an exception will be raised."""
+        if isinstance(value, db.Entity | dict) and "val" in value:
+            value = value["val"]  # was a StringBone before
         if isinstance(value, str):
             value = value.replace(",", ".", 1)
         if self.precision:
-            return float(value)
+            return round(float(value), self.precision)
         else:
             # First convert to float then to int to support "42.5" (str)
             return int(float(value))
