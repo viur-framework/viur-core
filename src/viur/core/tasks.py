@@ -876,7 +876,8 @@ def start_clear_transaction_marker():
     """
         Removes old (expired) Transaction marker
         https://cloud.google.com/datastore/docs/concepts/transactions?hl=en#using_transactions
+        https://cloud.google.com/tasks/docs/quotas?hl=en
     """
     query = db.Query("viur-transactionmarker").filter("creationdate <",
-                                                      datetime.datetime.now() - datetime.timedelta(seconds=270))
+                                                      datetime.datetime.now() - datetime.timedelta(days=31))
     DeleteEntitiesIter.startIterOnQuery(query)
