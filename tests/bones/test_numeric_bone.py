@@ -13,12 +13,12 @@ class TestNumericBone(unittest.TestCase):
 
     def test_isEmpty_default_bone(self):
         from viur.core.bones import NumericBone
-        self._run_tests(bone:=NumericBone())
+        self._run_tests(bone := NumericBone())
         self.assertTrue(bone.isEmpty(SMALL_FLOAT), msg=vars(bone))
 
     def test_isEmpty_emptyNone(self):
         from viur.core.bones import NumericBone
-        self._run_tests(bone:=NumericBone(getEmptyValueFunc=lambda: None))
+        self._run_tests(bone := NumericBone(getEmptyValueFunc=lambda: None))
         self.assertFalse(bone.isEmpty(SMALL_FLOAT), msg=vars(bone))
 
     def test_isEmpty_precision(self):
