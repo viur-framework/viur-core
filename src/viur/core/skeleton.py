@@ -2022,7 +2022,7 @@ class RebuildSearchIndex(QueryIter):
 
     @classmethod
     def handleError(cls, skel, customData, exception) -> bool:
-        logging.exception(f'{cls.__qualname__}.handleEntry failed on skel {skel["key"]=}: {exception}')
+        logging.exception(f'{cls.__qualname__}.handleEntry failed on skel {skel["key"]=!r}: {exception}')
         try:
             logging.debug(f"{skel=!r}")
         except Exception:  # noqa
