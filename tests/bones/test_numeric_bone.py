@@ -68,6 +68,11 @@ class TestNumericBone(unittest.TestCase):
             bone._convert_to_numeric("xyz")
         with self.assertRaises(ValueError):
             bone._convert_to_numeric("1.2.3")
+        # rounding
+        self.assertEqual(42.12, bone._convert_to_numeric(42.1234))
+        self.assertEqual(42.0, bone._convert_to_numeric(42.00001))
+        self.assertEqual(42.07, bone._convert_to_numeric(42.066))
+        self.assertEqual(42.06, bone._convert_to_numeric(42.064))
 
         bone = NumericBone(precision=0)
         self.assertEqual(42, bone._convert_to_numeric(42))
@@ -76,7 +81,7 @@ class TestNumericBone(unittest.TestCase):
         self.assertEqual(42, bone._convert_to_numeric(42.0))
         self.assertEqual(42, bone._convert_to_numeric("42.6"))
         self.assertEqual(42, bone._convert_to_numeric("42,6"))
-        self.assertEqual(42, bone._convert_to_numeric("42,6"))
+        self.assertEqual(42, bone._convert_to_numeric({"val": "42,6", "idx": "42,6"}))
         self.assertEqual(42, bone._convert_to_numeric({"val": "42", "idx": "42"}))
         with self.assertRaises(ValueError):
             bone._convert_to_numeric("123.456,5")
