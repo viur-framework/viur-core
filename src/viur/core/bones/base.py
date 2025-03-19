@@ -1501,7 +1501,7 @@ class BaseBone(object):
             if issubclass(skel.skeletonCls, RefSkel):  # we have a ref skel we must load the complete skeleton
                 cloned_skel = skeletonByKind(skel.kindName)()
                 if not cloned_skel.read(skel["key"]):
-                    raise ValueError(f"{skel["key"]=} does no longer exist. Cannot compute a broken relation")
+                    raise ValueError(f'{skel["key"]=} does no longer exists. Cannot compute a broken relation')
             else:
                 cloned_skel = skel.clone()
             cloned_skel[bone_name] = None  # remove value form accessedValues to avoid endless recursion
