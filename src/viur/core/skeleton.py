@@ -180,7 +180,7 @@ class SkeletonInstance:
         bone_map = bone_map or {}
 
         if bones:
-            names = ("key", ) + tuple(bones)
+            names = ("key",) + tuple(bones)
 
             # generate full keys sequence based on definition; keeps order of patterns!
             keys = []
@@ -1157,7 +1157,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         if db_res := db.Get(db_key):
             skel.setEntity(db_res)
             return skel
-        elif create in (False,  None):
+        elif create in (False, None):
             return None
         elif isinstance(create, dict):
             if create and not skel.fromClient(create, amend=True):
@@ -1381,7 +1381,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             skel.dbEntity["viur"].setdefault("viurActiveSeoKeys", [])
             for language, seo_key in last_set_seo_keys.items():
                 if skel.dbEntity["viur"]["viurCurrentSeoKeys"][language] not in \
-                        skel.dbEntity["viur"]["viurActiveSeoKeys"]:
+                    skel.dbEntity["viur"]["viurActiveSeoKeys"]:
                     # Ensure the current, active seo key is in the list of all seo keys
                     skel.dbEntity["viur"]["viurActiveSeoKeys"].insert(0, seo_key)
             if str(skel.dbEntity.key.id_or_name) not in skel.dbEntity["viur"]["viurActiveSeoKeys"]:
@@ -2017,8 +2017,36 @@ class TaskUpdateSearchIndex(CallableTaskBase):
 class RebuildSearchIndex(QueryIter):
     @classmethod
     def handleEntry(cls, skel: SkeletonInstance, customData: dict[str, str]):
+        print("\n" * 3)
+        print("----" * 10)
+        print("\n" * 3)
+        # logging.debug(f"{skel["key"]=}")
+        # logging.debug(f"{skel["key"]=!r}")
+        # logging.debug(f"{skel.dbEntity.get("cart")=!r}")
+        # logging.debug(f"{skel.dbEntity["cart"]=!r}")
+        # logging.debug(f"{skel.dbEntity["cart"]["dest"]=!r}")
+        # logging.debug(f"{skel.dbEntity["cart"]["dest"].key=!r}")
+        # logging.debug(f"{skel.dbEntity["cart"]["dest"].key=!s}")
+        # logging.debug(f"{skel.dbEntity["cart"].key=!r}")
+        # logging.debug(f"{skel.dbEntity["cart"].key=!s}")
+        # logging.debug(f"{skel=}")
+        logging.debug(f"{customData=}")
         skel.refresh()
         skel.write(update_relations=False)
+
+    @classmethod
+    def handleError(cls, skel, customData, exception) -> bool:
+        """
+            Handle a error occurred in handleEntry.
+            If this function returns True, the queryIter continues, otherwise it breaks and prints the current cursor.
+        """
+        logging.exception(f'{cls.__qualname__}.handleEntry failed on skel {skel["key"]=}: {exception}')
+        try:
+            logging.debug(f"{skel=!r}")
+        except Exception:  # noqa
+            logging.warning("Failed to dump skel")
+            logging.debug(f"{skel.dbEntity=}")
+        return True
 
     @classmethod
     def handleFinish(cls, totalCount: int, customData: dict[str, str]):
