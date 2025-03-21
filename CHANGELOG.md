@@ -2,6 +2,19 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.9]
+
+- chore: Remove legacy `viur-queued-tasks` code (#1433)
+- feat: Evaluate `x-viur-bonelist` on default `viewSkel()` (light-version) (#1415)
+- feat: Implement `conf.tasks_default_queues` (#1434)
+- feat: Implement `on_delete` hook/event for sessions (#1438)
+- fix: `File.onEdit()` executes "leaf"-related stuff regardless of the `skelType` (#1439)
+- fix: `NumericBone.singleValueUnserialize` can't handle `str` (#1437)
+- fix: Check in `updateRelations` if `request_data` exist (#1435)
+- fix: Make `skeleton.listKnownSkeletons` always sorted (#1430)
+- fix: Type annotation `None` now correctly supported with value-check and `"null"` (#1429)
+- perf: Add check to avoid redundant `ensureDerived` calls (#1428)
+
 ## [3.7.8]
 
 - fix: `NumericBone` ignores precision on read & write (#1425)
