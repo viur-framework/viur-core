@@ -977,14 +977,17 @@ class File(Tree):
             if not File.is_valid_filename(filename):
                 raise errors.UnprocessableEntity(f"The provided filename {filename!r} is invalid!")
 
-        download_filename = ""
-
         try:
-            dlPath, validUntil, download_filename = base64.urlsafe_b64decode(
-                blobKey).decode("UTF-8").split("\0")
-        except Exception as e:  # It's the old format, without an downloadFileName
-            dlPath, validUntil = base64.urlsafe_b64decode(blobKey).decode(
-                "UTF-8").split("\0")
+            values = base64.urlsafe_b64decode(blobKey).decode("UTF-8").split("\0")
+        except ValueError:
+            raise errors.BadRequest(f"Invalid encoding of blob key {blobKey!r}!")
+        try:
+            dlPath, validUntil, *download_filename = values
+            # Maybe it's the old format, without a download_filename
+            download_filename = download_filename[0] if download_filename else ""
+        except ValueError:
+            logging.error(f"Encoding of {blobKey=!r} OK. {values=} invalid.")
+            raise errors.BadRequest(f"The blob key {blobKey!r} has an invalid amount of encoded values!")
 
         bucket = File.get_bucket(dlPath.split("/", 1)[0])
 
