@@ -1157,7 +1157,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         if db_res := db.Get(db_key):
             skel.setEntity(db_res)
             return skel
-        elif create in (False,  None):
+        elif create in (False, None):
             return None
         elif isinstance(create, dict):
             if create and not skel.fromClient(create, amend=True):
@@ -2019,6 +2019,16 @@ class RebuildSearchIndex(QueryIter):
     def handleEntry(cls, skel: SkeletonInstance, customData: dict[str, str]):
         skel.refresh()
         skel.write(update_relations=False)
+
+    @classmethod
+    def handleError(cls, skel, customData, exception) -> bool:
+        logging.exception(f'{cls.__qualname__}.handleEntry failed on skel {skel["key"]=!r}: {exception}')
+        try:
+            logging.debug(f"{skel=!r}")
+        except Exception:  # noqa
+            logging.warning("Failed to dump skel")
+            logging.debug(f"{skel.dbEntity=}")
+        return True
 
     @classmethod
     def handleFinish(cls, totalCount: int, customData: dict[str, str]):
