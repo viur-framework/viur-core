@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_e295e1cac9db2f73_i18n_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.7.0">coverage.py v7.7.0</a>,
-            created at 2025-03-20 10:11 +0000
+            created at 2025-03-21 14:51 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -96,11 +96,11 @@
     <p class="mis show_mis"><span class="n"><a id="t12" href="#t12">12</a></span><span class="t">        <span class="nam">super</span><span class="op">(</span><span class="nam">HTTPException</span><span class="op">,</span> <span class="nam">self</span><span class="op">)</span><span class="op">.</span><span class="nam">__init__</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t13" href="#t13">13</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">status</span> <span class="op">=</span> <span class="nam">status</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t14" href="#t14">14</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t15" href="#t15">15</a></span><span class="t">        <span class="key">from</span> <span class="op">.</span><span class="nam">i18n</span> <span class="key">import</span> <span class="nam">translate</span>  <span class="com"># fixme: This might be done better</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t15" href="#t15">15</a></span><span class="t">        <span class="key">from</span> <span class="op">.</span><span class="nam">i18n</span> <span class="key">import</span> <span class="nam">translate</span><span class="op">,</span> <span class="nam">AddMissing</span>  <span class="com"># fixme: This might be done better</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t16" href="#t16">16</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">name</span> <span class="op">=</span> <span class="nam">name</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t17" href="#t17">17</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">descr</span> <span class="op">=</span> <span class="nam">str</span><span class="op">(</span><span class="nam">translate</span><span class="op">(</span><span class="nam">descr</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t17" href="#t17">17</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">descr</span> <span class="op">=</span> <span class="nam">str</span><span class="op">(</span><span class="nam">translate</span><span class="op">(</span><span class="nam">descr</span><span class="op">,</span> <span class="nam">add_missing</span><span class="op">=</span><span class="nam">AddMissing</span><span class="op">.</span><span class="nam">NEVER</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t18" href="#t18">18</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t19" href="#t19">19</a></span><span class="t">    <span class="key">def</span> <span class="nam">process</span><span class="op">(</span><span class="nam">self</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t19" href="#t19">19</a></span><span class="t">    <span class="key">def</span> <span class="nam">process</span><span class="op">(</span><span class="nam">self</span><span class="op">)</span><span class="op">:</span>  <span class="com"># TODO: What is the purpose of this method?</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t20" href="#t20">20</a></span><span class="t">        <span class="key">pass</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t21" href="#t21">21</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t22" href="#t22">22</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -354,7 +354,7 @@
             <a class="nav" href="z_e295e1cac9db2f73_i18n_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.7.0">coverage.py v7.7.0</a>,
-            created at 2025-03-20 10:11 +0000
+            created at 2025-03-21 14:51 +0000
         </p>
     </div>
 </footer>
