@@ -43,7 +43,7 @@ en = {
 
     # translation
     "translations": "Translations",
-    "core.translationskel.tr_key.descr": "Translation key",
+    "core.translationskel.name.descr": "Translation key",
     "core.translationskel.translations.descr": "Translations",
     "core.translationskel.translations_missing.descr": "Translation missing for language",
     "core.translationskel.default_text.descr": "Fallback value",
