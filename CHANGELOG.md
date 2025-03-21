@@ -2,6 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.10]
+
+- fix: General fixing and clean-up on `translate()` (#1364)
+- fix: don't compute a bone in a not existing relation (#1443)
+- fix: `NumericBone.singleValueUnserialize` is now working more stable (#1442)
+
 ## [3.7.9]
 
 - chore: Remove legacy `viur-queued-tasks` code (#1433)
