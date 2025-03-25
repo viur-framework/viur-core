@@ -5,5 +5,6 @@
 
 __version__ = "3.8.0.dev1"
 
+
 assert __version__.count(".") >= 2 and "".join(__version__.split(".", 3)[:3]).isdigit(), \
     "Semantic __version__ expected!"

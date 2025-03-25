@@ -10,6 +10,7 @@ from pathlib import Path
 import google.auth
 
 from viur.core.version import __version__
+from viur.core.current import user as current_user
 
 if t.TYPE_CHECKING:  # pragma: no cover
     from viur.core.bones.text import HtmlBoneConfiguration
@@ -17,6 +18,7 @@ if t.TYPE_CHECKING:  # pragma: no cover
     from viur.core.skeleton import SkeletonInstance
     from viur.core.module import Module
     from viur.core.tasks import CustomEnvironmentHandler
+    from viur.core import i18n
 
 
 # Construct an alias with a generic type to be able to write Multiple[str]
@@ -606,14 +608,25 @@ class I18N(ConfigType):
         res |= self.language_alias_map
         return list(res.keys())
 
-    add_missing_translations: bool = False
-    """Add missing translation into datastore.
+    add_missing_translations: (bool | str | t.Iterable[str] | "i18n.AddMissing"
+                               | t.Callable[["i18n.translate"], t.Union[bool, "i18n.AddMissing"]]) = False
+    """Add missing translation into datastore, optionally with given fnmatch-patterns.
 
     If a key is not found in the translation table when a translation is
     rendered, a database entry is created with the key and hint and
     default value (if set) so that the translations
     can be entered in the administration.
+
+    Instead of setting add_missing_translations to a boolean, it can also be set to
+    a pattern or iterable of fnmatch-patterns; Only translation keys matching these
+    patterns will be automatically added.
+    If a callable is provided, it will be called with the translation object to make a complex decision.
     """
+
+    dump_can_view: t.Callable[[str], bool] = lambda _key: bool(current_user.get())
+    """Customizable callback for translation.dump() to verify if a specific translation key can be queried.
+
+    This logic is omitted for translations flagged public."""
 
 
 class User(ConfigType):
@@ -800,12 +813,13 @@ class Conf(ConfigType):
 
     # FIXME VIUR4: REMOVE ALL COMPATIBILITY MODES!
     compatibility: Multiple[str] = [
-        "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
-        "json.bone.structure.keytuples",  # use classic structure notation: `"structure = [["key", {...}] ...]` (#649)
-        "json.bone.structure.inlists",  # dump skeleton structure with every JSON list response (#774 for details)
-        "tasks.periodic.useminutes",  # Interpret int/float values for @PeriodicTask as minutes
-        #                               instead of seconds (#1133 for details)
-        "bone.select.structure.values.keytuple",  # render old-style tuple-list in SelectBone's values structure (#1203)
+        # "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
+        # "json.bone.structure.keytuples",  # use classic structure notation: `"structure = [["key", {...}] ...]` (#649)
+        # "json.bone.structure.inlists",  # dump skeleton structure with every JSON list response (#774 for details)
+        # "tasks.periodic.useminutes",  # Interpret int/float values for @PeriodicTask as minutes
+        # #                               instead of seconds (#1133 for details)
+        # "bone.select.structure.values.keytuple",  # render old-style tuple-list in SelectBone's
+        #                                             values structure (#1203)
     ]
     """Backward compatibility flags; Remove to enforce new style."""
 

@@ -74,6 +74,8 @@ Of course you can create skeletons / entries in the datastore in your project
 on your own. Just use the TranslateSkel).
 """  # FIXME: grammar, rst syntax
 import datetime
+import enum
+import fnmatch
 import logging
 import sys
 import traceback
@@ -81,7 +83,6 @@ import typing as t
 from pathlib import Path
 
 import jinja2.ext as jinja2
-
 from viur.core import current, db, languages, tasks
 from viur.core.config import conf
 
@@ -90,6 +91,23 @@ systemTranslations = {}
 
 KINDNAME = "viur-translations"
 """Kindname for the translations"""
+
+
+class AddMissing(enum.IntEnum):
+    """
+    An indicator flag for the `add_missing` parameter of the `translate`
+    to make this decision final and ignore the `conf.i18n.add_missing_translations` configuration.
+    """
+
+    NEVER = enum.auto()
+    """This translation will never be added, regardless of any config.
+    It's like a final `False`.
+    """
+
+    ALWAYS = enum.auto()
+    """This translation will be always be added, regardless of any config.
+    It's like a final `True`.
+    """
 
 
 class LanguageWrapper(dict):
@@ -153,14 +171,16 @@ class translate:
     """
 
     __slots__ = (
-        "key",
+        "add_missing",
+        "default_variables",
         "defaultText",
-        "hint",
-        "translationCache",
-        "force_lang",
-        "public",
         "filename",
+        "force_lang",
+        "hint",
+        "key",
         "lineno",
+        "public",
+        "translationCache",
     )
 
     def __init__(
@@ -170,6 +190,8 @@ class translate:
         hint: str = None,
         force_lang: str = None,
         public: bool = False,
+        add_missing: bool | AddMissing = False,
+        default_variables: dict[str, t.Any] | None = None,
         caller_is_jinja: bool = False,
     ):
         """
@@ -183,12 +205,17 @@ class translate:
             target language.
         :param force_lang: Use this language instead the one of the request.
         :param public: Flag for public translations, which can be obtained via /json/_translate/get_public.
+        :param default_variables: Default values for variable substitution.
         :param caller_is_jinja: Is the call caused by our jinja method?
         """
         super().__init__()
 
         if not isinstance(key, str):
+            # TODO: ViUR4: raise a ValueError instead of the warning
             logging.warning(f"Got non-string (type {type(key)}) as {key=}!", exc_info=True)
+            if isinstance(key, translate):
+                # Because of the string cast below, we would otherwise have a translated string as key
+                key = key.key
 
         if force_lang is not None and force_lang not in conf.i18n.available_dialects:
             raise ValueError(f"The language {force_lang=} is not available")
@@ -200,9 +227,15 @@ class translate:
         self.translationCache = None
         self.force_lang = force_lang
         self.public = public
+        self.add_missing = add_missing
+        self.default_variables = default_variables or {}
         self.filename, self.lineno = None, None
 
-        if conf.i18n.add_missing_translations and self.key not in systemTranslations:
+        if (
+            add_missing is not AddMissing.NEVER
+            and (add_missing or conf.i18n.add_missing_translations)
+            and self.key not in systemTranslations
+        ):
             # This translation seems to be new and should be added
             for frame, line in traceback.walk_stack(sys._getframe(0).f_back):
                 if self.filename is None:
@@ -227,38 +260,59 @@ class translate:
         if self.translationCache is None:
             global systemTranslations
 
-            if conf.i18n.add_missing_translations and self.key not in systemTranslations:
-                # This translation seems to be new and should be added
+            if self.key not in systemTranslations:
+                # either the translate()-object has add_missing set
+                if not (add_missing := self.add_missing) and not isinstance(add_missing, AddMissing):
+                    # otherwise, use configuration flag
+                    add_missing = conf.i18n.add_missing_translations
 
-                add_missing_translation(
-                    key=self.key,
-                    hint=self.hint,
-                    default_text=self.defaultText,
-                    filename=self.filename,
-                    lineno=self.lineno,
-                    public=self.public,
-                )
+                    # match against fnmatch pattern, when given
+                    if isinstance(add_missing, str):
+                        add_missing = fnmatch.fnmatch(self.key, add_missing)
+                    elif isinstance(add_missing, t.Iterable):
+                        add_missing = bool(any(fnmatch.fnmatch(self.key, pat) for pat in add_missing))
+                    elif callable(add_missing):
+                        add_missing = add_missing(self)
+                    else:
+                        add_missing = bool(add_missing)
+
+                if add_missing is True or add_missing is AddMissing.ALWAYS:
+                    # This translation seems to be new and should be added
+                    add_missing_translation(
+                        key=self.key,
+                        hint=self.hint,
+                        default_text=self.defaultText,
+                        filename=self.filename,
+                        lineno=self.lineno,
+                        variables=list(self.default_variables.keys()),
+                        public=self.public,
+                    )
 
             self.translationCache = self.merge_alias(systemTranslations.get(self.key, {}))
 
         if (lang := self.force_lang) is None:
             # The default case: use the request language
             lang = current.language.get()
+
         if value := self.translationCache.get(lang):
-            return value
+            return self.substitute_vars(value, **self.default_variables)
+
         # Use the default text from datastore or from the caller arguments
-        return self.translationCache.get("_default_text_") or self.defaultText
+        return self.substitute_vars(
+            self.translationCache.get("_default_text_") or self.defaultText,
+            **self.default_variables
+        )
 
     def translate(self, **kwargs) -> str:
         """Substitute the given kwargs in the translated or default text."""
-        return self.substitute_vars(str(self), **kwargs)
+        return self.substitute_vars(str(self), **(self.default_variables | kwargs))
 
-    def __call__(self, **kwargs):
+    def __call__(self, **kwargs) -> str:
         """Just an alias for translate"""
         return self.translate(**kwargs)
 
     @staticmethod
-    def substitute_vars(value: str, **kwargs):
+    def substitute_vars(value: str, **kwargs) -> str:
         """Substitute vars in a translation
 
         Variables has to start with two braces (`{{`), followed by the variable
@@ -341,12 +395,12 @@ class TranslationExtension(jinja2.Extension):
 
         args += [""] * (3 - len(args))
         args += [kwargs]
-        tr_key = args[0].lower()
+        name = args[0].lower()
         public = kwargs.pop("_public_", False) or False
 
-        if conf.i18n.add_missing_translations and tr_key not in systemTranslations:
+        if conf.i18n.add_missing_translations and name not in systemTranslations:
             add_missing_translation(
-                key=tr_key,
+                key=name,
                 hint=args[1],
                 default_text=args[2],
                 filename=filename,
@@ -355,7 +409,7 @@ class TranslationExtension(jinja2.Extension):
                 public=public,
             )
 
-        translations = translate.merge_alias(systemTranslations.get(tr_key, {}))
+        translations = translate.merge_alias(systemTranslations.get(name, {}))
         args[1] = translations.get("_default_text_") or args[1]
         args = [jinja2.nodes.Const(x) for x in args]
         args.append(jinja2.nodes.Const(translations))
@@ -383,20 +437,20 @@ def initializeTranslations() -> None:
     for lang in dir(languages):
         if lang.startswith("__"):
             continue
-        for tr_key, tr_value in getattr(languages, lang).items():
-            systemTranslations.setdefault(tr_key, {})[lang] = tr_value
+        for name, tr_value in getattr(languages, lang).items():
+            systemTranslations.setdefault(name, {})[lang] = tr_value
 
     # Load translations from datastore into systemTranslations
     # TODO: iter() would be more memory efficient, but unfortunately takes much longer than run()
     # for entity in db.Query(KINDNAME).iter():
     for entity in db.Query(KINDNAME).run(10_000):
-        if "tr_key" not in entity:
-            logging.warning(f"translations entity {entity.key} has no tr_key set --> Call migration")
+        if "name" not in entity:
+            logging.warning(f"translations entity {entity.key} has no name set --> Call migration")
             migrate_translation(entity.key)
             # Before the migration has run do a quick modification to get it loaded as is
-            entity["tr_key"] = entity["key"] or entity.key.name
-        if not entity.get("tr_key"):
-            logging.error(f'translations entity {entity.key} has an empty {entity["tr_key"]=} set. Skipping.')
+            entity["name"] = entity["key"] or entity.key.name
+        if not entity.get("name"):
+            logging.error(f'translations entity {entity.key} has an empty {entity["name"]=} set. Skipping.')
             continue
         if entity and not isinstance(entity["translations"], dict):
             logging.error(f'translations entity {entity.key} has invalid '
@@ -417,7 +471,7 @@ def initializeTranslations() -> None:
                 continue
             translations[lang] = translation
 
-        systemTranslations[entity["tr_key"]] = translations
+        systemTranslations[entity["name"]] = translations
 
 
 @tasks.CallDeferred
@@ -432,6 +486,9 @@ def add_missing_translation(
     public: bool = False,
 ) -> None:
     """Add missing translations to datastore"""
+
+    logging.info(f"add_missing_translation {key=} {hint=} {default_text=} {filename=} {lineno=} {variables=} {public=}")
+
     try:
         from viur.core.modules.translation import TranslationSkel, Creator
     except ImportError as exc:
@@ -442,11 +499,13 @@ def add_missing_translation(
 
     # Ensure lowercase key
     key = key.lower()
-    entity = db.Query(KINDNAME).filter("tr_key =", key).getEntry()
+
+    # Check if key already exists
+    # if db.Get(db.Key(KINDNAME, key)):  # FIXME ViUR4 should only use named keys
+    entity = db.Query(KINDNAME).filter("name =", key).getEntry()
     if entity is not None:
         # Ensure it doesn't exist to avoid datastore conflicts
-        logging.warning(f"Found an entity with tr_key={key}. "
-                        f"Probably an other instance was faster.")
+        logging.warning(f"Found an entity with {key=}. Probably an other instance was faster.")
         return
 
     if isinstance(filename, str):
@@ -459,7 +518,7 @@ def add_missing_translation(
 
     logging.info(f"Add missing translation {key}")
     skel = TranslationSkel()
-    skel["tr_key"] = key
+    skel["name"] = key
     skel["default_text"] = default_text or None
     skel["hint"] = hint or None
     skel["usage_filename"] = filename
@@ -488,9 +547,10 @@ def migrate_translation(
     """
     from viur.core.modules.translation import TranslationSkel
     logging.info(f"Migrate translation {key}")
+
     entity: db.Entity = db.get(key)
-    if "tr_key" not in entity:
-        entity["tr_key"] = entity["key"] or key.name
+    if "name" not in entity:
+        entity["name"] = entity["key"] or key.name
     if "translation" in entity:
         if not isinstance(dict, entity["translation"]):
             logging.error("translation is not a dict?")
