@@ -316,7 +316,7 @@ class List(SkelModule):
         return self.render.deleteSuccess(skel)
 
     @exposed
-    def index(self, *args, **kwargs) -> t.Any:
+    def index(self, key: db.Key | str | None = None, *args, **kwargs) -> t.Any:
         """
             Default, SEO-Friendly fallback for view and list.
 
@@ -324,27 +324,21 @@ class List(SkelModule):
             :param kwargs: Used for the fallback list.
             :return: The rendered entity or list.
         """
-        if args and args[0]:
-
-
-
+        if key is not None:
 
             skel = self.viewSkel(
                 allow_client_defined=utils.string.is_prefix(self.render.kind, "json"),
                 _excludeFromAccessLog=True,
             )
-            try:
-                db_key = db.Key.from_legacy_urlsafe(args[0])
-                assert db_key.kind == self.kindName
-                skel.read(db_key)
+            if isinstance(key, db.Key):
+                assert key.kind == self.kindName
+                skel.read(key)
                 self.onView(skel)
                 return self.render.view(skel)
 
-            except Exception:
-                pass
 
             # We probably have a Database or SEO-Key here
-            if skel := skel.all().filter("viur.viurActiveSeoKeys =", str(args[0]).lower()).getSkel():
+            if skel := skel.all().filter("viur.viurActiveSeoKeys =", key.lower()).getSkel():
                 db.currentDbAccessLog.get(set()).add(skel["key"])
                 if not self.canView(skel):
                     raise errors.Forbidden()
