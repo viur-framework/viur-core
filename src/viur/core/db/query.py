@@ -436,6 +436,7 @@ class Query(object):
             )
 
         return q.orders or None
+
     # TODO We need this the kind is already public.
     def getKind(self) -> str:
         """

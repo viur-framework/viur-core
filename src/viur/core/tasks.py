@@ -883,4 +883,3 @@ def start_clear_transaction_marker():
     query = db.Query("viur-transactionmarker").filter("creationdate <",
                                                       datetime.datetime.now() - datetime.timedelta(days=31))
     DeleteEntitiesIter.startIterOnQuery(query)
-
