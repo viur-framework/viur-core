@@ -133,10 +133,10 @@ class Method:
             elif annotation is db.Key:
                 if isinstance(value, db.Key):
                     return value
-                elif isinstance(value, str): #Maybe we have an url encoded Key
+                elif isinstance(value, str):  # Maybe we have an url encoded Key
                     try:
                         return db.Key.from_legacy_urlsafe(value)
-                    except:
+                    except Exception:
                         pass
                 return parse_value_by_annotation(int | str, name, value)
 
