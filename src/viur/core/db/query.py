@@ -7,7 +7,7 @@ import logging
 import typing as t
 
 from .config import conf
-from .transport import Count, Get, run_single_filter
+from .transport import count, get, run_single_filter
 from .types import (
     DATASTORE_BASE_TYPES,
     Entity,
@@ -436,7 +436,7 @@ class Query(object):
             )
 
         return q.orders or None
-
+    # TODO We need this the kind is already public.
     def getKind(self) -> str:
         """
         :returns: the *current* kind of this query.
@@ -550,7 +550,7 @@ class Query(object):
             and resultList[0].key.parent
             and resultList[0].key.parent.kind == self.origKind
         ):
-            return list(Get(list(dict.fromkeys([x.key.parent for x in resultList]))))
+            return list(get(list(dict.fromkeys([x.key.parent for x in resultList]))))
 
         return resultList
 
@@ -627,7 +627,7 @@ class Query(object):
         elif isinstance(self.queries, list):
             raise ValueError("No count on Multiqueries")
         else:
-            return Count(queryDefinition=self.queries, up_to=up_to)
+            return count(queryDefinition=self.queries, up_to=up_to)
 
     def fetch(self, limit: int = -1) -> "SkelList['SkeletonInstance']" | None:
         """
@@ -719,7 +719,7 @@ class Query(object):
         if self.srcSkel is None:
             raise NotImplementedError("This query has not been created using skel.all()")
 
-        if not (res:= self.getEntry()):
+        if not (res := self.getEntry()):
             return None
         self.srcSkel.setEntity(res)
         return self.srcSkel

@@ -152,7 +152,7 @@ def acquireTransactionSuccessMarker() -> str:
     marker = txn["key"]  # binascii.b2a_hex(txn["key"]).decode("ASCII")
     if "viurTxnMarkerSet" not in txn:
         e = Entity(Key("viur-transactionmarker", marker))
-        e["creationdate"] = datetime.datetime.utcnow()
+        e["creationdate"] = datetime.datetime.now(datetime.timezone.utc)
         put(e)
         txn["viurTxnMarkerSet"] = True
     return marker
