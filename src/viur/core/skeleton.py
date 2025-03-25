@@ -405,12 +405,12 @@ class SkeletonInstance:
             raise ValueError("Unsupported Type")
         return self
 
-    def clone(self, *, apply_clone_strategy: bool = False) -> t.Self:
+    def clone(self, *, apply_clone_strategy: bool = False, readonly: bool = False) -> t.Self:
         """
         Clones a SkeletonInstance into a modificable, stand-alone instance.
         This will also allow to modify the underlying data model.
         """
-        res = SkeletonInstance(self.skeletonCls, bone_map=self.boneMap, clone=True)
+        res = SkeletonInstance(self.skeletonCls, bone_map=self.boneMap, clone=True, readonly=readonly)
         if apply_clone_strategy:
             for bone_name, bone_instance in self.items():
                 bone_instance.clone_value(res, self, bone_name)
