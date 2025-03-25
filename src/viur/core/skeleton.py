@@ -141,6 +141,7 @@ class SkeletonInstance:
         "dbEntity",
         "errors",
         "is_cloned",
+        "is_readonly",
         "renderAccessedValues",
         "renderPreparation",
         "skeletonCls",
@@ -155,6 +156,7 @@ class SkeletonInstance:
         clone: bool = False,
         # FIXME: BELOW IS DEPRECATED!
         clonedBoneMap: t.Optional[t.Dict[str, BaseBone]] = None,
+        readonly: bool = False,
     ):
         """
         Creates a new SkeletonInstance based on `skel_cls`.
@@ -216,6 +218,7 @@ class SkeletonInstance:
         self.dbEntity = None
         self.errors = []
         self.is_cloned = clone
+        self.is_readonly = readonly
         self.renderAccessedValues = {}
         self.renderPreparation = None
         self.skeletonCls = skel_cls
@@ -318,6 +321,7 @@ class SkeletonInstance:
             "toDB",
             "unserialize",
             "write",
+
         }:
             return partial(getattr(self.skeletonCls, item), self)
 
@@ -401,12 +405,12 @@ class SkeletonInstance:
             raise ValueError("Unsupported Type")
         return self
 
-    def clone(self, *, apply_clone_strategy: bool = False) -> t.Self:
+    def clone(self, *, apply_clone_strategy: bool = False, readonly: bool = False) -> t.Self:
         """
         Clones a SkeletonInstance into a modificable, stand-alone instance.
         This will also allow to modify the underlying data model.
         """
-        res = SkeletonInstance(self.skeletonCls, bone_map=self.boneMap, clone=True)
+        res = SkeletonInstance(self.skeletonCls, bone_map=self.boneMap, clone=True, readonly=readonly)
         if apply_clone_strategy:
             for bone_name, bone_instance in self.items():
                 bone_instance.clone_value(res, self, bone_name)
@@ -429,6 +433,11 @@ class SkeletonInstance:
             return self.clone()
 
         return self
+
+    def readonly(self):
+        skel = self.ensure_is_cloned()
+        skel.is_readonly = True
+        return skel
 
     def setEntity(self, entity: db.Entity):
         self.dbEntity = entity
@@ -1220,6 +1229,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 return cls.toDB(skel, update_relations=update_relations)
 
         assert skel.renderPreparation is None, "Cannot modify values while rendering"
+        assert not skel.is_readonly, "Cannot write a readonly Skeleton"
 
         def __txn_write(write_skel):
             db_key = write_skel["key"]
