@@ -16,7 +16,7 @@ import logging
 
 
 @CallDeferred
-def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refreshKey: db.Key = None):
+def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refresh_key: db.Key = None):
     r"""
     The function is a deferred function that ensures all pending thumbnails or other derived files
     are built. It takes the following parameters:
@@ -25,7 +25,7 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refreshKey: 
         updated.
     :param str srcKey: A prefix for a stable key to prevent rebuilding derived files repeatedly.
     :param dict[str,Any] deriveMap: A list of DeriveDicts that need to be built or updated.
-    :param db.Key refreshKey: If set, the function fetches and refreshes the skeleton after
+    :param db.Key refresh_key: If set, the function fetches and refreshes the skeleton after
         building new derived files.
 
     The function works by fetching the skeleton of the file-object, checking if it has any derived
@@ -36,7 +36,6 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refreshKey: 
     to ensure proper relations are maintained.
     """
     from viur.core.skeleton import skeletonByKind, updateRelations
-    deriveFuncMap = conf.file_derivations
     skel = skeletonByKind("file")()
     if not skel.read(key):
         logging.info("File-Entry went missing in ensureDerived")
@@ -46,54 +45,53 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refreshKey: 
         skel["derived"] = {}
     skel["derived"]["deriveStatus"] = skel["derived"].get("deriveStatus") or {}
     skel["derived"]["files"] = skel["derived"].get("files") or {}
-    resDict = {}  # Will contain new or updated resultDicts that will be merged into our file
-    for calleeKey, params in deriveMap.items():
-        fullSrcKey = f"{srcKey}_{calleeKey}"
-        paramsHash = sha256(str(params).encode("UTF-8")).hexdigest()  # Hash over given params (dict?)
-        if skel["derived"]["deriveStatus"].get(fullSrcKey) != paramsHash:
-            if calleeKey not in deriveFuncMap:
-                logging.warning(f"File-Deriver {calleeKey} not found - skipping!")
+    res_dict = {}  # Will contain new or updated resultDicts that will be merged into our file
+    for callee_key, params in deriveMap.items():
+        full_src_key = f"{srcKey}_{callee_key}"
+        params_hash = sha256(str(params).encode("UTF-8")).hexdigest()  # Hash over given params (dict?)
+        if skel["derived"]["deriveStatus"].get(full_src_key) != params_hash:
+            if not (callee := conf.file_derivations):
+                logging.warning(f"File-Deriver {callee_key} not found - skipping!")
                 continue
-            callee = deriveFuncMap[calleeKey]
-            callRes = callee(skel, skel["derived"]["files"], params)
-            if callRes:
-                assert isinstance(callRes, list), "Old (non-list) return value from deriveFunc"
-                resDict[fullSrcKey] = {"version": paramsHash, "files": {}}
-                for fileName, size, mimetype, customData in callRes:
-                    resDict[fullSrcKey]["files"][fileName] = {
+
+            if call_res := callee(skel, skel["derived"]["files"], params):
+                assert isinstance(call_res, list), "Old (non-list) return value from deriveFunc"
+                res_dict[full_src_key] = {"version": params_hash, "files": {}}
+                for fileName, size, mimetype, custom_data in call_res:
+                    res_dict[full_src_key]["files"][fileName] = {
                         "size": size,
                         "mimetype": mimetype,
-                        "customData": customData
+                        "customData": custom_data
                     }
 
-    def updateTxn(key, resDict):
-        obj = db.Get(key)
+    def __txn_update(_key, _res_dict):
+        obj = db.Get(_key)
         if not obj:  # File-object got deleted during building of our derives
             return
         obj["derived"] = obj.get("derived") or {}
         obj["derived"]["deriveStatus"] = obj["derived"].get("deriveStatus") or {}
         obj["derived"]["files"] = obj["derived"].get("files") or {}
-        for k, v in resDict.items():
+        for k, v in _res_dict.items():
             obj["derived"]["deriveStatus"][k] = v["version"]
-            for fileName, fileDict in v["files"].items():
-                obj["derived"]["files"][fileName] = fileDict
+            for file_name, file_dict in v["files"].items():
+                obj["derived"]["files"][file_name] = file_dict
         db.Put(obj)
 
-    if resDict:  # Write updated results back and queue updateRelationsTask
-        db.RunInTransaction(updateTxn, key, resDict)
+    if res_dict:  # Write updated results back and queue updateRelationsTask
+        db.RunInTransaction(__txn_update, key, res_dict)
         # Queue that updateRelations call at least 30 seconds into the future, so that other ensureDerived calls from
         # the same FileBone have the chance to finish, otherwise that updateRelations Task will call postSavedHandler
         # on that FileBone again - re-queueing any ensureDerivedCalls that have not finished yet.
         updateRelations(key, time() + 1, "derived", _countdown=30)
-        if refreshKey:
-            def refreshTxn():
-                skel = skeletonByKind(refreshKey.kind)()
-                if not skel.read(refreshKey):
+        if refresh_key:
+            def __txn_refresh():
+                skel = skeletonByKind(refresh_key.kind)()
+                if not skel.read(refresh_key):
                     return
                 skel.refresh()
                 skel.write(update_relations=False)
 
-            db.RunInTransaction(refreshTxn)
+            db.RunInTransaction(__txn_refresh)
 
 
 class FileBone(TreeLeafBone):
