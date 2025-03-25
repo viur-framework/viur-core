@@ -46,7 +46,9 @@ class JsonBone(RawBone):
         return utils.json.dumps(skel.accessedValues[name])
 
     def singleValueUnserialize(self, val):
-        return utils.json.loads(val)
+        if isinstance(val, (str, bytes, bytearray)):
+            return utils.json.loads(val)
+        return val
 
     def singleValueFromClient(self, value: str | list | dict, skel, bone_name, client_data):
         if value:
@@ -68,14 +70,14 @@ class JsonBone(RawBone):
                             ReadFromClientError(ReadFromClientErrorSeverity.Invalid, f"Invalid JSON supplied: {e!s}")
                         ]
 
-                try:
-                    jsonschema.validate(value, self.schema)
-                except (jsonschema.exceptions.ValidationError, jsonschema.exceptions.SchemaError) as e:
-                    return self.getEmptyValue(), [
-                        ReadFromClientError(
-                            ReadFromClientErrorSeverity.Invalid,
-                            f"Invalid JSON for schema supplied: {e!s}")
-                        ]
+            try:
+                jsonschema.validate(value, self.schema)
+            except (jsonschema.exceptions.ValidationError, jsonschema.exceptions.SchemaError) as e:
+                return self.getEmptyValue(), [
+                    ReadFromClientError(
+                        ReadFromClientErrorSeverity.Invalid,
+                        f"Invalid JSON for schema supplied: {e!s}")
+                    ]
 
         return super().singleValueFromClient(value, skel, bone_name, client_data)
 

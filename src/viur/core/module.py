@@ -1,4 +1,6 @@
 import copy
+import enum
+import functools
 import inspect
 import types
 import typing as t
@@ -33,15 +35,17 @@ class Method:
         # Attributes
         self.exposed = None  # None = unexposed, True = exposed, False = internal exposed
         self.ssl = False
-        self.methods = ("GET", "POST", "HEAD")
+        self.methods = ("GET", "POST", "HEAD", "OPTIONS")
         self.seo_language_map = None
+        self.cors_allow_headers = None
+        self.additional_descr = {}
+        self.skey = None
 
         # Inspection
         self.signature = inspect.signature(self._func)
 
         # Guards
-        self.skey = None
-        self.access = None
+        self.guards = []
 
     def __get__(self, obj, objtype=None):
         """
@@ -81,6 +85,8 @@ class Method:
             Tries to parse a value according to a given type.
             May be called recursively to handle unions, lists and tuples as well.
             """
+            # logging.debug(f"{annotation=} | {name=} | {value=}")
+
             # simple types
             if annotation is str:
                 return str(value)
@@ -90,8 +96,10 @@ class Method:
                 return float(value)
             elif annotation is bool:
                 return utils.parse.bool(value)
-            elif annotation is types.NoneType:
-                return None
+            elif annotation is types.NoneType or annotation is None:
+                if value in (None, "None", "null"):
+                    return None
+                raise ValueError(f"Expected None for parameter {name}. Got: {value!r}")
 
             # complex types
             origin_type = t.get_origin(annotation)
@@ -128,6 +136,15 @@ class Method:
 
                 return parse_value_by_annotation(int | str, name, value)
 
+            elif isinstance(annotation, enum.EnumMeta):
+                try:
+                    return annotation(value)
+                except ValueError as exc:
+                    for value_, member in annotation._value2member_map_.items():
+                        if str(value) == str(value_):  # Do a string comparison, it could be a IntEnum
+                            return member
+                    raise errors.NotAcceptable(f"{' '.join(exc.args)} for {name}") from exc
+
             raise errors.NotAcceptable(f"Unhandled type {annotation=} for {name}={value!r}")
 
         # examine parameters
@@ -142,7 +159,7 @@ class Method:
             if self._instance and i == 0 and param_name == "self":
                 continue
 
-            param_type = param.annotation if param.annotation is not param.empty else None
+            param_type = param.annotation
             param_required = param.default is param.empty
 
             # take positional parameters first
@@ -153,7 +170,7 @@ class Method:
                 try:
                     value = next(args_iter)
 
-                    if param_type:
+                    if param_type is not param.empty:
                         value = parse_value_by_annotation(param_type, param_name, value)
 
                     parsed_args.append(value)
@@ -171,7 +188,7 @@ class Method:
             ):
                 value = kwargs.pop(param_name)
 
-                if param_type:
+                if param_type is not param.empty:
                     value = parse_value_by_annotation(param_type, param_name, value)
 
                 parsed_kwargs[param_name] = value
@@ -193,7 +210,7 @@ class Method:
         # - args            = either parsed_args, or parsed_args + remaining args if the function accepts *args
         # - kwargs          = either parsed_kwars, or parsed_kwargs | remaining kwargs if the function accepts **kwargs
         # - varargs         = indicator that the args also contain variable args (*args)
-        # - varkwards       = indicator that variable kwargs (**kwargs) are also contained in the kwargs
+        # - varkwargs       = indicator that variable kwargs (**kwargs) are also contained in the kwargs
         #
 
         # Extend args to any varargs, and redefine args
@@ -210,89 +227,11 @@ class Method:
             kwargs = parsed_kwargs
 
         # Trace message for final call configuration
-        if trace := conf.debug.trace:
+        if conf.debug.trace:
             logging.debug(f"calling {self._func=} with cleaned {args=}, {kwargs=}")
-
-        # evaluate skey guard setting?
-        if self.skey and not current.request.get().skey_checked:  # skey guardiance is only required once per request
-            if trace:
-                logging.debug(f"@skey {self.skey=}")
-
-            security_key = kwargs.pop(self.skey["name"], "")
-
-            # validation is necessary?
-            if allow_empty := self.skey["allow_empty"]:
-                # allow_empty can be callable, to detect programmatically
-                if callable(allow_empty):
-                    required = not allow_empty(args, kwargs)
-                # or allow_empty can be a sequence of allowed keys
-                elif isinstance(allow_empty, (list, tuple)):
-                    required = any(k for k in kwargs.keys() if k not in allow_empty)
-                # otherwise, varargs or varkwargs may not be empty.
-                else:
-                    required = varargs or varkwargs or security_key
-                    if trace:
-                        logging.debug(f"@skey {required=} because either {varargs=} or {varkwargs=} or {security_key=}")
-            else:
-                required = True
-
-            if required:
-                if trace:
-                    logging.debug(f"@skey wanted, validating {security_key!r}")
-
-                from viur.core import securitykey
-                payload = securitykey.validate(security_key, **self.skey["extra_kwargs"])
-                current.request.get().skey_checked = True
-
-                if not payload or (self.skey["validate"] and not self.skey["validate"](payload)):
-                    raise errors.PreconditionFailed(
-                        self.skey["message"] or f"Missing or invalid parameter {self.skey['name']!r}"
-                    )
-
-                if self.skey["forward_payload"]:
-                    kwargs |= {self.skey["forward_payload"]: payload}
-
-        # evaluate access guard setting?
-        if self.access:
-            user = current.user.get()
-
-            if trace := conf.debug.trace:
-                logging.debug(f"@access {user=} {self.access=}")
-
-            if not user:
-                if offer_login := self.access["offer_login"]:
-                    raise errors.Redirect(offer_login if isinstance(offer_login, str) else "/user/login")
-
-                raise errors.Unauthorized(self.access["message"]) if self.access["message"] else errors.Unauthorized()
-
-            ok = False
-            for acc in self.access["access"]:
-                if trace:
-                    logging.debug(f"@access checking {acc=}")
-
-                # Callable directly tests access
-                if callable(acc):
-                    if acc():
-                        ok = True
-                        break
-
-                    continue
-
-                # Otherwise, check for access rights
-                if isinstance(acc, str):
-                    acc = (acc, )
-
-                assert isinstance(acc, (tuple, list, set))
-
-                if not set(acc).difference(user["access"]):
-                    ok = True
-                    break
-
-            if trace:
-                logging.debug(f"@access {ok=}")
-
-            if not ok:
-                raise errors.Forbidden(self.access["message"]) if self.access["message"] else errors.Forbidden()
+        # call decorators in reversed because they are added in the reversed order
+        for func in reversed(self.guards):
+            func(args=args, kwargs=kwargs, varargs=varargs, varkwargs=varkwargs)
 
         # call with instance when provided
         if self._instance:
@@ -306,7 +245,7 @@ class Method:
         """
         return_doc = t.get_type_hints(self._func).get("return")
 
-        ret = {
+        return {
             "args": {
                 param.name: {
                     "type": str(param.annotation) if param.annotation is not inspect.Parameter.empty else None,
@@ -318,15 +257,7 @@ class Method:
             "accepts": self.methods,
             "docs": self._func.__doc__.strip() if self._func.__doc__ else None,
             "aliases": tuple(self.seo_language_map.keys()) if self.seo_language_map else None,
-        }
-
-        if self.skey:
-            ret["skey"] = self.skey["name"]
-
-        if self.access:
-            ret["access"] = [str(access) for access in self.access["access"]]  # must be a list to be JSON-serializable
-
-        return ret
+        } | self.additional_descr
 
     def register(self, target: dict, name: str, language: str | None = None):
         """
@@ -525,7 +456,7 @@ class Module:
         for key in dir(self):
             if key[0] == "_":
                 continue
-            if isinstance(getattr(self.__class__, key, None), property):
+            if isinstance(getattr(self.__class__, key, None), (property, functools.cached_property)):
                 continue
 
             prop = getattr(self, key)

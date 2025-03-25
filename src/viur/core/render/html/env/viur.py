@@ -1,5 +1,4 @@
 from collections import OrderedDict
-
 import logging
 import os
 import typing as t
@@ -7,12 +6,15 @@ import urllib
 import urllib.parse
 from datetime import timedelta
 from hashlib import sha512
+import jinja2
+from deprecated.sphinx import deprecated
 from qrcode import make as qrcode_make
 from qrcode.image import svg as qrcode_svg
 
 import string
 from viur.core import Method, current, db, errors, prototypes, securitykey, utils
 from viur.core.config import conf
+from viur.core.i18n import LanguageWrapper
 from viur.core.i18n import translate as translate_class
 from viur.core.render.html.utils import jinjaGlobalFilter, jinjaGlobalFunction
 from viur.core.request import TEMPLATE_STYLE_KEY
@@ -34,7 +36,7 @@ def translate(
 
     See also :class:`core.i18n.TranslationExtension`.
     """
-    return translate_class(key, default_text, hint, force_lang)(**kwargs)
+    return translate_class(key, default_text, hint, force_lang, caller_is_jinja=True)(**kwargs)
 
 
 @jinjaGlobalFunction
@@ -138,7 +140,13 @@ def getCurrentUser(render: Render) -> t.Optional[SkeletonInstance]:
 
 
 @jinjaGlobalFunction
-def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel") -> dict | bool | None:
+def getSkel(
+    render: Render,
+    module: str,
+    key: str = None,
+    skel: str = "viewSkel",
+    skel_args: tuple[t.Any] = (),
+) -> dict | bool | None:
     """
     Jinja2 global: Fetch an entry from a given module, and return the data as a dict,
     prepared for direct use in the output.
@@ -150,63 +158,65 @@ def getSkel(render: Render, module: str, key: str = None, skel: str = "viewSkel"
     :param key: Requested entity-key in an urlsafe-format. If the module is a Singleton
     application, the parameter can be omitted.
     :param skel: Specifies and optionally different data-model
+    :param skel_arg: Optional skeleton arguments to be passed to the skel-function (e.g. for Tree-Modules)
 
     :returns: dict on success, False on error.
     """
-    if module not in dir(conf.main_app):
-        logging.error(f"getSkel called with unknown {module=}!")
-        return False
+    if not (obj := getattr(conf.main_app, module, None)):
+        raise ValueError(f"getSkel: Can't read a skeleton from unknown module {module!r}")
 
-    obj = getattr(conf.main_app, module)
+    if not getattr(obj, "html", False):
+        raise PermissionError(f"getSkel: module {module!r} is not allowed to be accessed")
 
-    if skel in dir(obj):
-        skel = getattr(obj, skel)()
+    # Retrieve a skeleton
+    skel = getattr(obj, skel)(*skel_args)
+    if not isinstance(skel, SkeletonInstance):
+        raise RuntimeError("getSkel: Invalid skel name provided")
 
-        if isinstance(obj, prototypes.singleton.Singleton) and not key:
-            # We fetching the entry from a singleton - No key needed
-            key = db.Key(skel.kindName, obj.getKey())
-        elif not key:
-            logging.info("getSkel called without a valid key")
-            return False
+    if isinstance(obj, prototypes.singleton.Singleton) and not key:
+        # We fetching the entry from a singleton - No key needed
+        key = db.Key(skel.kindName, obj.getKey())
 
-        if not isinstance(skel, SkeletonInstance):
-            return False
+    elif not key:
+        raise ValueError(f"getSkel has to be called with a valid key! Got {key!r}")
 
-        if "canView" in dir(obj):
-            if not skel.fromDB(key):
-                logging.info(f"getSkel: Entry {key} not found")
-                return None
-            if isinstance(obj, prototypes.singleton.Singleton):
-                isAllowed = obj.canView()
-            elif isinstance(obj, prototypes.tree.Tree):
-                k = db.Key(key)
-                if k.kind.endswith("_rootNode"):
-                    isAllowed = obj.canView("node", skel)
-                else:
-                    isAllowed = obj.canView("leaf", skel)
-            else:  # List and Hierarchies
-                isAllowed = obj.canView(skel)
-            if not isAllowed:
-                logging.error(f"getSkel: Access to {key} denied from canView")
-                return None
-        elif "listFilter" in dir(obj):
-            qry = skel.all().mergeExternalFilter({"key": str(key)})
-            qry = obj.listFilter(qry)
-            if not qry:
-                logging.info("listFilter permits getting entry, returning None")
-                return None
+    if hasattr(obj, "canView"):
+        if not skel.read(key):
+            logging.info(f"getSkel: Entry {key!r} not found")
+            return None
 
-            skel = qry.getSkel()
-            if not skel:
-                return None
+        if isinstance(obj, prototypes.singleton.Singleton):
+            is_allowed = obj.canView()
 
-        else:  # No Access-Test for this module
-            if not skel.fromDB(key):
-                return None
-        skel.renderPreparation = render.renderBoneValue
-        return skel
+        elif isinstance(obj, prototypes.tree.Tree):
+            if skel["key"].kind == obj.nodeSkelCls.kindName:
+                is_allowed = obj.canView("node", skel)
+            else:
+                is_allowed = obj.canView("leaf", skel)
 
-    return False
+        else:
+            is_allowed = obj.canView(skel)
+
+        if not is_allowed:
+            logging.error(f"getSkel: Access to {key} denied from canView")
+            return None
+
+    elif hasattr(obj, "listFilter"):
+        qry = skel.all().mergeExternalFilter({"key": str(key)})
+        qry = obj.listFilter(qry)
+        if not qry:
+            logging.info("listFilter permits getting entry, returning None")
+            return None
+
+        if not (skel := qry.getSkel()):
+            return None
+
+    else:  # No Access-Test for this module
+        if not skel.read(key):
+            return None
+
+    skel.renderPreparation = render.renderBoneValue
+    return skel
 
 
 @jinjaGlobalFunction
@@ -295,40 +305,62 @@ def modulePath(render: Render) -> str:
 
 
 @jinjaGlobalFunction
-def getList(render: Render, module: str, skel: str = "viewSkel",
-            _noEmptyFilter: bool = False, *args, **kwargs) -> bool | None | list[SkeletonInstance]:
+def getList(
+    render: Render,
+    module: str,
+    skel: str = "viewSkel",
+    *,
+    skel_args: tuple[t.Any] = (),
+    _noEmptyFilter: bool = False,
+    **kwargs
+) -> bool | None | list[SkeletonInstance]:
     """
     Jinja2 global: Fetches a list of entries which match the given filter criteria.
 
     :param render: The html-renderer instance.
     :param module: Name of the module from which list should be fetched.
     :param skel: Name of the skeleton that is used to fetching the list.
+    :param skel_arg: Optional skeleton arguments to be passed to the skel-function (e.g. for Tree-Modules)
     :param _noEmptyFilter: If True, this function will not return any results if at least one
         parameter is an empty list. This is useful to prevent filtering (e.g. by key) not being
         performed because the list is empty.
+
     :returns: Returns a dict that contains the "skellist" and "cursor" information,
         or None on error case.
     """
-    if module not in dir(conf.main_app):
-        logging.error(f"Jinja2-Render can't fetch a list from an unknown module {module}!")
-        return False
-    caller = getattr(conf.main_app, module)
-    if "viewSkel" not in dir(caller):
-        logging.error(f"Jinja2-Render cannot fetch a list from {module} due to missing viewSkel function")
-        return False
-    if _noEmptyFilter:  # Test if any value of kwargs is an empty list
-        if any([isinstance(x, list) and not len(x) for x in kwargs.values()]):
-            return []
-    query = getattr(caller, "viewSkel")(skel).all()
-    query.mergeExternalFilter(kwargs)
-    if "listFilter" in dir(caller):
-        query = caller.listFilter(query)
+    if not (caller := getattr(conf.main_app, module, None)):
+        raise ValueError(f"getList: Can't fetch a list from unknown module {module!r}")
+
+    if not getattr(caller, "html", False):
+        raise PermissionError(f"getList: module {module!r} is not allowed to be accessed from html")
+
+    if not hasattr(caller, "listFilter"):
+        raise NotImplementedError(f"getList: The module {module!r} is not designed for a list retrieval")
+
+    # Retrieve a skeleton
+    skel = getattr(caller, skel)(*skel_args)
+    if not isinstance(skel, SkeletonInstance):
+        raise RuntimeError("getList: Invalid skel name provided")
+
+    # Test if any value of kwargs is an empty list
+    if _noEmptyFilter and any(isinstance(value, list) and not value for value in kwargs.values()):
+        return []
+
+    # Create initial query
+    query = skel.all().mergeExternalFilter(kwargs)
+
+    if query := caller.listFilter(query):
+        caller._apply_default_order(query)
+
     if query is None:
         return None
+
     mylist = query.fetch()
+
     if mylist:
         for skel in mylist:
             skel.renderPreparation = render.renderBoneValue
+
     return mylist
 
 
@@ -417,6 +449,7 @@ def updateURL(render: Render, **kwargs) -> str:
 
 
 @jinjaGlobalFilter
+@deprecated(version="3.7.0", reason="Use Jinja filter filesizeformat instead", action="always")
 def fileSize(render: Render, value: int | float, binary: bool = False) -> str:
     """
     Jinja2 filter: Format the value in an 'human-readable' file size (i.e. 13 kB, 4.1 MB, 102 Bytes, etc).
@@ -429,53 +462,7 @@ def fileSize(render: Render, value: int | float, binary: bool = False) -> str:
 
     :returns: The formatted file size string in human readable format.
     """
-    bytes = float(value)
-    base = binary and 1024 or 1000
-
-    prefixes = [
-        (binary and 'KiB' or 'kB'),
-        (binary and 'MiB' or 'MB'),
-        (binary and 'GiB' or 'GB'),
-        (binary and 'TiB' or 'TB'),
-        (binary and 'PiB' or 'PB'),
-        (binary and 'EiB' or 'EB'),
-        (binary and 'ZiB' or 'ZB'),
-        (binary and 'YiB' or 'YB')
-    ]
-
-    if bytes == 1:
-        return '1 Byte'
-    elif bytes < base:
-        return '%d Bytes' % bytes
-
-    unit = 0
-    prefix = ""
-
-    for i, prefix in enumerate(prefixes):
-        unit = base ** (i + 2)
-        if bytes < unit:
-            break
-
-    return f'{(base * bytes / unit):.1f} {prefix}'
-
-
-@jinjaGlobalFilter
-def urlencode(render: Render, val: str) -> str:
-    """
-    Jinja2 filter: Make a string URL-safe.
-
-    :param render: The html-renderer instance.
-    :param val: String to be quoted.
-    :returns: Quoted string.
-    """
-    # quote_plus fails if val is None
-    if not val:
-        return ""
-
-    if isinstance(val, str):
-        val = val.encode("UTF-8")
-
-    return urllib.parse.quote_plus(val)
+    return jinja2.filters.do_filesizeformat(value, binary)
 
 
 # TODO
@@ -635,7 +622,7 @@ def renderEditForm(render: Render,
 
         res += sectionTpl.render(
             categoryName=category,
-            categoryClassName="".join([x for x in category if x in string.ascii_letters]),
+            categoryClassName="".join(ch for ch in str(category) if ch in string.ascii_letters),
             categoryContent=categoryContent,
             allReadOnly=allReadOnly,
             allHidden=allHidden
@@ -679,7 +666,8 @@ def downloadUrlFor(
     fileObj: dict,
     expires: t.Optional[int] = conf.render_html_download_url_expiration,
     derived: t.Optional[str] = None,
-    downloadFileName: t.Optional[str] = None
+    downloadFileName: t.Optional[str] = None,
+    language: t.Optional[str] = None,
 ) -> str:
     """
     Constructs a signed download-url for the given file-bone. Mostly a wrapper around
@@ -694,8 +682,15 @@ def downloadUrlFor(
             Optional the filename of a derived file,
             otherwise the download-link will point to the originally uploaded file.
         :param downloadFileName: The filename to use when saving the response payload locally.
+        :param language: Language overwrite if fileObj has multiple languages and we want to explicitly specify one
         :return: THe signed download-url relative to the current domain (eg /download/...)
     """
+
+    if isinstance(fileObj, LanguageWrapper):
+        language = language or current.language.get()
+        if not language or not (fileObj := fileObj.get(language)):
+            return ""
+
     if "dlkey" not in fileObj and "dest" in fileObj:
         fileObj = fileObj["dest"]
 
@@ -733,7 +728,8 @@ def srcSetFor(
     fileObj: dict,
     expires: t.Optional[int] = conf.render_html_download_url_expiration,
     width: t.Optional[int] = None,
-    height: t.Optional[int] = None
+    height: t.Optional[int] = None,
+    language: t.Optional[str] = None,
 ) -> str:
     """
     Generates a string suitable for use as the srcset tag in html. This functionality provides the browser with a list
@@ -750,11 +746,18 @@ def srcSetFor(
             If a given width is not available, it will be skipped.
         :param height: A list of heights that should be included in the srcset.
             If a given height is not available, it will be skipped.
-
+        :param language: Language overwrite if fileObj has multiple languages and we want to explicitly specify one
     :return: The srctag generated or an empty string if a invalid file object was supplied
     """
-    return file.File.create_src_set(fileObj, expires, width, height)
+    return file.File.create_src_set(fileObj, expires, width, height, language)
 
+
+@jinjaGlobalFunction
+def serving_url_for(render: Render, *args, **kwargs):
+    """
+    Jinja wrapper for File.create_internal_serving_url(), see there for parameter information.
+    """
+    return file.File.create_internal_serving_url(*args, **kwargs)
 
 @jinjaGlobalFunction
 def seoUrlForEntry(render: Render, *args, **kwargs):

@@ -1,11 +1,11 @@
 import datetime
-import hmac
 import logging
 import time
-from viur.core.tasks import DeleteEntitiesIter
-from viur.core.config import conf  # this import has to stay alone due partial import
-from viur.core import db, utils, tasks
 import typing as t
+
+from viur.core import current, db, tasks, utils
+from viur.core.config import conf  # this import has to stay alone due partial import
+from viur.core.tasks import DeleteEntitiesIter
 
 """
     Provides the session implementation for the Google AppEngine™ based on the datastore.
@@ -24,8 +24,13 @@ import typing as t
     It returns None instead of raising an Exception if the key is not found.
 """
 
+_SENTINEL: t.Final[object] = object()
 
-class Session:
+TObserver = t.TypeVar("TObserver", bound=t.Callable[[db.Entity], None])
+"""Type of the observer for :meth:`Session.on_delete`"""
+
+
+class Session(db.Entity):
     """
         Store Sessions inside the datastore.
         The behaviour of this module can be customized in the following ways:
@@ -51,49 +56,56 @@ class Session:
     cookie_name = f"""viur_cookie_{conf.instance.project_id}"""
     GUEST_USER = "__guest__"
 
+    _ON_DELETE_OBSERVER = []
+
     def __init__(self):
         super().__init__()
         self.changed = False
         self.cookie_key = None
         self.static_security_key = None
-        self.session = db.Entity()
+        self.loaded = False
 
-    def load(self, req):
+    def load(self):
         """
             Initializes the Session.
 
             If the client supplied a valid Cookie, the session is read from the datastore, otherwise a new,
             empty session will be initialized.
         """
-        if cookie_key := str(req.request.cookies.get(self.cookie_name)):
+
+        if cookie_key := current.request.get().request.cookies.get(self.cookie_name):
+            cookie_key = str(cookie_key)
             if data := db.Get(db.Key(self.kindName, cookie_key)):  # Loaded successfully
                 if data["lastseen"] < time.time() - conf.user.session_life_time:
                     # This session is too old
                     self.reset()
                     return False
 
+                self.loaded = True
                 self.cookie_key = cookie_key
-                self.session = data["data"]
-                self.static_security_key = data.get("static_security_key") or data.get("staticSecurityKey")
 
+                super().clear()
+                super().update(data["data"])
+
+                self.static_security_key = data.get("static_security_key") or data.get("staticSecurityKey")
                 if data["lastseen"] < time.time() - 5 * 60:  # Refresh every 5 Minutes
                     self.changed = True
+
             else:
                 self.reset()
-        else:
-            self.reset()
 
-    def save(self, req):
+    def save(self):
         """
             Writes the session into the database.
 
             Does nothing, in case the session hasn't been changed in the current request.
         """
+
         if not self.changed:
             return
-
+        current_request = current.request.get()
         # We will not issue sessions over http anymore
-        if not (req.isSSLConnection or conf.instance.is_dev_server):
+        if not (current_request.isSSLConnection or conf.instance.is_dev_server):
             return
 
         # Get the current user's key
@@ -103,9 +115,13 @@ class Session:
         except Exception:
             user_key = Session.GUEST_USER  # this is a guest
 
+        if not self.loaded:
+            self.cookie_key = utils.string.random(42)
+            self.static_security_key = utils.string.random(13)
+
         dbSession = db.Entity(db.Key(self.kindName, self.cookie_key))
 
-        dbSession["data"] = db.fixUnindexableProperties(self.session)
+        dbSession["data"] = db.fixUnindexableProperties(self)
         dbSession["static_security_key"] = self.static_security_key
         dbSession["lastseen"] = time.time()
         dbSession["user"] = str(user_key)  # allow filtering for users
@@ -122,48 +138,9 @@ class Session:
             f"Max-Age={conf.user.session_life_time}" if not self.use_session_cookie else None,
         )
 
-        req.response.headerlist.append(
+        current_request.response.headerlist.append(
             ("Set-Cookie", f"{self.cookie_name}={self.cookie_key};{';'.join([f for f in flags if f])}")
         )
-
-    def __contains__(self, key: str) -> bool:
-        """
-            Returns True if the given *key* is set in the current session.
-        """
-        return key in self.session
-
-    def __delitem__(self, key: str) -> None:
-        """
-            Removes a *key* from the session.
-
-            This key must exist.
-        """
-        del self.session[key]
-        self.changed = True
-
-    def __getitem__(self, key) -> t.Any:
-        """
-            Returns the value stored under the given *key*.
-
-            The key must exist.
-        """
-        return self.session[key]
-
-    def __ior__(self, other: dict):
-        """
-        Merges the contents of a dict into the session.
-        """
-        self.session |= other
-        return self
-
-    def get(self, key: str, default: t.Any = None) -> t.Any:
-        """
-            Returns the value stored under the given key.
-
-            :param key: Key to retrieve from the session variables.
-            :param default: Default value to return when key does not exist.
-        """
-        return self.session.get(key, default)
 
     def __setitem__(self, key: str, item: t.Any):
         """
@@ -172,7 +149,7 @@ class Session:
             If that key exists before, its value is
             overwritten.
         """
-        self.session[key] = item
+        super().__setitem__(key, item)
         self.changed = True
 
     def markChanged(self) -> None:
@@ -192,27 +169,94 @@ class Session:
 
             :warning: Everything is flushed.
         """
+
+        self.clear()
+        self.cookie_key = utils.string.random(42)
+        self.static_security_key = utils.string.random(13)
+        self.loaded = True
+        self.changed = True
+
+    def __delitem__(self, key: str) -> None:
+        """
+            Removes a *key* from the session.
+            This key must exist.
+        """
+        super().__delitem__(key)
+        self.changed = True
+
+    def __ior__(self, other: dict) -> t.Self:
+        """
+        Merges the contents of a dict into the session.
+        """
+        super().__ior__(other)
+        self.changed = True
+        return self
+
+    def update(self, other: dict) -> None:
+        """
+        Merges the contents of a dict into the session.
+        """
+        self |= other
+
+    def pop(self, key: str, default=_SENTINEL) -> t.Any:
+        """
+        Delete a specified key from the session.
+
+        If key is in the session, remove it and return its value, else return default.
+        If default is not given and key is not in the session, a KeyError is raised.
+        """
+        if key in self or default is _SENTINEL:
+            value = super().pop(key)
+            self.changed = True
+
+            return value
+
+        return default
+
+    def clear(self) -> None:
         if self.cookie_key:
             db.Delete(db.Key(self.kindName, self.cookie_key))
             from viur.core import securitykey
             securitykey.clear_session_skeys(self.cookie_key)
+        current.request.get().response.delete_cookie(self.cookie_name)
+        self.loaded = False
+        self.cookie_key = None
+        super().clear()
 
-        self.cookie_key = utils.string.random(42)
-        self.static_security_key = utils.string.random(13)
-        self.session.clear()
+    def popitem(self) -> t.Tuple[t.Any, t.Any]:
         self.changed = True
+        return super().popitem()
 
-    def items(self) -> 'dict_items':
-        """
-            Returns all items in the current session.
-        """
-        return self.session.items()
+    def setdefault(self, key, default=None) -> t.Any:
+        if key not in self:
+            self.changed = True
+        return super().setdefault(key, default)
 
-    def setdefault(self, key: str, value: t.Any) -> t.Any:
-        """
-            Set a default value in the current session
-        """
-        return self.session.setdefault(key, value)
+    @classmethod
+    def on_delete(cls, func: TObserver, /) -> TObserver:
+        """Decorator to register an observer for the _session delete event_."""
+        cls._ON_DELETE_OBSERVER.append(func)
+        return func
+
+    @classmethod
+    def dispatch_on_delete(cls, entry: db.Entity) -> None:
+        """Call the observers for the _session delete event_."""
+        for observer in cls._ON_DELETE_OBSERVER:
+            observer(entry)
+
+
+class DeleteSessionsIter(DeleteEntitiesIter):
+    """
+    QueryIter to delete all session entities encountered.
+
+    Each deleted entity triggers a _session delete event_
+    which is dispatched by :meth:`Session.dispatch_on_delete`.
+    """
+
+    @classmethod
+    def handleEntry(cls, entry: db.Entity, customData: t.Any) -> None:
+        db.Delete(entry.key)
+        Session.dispatch_on_delete(entry)
 
 
 @tasks.CallDeferred
@@ -230,8 +274,7 @@ def killSessionByUser(user: t.Optional[t.Union[str, "db.Key", None]] = None):
     logging.info(f"Invalidating all sessions for {user=}")
 
     query = db.Query(Session.kindName).filter("user =", str(user))
-    for obj in query.iter():
-        db.Delete(obj.key)
+    DeleteSessionsIter.startIterOnQuery(query)
 
 
 @tasks.PeriodicTask(interval=datetime.timedelta(hours=4))
@@ -240,4 +283,4 @@ def start_clear_sessions():
         Removes old (expired) Sessions
     """
     query = db.Query(Session.kindName).filter("lastseen <", time.time() - (conf.user.session_life_time + 300))
-    DeleteEntitiesIter.startIterOnQuery(query)
+    DeleteSessionsIter.startIterOnQuery(query)

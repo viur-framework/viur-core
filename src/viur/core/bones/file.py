@@ -8,7 +8,7 @@ metadata.
 from hashlib import sha256
 from time import time
 import typing as t
-from viur.core import conf, db
+from viur.core import conf, db, current
 from viur.core.bones.treeleaf import TreeLeafBone
 from viur.core.tasks import CallDeferred
 
@@ -38,7 +38,7 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refreshKey: 
     from viur.core.skeleton import skeletonByKind, updateRelations
     deriveFuncMap = conf.file_derivations
     skel = skeletonByKind("file")()
-    if not skel.fromDB(key):
+    if not skel.read(key):
         logging.info("File-Entry went missing in ensureDerived")
         return
     if not skel["derived"]:
@@ -88,10 +88,10 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refreshKey: 
         if refreshKey:
             def refreshTxn():
                 skel = skeletonByKind(refreshKey.kind)()
-                if not skel.fromDB(refreshKey):
+                if not skel.read(refreshKey):
                     return
                 skel.refresh()
-                skel.toDB(update_relations=False)
+                skel.write(update_relations=False)
 
             db.RunInTransaction(refreshTxn)
 
@@ -128,6 +128,7 @@ class FileBone(TreeLeafBone):
 
     kind = "file"
     """The kind of this bone is 'file'"""
+
     type = "relational.tree.leaf.file"
     """The type of this bone is 'relational.tree.leaf.file'."""
 
@@ -137,7 +138,17 @@ class FileBone(TreeLeafBone):
         derive: None | dict[str, t.Any] = None,
         maxFileSize: None | int = None,
         validMimeTypes: None | list[str] = None,
-        refKeys: t.Optional[t.Iterable[str]] = ("name", "mimetype", "size", "width", "height", "derived"),
+        refKeys: t.Optional[t.Iterable[str]] = (
+            "name",
+            "mimetype",
+            "size",
+            "width",
+            "height",
+            "derived",
+            "public",
+            "serving_url",
+        ),
+        public: bool = False,
         **kwargs
     ):
         r"""
@@ -170,6 +181,7 @@ class FileBone(TreeLeafBone):
 
         self.refKeys.add("dlkey")
         self.derive = derive
+        self.public = public
         self.validMimeTypes = validMimeTypes
         self.maxFileSize = maxFileSize
 
@@ -191,6 +203,10 @@ class FileBone(TreeLeafBone):
         if self.maxFileSize:
             if value["dest"]["size"] > self.maxFileSize:
                 return "File too large."
+
+        if value["dest"]["public"] != self.public:
+            return f"Only files marked public={self.public!r} are allowed."
+
         return None
 
     def postSavedHandler(self, skel, boneName, key):
@@ -210,12 +226,22 @@ class FileBone(TreeLeafBone):
         the derived files directly.
         """
         super().postSavedHandler(skel, boneName, key)
+        if current.request.get().is_deferred and current.request_data.get().get("__update_relations_bone") == "derived":
+            return
+        from viur.core.skeleton import RelSkel, Skeleton
+
+        if issubclass(skel.skeletonCls, Skeleton):
+            prefix = f"{skel.kindName}_{boneName}"
+        elif issubclass(skel.skeletonCls, RelSkel):  # RelSkel is just a container and has no kindname
+            prefix = f"{skel.skeletonCls.__name__}_{boneName}"
+        else:
+            raise NotImplementedError(f"Cannot handle {skel.skeletonCls=}")
 
         def handleDerives(values):
             if isinstance(values, dict):
                 values = [values]
-            for val in values:  # Ensure derives getting build for each file referenced in this relation
-                ensureDerived(val["dest"]["key"], f"{skel.kindName}_{boneName}", self.derive)
+            for val in (values or ()):  # Ensure derives getting build for each file referenced in this relation
+                ensureDerived(val["dest"]["key"], prefix, self.derive)
 
         values = skel[boneName]
         if self.derive and values:
@@ -263,27 +289,48 @@ class FileBone(TreeLeafBone):
         references in the bone value, imports the blobs from ViUR 2, and recreates the file entries if
         needed using the inner function.
         """
-        from viur.core.skeleton import skeletonByKind
-
-        def recreateFileEntryIfNeeded(val):
-            # Recreate the (weak) filenetry referenced by the relation *val*. (ViUR2 might have deleted them)
-            skel = skeletonByKind("file")()
-            if skel.fromDB(val["key"]):  # This file-object exist, no need to recreate it
-                return
-            skel["key"] = val["key"]
-            skel["name"] = val["name"]
-            skel["mimetype"] = val["mimetype"]
-            skel["dlkey"] = val["dlkey"]
-            skel["size"] = val["size"]
-            skel["width"] = val["width"]
-            skel["height"] = val["height"]
-            skel["weak"] = True
-            skel["pending"] = False
-            k = skel.toDB()
-
-        from viur.core.modules.file import importBlobFromViur2
         super().refresh(skel, boneName)
+
+        for _, _, value in self.iter_bone_value(skel, boneName):
+            # Patch any empty serving_url when public file
+            if (
+                value
+                and (value := value["dest"])
+                and value["public"]
+                and value["mimetype"]
+                and value["mimetype"].startswith("image/")
+                and not value["serving_url"]
+            ):
+                logging.info(f"Patching public image with empty serving_url {value['key']!r} ({value['name']!r})")
+                try:
+                    file_skel = value.read()
+                except ValueError:
+                    continue
+
+                file_skel.patch(lambda skel: skel.refresh(), update_relations=False)
+                value["serving_url"] = file_skel["serving_url"]
+
+        # FIXME: REMOVE THIS WITH VIUR4
         if conf.viur2import_blobsource:
+            from viur.core.modules.file import importBlobFromViur2
+            from viur.core.skeleton import skeletonByKind
+
+            def recreateFileEntryIfNeeded(val):
+                # Recreate the (weak) filenetry referenced by the relation *val*. (ViUR2 might have deleted them)
+                skel = skeletonByKind("file")()
+                if skel.read(val["key"]):  # This file-object exist, no need to recreate it
+                    return
+                skel["key"] = val["key"]
+                skel["name"] = val["name"]
+                skel["mimetype"] = val["mimetype"]
+                skel["dlkey"] = val["dlkey"]
+                skel["size"] = val["size"]
+                skel["width"] = val["width"]
+                skel["height"] = val["height"]
+                skel["weak"] = True
+                skel["pending"] = False
+                skel.write()
+
             # Just ensure the file get's imported as it may not have an file entry
             val = skel[boneName]
             if isinstance(val, list):
@@ -298,5 +345,6 @@ class FileBone(TreeLeafBone):
 
     def structure(self) -> dict:
         return super().structure() | {
-            "valid_mime_types": self.validMimeTypes
+            "valid_mime_types": self.validMimeTypes,
+            "public": self.public,
         }

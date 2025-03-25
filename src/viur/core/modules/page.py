@@ -20,6 +20,10 @@ class PageSkel(TreeSkel):
 
 
 class Page(Tree):
+    """
+    A simple page construction module, allowing to create a structure of pages.
+    """
+
     adminInfo = {
         "name": "Pages",
         "handler": "tree.nodeonly.page",
@@ -33,12 +37,10 @@ class Page(Tree):
     viewTemplate = "page_view"
 
     def getAvailableRootNodes(self, *args, **kwargs):
-        repo = self.ensureOwnModuleRootNode()
         return [{
             "name": "pages",
-            "key": repo.key
+            "key": self.rootnodeSkel(ensure=True)["key"],
         }]
 
 
 Page.html = True
-Page.json = True

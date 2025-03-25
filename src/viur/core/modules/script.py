@@ -1,14 +1,10 @@
-import re
 import typing as t
 from viur.core.bones import *
 from viur.core.prototypes.tree import Tree, TreeSkel, SkelType
+from viur.core.modules.file import File
 from viur.core import db, conf, current, skeleton, tasks, errors
 from viur.core.decorators import exposed
 from viur.core.i18n import translate
-
-# pre-compile patterns for vfuncs
-DIRECTORY_PATTERN = re.compile(r'^[a-zA-Z0-9äöüÄÖÜ_-]*$')
-FILE_PATTERN = re.compile(r'^[a-zA-Z0-9äöüÄÖÜ_-]+?.py$')
 
 
 class BaseScriptAbstractSkel(TreeSkel):
@@ -16,7 +12,7 @@ class BaseScriptAbstractSkel(TreeSkel):
     path = StringBone(
         descr="Path",
         readOnly=True,
-        unique=UniqueValue(UniqueLockMethod.SameValue, True, "This path name is already taken!")
+        unique=UniqueValue(UniqueLockMethod.SameValue, True, "This path is already taken!")
     )
 
     @classmethod
@@ -24,7 +20,7 @@ class BaseScriptAbstractSkel(TreeSkel):
         # Set script name when provided, so that the path can be regenerated
         if name := data.get("name"):
             skel["name"] = name
-            conf.main_app.vi.script.update_path(skel)
+            conf.main_app.script.update_path(skel)
 
         ret = super().fromClient(skel, data, *args, **kwargs)
 
@@ -54,7 +50,7 @@ class ScriptNodeSkel(BaseScriptAbstractSkel):
     name = StringBone(
         descr="Folder",
         required=True,
-        vfunc=lambda value: not DIRECTORY_PATTERN.match(value)
+        vfunc=lambda value: None if File.is_valid_filename(value) else "Foldername is invalid"
     )
 
 
@@ -63,18 +59,21 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
 
     name = StringBone(
         descr="Filename",
-        vfunc=lambda value: not FILE_PATTERN.match(value),
+        required=True,
+        vfunc=lambda value:
+            None if File.is_valid_filename(value) and value.endswith(".py") and value.removesuffix(".py")
+            else "Filename is invalid or doesn't have a '.py'-suffix",
     )
 
     script = RawBone(
         descr="Code",
-        indexed=False
+        indexed=False,
     )
 
     access = SelectBone(
         descr="Required access rights to run this Script",
         values=lambda: {
-            right: translate("server.modules.user.accessright.%s" % right, defaultText=right)
+            right: translate(f"viur.core.modules.user.accessright.{right}", defaultText=right)
             for right in sorted(conf.user.access_rights)
         },
         multiple=True,
@@ -82,6 +81,10 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
 
 
 class Script(Tree):
+    """
+    Script is a system module used to serve a filesystem for scripts used by ViUR Scriptor and ViUR CLI.
+    """
+
     leafSkelCls = ScriptLeafSkel
     nodeSkelCls = ScriptNodeSkel
 
@@ -96,7 +99,10 @@ class Script(Tree):
         if not current.user.get():
             return []
 
-        return [{"name": "Scripts", "key": self.ensureOwnModuleRootNode().key}]
+        return [{
+            "name": "Scripts",
+            "key": self.rootnodeSkel(ensure=True)["key"],
+        }]
 
     @exposed
     def view(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> t.Any:
@@ -134,7 +140,7 @@ class Script(Tree):
             # only update when path changed
             if new_path != skel["path"]:
                 skel["path"] = new_path  # self.onEdit() is NOT required, as it resolves the path again.
-                skel.toDB()
+                skel.write()
                 self.onEdited(skel_type, skel)  # triggers this recursion for nodes, again.
 
         if cursor := query.getCursor():
@@ -149,13 +155,10 @@ class Script(Tree):
         key = skel["parententry"]
         while key:
             parent_skel = self.viewSkel("node")
-            if not parent_skel.fromDB(key) or parent_skel["key"] == skel["parentrepo"]:
+            if not parent_skel.read(key) or parent_skel["key"] == skel["parentrepo"]:
                 break
 
             path.insert(0, parent_skel["name"])
             key = parent_skel["parententry"]
 
         skel["path"] = "/".join(path)
-
-
-Script.json = True

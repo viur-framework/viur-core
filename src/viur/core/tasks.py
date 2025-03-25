@@ -190,7 +190,7 @@ class TaskHandler(Module):
         retryCount = req.headers.get("X-Appengine-Taskretrycount", None)
         if retryCount and int(retryCount) == self.retryCountWarningThreshold:
             from viur.core import email
-            email.sendEMailToAdmins(
+            email.send_email_to_admins(
                 "Deferred task retry counter exceeded warning threshold",
                 f"""Task {req.headers.get("X-Appengine-Taskname", "")} is retried for the {retryCount}th time."""
             )
@@ -202,6 +202,9 @@ class TaskHandler(Module):
         if env:
             if "user" in env and env["user"]:
                 current.session.get()["user"] = env["user"]
+                # FIXME: We do not have a fully loaded session from the cookie here,
+                #        but only a partial session.
+                #        But we still leave `loaded` on False, which leads to problems.
 
                 # Load current user into context variable if user module is there.
                 if user_mod := getattr(conf.main_app.vi, "user", None):
@@ -282,21 +285,6 @@ class TaskHandler(Module):
                 entry["date"] = utils.utcNow()
                 db.Put(entry)
         logging.debug("Periodic tasks complete")
-        for currentTask in db.Query("viur-queued-tasks").iter():  # Look for queued tasks
-            db.Delete(currentTask.key())
-            if currentTask["taskid"] in _callableTasks:
-                task = _callableTasks[currentTask["taskid"]]()
-                tmpDict = {}
-                for k in currentTask.keys():
-                    if k == "taskid":
-                        continue
-                    tmpDict[k] = json.loads(currentTask[k])
-                try:
-                    task.execute(**tmpDict)
-                except Exception as e:
-                    logging.error("Error executing Task")
-                    logging.exception(e)
-        logging.debug("Scheduled tasks complete")
 
     def _validate_request(
         self,
@@ -411,7 +399,7 @@ def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
                         signature = ", ".join(args_repr + kwargs_repr)
                         try:
                             from viur.core import email
-                            email.sendEMail(
+                            email.send_email(
                                 dests=email_recipients,
                                 tpl=tpl,
                                 stringTemplate=string_template if tpl is None else string_template,
@@ -453,7 +441,9 @@ def CallDeferred(func: t.Callable) -> t.Callable:
     In addition to the arguments for the wrapped methods you can set these:
 
     _queue: Specify the queue in which the task should be pushed.
-        "default" is the default value. The queue must exist (use the queue.yaml).
+        If no value is given, the queue name set in `conf.tasks_default_queues`
+        will be used. If the config does not have a value for this task, "default"
+        is used as the default. The queue must exist (use the queue.yaml).
 
     _countdown: Specify a time in seconds after which the task should be called.
         This time is relative to the moment where the wrapped method has been called.
@@ -497,7 +487,7 @@ def CallDeferred(func: t.Callable) -> t.Callable:
         func: t.Callable,
         self=__undefinedFlag_,
         *args,
-        _queue: str = "default",
+        _queue: str = None,
         _name: str | None = None,
         _call_deferred: bool = True,
         _target_version: str = conf.instance.app_version,
@@ -560,6 +550,11 @@ def CallDeferred(func: t.Callable) -> t.Callable:
                 if self is not __undefinedFlag_:
                     args = (self,) + args  # Re-append self to args, as this function is (hopefully) unbound
                 command = "unb"
+
+            if _queue is None:
+                _queue = conf.tasks_default_queues.get(
+                    funcPath, conf.tasks_default_queues.get("__default__", "default")
+                )
 
             # Try to preserve the important data from the current environment
             try:  # We might get called inside a warmup request without session
@@ -641,32 +636,38 @@ def callDeferred(func):
 
 def PeriodicTask(interval: datetime.timedelta | int | float = 0, cronName: str = "default") -> t.Callable:
     """
-        Decorator to call a function periodic during maintenance.
-        Interval defines a lower bound for the call-frequency for this task;
-        it will not be called faster than each interval minutes.
-        (Note that the actual delay between two sequent might be much larger)
+        Decorator to call a function periodically during cron job execution.
 
-        :param interval: Call at most every interval minutes. 0 means call as often as possible.
+        Interval defines a lower bound for the call-frequency for the given task, specified as a timedelta.
+
+        The true interval of how often cron jobs are being executed is defined in the project's cron.yaml file.
+        This defaults to 4 hours (see https://github.com/viur-framework/viur-base/blob/main/deploy/cron.yaml).
+        In case the interval defined here is lower than 4 hours, the task will be fired once every 4 hours anyway.
+
+        :param interval: Call at most the given timedelta.
     """
-    def mkDecorator(fn):
+    def make_decorator(fn):
         nonlocal interval
         if fn.__name__.startswith("_"):
             raise RuntimeError("Periodic called methods cannot start with an underscore! "
                                f"Please rename {fn.__name__!r}")
+
         if cronName not in _periodicTasks:
             _periodicTasks[cronName] = {}
 
         if isinstance(interval, (int, float)) and "tasks.periodic.useminutes" in conf.compatibility:
             logging.warning(
-                f"Assuming {interval=} minutes here. This will change into seconds in future. "
-                f"Please use `datetime.timedelta` for clarification."
+                f"PeriodicTask assuming {interval=} minutes here. This is changed into seconds in future. "
+                f"Please use `datetime.timedelta(minutes={interval})` for clarification.",
+                stacklevel=2,
             )
             interval *= 60
+
         _periodicTasks[cronName][fn] = utils.parse.timedelta(interval)
         fn.periodicTaskName = f"{fn.__module__}_{fn.__qualname__}".replace(".", "_").lower()
         return fn
 
-    return mkDecorator
+    return make_decorator
 
 
 def CallableTask(fn: t.Callable) -> t.Callable:
@@ -868,3 +869,15 @@ class DeleteEntitiesIter(QueryIter):
             entry.delete()
         else:
             db.Delete(entry.key)
+
+
+@PeriodicTask(interval=datetime.timedelta(hours=4))
+def start_clear_transaction_marker():
+    """
+        Removes old (expired) Transaction marker
+        https://cloud.google.com/datastore/docs/concepts/transactions?hl=en#using_transactions
+        https://cloud.google.com/tasks/docs/quotas?hl=en
+    """
+    query = db.Query("viur-transactionmarker").filter("creationdate <",
+                                                      datetime.datetime.now() - datetime.timedelta(days=31))
+    DeleteEntitiesIter.startIterOnQuery(query)
