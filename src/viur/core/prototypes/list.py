@@ -325,10 +325,23 @@ class List(SkelModule):
             :return: The rendered entity or list.
         """
         if args and args[0]:
+
+
+
+
             skel = self.viewSkel(
                 allow_client_defined=utils.string.is_prefix(self.render.kind, "json"),
                 _excludeFromAccessLog=True,
             )
+            try:
+                db_key = db.Key.from_legacy_urlsafe(args[0])
+                assert db_key.kind == self.kindName
+                skel.read(db_key)
+                self.onView(skel)
+                return self.render.view(skel)
+
+            except Exception:
+                pass
 
             # We probably have a Database or SEO-Key here
             if skel := skel.all().filter("viur.viurActiveSeoKeys =", str(args[0]).lower()).getSkel():
