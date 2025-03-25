@@ -141,6 +141,7 @@ class SkeletonInstance:
         "dbEntity",
         "errors",
         "is_cloned",
+        "is_readonly",
         "renderAccessedValues",
         "renderPreparation",
         "skeletonCls",
@@ -155,6 +156,7 @@ class SkeletonInstance:
         clone: bool = False,
         # FIXME: BELOW IS DEPRECATED!
         clonedBoneMap: t.Optional[t.Dict[str, BaseBone]] = None,
+        readonly: bool = False,
     ):
         """
         Creates a new SkeletonInstance based on `skel_cls`.
@@ -216,6 +218,7 @@ class SkeletonInstance:
         self.dbEntity = None
         self.errors = []
         self.is_cloned = clone
+        self.is_readonly = readonly
         self.renderAccessedValues = {}
         self.renderPreparation = None
         self.skeletonCls = skel_cls
@@ -318,6 +321,7 @@ class SkeletonInstance:
             "toDB",
             "unserialize",
             "write",
+
         }:
             return partial(getattr(self.skeletonCls, item), self)
 
@@ -429,6 +433,11 @@ class SkeletonInstance:
             return self.clone()
 
         return self
+
+    def readonly(self):
+        skel = self.ensure_is_cloned()
+        skel.is_readonly = True
+        return skel
 
     def setEntity(self, entity: db.Entity):
         self.dbEntity = entity
@@ -705,16 +714,6 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 
             _ = skel[key]  # Ensure value gets loaded
             bone.refresh(skel, key)
-
-    @classmethod
-    def readonly(cls, skel: SkeletonInstance):
-        """
-            Set all bones to readonly in the Skeleton.
-        """
-        for bone in skel.values():
-            if not isinstance(bone, BaseBone):
-                continue
-            bone.readOnly = True
 
     def __new__(cls, *args, **kwargs) -> SkeletonInstance:
         return SkeletonInstance(cls, *args, **kwargs)
@@ -1230,6 +1229,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 return cls.toDB(skel, update_relations=update_relations)
 
         assert skel.renderPreparation is None, "Cannot modify values while rendering"
+        assert not skel.is_readonly, "Cannot write a readonly Skeleton"
 
         def __txn_write(write_skel):
             db_key = write_skel["key"]
