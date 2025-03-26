@@ -1,8 +1,7 @@
 import datetime
 from deprecated.sphinx import deprecated
 import typing as t
-
-from .transport import get, put, run_in_transaction
+from .transport import get, put, run_in_transaction,__client__
 from .types import Entity, Key, currentDbAccessLog, currentTransaction
 
 
@@ -98,7 +97,7 @@ def keyHelper(
 
 
 def is_in_transaction() -> bool:
-    return currentTransaction.get() is not None
+    return __client__.current_transaction is not None
 
 
 @deprecated(version="3.8.0", reason="Use 'db.utils.is_in_transaction' instead")

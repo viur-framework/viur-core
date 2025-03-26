@@ -129,8 +129,11 @@ def run_in_transaction(func: t.Callable, *args, **kwargs) -> t.Any:
     :return: Whatever the callee function returned
     """
     # todo retry when failed ?
-    with __client__.transaction():
+    if __client__.current_transaction:
         res = func(*args, **kwargs)
+    else:
+        with __client__.transaction():
+            res = func(*args, **kwargs)
     return res
 
 

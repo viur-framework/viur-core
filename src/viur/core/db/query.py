@@ -416,7 +416,12 @@ class Query(object):
         if isinstance(self.queries, QueryDefinition):
             q = self.queries
         elif isinstance(self.queries, list):
-            q = self.queries[0]
+            for query in self.queries:
+                if query.currentCursor:
+                    q = query
+                    break
+            else:
+                q = self.queries[0]
         return base64.urlsafe_b64encode(q.currentCursor).decode("ASCII") if q.currentCursor else None
 
     def get_orders(self) -> t.List[t.Tuple[str, SortOrder]] | None:
