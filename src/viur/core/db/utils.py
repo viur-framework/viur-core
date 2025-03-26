@@ -2,8 +2,8 @@ import datetime
 from deprecated.sphinx import deprecated
 import typing as t
 from .transport import get, put, run_in_transaction, __client__
-from .types import Entity, Key, currentDbAccessLog, currentTransaction
-
+from .types import Entity, Key, currentDbAccessLog
+from google.cloud.datastore.transaction import Transaction
 
 def fix_unindexable_properties(entry: Entity) -> Entity:
     """
@@ -146,9 +146,9 @@ def acquireTransactionSuccessMarker() -> str:
         or if the transaction it was created in failed.
         :return: Name of the entry in viur-transactionmarker
     """
-    txn = currentTransaction.get()
+    txn: Transaction | None = __client__.current_transaction
     assert txn, "acquireTransactionSuccessMarker cannot be called outside an transaction"
-    marker = txn["key"]  # binascii.b2a_hex(txn["key"]).decode("ASCII")
+    marker = str(txn.id)
     if "viurTxnMarkerSet" not in txn:
         e = Entity(Key("viur-transactionmarker", marker))
         e["creationdate"] = datetime.datetime.now(datetime.timezone.utc)

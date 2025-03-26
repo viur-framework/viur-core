@@ -15,6 +15,7 @@ datastore.helpers.entity_from_protobuf = entity_from_protobuf
 __client__ = datastore.Client()
 
 
+
 def allocate_ids(kind_name: str, num_ids: int = 1, retry=None, timeout=None) -> list[Key]:
     if type(kind_name) is not str:
         raise TypeError("kind_name must be a string")

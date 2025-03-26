@@ -233,7 +233,7 @@ class Query(object):
                 newFilter.filters[f"{field} >"] = value
                 self.queries.append(newFilter)
             else:  # IN filter
-                if not (isinstance(value, list) or isinstance(value, tuple)):
+                if not isinstance(value, (list,tuple)):
                     raise ValueError("Value must be list or tuple if using IN filter!")
                 for val in value:
                     newFilter = copy.deepcopy(origQuery)
@@ -522,7 +522,7 @@ class Query(object):
             # We must return this tuple because inter-type comparison isn't possible in Python3 anymore
             return str(type(src)), src if src is not None else 0
 
-        # Check if we have an inequality filter which implies an sortorder
+        # Check if we have an inequality filter which implies a sortorder
         ineqFilter = None
         for k, _ in filters.items():
             end = k[-2:]

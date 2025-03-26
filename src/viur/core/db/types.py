@@ -9,9 +9,8 @@ import typing as t
 from contextvars import ContextVar
 from dataclasses import dataclass
 
-import google.auth
-import google.auth
 from google.cloud.datastore import Entity as Datastore_entity, Key as Datastore_key
+
 
 KEY_SPECIAL_PROPERTY = "__key__"
 """The property name pointing to an entities key in a query"""
@@ -19,13 +18,10 @@ KEY_SPECIAL_PROPERTY = "__key__"
 DATASTORE_BASE_TYPES = t.Union[None, str, int, float, bool, datetime.datetime, datetime.date, datetime.time, "Key"]
 """Types that can be used in a datastore query"""
 
-currentTransaction = ContextVar("CurrentTransaction", default=None)
-"""Pointer to the current transaction this thread may be currently in"""
-
+# TODO We need this.
 currentDbAccessLog: ContextVar[t.Optional[set[t.Union[Key, str]]]] = ContextVar("Database-Accesslog", default=None)
 """If set to a set for the current thread/request, we'll log all entities / kinds accessed"""
 
-_, projectID = google.auth.default(scopes=["https://www.googleapis.com/auth/datastore"])
 """The current projectID, which can't be imported from transport.py"""
 
 
@@ -49,7 +45,8 @@ class Key(Datastore_key):
 
     def __init__(self, *args, project=None, **kwargs):
         if project is None:
-            project = projectID
+            from .transport import __client__ # noqa: E402 # import works only here because circular imports
+            project = __client__.project
 
         super().__init__(*args, project=project, **kwargs)
 
@@ -141,9 +138,9 @@ class Entity(Datastore_entity):
     """
 
     def __init__(
-        self,
-        key: t.Optional[Key] = None,
-        exclude_from_indexes: t.Optional[list[str]] = None,
+            self,
+            key: t.Optional[Key] = None,
+            exclude_from_indexes: t.Optional[list[str]] = None,
     ) -> None:
         super().__init__(key, exclude_from_indexes or [])
         assert not key or isinstance(key, Key), "Key must be a Key-Object (or None for an embedded entity)"
