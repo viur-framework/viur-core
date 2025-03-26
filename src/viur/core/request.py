@@ -339,7 +339,7 @@ class Router:
             path = self._select_language(path)[1:]
 
             # Check for closed system
-            if conf.security.closed_system:
+            if conf.security.closed_system and self.method != "options":
                 if not current.user.get():
                     if not any(fnmatch.fnmatch(path, pat) for pat in conf.security.closed_system_allowed_paths):
                         raise errors.Unauthorized()
@@ -620,6 +620,13 @@ class Router:
             logging.debug(
                 f"Calling {caller._func!r} with args={self.args!r}, {kwargs=} within context={self.context!r}"
             )
+
+        if self.method == "options":
+            # OPTIONS request doesn't have a body
+            del self.response.app_iter
+            del self.response.content_type
+            self.response.status = "204 No Content"
+            return
 
         # Now call the routed method!
         res = caller(*self.args, **kwargs)

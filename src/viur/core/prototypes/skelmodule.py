@@ -1,7 +1,8 @@
 import os
 import yaml
 import logging
-from viur.core import Module, db, current
+from viur.core import Module, db, current, errors
+from viur.core.decorators import *
 from viur.core.config import conf
 from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
 import typing as t
@@ -33,7 +34,7 @@ def __load_indexes_from_file() -> dict[str, list]:
         with open(os.path.join(conf.instance.project_base_path, "index.yaml"), "r") as file:
             indexes = yaml.safe_load(file)
             indexes = indexes.get("indexes", [])
-            for index in indexes:
+            for index in indexes or ():
                 index["properties"] = [_property["name"] for _property in index["properties"]]
                 indexes_dict.setdefault(index["kind"], []).append(index)
 
@@ -45,6 +46,9 @@ def __load_indexes_from_file() -> dict[str, list]:
 
 
 DATASTORE_INDEXES = __load_indexes_from_file()
+
+X_VIUR_BONELIST: t.Final[str] = "X-VIUR-BONELIST"
+"""Defines the header parameter that might contain a client-defined bone list."""
 
 
 class SkelModule(Module):
@@ -107,7 +111,59 @@ class SkelModule(Module):
 
         By default, baseSkel is used by :func:`~viewSkel`, :func:`~addSkel`, and :func:`~editSkel`.
         """
-        return self._resolveSkelCls(*args, **kwargs)()
+        return self.skel(**kwargs)
+
+    def skel(
+        self,
+        *,
+        allow_client_defined: bool = False,
+        bones: tuple[str, ...] | t.List[str] = (),
+        exclude_bones: tuple[str, ...] | t.List[str] = (),
+        **kwargs,
+    ) -> SkeletonInstance:
+        """
+        Retrieve module-specific skeleton, optionally as subskel.
+
+        :param allow_client_defined: Evaluates header X-VIUR-BONELIST to contain a comma-separated list of bones.
+            Using this parameter enforces that the Skeleton class has a subskel named "*" for required bones that
+            must exist.
+        :param bones: Allows to specify a list of bones to form a subskel.
+        :param exclude_bones: Provide a list of bones which are always excluded.
+
+        The parameters `bones` and `allow_client_defined` can be combined.
+        """
+        skel_cls = self._resolveSkelCls(**kwargs)
+        bones = set(bones) if bones else set()
+
+        if allow_client_defined:
+            # if bonelist := current.request.get().kwargs.get(X_VIUR_BONELIST.lower()):  # DEBUG
+            if bonelist := current.request.get().request.headers.get(X_VIUR_BONELIST):
+                if "*" not in skel_cls.subSkels:  # a named star-subskel "*"" must exist!
+                    raise errors.BadRequest(f"Use of {X_VIUR_BONELIST!r} requires a defined star-subskel")
+
+                bones |= {bone.strip() for bone in bonelist.split(",")}
+            else:
+                allow_client_defined = False  # is not client-defined!
+
+        bones.difference_update(exclude_bones)
+
+        # Return a subskel?
+        if bones:
+            # When coming from outside of a request, "*" is always involved.
+            if allow_client_defined:
+                current.request.get().response.vary = (X_VIUR_BONELIST, *(current.request.get().response.vary or ()))
+                return skel_cls.subskel("*", bones=bones)
+
+            return skel_cls(bones=bones)
+
+        elif exclude_bones:
+            # Return full skel, without generally excluded bones
+            bones.update(skel_cls.__boneMap__.keys())
+            bones.difference_update(exclude_bones)
+            return skel_cls(bones=bones)
+
+        # Otherwise, return full skeleton
+        return skel_cls()
 
     def _apply_default_order(self, query: db.Query):
         """
@@ -147,3 +203,44 @@ class SkelModule(Module):
                     query.order(default_order)
                 else:
                     query.order(*default_order)
+
+    @force_ssl
+    @force_post
+    @exposed
+    @skey
+    @access("root")
+    def add_or_edit(self, key: db.Key | int | str, **kwargs) -> t.Any:
+        """
+        This function is intended to be used by importers.
+        Only "root"-users are allowed to use it.
+        """
+        db_key = db.keyHelper(key, targetKind=self.kindName, adjust_kind=self.kindName)
+        is_add = not bool(db.Get(db_key))
+
+        if is_add:
+            skel = self.addSkel()
+        else:
+            skel = self.editSkel()
+
+        skel["key"] = db_key
+
+        if (
+            not kwargs  # no data supplied
+            or not skel.fromClient(kwargs)  # failure on reading into the bones
+        ):
+            # render the skeleton in the version it could as far as it could be read.
+            return self.render.render("add_or_edit", skel)
+
+        if is_add:
+            self.onAdd(skel)
+        else:
+            self.onEdit(skel)
+
+        skel.write()
+
+        if is_add:
+            self.onAdded(skel)
+            return self.render.addSuccess(skel)
+
+        self.onEdited(skel)
+        return self.render.editSuccess(skel)
