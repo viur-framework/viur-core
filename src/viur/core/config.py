@@ -17,6 +17,7 @@ if t.TYPE_CHECKING:  # pragma: no cover
     from viur.core.skeleton import SkeletonInstance
     from viur.core.module import Module
     from viur.core.tasks import CustomEnvironmentHandler
+    from viur.core.cache import UserSensitive
 
 
 # Construct an alias with a generic type to be able to write Multiple[str]
