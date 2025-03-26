@@ -1,7 +1,7 @@
 import datetime
 from deprecated.sphinx import deprecated
 import typing as t
-from .transport import get, put, run_in_transaction,__client__
+from .transport import get, put, run_in_transaction, __client__
 from .types import Entity, Key, currentDbAccessLog, currentTransaction
 
 
