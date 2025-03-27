@@ -119,15 +119,15 @@ class Session(db.Entity):
             self.cookie_key = utils.string.random(42)
             self.static_security_key = utils.string.random(13)
 
-        dbSession = db.Entity(db.Key(self.kindName, self.cookie_key))
-
-        dbSession["data"] = db.fixUnindexableProperties(self)
-        dbSession["static_security_key"] = self.static_security_key
-        dbSession["lastseen"] = time.time()
-        dbSession["user"] = str(user_key)  # allow filtering for users
-        dbSession.exclude_from_indexes = {"data"}
-
-        db.Put(dbSession)
+        def __txn_write():
+            db_session = db.Entity(db.Key(self.kindName, self.cookie_key))
+            db_session["data"] = db.fixUnindexableProperties(self)
+            db_session["static_security_key"] = self.static_security_key
+            db_session["lastseen"] = time.time()
+            db_session["user"] = str(user_key)  # allow filtering for users
+            db_session.exclude_from_indexes = {"data"}
+            db.Put(db_session)
+        db.RunInTransaction(__txn_write)
 
         # Provide Set-Cookie header entry with configured properties
         flags = (
