@@ -1,6 +1,5 @@
 from . import cache
 from .config import conf as config
-from .errors import *
 from .query import Query
 # new exports for 3.8
 from .transport import (AllocateIDs, Count, Delete, Get, Put, RunInTransaction, allocate_ids, count, delete, get, put,
@@ -35,19 +34,6 @@ __all__ = [
     "config",
     "startDataAccessLog",
     "endDataAccessLog",
-    "ViurDatastoreError",
-    "AbortedError",
-    "CollisionError",
-    "DeadlineExceededError",
-    "FailedPreconditionError",
-    "InternalError",
-    "InvalidArgumentError",
-    "NotFoundError",
-    "PermissionDeniedError",
-    "ResourceExhaustedError",
-    "UnauthenticatedError",
-    "UnavailableError",
-    "NoMutationResultsError",
     "cache",
     # new exports
     "allocate_ids",
