@@ -127,7 +127,11 @@ class Session(db.Entity):
             db_session["user"] = str(user_key)  # allow filtering for users
             db_session.exclude_from_indexes = {"data"}
             db.Put(db_session)
-        db.RunInTransaction(__txn_write)
+
+        if db.IsInTransaction():
+            return __txn_write()
+        else:
+            return db.RunInTransaction(__txn_write)
 
         # Provide Set-Cookie header entry with configured properties
         flags = (
