@@ -215,7 +215,7 @@ class SkelModule(Module):
         Only "root"-users are allowed to use it.
         """
         db_key = db.keyHelper(key, targetKind=self.kindName, adjust_kind=self.kindName)
-        is_add = not bool(db.Get(db_key))
+        is_add = not bool(db.get(db_key))
 
         if is_add:
             skel = self.addSkel()
