@@ -539,7 +539,7 @@ def flushCache(prefix: str = None, key: db.Key | None = None, kind:  str | None 
     """
         Flushes the cache. Its possible the flush only a part of the cache by specifying
         the path-prefix. The path is equal to the url that caused it to be cached (eg /page/view) and must be one
-        listed in the 'url' param of :meth:`viur.core.cache.enableCache`.
+        listed in the 'url' param of :class:`ResponseCache`.
 
         :param prefix: Path or prefix that should be flushed.
         :param key: Flush all cache entries which may contain this key. Also flushes entries
