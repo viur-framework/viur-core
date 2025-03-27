@@ -261,14 +261,14 @@ class ResponseCache(t.Generic[Args, Value]):
                     logger.debug("Caching is disabled by config")
                 return bypass_response()
 
-            # logger.debug(f"{utils.vars_full(current_request) = }")
+            # logger.debug(f"{utils.vars_full(current_request)=}")
 
             # How many arguments are part of the way to the function called (and how many are just *args)
             offset = -len(current_request.args) or len(current_request.path_list)
             # Get just the path segment before the arguments (the @exposed route)
             path = "/".join(current_request.path_list[:offset])
             path = f"/{path.strip('/')}"  # normalize /
-            logger.debug(f"{path = }")
+            logger.debug(f"{path=}")
 
             if this.urls is not None and path not in this.urls:
                 logger.debug(f"{path} is not {this.urls} and should not be cached")
@@ -291,11 +291,11 @@ class ResponseCache(t.Generic[Args, Value]):
 
             """
             try:
-                logger.debug(f"{self.seo_language_map = }")
+                logger.debug(f"{self.seo_language_map=}")
             except AttributeError as exc:
                 logger.exception(exc)
             try:
-                logger.debug(f"{getattr(self, func.__name__).seo_language_map = }")
+                logger.debug(f"{getattr(self, func.__name__).seo_language_map=}")
             except AttributeError as exc:
                 logger.exception(exc)
             """
@@ -307,7 +307,7 @@ class ResponseCache(t.Generic[Args, Value]):
                 return bypass_response()
 
             cache_key = this.get_string_from_args(cache_args)
-            logger.debug(f"{cache_key = }")
+            logger.debug(f"{cache_key=}")
 
             entity = db.Get(db.Key(CACHE_KINDNAME, cache_key))
             cache_status = "MISS"
@@ -352,12 +352,12 @@ class ResponseCache(t.Generic[Args, Value]):
             else:
                 content_type = current_request.response.headers["Content-Type"]
                 body_size = uncompressed_size = sys.getsizeof(body)
-                logger.debug(f"{uncompressed_size = }")
+                logger.debug(f"{uncompressed_size=}")
 
                 if this.compression_level is not None:
                     body = zlib.compress(body.encode("utf-8"), this.compression_level)
                     body_size = compressed_size = sys.getsizeof(body)
-                    logger.debug(f"{compressed_size = }")
+                    logger.debug(f"{compressed_size=}")
                     logger.info(
                         f"Compression saved {uncompressed_size - compressed_size} bytes"
                         f" ({round((1 - compressed_size / uncompressed_size) * 100.0, 4)} %)"
@@ -434,11 +434,11 @@ class ResponseCache(t.Generic[Args, Value]):
         In addition to the arguments to be considered (evaluated_args) of the request,
         parameters are also formed from the other options of this class.
         """
-        logger.debug(f"{args = } // {kwargs = } // {self.evaluated_args = } // {path = }")
+        logger.debug(f"{args=} // {kwargs=} // {self.evaluated_args=} // {path=}")
 
         signature = inspect.signature(func)
-        logger.debug(f"{signature = }")
-        logger.debug(f"{signature.parameters = }")
+        logger.debug(f"{signature=}")
+        logger.debug(f"{signature.parameters=}")
 
         remaining_kwargs = kwargs.copy()
         res = {}
@@ -508,7 +508,7 @@ class ResponseCache(t.Generic[Args, Value]):
 
         res["__path"] = path  # Different path might have different output (html,xml,..)
 
-        logger.debug(f"{conf.instance.app_version = }")
+        logger.debug(f"{conf.instance.app_version=}")
         if conf.instance.is_dev_server:
             res["__app_version"] = f'dev_server_{os.getenv("USER", "")}'
         else:
@@ -525,14 +525,13 @@ class ResponseCache(t.Generic[Args, Value]):
         :param args: The result of :meth:`get_args`
         """
         args = utils.freeze_dict(args)
-        logger.debug(f"{args = }")
+        logger.debug(f"{args=}")
         return sha512(str(args).encode("utf-8")).hexdigest()
 
     def __repr__(self) -> str:
         """Representation of this class"""
         values = ", ".join(f"{key}={getattr(self, key)!r}" for key in self.__slots__)
         return f"<{type(self).__qualname__} with {values}>"
-
 
 
 @tasks.CallDeferred
