@@ -5,6 +5,7 @@ from .transport import get, put, run_in_transaction, __client__
 from .types import Entity, Key, currentDbAccessLog
 from google.cloud.datastore.transaction import Transaction
 
+
 def fix_unindexable_properties(entry: Entity) -> Entity:
     """
         Recursively walk the given Entity and add all properties to the list of unindexed properties if they contain

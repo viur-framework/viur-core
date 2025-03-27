@@ -183,9 +183,9 @@ class Query(object):
         if startCursor or endCursor:
             self.setCursor(startCursor, endCursor)
         if (
-            "limit" in filters
-            and str(filters["limit"]).isdigit()
-            and 0 < int(filters["limit"]) <= 100
+                "limit" in filters
+                and str(filters["limit"]).isdigit()
+                and 0 < int(filters["limit"]) <= 100
         ):
             self.limit(int(filters["limit"]))
         return self
@@ -233,7 +233,7 @@ class Query(object):
                 newFilter.filters[f"{field} >"] = value
                 self.queries.append(newFilter)
             else:  # IN filter
-                if not isinstance(value, (list,tuple)):
+                if not isinstance(value, (list, tuple)):
                     raise ValueError("Value must be list or tuple if using IN filter!")
                 for val in value:
                     newFilter = copy.deepcopy(origQuery)
@@ -481,10 +481,10 @@ class Query(object):
         return self._resort_result(res, {}, self.queries[0].orders)
 
     def _resort_result(
-        self,
-        entities: t.List[Entity],
-        filters: t.Dict[str, DATASTORE_BASE_TYPES],
-        orders: t.List[t.Tuple[str, SortOrder]],
+            self,
+            entities: t.List[Entity],
+            filters: t.Dict[str, DATASTORE_BASE_TYPES],
+            orders: t.List[t.Tuple[str, SortOrder]],
     ) -> t.List[Entity]:
         """
         Internal helper that takes a (deduplicated) list of entities that has been fetched from different internal
@@ -551,10 +551,10 @@ class Query(object):
         """
         resultList = list(resultList)
         if (
-            resultList
-            and resultList[0].key.kind != self.origKind
-            and resultList[0].key.parent
-            and resultList[0].key.parent.kind == self.origKind
+                resultList
+                and resultList[0].key.kind != self.origKind
+                and resultList[0].key.parent
+                and resultList[0].key.parent.kind == self.origKind
         ):
             return list(get(list(dict.fromkeys([x.key.parent for x in resultList]))))
 
@@ -613,7 +613,7 @@ class Query(object):
                 res = self._merge_multi_query_results(res)
         else:  # We have just one single query
             res = self._fixKind(self._run_single_filter_query(
-                    self.queries, limit if limit != -1 else self.queries.limit))
+                self.queries, limit if limit != -1 else self.queries.limit))
         if res:
             self._lastEntry = res[-1]
         return res

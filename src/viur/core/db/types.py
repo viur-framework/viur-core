@@ -11,7 +11,6 @@ from dataclasses import dataclass
 
 from google.cloud.datastore import Entity as Datastore_entity, Key as Datastore_key
 
-
 KEY_SPECIAL_PROPERTY = "__key__"
 """The property name pointing to an entities key in a query"""
 
@@ -45,7 +44,7 @@ class Key(Datastore_key):
 
     def __init__(self, *args, project=None, **kwargs):
         if project is None:
-            from .transport import __client__ # noqa: E402 # import works only here because circular imports
+            from .transport import __client__  # noqa: E402 # import works only here because circular imports
             project = __client__.project
 
         super().__init__(*args, project=project, **kwargs)
@@ -138,9 +137,9 @@ class Entity(Datastore_entity):
     """
 
     def __init__(
-            self,
-            key: t.Optional[Key] = None,
-            exclude_from_indexes: t.Optional[list[str]] = None,
+        self,
+        key: t.Optional[Key] = None,
+        exclude_from_indexes: t.Optional[list[str]] = None,
     ) -> None:
         super().__init__(key, exclude_from_indexes or [])
         assert not key or isinstance(key, Key), "Key must be a Key-Object (or None for an embedded entity)"
