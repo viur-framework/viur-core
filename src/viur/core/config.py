@@ -20,7 +20,6 @@ if t.TYPE_CHECKING:  # pragma: no cover
     from viur.core.tasks import CustomEnvironmentHandler
     from viur.core import i18n
 
-
 # Construct an alias with a generic type to be able to write Multiple[str]
 # TODO: Backward compatible implementation, refactor when viur-core
 #       becomes >= Python 3.12 with a type statement (PEP 695)
@@ -671,7 +670,7 @@ class User(ConfigType):
     The preset roles are for guidiance, and already fit to most projects.
     """
 
-    session_life_time: int = 60 * 60
+    session_life_time: int | datetime.timedelta = 60 * 60
     """Default is 60 minutes lifetime for ViUR sessions"""
 
     session_persistent_fields_on_login: Multiple[str] = ["language"]
@@ -695,6 +694,11 @@ class User(ConfigType):
     belongs to one of the listed domains, a user account (UserSkel) is created.
     If the user's email address belongs to any other domain,
     no account is created."""
+
+    def __setattr__(self, name: str, value: t.Any) -> None:
+        if name == "session_life_time" and isinstance(value, datetime.timedelta):
+            value = value.total_seconds()
+        super().__setattr__(name, value)
 
 
 class Instance(ConfigType):
