@@ -46,7 +46,7 @@ __all__ = [
     "flushCache",
 ]
 
-CACHE_KINDNAME : t.Final[str] = "viur-cache"
+CACHE_KINDNAME: t.Final[str] = "viur-cache"
 
 MAX_PROPERTY_SIZE: t.Final[int] = 1024 ** 2 - 89
 """Maximal possible property size in a datastore entity"""
