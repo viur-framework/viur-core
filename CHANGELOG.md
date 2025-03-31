@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.11]
+
+- fix: Fixes for `/_translation/dump`
+- fix: Better handling of invalid blob keys in `File.download()` (#1444)
+
 ## [3.7.10]
 
 - fix: General fixing and clean-up on `translate()` (#1364)
