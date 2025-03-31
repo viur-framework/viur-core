@@ -103,13 +103,6 @@ def delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
 def Delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
     return delete(keys)
 
-
-@deprecated(version="3.8.0", reason="Use 'db.utils.is_in_transaction' instead")
-def IsInTransaction() -> bool:
-    from .utils import is_in_transaction  # noqa: E402 # import works only here because circular imports
-    return is_in_transaction()
-
-
 def run_in_transaction(func: t.Callable, *args, **kwargs) -> t.Any:
     """
     Runs the function given in :param:callee inside a transaction.
