@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import datetime
+from deprecated.sphinx import deprecated
 from viur.core import conf, db, utils, current, errors
 from viur.core.decorators import exposed
 from viur.core.bones import *
@@ -308,6 +309,14 @@ class Translation(List):
             if (conf.i18n.dump_can_view(name) or values.get("_public_"))
             and any(fnmatch.fnmatch(name, pat) for pat in pattern)
         })
+
+    @exposed
+    @deprecated(
+        version="3.7.10",
+        reason="Function renamed. Use 'dump' function as alternative implementation.",
+    )
+    def get_public(self, **kwargs):
+        return self.dump(**kwargs)
 
 
 Translation.json = True
