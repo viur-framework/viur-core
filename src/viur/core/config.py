@@ -670,7 +670,7 @@ class User(ConfigType):
     The preset roles are for guidiance, and already fit to most projects.
     """
 
-    session_life_time: int | datetime.timedelta = 60 * 60
+    session_life_time: datetime.timedelta = datetime.timedelta(hours=1)
     """Default is 60 minutes lifetime for ViUR sessions"""
 
     session_persistent_fields_on_login: Multiple[str] = ["language"]
@@ -696,8 +696,14 @@ class User(ConfigType):
     no account is created."""
 
     def __setattr__(self, name: str, value: t.Any) -> None:
-        if name == "session_life_time" and isinstance(value, datetime.timedelta):
-            value = value.total_seconds()
+        if name == "session_life_time":
+            if not isinstance(value, datetime.timedelta):
+                from viur.core import utils
+                warnings.warn(
+                    "Please use timedelta to set session_life_time.",
+                    DeprecationWarning, stacklevel=2,
+                )
+                value = utils.parse.timedelta(value)
         super().__setattr__(name, value)
 
 
