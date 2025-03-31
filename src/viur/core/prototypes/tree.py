@@ -35,8 +35,7 @@ class TreeSkel(Skeleton):
     def refresh(cls, skelValues):  # ViUR2 Compatibility
         super().refresh(skelValues)
         if not skelValues["parententry"] and skelValues.dbEntity.get("parentdir"):  # parentdir for viur2 compatibility
-            skelValues["parententry"] = utils.normalizeKey(
-                db.Key.from_legacy_urlsafe(skelValues.dbEntity["parentdir"]))
+            skelValues["parententry"] = db.normalize_key(skelValues.dbEntity["parentdir"])
 
 
 class Tree(SkelModule):
@@ -660,7 +659,7 @@ class Tree(SkelModule):
             raise errors.NotFound("Cannot find entity to move")
 
         if not parentNodeSkel.read(parentNode):
-            parentNode = utils.normalizeKey(db.Key.from_legacy_urlsafe(parentNode))
+            parentNode = db.normalize_key(parentNode)
 
             if parentNode.kind != parentNodeSkel.kindName:
                 raise errors.NotFound(

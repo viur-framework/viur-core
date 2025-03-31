@@ -42,20 +42,27 @@ def fix_unindexable_properties(entry: Entity) -> Entity:
     return entry
 
 
-def normalizeKey(key: t.Union[None, Key]) -> t.Union[None, Key]:
+def normalize_key(key: t.Union[None, Key, str]) -> t.Union[None, Key]:
     """
-    Normalizes a datastore key (replacing _application with the current one)
+        Normalizes a datastore key (replacing _application with the current one)
 
-    :param key: Key to be normalized.
-    :return: Normalized key in string representation.
-    """
+        :param key: Key to be normalized.
+        :return: Normalized key in string representation.
+        """
     if key is None:
         return None
+    if isinstance(key, str):
+        key = Key.from_legacy_urlsafe(str)
     if key.parent:
-        parent = normalizeKey(key.parent)
+        parent = normalize_key(key.parent)
     else:
         parent = None
     return Key(key.kind, key.id_or_name, parent=parent)
+
+
+@deprecated(version="3.8.0", reason="Use 'db.normalize_key' instead")
+def normalizeKey(key: t.Union[None, Key]) -> t.Union[None, Key]:
+    return normalize_key(key)
 
 
 def keyHelper(
@@ -73,7 +80,7 @@ def keyHelper(
     elif isinstance(inKey, str):
         # Try to parse key from str
         try:
-            decodedKey = normalizeKey(Key.from_legacy_urlsafe(inKey))
+            decodedKey = normalize_key(inKey)
         except Exception:
             decodedKey = None
 
@@ -106,7 +113,7 @@ def IsInTransaction() -> bool:
     return is_in_transaction()
 
 
-def GetOrInsert(key: Key, **kwargs) -> Entity:
+def get_or_insert(key: Key, **kwargs) -> Entity:
     """
     Either creates a new entity with the given key, or returns the existing one.
 
@@ -130,6 +137,11 @@ def GetOrInsert(key: Key, **kwargs) -> Entity:
     if is_in_transaction():
         return txn(key, kwargs)
     return run_in_transaction(txn, key, kwargs)
+
+
+@deprecated(version="3.8.0", reason="Use 'db.get_or_insert' instead")
+def GetOrInsert(key: Key, **kwargs: t.Any) -> Entity:
+    return get_or_insert(key, **kwargs)
 
 
 def encodeKey(key: Key) -> str:

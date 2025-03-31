@@ -358,7 +358,7 @@ class RelationalBone(BaseBone):
                 for k, v in inDict["dest"].items():
                     res["dest"][k] = v
                 if "key" in res["dest"]:
-                    res["dest"].key = utils.normalizeKey(db.Key.from_legacy_urlsafe(res["dest"]["key"]))
+                    res["dest"].key =db.normalize_key(res["dest"]["key"])
             if "rel" in inDict and inDict["rel"]:
                 res["rel"] = db.Entity()
                 for k, v in inDict["rel"].items():

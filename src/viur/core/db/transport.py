@@ -103,6 +103,7 @@ def delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
 def Delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
     return delete(keys)
 
+
 def run_in_transaction(func: t.Callable, *args, **kwargs) -> t.Any:
     """
     Runs the function given in :param:callee inside a transaction.

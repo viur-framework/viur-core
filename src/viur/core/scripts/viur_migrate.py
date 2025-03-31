@@ -52,6 +52,8 @@ lookup = {
     "db.RunInTransaction": "db.run_in_transaction",
     "db.Count": "db.count",
     "db.runSingleFilter": "db.run_single_filter",
+    "db.normalizeKey":"db.normalize_key",
+    "db.GetOrInsert":"db.get_or_insert",
 
     # WARNING: THESE MUST BE KEPT AT THE END, THE ORDER MATTERS!!!!
     "projectID": "conf.instance.project_id",

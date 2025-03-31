@@ -556,7 +556,7 @@ class UserPassword(UserPrimaryAuthentication):
         if self.registrationEmailVerificationRequired and skel["status"] == Status.WAITING_FOR_EMAIL_VERIFICATION:
             # The user will have to verify his email-address. Create a skey and send it to his address
             skey = securitykey.create(duration=datetime.timedelta(days=7), session_bound=False,
-                                      user_key=utils.normalizeKey(skel["key"]),
+                                      user_key=db.normalize_key(skel["key"]),
                                       name=skel["name"])
             skel.skey = BaseBone(descr="Skey")
             skel["skey"] = skey
