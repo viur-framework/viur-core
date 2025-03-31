@@ -623,7 +623,10 @@ class I18N(ConfigType):
     If a callable is provided, it will be called with the translation object to make a complex decision.
     """
 
-    dump_can_view: t.Callable[[str], bool] = lambda _key: bool(current_user.get())
+    def _dump_can_view(self, _key):
+        return bool(current_user.get())
+
+    dump_can_view: t.Callable[[t.Self, str], bool] = _dump_can_view
     """Customizable callback for translation.dump() to verify if a specific translation key can be queried.
 
     This logic is omitted for translations flagged public."""
