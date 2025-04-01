@@ -54,6 +54,7 @@ lookup = {
     "db.runSingleFilter": "db.run_single_filter",
     "db.normalizeKey":"db.normalize_key",
     "db.GetOrInsert":"db.get_or_insert",
+    "db.keyHelper":"db.key_helper",
 
     # WARNING: THESE MUST BE KEPT AT THE END, THE ORDER MATTERS!!!!
     "projectID": "conf.instance.project_id",

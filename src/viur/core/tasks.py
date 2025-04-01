@@ -574,7 +574,7 @@ def CallDeferred(func: t.Callable) -> t.Callable:
 
             if db.IsInTransaction():
                 # We have to ensure transaction guarantees for that task also
-                env["transactionMarker"] = db.acquireTransactionSuccessMarker()
+                env["transactionMarker"] = db.acquire_transaction_success_marker()
                 # We move that task at least 90 seconds into the future so the transaction has time to settle
                 _countdown = max(90, _countdown)  # Countdown can be set to None
 

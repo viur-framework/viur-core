@@ -6,9 +6,9 @@ from .transport import (AllocateIDs, Count, Delete, Get, Put, RunInTransaction, 
                         run_in_transaction)
 from .types import (DATASTORE_BASE_TYPES, Entity, KEY_SPECIAL_PROPERTY, Key, QueryDefinition, SortOrder,
                     currentDbAccessLog)
-from .utils import (GetOrInsert, IsInTransaction, is_in_transaction, acquireTransactionSuccessMarker, encodeKey,
+from .utils import (GetOrInsert, IsInTransaction, is_in_transaction, acquire_transaction_success_marker, encodeKey,
                     endDataAccessLog, fix_unindexable_properties, keyHelper, normalizeKey, startDataAccessLog,
-                    get_or_insert,normalize_key)
+                    get_or_insert, normalize_key, key_helper)
 
 __all__ = [
     "KEY_SPECIAL_PROPERTY",
@@ -30,7 +30,7 @@ __all__ = [
     "currentDbAccessLog",
     "GetOrInsert",
     "encodeKey",
-    "acquireTransactionSuccessMarker",
+    "acquire_transaction_success_marker",
     "AllocateIDs",
     "config",
     "startDataAccessLog",
@@ -44,5 +44,6 @@ __all__ = [
     "run_in_transaction",
     "count",
     "get_or_insert",
-    "normalize_key"
+    "normalize_key",
+    "key_helper"
 ]

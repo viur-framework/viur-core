@@ -52,7 +52,7 @@ def normalize_key(key: t.Union[None, Key, str]) -> t.Union[None, Key]:
     if key is None:
         return None
     if isinstance(key, str):
-        key = Key.from_legacy_urlsafe(str)
+        key = Key.from_legacy_urlsafe(key)
     if key.parent:
         parent = normalize_key(key.parent)
     else:
@@ -65,43 +65,59 @@ def normalizeKey(key: t.Union[None, Key]) -> t.Union[None, Key]:
     return normalize_key(key)
 
 
+def key_helper(
+    in_key: t.Union[Key, str, int],
+    target_kind: str,
+    additional_allowed_kinds: t.Union[t.List[str], t.Tuple[str]] = (),
+    adjust_kind: bool = False,
+) -> Key:
+    if isinstance(in_key, Key):
+        if in_key.kind != target_kind and in_key.kind not in additional_allowed_kinds:
+            if not adjust_kind:
+                raise ValueError(f"Kind mismatch: {in_key.kind!r} != {target_kind!r} (or in {additional_allowed_kinds!r})")
+            in_key = Key(target_kind,in_key.id_or_name,parent=in_key.parent)
+        return in_key
+    elif isinstance(in_key, str):
+        # Try to parse key from str
+        try:
+            decoded_key = normalize_key(in_key)
+        except Exception as e:
+            print(f"Failed to decode key: {in_key!r} {e}")
+            decoded_key = None
+
+        # If it did decode, recall keyHelper with Key object
+        print(f"decoded key: {decoded_key!r}")
+        if decoded_key:
+            return key_helper(
+                decoded_key,
+                target_kind=target_kind,
+                additional_allowed_kinds=additional_allowed_kinds,
+                adjust_kind=adjust_kind
+            )
+
+        # otherwise, construct key from str or int
+        if in_key.isdigit():
+            in_key = int(in_key)
+
+        return Key(target_kind, in_key)
+    elif isinstance(in_key, int):
+        return Key(target_kind, in_key)
+
+    raise NotImplementedError(f"Unsupported key type {type(in_key)}")
+
+
 def keyHelper(
     inKey: t.Union[Key, str, int],
     targetKind: str,
     additionalAllowedKinds: t.Union[t.List[str], t.Tuple[str]] = (),
     adjust_kind: bool = False,
 ) -> Key:
-    if isinstance(inKey, Key):
-        if inKey.kind != targetKind and inKey.kind not in additionalAllowedKinds:
-            if not adjust_kind:
-                raise ValueError(f"Kind mismatch: {inKey.kind!r} != {targetKind!r} (or in {additionalAllowedKinds!r})")
-            inKey.kind = targetKind
-        return inKey
-    elif isinstance(inKey, str):
-        # Try to parse key from str
-        try:
-            decodedKey = normalize_key(inKey)
-        except Exception:
-            decodedKey = None
-
-        # If it did decode, recall keyHelper with Key object
-        if decodedKey:
-            return keyHelper(
-                decodedKey,
-                targetKind=targetKind,
-                additionalAllowedKinds=additionalAllowedKinds,
-                adjust_kind=adjust_kind
-            )
-
-        # otherwise, construct key from str or int
-        if inKey.isdigit():
-            inKey = int(inKey)
-
-        return Key(targetKind, inKey)
-    elif isinstance(inKey, int):
-        return Key(targetKind, inKey)
-
-    raise NotImplementedError(f"Unsupported key type {type(inKey)}")
+    return key_helper(
+        in_key=inKey,
+        target_kind=targetKind,
+        additional_allowed_kinds=additionalAllowedKinds,
+        adjust_kind=adjust_kind
+    )
 
 
 def is_in_transaction() -> bool:
@@ -144,29 +160,29 @@ def GetOrInsert(key: Key, **kwargs: t.Any) -> Entity:
     return get_or_insert(key, **kwargs)
 
 
+@deprecated(version="3.8.0", reason="Use 'str(key)' instead")
 def encodeKey(key: Key) -> str:
     """
         Return the given key encoded as string (mimicking the old str() behaviour of keys)
     """
-    # todo: Should we make a deprecation warning when this function is used?
     return str(key)
 
 
-def acquireTransactionSuccessMarker() -> str:
+def acquire_transaction_success_marker() -> str:
     """
-        Generates a token that will be written to the firestore (under "viur-transactionmarker") if the transaction
+        Generates a token that will be written to the datastore (under "viur-transactionmarker") if the transaction
         completes successfully. Currently only used by deferredTasks to check if the task should actually execute
         or if the transaction it was created in failed.
         :return: Name of the entry in viur-transactionmarker
     """
     txn: Transaction | None = __client__.current_transaction
-    assert txn, "acquireTransactionSuccessMarker cannot be called outside an transaction"
+    assert txn, "acquire_transaction_success_marker cannot be called outside an transaction"
     marker = str(txn.id)
-    if "viurTxnMarkerSet" not in txn:
-        e = Entity(Key("viur-transactionmarker", marker))
-        e["creationdate"] = datetime.datetime.now(datetime.timezone.utc)
-        put(e)
-        txn["viurTxnMarkerSet"] = True
+    if "marker_set" not in txn:
+        db_obj = Entity(Key("viur-transactionmarker", marker))
+        db_obj["creationdate"] = datetime.datetime.now(datetime.timezone.utc)
+        put(db_obj)
+        txn["marker_set"] = True
     return marker
 
 
