@@ -11,9 +11,9 @@ import zipfile
 
 class BaseScriptAbstractSkel(TreeSkel):
     path = StringBone(
-        descr = "Path",
-        readOnly = True,
-        unique = UniqueValue(UniqueLockMethod.SameValue, True, "This path is already taken!")
+        descr="Path",
+        readOnly=True,
+        unique=UniqueValue(UniqueLockMethod.SameValue, True, "This path is already taken!")
     )
 
     @classmethod
@@ -39,19 +39,19 @@ class ScriptNodeSkel(BaseScriptAbstractSkel):
     kindName = "viur-script-node"
 
     rootNode = BooleanBone(
-        descr = "Is root node?",
-        defaultValue = False,
+        descr="Is root node?",
+        defaultValue=False,
     )
 
     plugin = BooleanBone(
-        descr = "Is plugin?",
-        defaultValue = False
+        descr="Is plugin?",
+        defaultValue=False
     )
 
     name = StringBone(
-        descr = "Folder",
-        required = True,
-        vfunc = lambda value: None if File.is_valid_filename(value) else "Foldername is invalid"
+        descr="Folder",
+        required=True,
+        vfunc=lambda value: None if File.is_valid_filename(value) else "Foldername is invalid"
     )
 
 
@@ -59,25 +59,25 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
     kindName = "viur-script-leaf"
 
     name = StringBone(
-        descr = "Filename",
-        required = True,
-        vfunc = lambda value:
+        descr="Filename",
+        required=True,
+        vfunc=lambda value:
         None if File.is_valid_filename(value) and value.endswith(".py") and value.removesuffix(".py")
         else "Filename is invalid or doesn't have a '.py'-suffix",
     )
 
     script = RawBone(
-        descr = "Code",
-        indexed = False,
+        descr="Code",
+        indexed=False,
     )
 
     access = SelectBone(
-        descr = "Required access rights to run this Script",
-        values = lambda: {
-            right: translate(f"viur.core.modules.user.accessright.{right}", defaultText = right)
+        descr="Required access rights to run this Script",
+        values=lambda: {
+            right: translate(f"viur.core.modules.user.accessright.{right}", defaultText=right)
             for right in sorted(conf.user.access_rights)
         },
-        multiple = True,
+        multiple=True,
     )
 
 
@@ -102,7 +102,7 @@ class Script(Tree):
 
         return [{
             "name": "Scripts",
-            "key" : self.rootnodeSkel(ensure = True)["key"],
+            "key": self.rootnodeSkel(ensure=True)["key"],
         }]
 
     @exposed
@@ -128,7 +128,7 @@ class Script(Tree):
         super().onEdited(skelType, skel)
 
     @tasks.CallDeferred
-    def update_path_recursive(self, skel_type, path, parent_key, cursor = None):
+    def update_path_recursive(self, skel_type, path, parent_key, cursor=None):
         """
         Recursively updates all items under a given parent key.
         """
@@ -173,7 +173,7 @@ class Script(Tree):
         current.request.get().response.headers["Content-Disposition"] = "attachment; filename=importable.zip"
         current.request.get().response.headers["Content-Type"] = "application/zip"
         # get importable key
-        qry_importable = self.viewSkel("node").all().filter("parententry", self.rootnodeSkel(ensure = True)["key"])
+        qry_importable = self.viewSkel("node").all().filter("parententry", self.rootnodeSkel(ensure=True)["key"])
         importable_key = None
         for data in qry_importable.iter():
             if data["name"] == "importable":
