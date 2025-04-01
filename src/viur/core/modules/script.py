@@ -62,8 +62,8 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
         descr="Filename",
         required=True,
         vfunc=lambda value:
-        None if File.is_valid_filename(value) and value.endswith(".py") and value.removesuffix(".py")
-        else "Filename is invalid or doesn't have a '.py'-suffix",
+            None if File.is_valid_filename(value) and value.endswith(".py") and value.removesuffix(".py")
+            else "Filename is invalid or doesn't have a '.py'-suffix",
     )
 
     script = RawBone(
