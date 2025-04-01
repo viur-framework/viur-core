@@ -3,8 +3,8 @@ import typing as t
 from viur.core.bones import *
 from viur.core.prototypes.tree import Tree, TreeSkel, SkelType
 from viur.core.modules.file import File
-from viur.core import db, conf, current, skeleton, tasks, errors, utils
-from viur.core.decorators import exposed, access
+from viur.core import db, conf, current, skeleton, tasks, errors
+from viur.core.decorators import exposed
 from viur.core.i18n import translate
 import zipfile
 
