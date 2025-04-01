@@ -1,7 +1,7 @@
 import typing as t
 from .file import FileBone
 from .string import StringBone
-from ..skeleton import RelSkel
+from ..skeleton.relskel import RelSkel
 from ..config import conf
 
 
