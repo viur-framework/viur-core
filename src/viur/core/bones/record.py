@@ -83,8 +83,7 @@ class RecordBone(BaseBone):
         if not value:
             return value
 
-        ret = value.serialize(parentIndexed=False)
-        return ret
+        return value.serialize(parentIndexed=False)
 
     def _get_single_destinct_hash(self, value):
         return tuple(bone._get_destinct_hash(value[name]) for name, bone in self.using.__boneMap__.items())
