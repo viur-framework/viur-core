@@ -473,7 +473,7 @@ class Tree(SkelModule):
 
         kind_name = self.nodeSkelCls.kindName if skelType == "node" else self.leafSkelCls.kindName
 
-        db_key = db.keyHelper(key, targetKind=kind_name, adjust_kind=kind_name)
+        db_key = db.key_helper(key, targetKind=kind_name, adjust_kind=kind_name)
         is_add = not bool(db.get(db_key))
 
         if is_add:
@@ -614,7 +614,7 @@ class Tree(SkelModule):
 
         :param parentKey: URL-safe key of the node which children should be deleted.
         """
-        nodeKey = db.keyHelper(parentKey, self.viewSkel("node").kindName)
+        nodeKey = db.key_helper(parentKey, self.viewSkel("node").kindName)
         if self.leafSkelCls:
             for leaf in db.Query(self.viewSkel("leaf").kindName).filter("parententry =", nodeKey).iter():
                 leafSkel = self.viewSkel("leaf")

@@ -2,7 +2,7 @@ import datetime
 from deprecated.sphinx import deprecated
 import typing as t
 from .transport import get, put, run_in_transaction, __client__
-from .types import Entity, Key, currentDbAccessLog
+from .types import Entity, Key, current_db_access_log
 from google.cloud.datastore.transaction import Transaction
 
 
@@ -74,8 +74,9 @@ def key_helper(
     if isinstance(in_key, Key):
         if in_key.kind != target_kind and in_key.kind not in additional_allowed_kinds:
             if not adjust_kind:
-                raise ValueError(f"Kind mismatch: {in_key.kind!r} != {target_kind!r} (or in {additional_allowed_kinds!r})")
-            in_key = Key(target_kind,in_key.id_or_name,parent=in_key.parent)
+                raise ValueError(
+                    f"Kind mismatch: {in_key.kind!r} != {target_kind!r} (or in {additional_allowed_kinds!r})")
+            in_key = Key(target_kind, in_key.id_or_name, parent=in_key.parent)
         return in_key
     elif isinstance(in_key, str):
         # Try to parse key from str
@@ -186,7 +187,7 @@ def acquire_transaction_success_marker() -> str:
     return marker
 
 
-def startDataAccessLog() -> t.Set[t.Union[Key, str]]:
+def start_data_access_log() -> t.Set[t.Union[Key, str]]:
     """
         Clears our internal access log (which keeps track of which entries have been accessed in the current
         request). The old set of accessed entries is returned so that it can be restored with
@@ -194,28 +195,38 @@ def startDataAccessLog() -> t.Set[t.Union[Key, str]]:
         we'll continue to log all entries accessed in subsequent request on the same thread!
         :return: t.Set of old accessed entries
     """
-    old = currentDbAccessLog.get(set())
-    currentDbAccessLog.set(set())
+    old = current_db_access_log.get(set())
+    current_db_access_log.set(set())
     return old
+
+
+def startDataAccessLog() -> t.Set[t.Union[Key, str]]:
+    return start_data_access_log()
+
+
+def end_data_access_log(
+    outer_access_log: t.Optional[t.Set[t.Union[Key, str]]] = None,
+) -> t.Optional[t.Set[t.Union[Key, str]]]:
+    """
+       Retrieves the set of entries accessed so far.
+
+       To clean up and restart the log, call :func:`viur.datastore.startAccessDataLog`.
+
+       If you called :func:`server.db.startAccessDataLog` before, you can re-apply the old log using
+       the outerAccessLog param. Otherwise, it will disable the access log.
+
+       :param outerAccessLog: State of your log returned by :func:`server.db.startAccessDataLog`
+       :return: t.Set of entries accessed
+       """
+    res = current_db_access_log.get()
+    if isinstance(outer_access_log, set):
+        current_db_access_log.set((outer_access_log or set()).union(res))
+    else:
+        current_db_access_log.set(None)
+    return res
 
 
 def endDataAccessLog(
     outerAccessLog: t.Optional[t.Set[t.Union[Key, str]]] = None,
 ) -> t.Optional[t.Set[t.Union[Key, str]]]:
-    """
-    Retrieves the set of entries accessed so far.
-
-    To clean up and restart the log, call :func:`viur.datastore.startAccessDataLog`.
-
-    If you called :func:`server.db.startAccessDataLog` before, you can re-apply the old log using
-    the outerAccessLog param. Otherwise, it will disable the access log.
-
-    :param outerAccessLog: State of your log returned by :func:`server.db.startAccessDataLog`
-    :return: t.Set of entries accessed
-    """
-    res = currentDbAccessLog.get()
-    if isinstance(outerAccessLog, set):
-        currentDbAccessLog.set((outerAccessLog or set()).union(res))
-    else:
-        currentDbAccessLog.set(None)
-    return res
+    return end_data_access_log(outer_access_log=outerAccessLog)

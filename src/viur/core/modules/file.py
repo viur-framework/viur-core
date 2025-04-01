@@ -818,7 +818,7 @@ class File(Tree):
 
         if key:
             skel = self.viewSkel("leaf")
-            if not skel.read(db.keyHelper(key, skel.kindName)):
+            if not skel.read(db.key_helper(key, skel.kindName)):
                 if not path:
                     raise ValueError("This skeleton is not in the database!")
             else:
@@ -934,7 +934,7 @@ class File(Tree):
         file_skel["mimetype"] = "application/octetstream"
         file_skel["dlkey"] = dlkey
         file_skel["parentdir"] = None
-        file_skel["pendingparententry"] = db.keyHelper(node, self.addSkel("node").kindName) if node else None
+        file_skel["pendingparententry"] = db.key_helper(node, self.addSkel("node").kindName) if node else None
         file_skel["pending"] = True
         file_skel["weak"] = True
         file_skel["public"] = public

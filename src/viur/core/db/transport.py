@@ -6,7 +6,7 @@ from deprecated.sphinx import deprecated
 from google.cloud import datastore
 
 from .overrides import entity_from_protobuf, key_from_protobuf
-from .types import Entity, Key, QueryDefinition, SortOrder
+from .types import Entity, Key, QueryDefinition, SortOrder, current_db_access_log
 
 # patching our key and entity classes
 datastore.helpers.key_from_protobuf = key_from_protobuf
@@ -40,19 +40,18 @@ def get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None
     :param keys: A datastore key (or a list thereof) to lookup
     :return: The entity (or None if it has not been found), or a list of entities.
     """
-    # accessLog = currentDbAccessLog.get()
+    access_log = current_db_access_log.get()
 
     if isinstance(keys, list):
-        # if isinstance(accessLog, set):
-        #     accessLog.update(set(keys))
+        if isinstance(access_log, set):
+            access_log.update(set(keys))
 
-        resList = list(__client__.get_multi(keys))
-        resList.sort(key=lambda x: keys.index(x.key) if x else -1)
-        return resList
-
-    # if isinstance(accessLog, set):
-    #     accessLog.add(keys)
-
+        res_list = list(__client__.get_multi(keys))
+        res_list.sort(key=lambda x: keys.index(x.key) if x else -1)
+        return res_list
+    # Single get
+    if isinstance(access_log, set):
+        access_log.add(keys)
     return __client__.get(keys)
 
 
@@ -70,9 +69,9 @@ def put(entities: t.Union[Entity, t.List[Entity]]):
     if isinstance(entities, Entity):
         entities = entities,
 
-    # accessLog = currentDbAccessLog.get()
-    # if isinstance(accessLog, set):
-    #     accessLog.update(set(i.key for i in entities if not i.key.is_partial))
+    access_log = current_db_access_log.get()
+    if isinstance(access_log, set):
+        access_log.update(set(entry.key for entry in entities if not entry.key.is_partial))
 
     return __client__.put_multi(entities=entities)
 
@@ -87,14 +86,16 @@ def delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
     Deletes the entities with the given key(s) from the datastore.
     :param keys: A Key (or a t.List of Keys) to delete
     """
-    # accessLog = currentDbAccessLog.get()
+    access_log = current_db_access_log.get()
+
     if isinstance(keys, list):
-        # if isinstance(accessLog, set):
-        #    accessLog.update(set(keys))
+
+        if isinstance(access_log, set):
+            access_log.update(keys)
         return __client__.delete_multi(keys)
 
-    # if isinstance(accessLog, set):
-    #     accessLog.remove(keys)
+    if isinstance(access_log, set):
+        access_log.update(keys)
 
     return __client__.delete(keys)
 

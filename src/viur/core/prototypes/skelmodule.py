@@ -214,7 +214,7 @@ class SkelModule(Module):
         This function is intended to be used by importers.
         Only "root"-users are allowed to use it.
         """
-        db_key = db.keyHelper(key, targetKind=self.kindName, adjust_kind=self.kindName)
+        db_key = db.key_helper(key, targetKind=self.kindName, adjust_kind=self.kindName)
         is_add = not bool(db.get(db_key))
 
         if is_add:

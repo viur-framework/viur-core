@@ -612,7 +612,7 @@ class RelationalBone(BaseBone):
             dbKey = None
             errors = []
             try:
-                dbKey = db.keyHelper(key, self.kind)
+                dbKey = db.key_helper(key, self.kind)
                 entry = db.get(dbKey)
                 assert entry
             except:  # Invalid key or something like that
@@ -1091,7 +1091,7 @@ class RelationalBone(BaseBone):
         :return: A dictionary containing a reference skeleton and optional relation data.
         """
 
-        if not all(db_objs := db.get([db.keyHelper(value[0], self.kind) for value in key_rel_list])):
+        if not all(db_objs := db.get([db.key_helper(value[0], self.kind) for value in key_rel_list])):
             return []  # return emtpy data when not all data is found
         res_rel_skels = []
         for (key, rel), db_obj in zip(key_rel_list, db_objs):

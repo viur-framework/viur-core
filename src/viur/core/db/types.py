@@ -17,8 +17,7 @@ KEY_SPECIAL_PROPERTY = "__key__"
 DATASTORE_BASE_TYPES = t.Union[None, str, int, float, bool, datetime.datetime, datetime.date, datetime.time, "Key"]
 """Types that can be used in a datastore query"""
 
-# TODO We need this.
-currentDbAccessLog: ContextVar[t.Optional[set[t.Union[Key, str]]]] = ContextVar("Database-Accesslog", default=None)
+current_db_access_log: ContextVar[t.Optional[set[t.Union[Key, str]]]] = ContextVar("Database-Accesslog", default=None)
 """If set to a set for the current thread/request, we'll log all entities / kinds accessed"""
 
 """The current projectID, which can't be imported from transport.py"""

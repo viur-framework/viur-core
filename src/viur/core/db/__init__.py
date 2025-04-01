@@ -5,10 +5,10 @@ from .query import Query
 from .transport import (AllocateIDs, Count, Delete, Get, Put, RunInTransaction, allocate_ids, count, delete, get, put,
                         run_in_transaction)
 from .types import (DATASTORE_BASE_TYPES, Entity, KEY_SPECIAL_PROPERTY, Key, QueryDefinition, SortOrder,
-                    currentDbAccessLog)
+                    current_db_access_log)
 from .utils import (GetOrInsert, IsInTransaction, is_in_transaction, acquire_transaction_success_marker, encodeKey,
                     endDataAccessLog, fix_unindexable_properties, keyHelper, normalizeKey, startDataAccessLog,
-                    get_or_insert, normalize_key, key_helper)
+                    get_or_insert, normalize_key, key_helper, start_data_access_log, end_data_access_log)
 
 __all__ = [
     "KEY_SPECIAL_PROPERTY",
@@ -27,7 +27,7 @@ __all__ = [
     "Delete",
     "RunInTransaction",
     "IsInTransaction",
-    "currentDbAccessLog",
+    "current_db_access_log",
     "GetOrInsert",
     "encodeKey",
     "acquire_transaction_success_marker",
@@ -45,5 +45,7 @@ __all__ = [
     "count",
     "get_or_insert",
     "normalize_key",
-    "key_helper"
+    "key_helper",
+    "start_data_access_log",
+    "end_data_access_log",
 ]

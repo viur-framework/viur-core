@@ -96,7 +96,7 @@ class Query(object):
         self._fulltextQueryString: t.Union[None, str] = None
         self.lastCursor = None
         # if not kind.startswith("viur") and not kwargs.get("_excludeFromAccessLog"):
-        #     accessLog = currentDbAccessLog.get()
+        #     accessLog = current_db_access_log.get()
         #     if isinstance(accessLog, set):
         #         accessLog.add(kind)
 

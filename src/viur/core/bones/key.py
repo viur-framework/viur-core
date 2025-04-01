@@ -41,7 +41,7 @@ class KeyBone(BaseBone):
 
         if self.allowed_kinds:
             try:
-                key = db.keyHelper(value, self.allowed_kinds[0], self.allowed_kinds[1:])
+                key = db.key_helper(value, self.allowed_kinds[0], self.allowed_kinds[1:])
             except ValueError as e:
                 return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, e.args[0])]
         else:

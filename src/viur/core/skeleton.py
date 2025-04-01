@@ -1150,7 +1150,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         assert skel.renderPreparation is None, "Cannot modify values while rendering"
 
         try:
-            db_key = db.keyHelper(key or skel["key"], skel.kindName)
+            db_key = db.key_helper(key or skel["key"], skel.kindName)
         except (ValueError, NotImplementedError):  # This key did not parse
             return None
 
@@ -1231,11 +1231,11 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             # Load the current values from Datastore or create a new, empty db.Entity
             if not db_key:
                 # We'll generate the key we'll be stored under early so we can use it for locks etc
-                db_key = db.AllocateIDs(db.Key(skel.kindName))
+                db_key = db.allocate_ids(skel.kindName)
                 skel.dbEntity = db.Entity(db_key)
                 is_add = True
             else:
-                db_key = db.keyHelper(db_key, skel.kindName)
+                db_key = db.key_helper(db_key, skel.kindName)
                 if db_obj := db.get(db_key):
                     skel.dbEntity = db_obj
                     old_copy = {k: v for k, v in skel.dbEntity.items()}
@@ -1459,7 +1459,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         # Parse provided key, if any, and set it to skel["key"]
         if key:
-            skel["key"] = db.keyHelper(key, skel.kindName)
+            skel["key"] = db.key_helper(key, skel.kindName)
 
         # Run transactional function
         if db.IsInTransaction():
@@ -1550,7 +1550,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             processRemovedRelations(key)
 
         if key := (key or skel["key"]):
-            key = db.keyHelper(key, skel.kindName)
+            key = db.key_helper(key, skel.kindName)
         else:
             raise ValueError("This skeleton has no key!")
 
@@ -1627,7 +1627,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     return ValueError("No valid key provided")
 
                 if key or skel["key"]:
-                    skel["key"] = db.keyHelper(key or skel["key"], skel.kindName)
+                    skel["key"] = db.key_helper(key or skel["key"], skel.kindName)
 
                 if isinstance(create, dict):
                     if create and not skel.fromClient(create, amend=True, ignore=ignore):

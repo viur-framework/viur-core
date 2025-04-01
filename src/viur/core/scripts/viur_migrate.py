@@ -52,9 +52,11 @@ lookup = {
     "db.RunInTransaction": "db.run_in_transaction",
     "db.Count": "db.count",
     "db.runSingleFilter": "db.run_single_filter",
-    "db.normalizeKey":"db.normalize_key",
-    "db.GetOrInsert":"db.get_or_insert",
-    "db.keyHelper":"db.key_helper",
+    "db.normalizeKey": "db.normalize_key",
+    "db.GetOrInsert": "db.get_or_insert",
+    "db.keyHelper": "db.key_helper",
+    "db.startDataAccessLog": "db.start_data_access_log",
+    "db.endDataAccessLog": "db.end_data_access_log",
 
     # WARNING: THESE MUST BE KEPT AT THE END, THE ORDER MATTERS!!!!
     "projectID": "conf.instance.project_id",

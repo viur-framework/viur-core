@@ -850,7 +850,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             )
 
         # Remove otp user config from session
-        user_key = db.keyHelper(otp_user_conf["key"], self._user_module._resolveSkelCls().kindName)
+        user_key = db.key_helper(otp_user_conf["key"], self._user_module._resolveSkelCls().kindName)
         del session["_otp_user"]
         session.markChanged()
 
