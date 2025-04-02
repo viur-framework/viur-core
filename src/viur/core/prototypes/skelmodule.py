@@ -214,13 +214,20 @@ class SkelModule(Module):
         This function is intended to be used by importers.
         Only "root"-users are allowed to use it.
         """
-        db_key = db.keyHelper(key, targetKind=self.kindName, adjust_kind=self.kindName)
-        is_add = not bool(db.Get(db_key))
 
+        # Adjust key
+        db_key = db.keyHelper(key, targetKind=self.kindName, adjust_kind=self.kindName)
+
+        # Retrieve and verify existing entry
+        db_entity = db.Get(db_key)
+        is_add = not bool(db_entity)
+
+        # Instanciate relevant skeleton
         if is_add:
             skel = self.addSkel()
         else:
             skel = self.editSkel()
+            skel.dbEntity = db_entity  # assign existing entity
 
         skel["key"] = db_key
 

@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.12]
+
+- fix: Further `Translation.dump()` clean-up (#1452)
+- fix: `add_or_edit` edits entries with empty skeleton (#1449)
+
 ## [3.7.11]
 
 - fix: Fixes for `/_translation/dump`

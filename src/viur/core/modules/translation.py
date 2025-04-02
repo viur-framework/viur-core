@@ -270,12 +270,12 @@ class Translation(List):
         if not utils.string.is_prefix(self.render.kind, "json"):
             raise errors.BadRequest("Can only use this function on JSON-based renders")
 
+        current.request.get().response.headers["Content-Type"] = "application/json"
+
         # The pattern may not be a matcher for all!
         for pat in pattern:
             if not pat.strip("*?."):
                 raise errors.BadRequest("Pattern is too generic.")
-
-        current.request.get().response.headers["Content-Type"] = "application/json"
 
         if (
             not (conf.debug.disable_cache and current.request.get().disableCache)
@@ -287,27 +287,17 @@ class Translation(List):
         if language:
             if len(language) == 1 and language[0] == "*":
                 language = conf.i18n.available_dialects
-
-            if len(language) > 1:
-                return json.dumps({
-                    lang: {
-                        name: str(translate(name, force_lang=lang))
-                        for name, values in systemTranslations.items()
-                        if (conf.i18n.dump_can_view(name) or values.get("_public_"))
-                        and any(fnmatch.fnmatch(name, pat) for pat in pattern)
-                    }
-                    for lang in language
-                })
-            else:
-                language = language.pop()
         else:
-            language = current.language.get()
+            language = [current.language.get()]
 
         return json.dumps({
-            name: str(translate(name, force_lang=language))
-            for name, values in systemTranslations.items()
-            if (conf.i18n.dump_can_view(name) or values.get("_public_"))
-            and any(fnmatch.fnmatch(name, pat) for pat in pattern)
+            lang: {
+                name: str(translate(name, force_lang=lang))
+                for name, values in systemTranslations.items()
+                if (conf.i18n.dump_can_view(name) or values.get("_public_"))
+                and any(fnmatch.fnmatch(name, pat) for pat in pattern)
+            }
+            for lang in language
         })
 
     @exposed
@@ -315,8 +305,8 @@ class Translation(List):
         version="3.7.10",
         reason="Function renamed. Use 'dump' function as alternative implementation.",
     )
-    def get_public(self, **kwargs):
-        return self.dump(**kwargs)
+    def get_public(self, *, languages: list[str] = [], **kwargs):
+        return self.dump(language=languages, **kwargs)
 
 
 Translation.json = True
