@@ -473,8 +473,8 @@ class Tree(SkelModule):
 
         kind_name = self.nodeSkelCls.kindName if skelType == "node" else self.leafSkelCls.kindName
 
-        db_key = db.key_helper(key, targetKind=kind_name, adjust_kind=kind_name)
-        
+        db_key = db.key_helper(key, target_kind=kind_name, adjust_kind=True)
+
         # Retrieve and verify existing entry
         db_entity = db.get(db_key)
         is_add = not bool(db_entity)
