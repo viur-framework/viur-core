@@ -474,12 +474,17 @@ class Tree(SkelModule):
         kind_name = self.nodeSkelCls.kindName if skelType == "node" else self.leafSkelCls.kindName
 
         db_key = db.key_helper(key, targetKind=kind_name, adjust_kind=kind_name)
-        is_add = not bool(db.get(db_key))
+        
+        # Retrieve and verify existing entry
+        db_entity = db.get(db_key)
+        is_add = not bool(db_entity)
 
+        # Instanciate relevant skeleton
         if is_add:
             skel = self.addSkel(skelType)
         else:
             skel = self.editSkel(skelType)
+            skel.dbEntity = db_entity  # assign existing entity
 
         skel = skel.ensure_is_cloned()
         skel.parententry.required = True
