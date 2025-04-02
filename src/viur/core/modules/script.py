@@ -166,14 +166,11 @@ class Script(Tree):
 
     @exposed
     def get_importable(self):
-        cuser = current.user.get()
-        if not cuser:
-            raise errors.Unauthorized()
 
-        current.request.get().response.headers["Content-Disposition"] = "attachment; filename=importable.zip"
-        current.request.get().response.headers["Content-Type"] = "application/zip"
+        cuser = current.user.get()
         # get importable key
         qry_importable = self.viewSkel("node").all().filter("parententry", self.rootnodeSkel(ensure=True)["key"])
+        qry_importable = self.listFilter(qry_importable)
         importable_key = None
         for data in qry_importable.iter():
             if data["name"] == "importable":
@@ -199,4 +196,7 @@ class Script(Tree):
         with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
             for file in importable_files:
                 zip_file.writestr(file["path"], file["script"])
+
+        current.request.get().response.headers["Content-Disposition"] = "attachment; filename=importable.zip"
+        current.request.get().response.headers["Content-Type"] = "application/zip"
         return zip_buffer.getvalue()
