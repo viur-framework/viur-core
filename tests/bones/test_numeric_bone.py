@@ -1,15 +1,11 @@
-import unittest
+from abstract import ViURTestCase
 
 LARGE_INT = 123_465 * 10 ** 12
 LARGE_FLOAT = 123_465.0 * 10 ** 12
 SMALL_FLOAT = 123_465.0 * 10 ** -12
 
 
-class TestNumericBone(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        from main import monkey_patch
-        monkey_patch()
+class TestNumericBone(ViURTestCase):
 
     def test_isEmpty_default_bone(self):
         from viur.core.bones import NumericBone
@@ -88,11 +84,9 @@ class TestNumericBone(unittest.TestCase):
         self.assertIsInstance(bone._convert_to_numeric(42), int)
 
 
-class TestNumericBone_fromClient(unittest.TestCase):
+class TestNumericBone_fromClient(ViURTestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        from main import monkey_patch
-        monkey_patch()
         cls.bone_name = "my_numeric_bone"
 
     def test_fromClient_int(self):

@@ -133,7 +133,7 @@ class Router:
         self.isPostRequest = self.method == "post"
         self.isSSLConnection = self.request.host_url.lower().startswith("https://")  # We have an encrypted channel
 
-        db.currentDbAccessLog.set(set())
+        db.current_db_access_log.set(set())
 
         # Set context variables
         current.language.set(conf.i18n.default_language)

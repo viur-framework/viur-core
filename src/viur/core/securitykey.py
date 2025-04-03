@@ -75,7 +75,7 @@ def create(
     if not indexed:
         entity.exclude_from_indexes = [k for k in entity.keys() if not k.startswith("viur_")]
 
-    db.Put(entity)
+    db.put(entity)
 
     return key
 
@@ -95,11 +95,11 @@ def validate(key: str, session_bound: bool = True) -> bool | db.Entity:
 
         return False
 
-    if not key or not (entity := db.Get(db.Key(SECURITYKEY_KINDNAME, key))):
+    if not key or not (entity := db.get(db.Key(SECURITYKEY_KINDNAME, key))):
         return False
 
     # First of all, delete the entity, validation is done afterward.
-    db.Delete(entity)
+    db.delete(entity)
 
     # Key has expired?
     if entity["viur_until"] < utils.utcNow():

@@ -41,15 +41,12 @@ class KeyBone(BaseBone):
 
         if self.allowed_kinds:
             try:
-                key = db.keyHelper(value, self.allowed_kinds[0], self.allowed_kinds[1:])
+                key = db.key_helper(value, self.allowed_kinds[0], self.allowed_kinds[1:])
             except ValueError as e:
                 return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, e.args[0])]
         else:
             try:
-                if isinstance(value, db.Key):
-                    key = db.normalizeKey(value)
-                else:
-                    key = db.normalizeKey(db.Key.from_legacy_urlsafe(value))
+                key = db.normalize_key(value)
             except Exception as exc:
                 logging.exception(f"Failed to normalize {value}: {exc}")
                 return self.getEmptyValue(), [
@@ -65,7 +62,7 @@ class KeyBone(BaseBone):
                 return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
 
             if self.check:
-                if db.Get(key) is None:
+                if db.get(key) is None:
                     return self.getEmptyValue(), [
                         ReadFromClientError(
                             ReadFromClientErrorSeverity.Invalid,
@@ -79,7 +76,7 @@ class KeyBone(BaseBone):
         if not val:
             rval = None
         elif isinstance(val, db.Key):
-            rval = db.normalizeKey(val)
+            rval = db.normalize_key(val)
         else:
             rval, err = self.singleValueFromClient(val, parse_only=True)
             if err:

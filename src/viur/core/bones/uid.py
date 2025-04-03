@@ -12,12 +12,12 @@ def generate_number(db_key: db.Key) -> int:
     def transact(_key: db.Key):
         for i in range(3):
             try:
-                if db_obj := db.Get(_key):
+                if db_obj := db.get(_key):
                     db_obj["count"] += 1
                 else:
                     db_obj = db.Entity(_key)
                     db_obj["count"] = 0
-                db.Put(db_obj)
+                db.put(db_obj)
                 break
             except db.CollisionError:  # recall the function
                 time.sleep(i + 1)
@@ -28,7 +28,7 @@ def generate_number(db_key: db.Key) -> int:
     if db.IsInTransaction():
         return transact(db_key)
     else:
-        return db.RunInTransaction(transact, db_key)
+        return db.run_in_transaction(transact, db_key)
 
 
 def generate_uid(skel, bone):
