@@ -2,6 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.13]
+
+- chore: Remove logging  for cors (#1450)
+- fix: `RecordBone` and prefix substitution (#1453)
+- fix: Change call to `db.KeyHelper(adjust_kind)` to boolean (#1455)
+
 ## [3.7.12]
 
 - fix: Further `Translation.dump()` clean-up (#1452)
