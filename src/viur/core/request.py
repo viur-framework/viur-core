@@ -676,11 +676,9 @@ class Router:
 
         origin = current.request.get().request.headers.get("Origin")
         if not origin:
-            logging.debug(f"Origin header is not set")
             return
 
         # Origin is set --> It's a CORS request
-        logging.debug(f"Got CORS request from {origin=}")
 
         any_origin_allowed = (
             conf.security.cors_origins == "*"

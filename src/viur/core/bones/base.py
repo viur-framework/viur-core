@@ -559,6 +559,7 @@ class BaseBone(object):
         :return: A dictionary containing the collected raw client data.
         """
         fieldSubmitted = False
+
         if languages:
             res = {}
             for lang in languages:
@@ -584,7 +585,7 @@ class BaseBone(object):
                             if not key.startswith(prefix):
                                 continue
                             fieldSubmitted = True
-                            partKey = key.replace(prefix, "")
+                            partKey = key[len(prefix):]
                             firstKey, remainingKey = partKey.split(".", maxsplit=1)
                             try:
                                 firstKey = int(firstKey)
@@ -602,7 +603,7 @@ class BaseBone(object):
                             if not key.startswith(prefix):
                                 continue
                             fieldSubmitted = True
-                            partKey = key.replace(prefix, "")
+                            partKey = key[len(prefix):]
                             tmpDict[partKey] = value
                         res[lang] = tmpDict
             return res, fieldSubmitted
@@ -631,7 +632,7 @@ class BaseBone(object):
                         if not key.startswith(prefix):
                             continue
                         fieldSubmitted = True
-                        partKey = key.replace(prefix, "")
+                        partKey = key[len(prefix):]
                         try:
                             firstKey, remainingKey = partKey.split(".", maxsplit=1)
                             firstKey = int(firstKey)
@@ -649,7 +650,7 @@ class BaseBone(object):
                         if not key.startswith(prefix):
                             continue
                         fieldSubmitted = True
-                        subKey = key.replace(prefix, "")
+                        subKey = key[len(prefix):]
                         res[subKey] = value
                     return res, fieldSubmitted
 
@@ -1167,8 +1168,9 @@ class BaseBone(object):
         if query.queries and (orderby := params.get("orderby")) and utils.string.is_prefix(orderby, name):
             if self.languages:
                 lang = None
-                if orderby.startswith(f"{name}."):
-                    lng = orderby.replace(f"{name}.", "")
+                prefix = f"{name}."
+                if orderby.startswith(prefix):
+                    lng = orderby[len(prefix):]
                     if lng in self.languages:
                         lang = lng
 
