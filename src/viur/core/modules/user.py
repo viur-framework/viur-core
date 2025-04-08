@@ -27,6 +27,7 @@ from viur.core.bones.password import PBKDF2_DEFAULT_ITERATIONS, encode_password
 from viur.core.prototypes.list import List
 from viur.core.ratelimit import RateLimit
 from viur.core.securityheaders import extendCsp
+from viur.core.skeleton import SkeletonInstance
 
 
 @functools.total_ordering
@@ -194,7 +195,7 @@ class UserAuthentication(Module, abc.ABC):
         super().__init__(moduleName, modulePath)
         self._user_module = userModule
 
-    def can_handle(self, skel: skeleton.SkeletonInstance) -> bool:
+    def can_handle(self, skel: skeleton.SkeletonInstance[UserSkel]) -> bool:
         return True
 
     @classmethod
@@ -1309,7 +1310,7 @@ class User(List):
     def secondFactorProviderByClass(self, cls) -> UserSecondFactorAuthentication:
         return getattr(self, f"f2_{cls.__name__.lower()}")
 
-    def getCurrentUser(self):
+    def getCurrentUser(self) -> SkeletonInstance[UserSkel] | None:
         session = current.session.get()
 
         req = current.request.get()

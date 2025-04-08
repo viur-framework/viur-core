@@ -14,7 +14,6 @@ from functools import partial
 from itertools import chain
 
 from deprecated.sphinx import deprecated
-
 from viur.core import conf, current, db, email, errors, translate, utils
 from viur.core.bones import (
     BaseBone,
@@ -40,6 +39,8 @@ from viur.core.tasks import CallDeferred, CallableTask, CallableTaskBase, QueryI
 _UNDEFINED = object()
 ABSTRACT_SKEL_CLS_SUFFIX = "AbstractSkel"
 KeyType: t.TypeAlias = db.Key | str | int
+
+Skeleton_Cls = t.TypeVar("Skeleton_Cls", bound="BaseSkeleton")
 
 
 class MetaBaseSkel(type):
@@ -129,7 +130,7 @@ class MetaBaseSkel(type):
             value.__set_name__(self, key)
 
 
-class SkeletonInstance:
+class SkeletonInstance(t.Generic[Skeleton_Cls]):
     """
         The actual wrapper around a Skeleton-Class. An object of this class is what's actually returned when you
         call a Skeleton-Class. With ViUR3, you don't get an instance of a Skeleton-Class any more - it's always this
@@ -148,7 +149,7 @@ class SkeletonInstance:
 
     def __init__(
         self,
-        skel_cls: t.Type[Skeleton],
+        skel_cls: t.Type[Skeleton_Cls],
         *,
         bones: t.Iterable[str] = (),
         bone_map: t.Optional[t.Dict[str, BaseBone]] = None,
@@ -180,7 +181,7 @@ class SkeletonInstance:
         bone_map = bone_map or {}
 
         if bones:
-            names = ("key", ) + tuple(bones)
+            names = ("key",) + tuple(bones)
 
             # generate full keys sequence based on definition; keeps order of patterns!
             keys = []
@@ -218,7 +219,7 @@ class SkeletonInstance:
         self.is_cloned = clone
         self.renderAccessedValues = {}
         self.renderPreparation = None
-        self.skeletonCls = skel_cls
+        self.skeletonCls: t.Type[Skeleton_Cls] = skel_cls
 
     def items(self, yieldBoneValues: bool = False) -> t.Iterable[tuple[str, BaseBone]]:
         if yieldBoneValues:
@@ -447,7 +448,7 @@ class SkeletonInstance:
         return res
 
 
-class BaseSkeleton(object, metaclass=MetaBaseSkel):
+class BaseSkeleton(metaclass=MetaBaseSkel):
     """
         This is a container-object holding information about one database entity.
 
@@ -610,7 +611,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
     @classmethod
     def fromClient(
         cls,
-        skel: SkeletonInstance,
+        skel: SkeletonInstance[t.Self],
         data: dict[str, list[str] | str],
         *,
         amend: bool = False,
@@ -690,7 +691,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
         return complete
 
     @classmethod
-    def refresh(cls, skel: SkeletonInstance):
+    def refresh(cls, skel: SkeletonInstance[t.Self]):
         """
             Refresh the bones current content.
 
@@ -706,7 +707,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
             _ = skel[key]  # Ensure value gets loaded
             bone.refresh(skel, key)
 
-    def __new__(cls, *args, **kwargs) -> SkeletonInstance:
+    def __new__(cls, *args, **kwargs) -> SkeletonInstance[t.Self]:
         return SkeletonInstance(cls, *args, **kwargs)
 
 
@@ -1380,8 +1381,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             skel.dbEntity["viur"].setdefault("viurActiveSeoKeys", [])
             for language, seo_key in last_set_seo_keys.items():
-                if skel.dbEntity["viur"]["viurCurrentSeoKeys"][language] not in \
-                        skel.dbEntity["viur"]["viurActiveSeoKeys"]:
+                if (
+                    skel.dbEntity["viur"]["viurCurrentSeoKeys"][language]
+                    not in skel.dbEntity["viur"]["viurActiveSeoKeys"]
+                ):
                     # Ensure the current, active seo key is in the list of all seo keys
                     skel.dbEntity["viur"]["viurActiveSeoKeys"].insert(0, seo_key)
             if str(skel.dbEntity.key.id_or_name) not in skel.dbEntity["viur"]["viurActiveSeoKeys"]:
@@ -1805,7 +1808,7 @@ class RefSkel(RelSkel):
         return skel
 
 
-class SkelList(list):
+class SkelList(list, t.Generic[Skeleton_Cls]):
     """
         This class is used to hold multiple skeletons together with other, commonly used information.
 
@@ -1824,12 +1827,12 @@ class SkelList(list):
         "renderPreparation",
     )
 
-    def __init__(self, baseSkel=None):
+    def __init__(self, baseSkel: SkeletonInstance[Skeleton_Cls] = None):
         """
             :param baseSkel: The baseclass for all entries in this list
         """
-        super(SkelList, self).__init__()
-        self.baseSkel = baseSkel or {}
+        super().__init__()
+        self.baseSkel: SkeletonInstance[Skeleton_Cls] | dict = baseSkel or {}
         self.getCursor = lambda: None
         self.get_orders = lambda: None
         self.renderPreparation = None
