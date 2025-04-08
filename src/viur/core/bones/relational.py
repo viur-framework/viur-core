@@ -74,80 +74,6 @@ class RelationalBone(BaseBone):
 
     It is not recommended for cases where data is read less frequently than written, as there is no
     write-efficient method available yet.
-
-    :param kind: KindName of the referenced property.
-    :param module: Name of the module which should be used to select entities of kind "kind". If not set,
-        the value of "kind" will be used (the kindName must match the moduleName)
-    :param refKeys: A list of properties to include from the referenced property. These properties will be
-        available in the template without having to fetch the referenced property. Filtering is also only possible
-        by properties named here!
-    :param parentKeys: A list of properties from the current skeleton to include. If mixing filtering by
-        relational properties and properties of the class itself, these must be named here.
-    :param multiple: If True, allow referencing multiple Elements of the given class. (Eg. n:n-relation).
-        Otherwise its n:1, (you can only select exactly one). It's possible to use a unique constraint on this
-        bone, allowing for at-most-1:1 or at-most-1:n relations. Instead of true, it's also possible to use
-        a ```class MultipleConstraints``` instead.
-
-    :param format:
-        Hint for the frontend how to display such an relation. This is now a python expression
-        evaluated by safeeval on the client side. The following values will be passed to the expression:
-
-            - value
-                The value to display. This will be always a dict (= a single value) - even if the relation is
-                multiple (in which case the expression is evaluated once per referenced entity)
-
-            - structure
-                The structure of the skeleton this bone is part of as a dictionary as it's transferred to the
-                fronted by the admin/vi-render.
-
-            - language
-                The current language used by the frontend in ISO2 code (eg. "de"). This will be always set, even if
-                the project did not enable the multi-language feature.
-
-    :param updateLevel:
-        Indicates how ViUR should keep the values copied from the referenced entity into our
-        entity up to date. If this bone is indexed, it's recommended to leave this set to
-        RelationalUpdateLevel.Always, as filtering/sorting by this bone will produce stale results.
-
-            :param RelationalUpdateLevel.Always:
-
-                always update refkeys (old behavior). If the referenced entity is edited, ViUR will update this
-                entity also (after a small delay, as these updates happen deferred)
-
-            :param RelationalUpdateLevel.OnRebuildSearchIndex:
-
-                update refKeys only on rebuildSearchIndex. If the referenced entity changes, this entity will
-                remain unchanged (this RelationalBone will still have the old values), but it can be updated
-                by either by editing this entity or running a rebuildSearchIndex over our kind.
-
-            :param RelationalUpdateLevel.OnValueAssignment:
-
-                update only if explicitly set. A rebuildSearchIndex will not trigger an update, this bone has to be
-                explicitly modified (in an edit) to have it's values updated
-
-    :param consistency:
-        Can be used to implement SQL-like constrains on this relation. Possible values are:
-            - RelationalConsistency.Ignore
-                If the referenced entity gets deleted, this bone will not change. It will still reflect the old
-                values. This will be even be preserved over edits, however if that referenced value is once
-                deleted by the user (assigning a different value to this bone or removing that value of the list
-                of relations if we are multiple) there's no way of restoring it
-
-            - RelationalConsistency.PreventDeletion
-                Will prevent deleting the referenced entity as long as it's selected in this bone (calling
-                skel.delete() on the referenced entity will raise errors.Locked). It's still (technically)
-                possible to remove the underlying datastore entity using db.Delete manually, but this *must not*
-                be used on a skeleton object as it will leave a whole bunch of references in a stale state.
-
-            - RelationalConsistency.SetNull
-                Will set this bone to None (or remove the relation from the list in
-                case we are multiple) when the referenced entity is deleted.
-
-            - RelationalConsistency.CascadeDeletion:
-                (Dangerous!) Will delete this entity when the referenced entity is deleted. Warning: Unlike
-                relational updates this will cascade. If Entity A references B with CascadeDeletion set, and
-                B references C also with CascadeDeletion; if C gets deleted, both B and A will be deleted as well.
-
     """
     type = "relational"
     kind = None
@@ -162,6 +88,7 @@ class RelationalBone(BaseBone):
         parentKeys: t.Optional[t.Iterable[str]] = {"name"},
         refKeys: t.Optional[t.Iterable[str]] = {"name"},
         updateLevel: RelationalUpdateLevel = RelationalUpdateLevel.Always,
+        update_level_offset: float | int = 0,
         using: t.Optional["RelSkel"] = None,
         **kwargs
     ):
@@ -241,6 +168,14 @@ class RelationalBone(BaseBone):
                         is deleted. Warning: Unlike relational updates this will cascade. If Entity A references B with
                         CascadeDeletion set, and B references C also with CascadeDeletion; if C gets deleted, both B and
                         A will be deleted as well.
+
+            :param update_level_offset:
+                Depending on the `updateLevel`, after each change in the foreign entry
+                this entry will be updated by `core.skeleton.updateRelations`.
+                To throttle the update frequency this offset can be used.
+                For example, set it to `86400` (one day in hours) and the entry
+                will not be hit by another `updateRelation` task within the next 24 hours.
+                However, this also means that the entry can be out of date for (at least) 24 hours.
         """
         super().__init__(**kwargs)
         self.format = format
@@ -282,6 +217,7 @@ class RelationalBone(BaseBone):
 
         self.updateLevel = updateLevel
         self.consistency = consistency
+        self.update_level_offset = update_level_offset
 
         if getSystemInitialized():
             from viur.core.skeleton import RefSkel, SkeletonInstance
@@ -534,7 +470,7 @@ class RelationalBone(BaseBone):
                 if self.using is not None:
                     usingSkel = data["rel"]
                     dbObj["rel"] = usingSkel.serialize(parentIndexed=True)
-                dbObj["viur_delayed_update_tag"] = time()
+                dbObj["viur_delayed_update_tag"] = time() + self.update_level_offset
                 dbObj["viur_relational_updateLevel"] = self.updateLevel.value
                 dbObj["viur_relational_consistency"] = self.consistency.value
                 dbObj["viur_foreign_keys"] = list(self.refKeys)
@@ -550,7 +486,7 @@ class RelationalBone(BaseBone):
             if self.using is not None:
                 usingSkel = val["rel"]
                 dbObj["rel"] = usingSkel.serialize(parentIndexed=True)
-            dbObj["viur_delayed_update_tag"] = time()
+            dbObj["viur_delayed_update_tag"] = time() + self.update_level_offset
             dbObj["viur_src_kind"] = skel.kindName  # The kind of the entry referencing
             dbObj["viur_src_property"] = boneName  # The key of the bone referencing
             dbObj["viur_dest_kind"] = self.kind
