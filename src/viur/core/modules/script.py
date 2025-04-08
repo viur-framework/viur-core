@@ -167,7 +167,6 @@ class Script(Tree):
     @exposed
     def get_importable(self):
 
-        cuser = current.user.get()
         # get importable key
         qry_importable = self.viewSkel("node").all().filter("parententry", self.rootnodeSkel(ensure=True)["key"])
         if not (qry_importable := self.listFilter(qry_importable)):
@@ -181,10 +180,10 @@ class Script(Tree):
         def get_files_recursively(_importable_key):
             res = []
             importable_files_query = self.viewSkel("leaf").all().filter("parententry", _importable_key)
+            if not (importable_files_query := self.listFilter(importable_files_query)):
+                raise errors.Unauthorized()
             for entry in importable_files_query.iter():
-                if entry["script"] and ("root" in cuser["access"]
-                                        or len(entry["access"]) == 0
-                                        or not set(cuser["access"]).isdisjoint(entry["access"])):
+                if entry["script"]:
                     res.append(entry)
             importable_files_query = self.viewSkel("node").all().filter("parententry", _importable_key)
             for entry in importable_files_query.iter():
