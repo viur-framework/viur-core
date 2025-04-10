@@ -77,21 +77,28 @@ class StringBone(BaseBone):
 
         Converts a value that is not a string into a string
         if a meaningful conversion is possible (simple data types only).
+        In addition, it is checked whether the variable must be escaped or not.
         """
         if isinstance(value, str):
-            return value
+            pass  # Nothing todo here
         elif isinstance(value, Number):
-            return str(value)
+            value = str(value)
         elif isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
-            return value.isoformat()
+            value = value.isoformat()
         elif isinstance(value, db.Key):
-            return value.to_legacy_urlsafe().decode("ASCII")
+            value = value.to_legacy_urlsafe().decode("ASCII")
         elif not value:  # None or any other falsy value
-            return self.getEmptyValue()
+            value = self.getEmptyValue()
         else:
             raise ValueError(
                 f"Value {value} of type {type(value)} cannot be coerced for {type(self).__name__} {self.name}"
             )
+
+        if self.escape_html:
+            value = utils.string.escape(value)
+        else:
+            value = utils.string.unescape(value)
+        return value
 
     def singleValueSerialize(
         self,
