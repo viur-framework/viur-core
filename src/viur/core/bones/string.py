@@ -88,7 +88,7 @@ class StringBone(BaseBone):
         elif isinstance(value, db.Key):
             return value.to_legacy_urlsafe().decode("ASCII")
         elif not value:  # None or any other falsy value
-            return  self.getEmptyValue()
+            return self.getEmptyValue()
         else:
             raise ValueError(
                 f"Value {value} of type {type(value)} cannot be coerced for {type(self).__name__} {self.name}"
