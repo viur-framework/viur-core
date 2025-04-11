@@ -75,7 +75,7 @@ class Session(db.Entity):
 
         if cookie_key := current.request.get().request.cookies.get(self.cookie_name):
             cookie_key = str(cookie_key)
-            if data := db.Get(db.Key(self.kindName, cookie_key)):  # Loaded successfully
+            if data := db.get(db.Key(self.kindName, cookie_key)):  # Loaded successfully
                 if data["lastseen"] < time.time() - conf.user.session_life_time.total_seconds():
                     # This session is too old
                     self.reset()
@@ -121,13 +121,13 @@ class Session(db.Entity):
 
         dbSession = db.Entity(db.Key(self.kindName, self.cookie_key))
 
-        dbSession["data"] = db.fixUnindexableProperties(self)
+        dbSession["data"] = db.fix_unindexable_properties(self)
         dbSession["static_security_key"] = self.static_security_key
         dbSession["lastseen"] = time.time()
         dbSession["user"] = str(user_key)  # allow filtering for users
         dbSession.exclude_from_indexes = {"data"}
 
-        db.Put(dbSession)
+        db.put(dbSession)
 
         # Provide Set-Cookie header entry with configured properties
         flags = (
@@ -215,7 +215,7 @@ class Session(db.Entity):
 
     def clear(self) -> None:
         if self.cookie_key:
-            db.Delete(db.Key(self.kindName, self.cookie_key))
+            db.delete(db.Key(self.kindName, self.cookie_key))
             from viur.core import securitykey
             securitykey.clear_session_skeys(self.cookie_key)
         current.request.get().response.delete_cookie(self.cookie_name)
@@ -255,7 +255,7 @@ class DeleteSessionsIter(DeleteEntitiesIter):
 
     @classmethod
     def handleEntry(cls, entry: db.Entity, customData: t.Any) -> None:
-        db.Delete(entry.key)
+        db.delete(entry.key)
         Session.dispatch_on_delete(entry)
 
 

@@ -217,7 +217,7 @@ def send_email_deferred(key: db.Key):
     :param key: Datastore key of the email to send
     """
     logging.debug(f"Sending deferred email {key!r}")
-    if not (queued_email := db.Get(key)):
+    if not (queued_email := db.get(key)):
         raise ValueError(f"Email queue entity with {key=!r} went missing!")
 
     if queued_email["isSend"]:
@@ -246,7 +246,7 @@ def send_email_deferred(key: db.Key):
     except Exception:
         # Increase the errorCount and bail out
         queued_email["errorCount"] += 1
-        db.Put(queued_email)
+        db.put(queued_email)
         raise
 
     # If that transportFunction did not raise an error that email has been successfully send
@@ -255,7 +255,7 @@ def send_email_deferred(key: db.Key):
     queued_email["transportFuncResult"] = result_data
     queued_email.exclude_from_indexes.add("transportFuncResult")
 
-    db.Put(queued_email)
+    db.put(queued_email)
 
     try:
         transport_class.transport_successful_callback(queued_email)
@@ -413,12 +413,12 @@ def send_email(
             logging.info(f"""Recipients: {queued_email["dests"]}""")
             return False
 
-    db.Put(queued_email)
+    db.put(queued_email)
     send_email_deferred(queued_email.key, _queue=EMAIL_QUEUE)
     return True
 
 
-@deprecated(version="3.7.0", reason="Use send_email instead", action="always")
+@deprecated(version="3.7.0", reason="Use send_email instead")
 def sendEMail(*args, **kwargs):
     return send_email(*args, **kwargs)
 
@@ -460,7 +460,7 @@ def send_email_to_admins(subject: str, body: str, *args, **kwargs) -> bool:
     return False
 
 
-@deprecated(version="3.7.0", reason="Use send_email_to_admins instead", action="always")
+@deprecated(version="3.7.0", reason="Use send_email_to_admins instead")
 def sendEMailToAdmins(*args, **kwargs):
     return send_email_to_admins(*args, **kwargs)
 
@@ -606,7 +606,7 @@ class EmailTransportBrevo(EmailTransport):
         # already been sent. This way, emails for the same limit will not be
         # sent more than once and the remaining email credits will not be wasted.
         key = db.Key("viur-email-conf", "sib-credits")
-        if not (entity := db.Get(key)):
+        if not (entity := db.get(key)):
             logging.debug(f"{entity = }")
             entity = db.Entity(key)
             logging.debug(f"{entity = }")
@@ -633,10 +633,10 @@ class EmailTransportBrevo(EmailTransport):
             # Credits are above all limits
             entity["latest_warning_for"] = None
 
-        db.Put(entity)
+        db.put(entity)
 
 
-@deprecated(version="3.7.0", reason="Sendinblue is now Brevo; Use EmailTransportBrevo instead", action="always")
+@deprecated(version="3.7.0", reason="Sendinblue is now Brevo; Use EmailTransportBrevo instead")
 class EmailTransportSendInBlue(EmailTransportBrevo):
     ...
 

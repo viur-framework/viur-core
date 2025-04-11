@@ -1,11 +1,9 @@
-import unittest
+from abstract import ViURTestCase
 
 
-class TestUriBone(unittest.TestCase):
+class TestUriBone(ViURTestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        from main import monkey_patch
-        monkey_patch()
         cls.bone_name = "uriTestBone"
 
     def is_invalid(self, res, url_value):
