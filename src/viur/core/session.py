@@ -76,7 +76,7 @@ class Session(db.Entity):
         if cookie_key := current.request.get().request.cookies.get(self.cookie_name):
             cookie_key = str(cookie_key)
             if data := db.get(db.Key(self.kindName, cookie_key)):  # Loaded successfully
-                if data["lastseen"] < time.time() - conf.user.session_life_time:
+                if data["lastseen"] < time.time() - conf.user.session_life_time.total_seconds():
                     # This session is too old
                     self.reset()
                     return False
@@ -135,7 +135,7 @@ class Session(db.Entity):
             "HttpOnly",
             f"SameSite={self.same_site}" if self.same_site and not conf.instance.is_dev_server else None,
             "Secure" if not conf.instance.is_dev_server else None,
-            f"Max-Age={conf.user.session_life_time}" if not self.use_session_cookie else None,
+            f"Max-Age={conf.user.session_life_time.total_seconds()}" if not self.use_session_cookie else None,
         )
 
         current_request.response.headerlist.append(
@@ -282,5 +282,6 @@ def start_clear_sessions():
     """
         Removes old (expired) Sessions
     """
-    query = db.Query(Session.kindName).filter("lastseen <", time.time() - (conf.user.session_life_time + 300))
+    query = db.Query(Session.kindName).filter(
+        "lastseen <", time.time() - (conf.user.session_life_time.total_seconds() + 300))
     DeleteSessionsIter.startIterOnQuery(query)
