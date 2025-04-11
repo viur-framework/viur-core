@@ -19,6 +19,7 @@ from .credential import CredentialBone
 from .date import DateBone
 from .email import EmailBone
 from .file import FileBone
+from .image import ImageBone
 from .json import JsonBone
 from .key import KeyBone
 from .numeric import NumericBone
@@ -60,6 +61,7 @@ __all = [
     "DateBone",
     "EmailBone",
     "FileBone",
+    "ImageBone",
     "JsonBone",
     "KeyBone",
     "MultipleConstraints",
