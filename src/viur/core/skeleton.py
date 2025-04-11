@@ -1231,7 +1231,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             # Load the current values from Datastore or create a new, empty db.Entity
             if not db_key:
                 # We'll generate the key we'll be stored under early so we can use it for locks etc
-                db_key = db.allocate_ids(skel.kindName)
+                db_key = db.allocate_ids(skel.kindName)[0]
                 skel.dbEntity = db.Entity(db_key)
                 is_add = True
             else:

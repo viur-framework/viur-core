@@ -635,7 +635,7 @@ class Query(object):
         else:
             return count(queryDefinition=self.queries, up_to=up_to)
 
-    def fetch(self, limit: int = -1) -> "SkelList['SkeletonInstance']" | None:
+    def fetch(self, limit: int = -1) -> "SkelList['SkeletonInstance']":
         """
         Run this query and fetch results as :class:`core.skeleton.SkelList`.
 
@@ -665,12 +665,10 @@ class Query(object):
             raise NotImplementedError(
                 "This query is not limited! You must specify an upper bound using limit() between 1 and 100")
 
-        if not (db_res := self.run(limit)):
-            return None
         res = SkelList(self.srcSkel)
-        for e in db_res:
+        for entity in self.run(limit):
             skel_instance = SkeletonInstance(self.srcSkel.skeletonCls, bone_map=self.srcSkel.boneMap)
-            skel_instance.dbEntity = e
+            skel_instance.dbEntity = entity
             res.append(skel_instance)
         res.getCursor = lambda: self.getCursor()
         res.get_orders = lambda: self.get_orders()
@@ -744,6 +742,7 @@ class Query(object):
         # res._limit = self._limit
         res._filterHook = self._filterHook
         res._orderHook = self._orderHook
+        # FIXME: Why is this disabled ???
         # res._startCursor = self._startCursor
         # res._endCursor = self._endCursor
         res._customMultiQueryMerge = self._customMultiQueryMerge
