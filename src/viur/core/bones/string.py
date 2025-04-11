@@ -80,25 +80,19 @@ class StringBone(BaseBone):
         In addition, it is checked whether the variable must be escaped or not.
         """
         if isinstance(value, str):
-            pass  # Nothing todo here
+            return value
         elif isinstance(value, Number):
-            value = str(value)
+            return str(value)
         elif isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
-            value = value.isoformat()
+            return value.isoformat()
         elif isinstance(value, db.Key):
-            value = value.to_legacy_urlsafe().decode("ASCII")
+            return value.to_legacy_urlsafe().decode("ASCII")
         elif not value:  # None or any other falsy value
-            value = self.getEmptyValue()
+            return  self.getEmptyValue()
         else:
             raise ValueError(
                 f"Value {value} of type {type(value)} cannot be coerced for {type(self).__name__} {self.name}"
             )
-
-        if self.escape_html:
-            value = utils.string.escape(value)
-        else:
-            value = utils.string.unescape(value)
-        return value
 
     def singleValueSerialize(
         self,
@@ -338,7 +332,13 @@ class StringBone(BaseBone):
         # TODO: duplicate code, this is the same iteration logic as in NumericBone
         new_value = {}
         for _, lang, value in self.iter_bone_value(skel, bone_name):
-            new_value.setdefault(lang, []).append(self.type_coerce_single_value(value))
+            value = self.type_coerce_single_value(value)
+            if self.escape_html:
+                value = utils.string.escape(value)
+            else:
+                value = utils.string.unescape(value)
+
+            new_value.setdefault(lang, []).append(value)
 
         if not self.multiple:
             # take the first one
