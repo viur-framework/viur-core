@@ -141,7 +141,8 @@ class Entity(Datastore_entity):
         exclude_from_indexes: t.Optional[list[str]] = None,
     ) -> None:
         super().__init__(key, exclude_from_indexes or [])
-        assert not key or isinstance(key, Key), "Key must be a Key-Object (or None for an embedded entity)"
+        if not (key is None or isinstance(key, Key)):
+            raise ValueError(f"key must be a Key-Object (or None for an embedded entity). Got {key!r} ({type(key)})")
 
 
 TOrders: t.TypeAlias = list[tuple[str, SortOrder]]
