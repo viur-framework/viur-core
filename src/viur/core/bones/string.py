@@ -77,7 +77,6 @@ class StringBone(BaseBone):
 
         Converts a value that is not a string into a string
         if a meaningful conversion is possible (simple data types only).
-        In addition, it is checked whether the variable must be escaped or not.
         """
         if isinstance(value, str):
             return value
