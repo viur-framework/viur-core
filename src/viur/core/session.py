@@ -129,9 +129,9 @@ class Session(db.Entity):
             db.Put(db_session)
 
         if db.IsInTransaction():
-            return __txn_write()
+            __txn_write()
         else:
-            return db.RunInTransaction(__txn_write)
+            db.RunInTransaction(__txn_write)
 
         # Provide Set-Cookie header entry with configured properties
         flags = (
