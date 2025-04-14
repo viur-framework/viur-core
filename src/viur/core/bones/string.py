@@ -332,9 +332,10 @@ class StringBone(BaseBone):
         new_value = {}
         for _, lang, value in self.iter_bone_value(skel, bone_name):
             value = self.type_coerce_single_value(value)
-            if not self.escape_html:
+            if self.escape_html:
+                value = utils.string.escape(value)
+            else:
                 value = utils.string.unescape(value)
-
             new_value.setdefault(lang, []).append(value)
 
         if not self.multiple:
