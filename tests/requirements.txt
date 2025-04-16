@@ -1,4 +1,5 @@
 appengine-python-standard~=1.0
+Deprecated~=1.2
 googleapis-common-protos[grpc]~=1.0
 jinja2~=3.0
 jsonschema~=4.0
