@@ -86,8 +86,8 @@ def setDefaultLanguage(lang: str):
 
         :param lang: Name of the language module to use by default.
     """
-    import warnings
-    msg = f"`setDefaultLanguage(\"{lang}\")` is deprecated; Replace the call by `conf.i18n.default_language = \"{lang.lower()}\"`"
+    msg = f"`setDefaultLanguage(\"{lang}\")` is deprecated; " \
+          f"Replace the call by `conf.i18n.default_language = \"{lang.lower()}\"`"
     warnings.warn(msg, DeprecationWarning, stacklevel=2)
     logging.warning(msg)
 
