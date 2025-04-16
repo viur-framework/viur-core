@@ -77,6 +77,33 @@ If there are documentation changes to review, there should be a 'doc-review' tag
 
 Please document your changes and provide info in any form you can. We have established a documentation taskforce that takes care of chasing information from core developers, organizing and building the docs with sphinx/readthedocs. If you implement a feature or change, you can dump your documentation in the pull request and tag it accordingly ('doc-review' tag), so you do not need to waste time learning restructured text for sphinx or even correct English. The documentation team will pick up your text, translate and polish it so you can concentrate on coding and explaining in your own words.
 
+
+## Testing
+
+Before opening a pull request, please ensure that your code passes all tests locally.
+This helps maintain code quality and prevents unnecessary CI failures.
+
+### Install the Test Environment
+To install all necessary dependencies for running tests, execute:
+```sh
+pip install .[testing]
+```
+
+### Run the Tests
+You can run the test suite using `unittest`:
+```sh
+python -m unittest discover tests
+```
+
+Alternatively, you can check test coverage using:
+```sh
+./tests/do_coverage.sh
+```
+
+Please make sure all tests pass before submitting your pull request.
+If you encounter any issues, check the test logs and resolve them before proceeding.
+
+
 ## Versioning
 
 `viur-core` uses the semantic versioning scheme.<br>
