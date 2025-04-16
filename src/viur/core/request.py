@@ -171,7 +171,6 @@ class Router:
         def get_language_from_header() -> str | None:
             if not (accept_language := self.request.headers.get("accept-language")):
                 return None
-            
             languages = accept_language.split(",")
             locale_q_pairs = []
 
@@ -183,22 +182,18 @@ class Router:
                     locale = language.split(";")[0].strip()
                     q = language.split(";")[1].split("=")[1]
                     locale_q_pairs.append((locale, q))
-            
             for locale_q_pair in locale_q_pairs:
                 if "-" in locale_q_pair[0]:  # Check for de-DE
                     lang = locale_q_pair[0].split("-")[0]
                 else:
                     lang = locale_q_pair[0]
-                
                 if lang in conf.i18n.available_languages + list(conf.i18n.language_alias_map.keys()):
                     return lang
-            
             return None
 
         if not conf.i18n.available_languages:
             # This project doesn't use the multi-language feature, nothing to do here
             return path
-
         if conf.i18n.language_method == "session":
             current_session = current.session.get()
             lang = conf.i18n.default_language
@@ -218,7 +213,6 @@ class Router:
 
             if current_session.loaded:
                 current_session["lang"] = lang
-            
             current.language.set(lang)
 
         elif conf.i18n.language_method == "domain":
@@ -248,7 +242,6 @@ class Router:
                     lang = str(header_lang).lower()
                     if lang in conf.i18n.available_languages or lang in conf.i18n.language_alias_map:
                         current.language.set(lang)
-        
         elif conf.i18n.language_method == "header":
             if lang := get_language_from_header():
                 current.language.set(lang)
