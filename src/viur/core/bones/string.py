@@ -331,7 +331,12 @@ class StringBone(BaseBone):
         # TODO: duplicate code, this is the same iteration logic as in NumericBone
         new_value = {}
         for _, lang, value in self.iter_bone_value(skel, bone_name):
-            new_value.setdefault(lang, []).append(self.type_coerce_single_value(value))
+            value = self.type_coerce_single_value(value)
+            if self.escape_html:
+                value = utils.string.escape(value)
+            else:
+                value = utils.string.unescape(value)
+            new_value.setdefault(lang, []).append(value)
 
         if not self.multiple:
             # take the first one
