@@ -1579,7 +1579,8 @@ class User(List):
         # In case the user is set to inactive, kill all sessions
         if self.is_active(skel) is False:
             session.killSessionByUser(skel["key"])
-        # Update all Sessions
+
+        # Update user setting in all sessions
         for session_obj in db.Query("user").filter("user =", skel["key"]).iter():
             session_obj["data"]["user"] = skel.dbEntity
 
