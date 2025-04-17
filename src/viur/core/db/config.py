@@ -1,7 +1,7 @@
 """DEPRECATED"""
 """This class only exists for compatibility reasons and will be removed in the future"""
 import warnings
-from viur.core.config import conf as core_conf  # noqa: E402 # import works only here because circular imports
+from viur.core.config import conf as core_conf
 
 
 class DBConfig:
