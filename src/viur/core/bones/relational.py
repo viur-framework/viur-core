@@ -1162,7 +1162,7 @@ class RelationalBone(BaseBone):
                 parsed_value = [(value, None)]
         else:  # which means (self.multiple and self.using)
             if not tuple_check(value) and (not isinstance(value, list) or not all(tuple_check(val) for val in value)):
-                    raise ValueError(f"You must supply (db.Key, RelSkel) or a list hereof to {boneName}")
+                raise ValueError(f"You must supply (db.Key, RelSkel) or a list hereof to {boneName}")
             if isinstance(value, list):
                 parsed_value = value
             else:
