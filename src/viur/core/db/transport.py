@@ -42,7 +42,7 @@ def get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None
     """
     _write_to_access_log(keys)
 
-    if isinstance(keys, (list,set,tuple)):
+    if isinstance(keys, (list, set, tuple)):
         res_list = list(__client__.get_multi(keys))
         res_list.sort(key=lambda x: keys.index(x.key) if x else -1)
         return res_list
@@ -84,8 +84,6 @@ def delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
         return __client__.delete(keys)
 
     return __client__.delete_multi(keys)
-
-
 
 
 @deprecated(version="3.8.0", reason="Use 'db.delete' instead")
@@ -205,7 +203,8 @@ def run_single_filter(query: QueryDefinition, limit: int) -> t.List[Entity]:
 def runSingleFilter(query: QueryDefinition, limit: int) -> t.List[Entity]:
     run_single_filter(query, limit)
 
-#helper function for access log
+
+# helper function for access log
 def _write_to_access_log(data: t.Union[Key, list[Key], Entity, list[Entity]]) -> None:
     access_log = current_db_access_log.get()
     if not isinstance(access_log, set):
@@ -222,5 +221,6 @@ def _write_to_access_log(data: t.Union[Key, list[Key], Entity, list[Entity]]) ->
                 access_log.add(entry.key)
             elif isinstance(entry, Key):
                 access_log.add(data)
+
 
 __all__ = [AllocateIDs, Delete, Get, Put, RunInTransaction, Count]
