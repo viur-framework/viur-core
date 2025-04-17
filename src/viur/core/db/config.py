@@ -1,10 +1,10 @@
-"""DEPRECATED"""
-"""This class only exists for compatibility reasons and will be removed in the future"""
 import warnings
 from viur.core.config import conf as core_conf
 
 
 class DBConfig:
+    """DEPRECATED"""
+    """This class only exists for compatibility reasons and this file will be removed in the future"""
     _map = {
         "traceQueries": [core_conf.debug.trace_queries, "conf.debug.trace_queries"],
         "memcache_client": [core_conf.db_memcache_client, "conf.db_memcache_client"]
