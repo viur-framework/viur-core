@@ -40,18 +40,13 @@ def get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None
     :param keys: A datastore key (or a list thereof) to lookup
     :return: The entity (or None if it has not been found), or a list of entities.
     """
-    access_log = current_db_access_log.get()
+    _write_to_access_log(keys)
 
-    if isinstance(keys, list):
-        if isinstance(access_log, set):
-            access_log.update(set(keys))
-
+    if isinstance(keys, (list, set, tuple)):
         res_list = list(__client__.get_multi(keys))
-        res_list.sort(key=lambda x: keys.index(x.key) if x else -1)
+        res_list.sort(key=lambda k: keys.index(k.key) if k else -1)
         return res_list
-    # Single get
-    if isinstance(access_log, set):
-        access_log.add(keys)
+
     return __client__.get(keys)
 
 
@@ -66,12 +61,9 @@ def put(entities: t.Union[Entity, t.List[Entity]]):
     Also ensures that no string-key with a digit-only name can be used.
     :param entities: The entities to be saved to the datastore.
     """
+    _write_to_access_log(entities)
     if isinstance(entities, Entity):
-        entities = entities,
-
-    access_log = current_db_access_log.get()
-    if isinstance(access_log, set):
-        access_log.update(set(entry.key for entry in entities if not entry.key.is_partial))
+        return __client__.put(entities)
 
     return __client__.put_multi(entities=entities)
 
@@ -86,18 +78,12 @@ def delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
     Deletes the entities with the given key(s) from the datastore.
     :param keys: A Key (or a t.List of Keys) to delete
     """
-    access_log = current_db_access_log.get()
 
-    if isinstance(keys, list):
+    _write_to_access_log(keys)
+    if not isinstance(keys, (set, list, tuple)):
+        return __client__.delete(keys)
 
-        if isinstance(access_log, set):
-            access_log.update(keys)
-        return __client__.delete_multi(keys)
-
-    if isinstance(access_log, set):
-        access_log.update(keys)
-
-    return __client__.delete(keys)
+    return __client__.delete_multi(keys)
 
 
 @deprecated(version="3.8.0", reason="Use 'db.delete' instead")
@@ -216,6 +202,25 @@ def run_single_filter(query: QueryDefinition, limit: int) -> t.List[Entity]:
 @deprecated(version="3.8.0", reason="Use 'run_single_filter' instead")
 def runSingleFilter(query: QueryDefinition, limit: int) -> t.List[Entity]:
     run_single_filter(query, limit)
+
+
+# helper function for access log
+def _write_to_access_log(data: t.Union[Key, list[Key], Entity, list[Entity]]) -> None:
+    access_log = current_db_access_log.get()
+    if not isinstance(access_log, set):
+        return  # access log not exist
+    if not data:
+        return
+    if isinstance(data, Entity):
+        access_log.add(data.key)
+    elif isinstance(data, Key):
+        access_log.add(data)
+    else:
+        for entry in data:
+            if isinstance(entry, Entity):
+                access_log.add(entry.key)
+            elif isinstance(entry, Key):
+                access_log.add(data)
 
 
 __all__ = [AllocateIDs, Delete, Get, Put, RunInTransaction, Count]
