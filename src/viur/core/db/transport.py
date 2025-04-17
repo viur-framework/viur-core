@@ -44,7 +44,7 @@ def get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None
 
     if isinstance(keys, (list, set, tuple)):
         res_list = list(__client__.get_multi(keys))
-        res_list.sort(key=lambda x: keys.index(x.key) if x else -1)
+        res_list.sort(key=lambda k: keys.index(k.key) if k else -1)
         return res_list
 
     return __client__.get(keys)
