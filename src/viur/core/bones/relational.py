@@ -1136,11 +1136,11 @@ class RelationalBone(BaseBone):
 
         def tuple_check(in_value: tuple | None = None) -> bool:
             """
-            Return False if the given value is a tuple with a length of two.
+            Return True if the given value is a tuple with a length of two.
             In addition, the first field in the tuple must be a str,int or db.key.
             Furthermore, the second field must be a skeletonInstanceClassRef.
             """
-            return not (isinstance(in_value, tuple) and len(in_value) == 2
+            return (isinstance(in_value, tuple) and len(in_value) == 2
                         and isinstance(in_value[0], (str, int, db.Key))
                         and isinstance(in_value[1], self._skeletonInstanceClassRef))
 
@@ -1149,7 +1149,7 @@ class RelationalBone(BaseBone):
                 raise ValueError(f"You must supply exactly one Database-Key str or int to {boneName}")
             parsed_value = (value, None)
         elif not self.multiple and self.using:
-            if tuple_check(value):
+            if not tuple_check(value):
                 raise ValueError(f"You must supply a tuple of (Database-Key, relSkel) to {boneName}")
             parsed_value = value
         elif self.multiple and not self.using:
@@ -1161,7 +1161,7 @@ class RelationalBone(BaseBone):
             else:
                 parsed_value = [(value, None)]
         else:  # which means (self.multiple and self.using)
-            if tuple_check(value) and not (isinstance(value, list) and all(tuple_check(val) for val in value)):
+            if not tuple_check(value) and (not isinstance(value, list) or not all(tuple_check(val) for val in value)):
                 raise ValueError(f"You must supply (db.Key, RelSkel) or a list hereof to {boneName}")
             if isinstance(value, list):
                 parsed_value = value
