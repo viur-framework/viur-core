@@ -9,6 +9,7 @@ from google.cloud import datastore, exceptions
 
 from .overrides import entity_from_protobuf, key_from_protobuf
 from .types import Entity, Key, QueryDefinition, SortOrder, current_db_access_log
+from viur.core.config import conf
 
 # patching our key and entity classes
 datastore.helpers.key_from_protobuf = key_from_protobuf
@@ -224,6 +225,8 @@ def runSingleFilter(query: QueryDefinition, limit: int) -> t.List[Entity]:
 
 # helper function for access log
 def _write_to_access_log(data: t.Union[Key, list[Key], Entity, list[Entity]]) -> None:
+    if not conf.db_create_access_log:
+        return
     access_log = current_db_access_log.get()
     if not isinstance(access_log, set):
         return  # access log not exist
