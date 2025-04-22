@@ -1580,6 +1580,11 @@ class User(List):
         if self.is_active(skel) is False:
             session.killSessionByUser(skel["key"])
 
+        # Update user setting in all sessions
+        for session_obj in db.Query("user").filter("user =", skel["key"]).iter():
+            session_obj["data"]["user"] = skel.dbEntity
+
+
     def onDeleted(self, skel):
         super().onDeleted(skel)
         # Invalidate all sessions of that user
