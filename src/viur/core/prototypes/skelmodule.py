@@ -216,10 +216,10 @@ class SkelModule(Module):
         """
 
         # Adjust key
-        db_key = db.keyHelper(key, targetKind=self.kindName, adjust_kind=self.kindName)
+        db_key = db.key_helper(key, target_kind=self.kindName, adjust_kind=True)
 
         # Retrieve and verify existing entry
-        db_entity = db.Get(db_key)
+        db_entity = db.get(db_key)
         is_add = not bool(db_entity)
 
         # Instanciate relevant skeleton

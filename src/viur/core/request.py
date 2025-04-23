@@ -133,7 +133,7 @@ class Router:
         self.isPostRequest = self.method == "post"
         self.isSSLConnection = self.request.host_url.lower().startswith("https://")  # We have an encrypted channel
 
-        db.currentDbAccessLog.set(set())
+        db.current_db_access_log.set(set())
 
         # Set context variables
         current.language.set(conf.i18n.default_language)
@@ -676,11 +676,9 @@ class Router:
 
         origin = current.request.get().request.headers.get("Origin")
         if not origin:
-            logging.debug(f"Origin header is not set")
             return
 
         # Origin is set --> It's a CORS request
-        logging.debug(f"Got CORS request from {origin=}")
 
         any_origin_allowed = (
             conf.security.cors_origins == "*"
