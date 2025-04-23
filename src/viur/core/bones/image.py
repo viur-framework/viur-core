@@ -1,4 +1,5 @@
 import typing as t
+from .. import i18n
 from .file import FileBone
 from .string import StringBone
 from ..skeleton.relskel import RelSkel
@@ -7,7 +8,10 @@ from ..config import conf
 
 class ImageBoneRelSkel(RelSkel):
     alt = StringBone(
-        descr="Alternativ-Text",
+        descr=i18n.translate(
+            "viur.core.image.alt",
+            defaultText="Alternative description",
+        ),
         searchable=True,
         languages=conf.i18n.available_languages,
     )

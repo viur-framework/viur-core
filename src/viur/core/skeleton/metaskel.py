@@ -1,3 +1,4 @@
+from ..bones.base import getSystemInitialized
 
 _UNDEFINED_KINDNAME = object()
 ABSTRACT_SKEL_CLS_SUFFIX = "AbstractSkel"
