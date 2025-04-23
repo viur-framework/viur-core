@@ -4,9 +4,8 @@ import logging
 import time
 import typing as t
 
-
 from deprecated.sphinx import deprecated
-from google.cloud import datastore,exceptions
+from google.cloud import datastore, exceptions
 
 from .overrides import entity_from_protobuf, key_from_protobuf
 from .types import Entity, Key, QueryDefinition, SortOrder, current_db_access_log
