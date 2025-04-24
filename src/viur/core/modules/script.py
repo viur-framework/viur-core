@@ -168,14 +168,10 @@ class Script(Tree):
     def get_importable(self):
 
         # get importable key
-        qry_importable = self.viewSkel("node").all().filter("parententry", self.rootnodeSkel(ensure=True)["key"])
+        qry_importable = self.viewSkel("node").all().filter("parententry", self.rootnodeSkel(ensure=True)["key"]).filter("name =", "importable")
         if not (qry_importable := self.listFilter(qry_importable)):
             raise errors.Unauthorized()
-        importable_key = None
-        for data in qry_importable.iter():
-            if data["name"] == "importable":
-                importable_key = data.key
-                break
+        importable_key = (entity := qry_importable.getEntry()) and entity["key"]
 
         def get_files_recursively(_importable_key):
             res = []
