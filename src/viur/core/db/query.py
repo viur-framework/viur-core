@@ -327,18 +327,18 @@ class Query(object):
 
         if self._orderHook is not None:
             try:
-                orderings = self._orderHook(self, orderings)
+                orders = self._orderHook(self, orders)
             except RuntimeError:
                 self.queries = None
                 return self
-            if orderings is None:
+            if orders is None:
                 return self
 
         if isinstance(self.queries, list):
             for query in self.queries:
-                query.orders = list(orderings)
+                query.orders = list(orders)
         else:
-            self.queries.orders = list(orderings)
+            self.queries.orders = list(orders)
 
         return self
 
