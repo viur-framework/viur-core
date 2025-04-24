@@ -122,7 +122,7 @@ def run_in_transaction(func: t.Callable, *args, **kwargs) -> t.Any:
                     break
 
             except exceptions.Conflict:
-                logging.error(f"Transaction failed with a Conflict we try again in {2 ** i} seconds")
+                logging.error(f"Transaction failed with a conflict, trying again in {2 ** i} seconds")
                 time.sleep(2 ** i)
                 continue
             except Exception as e:
