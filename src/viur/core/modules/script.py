@@ -168,26 +168,28 @@ class Script(Tree):
     def get_importable(self):
 
         # get importable key
-        qry_importable = self.viewSkel("node").all().filter("parententry", self.rootnodeSkel(ensure=True)["key"]).filter("name =", "importable")
+        qry_importable = (self.viewSkel("node").all()
+                          .filter("parententry", self.rootnodeSkel(ensure=True)["key"])
+                          .filter("name =", "importable"))
         if not (qry_importable := self.listFilter(qry_importable)):
             raise errors.Unauthorized()
-        importable_key = (entity := qry_importable.getEntry()) and entity["key"]
+
+        importable_key = (entity := qry_importable.getEntry()) and entity.key
 
         def get_files_recursively(_importable_key):
             res = []
             importable_files_query = self.viewSkel("leaf").all().filter("parententry", _importable_key)
             if not (importable_files_query := self.listFilter(importable_files_query)):
                 raise errors.Unauthorized()
-            for entry in importable_files_query.iter():
-                if entry["script"]:
-                    res.append(entry)
+            for script_entry in importable_files_query.iter():
+                if script_entry["script"]:
+                    res.append(script_entry)
             importable_files_query = self.viewSkel("node").all().filter("parententry", _importable_key)
-            for entry in importable_files_query.iter():
-                res.extend(get_files_recursively(entry.key))
+            for folder_entry in importable_files_query.iter():
+                res.extend(get_files_recursively(folder_entry.key))
             return res
 
         importable_files = get_files_recursively(importable_key)
-
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
             for file in importable_files:
