@@ -220,7 +220,7 @@ def _write_to_access_log(data: t.Union[Key, list[Key], Entity, list[Entity]]) ->
             if isinstance(entry, Entity):
                 access_log.add(entry.key)
             elif isinstance(entry, Key):
-                access_log.add(data)
+                access_log.add(entry)
 
 
 __all__ = [AllocateIDs, Delete, Get, Put, RunInTransaction, Count]
