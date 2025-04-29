@@ -1868,7 +1868,7 @@ def iterAllSkelClasses() -> t.Iterable[Skeleton]:
 ### Tasks ###
 
 @CallDeferred
-def processRemovedRelations(removedKey, cursor=None):
+def processRemovedRelations(removedKey: db.Key, cursor=None):
     updateListQuery = (
         db.Query("viur-relations")
         .filter("dest.__key__ =", removedKey)
@@ -1889,9 +1889,11 @@ def processRemovedRelations(removedKey, cursor=None):
             for key, bone in skel.items():
                 if isinstance(bone, RelationalBone):
                     if relational_value := skel[key]:
-                        if isinstance(relational_value, dict) and relational_value["dest"]["key"] == removedKey:
-                            skel[key] = None
-                            found = True
+                        # TODO: LanguageWrapper is not considered here (<RelationalBone(languages=[...])>)
+                        if isinstance(relational_value, dict):
+                            if relational_value["dest"]["key"] == removedKey:
+                                skel[key] = None
+                                found = True
 
                         elif isinstance(relational_value, list):
                             skel[key] = [entry for entry in relational_value if entry["dest"]["key"] != removedKey]
