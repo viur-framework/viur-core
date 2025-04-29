@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.15]
+
+- fix: `processRemovedRelations` fails if the source entity has other relations set (#1468)
+
 ## [3.7.14]
 
 - feat: Apply `escape_html`-flag in `StringBone.refresh()` (#1457)
