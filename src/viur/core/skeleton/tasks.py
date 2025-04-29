@@ -190,7 +190,7 @@ class RebuildSearchIndex(QueryIter):
             logging.exception(f'Failed to notify {customData["notify"]}')
 
 
-### Vacuum Relations
+# Vacuum Relations
 
 @CallableTask
 class TaskVacuumRelations(TaskUpdateSearchIndex):

@@ -116,14 +116,17 @@ class MetaSkel(MetaBaseSkel):
         # Check if we have an abstract skeleton
         if cls.__name__.endswith(ABSTRACT_SKEL_CLS_SUFFIX):
             # Ensure that it doesn't have a kindName
-            assert cls.kindName is _UNDEFINED_KINDNAME or cls.kindName is None, "Abstract Skeletons can't have a kindName"
+            assert cls.kindName is _UNDEFINED_KINDNAME or cls.kindName is None, \
+                "Abstract Skeletons can't have a kindName"
             # Prevent any further processing by this class; it has to be sub-classed before it can be used
             return
 
         # Automatic determination of the kindName, if the class is not part of viur.core.
-        if (cls.kindName is _UNDEFINED_KINDNAME
-            and not relNewFileName.strip(os.path.sep).startswith("viur")
-            and not "viur_doc_build" in dir(sys)):
+        if (
+                cls.kindName is _UNDEFINED_KINDNAME
+                and not relNewFileName.strip(os.path.sep).startswith("viur")
+                and "viur_doc_build" not in dir(sys)  # do not check during documentation build
+        ):
             if cls.__name__.endswith("Skel"):
                 cls.kindName = cls.__name__.lower()[:-4]
             else:
@@ -152,8 +155,10 @@ class MetaSkel(MetaBaseSkel):
                 raise ValueError(f"Duplicate definition for {cls.kindName} in {relNewFileName} and {relOldFileName}")
 
         # Ensure that all skeletons are defined in folders listed in conf.skeleton_search_path
-        if (not any([relNewFileName.startswith(x) for x in conf.skeleton_search_path])
-            and not "viur_doc_build" in dir(sys)):  # Do not check while documentation build
+        if (
+                not any([relNewFileName.startswith(path) for path in conf.skeleton_search_path])
+                and "viur_doc_build" not in dir(sys)  # do not check during documentation build
+        ):
             raise NotImplementedError(
                 f"""{relNewFileName} must be defined in a folder listed in {conf.skeleton_search_path}""")
 
