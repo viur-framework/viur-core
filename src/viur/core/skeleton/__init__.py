@@ -5,7 +5,7 @@ from ..bones.base import getSystemInitialized
 
 from .adapter import DatabaseAdapter, ViurTagsSearchAdapter
 from .instance import SkeletonInstance
-from .meta import MetaSkel, MetaBaseSkel, BaseSkeleton,
+from .meta import MetaSkel, MetaBaseSkel, BaseSkeleton
 
 from .relskel import RelSkel, RefSkel
 from .skeleton import Skeleton, SeoKeyBone
