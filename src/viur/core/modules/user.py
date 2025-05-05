@@ -1306,6 +1306,12 @@ class User(List):
 
         return skel
 
+    def cloneSkel(self):
+        """
+        On clone, behave as this is a skeleton for adding.
+        """
+        return self.addSkel()
+
     def secondFactorProviderByClass(self, cls) -> UserSecondFactorAuthentication:
         return getattr(self, f"f2_{cls.__name__.lower()}")
 
