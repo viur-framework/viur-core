@@ -1280,6 +1280,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 blob_list.update(bone.getReferencedBlobs(skel, bone_name))
 
                 # Check if the value has actually changed
+                # Ensure that only bones within the current subskel are processed.
                 if bone_name in write_skel and skel.dbEntity.get(bone_name) != old_copy.get(bone_name):
                     change_list.append(bone_name)
 
