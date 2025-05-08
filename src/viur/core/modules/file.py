@@ -1354,23 +1354,6 @@ class File(Tree):
 
         db.put(fileObj)
 
-    def inject_serving_url(self, skel: SkeletonInstance) -> None:
-        """Inject the serving url for public image files into a FileSkel"""
-        # try to create a servingurl for images
-        if not conf.instance.is_dev_server and skel["public"] and skel["mimetype"] \
-                and skel["mimetype"].startswith("image/") and not skel["serving_url"]:
-
-            try:
-                bucket = self.get_bucket(skel['dlkey'])
-                skel["serving_url"] = images.get_serving_url(
-                    None,
-                    secure_url=True,
-                    filename=f"/gs/{bucket.name}/{skel['dlkey']}/source/{skel['name']}",
-                )
-            except Exception as e:
-                logging.warning("Error while creating serving url")
-                logging.exception(e)
-
 
 @PeriodicTask(interval=datetime.timedelta(hours=4))
 def startCheckForUnreferencedBlobs():
