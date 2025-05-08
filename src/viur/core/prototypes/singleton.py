@@ -25,7 +25,7 @@ class Singleton(SkelModule):
 
         :returns: Current context DB-key
         """
-        return f"{self.editSkel().kindName}-modulekey"
+        return f"{self._resolveSkelCls().kindName}-modulekey"
 
     def viewSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -38,7 +38,7 @@ class Singleton(SkelModule):
 
         :return: Returns a Skeleton instance for viewing the singleton entry.
         """
-        return self.baseSkel(*args, **kwargs)
+        return self.baseSkel(**kwargs)
 
     def editSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -51,9 +51,13 @@ class Singleton(SkelModule):
 
         :return: Returns a Skeleton instance for editing the entry.
         """
-        return self.baseSkel(*args, **kwargs)
+        return self.baseSkel(**kwargs)
 
     ## External exposed functions
+
+    @exposed
+    def index(self):
+        return self.view()
 
     @exposed
     @skey
@@ -71,23 +75,35 @@ class Singleton(SkelModule):
         if not self.canPreview():
             raise errors.Unauthorized()
 
-        skel = self.viewSkel()
+        skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
         skel.fromClient(kwargs)
 
         return self.render.view(skel)
 
     @exposed
-    def structure(self, *args, **kwargs) -> t.Any:
+    def structure(self, action: t.Optional[str] = "view") -> t.Any:
         """
-        :returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
-            in each bone.
+            :returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
+                in each bone.
 
-        :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
+            :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
-        skel = self.viewSkel()
-        if not self.canView():
-            raise errors.Unauthorized()
-        return self.render.view(skel)
+        # FIXME: In ViUR > 3.7 this could also become dynamic (ActionSkel paradigm).
+        match action:
+            case "view":
+                skel = self.viewSkel()
+                if not self.canView():
+                    raise errors.Unauthorized()
+
+            case "edit":
+                skel = self.editSkel()
+                if not self.canEdit():
+                    raise errors.Unauthorized()
+
+            case _:
+                raise errors.NotImplemented(f"The action {action!r} is not implemented.")
+
+        return self.render.render(f"structure.{action}", skel)
 
     @exposed
     def view(self, *args, **kwargs) -> t.Any:
@@ -103,12 +119,11 @@ class Singleton(SkelModule):
         :raises: :exc:`viur.core.errors.NotFound`, if there is no singleton entry existing, yet.
         :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
-
-        skel = self.viewSkel()
         if not self.canView():
             raise errors.Unauthorized()
 
-        key = db.Key(self.editSkel().kindName, self.getKey())
+        skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
+        key = db.Key(skel.kindName, self.getKey())
 
         if not skel.read(key):
             raise errors.NotFound()
@@ -137,8 +152,8 @@ class Singleton(SkelModule):
         if not self.canEdit():
             raise errors.Unauthorized()
 
-        key = db.Key(self.editSkel().kindName, self.getKey())
         skel = self.editSkel()
+        key = db.Key(skel.kindName, self.getKey())
         if not skel.read(key):  # Its not there yet; we need to set the key again
             skel["key"] = key
 

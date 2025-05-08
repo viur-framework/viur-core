@@ -6,6 +6,7 @@ from collections.abc import Iterable
 from . import string, parse, json  # noqa: used by external imports
 from viur.core import current, db
 from viur.core.config import conf
+from deprecated.sphinx import deprecated
 
 
 def utcNow() -> datetime.datetime:
@@ -85,7 +86,8 @@ def seoUrlToFunction(module: str, function: str, render: t.Optional[str] = None)
     return "/".join(pathComponents)
 
 
-def normalizeKey(key: t.Union[None, 'db.KeyClass']) -> t.Union[None, 'db.KeyClass']:
+@deprecated(version="3.8.0", reason="Use 'db.normalize_key' instead")
+def normalizeKey(key: t.Union[None, db.Key]) -> t.Union[None, db.Key]:
     """
         Normalizes a datastore key (replacing _application with the current one)
 
@@ -93,13 +95,7 @@ def normalizeKey(key: t.Union[None, 'db.KeyClass']) -> t.Union[None, 'db.KeyClas
 
         :return: Normalized key in string representation.
     """
-    if key is None:
-        return None
-    if key.parent:
-        parent = normalizeKey(key.parent)
-    else:
-        parent = None
-    return db.Key(key.kind, key.id_or_name, parent=parent)
+    db.normalize_key(key)
 
 
 def ensure_iterable(
