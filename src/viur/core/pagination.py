@@ -77,7 +77,7 @@ class Pagination:
         key = self.key_from_query(orig_query)
 
         # We don't have it cached - try to load it from DB
-        index = db.Get(db.Key(self._db_type, key))
+        index = db.get(db.Key(self._db_type, key))
         if index is not None:
             return index["data"]
 
@@ -99,7 +99,7 @@ class Pagination:
         entry = db.Entity(db.Key(self._db_type, key))
         entry["data"] = cursors
         entry["creationdate"] = utils.utcNow()
-        db.Put(entry)
+        db.put(entry)
         return cursors
 
     def cursor_for_query(self, query: db.Query, page: int) -> t.Optional[str]:
@@ -139,4 +139,4 @@ class Pagination:
         :param query: Query for which the index should be refreshed
         """
         key = self.key_from_query(query)
-        db.Delete(db.Key(self._db_type, key))
+        db.delete(db.Key(self._db_type, key))

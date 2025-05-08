@@ -494,7 +494,7 @@ class UserPassword(UserPrimaryAuthentication):
             skel.write(update_relations=False)
             return skel
 
-        if not isinstance(data, dict) or not (skel := db.RunInTransaction(transact, data.get("user_key"))):
+        if not isinstance(data, dict) or not (skel := db.run_in_transaction(transact, data.get("user_key"))):
             return self._user_module.render.view(None, tpl=self.verifyFailedTemplate)
 
         return self._user_module.render.view(skel, tpl=self.verifySuccessTemplate)
@@ -556,7 +556,7 @@ class UserPassword(UserPrimaryAuthentication):
         if self.registrationEmailVerificationRequired and skel["status"] == Status.WAITING_FOR_EMAIL_VERIFICATION:
             # The user will have to verify his email-address. Create a skey and send it to his address
             skey = securitykey.create(duration=datetime.timedelta(days=7), session_bound=False,
-                                      user_key=utils.normalizeKey(skel["key"]),
+                                      user_key=db.normalize_key(skel["key"]),
                                       name=skel["name"])
             skel.skey = BaseBone(descr="Skey")
             skel["skey"] = skey
@@ -850,7 +850,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             )
 
         # Remove otp user config from session
-        user_key = db.keyHelper(otp_user_conf["key"], self._user_module._resolveSkelCls().kindName)
+        user_key = db.key_helper(otp_user_conf["key"], self._user_module._resolveSkelCls().kindName)
         del session["_otp_user"]
         session.markChanged()
 
@@ -936,13 +936,13 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         # FIXME: The callback in viur-core must be improved, to accept user_skel
 
         def transaction(user_key, idx):
-            user = db.Get(user_key)
+            user = db.get(user_key)
             if not isinstance(user.get("otp_timedrift"), float):
                 user["otp_timedrift"] = 0.0
             user["otp_timedrift"] += min(max(0.1 * idx, -0.3), 0.3)
-            db.Put(user)
+            db.put(user)
 
-        db.RunInTransaction(transaction, user_key, idx)
+        db.run_in_transaction(transaction, user_key, idx)
 
 
 class AuthenticatorOTP(UserSecondFactorAuthentication):
@@ -1031,12 +1031,12 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             raise errors.Unauthorized()
 
         def transaction(user_key):
-            if not (user := db.Get(user_key)):
+            if not (user := db.get(user_key)):
                 raise errors.NotFound()
             user["otp_app_secret"] = otp_app_secret
-            db.Put(user)
+            db.put(user)
 
-        db.RunInTransaction(transaction, cuser["key"])
+        db.run_in_transaction(transaction, cuser["key"])
 
     @classmethod
     def generate_otp_app_secret_uri(cls, otp_app_secret) -> str:
@@ -1097,7 +1097,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         if (attempts := otp_user_conf.get("attempts") or 0) > self.MAX_RETRY:
             raise errors.Forbidden("Maximum amount of authentication retries exceeded")
 
-        if not (user := db.Get(user_key)):
+        if not (user := db.get(user_key)):
             raise errors.NotFound()
 
         skel = TimeBasedOTP.OtpSkel()
@@ -1579,6 +1579,11 @@ class User(List):
         # In case the user is set to inactive, kill all sessions
         if self.is_active(skel) is False:
             session.killSessionByUser(skel["key"])
+
+        # Update user setting in all sessions
+        for session_obj in db.Query("user").filter("user =", skel["key"]).iter():
+            session_obj["data"]["user"] = skel.dbEntity
+
 
     def onDeleted(self, skel):
         super().onDeleted(skel)

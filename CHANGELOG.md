@@ -2,6 +2,17 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.15]
+
+- fix: `processRemovedRelations` fails if the source entity has other relations set (#1468)
+
+## [3.7.14]
+
+- feat: Apply `escape_html`-flag in `StringBone.refresh()` (#1457)
+- fix: `RelationalBone.setBoneValue([(multiple, using)])` case (#1462)
+- fix: `TranslationSkel.name` may not contain upper-case characters (#1456)
+- fix: Update user's data in session on `user/edit` (#1458)
+
 ## [3.7.13]
 
 - chore: Remove logging  for cors (#1450)

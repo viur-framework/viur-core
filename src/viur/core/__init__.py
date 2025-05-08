@@ -299,14 +299,14 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
     if conf.file_hmac_key is None:
         from viur.core import db
         key = db.Key("viur-conf", "viur-conf")
-        if not (obj := db.Get(key)):  # create a new "viur-conf"?
+        if not (obj := db.get(key)):  # create a new "viur-conf"?
             logging.info("Creating new viur-conf")
             obj = db.Entity(key)
 
         if "hmacKey" not in obj:  # create a new hmacKey
             logging.info("Creating new hmacKey")
             obj["hmacKey"] = utils.string.random(length=20)
-            db.Put(obj)
+            db.put(obj)
 
         conf.file_hmac_key = bytes(obj["hmacKey"], "utf-8")
 

@@ -77,16 +77,16 @@ class RateLimit(object):
 
         def updateTxn(cacheKey: str) -> None:
             key = db.Key(self.rateLimitKind, cacheKey)
-            obj = db.Get(key)
+            obj = db.get(key)
             if obj is None:
                 obj = db.Entity(key)
                 obj["value"] = 0
             obj["value"] += 1
             obj["expires"] = utils.utcNow() + timedelta(minutes=2 * self.minutes)
-            db.Put(obj)
+            db.put(obj)
 
         lockKey = f"{self.resource}-{self._getEndpointKey()}-{self._getCurrentTimeKey()}"
-        db.RunInTransaction(updateTxn, lockKey)
+        db.run_in_transaction(updateTxn, lockKey)
 
     def isQuotaAvailable(self) -> bool:
         """
@@ -103,7 +103,7 @@ class RateLimit(object):
         for x in range(0, self.steps):
             cacheKeys.append(
                 db.Key(self.rateLimitKind, f"{self.resource}-{endPoint}-{keyBase % (currentStep - x)}"))
-        tmpRes = db.Get(cacheKeys)
+        tmpRes = db.get(cacheKeys)
         return sum([x["value"] for x in tmpRes if x and currentDateTime < x["expires"]]) <= self.maxRate
 
     def assertQuotaIsAvailable(self, setRetryAfterHeader: bool = True) -> bool:
