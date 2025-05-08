@@ -162,8 +162,10 @@ def getSkel(
 
     :returns: dict on success, False on error.
     """
-    if not (obj := getattr(conf.main_app, module, None)):
-        raise ValueError(f"getSkel: Can't read a skeleton from unknown module {module!r}")
+    obj = conf.main_app
+    for mod in module.split("."):
+        if not (obj := getattr(obj, mod, None)):
+            raise ValueError(f"getSkel: Can't read a skeleton from unknown module {module!r}")
 
     if not getattr(obj, "html", False):
         raise PermissionError(f"getSkel: module {module!r} is not allowed to be accessed")
