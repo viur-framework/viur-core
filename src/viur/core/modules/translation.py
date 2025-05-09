@@ -299,7 +299,7 @@ class Translation(List):
                 name: str(translate(name, force_lang=lang))
                 for name, values in systemTranslations.items()
                 if (conf.i18n.dump_can_view(name) or values.get("_public_"))
-                and any(fnmatch.fnmatch(name, pat) for pat in pattern)
+                and (not pattern or any(fnmatch.fnmatch(name, pat) for pat in pattern))
             }
             for lang in language
         })
