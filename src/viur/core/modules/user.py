@@ -104,8 +104,9 @@ class UserSkel(skeleton.Skeleton):
     )
 
     status = SelectBone(
-        descr="Account status",
+        descr=i18n.translate("viur.core.modules.user.bone.status", "Account status"),
         values=Status,
+        translation_key_prefix="viur.core.user.status.",
         defaultValue=Status.ACTIVE,
         required=True,
     )
