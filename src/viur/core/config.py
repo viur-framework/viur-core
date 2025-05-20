@@ -910,6 +910,7 @@ class Conf(ConfigType):
     skeleton_search_path: Multiple[str] = [
         "/skeletons/",  # skeletons of the project
         "/viur/core/",  # system-defined skeletons of viur-core
+        "/src/viur/core/",  # fixme: test suite
         "/viur-core/core/"  # system-defined skeletons of viur-core, only used by editable installation
     ]
     """Priority, in which skeletons are loaded"""
