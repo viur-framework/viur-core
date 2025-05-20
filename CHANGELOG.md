@@ -2,6 +2,13 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.17]
+
+- cicd: Deploy to PyPI only
+- cicd: Setup new `publish.yaml`
+- chore: Update dependency gunicorn to >=23 (#1475)
+- chore: Add translations for user status (#1474)
+
 ## [3.7.16]
 
 - fix: `prototypes.List` shall default to `addSkel` on cloning (#1471)
