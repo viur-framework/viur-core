@@ -3,7 +3,7 @@ import sys
 import time
 import typing as t
 
-from .config import conf
+from viur.core.config import conf
 from .types import Entity, Key
 
 MEMCACHE_MAX_BATCH_SIZE = 30
@@ -17,12 +17,12 @@ MEMCACHE_MAX_SIZE = 1_000_000
     To activate the cache copy this code in your main.py
     ..  code-block:: python
     # Example
-    from viur.core import db
-    if not conf["viur.instance.is_dev_server"]:
+    from viur.core import conf
+    if not conf.instance.is_dev_server:
         from google.appengine.api.memcache import Client
-        db.config["memcache_client"] = Client()
+        conf.db_memcache_client = Client()
     else:
-        db.config["memcache_client"] = db.cache.LocalMemcache()
+        conf.db_memcache_client = db.cache.LocalMemcache()
 
 """
 
@@ -52,7 +52,7 @@ def get(keys: t.Union[str, Key, t.List[str], t.List[Key]]) -> t.Dict[str, dict]:
     res = {}
     try:
         while keys:
-            res |= conf["memcache_client"].get_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=MEMCACHE_NAMESPACE)
+            res |= conf.db_memcache_client.get_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=MEMCACHE_NAMESPACE)
             keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
     except Exception as e:
         logging.error(f"""Failed to get keys form the memcache with {e=}""")
@@ -80,7 +80,7 @@ def put(data: t.Union[Entity, t.Dict[Key, Entity], t.List[Entity]]):
     try:
         while keys:
             data_batch = {key: data[key] for key in keys[:MEMCACHE_MAX_BATCH_SIZE]}
-            conf["memcache_client"].set_multi(data_batch, namespace=MEMCACHE_NAMESPACE, time=MEMCACHE_TIMEOUT)
+            conf.db_memcache_client.set_multi(data_batch, namespace=MEMCACHE_NAMESPACE, time=MEMCACHE_TIMEOUT)
             keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
     except Exception as e:
         logging.error(f"""Failed to put data to the memcache with {e=}""")
@@ -99,7 +99,7 @@ def delete(keys: t.Union[str, Key, t.List[str], t.List[Key]]) -> None:
     keys = [str(key) for key in keys]  # Enforce that all keys are strings
     try:
         while keys:
-            conf["memcache_client"].delete_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=MEMCACHE_NAMESPACE)
+            conf.db_memcache_client.delete_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=MEMCACHE_NAMESPACE)
             keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
     except Exception as e:
         logging.error(f"""Failed to delete keys form the memcache with {e=}""")
@@ -112,7 +112,7 @@ def flush():
     if not check_for_memcache():
         return
     try:
-        conf["memcache_client"].flush_all()
+        conf.db_memcache_client.flush_all()
     except Exception as e:
         logging.error(f"""Failed to flush the memcache with {e=}""")
 
@@ -130,8 +130,8 @@ def get_size(obj: t.Any) -> int:
 
 
 def check_for_memcache() -> bool:
-    if conf["memcache_client"] is None:
-        logging.warning(f"""conf["memcache_client"] is 'None'. It can not be used.""")
+    if conf.db_memcache_client is None:
+        logging.warning(f"""conf.db_memcache_client is 'None'. It can not be used.""")
         return False
     return True
 

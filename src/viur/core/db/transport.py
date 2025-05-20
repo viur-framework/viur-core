@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import logging
+import time
 import typing as t
 
 from deprecated.sphinx import deprecated
-from google.cloud import datastore
+from google.cloud import datastore, exceptions
 
 from .overrides import entity_from_protobuf, key_from_protobuf
 from .types import Entity, Key, QueryDefinition, SortOrder, current_db_access_log
+from viur.core.config import conf
 
 # patching our key and entity classes
 datastore.helpers.key_from_protobuf = key_from_protobuf
@@ -108,13 +111,29 @@ def run_in_transaction(func: t.Callable, *args, **kwargs) -> t.Any:
     :param args: All args will be passed into the callee
     :param kwargs: All kwargs will be passed into the callee
     :return: Whatever the callee function returned
+    :raises RuntimeError: If the maximum transaction retries exceeded
     """
-    # todo retry when failed ?
     if __client__.current_transaction:
         res = func(*args, **kwargs)
     else:
-        with __client__.transaction():
-            res = func(*args, **kwargs)
+        for i in range(3):
+            try:
+                with __client__.transaction():
+                    res = func(*args, **kwargs)
+                    break
+
+            except exceptions.Conflict:
+                logging.error(f"Transaction failed with a conflict, trying again in {2 ** i} seconds")
+                time.sleep(2 ** i)
+                continue
+            except Exception as e:
+                logging.error(f"Transaction failed with exception, trying again in {2 ** i} seconds")
+                logging.exception(e)
+                time.sleep(2 ** i)
+                continue
+        else:
+            raise RuntimeError(f"Maximum transaction retries exceeded")
+
     return res
 
 
@@ -206,6 +225,8 @@ def runSingleFilter(query: QueryDefinition, limit: int) -> t.List[Entity]:
 
 # helper function for access log
 def _write_to_access_log(data: t.Union[Key, list[Key], Entity, list[Entity]]) -> None:
+    if not conf.db_create_access_log:
+        return
     access_log = current_db_access_log.get()
     if not isinstance(access_log, set):
         return  # access log not exist
@@ -223,4 +244,4 @@ def _write_to_access_log(data: t.Union[Key, list[Key], Entity, list[Entity]]) ->
                 access_log.add(entry)
 
 
-__all__ = [AllocateIDs, Delete, Get, Put, RunInTransaction, Count]
+__all__ = [allocate_ids, delete, get, put, run_in_transaction, count]

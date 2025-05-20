@@ -53,7 +53,7 @@ FilePath = namedtuple("FilePath", ("dlkey", "is_derived", "filename"))
 
 
 def importBlobFromViur2(dlKey, fileName):
-    bucket = File.get_bucket(dlKey)
+    bucket = conf.main_app.file.get_bucket(dlKey)
 
     if not conf.viur2import_blobsource:
         return False
@@ -96,14 +96,14 @@ def importBlobFromViur2(dlKey, fileName):
     marker["success"] = True
     marker["old_src_key"] = dlKey
     marker["old_src_name"] = fileName
-    marker["dlurl"] = File.create_download_url(dlKey, fileName, False, None)
+    marker["dlurl"] = conf.main_app.file.create_download_url(dlKey, fileName, False, None)
     db.put(marker)
     return marker["dlurl"]
 
 
 def thumbnailer(fileSkel, existingFiles, params):
     file_name = html.unescape(fileSkel["name"])
-    bucket = File.get_bucket(fileSkel["dlkey"])
+    bucket = conf.main_app.file.get_bucket(fileSkel["dlkey"])
     blob = bucket.get_blob(f"""{fileSkel["dlkey"]}/source/{file_name}""")
     if not blob:
         logging.warning(f"""Blob {fileSkel["dlkey"]}/source/{file_name} is missing from cloud storage!""")
@@ -185,11 +185,11 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
     if not conf.file_thumbnailer_url:
         raise ValueError("conf.file_thumbnailer_url is not set")
 
-    bucket = File.get_bucket(fileSkel["dlkey"])
+    bucket = conf.main_app.file.get_bucket(fileSkel["dlkey"])
 
     def getsignedurl():
         if conf.instance.is_dev_server:
-            signedUrl = File.create_download_url(fileSkel["dlkey"], fileSkel["name"])
+            signedUrl = conf.main_app.file.create_download_url(fileSkel["dlkey"], fileSkel["name"])
         else:
             path = f"""{fileSkel["dlkey"]}/source/{file_name}"""
             if not (blob := bucket.get_blob(path)):
@@ -209,7 +209,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
     def make_request():
         headers = {"Content-Type": "application/json"}
         data_str = base64.b64encode(json.dumps(dataDict).encode("UTF-8"))
-        sig = File.hmac_sign(data_str)
+        sig = conf.main_app.file.hmac_sign(data_str)
         datadump = json.dumps({"dataStr": data_str.decode('ASCII'), "sign": sig})
         resp = requests.post(conf.file_thumbnailer_url, data=datadump, headers=headers, allow_redirects=False)
         if resp.status_code != 200:  # Error Handling
@@ -256,7 +256,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
 
     uploadUrls = {}
     for data in derivedData["values"]:
-        fileName = File.sanitize_filename(data["name"])
+        fileName = conf.main_app.file.sanitize_filename(data["name"])
         blob = bucket.blob(f"""{fileSkel["dlkey"]}/derived/{fileName}""")
         uploadUrls[fileSkel["dlkey"] + fileName] = blob.create_resumable_upload_session(timeout=60,
                                                                                         content_type=data["mimeType"])
@@ -288,7 +288,7 @@ class DownloadUrlBone(BaseBone):
 
     def unserialize(self, skel, name):
         if "dlkey" in skel.dbEntity and "name" in skel.dbEntity:
-            skel.accessedValues[name] = File.create_download_url(
+            skel.accessedValues[name] = conf.main_app.file.create_download_url(
                 skel["dlkey"], skel["name"], expires=conf.render_json_download_url_expiration
             )
             return True
@@ -525,8 +525,8 @@ class File(Tree):
 
         return _private_bucket
 
-    @staticmethod
-    def is_valid_filename(filename: str) -> bool:
+    @classmethod
+    def is_valid_filename(cls, filename: str) -> bool:
         """
         Verifies a valid filename.
 
@@ -536,7 +536,7 @@ class File(Tree):
         Rule set: https://stackoverflow.com/a/31976060/3749896
         Regex test: https://regex101.com/r/iBYpoC/1
         """
-        if len(filename) > File.MAX_FILENAME_LEN:
+        if len(filename) > cls.MAX_FILENAME_LEN:
             return False
 
         return bool(re.match(VALID_FILENAME_REGEX, filename))
@@ -548,12 +548,13 @@ class File(Tree):
             data = str(data).encode("UTF-8")
         return hmac.new(conf.file_hmac_key, msg=data, digestmod=hashlib.sha3_384).hexdigest()
 
-    @staticmethod
-    def hmac_verify(data: t.Any, signature: str) -> bool:
-        return hmac.compare_digest(File.hmac_sign(data.encode("ASCII")), signature)
+    @classmethod
+    def hmac_verify(cls, data: t.Any, signature: str) -> bool:
+        return hmac.compare_digest(cls.hmac_sign(data.encode("ASCII")), signature)
 
-    @staticmethod
+    @classmethod
     def create_internal_serving_url(
+        cls,
         serving_url: str,
         size: int = 0,
         filename: str = "",
@@ -583,7 +584,7 @@ class File(Tree):
             raise ValueError(f"Invalid {serving_url=!r} provided")
 
         # Create internal serving URL
-        serving_url = File.INTERNAL_SERVING_URL_PREFIX + "/".join(res.groups())
+        serving_url = cls.INTERNAL_SERVING_URL_PREFIX + "/".join(res.groups())
 
         # Append additional parameters
         if params := {
@@ -598,8 +599,9 @@ class File(Tree):
 
         return serving_url
 
-    @staticmethod
+    @classmethod
     def create_download_url(
+        cls,
         dlkey: str,
         filename: str,
         derived: bool = False,
@@ -627,7 +629,7 @@ class File(Tree):
         filepath = f"""{dlkey}/{"derived" if derived else "source"}/{filename}"""
 
         if download_filename:
-            if not File.is_valid_filename(download_filename):
+            if not cls.is_valid_filename(download_filename):
                 raise errors.UnprocessableEntity(f"Invalid download_filename {download_filename!r} provided")
 
             download_filename = urlquote(download_filename)
@@ -635,12 +637,12 @@ class File(Tree):
         expires = (datetime.datetime.now() + expires).strftime("%Y%m%d%H%M") if expires else 0
 
         data = base64.urlsafe_b64encode(f"""{filepath}\0{expires}\0{download_filename or ""}""".encode("UTF-8"))
-        sig = File.hmac_sign(data)
+        sig = cls.hmac_sign(data)
 
-        return f"""{File.DOWNLOAD_URL_PREFIX}{data.decode("ASCII")}?sig={sig}"""
+        return f"""{cls.DOWNLOAD_URL_PREFIX}{data.decode("ASCII")}?sig={sig}"""
 
-    @staticmethod
-    def parse_download_url(url) -> t.Optional[FilePath]:
+    @classmethod
+    def parse_download_url(cls, url) -> t.Optional[FilePath]:
         """
         Parses a file download URL in the format `/file/download/xxxx?sig=yyyy` into its FilePath.
 
@@ -649,13 +651,13 @@ class File(Tree):
         :param url: The file download URL to be parsed.
         :return: A FilePath on success, None otherwise.
         """
-        if not url.startswith(File.DOWNLOAD_URL_PREFIX) or "?" not in url:
+        if not url.startswith(cls.DOWNLOAD_URL_PREFIX) or "?" not in url:
             return None
 
-        data, sig = url.removeprefix(File.DOWNLOAD_URL_PREFIX).split("?", 1)  # Strip "/file/download/" and split on "?"
+        data, sig = url.removeprefix(cls.DOWNLOAD_URL_PREFIX).split("?", 1)  # Strip "/file/download/" and split on "?"
         sig = sig.removeprefix("sig=")
 
-        if not File.hmac_verify(data, sig):
+        if not cls.hmac_verify(data, sig):
             # Invalid signature
             return None
 
@@ -683,8 +685,9 @@ class File(Tree):
         dlkey, derived, filename = dlpath.split("/")
         return FilePath(dlkey, derived != "source", filename)
 
-    @staticmethod
+    @classmethod
     def create_src_set(
+        cls,
         file: t.Union["SkeletonInstance", dict, str],
         expires: t.Optional[datetime.timedelta | int] = datetime.timedelta(hours=1),
         width: t.Optional[int] = None,
@@ -720,7 +723,7 @@ class File(Tree):
 
         if isinstance(file, i18n.LanguageWrapper):
             language = language or current.language.get()
-            if not language or not (file := file.get(language)):
+            if not language or not (file := cls.get(language)):
                 return ""
 
         if "dlkey" not in file and "dest" in file:
@@ -746,12 +749,12 @@ class File(Tree):
 
             if width and customData.get("width") in width:
                 src_set.append(
-                    f"""{File.create_download_url(file["dlkey"], filename, True, expires)} {customData["width"]}w"""
+                    f"""{cls.create_download_url(file["dlkey"], filename, True, expires)} {customData["width"]}w"""
                 )
 
             if height and customData.get("height") in height:
                 src_set.append(
-                    f"""{File.create_download_url(file["dlkey"], filename, True, expires)} {customData["height"]}h"""
+                    f"""{cls.create_download_url(file["dlkey"], filename, True, expires)} {customData["height"]}h"""
                 )
 
         return ", ".join(src_set)
@@ -777,7 +780,7 @@ class File(Tree):
         :return: Returns the key of the file object written. This can be associated e.g. with a FileBone.
         """
         # logging.info(f"{filename=} {mimetype=} {width=} {height=} {public=}")
-        if not File.is_valid_filename(filename):
+        if not self.is_valid_filename(filename):
             raise ValueError(f"{filename=} is invalid")
 
         dl_key = utils.string.random()
@@ -785,7 +788,7 @@ class File(Tree):
         if public:
             dl_key += PUBLIC_DLKEY_SUFFIX  # mark file as public
 
-        bucket = File.get_bucket(dl_key)
+        bucket = self.get_bucket(dl_key)
 
         blob = bucket.blob(f"{dl_key}/source/{filename}")
         blob.upload_from_file(io.BytesIO(content), content_type=mimetype)
@@ -832,9 +835,9 @@ class File(Tree):
             else:
                 path = f"""{skel["dlkey"]}/source/{skel["name"]}"""
 
-            bucket = File.get_bucket(skel["dlkey"])
+            bucket = self.get_bucket(skel["dlkey"])
         else:
-            bucket = File.get_bucket(path.split("/", 1)[0])  # path's first part is dlkey plus eventual postfix
+            bucket = self.get_bucket(path.split("/", 1)[0])  # path's first part is dlkey plus eventual postfix
 
         blob = bucket.blob(path)
         return io.BytesIO(blob.download_as_bytes()), blob.content_type
@@ -869,7 +872,7 @@ class File(Tree):
     ):
         filename = fileName.strip()  # VIUR4 FIXME: just for compatiblity of the parameter names
 
-        if not File.is_valid_filename(filename):
+        if not self.is_valid_filename(filename):
             raise errors.UnprocessableEntity(f"Invalid filename {filename!r} provided")
 
         # Validate the mimetype from the client seems legit
@@ -930,7 +933,7 @@ class File(Tree):
         if public:
             dlkey += PUBLIC_DLKEY_SUFFIX  # mark file as public
 
-        blob = File.get_bucket(dlkey).blob(f"{dlkey}/source/{filename}")
+        blob = self.get_bucket(dlkey).blob(f"{dlkey}/source/{filename}")
         upload_url = blob.create_resumable_upload_session(content_type=mimeType, size=size, timeout=60)
 
         # Create a corresponding file-lock object early, otherwise we would have to ensure that the file-lock object
@@ -982,7 +985,7 @@ class File(Tree):
         :param download: Set header to attachment retrival, set explictly to "1" if download is wanted.
         """
         if filename := fileName.strip():
-            if not File.is_valid_filename(filename):
+            if not self.is_valid_filename(filename):
                 raise errors.UnprocessableEntity(f"The provided filename {filename!r} is invalid!")
 
         try:
@@ -997,7 +1000,7 @@ class File(Tree):
             logging.error(f"Encoding of {blobKey=!r} OK. {values=} invalid.")
             raise errors.BadRequest(f"The blob key {blobKey!r} has an invalid amount of encoded values!")
 
-        bucket = File.get_bucket(dlPath.split("/", 1)[0])
+        bucket = self.get_bucket(dlPath.split("/", 1)[0])
 
         if not sig:
             # Check if the current user has the right to download *any* blob present in this application.
@@ -1194,7 +1197,7 @@ class File(Tree):
                 session.markChanged()
 
             # Now read the blob from the dlkey folder
-            bucket = File.get_bucket(skel["dlkey"])
+            bucket = self.get_bucket(skel["dlkey"])
 
             blobs = list(bucket.list_blobs(prefix=f"""{skel["dlkey"]}/"""))
             if len(blobs) != 1:
@@ -1285,10 +1288,10 @@ class File(Tree):
 
             # Move Blob to new name
             # https://cloud.google.com/storage/docs/copying-renaming-moving-objects
-            old_path = f"{skel['dlkey']}/source/{html.unescape(old_skel['name'])}"
-            new_path = f"{skel['dlkey']}/source/{html.unescape(skel['name'])}"
+            old_path = f"""{skel["dlkey"]}/source/{html.unescape(old_skel["name"])}"""
+            new_path = f"""{skel["dlkey"]}/source/{html.unescape(skel["name"])}"""
 
-            bucket = File.get_bucket(skel['dlkey'])
+            bucket = self.get_bucket(skel["dlkey"])
 
             if not (old_blob := bucket.get_blob(old_path)):
                 raise errors.Gone()
@@ -1428,7 +1431,7 @@ def doCleanupDeletedFiles(cursor=None):
         else:
             if file["itercount"] > maxIterCount:
                 logging.info(f"""Finally deleting, {file["dlkey"]}""")
-                bucket = File.get_bucket(file["dlkey"])
+                bucket = conf.main_app.file.get_bucket(file["dlkey"])
                 blobs = bucket.list_blobs(prefix=f"""{file["dlkey"]}/""")
                 for blob in blobs:
                     blob.delete()
@@ -1438,7 +1441,7 @@ def doCleanupDeletedFiles(cursor=None):
                     f.delete()
 
                     if f["serving_url"]:
-                        bucket = File.get_bucket(f["dlkey"])
+                        bucket = conf.main_app.file.get_bucket(f["dlkey"])
                         blob_key = blobstore.create_gs_key(
                             f"/gs/{bucket.name}/{f['dlkey']}/source/{f['name']}"
                         )
@@ -1469,7 +1472,7 @@ def start_delete_pending_files():
 def __getattr__(attr: str) -> object:
     if entry := {
             # stuff prior viur-core < 3.7
-            "GOOGLE_STORAGE_BUCKET": ("File.get_bucket()", _private_bucket),
+            "GOOGLE_STORAGE_BUCKET": ("conf.main_app.file.get_bucket()", _private_bucket),
     }.get(attr):
         msg = f"{attr} was replaced by {entry[0]}"
         warnings.warn(msg, DeprecationWarning, stacklevel=2)

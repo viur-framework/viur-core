@@ -8,6 +8,7 @@ import warnings
 from pathlib import Path
 
 import google.auth
+from google.appengine.api.memcache import Client
 
 from viur.core.version import __version__
 from viur.core.current import user as current_user
@@ -509,6 +510,9 @@ class Debug(ConfigType):
     trace_internal_call_routing: bool = False
     """If enabled, ViUR will log which (internal-exposed) function are called from templates with what arguments"""
 
+    trace_queries: bool = False
+    """If enabled, ViUR will log each query that run"""
+
     skeleton_from_client: bool = False
     """If enabled, log errors raises from skeleton.fromClient()"""
 
@@ -838,6 +842,12 @@ class Conf(ConfigType):
 
     db_engine: str = "viur.datastore"
     """Database engine module"""
+
+    db_memcache_client: Client | None = None
+    """If set, ViUR cache data for the db.get in the Memcache for faster access."""
+
+    db_create_access_log: bool = True
+    """If False no access log will be created. But then the caching is disabled too."""
 
     error_handler: t.Callable[[Exception], str] | None = None
     """If set, ViUR calls this function instead of rendering the viur.errorTemplate if an exception occurs"""

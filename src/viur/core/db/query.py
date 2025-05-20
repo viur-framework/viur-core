@@ -6,7 +6,7 @@ import functools
 import logging
 import typing as t
 
-from .config import conf
+from viur.core.config import conf
 from .transport import count, get, run_single_filter
 from .types import (
     DATASTORE_BASE_TYPES,
@@ -579,7 +579,7 @@ class Query(object):
         another property is provided
         """
         if self.queries is None:
-            if conf["traceQueries"]:
+            if conf.debug.trace_queries:
                 logging.debug(f"Query on {self.kind} aborted as being not satisfiable")
             return []
 
@@ -627,7 +627,7 @@ class Query(object):
             :returns: Count entries for this query.
         """
         if self.queries is None:
-            if conf["traceQueries"]:
+            if conf.debug.trace_queries:
                 logging.debug(f"Query on {self.kind} aborted as being not satisfiable")
             return -1
         elif isinstance(self.queries, list):

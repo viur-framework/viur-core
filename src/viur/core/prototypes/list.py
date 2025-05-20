@@ -89,7 +89,9 @@ class List(SkelModule):
 
         :return: Returns a SkeletonInstance for editing an entry.
         """
-        return self.baseSkel(**kwargs)
+
+        # On clone, by default, behave as this is a skeleton for adding.
+        return self.addSkel(**kwargs)
 
     ## External exposed functions
 

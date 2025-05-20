@@ -162,8 +162,10 @@ def getSkel(
 
     :returns: dict on success, False on error.
     """
-    if not (obj := getattr(conf.main_app, module, None)):
-        raise ValueError(f"getSkel: Can't read a skeleton from unknown module {module!r}")
+    obj = conf.main_app
+    for mod in module.split("."):
+        if not (obj := getattr(obj, mod, None)):
+            raise ValueError(f"getSkel: Can't read a skeleton from unknown module {module!r}")
 
     if not getattr(obj, "html", False):
         raise PermissionError(f"getSkel: module {module!r} is not allowed to be accessed")
@@ -706,7 +708,7 @@ def downloadUrlFor(
         return ""
 
     if derived:
-        return file.File.create_download_url(
+        return conf.main_app.file.create_download_url(
             fileObj["dlkey"],
             filename=derived,
             derived=True,
@@ -714,7 +716,7 @@ def downloadUrlFor(
             download_filename=downloadFileName,
         )
 
-    return file.File.create_download_url(
+    return conf.main_app.file.create_download_url(
         fileObj["dlkey"],
         filename=fileObj["name"],
         expires=expires,
@@ -749,7 +751,7 @@ def srcSetFor(
         :param language: Language overwrite if fileObj has multiple languages and we want to explicitly specify one
     :return: The srctag generated or an empty string if a invalid file object was supplied
     """
-    return file.File.create_src_set(fileObj, expires, width, height, language)
+    return conf.main_app.file.create_src_set(fileObj, expires, width, height, language)
 
 
 @jinjaGlobalFunction
@@ -757,7 +759,7 @@ def serving_url_for(render: Render, *args, **kwargs):
     """
     Jinja wrapper for File.create_internal_serving_url(), see there for parameter information.
     """
-    return file.File.create_internal_serving_url(*args, **kwargs)
+    return conf.main_app.file.create_internal_serving_url(*args, **kwargs)
 
 @jinjaGlobalFunction
 def seoUrlForEntry(render: Render, *args, **kwargs):
