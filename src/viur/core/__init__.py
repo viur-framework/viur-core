@@ -146,7 +146,9 @@ def __build_app(modules: ModuleType | object, renderers: ModuleType | object, de
     modules._tasks = TaskHandler
     modules._moduleconf = ModuleConf
     modules._translation = Translation
-    modules.script = Script
+    # Check whether “script” is contained in modules so that it can be overwritten
+    if "script" not in vars(modules).keys() or not inspect.isclass(modules.script):
+        modules.script = Script
 
     # Resolver defines the URL mapping
     resolver = {}
