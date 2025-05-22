@@ -218,7 +218,9 @@ class Session(db.Entity):
             db.Delete(db.Key(self.kindName, self.cookie_key))
             from viur.core import securitykey
             securitykey.clear_session_skeys(self.cookie_key)
-        current.request.get().response.delete_cookie(self.cookie_name)
+
+        current.request.get().response.unset_cookie(self.cookie_name, strict=False)
+
         self.loaded = False
         self.cookie_key = None
         super().clear()
