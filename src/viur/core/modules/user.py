@@ -269,6 +269,8 @@ class UserPassword(UserPrimaryAuthentication):
         password = PasswordBone(
             required=True,
             test_threshold=0,
+            tests=(),
+            raw=True,
         )
 
     class LostPasswordStep1Skel(skeleton.RelSkel):
@@ -312,21 +314,25 @@ class UserPassword(UserPrimaryAuthentication):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def login(self, *, name: str | None = None, password: str | None = None, **kwargs):
-        if not name or not password:
-            return self._user_module.render.login(self.LoginSkel(), action="login")
+    def login(self, **kwargs):
+        # Obtain a fresh login skel
+        skel = self.LoginSkel()
+
+        # Read required bones from client
+        if not skel.fromClient(kwargs):
+            return self._user_module.render.login(skel, action="login")
 
         self.loginRateLimit.assertQuotaIsAvailable()
 
         # query for the username. The query might find another user, but the name is being checked for equality below
-        name = name.lower().strip()
+        name = skel["name"].lower().strip()
         user_skel = self._user_module.baseSkel()
         user_skel = user_skel.all().filter("name.idx >=", name).getSkel() or user_skel
 
         # extract password hash from raw database entity (skeleton access blocks it)
         password_data = (user_skel.dbEntity and user_skel.dbEntity.get("password")) or {}
         iterations = password_data.get("iterations", 1001)  # remember iterations; old password hashes used 1001
-        password_hash = encode_password(password, password_data.get("salt", "-invalid-"), iterations)["pwhash"]
+        password_hash = encode_password(skel["password"], password_data.get("salt", "-invalid-"), iterations)["pwhash"]
 
         # now check if the username matches
         is_okay = secrets.compare_digest((user_skel["name"] or "").lower().strip().encode(), name.encode())
@@ -335,8 +341,22 @@ class UserPassword(UserPrimaryAuthentication):
         is_okay &= secrets.compare_digest(password_data.get("pwhash", b"-invalid-"), password_hash)
 
         if not is_okay:
+            # Set error to all required fields
+            for name, bone in skel.items():
+                if bone.required:
+                    skel.errors.append(
+                        ReadFromClientError(
+                            ReadFromClientErrorSeverity.Invalid,
+                            i18n.translate(
+                                key="viur.core.modules.user.userpassword.login.failed",
+                                defaultText="Invalid username or password provided",
+                            ),
+                            name,
+                        )
+                    )
+
             self.loginRateLimit.decrementQuota()  # Only failed login attempts will count to the quota
-            return self._user_module.render.login(self.LoginSkel(), action="login")
+            return self._user_module.render.login(skel, action="login")
 
         # check if iterations are below current security standards, and update if necessary.
         if iterations < PBKDF2_DEFAULT_ITERATIONS:
