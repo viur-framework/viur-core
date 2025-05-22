@@ -153,7 +153,7 @@ def __build_app(modules: ModuleType | object, renderers: ModuleType | object, de
         if name not in vars(modules):
             setattr(modules, name, cls)
 
-        assert issubclass(getattr(modules, name), Module)
+        assert issubclass(getattr(modules, name), cls)
 
     # Resolver defines the URL mapping
     resolver = {}
