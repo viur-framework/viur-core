@@ -29,8 +29,8 @@ class Render(DefaultRender):  # Render user-data to xml
 
     def login(self, skel, tpl: str | None = None, **kwargs):
         tpl = self._choose_template(tpl, "loginTemplate")
-        return self.add(skel, tpl=tpl, loginFailed=kwargs.get("loginFailed", False),
-                        accountStatus=kwargs.get("accountStatus"))
+        return self.add(skel, tpl=tpl, login_failed=kwargs.get("login_failed", False),
+                        is_active=kwargs.get("is_active"))
 
     def loginChoices(self, authMethods, tpl: str | None = None, **kwargs):
         tpl = self._choose_template(tpl, "loginChoicesTemplate")

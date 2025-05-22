@@ -336,7 +336,12 @@ class UserPassword(UserPrimaryAuthentication):
 
         if not is_okay:
             self.loginRateLimit.decrementQuota()  # Only failed login attempts will count to the quota
-            return self._user_module.render.login(self.LoginSkel(), action="login")
+            return self._user_module.render.login(
+                self.LoginSkel(),
+                action="login",
+                login_failed=True,
+                is_active=self._user_module.is_active(user_skel)
+            )
 
         # check if iterations are below current security standards, and update if necessary.
         if iterations < PBKDF2_DEFAULT_ITERATIONS:
