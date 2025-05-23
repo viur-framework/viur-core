@@ -1,12 +1,11 @@
-import unittest
 from datetime import datetime as dt, timedelta as td, timezone as tz
 
+from abstract import ViURTestCase
 
-class TestDateBone(unittest.TestCase):
+
+class TestDateBone(ViURTestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        from main import monkey_patch
-        monkey_patch()
         cls.bone_name = "myDateBone"
 
     def test_isEmpty_default_bone(self):
@@ -22,11 +21,9 @@ class TestDateBone(unittest.TestCase):
         self.assertTrue(bone.isEmpty(bone.getEmptyValue()))
 
 
-class TestDateBone_setBoneValue(unittest.TestCase):
+class TestDateBone_setBoneValue(ViURTestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        from main import monkey_patch
-        monkey_patch()
         cls.bone_name = "myDateBone"
 
     def test_setBoneValue_single(self):

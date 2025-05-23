@@ -43,7 +43,7 @@ en = {
 
     # translation
     "translations": "Translations",
-    "core.translationskel.tr_key.descr": "Translation key",
+    "core.translationskel.name.descr": "Translation key",
     "core.translationskel.translations.descr": "Translations",
     "core.translationskel.translations_missing.descr": "Translation missing for language",
     "core.translationskel.default_text.descr": "Fallback value",
@@ -52,4 +52,13 @@ en = {
     "core.translationskel.usage_lineno.descr": "Used and added from this lineno",
     "core.translationskel.usage_variables.descr": "Receives these substitution variables",
     "core.translationskel.creator.descr": "Creator",
+
+    # user Status enum
+    "viur.core.user.status.0": "Unset",
+    "viur.core.user.status.1": "Waiting for email verification",
+    "viur.core.user.status.2": "Waiting for admin verification",
+    "viur.core.user.status.5": "Disabled",
+    "viur.core.user.status.10": "Active",
+
+    "viur.core.modules.user.bone.status": "Account status",
 }

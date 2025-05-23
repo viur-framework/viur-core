@@ -77,7 +77,7 @@ class UserSkel(skeleton.Skeleton):
     )
 
     roles = SelectBone(
-        descr=i18n.translate("viur.user.bone.roles", defaultText="Roles"),
+        descr=i18n.translate("viur.core.modules.user.bone.roles", defaultText="Roles"),
         values=conf.user.roles,
         required=True,
         multiple=True,
@@ -91,10 +91,10 @@ class UserSkel(skeleton.Skeleton):
     )
 
     access = SelectBone(
-        descr=i18n.translate("viur.user.bone.access", defaultText="Access rights"),
+        descr=i18n.translate("viur.core.modules.user.bone.access", defaultText="Access rights"),
         type_suffix="access",
         values=lambda: {
-            right: i18n.translate(f"viur.modules.user.accessright.{right}", defaultText=right)
+            right: i18n.translate(f"viur.core.modules.user.accessright.{right}", defaultText=right)
             for right in sorted(conf.user.access_rights)
         },
         multiple=True,
@@ -104,8 +104,9 @@ class UserSkel(skeleton.Skeleton):
     )
 
     status = SelectBone(
-        descr="Account status",
+        descr=i18n.translate("viur.core.modules.user.bone.status", "Account status"),
         values=Status,
+        translation_key_prefix="viur.core.user.status.",
         defaultValue=Status.ACTIVE,
         required=True,
     )
@@ -282,7 +283,7 @@ class UserPassword(UserPrimaryAuthentication):
             required=True,
             params={
                 "tooltip": i18n.translate(
-                    key="viur.modules.user.userpassword.lostpasswordstep2.recoverykey",
+                    key="viur.core.modules.user.userpassword.lostpasswordstep2.recoverykey",
                     defaultText="Please enter the validation key you've received via e-mail.",
                     hint="Shown when the user needs more than 15 minutes to paste the key",
                 ),
@@ -302,7 +303,7 @@ class UserPassword(UserPrimaryAuthentication):
             required=True,
             params={
                 "tooltip": i18n.translate(
-                    key="viur.modules.user.userpassword.lostpasswordstep3.password",
+                    key="viur.core.modules.user.userpassword.lostpasswordstep3.password",
                     defaultText="Please enter a new password for your account.",
                 ),
             }
@@ -418,7 +419,7 @@ class UserPassword(UserPrimaryAuthentication):
         if not (recovery_request := securitykey.validate(recovery_key, session_bound=False)):
             raise errors.PreconditionFailed(
                 i18n.translate(
-                    key="viur.modules.user.passwordrecovery.keyexpired",
+                    key="viur.core.modules.user.passwordrecovery.keyexpired",
                     defaultText="The recovery key is expired or invalid. Please start the recovery process again.",
                     hint="Shown when the user needs more than 15 minutes to paste the key, or entered an invalid key."
                 )
@@ -432,7 +433,7 @@ class UserPassword(UserPrimaryAuthentication):
         if not user_skel:
             raise errors.NotFound(
                 i18n.translate(
-                    key="viur.modules.user.passwordrecovery.usernotfound",
+                    key="viur.core.modules.user.passwordrecovery.usernotfound",
                     defaultText="There is no account with this name",
                     hint="We cant find an account with that name (Should never happen)"
                 )
@@ -442,7 +443,7 @@ class UserPassword(UserPrimaryAuthentication):
         if not self._user_module.is_active(user_skel):
             raise errors.NotFound(
                 i18n.translate(
-                    key="viur.modules.user.passwordrecovery.accountlocked",
+                    key="viur.core.modules.user.passwordrecovery.accountlocked",
                     defaultText="This account is currently locked. You cannot change its password.",
                     hint="Attempted password recovery on a locked account"
                 )
@@ -494,7 +495,7 @@ class UserPassword(UserPrimaryAuthentication):
             skel.write(update_relations=False)
             return skel
 
-        if not isinstance(data, dict) or not (skel := db.RunInTransaction(transact, data.get("user_key"))):
+        if not isinstance(data, dict) or not (skel := db.run_in_transaction(transact, data.get("user_key"))):
             return self._user_module.render.view(None, tpl=self.verifyFailedTemplate)
 
         return self._user_module.render.view(skel, tpl=self.verifySuccessTemplate)
@@ -556,7 +557,7 @@ class UserPassword(UserPrimaryAuthentication):
         if self.registrationEmailVerificationRequired and skel["status"] == Status.WAITING_FOR_EMAIL_VERIFICATION:
             # The user will have to verify his email-address. Create a skey and send it to his address
             skey = securitykey.create(duration=datetime.timedelta(days=7), session_bound=False,
-                                      user_key=utils.normalizeKey(skel["key"]),
+                                      user_key=db.normalize_key(skel["key"]),
                                       name=skel["name"])
             skel.skey = BaseBone(descr="Skey")
             skel["skey"] = skey
@@ -799,7 +800,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         return self._user_module.render.edit(
             self.OtpSkel(),
             params={
-                "name": i18n.translate(self.NAME),
+                "name": i18n.translate(f"viur.core.modules.user.{self.NAME}"),
                 "action_name": self.ACTION_NAME,
                 "action_url": f"{self.modulePath}/{self.ACTION_NAME}",
             },
@@ -843,14 +844,14 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
             return self._user_module.render.edit(
                 skel,
-                name=i18n.translate(self.NAME),
+                name=i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
                 action_name=self.ACTION_NAME,
                 action_url=f"{self.modulePath}/{self.ACTION_NAME}",
                 tpl=self.second_factor_login_template
             )
 
         # Remove otp user config from session
-        user_key = db.keyHelper(otp_user_conf["key"], self._user_module._resolveSkelCls().kindName)
+        user_key = db.key_helper(otp_user_conf["key"], self._user_module._resolveSkelCls().kindName)
         del session["_otp_user"]
         session.markChanged()
 
@@ -936,13 +937,13 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         # FIXME: The callback in viur-core must be improved, to accept user_skel
 
         def transaction(user_key, idx):
-            user = db.Get(user_key)
+            user = db.get(user_key)
             if not isinstance(user.get("otp_timedrift"), float):
                 user["otp_timedrift"] = 0.0
             user["otp_timedrift"] += min(max(0.1 * idx, -0.3), 0.3)
-            db.Put(user)
+            db.put(user)
 
-        db.RunInTransaction(transaction, user_key, idx)
+        db.run_in_transaction(transaction, user_key, idx)
 
 
 class AuthenticatorOTP(UserSecondFactorAuthentication):
@@ -981,7 +982,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             return self._user_module.render.second_factor_add(
                 tpl=self.second_factor_add_template,
                 action_name=self.ACTION_NAME,
-                name=i18n.translate(self.NAME),
+                name=i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
                 add_url=self.add_url,
                 otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))
         else:
@@ -989,7 +990,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
                 return self._user_module.render.second_factor_add(
                     tpl=self.second_factor_add_template,
                     action_name=self.ACTION_NAME,
-                    name=i18n.translate(self.NAME),
+                    name=i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
                     add_url=self.add_url,
                     otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))  # to add errors
 
@@ -997,7 +998,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             AuthenticatorOTP.set_otp_app_secret(otp_app_secret)
             return self._user_module.render.second_factor_add_success(
                 action_name=self.ACTION_NAME,
-                name=i18n.translate(self.NAME),
+                name=i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
             )
 
     def can_handle(self, skel: skeleton.SkeletonInstance) -> bool:
@@ -1031,12 +1032,12 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             raise errors.Unauthorized()
 
         def transaction(user_key):
-            if not (user := db.Get(user_key)):
+            if not (user := db.get(user_key)):
                 raise errors.NotFound()
             user["otp_app_secret"] = otp_app_secret
-            db.Put(user)
+            db.put(user)
 
-        db.RunInTransaction(transaction, cuser["key"])
+        db.run_in_transaction(transaction, cuser["key"])
 
     @classmethod
     def generate_otp_app_secret_uri(cls, otp_app_secret) -> str:
@@ -1073,7 +1074,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         return self._user_module.render.edit(
             TimeBasedOTP.OtpSkel(),
             params={
-                "name": i18n.translate(self.NAME),
+                "name": i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
                 "action_name": self.ACTION_NAME,
                 "action_url": self.action_url,
             },
@@ -1097,7 +1098,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         if (attempts := otp_user_conf.get("attempts") or 0) > self.MAX_RETRY:
             raise errors.Forbidden("Maximum amount of authentication retries exceeded")
 
-        if not (user := db.Get(user_key)):
+        if not (user := db.get(user_key)):
             raise errors.NotFound()
 
         skel = TimeBasedOTP.OtpSkel()
@@ -1112,7 +1113,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
         return self._user_module.render.edit(
             skel,
-            name=i18n.translate(self.NAME),
+            name=i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
             action_name=self.ACTION_NAME,
             action_url=self.action_url,
             tpl=self.second_factor_login_template,
@@ -1188,7 +1189,7 @@ class User(List):
         "customActions": {
             "trigger_kick": {
                 "name": i18n.translate(
-                    key="viur.modules.user.customActions.kick",
+                    key="viur.core.modules.user.customActions.kick",
                     defaultText="Kick user",
                     hint="Title of the kick user function"
                 ),
@@ -1197,17 +1198,17 @@ class User(List):
                 "action": "fetch",
                 "url": "/vi/{{module}}/trigger/kick/{{key}}?skey={{skey}}",
                 "confirm": i18n.translate(
-                    key="viur.modules.user.customActions.kick.confirm",
+                    key="viur.core.modules.user.customActions.kick.confirm",
                     defaultText="Do you really want to drop all sessions of the selected user from the system?",
                 ),
                 "success": i18n.translate(
-                    key="viur.modules.user.customActions.kick.success",
+                    key="viur.core.modules.user.customActions.kick.success",
                     defaultText="Sessions of the user are being invalidated.",
                 ),
             },
             "trigger_takeover": {
                 "name": i18n.translate(
-                    key="viur.modules.user.customActions.takeover",
+                    key="viur.core.modules.user.customActions.takeover",
                     defaultText="Take-over user",
                     hint="Title of the take user over function"
                 ),
@@ -1216,12 +1217,12 @@ class User(List):
                 "action": "fetch",
                 "url": "/vi/{{module}}/trigger/takeover/{{key}}?skey={{skey}}",
                 "confirm": i18n.translate(
-                    key="viur.modules.user.customActions.takeover.confirm",
+                    key="viur.core.modules.user.customActions.takeover.confirm",
                     defaultText="Do you really want to replace your current user session by a "
                                 "user session of the selected user?",
                 ),
                 "success": i18n.translate(
-                    key="viur.modules.user.customActions.takeover.success",
+                    key="viur.core.modules.user.customActions.takeover.success",
                     defaultText="You're now know as the selected user!",
                 ),
                 "then": "reload-vi",
@@ -1312,7 +1313,8 @@ class User(List):
     def getCurrentUser(self):
         session = current.session.get()
 
-        if session and session.loaded and (user := session.get("user")):
+        req = current.request.get()
+        if session and (session.loaded or req.is_deferred) and (user := session.get("user")):
             skel = self.baseSkel()
             skel.setEntity(user)
             return skel
@@ -1579,6 +1581,11 @@ class User(List):
         if self.is_active(skel) is False:
             session.killSessionByUser(skel["key"])
 
+        # Update user setting in all sessions
+        for session_obj in db.Query("user").filter("user =", skel["key"]).iter():
+            session_obj["data"]["user"] = skel.dbEntity
+
+
     def onDeleted(self, skel):
         super().onDeleted(skel)
         # Invalidate all sessions of that user
@@ -1620,7 +1627,7 @@ def createNewUserIfNotExists():
             msg = f"ViUR created a new admin-user for you!\nUsername: {uname}\nPassword: {pw}"
 
             logging.warning(msg)
-            email.sendEMailToAdmins("New ViUR password", msg)
+            email.send_email_to_admins("New ViUR password", msg)
 
 
 # DEPRECATED ATTRIBUTES HANDLING

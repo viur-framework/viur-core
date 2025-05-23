@@ -1,7 +1,7 @@
 import typing as t
+
 from viur.core import conf, db, utils
 from viur.core.bones.base import BaseBone
-
 
 DEFAULT_VALUE_T: t.TypeAlias = bool | None | list[bool] | dict[str, list[bool] | bool]
 
@@ -60,7 +60,7 @@ class BooleanBone(BaseBone):
             return True
         return not bool(value)
 
-    def refresh(self, skel: 'viur.core.skeleton.SkeletonInstance', boneName: str) -> None:
+    def refresh(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> None:
         """
             Inverse of serialize. Evaluates whats
             read from the datastore and populates
@@ -68,8 +68,14 @@ class BooleanBone(BaseBone):
 
             :param name: The property-name this bone has in its Skeleton (not the description!)
         """
-        if not isinstance(skel[boneName], bool):
-            skel[boneName] = utils.parse.bool(skel[boneName], conf.bone_boolean_str2true)
+        if self.languages:
+            for lang in self.languages:
+                skel[name][lang] = utils.parse.bool(skel[name][lang], conf.bone_boolean_str2true) \
+                    if lang in skel[name] else self.getDefaultValue(skel)
+        elif skel[name] != self.getEmptyValue():
+            # Enforce a boolean if the bone is not empty (Maybe the empty value is explicit set to None).
+            # So in this case we keep the empty value (e.g. the None) as is.
+            skel[name] = utils.parse.bool(skel[name], conf.bone_boolean_str2true)
 
     def setBoneValue(
         self,
@@ -95,7 +101,15 @@ class BooleanBone(BaseBone):
         """
         if append:
             raise ValueError(f"append is not possible on {self.type} bones")
-        skel[boneName] = utils.parse.bool(value)
+
+        if language:
+            if not self.languages or language not in self.languages:
+                return False
+
+            skel[boneName][language] = utils.parse.bool(value)
+        else:
+            skel[boneName] = utils.parse.bool(value)
+
         return True
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
@@ -106,7 +120,10 @@ class BooleanBone(BaseBone):
             values.
             The serialized value should be suitable for storage in the database.
         """
-        return utils.parse.bool(value)
+        if value == self.getEmptyValue():
+            # Keep the bones empty, maybe the empty value is explicit set to None
+            return value
+        return utils.parse.bool(value, conf.bone_boolean_str2true)
 
     def buildDBFilter(
         self,
