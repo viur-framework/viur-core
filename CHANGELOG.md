@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.18]
+
+- fix: Improve auth_userpassword login failure detection (#1480)
+- fix: Avoid sending doubled Set-Cookie header (#1482)
+
 ## [3.7.17]
 
 - cicd: Deploy to PyPI only
