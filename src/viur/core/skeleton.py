@@ -969,13 +969,15 @@ class HistoryAdapter(DatabaseAdapter):
         # logging.debug(f"{action=} {old_skel=} {new_skel=} {change_list=} {descr=} {user=}, {tags=}")
 
         # skip excluded actions like login or logout
-        if action in conf.get("viur.history.excluded.actions"):
+        if action in conf.history.excluded_actions:
             return None
 
         # skip db writes if disabled
+        #todo ? what for ?
+        """
         if conf.get("viur.history.action") == "onevent":
             return None
-
+        """
         # skip when no user is available or provided
         if not (user := current.user.get()):
             return None
@@ -988,12 +990,12 @@ class HistoryAdapter(DatabaseAdapter):
         # skip excluded kinds and history kind to avoid recursion
         any_skel = (old_skel or new_skel)
         if any_skel and (kindname := getattr(any_skel, "kindName", None)):
-            if kindname in conf.get("viur.history.excluded.kinds"):
+            if kindname in conf.history.excluded_kinds:
                 return None
 
             if kindname == "viur-history":  # FIXME!
                 return None
-
+        logging.debug(f"{conf.main_app.vi=}")
         return conf.main_app.viur_history.write_diff(
             action, old_skel, new_skel,
             change_list=change_list,

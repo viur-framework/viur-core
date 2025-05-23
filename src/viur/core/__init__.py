@@ -153,6 +153,8 @@ def __build_app(modules: ModuleType | object, renderers: ModuleType | object, de
     from viur.core.modules.script import Script  # noqa: E402 # import works only here because circular imports
     from viur.core.modules.translation import Translation  # noqa: E402 # import works only here because circular imports
     from viur.core.prototypes.instanced_module import InstancedModule  # noqa: E402 # import works only here because circular imports
+    from viur.core.modules.history import ViurHistory  # noqa: E402 # import works only here because circular imports
+    modules.viur_history = ViurHistory
 
     modules._tasks = TaskHandler
     modules._moduleconf = ModuleConf
