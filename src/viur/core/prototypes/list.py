@@ -333,14 +333,14 @@ class List(SkelModule):
                 _excludeFromAccessLog=True,
             )
             if isinstance(key, db.Key):
-                assert key.kind == self.kindName
-                skel.read(key)
-                self.onView(skel)
-                return self.render.view(skel)
+                if not key.kind == self.kindName:
+                    raise errors.UnprocessableEntity(f"The Key kind does not match")
+                skel = skel.read(key)
+            else:
+                # We probably have a Database or SEO-Key here
+                skel = skel.all().filter("viur.viurActiveSeoKeys =", str(key).lower()).getSkel()
 
-
-            # We probably have a Database or SEO-Key here
-            if skel := skel.all().filter("viur.viurActiveSeoKeys =", str(args[0]).lower()).getSkel():
+            if skel:
                 db.current_db_access_log.get(set()).add(skel["key"])
 
                 if not self.canView(skel):
@@ -352,6 +352,8 @@ class List(SkelModule):
                     raise errors.Redirect(seoUrl, status=301)
                 self.onView(skel)
                 return self.render.view(skel)
+            # skel not found fallback
+            raise errors.NotFound()
         # This was unsuccessfully, we'll render a list instead
         if not kwargs:
             kwargs = self.getDefaultListParams()
