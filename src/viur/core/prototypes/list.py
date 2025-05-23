@@ -318,7 +318,7 @@ class List(SkelModule):
         return self.render.deleteSuccess(skel)
 
     @exposed
-    def index(self, *args, **kwargs) -> t.Any:
+    def index(self, key: db.Key | str | None = None, *args, **kwargs) -> t.Any:
         """
             Default, SEO-Friendly fallback for view and list.
 
@@ -326,15 +326,23 @@ class List(SkelModule):
             :param kwargs: Used for the fallback list.
             :return: The rendered entity or list.
         """
-        if args and args[0]:
+        if key is not None:
+
             skel = self.viewSkel(
                 allow_client_defined=utils.string.is_prefix(self.render.kind, "json"),
                 _excludeFromAccessLog=True,
             )
+            if isinstance(key, db.Key):
+                if not key.kind == self.kindName:
+                    raise errors.UnprocessableEntity(f"The Key kind does not match")
+                skel = skel.read(key)
+            else:
+                # We probably have a Database or SEO-Key here
+                skel = skel.all().filter("viur.viurActiveSeoKeys =", str(key).lower()).getSkel()
 
-            # We probably have a Database or SEO-Key here
-            if skel := skel.all().filter("viur.viurActiveSeoKeys =", str(args[0]).lower()).getSkel():
+            if skel:
                 db.current_db_access_log.get(set()).add(skel["key"])
+
                 if not self.canView(skel):
                     raise errors.Forbidden()
                 seoUrl = utils.seoUrlToEntry(self.moduleName, skel)
@@ -344,6 +352,8 @@ class List(SkelModule):
                     raise errors.Redirect(seoUrl, status=301)
                 self.onView(skel)
                 return self.render.view(skel)
+            # skel not found fallback
+            raise errors.NotFound()
         # This was unsuccessfully, we'll render a list instead
         if not kwargs:
             kwargs = self.getDefaultListParams()
