@@ -38,7 +38,7 @@ class ViurHistorySkel(SkeletonAbstractSkel):
     )
 
     timestamp = DateBone(
-        descr="Zeitstempel",
+        descr="Timestamp",
         defaultValue=lambda *args, **kwargs: utils.utcNow(),
         localize=True,
     )
@@ -50,15 +50,12 @@ class ViurHistorySkel(SkeletonAbstractSkel):
             "key",
             "name",
             "lastname",
-            "firstname",
-            "personnelnumber",
-            "last_audit",
-            "company",
+            "firstname"
         ],
     )
-
+    #Why we need this ?
     origin_user = UserBone(
-        descr="Benutzer Ã¼bernommen durch",
+        descr="User take over by",
         updateLevel=RelationalUpdateLevel.OnValueAssignment,
         searchable=True,
         refKeys=[
@@ -66,9 +63,6 @@ class ViurHistorySkel(SkeletonAbstractSkel):
             "name",
             "lastname",
             "firstname",
-            "personnelnumber",
-            "last_audit",
-            "company",
         ],
     )
 
@@ -483,7 +477,7 @@ class ViurHistory(List):
 
     # Module-specific functions
 
-    def _create_diff(self, new: dict, old: dict, diff_excludes: {str} = set()):
+    def _create_diff(self, new: dict, old: dict, diff_excludes: set[str] = set()):
         """
         Creates a textual diff format string from the contents of two dicts.
         """
@@ -514,9 +508,8 @@ class ViurHistory(List):
                     elif isinstance(obj, enum.Enum):
                         ret[name] = str(obj.value)
                     else:
-                        ret[name] = json.dumps(
+                        ret[name] = utils.json.dumps(
                             obj,
-                            cls=CustomJsonEncoder,
                             indent=4,
                             sort_keys=True,
                         )
