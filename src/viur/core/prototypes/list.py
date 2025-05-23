@@ -89,7 +89,9 @@ class List(SkelModule):
 
         :return: Returns a SkeletonInstance for editing an entry.
         """
-        return self.baseSkel(**kwargs)
+
+        # On clone, by default, behave as this is a skeleton for adding.
+        return self.addSkel(**kwargs)
 
     ## External exposed functions
 
@@ -338,8 +340,9 @@ class List(SkelModule):
 
 
             # We probably have a Database or SEO-Key here
-            if skel := skel.all().filter("viur.viurActiveSeoKeys =", key.lower()).getSkel():
-                db.currentDbAccessLog.get(set()).add(skel["key"])
+            if skel := skel.all().filter("viur.viurActiveSeoKeys =", str(args[0]).lower()).getSkel():
+                db.current_db_access_log.get(set()).add(skel["key"])
+
                 if not self.canView(skel):
                     raise errors.Forbidden()
                 seoUrl = utils.seoUrlToEntry(self.moduleName, skel)
@@ -439,7 +442,7 @@ class List(SkelModule):
         query = self.viewSkel().all(_excludeFromAccessLog=True)
 
         if key := skel["key"]:
-            db.currentDbAccessLog.get(set()).add(key)
+            db.current_db_access_log.get(set()).add(key)
             query.mergeExternalFilter({"key": key})
 
         query = self.listFilter(query)  # Access control

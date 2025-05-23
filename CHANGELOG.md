@@ -2,6 +2,30 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.17]
+
+- cicd: Deploy to PyPI only
+- cicd: Setup new `publish.yaml`
+- chore: Update dependency gunicorn to >=23 (#1475)
+- chore: Add translations for user status (#1474)
+
+## [3.7.16]
+
+- fix: `prototypes.List` shall default to `addSkel` on cloning (#1471)
+- fix: `render.html.env.getSkel()` to handle nested modules (#1472)
+- fix: Don't include bones in `change_list` which aren't in the current subskel (#1470)
+
+## [3.7.15]
+
+- fix: `processRemovedRelations` fails if the source entity has other relations set (#1468)
+
+## [3.7.14]
+
+- feat: Apply `escape_html`-flag in `StringBone.refresh()` (#1457)
+- fix: `RelationalBone.setBoneValue([(multiple, using)])` case (#1462)
+- fix: `TranslationSkel.name` may not contain upper-case characters (#1456)
+- fix: Update user's data in session on `user/edit` (#1458)
+
 ## [3.7.13]
 
 - chore: Remove logging  for cors (#1450)

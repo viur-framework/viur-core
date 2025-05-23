@@ -28,10 +28,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd viur
+          cd viur/tests
           python -m pip install -U pip
-          if [ -f tests/requirements.txt ]; then python -m pip install -r tests/requirements.txt; fi
-          python -m pip install -U coverage coverage-badge
+          python -m pip install -e ..[testing]
 
       - name: Run the tests
         run: |
