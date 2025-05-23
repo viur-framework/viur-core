@@ -1,5 +1,7 @@
 import datetime
 import hashlib
+from symtable import Class
+
 import logging
 import os
 import re
@@ -577,6 +579,16 @@ class Email(ConfigType):
     }
 
 
+class History(ConfigType):
+    database: Multiple[str] = ["viur"]
+    """All history related settings."""
+    excluded_actions: Multiple[str] = []
+    """List of all action that are should not be logged."""
+    excluded_kinds: Multiple[str] = []
+    """List of all kinds that should be logged."""
+
+
+
 class I18N(ConfigType):
     """All i18n, multilang related settings."""
 
@@ -984,6 +996,7 @@ class Conf(ConfigType):
         self.i18n = I18N(parent=self)
         self.user = User(parent=self)
         self.instance = Instance(parent=self)
+        self.history = History(parent=self)
 
     _mapping = {
         # debug

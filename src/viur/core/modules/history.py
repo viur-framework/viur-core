@@ -5,14 +5,13 @@ import logging
 import typing as t
 from viur.core import db, conf, utils, current, tasks
 from viur.core.render.json.default import CustomJsonEncoder
-from prototypes.skeleton import SkeletonAbstractSkel, SkeletonInstance
+from viur.core.skeleton import SkeletonInstance, Skeleton
 from viur.core.prototypes.list import List
 from viur.core.bones import *
-from bones import *  # overwrites UserBone
 from google.cloud import bigquery, exceptions
 
 
-class ViurHistorySkel(SkeletonAbstractSkel):
+class ViurHistorySkel(Skeleton):
     """
     Skeleton used for a ViUR history entry to log any relevant changes
     in other Skeletons.
@@ -677,11 +676,11 @@ class ViurHistory(List):
         )
 
         # write into datastore via history module
-        if "viur" in conf.get("viur.history.database"):
+        if "viur" in conf.history.databases:
             self.write_deferred(key, entry)
 
         # write into BigQuery
-        if "bigquery" in conf.get("viur.history.database"):
+        if "bigquery" in conf.history.databases:
             # need to do this as biquery functions modifies
             # entry and seems to be called first
             if conf.instance.is_dev_server:
