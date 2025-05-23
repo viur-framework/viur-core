@@ -105,10 +105,10 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: t.Optional
         except AssertionError:
             logging.info(f"""Ignoring {srcRel.key!r} which refers to unknown kind {srcRel["viur_src_kind"]!r}""")
             continue
-        if db.IsInTransaction():
+        if db.is_in_transaction():
             updateTxn(skel, srcRel["src"].key, srcRel.key)
         else:
-            db.RunInTransaction(updateTxn, skel, srcRel["src"].key, srcRel.key)
+            db.run_in_transaction(updateTxn, skel, srcRel["src"].key, srcRel.key)
     nextCursor = updateListQuery.getCursor()
     if len(updateList) == 5 and nextCursor:
         updateRelations(destKey, minChangeTime, changedBone, nextCursor)
@@ -238,13 +238,13 @@ def processVacuumRelationsChunk(
         except AssertionError:
             # The referenced skeleton does not exist in this data model -> drop that relation object
             logging.info(f"Deleting {relation_object.key} which refers to unknown kind {src_kind}")
-            db.Delete(relation_object)
+            db.delete(relation_object)
             count_removed += 1
             continue
         if src_prop not in skel:
             logging.info(f"Deleting {relation_object.key} which refers to "
                          f"non-existing RelationalBone {src_prop} of {src_kind}")
-            db.Delete(relation_object)
+            db.delete(relation_object)
             count_removed += 1
     logging.info(f"END processVacuumRelationsChunk {module}, "
                  f"{count_total} records processed, {count_removed} removed")
