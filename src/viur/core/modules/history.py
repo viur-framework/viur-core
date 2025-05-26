@@ -52,17 +52,6 @@ class ViurHistorySkel(Skeleton):
             "firstname"
         ],
     )
-    origin_user = UserBone(
-        descr="User take over by",
-        updateLevel=RelationalUpdateLevel.OnValueAssignment,
-        searchable=True,
-        refKeys=[
-            "key",
-            "name",
-            "lastname",
-            "firstname",
-        ],
-    )
 
     name = StringBone(
         descr="Name",
@@ -169,66 +158,6 @@ class BigQueryHistory:
                 "name": "user_lastname",
                 "mode": "NULLABLE",
                 "description": "user who trigged log event: lastname",
-            },
-            {
-                "type": "STRING",
-                "name": "user_personnelnumber",
-                "mode": "NULLABLE",
-                "description": "user who trigged log event: personnelnumber",
-            },
-            {
-                "type": "DATE",
-                "name": "user_last_audit",
-                "mode": "NULLABLE",
-                "description": "user who trigged log event: last audit",
-            },
-            {
-                "type": "STRING",
-                "name": "user_company",
-                "mode": "NULLABLE",
-                "description": "user who trigged log event: company",
-            },
-            {
-                "type": "STRING",
-                "name": "origin_user",
-                "mode": "NULLABLE",
-                "description": "original user who trigged log event: key",
-            },
-            {
-                "type": "STRING",
-                "name": "origin_user_name",
-                "mode": "NULLABLE",
-                "description": "original user who trigged log event: username",
-            },
-            {
-                "type": "STRING",
-                "name": "origin_user_firstname",
-                "mode": "NULLABLE",
-                "description": "original user who trigged log event: firstname",
-            },
-            {
-                "type": "STRING",
-                "name": "origin_user_lastname",
-                "mode": "NULLABLE",
-                "description": "original user who trigged log event: lastname",
-            },
-            {
-                "type": "STRING",
-                "name": "origin_user_personnelnumber",
-                "mode": "NULLABLE",
-                "description": "original user who trigged log event: personnelnumber",
-            },
-            {
-                "type": "DATE",
-                "name": "origin_user_last_audit",
-                "mode": "NULLABLE",
-                "description": "original user who trigged log event: last audit",
-            },
-            {
-                "type": "STRING",
-                "name": "origin_user_company",
-                "mode": "NULLABLE",
-                "description": "original user who trigged log event: company",
             },
             {
                 "type": "STRING",
@@ -360,12 +289,6 @@ class HistoryAdapter(DatabaseAdapter):
         if action in conf.history.excluded_actions:
             return None
 
-        # skip db writes if disabled
-        #todo ? what for ?
-        """
-        if conf.get("viur.history.action") == "onevent":
-            return None
-        """
         # skip when no user is available or provided
         if not (user := current.user.get()):
             return None
@@ -381,7 +304,7 @@ class HistoryAdapter(DatabaseAdapter):
             if kindname in conf.history.excluded_kinds:
                 return None
 
-            if kindname == "viur-history":  # FIXME!
+            if kindname == "viur-history":
                 return None
 
         return conf.main_app.viur_history.write_diff(
@@ -398,7 +321,7 @@ class ViurHistory(List):
     kindName = "viur-history"
 
     adminInfo = {
-        "name": "Protokoll",
+        "name": "History",
         "icon": "clock-history",
         "filter": {
             "orderby": "timestamp",
@@ -441,8 +364,8 @@ class ViurHistory(List):
         return False
 
     # Module-specific functions
-
-    def _create_diff(self, new: dict, old: dict, diff_excludes: set[str] = set()):
+    @staticmethod
+    def _create_diff(new: dict, old: dict, diff_excludes: set[str] = set()):
         """
         Creates a textual diff format string from the contents of two dicts.
         """
@@ -529,22 +452,21 @@ class ViurHistory(List):
             diff = ""
 
         # Helper function to figure out a name from the skeleton
-        def build_name(skel):
-            if not skel:
-                return str(skel)
+        def build_name(_skel):
+            if not _skel:
+                return str(_skel)
 
-            if "name" in skel:
-                if isinstance(skel["name"], str):
-                    return skel["name"]
+            if "name" in _skel:
+                if isinstance(_skel["name"], str):
+                    return _skel["name"]
 
-                return json.dumps(
-                    skel["name"],
-                    cls=CustomJsonEncoder,
+                return utils.json.dumps(
+                    _skel["name"],
                     indent=4,
                     sort_keys=True
                 )
 
-            return skel["key"].id_or_name
+            return _skel["key"].id_or_name
 
         # Helper function to build a description about the change to the skeleton
         def build_descr(action, skel, change_list):
@@ -570,11 +492,6 @@ class ViurHistory(List):
                 f""" of kind {skel.kindName!r}."""
             )
 
-        # If viur_origin_user is set in current session, load it as well
-        if origin_user := current.session.get().get("viur_origin_user"):
-            origin_user_skel = user.clone()
-            origin_user_skel.read(origin_user.key)
-            origin_user = origin_user_skel
 
         # set event tag, in case of an event-action
         tags = set(tags)
@@ -590,21 +507,12 @@ class ViurHistory(List):
             "descr": descr or build_descr(action, skel, change_list),
             "diff": diff,
             "name": build_name(skel) if skel else ((user and user["name"] or "") + " " + action),
-            "origin_user_firstname": origin_user and origin_user["firstname"],
-            "origin_user_last_audit": origin_user and origin_user["last_audit"],
-            "origin_user_lastname": origin_user and origin_user["lastname"],
-            "origin_user_name": origin_user and origin_user["name"],
-            "origin_user_personnelnumber": origin_user and origin_user["personnelnumber"],
-            "origin_user_company": origin_user and origin_user["company"],
-            "origin_user": origin_user and origin_user["key"],
             "previous": utils.json.dumps(old, indent=4, sort_keys=True) if old else None,
             "tags": tuple(sorted(tags)),
             "timestamp": utils.utcNow(),
             "user_firstname": user and user["firstname"],
-            "user_last_audit": user and user["last_audit"],
             "user_lastname": user and user["lastname"],
             "user_name": user and user["name"],
-            "user_personnelnumber": user and user["personnelnumber"],
             "user_company": user and user["company"],
             "user": user and user["key"],
             "version": self.HISTORY_VERSION,
@@ -684,11 +592,6 @@ class ViurHistory(List):
         entry["timestamp_date"] = entry["timestamp"].strftime("%Y-%m-%d")
         entry["timestamp_period"] = entry["timestamp"].strftime("%Y-%m")
         entry["user"] = str(entry["user"]) if entry["user"] else None
-        entry["origin_user"] = str(entry["origin_user"]) if entry["origin_user"] else None
-
-        # FIXME: last_audit needs a date, not a datetime.
-        entry["user_last_audit"] = entry["user_last_audit"] and entry["user_last_audit"].date()
-        entry["origin_user_last_audit"] = entry["origin_user_last_audit"] and entry["origin_user_last_audit"].date()
 
         self.bigquery.write_row(entry)
         logging.info(f"History entry {key=} written to biquery {deferred=}")
