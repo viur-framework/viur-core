@@ -11,10 +11,8 @@ from .relskel import RelSkel, RefSkel
 from .skeleton import Skeleton, SeoKeyBone, _UNDEFINED_KINDNAME
 from .utils import SkelList, skeletonByKind, listKnownSkeletons, iterAllSkelClasses
 
-from .. import db
 
 # Forward our references to SkelInstance to the database (needed for queries)
-db.config["SkeletonInstanceRef"] = SkeletonInstance
 
 # DEPRECATED ATTRIBUTES HANDLING
 
