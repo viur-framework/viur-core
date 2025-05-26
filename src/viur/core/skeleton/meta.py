@@ -432,6 +432,16 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
             _ = skel[key]  # Ensure value gets loaded
             bone.refresh(skel, key)
 
+    @classmethod
+    def readonly(cls, skel: "SkeletonInstance"):
+        """
+            Set all bones to readonly in the Skeleton.
+        """
+        for bone in skel.values():
+            if not isinstance(bone, BaseBone):
+                continue
+            bone.readOnly = True
+
     def __new__(cls, *args, **kwargs) -> "SkeletonInstance":
         from .instance import SkeletonInstance
         return SkeletonInstance(cls, *args, **kwargs)
