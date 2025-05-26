@@ -314,6 +314,7 @@ class HistoryAdapter(DatabaseAdapter):
             diff_excludes=self.diff_excludes,
         )
 
+
 class ViurHistory(List):
     """
     ViUR history module
@@ -430,15 +431,15 @@ class ViurHistory(List):
         return CustomJsonEncoder().default(skel)
 
     def _create_history_entry(
-        self,
-        action: str,
-        old_skel: SkeletonInstance,
-        new_skel: SkeletonInstance,
-        change_list: t.Iterable[str] = (),
-        descr: t.Optional[str] = None,
-        user: t.Optional[SkeletonInstance] = None,
-        tags: t.Iterable[str] = (),
-        diff_excludes: t.Set[str] = set(),
+            self,
+            action: str,
+            old_skel: SkeletonInstance,
+            new_skel: SkeletonInstance,
+            change_list: t.Iterable[str] = (),
+            descr: t.Optional[str] = None,
+            user: t.Optional[SkeletonInstance] = None,
+            tags: t.Iterable[str] = (),
+            diff_excludes: t.Set[str] = set(),
 
     ):
         skel = new_skel or old_skel
@@ -491,7 +492,6 @@ class ViurHistory(List):
                 f"""The action {action!r} resulted in a change to the entry {skel["key"].id_or_name!r}"""
                 f""" of kind {skel.kindName!r}."""
             )
-
 
         # set event tag, in case of an event-action
         tags = set(tags)
