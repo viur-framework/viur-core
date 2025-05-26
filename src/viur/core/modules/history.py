@@ -425,8 +425,8 @@ class ViurHistory(List):
 
         return "\n".join(diffs).replace("\n\n", "\n")
 
-
-    def _skel_to_dict(self, skel: SkeletonInstance):
+    @staticmethod
+    def _skel_to_dict(skel: SkeletonInstance):
         return CustomJsonEncoder().default(skel)
 
     def _create_history_entry(
@@ -442,13 +442,13 @@ class ViurHistory(List):
 
     ):
         skel = new_skel or old_skel
-        new = self._skel_to_dict(skel)
+        new_data = self._skel_to_dict(skel)
 
         if change_list and old_skel != new_skel:
-            old = self._skel_to_dict(old_skel)
-            diff = self._create_diff(new, old, diff_excludes)
+            old_data = self._skel_to_dict(old_skel)
+            diff = self._create_diff(new_data, old_data, diff_excludes)
         else:
-            old = {}
+            old_data = {}
             diff = ""
 
         # Helper function to figure out a name from the skeleton
@@ -503,11 +503,11 @@ class ViurHistory(List):
             "action": action,
             "current_key": skel and str(skel["key"]),
             "current_kind": skel and getattr(skel, "kindName", None),
-            "current": utils.json.dumps(new, indent=4, sort_keys=True) if new else None,
+            "current": utils.json.dumps(new_data, indent=4, sort_keys=True) if new_data else None,
             "descr": descr or build_descr(action, skel, change_list),
             "diff": diff,
             "name": build_name(skel) if skel else ((user and user["name"] or "") + " " + action),
-            "previous": utils.json.dumps(old, indent=4, sort_keys=True) if old else None,
+            "previous": utils.json.dumps(old_data, indent=4, sort_keys=True) if old_data else None,
             "tags": tuple(sorted(tags)),
             "timestamp": utils.utcNow(),
             "user_firstname": user and user["firstname"],
@@ -567,38 +567,33 @@ class ViurHistory(List):
 
         return key
 
-    def write(self, key: str, entry: dict, deferred: bool = False):
+    def write(self, key: str, entry: dict):
         """
         Write a history entry generated from an HistoryAdapter.
         """
         skel = self.addSkel()
-
-        # FIXME: This is ugly murks. Please fix in a later version.
-        for k in skel.keys():
-            if value := entry.get(k):
-                skel.setBoneValue(k, value)
-
+        skel.update(entry)
         skel["key"] = db.Key(skel.kindName, key)
         skel.write()
 
-        logging.info(f"History entry {key=} written to datastore {deferred=}")
+        logging.info(f"History entry {key=} written to datastore")
 
     @tasks.CallDeferred
     def write_deferred(self, key: str, entry: dict):
-        self.write(key, entry, deferred=True)
+        self.write(key, entry)
 
-    def write_to_bigquery(self, key: str, entry: dict, deferred: bool = False):
+    def write_to_bigquery(self, key: str, entry: dict):
         entry["key"] = key
         entry["timestamp_date"] = entry["timestamp"].strftime("%Y-%m-%d")
         entry["timestamp_period"] = entry["timestamp"].strftime("%Y-%m")
         entry["user"] = str(entry["user"]) if entry["user"] else None
 
         self.bigquery.write_row(entry)
-        logging.info(f"History entry {key=} written to biquery {deferred=}")
+        logging.info(f"History entry {key=} written to biquery")
 
     @tasks.CallDeferred
     def write_to_bigquery_deferred(self, key: str, entry: dict):
-        self.write_to_bigquery(key, entry, deferred=True)
+        self.write_to_bigquery(key, entry)
 
 
 ViurHistory.html = False
