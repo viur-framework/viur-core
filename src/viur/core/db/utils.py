@@ -4,6 +4,7 @@ import typing as t
 from .transport import get, put, run_in_transaction, __client__
 from .types import Entity, Key, current_db_access_log
 from google.cloud.datastore.transaction import Transaction
+from viur.core import current
 
 
 def fix_unindexable_properties(entry: Entity) -> Entity:
@@ -179,11 +180,12 @@ def acquire_transaction_success_marker() -> str:
     txn: Transaction | None = __client__.current_transaction
     assert txn, "acquire_transaction_success_marker cannot be called outside an transaction"
     marker = str(txn.id)
-    if "marker_set" not in txn:
+    request_data = current.request_data.get()
+    if not request_data.get("__viur-transactionmarker__"):
         db_obj = Entity(Key("viur-transactionmarker", marker))
         db_obj["creationdate"] = datetime.datetime.now(datetime.timezone.utc)
         put(db_obj)
-        txn["marker_set"] = True
+        request_data["__viur-transactionmarker__"] = True
     return marker
 
 
