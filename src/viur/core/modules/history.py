@@ -307,7 +307,7 @@ class HistoryAdapter(DatabaseAdapter):
             if kindname == "viur-history":
                 return None
 
-        return conf.main_app.viur_history.write_diff(
+        return conf.main_app._viur_history.write_diff(
             action, old_skel, new_skel,
             change_list=change_list,
             user=user,
@@ -563,7 +563,7 @@ class ViurHistory(List):
             if conf.instance.is_dev_server:
                 entry = entry.copy()  # need to do this as biquery functions modifiy entry
 
-            conf.main_app.viur_history.write_to_bigquery_deferred(key, entry)
+            conf.main_app._viur_history.write_to_bigquery_deferred(key, entry)
 
         return key
 
