@@ -8,6 +8,7 @@ import warnings
 from pathlib import Path
 
 import google.auth
+from google.appengine.api.memcache import Client
 
 from viur.core.version import __version__
 from viur.core.current import user as current_user
@@ -19,7 +20,6 @@ if t.TYPE_CHECKING:  # pragma: no cover
     from viur.core.module import Module
     from viur.core.tasks import CustomEnvironmentHandler
     from viur.core import i18n
-
 
 # Construct an alias with a generic type to be able to write Multiple[str]
 # TODO: Backward compatible implementation, refactor when viur-core
@@ -510,6 +510,9 @@ class Debug(ConfigType):
     trace_internal_call_routing: bool = False
     """If enabled, ViUR will log which (internal-exposed) function are called from templates with what arguments"""
 
+    trace_queries: bool = False
+    """If enabled, ViUR will log each query that run"""
+
     skeleton_from_client: bool = False
     """If enabled, log errors raises from skeleton.fromClient()"""
 
@@ -674,7 +677,7 @@ class User(ConfigType):
     The preset roles are for guidiance, and already fit to most projects.
     """
 
-    session_life_time: int = 60 * 60
+    session_life_time: datetime.timedelta = datetime.timedelta(hours=1)
     """Default is 60 minutes lifetime for ViUR sessions"""
 
     session_persistent_fields_on_login: Multiple[str] = ["language"]
@@ -698,6 +701,17 @@ class User(ConfigType):
     belongs to one of the listed domains, a user account (UserSkel) is created.
     If the user's email address belongs to any other domain,
     no account is created."""
+
+    def __setattr__(self, name: str, value: t.Any) -> None:
+        if name == "session_life_time":
+            if not isinstance(value, datetime.timedelta):
+                from viur.core import utils
+                warnings.warn(
+                    "Please use timedelta to set session_life_time.",
+                    DeprecationWarning, stacklevel=2,
+                )
+                value = utils.parse.timedelta(value)
+        super().__setattr__(name, value)
 
 
 class Instance(ConfigType):
@@ -828,6 +842,12 @@ class Conf(ConfigType):
 
     db_engine: str = "viur.datastore"
     """Database engine module"""
+
+    db_memcache_client: Client | None = None
+    """If set, ViUR cache data for the db.get in the Memcache for faster access."""
+
+    db_create_access_log: bool = True
+    """If False no access log will be created. But then the caching is disabled too."""
 
     error_handler: t.Callable[[Exception], str] | None = None
     """If set, ViUR calls this function instead of rendering the viur.errorTemplate if an exception occurs"""

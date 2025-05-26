@@ -32,7 +32,11 @@ class TranslationSkel(Skeleton):
         ),
         searchable=True,
         escape_html=False,
-        readOnly=True,
+        readOnly=True,  # this is only readOnly=False on add!
+        vfunc=lambda value: translate(
+            "viur.core.translationskel.name.vfunc",
+            "The translation key may not contain any upper-case characters."
+        ) if any(ch.isupper() for ch in value) else None,
         unique=UniqueValue(
             UniqueLockMethod.SameValue,
             False,
@@ -153,7 +157,7 @@ class TranslationSkel(Skeleton):
     def write(cls, skel, **kwargs):
         # Create the key from the name on initial write!
         if not skel["key"]:
-            skel["key"] = db.Key(KINDNAME, skel["name"].lower())
+            skel["key"] = db.Key(KINDNAME, skel["name"])
 
         return super().write(skel, **kwargs)
 
