@@ -706,6 +706,16 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
             _ = skel[key]  # Ensure value gets loaded
             bone.refresh(skel, key)
 
+    @classmethod
+    def readonly(cls, skel: SkeletonInstance):
+        """
+            Set all bones to readonly in the Skeleton.
+        """
+        for bone in skel.values():
+            if not isinstance(bone, BaseBone):
+                continue
+            bone.readOnly = True
+
     def __new__(cls, *args, **kwargs) -> SkeletonInstance:
         return SkeletonInstance(cls, *args, **kwargs)
 
@@ -912,6 +922,86 @@ class ViurTagsSearchAdapter(DatabaseAdapter):
         resultList.sort(key=lambda x: x[1], reverse=True)
 
         return [resultEntryMap[x[0]] for x in resultList[:databaseQuery.queries.limit]]
+
+
+class HistoryAdapter(DatabaseAdapter):
+    """
+    Generalized adapter for handling history events.
+    """
+
+    DEFAULT_EXCLUDES = {
+        "key",
+        "changedate",
+        "creationdate",
+        "importdate",
+        "viurCurrentSeoKeys",
+    }
+    """
+    Bones being ignored within history.
+    """
+
+    def __init__(self, excludes: t.Iterable[str] = DEFAULT_EXCLUDES):
+        super().__init__()
+
+        # add excludes to diff excludes
+        self.diff_excludes = set(excludes)
+
+    def prewrite(self, skel, is_add, change_list=()):
+        if not is_add:  # edit
+            old_skel = skel.clone()
+            old_skel.read(skel["key"])
+            self.trigger("edit", old_skel, skel, change_list)
+
+    def write(self, skel, is_add, change_list=()):
+        if is_add:  # add
+            self.trigger("add", None, skel)
+
+    def delete(self, skel):
+        self.trigger("delete", skel, None)
+
+    def trigger(
+            self,
+            action: str,
+            old_skel: SkeletonInstance,
+            new_skel: SkeletonInstance,
+            change_list: t.Iterable[str] = (),
+    ) -> str | None:
+        # logging.debug(f"{action=} {old_skel=} {new_skel=} {change_list=} {descr=} {user=}, {tags=}")
+
+        # skip excluded actions like login or logout
+        if action in conf.history.excluded_actions:
+            return None
+
+        # skip db writes if disabled
+        #todo ? what for ?
+        """
+        if conf.get("viur.history.action") == "onevent":
+            return None
+        """
+        # skip when no user is available or provided
+        if not (user := current.user.get()):
+            return None
+
+        # FIXME: Turn change_list into set, in entire Core...
+        if change_list and not (change_list := set(change_list).difference(self.diff_excludes)):
+            logging.info("change_list is empty, nothing to write")
+            return None
+
+        # skip excluded kinds and history kind to avoid recursion
+        any_skel = (old_skel or new_skel)
+        if any_skel and (kindname := getattr(any_skel, "kindName", None)):
+            if kindname in conf.history.excluded_kinds:
+                return None
+
+            if kindname == "viur-history":  # FIXME!
+                return None
+        logging.debug(f"{conf.main_app.vi=}")
+        return conf.main_app.viur_history.write_diff(
+            action, old_skel, new_skel,
+            change_list=change_list,
+            user=user,
+            diff_excludes=self.diff_excludes,
+        )
 
 
 class SeoKeyBone(StringBone):

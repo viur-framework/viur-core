@@ -52,7 +52,6 @@ class ViurHistorySkel(Skeleton):
             "firstname"
         ],
     )
-    # Why we need this ?
     origin_user = UserBone(
         descr="User take over by",
         updateLevel=RelationalUpdateLevel.OnValueAssignment,
@@ -454,7 +453,6 @@ class ViurHistory(List):
         keys = set(keys).difference(diff_excludes)
         keys = sorted(keys)
         for key in keys:
-
             def expand(name, obj):
                 ret = {}
                 if isinstance(obj, list):
@@ -487,6 +485,7 @@ class ViurHistory(List):
             assert len(values) == 2
 
             for value_key in sorted(set(values[0].keys() | values[1].keys())):
+
                 diff = "\n".join(
                     difflib.unified_diff(
                         (values[0].get(value_key) or "").splitlines(),
@@ -503,20 +502,21 @@ class ViurHistory(List):
 
         return "\n".join(diffs).replace("\n\n", "\n")
 
+
     def _skel_to_dict(self, skel: SkeletonInstance):
         return CustomJsonEncoder().default(skel)
 
-
     def _create_history_entry(
-            self,
-            action: str,
-            old_skel: SkeletonInstance,
-            new_skel: SkeletonInstance,
-            change_list: t.Iterable[str] = (),
-            descr: t.Optional[str] = None,
-            user: t.Optional[SkeletonInstance] = None,
-            tags: t.Iterable[str] = (),
-            diff_excludes: t.Set[str] = set(),
+        self,
+        action: str,
+        old_skel: SkeletonInstance,
+        new_skel: SkeletonInstance,
+        change_list: t.Iterable[str] = (),
+        descr: t.Optional[str] = None,
+        user: t.Optional[SkeletonInstance] = None,
+        tags: t.Iterable[str] = (),
+        diff_excludes: t.Set[str] = set(),
+
     ):
         skel = new_skel or old_skel
         new = self._skel_to_dict(skel)
@@ -622,6 +622,7 @@ class ViurHistory(List):
             user: t.Optional[SkeletonInstance] = None,
             tags: t.Iterable[str] = (),
             diff_excludes: t.Set[str] = set(),
+
     ) -> str | None:
 
         # create entry
