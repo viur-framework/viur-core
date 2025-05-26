@@ -346,7 +346,7 @@ class ViurHistory(List):
 
     def baseSkel(self, *args, **kwargs):
         # Make all bones readOnly!
-        skel =super().baseSkel(*args, **kwargs).clone()
+        skel = super().baseSkel(*args, **kwargs).clone()
         skel.readonly()
         return skel
 
