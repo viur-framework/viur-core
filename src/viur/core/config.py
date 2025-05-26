@@ -1,7 +1,5 @@
 import datetime
 import hashlib
-from symtable import Class
-
 import logging
 import os
 import re
