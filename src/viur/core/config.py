@@ -580,7 +580,7 @@ class Email(ConfigType):
 
 
 class History(ConfigType):
-    database: Multiple[str] = ["viur"]
+    databases: Multiple[str] = ["viur"]
     """All history related settings."""
     excluded_actions: Multiple[str] = []
     """List of all action that are should not be logged."""

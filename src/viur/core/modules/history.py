@@ -8,7 +8,7 @@ from viur.core.render.json.default import CustomJsonEncoder
 from viur.core.skeleton import SkeletonInstance, Skeleton
 from viur.core.prototypes.list import List
 from viur.core.bones import *
-from google.cloud import bigquery, exceptions
+from google.cloud import exceptions,bigquery
 
 
 class ViurHistorySkel(Skeleton):
@@ -455,10 +455,10 @@ class ViurHistory(List):
         super().__init__(*args, **kwargs)
         self.bigquery = BigQueryHistory()
 
-    def baseSkel(self):
+    def baseSkel(self, *args, **kwargs):
         # Make all bones readOnly!
         # FIXME: There should be a skel.readonly() function soon...
-        skel = super().baseSkel().clone()
+        skel = super().baseSkel().clone(*args, **kwargs)
 
         for bone in skel.values():
             bone.readOnly = True
@@ -730,5 +730,5 @@ class ViurHistory(List):
 
 
 ViurHistory.html = False
-ViurHistory.json = False
-ViurHistory.admin = False
+ViurHistory.json = True
+ViurHistory.admin = True
