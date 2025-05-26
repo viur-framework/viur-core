@@ -596,6 +596,5 @@ class ViurHistory(List):
         self.write_to_bigquery(key, entry)
 
 
-ViurHistory.html = False
 ViurHistory.json = True
 ViurHistory.admin = True
