@@ -48,6 +48,7 @@ class MetaBaseSkel(type):
         "preProcessBlobLocks",
         "preProcessSerializedData",
         "read",
+        "readonly",
         "refresh",
         "self",
         "serialize",

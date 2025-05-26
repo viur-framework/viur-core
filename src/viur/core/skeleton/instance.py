@@ -193,6 +193,7 @@ class SkeletonInstance:
             "preProcessBlobLocks",
             "preProcessSerializedData",
             "read",
+            "readonly",
             "refresh",
             "serialize",
             "setBoneValue",
