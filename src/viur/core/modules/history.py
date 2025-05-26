@@ -345,7 +345,7 @@ class ViurHistory(List):
         self.bigquery = BigQueryHistory()
 
     def baseSkel(self, *args, **kwargs):
-        # Make all bones readOnly!
+        # Make all bones readonly!
         skel = super().baseSkel(*args, **kwargs).clone()
         skel.readonly()
         return skel
@@ -508,7 +508,6 @@ class ViurHistory(List):
             "user_firstname": user and user["firstname"],
             "user_lastname": user and user["lastname"],
             "user_name": user and user["name"],
-            "user_company": user and user["company"],
             "user": user and user["key"],
             "version": self.HISTORY_VERSION,
         }
@@ -567,7 +566,9 @@ class ViurHistory(List):
         Write a history entry generated from an HistoryAdapter.
         """
         skel = self.addSkel()
-        skel.update(entry)
+        for k in skel.keys():
+            if value := entry.get(k):
+                skel.setBoneValue(k, value)
         skel["key"] = db.Key(skel.kindName, key)
         skel.write()
 
