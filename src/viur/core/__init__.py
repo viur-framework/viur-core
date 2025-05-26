@@ -156,10 +156,17 @@ def __build_app(modules: ModuleType | object, renderers: ModuleType | object, de
     from viur.core.modules.history import ViurHistory  # noqa: E402 # import works only here because circular imports
     modules.viur_history = ViurHistory
 
-    modules._tasks = TaskHandler
-    modules._moduleconf = ModuleConf
-    modules._translation = Translation
-    modules.script = Script
+    for name, cls in {
+        "_tasks": TaskHandler,
+        "_moduleconf": ModuleConf,
+        "_translation": Translation,
+        "script": Script,
+    }.items():
+        # Check whether name is contained in modules so that it can be overwritten
+        if name not in vars(modules):
+            setattr(modules, name, cls)
+
+        assert issubclass(getattr(modules, name), cls)
 
     # Resolver defines the URL mapping
     resolver = {}
