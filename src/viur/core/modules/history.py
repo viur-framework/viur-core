@@ -5,10 +5,10 @@ import logging
 import typing as t
 from viur.core import db, conf, utils, current, tasks
 from viur.core.render.json.default import CustomJsonEncoder
-from viur.core.skeleton import SkeletonInstance, Skeleton
+from viur.core.skeleton import SkeletonInstance, Skeleton, DatabaseAdapter
 from viur.core.prototypes.list import List
 from viur.core.bones import *
-from google.cloud import exceptions,bigquery
+from google.cloud import exceptions, bigquery
 
 
 class ViurHistorySkel(Skeleton):
@@ -52,7 +52,7 @@ class ViurHistorySkel(Skeleton):
             "firstname"
         ],
     )
-    #Why we need this ?
+    # Why we need this ?
     origin_user = UserBone(
         descr="User take over by",
         updateLevel=RelationalUpdateLevel.OnValueAssignment,
@@ -313,118 +313,84 @@ class BigQueryHistory:
         if res := self.client.insert_rows(self.table, [data]):
             raise ValueError(res)
 
-    # ---------------------------------------------------------------------------------------------
-    # FIXME: Started below code previously which generates the schema from the ViurHistorySkel
-    # This is for now abandoned, but the code should not be thrown away, it could be useful.
 
-    IGNORE_BONES = (
+class HistoryAdapter(DatabaseAdapter):
+    """
+    Generalized adapter for handling history events.
+    """
+
+    DEFAULT_EXCLUDES = {
+        "key",
+        "changedate",
+        "creationdate",
+        "importdate",
         "viurCurrentSeoKeys",
-    )
+    }
+    """
+    Bones being ignored within history.
+    """
 
-    # def __init__(self):
-    #     super().__init__()
-    #     self.client = bigquery.Client()
-    #     self.table = None
-    #     self.schema = None
-    #     self.path = f"""{conf.instance.project_id}.history.default"""
+    def __init__(self, excludes: t.Iterable[str] = DEFAULT_EXCLUDES):
+        super().__init__()
 
-    def __generate_schema(self, skel):
-        # FIXME: Currently not in use!
-        assert self.schema is None
-        self.schema = []
+        # add excludes to diff excludes
+        self.diff_excludes = set(excludes)
 
-        for name, bone in skel.items():
-            if name in self.IGNORE_BONES:
-                continue
+    def prewrite(self, skel, is_add, change_list=()):
+        if not is_add:  # edit
+            old_skel = skel.clone()
+            old_skel.read(skel["key"])
+            self.trigger("edit", old_skel, skel, change_list)
 
-            def bone_to_schema(name, bone, descr=None):
-                if isinstance(bone, RelationalBone):
-                    return [
-                        bone_to_schema(
-                            f"{name}_{relname}",
-                            relbone,
-                            descr=f"""{(descr or "") + bone.descr} - {relbone.descr}"""
-                        )
-                        for relname, relbone in bone._refSkelCache().items()
-                    ]
-                elif isinstance(bone, BooleanBone):
-                    datatype = "BOOLEAN"
-                elif isinstance(bone, JsonBone):
-                    datatype = "JSON"
-                elif isinstance(bone, DateBone):
-                    datatype = "DATETIME"
-                elif isinstance(bone, NumericBone):
-                    datatype = "NUMERIC"
-                elif isinstance(bone, RawBone):
-                    datatype = "BYTES"
-                else:
-                    datatype = "STRING"
+    def write(self, skel, is_add, change_list=()):
+        if is_add:  # add
+            self.trigger("add", None, skel)
 
-                return {
-                    "type": datatype,
-                    "name": name,
-                    "mode": "REPEATED" if bone.multiple else "REQUIRED" if bone.required else "NULLABLE",
-                    "description": descr or bone.descr,
-                }
+    def delete(self, skel):
+        self.trigger("delete", skel, None)
 
-            schema = bone_to_schema(name, bone)
+    def trigger(
+            self,
+            action: str,
+            old_skel: SkeletonInstance,
+            new_skel: SkeletonInstance,
+            change_list: t.Iterable[str] = (),
+    ) -> str | None:
 
-            if isinstance(schema, dict):
-                self.schema.append(schema)
-            else:
-                self.schema.extend(schema)
+        # skip excluded actions like login or logout
+        if action in conf.history.excluded_actions:
+            return None
 
-    def _get_table(self, skel):
-        # FIXME: Currently not in use!
-        if self.table:
-            return self.table
+        # skip db writes if disabled
+        #todo ? what for ?
+        """
+        if conf.get("viur.history.action") == "onevent":
+            return None
+        """
+        # skip when no user is available or provided
+        if not (user := current.user.get()):
+            return None
 
-        try:
-            self.table = self.client.get_table(self.path)
+        # FIXME: Turn change_list into set, in entire Core...
+        if change_list and not (change_list := set(change_list).difference(self.diff_excludes)):
+            logging.info("change_list is empty, nothing to write")
+            return None
 
-        except exceptions.NotFound:
-            app, dataset, table = self.path.split(".")
+        # skip excluded kinds and history kind to avoid recursion
+        any_skel = (old_skel or new_skel)
+        if any_skel and (kindname := getattr(any_skel, "kindName", None)):
+            if kindname in conf.history.excluded_kinds:
+                return None
 
-            self.__generate_schema()
+            if kindname == "viur-history":  # FIXME!
+                return None
 
-            # create dataset if needed
-            try:
-                self.client.get_dataset(dataset)
-            except exceptions.NotFound:
-                self.client.create_dataset(dataset)
-
-            # create table if needed
-            try:
-                self.table = self.client.get_table(self.path)
-            except exceptions.NotFound:
-                self.table = bigquery.Table(
-                    self.path,
-                    schema=self.schema
-                )
-                self.client.create_table(table)
-
-        return self.table
-
-    def write_skel(self, skel):
-        # FIXME: Currently not in use!
-        self._get_table(skel)
-
-        def skel_to_bigquery(skel, prefix="") -> dict:
-            values = {}
-
-            for name, bone in skel.items():
-                if name in self.IGNORE_BONES:
-                    continue
-
-                if isinstance(bone, RelationalBone):
-                    values |= skel_to_bigquery(skel[name], prefix + name + "_")
-                else:
-                    values[prefix + name] = skel[name]
-
-            return values
-
-        return self.client.insert_rows(self.table, [skel_to_bigquery(skel)])
-
+        return conf.main_app.viur_history.write_diff(
+            action, old_skel, new_skel,
+            change_list=change_list,
+            user=user,
+            diff_excludes=self.diff_excludes,
+        )
 
 class ViurHistory(List):
     """
@@ -458,7 +424,8 @@ class ViurHistory(List):
     def baseSkel(self, *args, **kwargs):
         # Make all bones readOnly!
         # FIXME: There should be a skel.readonly() function soon...
-        skel = super().baseSkel().clone(*args, **kwargs)
+        skel = super().baseSkel(*args, **kwargs)
+        skel = skel.clone()
 
         for bone in skel.values():
             bone.readOnly = True
@@ -483,9 +450,10 @@ class ViurHistory(List):
         diffs = []
 
         # Run over union of both dict keys
-        for key in sorted(set(old.keys()) | set(new.keys())):
-            if key in diff_excludes:
-                continue
+        keys = old.keys() | new.keys()
+        keys = set(keys).difference(diff_excludes)
+        keys = sorted(keys)
+        for key in keys:
 
             def expand(name, obj):
                 ret = {}
@@ -518,7 +486,7 @@ class ViurHistory(List):
             values = tuple(expand((key,), obj.get(key)) for obj in (old, new))
             assert len(values) == 2
 
-            for value_key in sorted(set(list(values[0].keys()) + list(values[1].keys()))):
+            for value_key in sorted(set(values[0].keys() | values[1].keys())):
                 diff = "\n".join(
                     difflib.unified_diff(
                         (values[0].get(value_key) or "").splitlines(),
@@ -535,20 +503,20 @@ class ViurHistory(List):
 
         return "\n".join(diffs).replace("\n\n", "\n")
 
-    def _skel_to_dict(self, skel):
-        # FIXME: This is urine it its purest refinement.
-        return conf.main_app.viur_history.render.renderSkelValues(skel) if skel else {}
+    def _skel_to_dict(self, skel: SkeletonInstance):
+        return CustomJsonEncoder().default(skel)
+
 
     def _create_history_entry(
-        self,
-        action: str,
-        old_skel: SkeletonInstance,
-        new_skel: SkeletonInstance,
-        change_list: t.Iterable[str] = (),
-        descr: t.Optional[str] = None,
-        user: t.Optional[SkeletonInstance] = None,
-        tags: t.Iterable[str] = (),
-        diff_excludes: t.Set[str] = set(),
+            self,
+            action: str,
+            old_skel: SkeletonInstance,
+            new_skel: SkeletonInstance,
+            change_list: t.Iterable[str] = (),
+            descr: t.Optional[str] = None,
+            user: t.Optional[SkeletonInstance] = None,
+            tags: t.Iterable[str] = (),
+            diff_excludes: t.Set[str] = set(),
     ):
         skel = new_skel or old_skel
         new = self._skel_to_dict(skel)
@@ -618,7 +586,7 @@ class ViurHistory(List):
             "action": action,
             "current_key": skel and str(skel["key"]),
             "current_kind": skel and getattr(skel, "kindName", None),
-            "current": json.dumps(new, cls=CustomJsonEncoder, indent=4, sort_keys=True) if new else None,
+            "current": utils.json.dumps(new, indent=4, sort_keys=True) if new else None,
             "descr": descr or build_descr(action, skel, change_list),
             "diff": diff,
             "name": build_name(skel) if skel else ((user and user["name"] or "") + " " + action),
@@ -629,7 +597,7 @@ class ViurHistory(List):
             "origin_user_personnelnumber": origin_user and origin_user["personnelnumber"],
             "origin_user_company": origin_user and origin_user["company"],
             "origin_user": origin_user and origin_user["key"],
-            "previous": json.dumps(old, cls=CustomJsonEncoder, indent=4, sort_keys=True) if old else None,
+            "previous": utils.json.dumps(old, indent=4, sort_keys=True) if old else None,
             "tags": tuple(sorted(tags)),
             "timestamp": utils.utcNow(),
             "user_firstname": user and user["firstname"],
@@ -645,15 +613,15 @@ class ViurHistory(List):
         return ret
 
     def write_diff(
-        self,
-        action: str,
-        old_skel: SkeletonInstance = None,
-        new_skel: SkeletonInstance = None,
-        change_list: t.Iterable[str] = (),
-        descr: t.Optional[str] = None,
-        user: t.Optional[SkeletonInstance] = None,
-        tags: t.Iterable[str] = (),
-        diff_excludes: t.Set[str] = set(),
+            self,
+            action: str,
+            old_skel: SkeletonInstance = None,
+            new_skel: SkeletonInstance = None,
+            change_list: t.Iterable[str] = (),
+            descr: t.Optional[str] = None,
+            user: t.Optional[SkeletonInstance] = None,
+            tags: t.Iterable[str] = (),
+            diff_excludes: t.Set[str] = set(),
     ) -> str | None:
 
         # create entry

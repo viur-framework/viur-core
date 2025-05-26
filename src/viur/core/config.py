@@ -1,7 +1,5 @@
 import datetime
 import hashlib
-from symtable import Class
-
 import logging
 import os
 import re
@@ -580,7 +578,7 @@ class Email(ConfigType):
 
 
 class History(ConfigType):
-    databases: Multiple[str] = ["viur"]
+    databases: Multiple[str] = ["viur", "bigquery"]
     """All history related settings."""
     excluded_actions: Multiple[str] = []
     """List of all action that are should not be logged."""
