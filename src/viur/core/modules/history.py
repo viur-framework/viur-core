@@ -45,12 +45,6 @@ class HistorySkel(Skeleton):
     user = UserBone(
         updateLevel=RelationalUpdateLevel.OnValueAssignment,
         searchable=True,
-        refKeys=[
-            "key",
-            "name",
-            "lastname",
-            "firstname"
-        ],
     )
 
     name = StringBone(
@@ -59,7 +53,7 @@ class HistorySkel(Skeleton):
     )
 
     descr = StringBone(
-        descr="Beschreibung",
+        descr="Description",
         searchable=True,
     )
 
@@ -87,8 +81,121 @@ class BigQueryHistory:
     """
     Schema and connector for BigQuery history entries.
     """
+    IGNORE_BONES = (
+        "viurCurrentSeoKeys",
+    )
+    SCHEMA = (
+        {
+            "type": "STRING",
+            "name": "key",
+            "mode": "REQUIRED",
+            "description": "unique identifier, hashed from kindname + timestamp",
+        },
+        {
+            "type": "NUMERIC",
+            "name": "version",
+            "mode": "REQUIRED",
+            "description": "log version",
+        },
+        {
+            "type": "STRING",
+            "name": "action",
+            "mode": "NULLABLE",
+            "description": "logged action",
+        },
+        {
+            "type": "STRING",
+            "name": "tags",
+            "mode": "REPEATED",
+            "description": "Additional tags for filtering",
+        },
+        {
+            "type": "DATETIME",
+            "name": "timestamp",
+            "mode": "REQUIRED",
+            "description": "datetime of logevent",
+        },
+        {
+            "type": "STRING",
+            "name": "timestamp_date",
+            "mode": "REQUIRED",
+            "description": "datetime of logevent: date",
+        },
+        {
+            "type": "STRING",
+            "name": "timestamp_period",
+            "mode": "REQUIRED",
+            "description": "datetime of logevent: period",
+        },
+        {
+            "type": "STRING",
+            "name": "user",
+            "mode": "NULLABLE",
+            "description": "user who trigged log event: key",
+        },
+        {
+            "type": "STRING",
+            "name": "user_name",
+            "mode": "NULLABLE",
+            "description": "user who trigged log event: username",
+        },
+        {
+            "type": "STRING",
+            "name": "user_firstname",
+            "mode": "NULLABLE",
+            "description": "user who trigged log event: firstname",
+        },
+        {
+            "type": "STRING",
+            "name": "user_lastname",
+            "mode": "NULLABLE",
+            "description": "user who trigged log event: lastname",
+        },
+        {
+            "type": "STRING",
+            "name": "name",
+            "mode": "NULLABLE",
+            "description": "readable name of the action",
+        },
+        {
+            "type": "STRING",
+            "name": "descr",
+            "mode": "NULLABLE",
+            "description": "readable event description",
+        },
+        {
+            "type": "STRING",
+            "name": "current_kind",
+            "mode": "NULLABLE",
+            "description": "kindname",
+        },
+        {
+            "type": "STRING",
+            "name": "current_key",
+            "mode": "NULLABLE",
+            "description": "url encoded datastore key",
+        },
+        {
+            "type": "JSON",
+            "name": "current",
+            "mode": "NULLABLE",
+            "description": "full content of the current entry",
+        },
+        {
+            "type": "JSON",
+            "name": "previous",
+            "mode": "NULLABLE",
+            "description": "previous full content of the entry before it changed",
+        },
+        {
+            "type": "STRING",
+            "name": "diff",
+            "mode": "NULLABLE",
+            "description": "diff data",
+        },
+    )
 
-    def __init__(self,table_path=conf.history.bigquery_table_path):
+    def __init__(self, table_path: str = conf.history.bigquery_table_path):
         super().__init__()
 
         self.table_path = str(table_path)
@@ -96,165 +203,9 @@ class BigQueryHistory:
         if self.table_path.count(".") != 2:
             raise ValueError(f"The table_path {self.table_path} must have exactly 3 parts "
                              f"that are must be separated by a dot.")
-        self.schema = (
-            {
-                "type": "STRING",
-                "name": "key",
-                "mode": "REQUIRED",
-                "description": "unique identifier, hashed from kindname + timestamp",
-            },
-            {
-                "type": "NUMERIC",
-                "name": "version",
-                "mode": "REQUIRED",
-                "description": "log version",
-            },
-            {
-                "type": "STRING",
-                "name": "action",
-                "mode": "NULLABLE",
-                "description": "logged action",
-            },
-            {
-                "type": "STRING",
-                "name": "tags",
-                "mode": "REPEATED",
-                "description": "Additional tags for filtering",
-            },
-            {
-                "type": "DATETIME",
-                "name": "timestamp",
-                "mode": "REQUIRED",
-                "description": "datetime of logevent",
-            },
-            {
-                "type": "STRING",
-                "name": "timestamp_date",
-                "mode": "REQUIRED",
-                "description": "datetime of logevent: date",
-            },
-            {
-                "type": "STRING",
-                "name": "timestamp_period",
-                "mode": "REQUIRED",
-                "description": "datetime of logevent: period",
-            },
-            {
-                "type": "STRING",
-                "name": "user",
-                "mode": "NULLABLE",
-                "description": "user who trigged log event: key",
-            },
-            {
-                "type": "STRING",
-                "name": "user_name",
-                "mode": "NULLABLE",
-                "description": "user who trigged log event: username",
-            },
-            {
-                "type": "STRING",
-                "name": "user_firstname",
-                "mode": "NULLABLE",
-                "description": "user who trigged log event: firstname",
-            },
-            {
-                "type": "STRING",
-                "name": "user_lastname",
-                "mode": "NULLABLE",
-                "description": "user who trigged log event: lastname",
-            },
-            {
-                "type": "STRING",
-                "name": "name",
-                "mode": "NULLABLE",
-                "description": "readable name of the action",
-            },
-            {
-                "type": "STRING",
-                "name": "descr",
-                "mode": "NULLABLE",
-                "description": "readable event description",
-            },
-            {
-                "type": "STRING",
-                "name": "current_kind",
-                "mode": "NULLABLE",
-                "description": "kindname",
-            },
-            {
-                "type": "STRING",
-                "name": "current_key",
-                "mode": "NULLABLE",
-                "description": "url encoded datastore key",
-            },
-            {
-                "type": "JSON",
-                "name": "current",
-                "mode": "NULLABLE",
-                "description": "full content of the current entry",
-            },
-            {
-                "type": "JSON",
-                "name": "previous",
-                "mode": "NULLABLE",
-                "description": "previous full content of the entry before it changed",
-            },
-            {
-                "type": "STRING",
-                "name": "diff",
-                "mode": "NULLABLE",
-                "description": "diff data",
-            },
-        )
 
         self.client = bigquery.Client()
-        self.select_or_create_table()
         self.table = self.select_or_create_table()
-
-    IGNORE_BONES = (
-        "viurCurrentSeoKeys",
-    )
-
-    def __generate_schema(self, skel):
-        # FIXME: Currently not in use!
-        assert self.schema is None
-        self.schema = []
-
-        for name, bone in skel.items():
-            if name in self.IGNORE_BONES:
-                continue
-
-            def bone_to_schema(name, bone, descr=None):
-                if isinstance(bone, RelationalBone):
-                    return [
-                        bone_to_schema(
-                            f"{name}_{relname}",
-                            relbone,
-                            descr=f"""{(descr or "") + bone.descr} - {relbone.descr}"""
-                        )
-                        for relname, relbone in bone._refSkelCache().items()
-                    ]
-                elif isinstance(bone, BooleanBone):
-                    datatype = "BOOLEAN"
-                elif isinstance(bone, JsonBone):
-                    datatype = "JSON"
-                elif isinstance(bone, DateBone):
-                    datatype = "DATETIME"
-                elif isinstance(bone, NumericBone):
-                    datatype = "NUMERIC"
-                elif isinstance(bone, RawBone):
-                    datatype = "BYTES"
-                else:
-                    datatype = "STRING"
-
-                return {
-                    "type": datatype,
-                    "name": name,
-                    "mode": "REPEATED" if bone.multiple else "REQUIRED" if bone.required else "NULLABLE",
-                    "description": descr or bone.descr,
-                }
-
-            schema = bone_to_schema(name, bone)
 
     def select_or_create_table(self):
         try:
@@ -262,10 +213,10 @@ class BigQueryHistory:
 
         except exceptions.NotFound:
             app, dataset, table = self.table_path.split(".")
-
+            logging.error(f"{app}:{dataset}:{table}")
             # create dataset if needed
             try:
-                return self.client.get_dataset(dataset)
+                self.client.get_dataset(dataset)
             except exceptions.NotFound:
                 logging.info(f"Dataset {dataset!r} does not exist, creating")
                 self.client.create_dataset(dataset)
@@ -278,13 +229,12 @@ class BigQueryHistory:
                 self.client.create_table(
                     bigquery.Table(
                         self.table_path,
-                        schema=self.schema
+                        schema=self.SCHEMA
                     )
                 )
                 return self.client.get_table(self.table_path)
 
     def write_row(self, data):
-        assert self.client and self.table
         if res := self.client.insert_rows(self.table, [data]):
             raise ValueError(res)
 
@@ -354,7 +304,7 @@ class HistoryAdapter(DatabaseAdapter):
             if kindname == "viur-history":
                 return None
 
-        return conf.main_app._viur_history.write_diff(
+        return conf.main_app._history.write_diff(
             action, old_skel, new_skel,
             change_list=change_list,
             user=user,
@@ -605,7 +555,7 @@ class History(List):
             if conf.instance.is_dev_server:
                 entry = entry.copy()  # need to do this as biquery functions modifiy entry
 
-            conf.main_app._viur_history.write_to_bigquery_deferred(key, entry)
+            conf.main_app._history.write_to_bigquery_deferred(key, entry)
 
         return key
 
