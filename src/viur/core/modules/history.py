@@ -11,7 +11,7 @@ from viur.core.bones import *
 from google.cloud import exceptions, bigquery
 
 
-class ViurHistorySkel(Skeleton):
+class HistorySkel(Skeleton):
     """
     Skeleton used for a ViUR history entry to log any relevant changes
     in other Skeletons.
@@ -315,7 +315,7 @@ class HistoryAdapter(DatabaseAdapter):
         )
 
 
-class ViurHistory(List):
+class History(List):
     """
     ViUR history module
     """
@@ -342,7 +342,7 @@ class ViurHistory(List):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.bigquery = BigQueryHistory()
+        self.bigquery = self.BigQueryHistoryCls and self.BigQueryHistoryCls()
 
     def baseSkel(self, *args, **kwargs):
         # Make all bones readonly!
@@ -551,7 +551,7 @@ class ViurHistory(List):
             self.write_deferred(key, entry)
 
         # write into BigQuery
-        if "bigquery" in conf.history.databases:
+        if self.bigquery and "bigquery" in conf.history.databases:
             # need to do this as biquery functions modifies
             # entry and seems to be called first
             if conf.instance.is_dev_server:
@@ -592,5 +592,5 @@ class ViurHistory(List):
         self.write_to_bigquery(key, entry)
 
 
-ViurHistory.json = True
-ViurHistory.admin = True
+History.json = True
+History.admin = True
