@@ -339,7 +339,8 @@ class History(List):
         if "bigquery" in conf.history.databases:
             self.bigquery_history_cls = bigquery_history_cls
             self.bigquery = self.bigquery_history_cls and self.bigquery_history_cls()
-
+        else:
+            self.bigquery = None
     def baseSkel(self, *args, **kwargs):
         # Make all bones readonly!
         skel = super().baseSkel(*args, **kwargs).clone()
