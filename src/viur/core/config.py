@@ -584,7 +584,7 @@ class History(ConfigType):
     """List of all action that are should not be logged."""
     excluded_kinds: Multiple[str] = []
     """List of all kinds that should be logged."""
-
+    bigquery_table_path:str = f"""{_project_id}.history.default"""
 
 
 class I18N(ConfigType):

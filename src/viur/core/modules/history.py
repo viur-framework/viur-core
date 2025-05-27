@@ -88,10 +88,14 @@ class BigQueryHistory:
     Schema and connector for BigQuery history entries.
     """
 
-    def __init__(self):
+    def __init__(self,table_path=conf.history.bigquery_table_path):
         super().__init__()
 
-        self.tablepath = f"""{conf.instance.project_id}.history.default"""
+        self.table_path = str(table_path)
+        # checks for the table_path
+        if self.table_path.count(".") != 2:
+            raise ValueError(f"The table_path {self.table_path} must have exactly 3 parts "
+                             f"that are must be separated by a dot.")
         self.schema = (
             {
                 "type": "STRING",
@@ -205,36 +209,79 @@ class BigQueryHistory:
 
         self.client = bigquery.Client()
         self.select_or_create_table()
+        self.table = self.select_or_create_table()
+
+    IGNORE_BONES = (
+        "viurCurrentSeoKeys",
+    )
+
+    def __generate_schema(self, skel):
+        # FIXME: Currently not in use!
+        assert self.schema is None
+        self.schema = []
+
+        for name, bone in skel.items():
+            if name in self.IGNORE_BONES:
+                continue
+
+            def bone_to_schema(name, bone, descr=None):
+                if isinstance(bone, RelationalBone):
+                    return [
+                        bone_to_schema(
+                            f"{name}_{relname}",
+                            relbone,
+                            descr=f"""{(descr or "") + bone.descr} - {relbone.descr}"""
+                        )
+                        for relname, relbone in bone._refSkelCache().items()
+                    ]
+                elif isinstance(bone, BooleanBone):
+                    datatype = "BOOLEAN"
+                elif isinstance(bone, JsonBone):
+                    datatype = "JSON"
+                elif isinstance(bone, DateBone):
+                    datatype = "DATETIME"
+                elif isinstance(bone, NumericBone):
+                    datatype = "NUMERIC"
+                elif isinstance(bone, RawBone):
+                    datatype = "BYTES"
+                else:
+                    datatype = "STRING"
+
+                return {
+                    "type": datatype,
+                    "name": name,
+                    "mode": "REPEATED" if bone.multiple else "REQUIRED" if bone.required else "NULLABLE",
+                    "description": descr or bone.descr,
+                }
+
+            schema = bone_to_schema(name, bone)
 
     def select_or_create_table(self):
         try:
-            self.table = self.client.get_table(self.tablepath)
+            return self.client.get_table(self.table_path)
 
         except exceptions.NotFound:
-            app, dataset, table = self.tablepath.split(".")
+            app, dataset, table = self.table_path.split(".")
 
             # create dataset if needed
             try:
-                self.client.get_dataset(dataset)
+                return self.client.get_dataset(dataset)
             except exceptions.NotFound:
                 logging.info(f"Dataset {dataset!r} does not exist, creating")
                 self.client.create_dataset(dataset)
 
             # create table if needed
             try:
-                self.table = self.client.get_table(self.tablepath)
+                return self.client.get_table(self.table_path)
             except exceptions.NotFound:
-                logging.info(f"Table {self.tablepath!r} does not exist, creating")
+                logging.info(f"Table {self.table_path!r} does not exist, creating")
                 self.client.create_table(
                     bigquery.Table(
-                        self.tablepath,
+                        self.table_path,
                         schema=self.schema
                     )
                 )
-                self.table = self.client.get_table(self.tablepath)
-
-        logging.debug(f"found bigquery table {self.table!r}")
-        return self.table
+                return self.client.get_table(self.table_path)
 
     def write_row(self, data):
         assert self.client and self.table
@@ -278,11 +325,11 @@ class HistoryAdapter(DatabaseAdapter):
         self.trigger("delete", skel, None)
 
     def trigger(
-            self,
-            action: str,
-            old_skel: SkeletonInstance,
-            new_skel: SkeletonInstance,
-            change_list: t.Iterable[str] = (),
+        self,
+        action: str,
+        old_skel: SkeletonInstance,
+        new_skel: SkeletonInstance,
+        change_list: t.Iterable[str] = (),
     ) -> str | None:
 
         # skip excluded actions like login or logout
@@ -340,9 +387,10 @@ class History(List):
     History format version.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, bigquery_history_cls=BigQueryHistory, **kwargs):
         super().__init__(*args, **kwargs)
-        self.bigquery = self.BigQueryHistoryCls and self.BigQueryHistoryCls()
+        self.bigquery_history_cls = bigquery_history_cls
+        self.bigquery = self.bigquery_history_cls and self.bigquery_history_cls()
 
     def baseSkel(self, *args, **kwargs):
         # Make all bones readonly!
@@ -426,15 +474,15 @@ class History(List):
         return CustomJsonEncoder().default(skel)
 
     def _create_history_entry(
-            self,
-            action: str,
-            old_skel: SkeletonInstance,
-            new_skel: SkeletonInstance,
-            change_list: t.Iterable[str] = (),
-            descr: t.Optional[str] = None,
-            user: t.Optional[SkeletonInstance] = None,
-            tags: t.Iterable[str] = (),
-            diff_excludes: t.Set[str] = set(),
+        self,
+        action: str,
+        old_skel: SkeletonInstance,
+        new_skel: SkeletonInstance,
+        change_list: t.Iterable[str] = (),
+        descr: t.Optional[str] = None,
+        user: t.Optional[SkeletonInstance] = None,
+        tags: t.Iterable[str] = (),
+        diff_excludes: t.Set[str] = set(),
 
     ):
         skel = new_skel or old_skel
@@ -515,15 +563,15 @@ class History(List):
         return ret
 
     def write_diff(
-            self,
-            action: str,
-            old_skel: SkeletonInstance = None,
-            new_skel: SkeletonInstance = None,
-            change_list: t.Iterable[str] = (),
-            descr: t.Optional[str] = None,
-            user: t.Optional[SkeletonInstance] = None,
-            tags: t.Iterable[str] = (),
-            diff_excludes: t.Set[str] = set(),
+        self,
+        action: str,
+        old_skel: SkeletonInstance = None,
+        new_skel: SkeletonInstance = None,
+        change_list: t.Iterable[str] = (),
+        descr: t.Optional[str] = None,
+        user: t.Optional[SkeletonInstance] = None,
+        tags: t.Iterable[str] = (),
+        diff_excludes: t.Set[str] = set(),
 
     ) -> str | None:
 
