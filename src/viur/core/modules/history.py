@@ -81,9 +81,6 @@ class BigQueryHistory:
     """
     Schema and connector for BigQuery history entries.
     """
-    IGNORE_BONES = (
-        "viurCurrentSeoKeys",
-    )
     SCHEMA = (
         {
             "type": "STRING",
