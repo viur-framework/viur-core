@@ -66,17 +66,30 @@ class FetchMetaDataValidator(RequestValidator):
 
     @staticmethod
     def validate(request: 'BrowseHandler') -> t.Optional[tuple[int, str, str]]:
+        """
+            This validator examines the headers "sec-fetch-site",
+            "sec-fetch-mode" and "sec-fetch-dest" as recommended
+            by https://web.dev/fetch-metadata/
+        """
         headers = request.request.headers
-        if not headers.get("sec-fetch-site"):  # These headers are not send by all browsers
-            return None
-        if headers.get('sec-fetch-site') in {"same-origin", "none"}:  # A Request from our site
-            return None
-        if os.environ['GAE_ENV'] == "localdev" and headers.get('sec-fetch-site') == "same-site":
-            # We are accepting a request with same-site only in local dev mode
-            return None
-        if headers.get('sec-fetch-mode') == 'navigate' and not request.isPostRequest \
-            and headers.get('sec-fetch-dest') not in {'object', 'embed'}:  # Incoming navigation GET request
-            return None
+
+        match headers.get("sec-fetch-site"):
+            case None | "same-origin" | "none":
+                # A Request from our site, or browser didn't send "sec-fetch-site"
+                return None
+            case "same-site":
+                # We are accepting a request with same-site only in local dev mode
+                if conf.instance.is_dev_server:
+                    return None
+            case _:
+                # Incoming navigation GET request
+                if (
+                    not request.isPostRequest
+                    and headers.get("sec-fetch-mode") == "navigate"
+                    and headers.get('sec-fetch-dest') not in ("object", "embed")
+                ):
+                    return None
+
         return 403, "Forbidden", "Request rejected due to fetch metadata"
 
 
@@ -259,7 +272,6 @@ class Router:
             elif os.getenv("TASKS_EMULATOR") is not None:
                 self.is_deferred = True
 
-        current.language.set(conf.i18n.default_language)
         # Check if we should process or abort the request
         for validator, reqValidatorResult in [(x, x.validate(self)) for x in self.requestValidators]:
             if reqValidatorResult is not None:
