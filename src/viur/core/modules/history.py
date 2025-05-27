@@ -1,14 +1,13 @@
 import difflib
 import enum
-import json
 import logging
 import typing as t
+from google.cloud import exceptions, bigquery
 from viur.core import db, conf, utils, current, tasks
+from viur.core.bones import *
+from viur.core.prototypes.list import List
 from viur.core.render.json.default import CustomJsonEncoder
 from viur.core.skeleton import SkeletonInstance, Skeleton, DatabaseAdapter
-from viur.core.prototypes.list import List
-from viur.core.bones import *
-from google.cloud import exceptions, bigquery
 
 
 class HistorySkel(Skeleton):
@@ -72,15 +71,21 @@ class HistorySkel(Skeleton):
     )
 
     diff = RawBone(
-        descr="Diff",
+        descr="Human-readable diff",
         indexed=False,
     )
 
 
 class BigQueryHistory:
     """
-    Schema and connector for BigQuery history entries.
+    Connector for BigQuery history entries.
     """
+
+    PATH = f"""{conf.instance.project_id}.history.default"""
+    """
+    Path to the big query table for history entries.
+    """
+
     SCHEMA = (
         {
             "type": "STRING",
@@ -191,25 +196,27 @@ class BigQueryHistory:
             "description": "diff data",
         },
     )
+    """
+    Schema used for the BigQuery table for its initial construction.
+    Keep to the provided format!
+    """
 
-    def __init__(self, table_path: str = conf.history.bigquery_table_path):
+    def __init__(self):
         super().__init__()
 
-        self.table_path = str(table_path)
         # checks for the table_path
-        if self.table_path.count(".") != 2:
-            raise ValueError(f"The table_path {self.table_path} must have exactly 3 parts "
-                             f"that are must be separated by a dot.")
+        if self.PATH.count(".") != 2:
+            raise ValueError("{self.PATH!r} must have exactly 3 parts that separated by a dot.")
 
         self.client = bigquery.Client()
         self.table = self.select_or_create_table()
 
     def select_or_create_table(self):
         try:
-            return self.client.get_table(self.table_path)
+            return self.client.get_table(self.PATH)
 
         except exceptions.NotFound:
-            app, dataset, table = self.table_path.split(".")
+            app, dataset, table = self.PATH.split(".")
             logging.error(f"{app}:{dataset}:{table}")
             # create dataset if needed
             try:
@@ -220,16 +227,16 @@ class BigQueryHistory:
 
             # create table if needed
             try:
-                return self.client.get_table(self.table_path)
+                return self.client.get_table(self.PATH)
             except exceptions.NotFound:
-                logging.info(f"Table {self.table_path!r} does not exist, creating")
+                logging.info(f"Table {self.PATH!r} does not exist, creating")
                 self.client.create_table(
                     bigquery.Table(
-                        self.table_path,
+                        self.PATH,
                         schema=self.SCHEMA
                     )
                 )
-                return self.client.get_table(self.table_path)
+                return self.client.get_table(self.PATH)
 
     def write_row(self, data):
         if res := self.client.insert_rows(self.table, [data]):
@@ -320,7 +327,7 @@ class History(List):
         "icon": "clock-history",
         "filter": {
             "orderby": "timestamp",
-            "orderdir": "1",
+            "orderdir": "desc",
         },
         "disabledActions": ["add", "clone", "delete"],
     }
@@ -334,21 +341,28 @@ class History(List):
     History format version.
     """
 
-    def __init__(self, *args, bigquery_history_cls=BigQueryHistory, **kwargs):
+    BigQueryHistoryCls = BigQueryHistory
+    """
+    The connector class used to store entries to BigQuery.
+    """
+
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if "bigquery" in conf.history.databases:
-            self.bigquery_history_cls = bigquery_history_cls
-            self.bigquery = self.bigquery_history_cls and self.bigquery_history_cls()
+
+        if self.BigQueryHistoryCls and "bigquery" in conf.history.databases:
+            assert issubclass(self.BigQueryHistoryCls, BigQueryHistory)
+            self.bigquery = self.BigQueryHistoryCls()
         else:
             self.bigquery = None
-    def baseSkel(self, *args, **kwargs):
+
+    def skel(self, **kwargs):
         # Make all bones readonly!
-        skel = super().baseSkel(*args, **kwargs).clone()
+        skel = super().skel(**kwargs).clone()
         skel.readonly()
         return skel
 
     def canEdit(self, skel):
-        return self.canView(skel)
+        return self.canView(skel)  # this is needed to open an entry in admin (all bones are readonly!)
 
     def canDelete(self, _skel):
         return False
@@ -423,16 +437,15 @@ class History(List):
         return CustomJsonEncoder().default(skel)
 
     def _create_history_entry(
-            self,
-            action: str,
-            old_skel: SkeletonInstance,
-            new_skel: SkeletonInstance,
-            change_list: t.Iterable[str] = (),
-            descr: t.Optional[str] = None,
-            user: t.Optional[SkeletonInstance] = None,
-            tags: t.Iterable[str] = (),
-            diff_excludes: t.Set[str] = set(),
-
+        self,
+        action: str,
+        old_skel: SkeletonInstance,
+        new_skel: SkeletonInstance,
+        change_list: t.Iterable[str] = (),
+        descr: t.Optional[str] = None,
+        user: t.Optional[SkeletonInstance] = None,
+        tags: t.Iterable[str] = (),
+        diff_excludes: t.Set[str] = set(),
     ):
         skel = new_skel or old_skel
         new_data = self._skel_to_dict(skel)
@@ -512,16 +525,15 @@ class History(List):
         return ret
 
     def write_diff(
-            self,
-            action: str,
-            old_skel: SkeletonInstance = None,
-            new_skel: SkeletonInstance = None,
-            change_list: t.Iterable[str] = (),
-            descr: t.Optional[str] = None,
-            user: t.Optional[SkeletonInstance] = None,
-            tags: t.Iterable[str] = (),
-            diff_excludes: t.Set[str] = set(),
-
+        self,
+        action: str,
+        old_skel: SkeletonInstance = None,
+        new_skel: SkeletonInstance = None,
+        change_list: t.Iterable[str] = (),
+        descr: t.Optional[str] = None,
+        user: t.Optional[SkeletonInstance] = None,
+        tags: t.Iterable[str] = (),
+        diff_excludes: t.Set[str] = set(),
     ) -> str | None:
 
         # create entry
@@ -549,8 +561,7 @@ class History(List):
 
         # write into BigQuery
         if self.bigquery and "bigquery" in conf.history.databases:
-            # need to do this as biquery functions modifies
-            # entry and seems to be called first
+            # need to do this as biquery functions modifies entry and seems to be called first
             if conf.instance.is_dev_server:
                 entry = entry.copy()  # need to do this as biquery functions modifiy entry
 
