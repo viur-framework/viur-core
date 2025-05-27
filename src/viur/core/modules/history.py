@@ -272,11 +272,11 @@ class HistoryAdapter(DatabaseAdapter):
         self.trigger("delete", skel, None)
 
     def trigger(
-        self,
-        action: str,
-        old_skel: SkeletonInstance,
-        new_skel: SkeletonInstance,
-        change_list: t.Iterable[str] = (),
+            self,
+            action: str,
+            old_skel: SkeletonInstance,
+            new_skel: SkeletonInstance,
+            change_list: t.Iterable[str] = (),
     ) -> str | None:
 
         # skip excluded actions like login or logout
@@ -336,8 +336,9 @@ class History(List):
 
     def __init__(self, *args, bigquery_history_cls=BigQueryHistory, **kwargs):
         super().__init__(*args, **kwargs)
-        self.bigquery_history_cls = bigquery_history_cls
-        self.bigquery = self.bigquery_history_cls and self.bigquery_history_cls()
+        if "bigquery" in conf.history.databases:
+            self.bigquery_history_cls = bigquery_history_cls
+            self.bigquery = self.bigquery_history_cls and self.bigquery_history_cls()
 
     def baseSkel(self, *args, **kwargs):
         # Make all bones readonly!
@@ -421,15 +422,15 @@ class History(List):
         return CustomJsonEncoder().default(skel)
 
     def _create_history_entry(
-        self,
-        action: str,
-        old_skel: SkeletonInstance,
-        new_skel: SkeletonInstance,
-        change_list: t.Iterable[str] = (),
-        descr: t.Optional[str] = None,
-        user: t.Optional[SkeletonInstance] = None,
-        tags: t.Iterable[str] = (),
-        diff_excludes: t.Set[str] = set(),
+            self,
+            action: str,
+            old_skel: SkeletonInstance,
+            new_skel: SkeletonInstance,
+            change_list: t.Iterable[str] = (),
+            descr: t.Optional[str] = None,
+            user: t.Optional[SkeletonInstance] = None,
+            tags: t.Iterable[str] = (),
+            diff_excludes: t.Set[str] = set(),
 
     ):
         skel = new_skel or old_skel
@@ -510,15 +511,15 @@ class History(List):
         return ret
 
     def write_diff(
-        self,
-        action: str,
-        old_skel: SkeletonInstance = None,
-        new_skel: SkeletonInstance = None,
-        change_list: t.Iterable[str] = (),
-        descr: t.Optional[str] = None,
-        user: t.Optional[SkeletonInstance] = None,
-        tags: t.Iterable[str] = (),
-        diff_excludes: t.Set[str] = set(),
+            self,
+            action: str,
+            old_skel: SkeletonInstance = None,
+            new_skel: SkeletonInstance = None,
+            change_list: t.Iterable[str] = (),
+            descr: t.Optional[str] = None,
+            user: t.Optional[SkeletonInstance] = None,
+            tags: t.Iterable[str] = (),
+            diff_excludes: t.Set[str] = set(),
 
     ) -> str | None:
 
