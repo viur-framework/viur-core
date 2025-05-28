@@ -3,7 +3,7 @@ import typing as t
 from deprecated.sphinx import deprecated
 from viur.core import utils, errors, db, current
 from viur.core.decorators import *
-from viur.core.bones import KeyBone, SortIndexBone
+from viur.core.bones import KeyBone, SortIndexBone, BooleanBone
 from viur.core.cache import flushCache
 from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.tasks import CallDeferred
@@ -29,6 +29,12 @@ class TreeSkel(Skeleton):
     sortindex = SortIndexBone(
         visible=False,
         readOnly=True,
+    )
+
+    is_root_node = BooleanBone(
+        defaultValue=False,
+        readOnly=True,
+        visible=False,
     )
 
     @classmethod
@@ -161,7 +167,7 @@ class Tree(SkelModule):
         skel = self.baseSkel("node")
 
         skel["key"] = db.Key(skel.kindName, identifier)
-        skel["rootNode"] = True
+        skel["is_root_node"] = True
 
         if ensure not in (False, None):
             return skel.read(create=ensure)
