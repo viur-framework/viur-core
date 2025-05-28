@@ -193,12 +193,11 @@ class Query(object):
         if startCursor or endCursor:
             self.setCursor(startCursor, endCursor)
 
-        if (
-            "limit" in filters
-            and str(filters["limit"]).isdigit()
-            and 0 < (limit := int(filters["limit"])) <= conf.db_query_max_limit
-        ):
-            self.limit(limit)
+        if limit := filters.get("limit"):
+            try:
+                self.limit(int(limit))
+            except ValueError:
+                pass  # ignore this
 
         return self
 
@@ -392,7 +391,7 @@ class Query(object):
         :param limit: The maximum number of entities.
         :returns: Returns the query itself for chaining.
         """
-        if limit <= 0:
+        if 0 < limit <= conf.db_query_max_limit:
             raise ValueError(f"{limit=} is invalid")
 
         if isinstance(self.queries, QueryDefinition):
