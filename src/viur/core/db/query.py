@@ -151,9 +151,12 @@ class Query(object):
         """
         if self.srcSkel is None:
             raise NotImplementedError("This query has not been created using skel.all()")
+
         if self.queries is None:  # This query is already unsatisfiable and adding more constraints won't change this
             return self
+
         skel = self.srcSkel
+
         if "search" in filters:
             if self.srcSkel.customDatabaseAdapter and self.srcSkel.customDatabaseAdapter.providesFulltextSearch:
                 self._fulltextQueryString = str(filters["search"])
@@ -163,7 +166,9 @@ class Query(object):
                     % self.srcSkel.kindName
                 )
                 self.queries = None
+
         bones = [(y, x) for x, y in skel.items()]
+
         try:
             # Process filters first
             for bone, key in bones:
@@ -171,23 +176,30 @@ class Query(object):
             # Parse orders
             for bone, key in bones:
                 bone.buildDBSort(key, skel, self, filters)
+
         except RuntimeError as e:
             logging.exception(e)
             self.queries = None
             return self
+
         startCursor = endCursor = None
+
         if "cursor" in filters and filters["cursor"] and filters["cursor"].lower() != "none":
             startCursor = filters["cursor"]
+
         if "endcursor" in filters and filters["endcursor"] and filters["endcursor"].lower() != "none":
             endCursor = filters["endcursor"]
+
         if startCursor or endCursor:
             self.setCursor(startCursor, endCursor)
+
         if (
-                "limit" in filters
-                and str(filters["limit"]).isdigit()
-                and 0 < int(filters["limit"]) <= 100
+            "limit" in filters
+            and str(filters["limit"]).isdigit()
+            and 0 < (limit := int(filters["limit"])) <= conf.db_query_max_limit
         ):
-            self.limit(int(filters["limit"]))
+            self.limit(limit)
+
         return self
 
     def filter(self, prop: str, value: DATASTORE_BASE_TYPES | list[DATASTORE_BASE_TYPES]) -> t.Self:
@@ -380,12 +392,15 @@ class Query(object):
         :param limit: The maximum number of entities.
         :returns: Returns the query itself for chaining.
         """
-        # TODO Add a check for the limit (<=100) ?
+        if limit <= 0:
+            raise ValueError(f"{limit=} is invalid")
+
         if isinstance(self.queries, QueryDefinition):
             self.queries.limit = limit
         elif isinstance(self.queries, list):
             for query in self.queries:
                 query.limit = limit
+
         return self
 
     def distinctOn(self, keyList: t.List[str]) -> t.Self:
@@ -648,7 +663,7 @@ class Query(object):
         should be used.
 
         :param limit: Limits the query to the defined maximum entities.
-            A maximum value of 100 entries can be fetched at once.
+            A maximum value of `conf.db_query_max_limit` entries can be fetched at once.
 
         :raises: :exc:`BadFilterError` if a filter string is invalid
         :raises: :exc:`BadValueError` if a filter value is invalid.
@@ -659,11 +674,9 @@ class Query(object):
 
         if self.srcSkel is None:
             raise NotImplementedError("This query has not been created using skel.all()")
-        # limit = limit if limit != -1 else self._limit
-        if limit != -1 and not (0 < limit <= 100):
-            logging.error(("Limit", limit))
-            raise NotImplementedError(
-                "This query is not limited! You must specify an upper bound using limit() between 1 and 100")
+
+        if limit != -1 and not (0 < limit <= conf.db_query_max_limit):
+            raise NotImplementedError(f"Query is not limited! Set limit between 1 and {conf.db_query_max_limit}")
 
         res = SkelList(self.srcSkel)
         for entity in self.run(limit):
