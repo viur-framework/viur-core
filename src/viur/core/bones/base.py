@@ -1502,7 +1502,6 @@ class BaseBone(object):
 
             if issubclass(skel.skeletonCls, RefSkel):  # we have a ref skel we must load the complete skeleton
                 cloned_skel = skeletonByKind(skel.kindName)()
-                logging.debug(f"read for skel@{id(skel)} // {skel.skeletonCls}@{id(skel.skeletonCls)} // {skel["key"]!r}")
                 if not cloned_skel.read(skel["key"]):
                     raise ValueError(f'{skel["key"]=!r} does no longer exists. Cannot compute a broken relation')
             else:
