@@ -29,8 +29,6 @@ class CustomJsonEncoder(json.JSONEncoder):
             return tuple(o)
         elif isinstance(o, SkeletonInstance):
             return {bone_name: o[bone_name] for bone_name in o}
-        elif isinstance(o, bytes):
-            return str(o)
         return json.JSONEncoder.default(self, o)
 
 
