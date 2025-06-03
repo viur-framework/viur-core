@@ -1070,7 +1070,7 @@ class BaseBone(object):
                         db_obj[name] = value
                         db.put(db_obj)
 
-                    if db.IsInTransaction():
+                    if db.is_in_transaction():
                         transact()
                     else:
                         db.run_in_transaction(transact)

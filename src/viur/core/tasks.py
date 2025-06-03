@@ -572,7 +572,7 @@ def CallDeferred(func: t.Callable) -> t.Callable:
             except AttributeError:  # This isn't originating from a normal request
                 pass
 
-            if db.IsInTransaction():
+            if db.is_in_transaction():
                 # We have to ensure transaction guarantees for that task also
                 env["transactionMarker"] = db.acquire_transaction_success_marker()
                 # We move that task at least 90 seconds into the future so the transaction has time to settle

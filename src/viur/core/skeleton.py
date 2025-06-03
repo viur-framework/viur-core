@@ -1475,7 +1475,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             skel["key"] = db.key_helper(key, skel.kindName)
 
         # Run transactional function
-        if db.IsInTransaction():
+        if db.is_in_transaction():
             key, skel, change_list, is_add = __txn_write(skel)
         else:
             key, skel, change_list, is_add = db.run_in_transaction(__txn_write, skel)
@@ -1570,7 +1570,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         # Full skeleton is required to have all bones!
         skel = skeletonByKind(skel.kindName)()
 
-        if db.IsInTransaction():
+        if db.is_in_transaction():
             __txn_delete(skel, key)
         else:
             db.run_in_transaction(__txn_delete, skel, key)
@@ -1974,7 +1974,7 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: t.Optional
         except AssertionError:
             logging.info(f"""Ignoring {srcRel.key!r} which refers to unknown kind {srcRel["viur_src_kind"]!r}""")
             continue
-        if db.IsInTransaction():
+        if db.is_in_transaction():
             updateTxn(skel, srcRel["src"].key, srcRel.key)
         else:
             db.run_in_transaction(updateTxn, skel, srcRel["src"].key, srcRel.key)
