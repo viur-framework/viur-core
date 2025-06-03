@@ -25,7 +25,7 @@ def generate_number(db_key: db.Key) -> int:
             raise ValueError("Can't set the Uid")
         return db_obj["count"]
 
-    if db.IsInTransaction():
+    if db.is_in_transaction():
         return transact(db_key)
     else:
         return db.run_in_transaction(transact, db_key)
