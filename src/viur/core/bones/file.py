@@ -226,7 +226,10 @@ class FileBone(TreeLeafBone):
         the derived files directly.
         """
         super().postSavedHandler(skel, boneName, key)
-        if current.request.get().is_deferred and current.request_data.get().get("__update_relations_bone") == "derived":
+        if (
+            current.request.get().is_deferred
+            and current.request_data.get().get("__update_relations_bones") == ["derived"]
+        ):
             return
         from viur.core.skeleton import RelSkel, Skeleton
 

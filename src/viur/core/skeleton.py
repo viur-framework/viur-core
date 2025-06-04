@@ -1486,9 +1486,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         skel.postSavedHandler(key, skel.dbEntity)
 
         if update_relations and not is_add:
-            if change_list and len(change_list) < 5:  # Only a few bones have changed, process these individually
-                for idx, changed_bone in enumerate(change_list):
-                    updateRelations(key, time.time() + 1, changed_bone, _countdown=10 * idx)
+            if change_list and len(change_list) < 10:  # Only a few bones have changed, process these individually
+                updateRelations(key, time.time() + 1, changed_bones=change_list, _countdown=10)
             else:  # Update all inbound relations, regardless of which bones they mirror
                 updateRelations(key, time.time() + 1, None)
 
@@ -1927,7 +1926,13 @@ def processRemovedRelations(removedKey: db.Key, cursor=None):
 
 
 @CallDeferred
-def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: t.Optional[str], cursor: t.Optional[str] = None):
+def updateRelations(
+    dest_key: db.Key,
+    min_change_time: int,
+    changed_bones: t.Optional[list[str] | str] = None,
+    cursor: t.Optional[str] = None,
+    **kwargs
+):
     """
         This function updates Entities, which may have a copy of values from another entity which has been recently
         edited (updated). In ViUR, relations are implemented by copying the values from the referenced entity into the
@@ -1936,51 +1941,66 @@ def updateRelations(destKey: db.Key, minChangeTime: int, changedBone: t.Optional
         us to track changes made to entities as we might have to update these mirrored values.     This is the deferred
         call from meth:`viur.core.skeleton.Skeleton.write()` after an update (edit) on one Entity to do exactly that.
 
-        :param destKey: The database-key of the entity that has been edited
-        :param minChangeTime: The timestamp on which the edit occurred. As we run deferred, and the entity might have
+        :param dest_key: The database-key of the entity that has been edited
+        :param min_change_time: The timestamp on which the edit occurred. As we run deferred, and the entity might have
             been edited multiple times before we get acutally called, we can ignore entities that have been updated
             in the meantime as they're  already up2date
-        :param changedBone: If set, we'll update only entites that have a copy of that bone. Relations mirror only
+        :param changed_bones: If set, we'll update only entites that have a copy of that bones. Relations mirror only
             key and name by default, so we don't have to update these if only another bone has been changed.
         :param cursor: The database cursor for the current request as we only process five entities at once and then
             defer again.
     """
-    logging.debug(f"Starting updateRelations for {destKey=}; {minChangeTime=}, {changedBone=}, {cursor=}")
+    if not changed_bones:
+        changed_bones = []
+    if not isinstance(changed_bones, list):
+        changed_bones = list(changed_bones)
+    # TODO Remove in Viur 4
+    if "changedBone" in kwargs:
+        logging.warning("Use of `changedBone` is deprecated; Use `changed_bones` instead!", stacklevel=2)
+        changed_bones.extend(list(kwargs["changedBone"]))
+    if "minChangeTime" in kwargs:
+        logging.warning("Use of `minChangeTime` is deprecated; Use `min_cahnge_time` instead!", stacklevel=2)
+        min_change_time = kwargs["minChangeTime"]
+    if "destKey" in kwargs:
+        logging.warning("Use of `destKey` is deprecated; Use `dest_key` instead!", stacklevel=2)
+        dest_key = kwargs["destKey"]
+
+    logging.debug(f"Starting updateRelations for {dest_key=}; {min_change_time=}, {changed_bones=}, {cursor=}")
     if request_data := current.request_data.get():
-        request_data["__update_relations_bone"] = changedBone
-    updateListQuery = (
+        request_data["__update_relations_bones"] = changed_bones
+    update_list_query = (
         db.Query("viur-relations")
-        .filter("dest.__key__ =", destKey)
-        .filter("viur_delayed_update_tag <", minChangeTime)
+        .filter("dest.__key__ =", dest_key)
+        .filter("viur_delayed_update_tag <", min_change_time)
         .filter("viur_relational_updateLevel =", RelationalUpdateLevel.Always.value)
     )
-    if changedBone:
-        updateListQuery.filter("viur_foreign_keys =", changedBone)
+    if changed_bones:
+        update_list_query.filter("viur_foreign_keys IN", changed_bones)
     if cursor:
-        updateListQuery.setCursor(cursor)
-    updateList = updateListQuery.run(limit=5)
+        update_list_query.setCursor(cursor)
+    update_list = update_list_query.run(limit=5)
 
-    def updateTxn(skel, key, srcRelKey):
+    def __txn_update(_skel, key, srcRelKey):
         if not skel.read(key):
             logging.warning(f"Cannot update stale reference to {key=} (referenced from {srcRelKey=})")
             return
 
-        skel.refresh()
-        skel.write(update_relations=False)
+        _skel.refresh()
+        _skel.write(update_relations=False)
 
-    for srcRel in updateList:
+    for src_rel in update_list:
         try:
-            skel = skeletonByKind(srcRel["viur_src_kind"])()
+            skel = skeletonByKind(src_rel["viur_src_kind"])()
         except AssertionError:
-            logging.info(f"""Ignoring {srcRel.key!r} which refers to unknown kind {srcRel["viur_src_kind"]!r}""")
+            logging.info(f"""Ignoring {src_rel.key!r} which refers to unknown kind {src_rel["viur_src_kind"]!r}""")
             continue
         if db.IsInTransaction():
-            updateTxn(skel, srcRel["src"].key, srcRel.key)
+            __txn_update(skel, src_rel["src"].key, src_rel.key)
         else:
-            db.run_in_transaction(updateTxn, skel, srcRel["src"].key, srcRel.key)
-    nextCursor = updateListQuery.getCursor()
-    if len(updateList) == 5 and nextCursor:
-        updateRelations(destKey, minChangeTime, changedBone, nextCursor)
+            db.run_in_transaction(__txn_update, skel, src_rel["src"].key, src_rel.key)
+    next_cursor = update_list_query.getCursor()
+    if len(update_list) == 5 and next_cursor:
+        updateRelations(dest_key, min_change_time, changed_bones, next_cursor)
 
 
 @CallableTask
