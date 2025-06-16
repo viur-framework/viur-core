@@ -23,10 +23,9 @@ from google.appengine.api import blobstore, images
 from google.cloud import storage
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
-from viur.core import conf, current, db, errors, utils
+from viur.core import conf, current, db, errors, utils, i18n
 from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
 from viur.core.decorators import *
-from viur.core.i18n import LanguageWrapper
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import SkeletonInstance, skeletonByKind
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
@@ -303,6 +302,22 @@ class FileLeafSkel(TreeSkel):
     """
     kindName = "file"
 
+    name = StringBone(
+        descr="Filename",
+        caseSensitive=False,
+        searchable=True,
+        vfunc=lambda val: None if File.is_valid_filename(val) else "Invalid filename provided",
+    )
+
+    alt = StringBone(
+        descr=i18n.translate(
+            "viur.core.image.alt",
+            defaultText="Alternative description",
+        ),
+        searchable=True,
+        languages=conf.i18n.available_languages,
+    )
+
     size = StringBone(
         descr="Size",
         readOnly=True,
@@ -312,13 +327,6 @@ class FileLeafSkel(TreeSkel):
     dlkey = StringBone(
         descr="Download-Key",
         readOnly=True,
-    )
-
-    name = StringBone(
-        descr="Filename",
-        caseSensitive=False,
-        searchable=True,
-        vfunc=lambda val: None if conf.main_app.file.is_valid_filename(val) else "Invalid filename provided",
     )
 
     mimetype = StringBone(
@@ -713,7 +721,7 @@ class File(Tree):
         if not file:
             return ""
 
-        if isinstance(file, LanguageWrapper):
+        if isinstance(file, i18n.LanguageWrapper):
             language = language or current.language.get()
             if not language or not (file := cls.get(language)):
                 return ""
