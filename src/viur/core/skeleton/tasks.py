@@ -1,8 +1,7 @@
 import logging
 import typing as t
 
-import utils
-from viur.core import conf, current, db, email, translate
+from viur.core import conf, current, db, email, translate, utils
 from .utils import skeletonByKind, listKnownSkeletons
 from .meta import BaseSkeleton
 
