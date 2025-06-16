@@ -2,6 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.19]
+
+- feat: Pass `create` param in `Singleton.getContents()` to `Skeleton.read()` (#1493)
+- fix: Make `TreeSkel.is_root_node` generally available (#1488)
+- fix: Add check to allow override the core modules (#1477)
+
 ## [3.7.18]
 
 - fix: Improve auth_userpassword login failure detection (#1480)
