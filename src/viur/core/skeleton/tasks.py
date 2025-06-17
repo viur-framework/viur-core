@@ -125,9 +125,8 @@ def updateRelations(
             __txn_update(skel, src_rel["src"].key, src_rel.key)
         else:
             db.run_in_transaction(__txn_update, skel, src_rel["src"].key, src_rel.key)
-    nextCursor = update_list_query.getCursor()
-    if len(update_list) == 5 and nextCursor:
-        updateRelations(dest_key, min_change_time, changed_bones, nextCursor)
+    if len(update_list) == 5 and (next_cursor := update_list_query.getCursor()):
+        updateRelations(dest_key, min_change_time, changed_bones, next_cursor)
 
 
 @CallableTask
