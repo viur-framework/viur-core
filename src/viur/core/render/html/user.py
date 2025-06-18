@@ -32,11 +32,6 @@ class Render(DefaultRender):  # Render user-data to xml
         return self.add(skel, tpl=tpl, loginFailed=kwargs.get("loginFailed", False),
                         accountStatus=kwargs.get("accountStatus"))
 
-    def loginChoices(self, authMethods, tpl: str | None = None, **kwargs):
-        tpl = self._choose_template(tpl, "loginChoicesTemplate")
-        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-        return template.render(authMethods=authMethods, **kwargs)
-
     def loginSucceeded(self, tpl: str | None = None, **kwargs):
         tpl = self._choose_template(tpl, "loginSuccessTemplate")
         template = self.getEnv().get_template(self.getTemplateFileName(tpl))
@@ -77,10 +72,3 @@ class Render(DefaultRender):  # Render user-data to xml
         tpl = self._choose_template(tpl, "second_factor_add_success_template")
         template = self.getEnv().get_template(self.getTemplateFileName(tpl))
         return template.render(action_name=action_name, name=name)
-
-    def second_factor_choice(self,
-                             second_factors: t.Iterable[UserSecondFactorAuthentication],
-                             tpl: str | None = None):
-        tpl = self._choose_template(tpl, "second_factor_choice_template")
-        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-        return template.render(second_factors=second_factors)
