@@ -11,9 +11,6 @@ class UserRender(DefaultRender):  # Render user-data to json
             return json.dumps("FAILURE")
         return self.edit(skel, **kwargs)
 
-    def loginChoices(self, authMethods, **kwargs):
-        return json.dumps(list(set([x[0] for x in authMethods])), cls=CustomJsonEncoder)
-
     def loginSucceeded(self, msg="OKAY", **kwargs):
         return json.dumps(msg)
 

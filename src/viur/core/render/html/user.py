@@ -32,11 +32,6 @@ class Render(DefaultRender):  # Render user-data to xml
         return self.add(skel, tpl=tpl, loginFailed=kwargs.get("loginFailed", False),
                         accountStatus=kwargs.get("accountStatus"))
 
-    def loginChoices(self, authMethods, tpl: str | None = None, **kwargs):
-        tpl = self._choose_template(tpl, "loginChoicesTemplate")
-        template = self.getEnv().get_template(self.getTemplateFileName(tpl))
-        return template.render(authMethods=authMethods, **kwargs)
-
     def loginSucceeded(self, tpl: str | None = None, **kwargs):
         tpl = self._choose_template(tpl, "loginSuccessTemplate")
         template = self.getEnv().get_template(self.getTemplateFileName(tpl))
