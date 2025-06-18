@@ -114,13 +114,13 @@ def ensure_iterable(
     if allow_callable and callable(obj):
         obj = obj()
 
-    if isinstance(obj, Iterable):  # uses collections.abc.Iterable
+    if not isinstance(obj, str) and isinstance(obj, Iterable):  # uses collections.abc.Iterable
         if test is None or test(obj):
             return obj  # return the obj, which is an iterable
 
         return ()  # empty tuple
 
-    elif obj is None:
+    elif obj is None or (isinstance(obj, str) and not obj):
         return ()  # empty tuple
 
     return obj,  # return a tuple with the obj
