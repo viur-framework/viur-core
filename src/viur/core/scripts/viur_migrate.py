@@ -108,7 +108,6 @@ for old_key, new_attr in {
     "viur.bone.boolean.str2true": "bone_boolean_str2true",
     "viur.cacheEnvironmentKey": "cache_environment_key",
     "viur.compatibility": "compatibility",
-    "viur.db.engine": "db_engine",
     "viur.debug.skeleton.fromClient": "debug.skeleton.fromClient",
     "viur.debug.trace": "debug.trace",
     "viur.debug.traceExceptions": "debug.trace_exceptions",
