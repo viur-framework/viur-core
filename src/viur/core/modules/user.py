@@ -1625,7 +1625,7 @@ class User(List):
         # FIXME: This is almost the same code as in index()...
         # FIXME: VIUR4: The entire function should be removed!
         # TODO: Align result with index(), so that primary and secondary login is presented.
-        # logging.warning("DEPRECATED!!! Use of 'User.getAuthMethods' is deprecated! Use 'User.login'-method instead!")
+        logging.warning("DEPRECATED!!! Use of 'User.getAuthMethods' is deprecated! Use 'User.login'-method instead!")
 
         res = [
             (primary.METHOD_NAME, secondary.METHOD_NAME if secondary else None)
