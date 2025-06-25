@@ -1,11 +1,13 @@
+import datetime
 import logging
 import typing as t
+import urllib.parse
 import warnings
-import datetime
 from collections.abc import Iterable
-from . import string, parse, json  # noqa: used by external imports
+
 from viur.core import current, db
 from viur.core.config import conf
+from . import json, parse, string  # noqa: used by external imports
 
 
 def utcNow() -> datetime.datetime:
@@ -128,6 +130,48 @@ def ensure_iterable(
         return ()  # empty tuple
 
     return obj,  # return a tuple with the obj
+
+
+def build_content_disposition_header(
+    filename: str,
+    *,
+    attachment: bool = False,
+    inline: bool = False,
+) -> str:
+    """
+    Build a Content-Disposition header with UTF-8 support and ASCII fallback.
+
+    Generates a properly formatted `Content-Disposition` header value, including
+    both a fallback ASCII filename and a UTF-8 encoded filename using RFC 5987.
+
+    Set either `attachment` or `inline` to control content disposition type.
+    If both are False, the header will omit disposition type (not recommended).
+
+    Example:
+        filename = "Änderung.pdf" ➜
+        'attachment; filename="Anderung.pdf"; filename*=UTF-8\'\'%C3%84nderung.pdf'
+
+    :param filename: The desired filename for the content.
+    :param attachment: Whether to mark the content as an attachment.
+    :param inline: Whether to mark the content as inline.
+    :return: A `Content-Disposition` header string.
+    """
+    if attachment and inline:
+        raise ValueError("Only one of 'attachment' or 'inline' may be True.")
+
+    fallback = string.normalize_ascii(filename)
+    quoted_utf8 = urllib.parse.quote(filename.encode("utf-8"))
+
+    content_disposition = "; ".join(
+        item for item in (
+            "attachment" if attachment else None,
+            "inline" if inline else None,
+            f'filename="{fallback}"' if filename else None,
+            f'filename*=UTF-8\'\'{quoted_utf8}' if filename else None,
+        ) if item
+    )
+
+    return content_disposition
 
 
 # DEPRECATED ATTRIBUTES HANDLING

@@ -4,6 +4,7 @@ ViUR utility functions regarding string processing.
 import re
 import secrets
 import string
+import unicodedata
 import warnings
 
 
@@ -83,6 +84,28 @@ def unescape(val: str) -> str:
         return __STRING_UNESCAPE_MAPPING.get(find) or re_match.group(0)
 
     return re.sub(r"&(\w{2,4}|#0*(\d{2}));", __escape_replace, str(val).strip())
+
+
+def normalize_ascii(text: str) -> str:
+    """
+    Normalize a Unicode string to an ASCII-only version.
+
+    This function uses NFKD normalization to decompose accented and special characters,
+    then encodes the result to ASCII, ignoring any characters that can't be represented.
+
+    For example:
+        "Änderung" -> "Anderung"
+        "Café" -> "Cafe"
+
+    :param text: The input Unicode string to normalize.
+    :return: A normalized ASCII-only version of the input string.
+    """
+    return (
+        unicodedata
+        .normalize("NFKD", text)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+    )
 
 
 def is_prefix(name: str, prefix: str, delimiter: str = ".") -> bool:
