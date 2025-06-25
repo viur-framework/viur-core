@@ -10,13 +10,25 @@ from deprecated.sphinx import deprecated
 from viur.core import conf, db, errors, utils
 
 from .meta import BaseSkeleton, MetaSkel, _UNDEFINED_KINDNAME
-from .tasks import updateRelations
-from ..bones.base import Compute, ComputeInterval, ComputeMethod,  ReadFromClientException
+from .tasks import updateRelations, processRemovedRelations
+from .utils import skeletonByKind
+from ..bones.base import (
+    Compute,
+    ComputeInterval,
+    ComputeMethod,
+    ReadFromClientException,
+    ReadFromClientError,
+    ReadFromClientErrorSeverity
+)
 from ..bones.relational import RelationalConsistency
 from ..bones.key import KeyBone
 from ..bones.date import DateBone
 from ..bones.string import StringBone
 
+if t.TYPE_CHECKING:
+    from .instance import SkeletonInstance
+    from .adapter import DatabaseAdapter
+    from .meta import KeyType
 
 class SeoKeyBone(StringBone):
     """
