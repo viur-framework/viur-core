@@ -160,7 +160,7 @@ def build_content_disposition_header(
         raise ValueError("Only one of 'attachment' or 'inline' may be True.")
 
     fallback = string.normalize_ascii(filename)
-    quoted_utf8 = urllib.parse.quote(filename.encode("utf-8"))
+    quoted_utf8 = urllib.parse.quote_from_bytes(filename.encode("utf-8"))
 
     content_disposition = "; ".join(
         item for item in (
