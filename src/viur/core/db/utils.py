@@ -88,7 +88,6 @@ def key_helper(
             decoded_key = None
 
         # If it did decode, recall keyHelper with Key object
-        print(f"decoded key: {decoded_key!r}")
         if decoded_key:
             return key_helper(
                 decoded_key,
