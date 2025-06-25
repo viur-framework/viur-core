@@ -8,6 +8,7 @@ import warnings
 from functools import partial
 from ..bones.base import BaseBone
 from .skeleton import Skeleton
+from viur.core import db
 
 
 class SkeletonInstance:
