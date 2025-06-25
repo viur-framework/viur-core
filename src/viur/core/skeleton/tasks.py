@@ -188,7 +188,7 @@ class SkelIterTask(tasks.QueryIter):
         txt = (
             f"{conf.instance.project_id}: {data['action']!s} finished for {data['kind']!r}: "
             f"{data['count']} of {data['total']}\n"
-            f"ViUR {data["action"]!s}ed {data['count']} skeletons with condition <code>{data['condition']}</code> on a "
+            f"ViUR {data['action']!s}ed {data['count']} skeletons with condition <code>{data['condition']}</code> on a "
             f"total of {data['total']} ({data["error"]} errored) of kind {data['kind']}.\n"
         )
 
