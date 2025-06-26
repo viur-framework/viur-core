@@ -2,6 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.20]
+
+- fix: Ensure redirect's location header is always utf-8 encoded/quoted (#1504)
+- fix: Implement UTF-8 encoding for Content-Disposition header (#1503)
+- fix: `translate.dump` does not yield anything if there's no pattern filter given (#1460)
+
 ## [3.7.19]
 
 - feat: Pass `create` param in `Singleton.getContents()` to `Skeleton.read()` (#1493)
