@@ -14,11 +14,11 @@ import re
 import time
 import traceback
 import typing as t
+import unicodedata
 from abc import ABC, abstractmethod
 from urllib import parse
-from urllib.parse import unquote, urljoin, urlparse
+from urllib.parse import quote, unquote, urljoin, urlparse
 
-import unicodedata
 import webob
 
 from viur.core import current, db, errors, session, utils
@@ -355,6 +355,9 @@ class Router:
                 raise
             self.response.status = f"{e.status} {e.name}"
             url = e.url
+            url = unquote(url)  # decode first
+            # safe = https://url.spec.whatwg.org/#url-path-segment-string
+            url = quote(url, encoding="utf-8", safe="!$&'()*+,-./:;=?@_~")  # re-encode all in utf-8
             if url.startswith(('.', '/')):
                 url = str(urljoin(self.request.url, url))
             self.response.headers['Location'] = url
