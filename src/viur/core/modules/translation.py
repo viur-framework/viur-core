@@ -255,14 +255,17 @@ class Translation(List):
     def dump(
         self,
         *,
-        pattern: list[str] = [],
-        language: list[str] = [],
-    ) -> dict[str, str] | dict[str, dict[str, str]]:
+        pattern: list[str] | None = None,
+        language: list[str] | None = None,
+    ) -> dict[str, dict[str, str]]:
         """
         Dumps translations as JSON.
 
-        :param pattern: Required, provide fnmatch-style tramslaton key filter patterns of the translations wanted.
+        :param pattern: Optional, provide fnmatch-style translation key filter patterns of the translations wanted.
         :param language: Allows to request a specific language.
+            By default, the language of the current request is used.
+
+        :return: A dictionary with translations as JSON. Structure: ``{language: {key: value, ...}, ...}``
 
         Example calls:
 
@@ -275,11 +278,6 @@ class Translation(List):
             raise errors.BadRequest("Can only use this function on JSON-based renders")
 
         current.request.get().response.headers["Content-Type"] = "application/json"
-
-        # The pattern may not be a matcher for all!
-        for pat in pattern:
-            if not pat.strip("*?."):
-                raise errors.BadRequest("Pattern is too generic.")
 
         if (
             not (conf.debug.disable_cache and current.request.get().disableCache)
@@ -294,12 +292,12 @@ class Translation(List):
         else:
             language = [current.language.get()]
 
-        return json.dumps({
+        return json.dumps({  # type: ignore
             lang: {
                 name: str(translate(name, force_lang=lang))
                 for name, values in systemTranslations.items()
                 if (conf.i18n.dump_can_view(name) or values.get("_public_"))
-                and any(fnmatch.fnmatch(name, pat) for pat in pattern)
+                and (not pattern or any(fnmatch.fnmatch(name, pat) for pat in pattern))
             }
             for lang in language
         })
