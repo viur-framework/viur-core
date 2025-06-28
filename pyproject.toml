@@ -22,6 +22,7 @@ dependencies = [
     "gunicorn~=23.0",
     "jinja2~=3.0",
     "jsonschema~=4.0",
+    "logics-py==0.0.12",
     "pillow~=10.0",
     "pyotp~=2.0",
     "pytz~=2023.0",
