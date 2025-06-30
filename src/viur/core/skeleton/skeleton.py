@@ -590,8 +590,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         if update_relations and not is_add:
             if change_list and len(change_list) < 5:  # Only a few bones have changed, process these individually
-                for idx, changed_bone in enumerate(change_list):
-                    updateRelations(key, time.time() + 1, changed_bone, _countdown=10 * idx)
+                updateRelations(key, time.time() + 1, change_list, _countdown=10)
+
             else:  # Update all inbound relations, regardless of which bones they mirror
                 updateRelations(key, time.time() + 1, None)
 
