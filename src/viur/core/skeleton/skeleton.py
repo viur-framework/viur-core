@@ -266,7 +266,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         assert skel.renderPreparation is None, "Cannot modify values while rendering"
 
         try:
-            db_key = db.keyHelper(key or skel["key"], skel.kindName)
+            db_key = db.key_helper(key or skel["key"], skel.kindName)
         except (ValueError, NotImplementedError):  # This key did not parse
             return None
 
@@ -347,11 +347,11 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             # Load the current values from Datastore or create a new, empty db.Entity
             if not db_key:
                 # We'll generate the key we'll be stored under early so we can use it for locks etc
-                db_key = db.AllocateIDs(db.Key(skel.kindName))
+                db_key = db.allocate_ids(skel.kindName)[0]
                 skel.dbEntity = db.Entity(db_key)
                 is_add = True
             else:
-                db_key = db.keyHelper(db_key, skel.kindName)
+                db_key = db.key_helper(db_key, skel.kindName)
                 if db_obj := db.get(db_key):
                     skel.dbEntity = db_obj
                     old_copy = {k: v for k, v in skel.dbEntity.items()}
@@ -575,13 +575,13 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         # Parse provided key, if any, and set it to skel["key"]
         if key:
-            skel["key"] = db.keyHelper(key, skel.kindName)
+            skel["key"] = db.key_helper(key, skel.kindName)
 
         # Run transactional function
-        if db.IsInTransaction():
+        if db.is_in_transaction():
             key, skel, change_list, is_add = __txn_write(skel)
         else:
-            key, skel, change_list, is_add = db.RunInTransaction(__txn_write, skel)
+            key, skel, change_list, is_add = db.run_in_transaction(__txn_write, skel)
 
         for bone_name, bone in skel.items():
             bone.postSavedHandler(skel, bone_name, key)
@@ -666,17 +666,17 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             processRemovedRelations(key)
 
         if key := (key or skel["key"]):
-            key = db.keyHelper(key, skel.kindName)
+            key = db.key_helper(key, skel.kindName)
         else:
             raise ValueError("This skeleton has no key!")
 
         # Full skeleton is required to have all bones!
         skel = skeletonByKind(skel.kindName)()
 
-        if db.IsInTransaction():
+        if db.is_in_transaction():
             __txn_delete(skel, key)
         else:
-            db.RunInTransaction(__txn_delete, skel, key)
+            db.run_in_transaction(__txn_delete, skel, key)
 
         for boneName, bone in skel.items():
             bone.postDeletedHandler(skel, boneName, key)
@@ -743,7 +743,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     return ValueError("No valid key provided")
 
                 if key or skel["key"]:
-                    skel["key"] = db.keyHelper(key or skel["key"], skel.kindName)
+                    skel["key"] = db.key_helper(key or skel["key"], skel.kindName)
 
                 if isinstance(create, dict):
                     if create and not skel.fromClient(create, amend=True, ignore=ignore):
@@ -784,11 +784,11 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             return skel.write(update_relations=update_relations)
 
-        if not db.IsInTransaction:
+        if not db.is_in_transaction():
             # Retry loop
             while True:
                 try:
-                    return db.RunInTransaction(__update_txn)
+                    return db.run_in_transaction(__update_txn)
 
                 except db.ViurDatastoreError as e:
                     retry -= 1
