@@ -35,7 +35,8 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refreshKey: 
     the updated results are written back to the database and the updateRelations function is called
     to ensure proper relations are maintained.
     """
-    from viur.core.skeleton import skeletonByKind, updateRelations
+    from viur.core.skeleton.utils import skeletonByKind
+    from viur.core.skeleton.tasks import updateRelations
     deriveFuncMap = conf.file_derivations
     skel = skeletonByKind("file")()
     if not skel.read(key):
@@ -226,8 +227,12 @@ class FileBone(TreeLeafBone):
         the derived files directly.
         """
         super().postSavedHandler(skel, boneName, key)
-        if current.request.get().is_deferred and current.request_data.get().get("__update_relations_bone") == "derived":
+        if (
+            current.request.get().is_deferred
+            and "derived" in (current.request_data.get().get("__update_relations_bones") or ())
+        ):
             return
+
         from viur.core.skeleton import RelSkel, Skeleton
 
         if issubclass(skel.skeletonCls, Skeleton):

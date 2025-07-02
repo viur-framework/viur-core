@@ -10,6 +10,7 @@ dependencies = [
     "Deprecated~=1.2",
     "google-api-core[grpc]~=2.0",
     "google-auth~=2.0",
+    "google-cloud-bigquery~=3.0",
     "google-cloud-datastore~=2.0",
     "google-cloud-iam~=2.0",
     "google-cloud-logging~=3.0",

@@ -577,6 +577,15 @@ class Email(ConfigType):
     }
 
 
+class History(ConfigType):
+    databases: Multiple[str] = ["viur"]
+    """All history related settings."""
+    excluded_actions: Multiple[str] = []
+    """List of all action that are should not be logged."""
+    excluded_kinds: Multiple[str] = []
+    """List of all kinds that should be logged."""
+
+
 class I18N(ConfigType):
     """All i18n, multilang related settings."""
 
@@ -910,6 +919,7 @@ class Conf(ConfigType):
     skeleton_search_path: Multiple[str] = [
         "/skeletons/",  # skeletons of the project
         "/viur/core/",  # system-defined skeletons of viur-core
+        "/viur/src/viur/core/",  # fixme: test suite
         "/viur-core/core/"  # system-defined skeletons of viur-core, only used by editable installation
     ]
     """Priority, in which skeletons are loaded"""
@@ -984,6 +994,7 @@ class Conf(ConfigType):
         self.i18n = I18N(parent=self)
         self.user = User(parent=self)
         self.instance = Instance(parent=self)
+        self.history = History(parent=self)
 
     _mapping = {
         # debug

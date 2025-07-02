@@ -2,6 +2,23 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.20]
+
+- fix: Ensure redirect's location header is always utf-8 encoded/quoted (#1504)
+- fix: Implement UTF-8 encoding for Content-Disposition header (#1503)
+- fix: `translate.dump` does not yield anything if there's no pattern filter given (#1460)
+
+## [3.7.19]
+
+- feat: Pass `create` param in `Singleton.getContents()` to `Skeleton.read()` (#1493)
+- fix: Make `TreeSkel.is_root_node` generally available (#1488)
+- fix: Add check to allow override the core modules (#1477)
+
+## [3.7.18]
+
+- fix: Improve auth_userpassword login failure detection (#1480)
+- fix: Avoid sending doubled Set-Cookie header (#1482)
+
 ## [3.7.17]
 
 - cicd: Deploy to PyPI only
