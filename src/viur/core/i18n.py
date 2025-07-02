@@ -501,7 +501,7 @@ def add_missing_translation(
     key = key.lower()
 
     # Check if key already exists
-    # if db.Get(db.Key(KINDNAME, key)):  # FIXME ViUR4 should only use named keys
+    # if db.get(db.Key(KINDNAME, key)):  # FIXME ViUR4 should only use named keys
     entity = db.Query(KINDNAME).filter("name =", key).getEntry()
     if entity is not None:
         # Ensure it doesn't exist to avoid datastore conflicts
@@ -547,7 +547,8 @@ def migrate_translation(
     """
     from viur.core.modules.translation import TranslationSkel
     logging.info(f"Migrate translation {key}")
-    entity: db.Entity = db.Get(key)
+
+    entity: db.Entity = db.get(key)
     if "name" not in entity:
         entity["name"] = entity["key"] or key.name
     if "translation" in entity:
@@ -563,7 +564,7 @@ def migrate_translation(
         logging.exception(exc)
         if "unique value" in exc.args[0] and "recently claimed" in exc.args[0]:
             logging.info(f"Delete duplicate entry {key}: {entity}")
-            db.Delete(key)
+            db.delete(key)
         else:
             raise exc
 

@@ -136,7 +136,7 @@ class RelationalBone(BaseBone):
             - RelationalConsistency.PreventDeletion
                 Will prevent deleting the referenced entity as long as it's selected in this bone (calling
                 skel.delete() on the referenced entity will raise errors.Locked). It's still (technically)
-                possible to remove the underlying datastore entity using db.Delete manually, but this *must not*
+                possible to remove the underlying datastore entity using db.delete manually, but this *must not*
                 be used on a skeleton object as it will leave a whole bunch of references in a stale state.
 
             - RelationalConsistency.SetNull
@@ -228,7 +228,7 @@ class RelationalBone(BaseBone):
                     :param RelationalConsistency.PreventDeletion:
                         Will prevent deleting the referenced entity as long as it's
                         selected in this bone (calling skel.delete() on the referenced entity will raise errors.Locked).
-                        It's still (technically) possible to remove the underlying datastore entity using db.Delete
+                        It's still (technically) possible to remove the underlying datastore entity using db.delete
                         manually, but this *must not* be used on a skeleton object as it will leave a whole bunch of
                         references in a stale state.
 
@@ -358,7 +358,7 @@ class RelationalBone(BaseBone):
                 for k, v in inDict["dest"].items():
                     res["dest"][k] = v
                 if "key" in res["dest"]:
-                    res["dest"].key = utils.normalizeKey(db.Key.from_legacy_urlsafe(res["dest"]["key"]))
+                    res["dest"].key = db.normalize_key(res["dest"]["key"])
             if "rel" in inDict and inDict["rel"]:
                 res["rel"] = db.Entity()
                 for k, v in inDict["rel"].items():
@@ -521,10 +521,10 @@ class RelationalBone(BaseBone):
         for dbObj in dbVals.iter():
             try:
                 if not dbObj["dest"].key in [x["dest"]["key"] for x in values]:  # Relation has been removed
-                    db.Delete(dbObj.key)
+                    db.delete(dbObj.key)
                     continue
             except:  # This entry is corrupt
-                db.Delete(dbObj.key)
+                db.delete(dbObj.key)
             else:  # Relation: Updated
                 data = [x for x in values if x["dest"]["key"] == dbObj["dest"].key][0]
                 # Write our (updated) values in
@@ -539,7 +539,7 @@ class RelationalBone(BaseBone):
                 dbObj["viur_relational_consistency"] = self.consistency.value
                 dbObj["viur_foreign_keys"] = list(self.refKeys)
                 dbObj["viurTags"] = srcEntity.get("viurTags")  # Copy tags over so we can still use our searchengine
-                db.Put(dbObj)
+                db.put(dbObj)
                 values.remove(data)
         # Add any new Relation
         for val in values:
@@ -557,7 +557,7 @@ class RelationalBone(BaseBone):
             dbObj["viur_relational_updateLevel"] = self.updateLevel.value
             dbObj["viur_relational_consistency"] = self.consistency.value
             dbObj["viur_foreign_keys"] = list(self._ref_keys)
-            db.Put(dbObj)
+            db.put(dbObj)
 
     def postDeletedHandler(self, skel: "SkeletonInstance", boneName: str, key: db.Key) -> None:
         """
@@ -575,7 +575,7 @@ class RelationalBone(BaseBone):
         query.filter("viur_dest_kind =", self.kind)
         query.filter("viur_src_property =", boneName)
         query.filter("src.__key__ =", key)
-        db.Delete([entity for entity in query.run()])
+        db.delete([entity for entity in query.run()])
 
     def isInvalid(self, key) -> None:
         """
@@ -612,8 +612,8 @@ class RelationalBone(BaseBone):
             dbKey = None
             errors = []
             try:
-                dbKey = db.keyHelper(key, self.kind)
-                entry = db.Get(dbKey)
+                dbKey = db.key_helper(key, self.kind)
+                entry = db.get(dbKey)
                 assert entry
             except:  # Invalid key or something like that
                 logging.info(f"Invalid reference key >{key}< detected on bone '{bone_name}'")
@@ -1091,7 +1091,7 @@ class RelationalBone(BaseBone):
         :return: A dictionary containing a reference skeleton and optional relation data.
         """
 
-        if not all(db_objs := db.Get([db.keyHelper(value[0], self.kind) for value in key_rel_list])):
+        if not all(db_objs := db.get([db.key_helper(value[0], self.kind) for value in key_rel_list])):
             return []  # return emtpy data when not all data is found
         res_rel_skels = []
         for (key, rel), db_obj in zip(key_rel_list, db_objs):
@@ -1136,11 +1136,11 @@ class RelationalBone(BaseBone):
 
         def tuple_check(in_value: tuple | None = None) -> bool:
             """
-            Return False if the given value is a tuple with a length of two.
+            Return True if the given value is a tuple with a length of two.
             In addition, the first field in the tuple must be a str,int or db.key.
             Furthermore, the second field must be a skeletonInstanceClassRef.
             """
-            return not (isinstance(in_value, tuple) and len(in_value) == 2
+            return (isinstance(in_value, tuple) and len(in_value) == 2
                         and isinstance(in_value[0], (str, int, db.Key))
                         and isinstance(in_value[1], self._skeletonInstanceClassRef))
 
@@ -1149,7 +1149,7 @@ class RelationalBone(BaseBone):
                 raise ValueError(f"You must supply exactly one Database-Key str or int to {boneName}")
             parsed_value = (value, None)
         elif not self.multiple and self.using:
-            if tuple_check(value):
+            if not tuple_check(value):
                 raise ValueError(f"You must supply a tuple of (Database-Key, relSkel) to {boneName}")
             parsed_value = value
         elif self.multiple and not self.using:
@@ -1161,7 +1161,7 @@ class RelationalBone(BaseBone):
             else:
                 parsed_value = [(value, None)]
         else:  # which means (self.multiple and self.using)
-            if tuple_check(value) and not (isinstance(value, list) and all(tuple_check(val) for val in value)):
+            if not tuple_check(value) and (not isinstance(value, list) or not all(tuple_check(val) for val in value)):
                 raise ValueError(f"You must supply (db.Key, RelSkel) or a list hereof to {boneName}")
             if isinstance(value, list):
                 parsed_value = value

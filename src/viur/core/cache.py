@@ -556,28 +556,29 @@ def flushCache(prefix: str = None, key: db.Key | None = None, kind:  str | None 
     if prefix is not None:
         items = db.Query(CACHE_KINDNAME).filter("path =", prefix.rstrip("*")).iter()
         for item in items:
-            db.Delete(item)
+            db.delete(item)
         if prefix.endswith("*"):
             items = db.Query(CACHE_KINDNAME) \
                 .filter("path >", prefix.rstrip("*")) \
                 .filter("path <", prefix.rstrip("*") + u"\ufffd") \
                 .iter()
             for item in items:
-                db.Delete(item)
+                db.delete(item)
         logging.debug(f"Flushing cache succeeded. Everything matching {prefix=} is gone.")
     if key is not None:
         items = db.Query(CACHE_KINDNAME).filter("accessedEntries =", key).iter()
         for item in items:
             logging.info(f"""Deleted cache entry {item["path"]!r}""")
-            db.Delete(item.key)
+            db.delete(item.key)
         if not isinstance(key, db.Key):
             key = db.Key.from_legacy_urlsafe(key)  # hopefully is a string
         items = db.Query(CACHE_KINDNAME).filter("accessedEntries =", key.kind).iter()
         for item in items:
             logging.info(f"""Deleted cache entry {item["path"]!r}""")
-            db.Delete(item.key)
+            db.delete(item.key)
     if kind is not None:
         items = db.Query(CACHE_KINDNAME).filter("accessedEntries =", kind).iter()
         for item in items:
             logging.info(f"""Deleted cache entry {item["path"]!r}""")
-            db.Delete(item.key)
+            db.delete(item.key)
+

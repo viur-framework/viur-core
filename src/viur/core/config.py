@@ -8,6 +8,7 @@ import warnings
 from pathlib import Path
 
 import google.auth
+from google.appengine.api.memcache import Client
 
 from viur.core.version import __version__
 from viur.core.current import user as current_user
@@ -19,7 +20,6 @@ if t.TYPE_CHECKING:  # pragma: no cover
     from viur.core.module import Module
     from viur.core.tasks import CustomEnvironmentHandler
     from viur.core import i18n
-
 
 # Construct an alias with a generic type to be able to write Multiple[str]
 # TODO: Backward compatible implementation, refactor when viur-core
@@ -510,6 +510,9 @@ class Debug(ConfigType):
     trace_internal_call_routing: bool = False
     """If enabled, ViUR will log which (internal-exposed) function are called from templates with what arguments"""
 
+    trace_queries: bool = False
+    """If enabled, ViUR will log each query that run"""
+
     skeleton_from_client: bool = False
     """If enabled, log errors raises from skeleton.fromClient()"""
 
@@ -574,6 +577,15 @@ class Email(ConfigType):
     }
 
 
+class History(ConfigType):
+    databases: Multiple[str] = ["viur"]
+    """All history related settings."""
+    excluded_actions: Multiple[str] = []
+    """List of all action that are should not be logged."""
+    excluded_kinds: Multiple[str] = []
+    """List of all kinds that should be logged."""
+
+
 class I18N(ConfigType):
     """All i18n, multilang related settings."""
 
@@ -623,7 +635,10 @@ class I18N(ConfigType):
     If a callable is provided, it will be called with the translation object to make a complex decision.
     """
 
-    dump_can_view: t.Callable[[str], bool] = lambda _key: bool(current_user.get())
+    def _dump_can_view(self, _key):
+        return bool(current_user.get())
+
+    dump_can_view: t.Callable[[t.Self, str], bool] = _dump_can_view
     """Customizable callback for translation.dump() to verify if a specific translation key can be queried.
 
     This logic is omitted for translations flagged public."""
@@ -671,7 +686,7 @@ class User(ConfigType):
     The preset roles are for guidiance, and already fit to most projects.
     """
 
-    session_life_time: int = 60 * 60
+    session_life_time: datetime.timedelta = datetime.timedelta(hours=1)
     """Default is 60 minutes lifetime for ViUR sessions"""
 
     session_persistent_fields_on_login: Multiple[str] = ["language"]
@@ -695,6 +710,17 @@ class User(ConfigType):
     belongs to one of the listed domains, a user account (UserSkel) is created.
     If the user's email address belongs to any other domain,
     no account is created."""
+
+    def __setattr__(self, name: str, value: t.Any) -> None:
+        if name == "session_life_time":
+            if not isinstance(value, datetime.timedelta):
+                from viur.core import utils
+                warnings.warn(
+                    "Please use timedelta to set session_life_time.",
+                    DeprecationWarning, stacklevel=2,
+                )
+                value = utils.parse.timedelta(value)
+        super().__setattr__(name, value)
 
 
 class Instance(ConfigType):
@@ -826,6 +852,12 @@ class Conf(ConfigType):
     db_engine: str = "viur.datastore"
     """Database engine module"""
 
+    db_memcache_client: Client | None = None
+    """If set, ViUR cache data for the db.get in the Memcache for faster access."""
+
+    db_create_access_log: bool = True
+    """If False no access log will be created. But then the caching is disabled too."""
+
     error_handler: t.Callable[[Exception], str] | None = None
     """If set, ViUR calls this function instead of rendering the viur.errorTemplate if an exception occurs"""
 
@@ -887,6 +919,7 @@ class Conf(ConfigType):
     skeleton_search_path: Multiple[str] = [
         "/skeletons/",  # skeletons of the project
         "/viur/core/",  # system-defined skeletons of viur-core
+        "/viur/src/viur/core/",  # fixme: test suite
         "/viur-core/core/"  # system-defined skeletons of viur-core, only used by editable installation
     ]
     """Priority, in which skeletons are loaded"""
@@ -961,6 +994,7 @@ class Conf(ConfigType):
         self.i18n = I18N(parent=self)
         self.user = User(parent=self)
         self.instance = Instance(parent=self)
+        self.history = History(parent=self)
 
     _mapping = {
         # debug
