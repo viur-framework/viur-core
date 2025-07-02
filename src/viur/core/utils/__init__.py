@@ -129,7 +129,6 @@ def ensure_iterable(
     return obj,  # return a tuple with the obj
 
 
-
 def freeze_dict(value: dict[str, t.Any]) -> list:
     """Sort a dict recursively by keys and return as list"""
     return sorted(
