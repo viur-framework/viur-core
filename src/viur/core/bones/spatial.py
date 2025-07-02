@@ -387,8 +387,9 @@ class SpatialBone(BaseBone):
         """
         if append:
             raise ValueError(f"append is not possible on {self.type} bones")
-        assert isinstance(value, tuple) and len(value) == 2, "Value must be a tuple of (lat, lng)"
-        skel[boneName] = value
+        if not isinstance(value, (tuple, list)) and len(value) == 2:
+            raise ValueError("Value must be a tuple or a list of (lat, lng)")
+        skel[boneName] = tuple(value)
 
     def structure(self) -> dict:
         return super().structure() | {

@@ -1,11 +1,14 @@
+import datetime
 import logging
 import typing as t
+import urllib.parse
 import warnings
-import datetime
 from collections.abc import Iterable
-from . import string, parse, json  # noqa: used by external imports
+
 from viur.core import current, db
 from viur.core.config import conf
+from deprecated.sphinx import deprecated
+from . import json, parse, string  # noqa: used by external imports
 
 
 def utcNow() -> datetime.datetime:
@@ -85,7 +88,8 @@ def seoUrlToFunction(module: str, function: str, render: t.Optional[str] = None)
     return "/".join(pathComponents)
 
 
-def normalizeKey(key: t.Union[None, 'db.KeyClass']) -> t.Union[None, 'db.KeyClass']:
+@deprecated(version="3.8.0", reason="Use 'db.normalize_key' instead")
+def normalizeKey(key: t.Union[None, db.Key]) -> t.Union[None, db.Key]:
     """
         Normalizes a datastore key (replacing _application with the current one)
 
@@ -93,13 +97,7 @@ def normalizeKey(key: t.Union[None, 'db.KeyClass']) -> t.Union[None, 'db.KeyClas
 
         :return: Normalized key in string representation.
     """
-    if key is None:
-        return None
-    if key.parent:
-        parent = normalizeKey(key.parent)
-    else:
-        parent = None
-    return db.Key(key.kind, key.id_or_name, parent=parent)
+    db.normalize_key(key)
 
 
 def ensure_iterable(
@@ -118,16 +116,58 @@ def ensure_iterable(
     if allow_callable and callable(obj):
         obj = obj()
 
-    if isinstance(obj, Iterable):  # uses collections.abc.Iterable
+    if not isinstance(obj, str) and isinstance(obj, Iterable):  # uses collections.abc.Iterable
         if test is None or test(obj):
             return obj  # return the obj, which is an iterable
 
         return ()  # empty tuple
 
-    elif obj is None:
+    elif obj is None or (isinstance(obj, str) and not obj):
         return ()  # empty tuple
 
     return obj,  # return a tuple with the obj
+
+
+def build_content_disposition_header(
+    filename: str,
+    *,
+    attachment: bool = False,
+    inline: bool = False,
+) -> str:
+    """
+    Build a Content-Disposition header with UTF-8 support and ASCII fallback.
+
+    Generates a properly formatted `Content-Disposition` header value, including
+    both a fallback ASCII filename and a UTF-8 encoded filename using RFC 5987.
+
+    Set either `attachment` or `inline` to control content disposition type.
+    If both are False, the header will omit disposition type (not recommended).
+
+    Example:
+        filename = "Änderung.pdf" ➜
+        'attachment; filename="Anderung.pdf"; filename*=UTF-8\'\'%C3%84nderung.pdf'
+
+    :param filename: The desired filename for the content.
+    :param attachment: Whether to mark the content as an attachment.
+    :param inline: Whether to mark the content as inline.
+    :return: A `Content-Disposition` header string.
+    """
+    if attachment and inline:
+        raise ValueError("Only one of 'attachment' or 'inline' may be True.")
+
+    fallback = string.normalize_ascii(filename)
+    quoted_utf8 = urllib.parse.quote_from_bytes(filename.encode("utf-8"))
+
+    content_disposition = "; ".join(
+        item for item in (
+            "attachment" if attachment else None,
+            "inline" if inline else None,
+            f'filename="{fallback}"' if filename else None,
+            f'filename*=UTF-8\'\'{quoted_utf8}' if filename else None,
+        ) if item
+    )
+
+    return content_disposition
 
 
 # DEPRECATED ATTRIBUTES HANDLING
@@ -143,13 +183,13 @@ __UTILS_NAME_REPLACEMENT = {
     "currentRequest": ("current.request", current.request),
     "currentRequestData": ("current.request_data", current.request_data),
     "currentSession": ("current.session", current.session),
-    "downloadUrlFor": ("modules.file.File.create_download_url", "viur.core.modules.file.File.create_download_url"),
+    "downloadUrlFor": ("conf.main_app.file.create_download_url", lambda: conf.main_app.file.create_download_url),
     "escapeString": ("utils.string.escape", string.escape),
     "generateRandomString": ("utils.string.random", string.random),
     "getCurrentUser": ("current.user.get", current.user.get),
     "is_prefix": ("utils.string.is_prefix", string.is_prefix),
     "parse_bool": ("utils.parse.bool", parse.bool),
-    "srcSetFor": ("modules.file.File.create_src_set", "viur.core.modules.file.File.create_src_set"),
+    "srcSetFor": ("conf.main_app.file.create_src_set", lambda: conf.main_app.file.create_src_set),
 }
 
 
@@ -164,16 +204,9 @@ def __getattr__(attr):
         msg = f"Use of `utils.{attr}` is deprecated; Use `{replace[0]}` instead!"
         warnings.warn(msg, DeprecationWarning, stacklevel=3)
         logging.warning(msg, stacklevel=3)
-
-        ret = replace[1]
-
-        # When this is a string, try to resolve by dynamic import
-        if isinstance(ret, str):
-            mod, item, attr = ret.rsplit(".", 2)
-            mod = __import__(mod, fromlist=(item,))
-            item = getattr(mod, item)
-            ret = getattr(item, attr)
-
-        return ret
+        res = replace[1]
+        if isinstance(res, t.Callable):
+            res = res()
+        return res
 
     return super(__import__(__name__).__class__).__getattribute__(attr)

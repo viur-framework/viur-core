@@ -2,6 +2,9 @@
 
 set -ex
 
+# Ensure we're in the *tests* dir
+cd "$(dirname "$0")"
+
 # clean up
 coverage erase
 rm -rf htmlcov

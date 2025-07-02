@@ -14,11 +14,11 @@ import re
 import time
 import traceback
 import typing as t
+import unicodedata
 from abc import ABC, abstractmethod
 from urllib import parse
-from urllib.parse import unquote, urljoin, urlparse
+from urllib.parse import quote, unquote, urljoin, urlparse
 
-import unicodedata
 import webob
 
 from viur.core import current, db, errors, session, utils
@@ -66,17 +66,30 @@ class FetchMetaDataValidator(RequestValidator):
 
     @staticmethod
     def validate(request: 'BrowseHandler') -> t.Optional[tuple[int, str, str]]:
+        """
+            This validator examines the headers "sec-fetch-site",
+            "sec-fetch-mode" and "sec-fetch-dest" as recommended
+            by https://web.dev/fetch-metadata/
+        """
         headers = request.request.headers
-        if not headers.get("sec-fetch-site"):  # These headers are not send by all browsers
-            return None
-        if headers.get('sec-fetch-site') in {"same-origin", "none"}:  # A Request from our site
-            return None
-        if os.environ['GAE_ENV'] == "localdev" and headers.get('sec-fetch-site') == "same-site":
-            # We are accepting a request with same-site only in local dev mode
-            return None
-        if headers.get('sec-fetch-mode') == 'navigate' and not request.isPostRequest \
-            and headers.get('sec-fetch-dest') not in {'object', 'embed'}:  # Incoming navigation GET request
-            return None
+
+        match headers.get("sec-fetch-site"):
+            case None | "same-origin" | "none":
+                # A Request from our site, or browser didn't send "sec-fetch-site"
+                return None
+            case "same-site":
+                # We are accepting a request with same-site only in local dev mode
+                if conf.instance.is_dev_server:
+                    return None
+            case _:
+                # Incoming navigation GET request
+                if (
+                    not request.isPostRequest
+                    and headers.get("sec-fetch-mode") == "navigate"
+                    and headers.get('sec-fetch-dest') not in ("object", "embed")
+                ):
+                    return None
+
         return 403, "Forbidden", "Request rejected due to fetch metadata"
 
 
@@ -133,7 +146,7 @@ class Router:
         self.isPostRequest = self.method == "post"
         self.isSSLConnection = self.request.host_url.lower().startswith("https://")  # We have an encrypted channel
 
-        db.currentDbAccessLog.set(set())
+        db.current_db_access_log.set(set())
 
         # Set context variables
         current.language.set(conf.i18n.default_language)
@@ -259,7 +272,6 @@ class Router:
             elif os.getenv("TASKS_EMULATOR") is not None:
                 self.is_deferred = True
 
-        current.language.set(conf.i18n.default_language)
         # Check if we should process or abort the request
         for validator, reqValidatorResult in [(x, x.validate(self)) for x in self.requestValidators]:
             if reqValidatorResult is not None:
@@ -339,7 +351,7 @@ class Router:
             path = self._select_language(path)[1:]
 
             # Check for closed system
-            if conf.security.closed_system:
+            if conf.security.closed_system and self.method != "options":
                 if not current.user.get():
                     if not any(fnmatch.fnmatch(path, pat) for pat in conf.security.closed_system_allowed_paths):
                         raise errors.Unauthorized()
@@ -355,6 +367,9 @@ class Router:
                 raise
             self.response.status = f"{e.status} {e.name}"
             url = e.url
+            url = unquote(url)  # decode first
+            # safe = https://url.spec.whatwg.org/#url-path-segment-string
+            url = quote(url, encoding="utf-8", safe="!$&'()*+,-./:;=?@_~")  # re-encode all in utf-8
             if url.startswith(('.', '/')):
                 url = str(urljoin(self.request.url, url))
             self.response.headers['Location'] = url
@@ -415,9 +430,18 @@ class Router:
                     if filename := conf.main_app.render.getTemplateFileName((f"{error_info['status']}", "error"),
                                                                             raise_exception=False):
                         template = conf.main_app.render.getEnv().get_template(filename)
-                        nonce = utils.string.random(16)
+                        try:
+                            uses_unsafe_inline = \
+                                "unsafe-inline" in conf.security.content_security_policy["enforce"]["style-src"]
+                        except (KeyError, TypeError):  # Not set
+                            uses_unsafe_inline = False
+                        if uses_unsafe_inline:
+                            logging.info("Using style-src:unsafe-inline, don't create a nonce")
+                            nonce = None
+                        else:
+                            nonce = utils.string.random(16)
+                            extendCsp({"style-src": [f"nonce-{nonce}"]})
                         res = template.render(error_info, nonce=nonce)
-                        extendCsp({"style-src": [f"nonce-{nonce}"]})
                     else:
                         res = (f'<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'
                                f'<title>{error_info["status"]} - {error_info["reason"]}</title>'
@@ -612,6 +636,13 @@ class Router:
                 f"Calling {caller._func!r} with args={self.args!r}, {kwargs=} within context={self.context!r}"
             )
 
+        if self.method == "options":
+            # OPTIONS request doesn't have a body
+            del self.response.app_iter
+            del self.response.content_type
+            self.response.status = "204 No Content"
+            return
+
         # Now call the routed method!
         res = caller(*self.args, **kwargs)
 
@@ -660,11 +691,9 @@ class Router:
 
         origin = current.request.get().request.headers.get("Origin")
         if not origin:
-            logging.debug(f"Origin header is not set")
             return
 
         # Origin is set --> It's a CORS request
-        logging.debug(f"Got CORS request from {origin=}")
 
         any_origin_allowed = (
             conf.security.cors_origins == "*"
