@@ -15,7 +15,6 @@ OLD_MEMBERS = [
     "viur.cacheEnvironmentKey",
     "viur.compatibility",
     # "viur.contentSecurityPolicy", # removed this one, was not in use (we had it twice)
-    "viur.db.engine",
     "viur.debug.trace",
     "viur.debug.trace_exceptions",
     "viur.debug.trace_external_call_routing",
