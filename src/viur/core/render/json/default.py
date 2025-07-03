@@ -3,7 +3,7 @@ import typing as t
 from enum import Enum
 from viur.core import db, current
 from viur.core.render.abstract import AbstractRenderer
-from viur.core.skeleton import SkeletonInstance,SkelList
+from viur.core.skeleton import SkeletonInstance, SkelList
 from viur.core.i18n import translate
 from viur.core.config import conf
 from datetime import datetime

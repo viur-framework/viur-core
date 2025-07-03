@@ -323,6 +323,7 @@ class SkeletonInstance:
             key: bone.structure() | {"sortindex": i}
             for i, (key, bone) in enumerate(self.items())
         }
+
     def render_bone_values(self):
         return {
             bone_name: bone.render_value(self, bone_name) for bone_name, bone in self.items()
