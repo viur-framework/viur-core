@@ -192,8 +192,12 @@ class RecordBone(BaseBone):
     def structure(self) -> dict:
         return super().structure() | {
             "format": self.format,
-            "using": self.using().structure(),
+            "using": self.using().structure()
         }
+
+    def render_single_value(self, value: "SkeletonInstance") -> dict | None:
+        if value is not None:
+            return value.render_bone_values()
 
     def refresh(self, skel, bone_name):
         for _, lang, value in self.iter_bone_value(skel, bone_name):

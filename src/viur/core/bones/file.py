@@ -353,3 +353,12 @@ class FileBone(TreeLeafBone):
             "valid_mime_types": self.validMimeTypes,
             "public": self.public,
         }
+
+    def render_single_value(self, value: dict[str, "SkeletonInstance"]) -> dict | None:
+        res = super().render_single_value(value)
+        if res is not None:
+            for key, value in res.items():
+                if value is not None:
+                    res[key]["downloadUrl"] = utils.downloadUrlFor(value["dlkey"], value["name"], derived=False,
+                                                                   expires=conf.render_json_download_url_expiration)
+        return res

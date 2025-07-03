@@ -202,3 +202,6 @@ class PasswordBone(StringBone):
             "tests": self.tests if self.test_threshold else (),
             "test_threshold": self.test_threshold,
         }
+
+    def render_single_value(self, value):
+        return ""

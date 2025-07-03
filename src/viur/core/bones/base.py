@@ -1580,3 +1580,29 @@ class BaseBone(object):
                 ret["compute"]["lifetime"] = self.compute.interval.lifetime.total_seconds()
 
         return ret
+
+    def render_value(self, skel: "SkeletonInstance", bone_name: str):
+        ret = {}
+        bone_value = skel[bone_name]
+        if self.languages and self.multiple:
+            res = {}
+            for language in self.languages:
+                if bone_value and language in bone_value and bone_value[language]:
+                    ret[language] = [self.render_single_value(value) for value in bone_value[language]]
+                else:
+                    res[language] = []
+        elif self.languages:
+            for language in self.languages:
+                if bone_value and language in bone_value and bone_value[language]:
+                    ret[language] = self.render_single_value(bone_value[language])
+                else:
+                    ret[language] = None
+        elif self.multiple:
+            ret = [self.render_single_value(value) for value in bone_value]
+
+        else:
+            ret = self.render_single_value(bone_value)
+        return ret
+
+    def render_single_value(self, value):
+        return value
