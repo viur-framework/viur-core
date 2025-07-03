@@ -12,11 +12,11 @@ class HTTPException(Exception):
         super(HTTPException, self).__init__()
         self.status = status
 
-        from .i18n import translate  # fixme: This might be done better
+        from .i18n import translate, AddMissing  # fixme: This might be done better
         self.name = name
-        self.descr = str(translate(descr))
+        self.descr = str(translate(descr, add_missing=AddMissing.NEVER))
 
-    def process(self):
+    def process(self):  # TODO: What is the purpose of this method?
         pass
 
 
@@ -36,8 +36,8 @@ class Redirect(HTTPException):
 
     def __init__(self, url: str, descr: str = "Redirect", status: int = 303):
         if not isinstance(status, int) or status not in {301, 302, 303, 307, 308}:
-            raise ValueError("Invalid status %r. Only the status codes 301, 302, 303, 307 and 308 "
-                             "are valid for a redirect." % status)
+            raise ValueError(f"Invalid status {status!r}. Only the status codes 301, 302, 303, 307 and 308 "
+                             "are valid for a redirect.")
         super(Redirect, self).__init__(status=status, name="Redirect", descr=descr)
         self.url = url
 

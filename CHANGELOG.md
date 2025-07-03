@@ -2,6 +2,563 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.20]
+
+- fix: Ensure redirect's location header is always utf-8 encoded/quoted (#1504)
+- fix: Implement UTF-8 encoding for Content-Disposition header (#1503)
+- fix: `translate.dump` does not yield anything if there's no pattern filter given (#1460)
+
+## [3.7.19]
+
+- feat: Pass `create` param in `Singleton.getContents()` to `Skeleton.read()` (#1493)
+- fix: Make `TreeSkel.is_root_node` generally available (#1488)
+- fix: Add check to allow override the core modules (#1477)
+
+## [3.7.18]
+
+- fix: Improve auth_userpassword login failure detection (#1480)
+- fix: Avoid sending doubled Set-Cookie header (#1482)
+
+## [3.7.17]
+
+- cicd: Deploy to PyPI only
+- cicd: Setup new `publish.yaml`
+- chore: Update dependency gunicorn to >=23 (#1475)
+- chore: Add translations for user status (#1474)
+
+## [3.7.16]
+
+- fix: `prototypes.List` shall default to `addSkel` on cloning (#1471)
+- fix: `render.html.env.getSkel()` to handle nested modules (#1472)
+- fix: Don't include bones in `change_list` which aren't in the current subskel (#1470)
+
+## [3.7.15]
+
+- fix: `processRemovedRelations` fails if the source entity has other relations set (#1468)
+
+## [3.7.14]
+
+- feat: Apply `escape_html`-flag in `StringBone.refresh()` (#1457)
+- fix: `RelationalBone.setBoneValue([(multiple, using)])` case (#1462)
+- fix: `TranslationSkel.name` may not contain upper-case characters (#1456)
+- fix: Update user's data in session on `user/edit` (#1458)
+
+## [3.7.13]
+
+- chore: Remove logging  for cors (#1450)
+- fix: `RecordBone` and prefix substitution (#1453)
+- fix: Change call to `db.KeyHelper(adjust_kind)` to boolean (#1455)
+
+## [3.7.12]
+
+- fix: Further `Translation.dump()` clean-up (#1452)
+- fix: `add_or_edit` edits entries with empty skeleton (#1449)
+
+## [3.7.11]
+
+- fix: Fixes for `/_translation/dump`
+- fix: Better handling of invalid blob keys in `File.download()` (#1444)
+
+## [3.7.10]
+
+- fix: General fixing and clean-up on `translate()` (#1364)
+- fix: don't compute a bone in a not existing relation (#1443)
+- fix: `NumericBone.singleValueUnserialize` is now working more stable (#1442)
+
+## [3.7.9]
+
+- chore: Remove legacy `viur-queued-tasks` code (#1433)
+- feat: Evaluate `x-viur-bonelist` on default `viewSkel()` (light-version) (#1415)
+- feat: Implement `conf.tasks_default_queues` (#1434)
+- feat: Implement `on_delete` hook/event for sessions (#1438)
+- fix: `File.onEdit()` executes "leaf"-related stuff regardless of the `skelType` (#1439)
+- fix: `NumericBone.singleValueUnserialize` can't handle `str` (#1437)
+- fix: Check in `updateRelations` if `request_data` exist (#1435)
+- fix: Make `skeleton.listKnownSkeletons` always sorted (#1430)
+- fix: Type annotation `None` now correctly supported with value-check and `"null"` (#1429)
+- perf: Add check to avoid redundant `ensureDerived` calls (#1428)
+
+## [3.7.8]
+
+- fix: `NumericBone` ignores precision on read & write (#1425)
+- fix: Hotfix for `Skeleton.write()` with wrong dbEntity (#1424)
+
+## [3.7.7]
+
+- fix: `Skeleton.write()` returns full skeleton (#1421)
+- fix: Hotfix for #1391: missing skeltype-check (#1420)
+- fix: Hotfix for decorator `@skey` introduced by #1394 (#1419)
+- fix: Keep `None` in `BooleanBones` (#1418)
+- fix: Replace deprecated `ensureOwnModuleRootNode` with `rootnodeSkel` (#1414)
+
+## [3.7.6]
+
+- fix: `Tree.add_or_edit()` should require for parententry (#1410)
+- fix: Custom decorators do not work with `Method`-wrapper (#1394)
+
+## [3.7.5]
+
+- feat: Implement `CloneBehavior` + `CloneStrategy` for a bone-individual clone behavior (#1401)
+- fix: `conf.i18n.add_missing_translations` the right way (#1409)
+- fix: f-string not Python < 3.12 compatible
+- fix: Load user in a deferred task (#1406)
+- fix: Make translations usable (#1408)
+
+## [3.7.4]
+
+- feat: Add missing `onAdd` and `onAdded` calls in `File` module and implement `set_image_meta` (#1391)
+- fix: `BooleanBone.refresh()` doesn't respect language (#1407)
+- fix: `FileBone.refresh()` should fix `serving_url` (#1404)
+
+## [3.7.3]
+
+- fix: Check for preflight requests in closed_systems (#1382)
+- fix: Email methods has been renamed (#1395)
+- fix: Improve and standardize `Script` module `vfuncs` (#1388)
+- fix: Improve error reporting for unknown `RelationalBone` kinds (#1393)
+- fix: Remove overwriting `action` from `@deprecated` decorator (#1389)
+- fix: Use variable instead of custom name joining for public bucket (#1397)
+- refactor: `RelationalBone.refresh()` (#1392)
+
+## [3.7.2]
+
+- doc: Fix `SyntaxWarning: invalid escape sequence '\*'` (#1372)
+- feat: Provide `add_or_edit` root-only endpoint for importers (#1380)
+- feat: Provide default `index`-function for `Tree` and `Singleton` (#1365)
+- fix: `errors` not marked as a reserved word (#1374)
+- fix: `FileLeafSkel._inject_serving_url()` is the better choice (#1362)
+- fix: `SkelModule` not able to handle empty index definitions (#1373)
+- fix: Provide bone name with assertion message (#1375)
+- fix: Render bones which are `readOnly=True` not as `required=True` (#1371)
+
+## [3.7.1]
+
+- fix: `BooleanBone.setBoneValue` doesn't respect language (#1358)
+- fix: `RelationalBone`: dict size change during iteration (#1359)
+- fix: Regression from `canView()` refactoring (#1357)
+
+## [3.7.0]
+
+- chore: Adding file deprecations (#1268)
+- chore: Drop python 3.10 support (#1175)
+- chore: Merging of `migrate_config.py` and `viur-2to3.py` into `viur-migrate` tool (#1283)
+- doc: Updated `BooleanBone` docstring (forgotten in #988)
+- doc+fix: Added module docstrings, removed render defaults (#1253)
+- feat Add session `setdefault` (#1140)
+- feat: `conf.bone_html_default_allow` (#1278)
+- feat: `FileBone(public=True)` for public files (#1241)
+- feat: `render.render()` generalized action skel rendering (#1270)
+- feat: `Skeleton.patch()` for transactional read/write (#1267)
+- feat: `SkelModule.structure()` with actions and with access control (#1321)
+- feat: `UriBone` (#1254)
+- feat: Add `File.get_download_url()` (#1305)
+- feat: Add `PeriodicTask` can handle `timedelta` as interval (#1133)
+- feat: Add `PhoneBone` (#1205)
+- feat: Add `read` method for `RefSkel` (#1193)
+- feat: Add `scriptor` access flag (#1032)
+- feat: Add `serialize_compute` and `unserialize_compute` to `BaseBone` (#1145)
+- feat: add `skel.update` and `skel.__ior__` (#1103)
+- feat: Add `sorted` feature to `MultipleConstraints` (#1186)
+- feat: Add `SpamBone` (#1209)
+- feat: Add `UidBone` (#1131)
+- feat: Add charset `v_func` for `StringBone`  (#1183)
+- feat: Add checksums for files (#1180)
+- feat: Add CORS settings and set CORS header for OPTION CORS(-preflight) requests (#1215)
+- feat: Add support for callable `defaultValue` in `BooleanBone` (#1274)
+- feat: Add support for single value  and `__default__` for multi-lang bones (#1108)
+- feat: Implement `EmailTransportSendgrid` (#1249)
+- feat: Implement `EmailTransportSmtp` (#1251)
+- feat: Implement abstract renderer (#1190)
+- feat: Introduce `conf.email.sender_default` (#1294)
+- feat: Load Session only when needed (#1277)
+- feat: Make custom jinja filter `|fileSize` deprecated (#1272)
+- feat: Make SkeletonInstance json serializable (#1262)
+- feat: Provide `ignore`-parameter for `Skeleton.fromClient` (#1330)
+- feat: Provide `User.is_active()` function (#1309)
+- feat: Public-files repos and improved rootnodes
+- feat: Retrieve default `descr` from bone's name in its Skeleton (#1227)
+- feat+refactor: Improved and extended `Skeleton.subskel()` (#1259)
+- fix: `File.write()` didn't return `db.Key` (#1303)
+- fix: `KeyBone.singleValueUnseralize()` doesn't handle None (#1300)
+- fix: `RelationalBone.singleValueFromClient` str-cast (#1269)
+- fix: `SelectBone.singleValueFromClient()` can't handle `Enum` values (#1320)
+- fix: `Session.__delitem__` causes endless recursion (#1208)
+- fix: `Skeleton.subskel()` and `SkeletonInstance.clone()` (#1297)
+- fix: `SkeletonInstance` must accept `bone_map` and deprecated `clonedBoneMap` (#1286)
+- fix: `SpamBone` consumes default iterator once (#1326)
+- fix: `SpamBone` regression of descr-property (#1246)
+- fix: `SpamBone`'s descr not available without session (#1324)
+- fix: `uploadKey` wrong in `getUploadUrl` (#1301)
+- fix: `User.is_active()` without status-bone (#1331)
+- fix: Add `__set_name__` in `__setattr__` for bones (#1312)
+- fix: add `serving_url`  to `FileBone`s default `refKeys` setting (#1344)
+- fix: Add datetime import in email.py (#1225)
+- fix: Add default param for `createRelSkelFromKey` (#1304)
+- fix: Allow `list` in `SpatialBone` `setBoneValue` (#1335)
+- fix: Calling `db.KeyHelper` with `None` raises a unhandled `NotImplementedError` (#1281)
+- fix: Clean-up `KeyBone` and added unserialization (#1204)
+- fix: Cleanly collect renders from Python module (#1230)
+- fix: Comment out annoying `"final append..."` logs (#1319)
+- fix: Extend `viur_migrate` to further conf keys (#1298)
+- fix: Handle `RefSkel`s in `unserialize_compute` differently (#1295)
+- fix: handle gracefully downloadurls and srcsets with optional languages overwrite for files (#1266)
+- fix: Hotfix bugfix for `SelectBone.singleValueFromClient`
+- fix: Improve interval format warning in `PeriodicTask` (#1199)
+- fix: Improve ValueError message on invalid `email.transport_class` (#1318)
+- fix: Improved signature test on callable `defaultValue` (#1284)
+- fix: Lower deprecations for `Skeleton.fromDB/toDB` (#1345)
+- fix: multiple bones with languages have the wrong default value (#1282)
+- fix: Name `f"server.modules.user.accessright.{right}"` correctly (#1317)
+- fix: provide `key_rel_list` as list of tuples and not only a list (#1291)
+- fix: refactor _tagsFromString to _tags_from_str (#1279)
+- fix: Remove check if logged-in in `UserPassword.login()` (#1310)
+- fix: Remove urlencode (#1271)
+- fix: Rename create_serving_url into inject_serving_url (#1241)
+- fix: Return a `list` instead of `None` in `RelationalBone.relskels_from_keys` (#1334)
+- fix: Test `user["status"]` at one place (#1292)
+- fix+doc: PeriodicTask (#1247)
+- refactor: `BaseBone.buildDBSort` (#1077)
+- refactor: `DatabaseAdapter` with simplified triggers (#1198)
+- refactor: `relationalBone.serialize()` (#1087)
+- refactor: `RelationalBone.setBoneValue()` (#1081)
+- refactor: `Skeleton`-API rework (#1264)
+- refactor: Improve `db.IsInTransaction`-mode in `Skeleton.patch()` (#1289)
+- refactor: Move datastore index retrieval to `SkelModule` (#1231)
+- refactor: Move special system arguments for `CallDeferred` in `make_deferred`'s signature (#1143)
+- refactor: Remove `xml` renderer (#1192)
+- refactor: Replace `db.encodeKey` by `str`-cast (#1302)
+- refactor: Send emails from `EmailTransport` instances instead of class (#1250)
+- refactor: Sub-class `Session` from `db.Entity` to behave `dict`-compliant (#1153)
+
+## [3.6.32]
+
+- feat: Backport request preflight checks for 3.6 (#1383)
+
+## [3.6.31]
+
+- fix: a `not caseSensitive` bone should lock the lower value (#1378)
+- fix: skip `cached_property` in `Module._update_methods` (#1377)
+- fix: determine a better path for a new `TranslateSkel` (#1367)
+- fix: Ensure derives are generated in `FileBone` inside a `RecordBone` too (#1370)
+
+## [3.6.30]
+
+- fix: `SelectBone.singleValueFromClient` doesn't accept `Enum` (#1320, #1351)
+
+## [3.6.29]
+
+- fix: Don't create a CSP nonce if unsafe-inline is enabled (#1347)
+
+## [3.6.28]
+
+- fix: Hotfix for refactored `getSkel()` ported down from 3.7 source (#1341)
+
+## [3.6.27] - (broken)
+
+- feat: add more filter-options to `SelectCountryBone` (#1346)
+- fix+refactor: html-render `getSkel()` and `getList()` (#1341)
+- fix: `SkelModule.default_order` generalized (#1340)
+
+## [3.6.26]
+
+- feat: `pattern`-parameter for `Translation.get_public()` (#1337)
+- fix: Correct `translation_key_prefix_skeleton_bonename` and `translation_key_prefix_bonename` (#1336)
+
+## [3.6.25]
+
+- fix: Revert changes from #1323 (#1332)
+- fix: Store written db_obj in `toDB` on source skel (#1333)
+- fix: `JsonBone` validate `object` and `list` too (#1329)
+
+## [3.6.24]
+
+- feat: `SkelModule.structure()` with actions and with access control (#1321)
+- feat: Public translations interface (#1323)
+- fix: `File.parse_download_url()` handles dlpath wrong (#1328)
+
+## [3.6.23]
+
+- feat: Support enum type in exposed methods (#1313)
+- fix: Add `**kwargs` to skeleton meta classes (#1314)
+
+## [3.6.22]
+
+- fix: `default_order`-code raises `errors.Unauthorized()` on MultiQuery (#1299)
+- fix: `UserSkel.__new__()` cannot be subSkel'ed (#1296)
+
+## [3.6.21]
+
+- fix: `Skeleton.processRemovedRelations` unable to handle empty values (#1288)
+
+## [3.6.20]
+
+- fix: `File.parse_download_url()`: `too many values to unpack` (#1287)
+
+## [3.6.19]
+
+- fix: Rename `type_postfix` on `BaseBone` into `type_suffix` (#1275)
+
+## [3.6.18]
+
+- fix: Cast category to str() for ascii check (#1263)
+
+## [3.6.17]
+
+- feat: `type_postfix` on `BaseBone` and `select.access` in `UserSkel` (#1261)
+
+## [3.6.16]
+
+- fix: @access-decorator (#1257)
+- fix: Delete bones set to `None` from a Skeleton (#1258)
+
+## [3.6.15]
+
+- fix: `Skeleton.toDB()`s `is_add` determined wrong (#1248)
+- feat: Improve `CaptchaBone` (#1243)
+
+## [3.6.14]
+
+- feat: Extend `CONTRIBUTING.md` with Coding Conventions (#1233)
+- fix: `File`-module allows to upload into non-existing node (#1235)
+- fix: `MultipleConstraints` as intended (#1228)
+- fix: Improve `NumericBone.singleValueFromClient` (#1245)
+- fix: Inconsistency raises AssertionError (#1237)
+- fix: null-key always written into `viur-relations` (#1238)
+- refactor: `__build_app` function clean-up and make all modules accessible (#1240)
+- refactor: Improved `RelationalConsistency.PreventDeletion` validation (#1244)
+- refactor: Move datastore index retrieval to `SkelModule` (#1239)
+
+## [3.6.13]
+
+- doc: Fix RelationalBone docstring (#1226)
+- chore: Use `pyproject.toml` as new SSOT packaging system (#1224)
+- feat-fix: Wrap `descr` and `params.category` in `translate` object for auto translating (#1223)
+
+## [3.6.12]
+
+- feat: Add `EmailTransportAppengine` as default email transport class (#1210)
+- feat: Improve email attachments (#1216)
+- feat: Render `SelectBone` values in dict-style (#1203)
+- fix: `RecordBone.getReferencedBlobs` should collect references for all bones (#1213)
+- fix: `viur-core-migrate-config` should replace sendinblue and mailjet configs as well (#1200)
+- refactor: `email`-module/`EmailTransportMailjet` fixes (#1212)
+
+## [3.6.11]
+
+- fix: Changed `EmailTransportMailjet` mimetype detection to `puremagic` (#1196)
+
+## [3.6.10]
+
+- fix: Remove `default_order` fallback from `List` (#1195)
+- feat: store compute value on unserialize (#1107)
+- fix: Add `google.cloud.logging_v2.handlers.transports.background_thread` to the `EXCLUDED_LOGGER_DEFAULTS` (#1177)
+
+## [3.6.9]
+
+- fix: `default_order` and `query.queries` can be a list (#1188)
+- fix: Keep HTML-entities in `HtmlSerializer` (#1184)
+
+## [3.6.8]
+
+- fix: Allow dict-filters for `default_order` (#1169)
+- fix: Pre-process object for JSON encoding (#1174)
+
+## [3.6.7]
+
+- fix: `ViURJsonEncoder` doesn't handle `db.Entity` (#1171)
+- fix: codecov
+- cicd: Enable tests for python 3.12 (#1167)
+- fix: More invalid replacements in `migrate_config.py` (#1166)
+- feat: Add `EmailTransportMailjet` to `email.py` (#1162)
+- Change of LICENSE from LGPL into MIT (#1164)
+
+## [3.6.6]
+
+- fix: Don't obfuscate any route with character replacements (#1161)
+- feat: View script by path (#1156)
+- fix: Make `Translation`-module `admin_info` configurable (#1158)
+- fix: Support `/deploy/admin` folder as well (#1159)
+
+## [3.6.5]
+
+- feat: Implement `fromClient(amend=True)` feature (#1150)
+- chore: Update dependencies (fix for CVE-2024-28219) (#1151)
+- fix: Fix deprecated `parse_bool` call (#1149)
+- fix: `list` should handle unsatisfiable queries (#1148)
+
+## [3.6.4]
+
+- fix: Enfore serialized values are always strings in the datastore (#1146)
+- fix: RelationalBone `serialize` add super call (#1119)
+- fix: Add missing import of `PIL.ImageCms` (#1144)
+- fix: Re-add `StringBone`s `max_length` check (#1142)
+- fix: Replace deprecated `utils.getCurrentUser` (#1139)
+
+## [3.6.3]
+
+- fix: Avoid `*AbstractSkel`s from being initialized (#1136)
+- fix: Replace old dict `conf` access with attribute access (#1137)
+
+## [3.6.2]
+
+- fix: Remove comma in f-string (#1135)
+- fix: target_version was always `None` (used the default version) (#1134)
+- fix: Improve `List.default_order` to respect languages config (#1132)
+
+## [3.6.1]
+
+- fix: Add `_call_deferred`-parameter for super-calls (#1128)
+- feat: Implement `translation_key_prefix` for `SelectBone` values (#1126)
+- fix: Pass arguments in `JsonBone.__init__()` to `super()` call (#1129)
+- fix: Improving several `User` auth method handling (#1125)
+- fix: `TimeBasedOTP.start()` should use UserSkel (#1124)
+- fix: Broken access to methods in `File` class by refactoring (#1122)
+
+## [3.6.0]
+
+- fix: Add `is None`-check for bone values with languages (#1120)
+- feat: Provide `LoginSkel` on `UserPassword.login` (#1118)
+- feat: `default_order` should support multiple orders as well (#1109)
+- fix: Add `_prevent_compute` for computed bones (#1111)
+- feat: Set icon in admin_info of translation module (#1113)
+- fix: Handle non-ASCII characters in username comparison (#1112)
+- fix: file module typo `UnprocessableEntity` (#1105)
+- feat: Allow `None` as defaultValue in BooleanBone (#988)
+- feat: Support `*`-wildcard postfix in `refKeys` for `RelationalBones` (#1022)
+- feat: Implement `utils.parse.timedelta` (#1086)
+- refactor: `File.getUploadURL()` (#1050)
+- fix: Improving `utils` deprecation handling (#1089)
+- refactor: Remove old code (#1094)
+- feat: Add deprecation handling to `skeleton` (#984)
+- fix: `vi.canAccess` based on fnmatch config setting (#1088)
+- fix: `compute` and `unserialize_raw_value` for `JsonBone` (#1093)
+- chore: Update requirements to latest patchlevels (#1091)
+- feat: Add closed system (#1085)
+- feat: `UserPrimaryAuthentication.next_or_finish` handler (#997)
+- refactor: Replace securitykey duration with `timedelta` (#1083)
+- feat: `utils.json` module / improving `JsonBone` (#1072)
+- refactor: Remove `extjson`, fallback to `json` (#1084)
+- feat: Require abstract `METHOD_NAME` for any `UserAuthentication` (#1059)
+- feat: Allow `None` in `skel setBoneValue` (#1053)
+- feat: Provide `default_order` for `List` and `Tree` (#1076)
+- feat: securitykey  create duration allow timedelta (#1078)
+- fix: Remove `self` from `create_src_set` (#1079)
+- fix: `read_all_modules` after  #1073 and #1037 and merge 2a2b76ec16 (#1074)
+- fix: Make ViUR runable again after the extremely security-relevant PR #1037 (#1075)
+- fix: Remove default `P.html = True` from prototypes (#1037)
+- fix: new icon naming scheme in modules (#1069)
+- refactor: `tasks` module (#1016)
+- fix: Use `__getattribute__` instead of `__getattr__` for super call in utils (#1065)
+- fix: correctly set `refKeys` to get merged in (#1066)
+- refactor: `RelationalBone`s `refKeys` and `parentKeys` as set (#1058)
+- feat: Improve `UserBone` to additional defaults (#1055)
+- fix: patch_user_skel (fix for #983) (#1060)
+- feat: `UserAuthentication`s with skeleton patch capability (#983)
+- refactor_ value for `tasks_custom_environment_handler` to new abstract class `CustomEnvironmentHandler` (#946)
+- fix: f-string in `RelationalBone` introduced in #950 (#1054)
+- fix: Further refactoring and fixing of `File`-module for #1046 (#1049)
+- fix: Add missing import in #950 (#1048)
+- refactor: Modularization of `File` (#1046)
+- fix: compute for relational bones (#950)
+- feat: Collect modules recursivly in `read_all_modules` (#1041)
+- feat: Collect modules recursivly in `vi/config` (#995)
+- fix: customize `iter_bone_value` for `NumericBone` (#1044)
+- fix: Wrong f-strings introducted by #1025 (#1043)
+- fix: Help and comments on `UserPassword.pwrecover` (#1042)
+- feat: `clone`-action for `List` and `Tree`, recursive tree cloning (#1036)
+- feat: `Skeleton.ensure_is_cloned()` (#1040)
+- refactor: `Skeleton.toDB` method (#973)
+- feat: Support for nested modules in `getStructure()` (#1031)
+- refactor: Replace `%`-formattings by f-string (#1025)
+- fix: Get rid of the catch all index behavior in vi renderer (#960)
+- feat: Show project, python- and core-versions on startup (#1009)
+- refactor: `Skeleton.fromDB` method (#968)
+- feat: Add and improve check on root node in `Tree` prototype (#1030)
+- feat: Improve translations & provide `Translation` module (#969)
+- feat: Support compute for multilang and/or multiple bones (#1029)
+- fix: `@property` in module causes problems during warmup (#1020)
+- fix: config regression after incorrect merge 537f0e2 (#1021)
+- refactor: Improved type annotations (#986)
+- fix: Some more fixes for #833 (#1014)
+- fix: Provide "moduleGroups" in `/vi/config` (#994)
+- chore: Updating dependencies and requirements.txt
+- feat: Implement `@property` support in `Skeleton`s (#1001)
+- fix: Adding linter settings for flake8 as well (#998)
+- feat: Refactoring and renamed `utils`, adding `utils.string.unescape` (#992)
+- feat: Implement `InstancedModule` (#967)
+- feat: Improved and slightly refactored `PasswordBone` (#990)
+- feat: Add requirements for the memcache (#830)
+- feat: Add `File.read` method (#975)
+- fix: wrong conf var access (#989)
+- chore: Update all requirements, bump version v3.6.0.dev3
+- fix: Start explicit with `main_app` in `findBoundTask()` (#980)
+- fix: Set correct stacklevel to deprecation warning on `utils.escapeString` (#981)
+- fix: Admin-tool specific settings (#979)
+- refactor: static skey marker (#945)
+- feat: Implement migration script for new core config (#924)
+- fix: `vi`-render returns wrong config (regression introduced by #833) (#977)
+- fix: merge error in StringBone.singleValueFromClient
+- fix: Add `try`/`except` around task emulation call (#970)
+- fix: `@retry_n_times` does not work on local server during warmup (#971)
+- feat: Add logging with the name of the bone where the serialization failed (#959)
+- feat: Add stacklevels to `warning.warn` calls (#966)
+- refactor: Replace the `replace` function with `translate` (#953)
+- fix: `defaultValue` type hint in `SelectBone` (#957)
+- chore: Sort and translate module names in `Rebuild Search Index` task Skeleton (#947)
+- refactor: Rename `StringBone`'s `maxLength` into `max_length` (#942)
+- feat: Add `min_length` to `StringBone` (#940)
+- feat: use `CustomJsonEncoder` class in `json.dumps` call (#937)
+- fix: invalid `conf` refactoring (#929)
+- fix: Clean-up Skeletons `key` default bone (#926)
+- fix: Refactor usage of `SeoKeyBone` in `Skeleton` (#927)
+- feat: Provide computed `name`-bone for `Skeleton` (#925)
+- feat: Add new error template with a nonce and custom image (#867)
+- feat: Implement the config as a class (#833)
+- feat: `utils.is_prefix`-function (#910)
+- refactor: Replace `Tree.handler` by @property (#909)
+- fix: Second Factor `start` (#890)
+- feat: Provide `indexed`-parameter to `securitykey.create` (#886)
+- fix: TimebaseOTP rename possible_user to user (#887)
+- feat: `UserPrimaryAuthentication` with unified `can_handle()` (#878)
+- feat: Implement `__all__` in root's `__init__` and `decorators` to support easier imports (#859)
+- feat: Add missing type hints for `current` module (#871)
+
+## [3.5.17]
+
+- fix: Handle non-ASCII characters in username comparison (#1112)
+
+## [3.5.16]
+
+- chore: Dependency updates
+- fix: Improvement `conf["viur.paramFilterFunction"]` (#1106)
+- fix: User roles: Automatic "view" right when "edit" or "delete" is provided (#1102)
+
+## [3.5.15]
+
+- fix: Several improvements on `ModuleConf` (#1073)
+
+## [3.5.14]
+
+- fix: `current.user` unset in deferred task calls (#1067)
+
+## [3.5.13]
+
+- fix: `RelationalBone` locking bug (#1052)
+- fix:  `_validate_request` in `tasks` (#1051)
+
+## [3.5.12]
+
+- feat: Provide script configuration in `ModuleConf` (#1034)
+- fix: Make `UserPassword.pwrecover` ready for action-skels (#1033)
+
+## [3.5.11]
+
+- fix: Improve and refactor `BaseSkel.fromClient()` to handle empty/unset data (#1023)
+- fix: Add check for `db.Key` in `KeyBone.singleValueFromClient` (#1008)
+- fix: Provide `User.msg_missing_second_factor` customization (#1026)
+- fix: Finetuning `ViurTagsSearchAdapter` defaults (#1010)
+- fix: support for tasks emulator (#1004)
+
 ## [3.5.10]
 
 - fix: handling alpha channel within thumbnail generation if icc profile is present (#1006)

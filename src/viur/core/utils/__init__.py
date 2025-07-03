@@ -1,151 +1,21 @@
-import hashlib
-import hmac
-import warnings
-
+import datetime
 import logging
-from base64 import urlsafe_b64encode
-from datetime import datetime, timedelta, timezone
 import typing as t
-from urllib.parse import quote
+import urllib.parse
+import warnings
+from collections.abc import Iterable
+
 from viur.core import current, db
 from viur.core.config import conf
-from . import string, parse
+from deprecated.sphinx import deprecated
+from . import json, parse, string  # noqa: used by external imports
 
 
-def utcNow() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def getCurrentUser() -> t.Optional["SkeletonInstance"]:
+def utcNow() -> datetime.datetime:
     """
-        Retrieve current user, if logged in.
-        If a user is logged in, this function returns a dict containing user data.
-        If no user is logged in, the function returns None.
-
-        :returns: A SkeletonInstance containing information about the logged-in user, None if no user is logged in.
+    Returns an actual timestamp with UTC timezone setting.
     """
-    import warnings
-    msg = f"Use of `utils.getCurrentUser()` is deprecated; Use `current.user.get()` instead!"
-    warnings.warn(msg, DeprecationWarning, stacklevel=3)
-    logging.warning(msg, stacklevel=3)
-    return current.user.get()
-
-
-def markFileForDeletion(dlkey: str) -> None:
-    """
-    Adds a marker to the data store that the file specified as *dlkey* can be deleted.
-
-    Once the mark has been set, the data store is checked four times (default: every 4 hours)
-    if the file is in use somewhere. If it is still in use, the mark goes away, otherwise
-    the mark and the file are removed from the datastore. These delayed checks are necessary
-    due to database inconsistency.
-
-    :param dlkey: Unique download-key of the file that shall be marked for deletion.
-    """
-    fileObj = db.Query("viur-deleted-files").filter("dlkey", dlkey).getEntry()
-
-    if fileObj:  # Its allready marked
-        return
-
-    fileObj = db.Entity(db.Key("viur-deleted-files"))
-    fileObj["itercount"] = 0
-    fileObj["dlkey"] = str(dlkey)
-    db.Put(fileObj)
-
-
-def hmacSign(data: t.Any) -> str:
-    assert conf.file_hmac_key is not None, "No hmac-key set!"
-    if not isinstance(data, bytes):
-        data = str(data).encode("UTF-8")
-    return hmac.new(conf.file_hmac_key, msg=data, digestmod=hashlib.sha3_384).hexdigest()
-
-
-def hmacVerify(data: t.Any, signature: str) -> bool:
-    return hmac.compare_digest(hmacSign(data), signature)
-
-
-def sanitizeFileName(fileName: str) -> str:
-    """
-        Sanitize the filename so it can be safely downloaded or be embedded into html
-    """
-    fileName = fileName[:100]  # Limit to 100 Chars max
-    fileName = "".join([x for x in fileName if x not in "\0'\"<>\n;$&?#:;/\\"])  # Remove invalid Chars
-    fileName = fileName.strip(".")  # Ensure the filename does not start or end with a dot
-    fileName = quote(fileName)  # Finally quote any non-ASCII characters
-    return fileName
-
-
-def downloadUrlFor(folder: str, fileName: str, derived: bool = False,
-                   expires: timedelta | None = timedelta(hours=1),
-                   downloadFileName: t.Optional[str] = None) -> str:
-    """
-        Utility function that creates a signed download-url for the given folder/filename combination
-
-        :param folder: The GCS-Folder (= the download-key) for that file
-        :param fileName: The name of that file. Either the original filename as uploaded or the name of a dervived file
-        :param derived: True, if it points to a derived file, False if it points to the original uploaded file
-        :param expires:
-            None if the file is supposed to be public (which causes it to be cached on the google ede caches),
-            otherwise a timedelta of how long that link should be valid
-        :param downloadFileName: If set, we'll force to browser to download this blob with the given filename
-        :return: THe signed download-url relative to the current domain (eg /download/...)
-    """
-    # Undo escaping on ()= performed on fileNames
-    fileName = fileName.replace("&#040;", "(").replace("&#041;", ")").replace("&#061;", "=")
-    if derived:
-        filePath = "%s/derived/%s" % (folder, fileName)
-    else:
-        filePath = "%s/source/%s" % (folder, fileName)
-    if downloadFileName:
-        downloadFileName = sanitizeFileName(downloadFileName)
-    else:
-        downloadFileName = ""
-    expires = ((datetime.now() + expires).strftime("%Y%m%d%H%M") if expires else 0)
-    sigStr = "%s\0%s\0%s" % (filePath, expires, downloadFileName)
-    sigStr = urlsafe_b64encode(sigStr.encode("UTF-8"))
-    resstr = hmacSign(sigStr)
-    return "/file/download/%s?sig=%s" % (sigStr.decode("ASCII"), resstr)
-
-
-def srcSetFor(fileObj: dict, expires: t.Optional[int], width: t.Optional[int] = None,
-              height: t.Optional[int] = None) -> str:
-    """
-        Generates a string suitable for use as the srcset tag in html. This functionality provides the browser
-        with a list of images in different sizes and allows it to choose the smallest file that will fill it's viewport
-        without upscaling.
-
-        :param fileObj: The file-bone (or if multiple=True a single value from it) to generate the srcset.
-        :param expires:
-            None if the file is supposed to be public (which causes it to be cached on the google edecaches), otherwise
-            it's lifetime in seconds
-        :param width:
-            A list of widths that should be included in the srcset.
-            If a given width is not available, it will be skipped.
-        :param height: A list of heights that should be included in the srcset. If a given height is not available,
-            it will be skipped.
-        :return: The srctag generated or an empty string if a invalid file object was supplied
-    """
-    if not width and not height:
-        logging.error("Neither width or height supplied to srcSetFor")
-        return ""
-    if "dlkey" not in fileObj and "dest" in fileObj:
-        fileObj = fileObj["dest"]
-    if expires:
-        expires = timedelta(minutes=expires)
-    from viur.core.skeleton import SkeletonInstance  # avoid circular imports
-    if not isinstance(fileObj, (SkeletonInstance, dict)) or not "dlkey" in fileObj or "derived" not in fileObj:
-        logging.error("Invalid fileObj supplied to srcSetFor")
-        return ""
-    if not isinstance(fileObj["derived"], dict):
-        return ""
-    resList = []
-    for fileName, derivate in fileObj["derived"]["files"].items():
-        customData = derivate.get("customData", {})
-        if width and customData.get("width") in width:
-            resList.append("%s %sw" % (downloadUrlFor(fileObj["dlkey"], fileName, True, expires), customData["width"]))
-        if height and customData.get("height") in height:
-            resList.append("%s %sh" % (downloadUrlFor(fileObj["dlkey"], fileName, True, expires), customData["height"]))
-    return ", ".join(resList)
+    return datetime.datetime.now(datetime.timezone.utc)
 
 
 def seoUrlToEntry(module: str,
@@ -218,7 +88,8 @@ def seoUrlToFunction(module: str, function: str, render: t.Optional[str] = None)
     return "/".join(pathComponents)
 
 
-def normalizeKey(key: t.Union[None, 'db.KeyClass']) -> t.Union[None, 'db.KeyClass']:
+@deprecated(version="3.8.0", reason="Use 'db.normalize_key' instead")
+def normalizeKey(key: t.Union[None, db.Key]) -> t.Union[None, db.Key]:
     """
         Normalizes a datastore key (replacing _application with the current one)
 
@@ -226,13 +97,77 @@ def normalizeKey(key: t.Union[None, 'db.KeyClass']) -> t.Union[None, 'db.KeyClas
 
         :return: Normalized key in string representation.
     """
-    if key is None:
-        return None
-    if key.parent:
-        parent = normalizeKey(key.parent)
-    else:
-        parent = None
-    return db.Key(key.kind, key.id_or_name, parent=parent)
+    db.normalize_key(key)
+
+
+def ensure_iterable(
+    obj: t.Any,
+    *,
+    test: t.Optional[t.Callable[[t.Any], bool]] = None,
+    allow_callable: bool = True,
+) -> t.Iterable[t.Any]:
+    """
+    Ensures an object to be iterable.
+
+    An additional test can be provided to check additionally.
+
+    If the object is not considered to be iterable, a tuple with the object is returned.
+    """
+    if allow_callable and callable(obj):
+        obj = obj()
+
+    if not isinstance(obj, str) and isinstance(obj, Iterable):  # uses collections.abc.Iterable
+        if test is None or test(obj):
+            return obj  # return the obj, which is an iterable
+
+        return ()  # empty tuple
+
+    elif obj is None or (isinstance(obj, str) and not obj):
+        return ()  # empty tuple
+
+    return obj,  # return a tuple with the obj
+
+
+def build_content_disposition_header(
+    filename: str,
+    *,
+    attachment: bool = False,
+    inline: bool = False,
+) -> str:
+    """
+    Build a Content-Disposition header with UTF-8 support and ASCII fallback.
+
+    Generates a properly formatted `Content-Disposition` header value, including
+    both a fallback ASCII filename and a UTF-8 encoded filename using RFC 5987.
+
+    Set either `attachment` or `inline` to control content disposition type.
+    If both are False, the header will omit disposition type (not recommended).
+
+    Example:
+        filename = "Änderung.pdf" ➜
+        'attachment; filename="Anderung.pdf"; filename*=UTF-8\'\'%C3%84nderung.pdf'
+
+    :param filename: The desired filename for the content.
+    :param attachment: Whether to mark the content as an attachment.
+    :param inline: Whether to mark the content as inline.
+    :return: A `Content-Disposition` header string.
+    """
+    if attachment and inline:
+        raise ValueError("Only one of 'attachment' or 'inline' may be True.")
+
+    fallback = string.normalize_ascii(filename)
+    quoted_utf8 = urllib.parse.quote_from_bytes(filename.encode("utf-8"))
+
+    content_disposition = "; ".join(
+        item for item in (
+            "attachment" if attachment else None,
+            "inline" if inline else None,
+            f'filename="{fallback}"' if filename else None,
+            f'filename*=UTF-8\'\'{quoted_utf8}' if filename else None,
+        ) if item
+    )
+
+    return content_disposition
 
 
 # DEPRECATED ATTRIBUTES HANDLING
@@ -244,14 +179,17 @@ __UTILS_CONF_REPLACEMENT = {
 }
 
 __UTILS_NAME_REPLACEMENT = {
+    "currentLanguage": ("current.language", current.language),
     "currentRequest": ("current.request", current.request),
     "currentRequestData": ("current.request_data", current.request_data),
     "currentSession": ("current.session", current.session),
-    "currentLanguage": ("current.language", current.language),
-    "generateRandomString": ("utils.string.random", string.random),
+    "downloadUrlFor": ("conf.main_app.file.create_download_url", lambda: conf.main_app.file.create_download_url),
     "escapeString": ("utils.string.escape", string.escape),
+    "generateRandomString": ("utils.string.random", string.random),
+    "getCurrentUser": ("current.user.get", current.user.get),
     "is_prefix": ("utils.string.is_prefix", string.is_prefix),
     "parse_bool": ("utils.parse.bool", parse.bool),
+    "srcSetFor": ("conf.main_app.file.create_src_set", lambda: conf.main_app.file.create_src_set),
 }
 
 
@@ -266,6 +204,9 @@ def __getattr__(attr):
         msg = f"Use of `utils.{attr}` is deprecated; Use `{replace[0]}` instead!"
         warnings.warn(msg, DeprecationWarning, stacklevel=3)
         logging.warning(msg, stacklevel=3)
-        return replace[1]
+        res = replace[1]
+        if isinstance(res, t.Callable):
+            res = res()
+        return res
 
-    return super(__import__(__name__).__class__).__getattr__(attr)
+    return super(__import__(__name__).__class__).__getattribute__(attr)

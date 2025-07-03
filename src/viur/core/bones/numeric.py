@@ -1,42 +1,47 @@
 import logging
-import warnings
-import typing as t
-
+import numbers
 import sys
+import typing as t
+import warnings
 
 from viur.core import db
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
+
+if t.TYPE_CHECKING:
+    from viur.core.skeleton import SkeletonInstance
 
 # Constants for Mne (MIN/MAX-never-exceed)
 MIN = -(sys.maxsize - 1)
 """Constant for the minimum possible value in the system"""
 MAX = sys.maxsize
-"""Constant for the maximum possible value in the system"""
+"""Constant for the maximum possible value in the system
+Also limited by the datastore (8 bytes). Halved for positive and negative values.
+Which are around 2 ** (8 * 8 - 1) negative and 2 ** (8 * 8 - 1) positive values.
+"""
 
 
 class NumericBone(BaseBone):
     """
-        A bone for storing numeric values, either integers or floats.
-        For floats, the precision can be specified in decimal-places.
-
-        :param precision: How may decimal places should be saved. Zero casts the value to int instead of
-            float.
-        :param min: Minimum accepted value (including).
-        :param max: Maximum accepted value (including).
+    A bone for storing numeric values, either integers or floats.
+    For floats, the precision can be specified in decimal-places.
     """
     type = "numeric"
 
     def __init__(
         self,
         *,
-        max: int | float = MAX,
         min: int | float = MIN,
-        mode=None,  # deprecated!
+        max: int | float = MAX,
         precision: int = 0,
+        mode=None,  # deprecated!
         **kwargs
     ):
         """
-            Initializes a new NumericBone.
+        Initializes a new NumericBone.
+
+        :param min: Minimum accepted value (including).
+        :param max: Maximum accepted value (including).
+        :param precision: How may decimal places should be saved. Zero casts the value to int instead of float.
         """
         super().__init__(**kwargs)
 
@@ -74,6 +79,18 @@ class NumericBone(BaseBone):
                 raise ValueError(f"{key} can only be set to something between {MIN} and {MAX}")
 
         return super().__setattr__(key, value)
+
+    def singleValueUnserialize(self, val):
+        if val is not None:
+            try:
+                return self._convert_to_numeric(val)
+            except (ValueError, TypeError):
+                return self.getDefaultValue(None)  # FIXME: callable needs the skeleton instance
+
+        return val
+
+    def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+        return self.singleValueUnserialize(value)  # same logic for unserialize here!
 
     def isInvalid(self, value):
         """
@@ -116,28 +133,45 @@ class NumericBone(BaseBone):
         return value == self.getEmptyValue()
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
-        try:
-            value = str(value).replace(",", ".", 1)
-        except:
-            return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid Value")]
+        if not isinstance(value, (int, float)):
+            # Replace , with .
+            try:
+                value = str(value).replace(",", ".", 1)
+            except TypeError:
+                return self.getEmptyValue(), [ReadFromClientError(
+                    ReadFromClientErrorSeverity.Invalid, "Cannot handle this value"
+                )]
+            # Convert to float or int -- depending on the precision
+            # Since we convert direct to int if precision=0, a float value isn't valid
+            try:
+                value = float(value) if self.precision else int(value)
+            except ValueError:
+                return self.getEmptyValue(), [ReadFromClientError(
+                    ReadFromClientErrorSeverity.Invalid,
+                    f'Not a valid {"float" if self.precision else "int"} value'
+                )]
+
+        assert isinstance(value, (int, float))
+        if self.precision:
+            value = round(float(value), self.precision)
         else:
-            if self.precision and (str(value).replace(".", "", 1).replace("-", "", 1).isdigit()) and float(
-                    value) >= self.min and float(value) <= self.max:
-                value = round(float(value), self.precision)
-            elif not self.precision and (str(value).replace("-", "", 1).isdigit()) and int(
-                    value) >= self.min and int(value) <= self.max:
-                value = int(value)
-            else:
-                return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid Value")]
-        err = self.isInvalid(value)
-        if err:
+            value = int(value)
+
+        # Check the limits after rounding, as the rounding may change the value.
+        if not (self.min <= value <= self.max):
+            return self.getEmptyValue(), [ReadFromClientError(
+                ReadFromClientErrorSeverity.Invalid, f"Value not between {self.min} and {self.max}"
+            )]
+
+        if err := self.isInvalid(value):
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
+
         return value, None
 
     def buildDBFilter(
         self,
         name: str,
-        skel: 'viur.core.skeleton.SkeletonInstance',
+        skel: "SkeletonInstance",
         dbFilter: db.Query,
         rawFilter: dict,
         prefix: t.Optional[str] = None
@@ -156,13 +190,13 @@ class NumericBone(BaseBone):
                         paramValue = float(paramValue)
                 except ValueError:
                     # The value we should filter by is garbage, cancel this query
-                    logging.warning("Invalid filtering! Unparsable int/float supplied to NumericBone %s" % name)
+                    logging.warning(f"Invalid filtering! Unparsable int/float supplied to NumericBone {name}")
                     raise RuntimeError()
                 updatedFilter[parmKey] = paramValue
 
         return super().buildDBFilter(name, skel, dbFilter, updatedFilter, prefix)
 
-    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
+    def getSearchTags(self, skel: "SkeletonInstance", name: str) -> set[str]:
         """
         This method generates a set of search tags based on the numeric values stored in the NumericBone
         instance. It iterates through the bone values and adds the string representation of each value
@@ -183,15 +217,17 @@ class NumericBone(BaseBone):
         """Convert a value to an int or float considering the precision.
 
         If the value is not convertable an exception will be raised."""
+        if isinstance(value, db.Entity | dict) and "val" in value:
+            value = value["val"]  # was a StringBone before
         if isinstance(value, str):
             value = value.replace(",", ".", 1)
         if self.precision:
-            return float(value)
+            return round(float(value), self.precision)
         else:
             # First convert to float then to int to support "42.5" (str)
             return int(float(value))
 
-    def refresh(self, skel: 'viur.core.skeleton.SkeletonInstance', boneName: str) -> None:
+    def refresh(self, skel: "SkeletonInstance", boneName: str) -> None:
         """Ensure the value is numeric or None.
 
         This ensures numeric values, for example after changing
@@ -206,6 +242,7 @@ class NumericBone(BaseBone):
                 return self._convert_to_numeric(value)
             return value
 
+        # TODO: duplicate code, this is the same iteration logic as in StringBone
         new_value = {}
         for _, lang, value in self.iter_bone_value(skel, boneName):
             new_value.setdefault(lang, []).append(refresh_single_value(value))
@@ -219,6 +256,15 @@ class NumericBone(BaseBone):
         elif not self.languages:
             # just the value(s) with None language
             skel[boneName] = new_value.get(None, [] if self.multiple else self.getEmptyValue())
+
+    def iter_bone_value(
+        self, skel: "SkeletonInstance", name: str
+    ) -> t.Iterator[tuple[t.Optional[int], t.Optional[str], t.Any]]:
+        value = skel[name]
+        if not value and isinstance(value, numbers.Number):
+            # 0 and 0.0 are falsy, but can be valid numeric values and should be kept
+            yield None, None, value
+        yield from super().iter_bone_value(skel, name)
 
     def structure(self) -> dict:
         return super().structure() | {

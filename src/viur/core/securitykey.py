@@ -33,7 +33,7 @@ that the session key from the headers should be used."""
 
 
 def create(
-        duration: None | int = None,
+        duration: None | int | datetime.timedelta = None,
         session_bound: bool = True,
         key_length: int = 13,
         indexed: bool = True,
@@ -44,7 +44,7 @@ def create(
         The custom data (given as **custom_data) that can be stored with the key.
         Any data provided must be serializable by the datastore.
 
-        :param duration: Make this CSRF-token valid for a fixed timeframe of seconds.
+        :param duration: Make this CSRF-token valid for a fixed timeframe.
         :param session_bound: Bind this CSRF-token to the current session.
         :param indexed: Indexes all values stored with the security-key (default), set False to not index.
         :param custom_data: Any other data is stored with the CSRF-token, for later re-use.
@@ -56,19 +56,26 @@ def create(
 
     if not duration:
         duration = conf.user.session_life_time if session_bound else SECURITYKEY_DURATION
-
     key = utils.string.random(key_length)
 
     entity = db.Entity(db.Key(SECURITYKEY_KINDNAME, key))
     entity |= custom_data
+    if session_bound:
+        session = current.session.get()
+        if not session.loaded:
+            session.reset()
+        entity["viur_session"] = session.cookie_key
 
-    entity["viur_session"] = current.session.get().cookie_key if session_bound else None
-    entity["viur_until"] = utils.utcNow() + datetime.timedelta(seconds=int(duration))
+    else:
+        entity["viur_session"] = None
+
+    entity["viur_until"] = utils.utcNow() + utils.parse.timedelta(duration)
+
 
     if not indexed:
         entity.exclude_from_indexes = [k for k in entity.keys() if not k.startswith("viur_")]
 
-    db.Put(entity)
+    db.put(entity)
 
     return key
 
@@ -88,11 +95,11 @@ def validate(key: str, session_bound: bool = True) -> bool | db.Entity:
 
         return False
 
-    if not key or not (entity := db.Get(db.Key(SECURITYKEY_KINDNAME, key))):
+    if not key or not (entity := db.get(db.Key(SECURITYKEY_KINDNAME, key))):
         return False
 
     # First of all, delete the entity, validation is done afterward.
-    db.Delete(entity)
+    db.delete(entity)
 
     # Key has expired?
     if entity["viur_until"] < utils.utcNow():
@@ -112,7 +119,7 @@ def validate(key: str, session_bound: bool = True) -> bool | db.Entity:
     return entity or True
 
 
-@tasks.PeriodicTask(60 * 4)
+@tasks.PeriodicTask(interval=datetime.timedelta(hours=4))
 def periodic_clear_skeys():
     from viur.core import tasks
     """

@@ -286,7 +286,7 @@ class DateBone(BaseBone):
             if self.naive:
                 value = value.replace(tzinfo=timezone.utc)
             # We should always deal with timezone aware datetimes
-            assert value.tzinfo, "Encountered a naive Datetime object in %s - refusing to save." % name
+            assert value.tzinfo, f"Encountered a naive Datetime object in {name} - refusing to save."
         return value
 
     def singleValueUnserialize(self, value):

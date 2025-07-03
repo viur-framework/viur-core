@@ -353,6 +353,22 @@ de = {
     "module helptext": "Modul Hilfetext",
     "add helptext": "Hinzufügen Hilfetext",
     "edit helptext": "Editieren Hilfetext",
+    "scriptor scripts": "Scripte",
+
+    # translation
+    "translations": "Übersetzungen",
+    "core.translations.view.missing": "Fehlende Übersetzungen für {{lang}}",
+    "core.translationskel.name.descr": "Schlüssel",
+    "core.translationskel.translations.descr": "Übersetzung",
+    "core.translationskel.translations.tooltip":
+        "Die Übersetzungen {{main}} sind erforderlich, {{accent}} können optional ausgefüllt werden.",
+    "core.translationskel.translations_missing.descr": "Übersetzung fehlt für Sprache",
+    "core.translationskel.default_text.descr": "Fallback-Wert",
+    "core.translationskel.hint.descr": "Hinweis/Kontext (nur intern)",
+    "core.translationskel.usage_filename.descr": "Verwendet und hinzugefügt von dieser Datei",
+    "core.translationskel.usage_lineno.descr": "Verwendet und hinzugefügt von dieser Zeilennummer",
+    "core.translationskel.usage_variables.descr": "Empfängt diese Ersetzungsvariablen",
+    "core.translationskel.creator.descr": "Autor",
 
     # Bones
     "core.bones.password.no_capital_letters": "Das eingegebene Passwort enthält keine Großbuchstaben.",
@@ -360,4 +376,25 @@ de = {
     "core.bones.password.no_digits": "Das eingegebene Passwort enthält keine Ziffern.",
     "core.bones.password.no_special_characters": "Das eingegebene Passwort enthält keine Sonderzeichen.",
     "core.bones.password.too_short": "Das eingegebene Passwort ist zu kurz. Es benötigt mindestens 8 Zeichen.",
+
+    "core.bones.spam.question": "Was ist das Ergebnis von {{a}} plus {{b}}?",
+    "core.bones.spam.invalid": "Deine Antwort war falsch. Bitte versuche es erneut.",
+    "core.bones.spam.value.one": "Eins",
+    "core.bones.spam.value.two": "Zwei",
+    "core.bones.spam.value.three": "Drei",
+    "core.bones.spam.value.four": "Vier",
+    "core.bones.spam.value.five": "Fünf",
+    "core.bones.spam.value.six": "Sechs",
+    "core.bones.spam.value.seven": "Sieben",
+    "core.bones.spam.value.eight": "Acht",
+    "core.bones.spam.value.nine": "Neun",
+
+    # user Status enum
+    "viur.core.user.status.0": "Nicht gesetzt",
+    "viur.core.user.status.1": "Warten auf E-Mail-Bestätigung",
+    "viur.core.user.status.2": "Warten auf Administratorbestätigung",
+    "viur.core.user.status.5": "Deaktiviert",
+    "viur.core.user.status.10": "Aktiv",
+
+    "viur.core.modules.user.bone.status": "Kontostatus",
 }

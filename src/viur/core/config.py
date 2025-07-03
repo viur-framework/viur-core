@@ -2,24 +2,36 @@ import datetime
 import hashlib
 import logging
 import os
+import re
+import typing as t
 import warnings
 from pathlib import Path
-import typing as t
 
 import google.auth
+from google.appengine.api.memcache import Client
 
 from viur.core.version import __version__
+from viur.core.current import user as current_user
 
 if t.TYPE_CHECKING:  # pragma: no cover
+    from viur.core.bones.text import HtmlBoneConfiguration
     from viur.core.email import EmailTransport
     from viur.core.skeleton import SkeletonInstance
     from viur.core.module import Module
+    from viur.core.tasks import CustomEnvironmentHandler
+    from viur.core import i18n
 
 # Construct an alias with a generic type to be able to write Multiple[str]
 # TODO: Backward compatible implementation, refactor when viur-core
 #       becomes >= Python 3.12 with a type statement (PEP 695)
 _T = t.TypeVar("_T")
 Multiple: t.TypeAlias = list[_T] | tuple[_T] | set[_T] | frozenset[_T]  # TODO: Refactor for Python 3.12
+
+
+class CaptchaDefaultCredentialsType(t.TypedDict):
+    """Expected type of global captcha credential, see :attr:`Security.captcha_default_credentials`"""
+    sitekey: str
+    secret: str
 
 
 class ConfigType:
@@ -270,7 +282,7 @@ class Admin(ConfigType):
     """secondary color for viur-admin"""
 
     module_groups: dict[str, dict[t.Literal["name", "icon", "sortindex"], str | int]] = {}
-    """Module Groups for the VI
+    """Module Groups for the admin tool
 
     Group modules in the sidebar in categories (groups).
 
@@ -278,12 +290,12 @@ class Admin(ConfigType):
         conf.admin.module_groups = {
             "content": {
                 "name": "Content",
-                "icon": "text-file",
+                "icon": "file-text-fill",
                 "sortindex": 10,
             },
             "shop": {
                 "name": "Shop",
-                "icon": "cart",
+                "icon": "cart-fill",
                 "sortindex": 20,
             },
         }
@@ -372,8 +384,8 @@ class Security(ConfigType):
     Use security.enableStrictTransportSecurity to set this property"""
 
     x_frame_options: t.Optional[
-        tuple[t.Literal["deny", "sameorigin", "allow-from"],
-              t.Optional[str]]] = ("sameorigin", None)
+        tuple[t.Literal["deny", "sameorigin", "allow-from"], t.Optional[str]]
+    ] = ("sameorigin", None)
     """If set, ViUR will emit an X-Frame-Options header
 
     In case of allow-from, the second parameters must be the host-url.
@@ -389,13 +401,82 @@ class Security(ConfigType):
     x_permitted_cross_domain_policies: t.Optional[t.Literal["none", "master-only", "by-content-type", "all"]] = "none"
     """Unless set to logical none; ViUR will emit a X-Permitted-Cross-Domain-Policies with each request"""
 
-    captcha_default_credentials: t.Optional[dict[t.Literal["sitekey", "secret"], str]] = None
-    """The default sitekey and secret to use for the captcha-bone.
+    captcha_default_credentials: t.Optional[CaptchaDefaultCredentialsType] = None
+    """The default sitekey and secret to use for the :class:`CaptchaBone`.
     If set, must be a dictionary of "sitekey" and "secret".
+    """
+
+    captcha_enforce_always: bool = False
+    """By default a captcha of the :class:`CaptchaBone` must not be solved on a local development server
+    or by a root user. But for development it can be helpful to test the implementation
+    on a local development server. Setting this flag to True, disables this behavior and
+    enforces always a valid captcha.
     """
 
     password_recovery_key_length: int = 42
     """Length of the Password recovery key"""
+
+    closed_system: bool = False
+    """If `True` it activates a mode in which only authenticated users can access all routes."""
+
+    admin_allowed_paths: t.Iterable[str] = [
+        "vi",
+        "vi/skey",
+        "vi/settings",
+        "vi/user/auth_*",
+        "vi/user/f2_*",
+        "vi/user/getAuthMethods",  # FIXME: deprecated, use `login` for this
+        "vi/user/login",
+    ]
+    """Specifies admin tool paths which are being accessible without authenticated user."""
+
+    closed_system_allowed_paths: t.Iterable[str] = admin_allowed_paths + [
+        "",  # index site
+        "json/skey",
+        "json/user/auth_*",
+        "json/user/f2_*",
+        "json/user/getAuthMethods",  # FIXME: deprecated, use `login` for this
+        "json/user/login",
+        "user/auth_*",
+        "user/f2_*",
+        "user/getAuthMethods",  # FIXME: deprecated, use `login` for this
+        "user/login",
+    ]
+    """Paths that are accessible without authentication in a closed system, see `closed_system` for details."""
+
+    # CORS Settings
+
+    cors_origins: t.Iterable[str | re.Pattern] | t.Literal["*"] = []
+    """Allowed origins
+    Access-Control-Allow-Origin
+
+    Pattern should be case-insensitive, for example:
+        >>> re.compile(r"^http://localhost:(\d{4,5})/?$", flags=re.IGNORECASE)
+    """  # noqa
+
+    cors_origins_use_wildcard: bool = False
+    """Use * for Access-Control-Allow-Origin -- if possible"""
+
+    cors_methods: t.Iterable[str] = ["get", "head", "post", "options"]  # , "put", "patch", "delete"]
+    """Access-Control-Request-Method"""
+
+    cors_allow_headers: t.Iterable[str | re.Pattern] | t.Literal["*"] = []
+    """Access-Control-Request-Headers
+
+    Can also be set for specific @exposed methods with the @cors decorator.
+
+    Pattern should be case-insensitive, for example:
+        >>> re.compile(r"^X-ViUR-.*$", flags=re.IGNORECASE)
+    """
+
+    cors_allow_credentials: bool = False
+    """
+    Set Access-Control-Allow-Credentials to true
+    to support fetch requests with credentials: include
+    """
+
+    cors_max_age: datetime.timedelta | None = None
+    """Allow caching"""
 
     _mapping = {
         "contentSecurityPolicy": "content_security_policy",
@@ -429,6 +510,9 @@ class Debug(ConfigType):
     trace_internal_call_routing: bool = False
     """If enabled, ViUR will log which (internal-exposed) function are called from templates with what arguments"""
 
+    trace_queries: bool = False
+    """If enabled, ViUR will log each query that run"""
+
     skeleton_from_client: bool = False
     """If enabled, log errors raises from skeleton.fromClient()"""
 
@@ -454,19 +538,9 @@ class Email(ConfigType):
     log_retention: datetime.timedelta = datetime.timedelta(days=30)
     """For how long we'll keep successfully send emails in the viur-emails table"""
 
-    transport_class: t.Type["EmailTransport"] = None
-    """Class that actually delivers the email using the service provider
-    of choice. See email.py for more details
-    """
-
-    sendinblue_api_key: t.Optional[str] = None
-    """API Key for SendInBlue (now Brevo) for the EmailTransportSendInBlue
-    """
-
-    sendinblue_thresholds: tuple[int] | list[int] = (1000, 500, 100)
-    """Warning thresholds for remaining email quota
-
-    Used by email.EmailTransportSendInBlue.check_sib_quota
+    transport_class: "EmailTransport" = None
+    """EmailTransport instance that actually delivers the email using the service provider
+    of choice. See :module:`core.email` for more details
     """
 
     send_from_local_development_server: bool = False
@@ -476,14 +550,21 @@ class Email(ConfigType):
 
     recipient_override: str | list[str] | t.Callable[[], str | list[str]] | t.Literal[False] = None
     """If set, all outgoing emails will be sent to this address
-    (overriding the 'dests'-parameter in email.sendEmail)
+    (overriding the 'dests'-parameter in :meth:`core.email.send_email`)
+    """
+
+    sender_default: str = f"viur@{_project_id}.appspotmail.com"
+    """This sender is used by default for emails.
+    It can be overridden for a specific email by passing the `sender` argument
+    to :meth:`core.email.send_email` or for all emails with :attr:`sender_override`.
     """
 
     sender_override: str | None = None
     """If set, this sender will be used, regardless of what the templates advertise as sender"""
 
     admin_recipients: str | list[str] | t.Callable[[], str | list[str]] = None
-    """Sets recipients for mails send with email.sendEMailToAdmins. If not set, all root users will be used."""
+    """Sets recipients for mails send with :meth:`core.email.send_email_to_admins`.
+    If not set, all root users will be used."""
 
     _mapping = {
         "logRetention": "log_retention",
@@ -491,10 +572,18 @@ class Email(ConfigType):
         "sendFromLocalDevelopmentServer": "send_from_local_development_server",
         "recipientOverride": "recipient_override",
         "senderOverride": "sender_override",
-        "admin_recipients": "admin_recipients",
         "sendInBlue.apiKey": "sendinblue_api_key",
         "sendInBlue.thresholds": "sendinblue_thresholds",
     }
+
+
+class History(ConfigType):
+    databases: Multiple[str] = ["viur"]
+    """All history related settings."""
+    excluded_actions: Multiple[str] = []
+    """List of all action that are should not be logged."""
+    excluded_kinds: Multiple[str] = []
+    """List of all kinds that should be logged."""
 
 
 class I18N(ConfigType):
@@ -512,22 +601,66 @@ class I18N(ConfigType):
     language_alias_map: dict[str, str] = {}
     """Allows mapping of certain languages to one translation (i.e. us->en)"""
 
-    language_method: t.Literal["session", "url", "domain"] = "session"
+    language_method: t.Literal["session", "url", "domain", "header"] = "session"
     """Defines how translations are applied:
         - session: Per Session
         - url: inject language prefix in url
         - domain: one domain per language
+        - header: Per Http-Header
     """
 
     language_module_map: dict[str, dict[str, str]] = {}
     """Maps modules to their translation (if set)"""
 
+    @property
+    def available_dialects(self) -> list[str]:
+        """Main languages and language aliases"""
+        # Use a dict to keep the order and remove duplicates
+        res = dict.fromkeys(self.available_languages)
+        res |= self.language_alias_map
+        return list(res.keys())
+
+    add_missing_translations: (bool | str | t.Iterable[str] | "i18n.AddMissing"
+                               | t.Callable[["i18n.translate"], t.Union[bool, "i18n.AddMissing"]]) = False
+    """Add missing translation into datastore, optionally with given fnmatch-patterns.
+
+    If a key is not found in the translation table when a translation is
+    rendered, a database entry is created with the key and hint and
+    default value (if set) so that the translations
+    can be entered in the administration.
+
+    Instead of setting add_missing_translations to a boolean, it can also be set to
+    a pattern or iterable of fnmatch-patterns; Only translation keys matching these
+    patterns will be automatically added.
+    If a callable is provided, it will be called with the translation object to make a complex decision.
+    """
+
+    def _dump_can_view(self, _key):
+        return bool(current_user.get())
+
+    dump_can_view: t.Callable[[t.Self, str], bool] = _dump_can_view
+    """Customizable callback for translation.dump() to verify if a specific translation key can be queried.
+
+    This logic is omitted for translations flagged public."""
+
 
 class User(ConfigType):
     """User, session, login related settings"""
 
-    access_rights: Multiple[str] = ["root", "admin"]
-    """Additional access rights available on this project"""
+    access_rights: Multiple[str] = [
+        "root",
+        "admin",
+        "scriptor",
+    ]
+    """Additional access flags available for users on this project.
+
+    There are three default flags:
+    - `root` is allowed to view/add/edit/delete any module, regardless of role or other settings
+    - `admin` is allowed to use the ViUR administration tool
+    - `scriptor` is allowed to use the ViUR scripting features directly within the admin
+      This does not affect scriptor actions which are configured for modules, as they allow for
+      fine grained usage rule definitions.
+    """
 
     roles: dict[str, str] = {
         "custom": "Custom",
@@ -536,9 +669,24 @@ class User(ConfigType):
         "editor": "Editor",
         "admin": "Administrator",
     }
-    """User roles available on this project"""
+    """User roles available on this project.
 
-    session_life_time: int = 60 * 60
+    The roles can be individually defined per module, see `Module.roles`.
+
+    The default roles can be described as follows:
+
+    - `custom` for users with a custom-settings via the `User.access`-bone; includes root users.
+    - `user` for users without any additonal rights. They can log-in and view themselves, or particular modules which
+      just check for authenticated users.
+    - `viewer` for users who should only view content.
+    - `editor` for users who are allowed to edit particular content. They mostly can `view` and `edit`, but not `add`
+      or `delete`.
+    - `admin` for users with administration privileges. They can edit any data, but still aren't `root`.
+
+    The preset roles are for guidiance, and already fit to most projects.
+    """
+
+    session_life_time: datetime.timedelta = datetime.timedelta(hours=1)
     """Default is 60 minutes lifetime for ViUR sessions"""
 
     session_persistent_fields_on_login: Multiple[str] = ["language"]
@@ -562,6 +710,17 @@ class User(ConfigType):
     belongs to one of the listed domains, a user account (UserSkel) is created.
     If the user's email address belongs to any other domain,
     no account is created."""
+
+    def __setattr__(self, name: str, value: t.Any) -> None:
+        if name == "session_life_time":
+            if not isinstance(value, datetime.timedelta):
+                from viur.core import utils
+                warnings.warn(
+                    "Please use timedelta to set session_life_time.",
+                    DeprecationWarning, stacklevel=2,
+                )
+                value = utils.parse.timedelta(value)
+        super().__setattr__(name, value)
 
 
 class Instance(ConfigType):
@@ -593,19 +752,111 @@ class Conf(ConfigType):
     bone_boolean_str2true: Multiple[str | int] = ("true", "yes", "1")
     """Allowed values that define a str to evaluate to true"""
 
+    bone_html_default_allow: "HtmlBoneConfiguration" = {
+        "validTags": [
+            "a",
+            "abbr",
+            "b",
+            "blockquote",
+            "br",
+            "div",
+            "em",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "hr",
+            "i",
+            "img",
+            "li",
+            "ol",
+            "p",
+            "span",
+            "strong",
+            "sub",
+            "sup",
+            "table",
+            "tbody",
+            "td",
+            "tfoot",
+            "th",
+            "thead",
+            "tr",
+            "u",
+            "ul",
+        ],
+        "validAttrs": {
+            "a": [
+                "href",
+                "target",
+                "title",
+            ],
+            "abbr": [
+                "title",
+            ],
+            "blockquote": [
+                "cite",
+            ],
+            "img": [
+                "src",
+                "alt",
+                "title",
+            ],
+            "p": [
+                "data-indent",
+            ],
+            "span": [
+                "title",
+            ],
+            "td": [
+                "colspan",
+                "rowspan",
+            ],
+
+        },
+        "validStyles": [
+            "color",
+        ],
+        "validClasses": [
+            "vitxt-*",
+            "viur-txt-*"
+        ],
+        "singleTags": [
+            "br",
+            "hr",
+            "img",
+        ]
+    }
+    """
+    A dictionary containing default configurations for handling HTML content in TextBone instances.
+    """
+
     cache_environment_key: t.Optional[t.Callable[[], str]] = None
     """If set, this function will be called for each cache-attempt
     and the result will be included in the computed cache-key"""
 
+    # FIXME VIUR4: REMOVE ALL COMPATIBILITY MODES!
     compatibility: Multiple[str] = [
-        "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
-        "json.bone.structure.keytuples",  # use classic structure notation: `"structure = [["key", {...}] ...]` (#649)
-        "json.bone.structure.inlists",  # dump skeleton structure with every JSON list response (#774 for details)
+        # "json.bone.structure.camelcasenames",  # use camelCase attribute names (see #637 for details)
+        # "json.bone.structure.keytuples",  # use classic structure notation: `"structure = [["key", {...}] ...]` (#649)
+        # "json.bone.structure.inlists",  # dump skeleton structure with every JSON list response (#774 for details)
+        # "tasks.periodic.useminutes",  # Interpret int/float values for @PeriodicTask as minutes
+        # #                               instead of seconds (#1133 for details)
+        # "bone.select.structure.values.keytuple",  # render old-style tuple-list in SelectBone's
+        #                                             values structure (#1203)
     ]
-    """Backward compatibility flags; Remove to enforce new layout."""
+    """Backward compatibility flags; Remove to enforce new style."""
 
     db_engine: str = "viur.datastore"
     """Database engine module"""
+
+    db_memcache_client: Client | None = None
+    """If set, ViUR cache data for the db.get in the Memcache for faster access."""
+
+    db_create_access_log: bool = True
+    """If False no access log will be created. But then the caching is disabled too."""
 
     error_handler: t.Callable[[Exception], str] | None = None
     """If set, ViUR calls this function instead of rendering the viur.errorTemplate if an exception occurs"""
@@ -635,14 +886,20 @@ class Conf(ConfigType):
     max_post_params_count: int = 250
     """Upper limit of the amount of parameters we accept per request. Prevents Hash-Collision-Attacks"""
 
+    param_filter_function: t.Callable[[str, str], bool] = lambda _, key, value: key.startswith("_")
+    """
+    Function which decides if a request parameter should be used or filtered out.
+    Returning True means to filter out.
+    """
+
     moduleconf_admin_info: dict[str, t.Any] = {
-        "icon": "icon-settings",
+        "icon": "gear-fill",
         "display": "hidden",
     }
     """Describing the internal ModuleConfig-module"""
 
     script_admin_info: dict[str, t.Any] = {
-        "icon": "icon-hashtag",
+        "icon": "file-code-fill",
         "display": "hidden",
     }
     """Describing the Script module"""
@@ -662,20 +919,60 @@ class Conf(ConfigType):
     skeleton_search_path: Multiple[str] = [
         "/skeletons/",  # skeletons of the project
         "/viur/core/",  # system-defined skeletons of viur-core
+        "/viur/src/viur/core/",  # fixme: test suite
         "/viur-core/core/"  # system-defined skeletons of viur-core, only used by editable installation
     ]
     """Priority, in which skeletons are loaded"""
 
-    tasks_custom_environment_handler: tuple[t.Callable[[], t.Any], t.Callable[[t.Any], None]] = None
-    """
-    Preserve additional environment in deferred tasks.
+    _tasks_custom_environment_handler: t.Optional["CustomEnvironmentHandler"] = None
 
-    If set, it must be a tuple of two functions (serialize_env, restore_env)
-    for serializing/restoring environment data.
-    The `serialize_env` function must not require any parameters and must
-    return a JSON serializable object with the desired information.
-    The function `restore_env` will receive this object and should write
-    the information it contains to the environment of the deferred request.
+    @property
+    def tasks_custom_environment_handler(self) -> t.Optional["CustomEnvironmentHandler"]:
+        """
+        Preserve additional environment in deferred tasks.
+
+        If set, it must be an instance of CustomEnvironmentHandler
+        for serializing/restoring environment data.
+        """
+        return self._tasks_custom_environment_handler
+
+    @tasks_custom_environment_handler.setter
+    def tasks_custom_environment_handler(self, value: "CustomEnvironmentHandler") -> None:
+        from .tasks import CustomEnvironmentHandler
+        if isinstance(value, CustomEnvironmentHandler) or value is None:
+            self._tasks_custom_environment_handler = value
+        elif isinstance(value, tuple):
+            if len(value) != 2:
+                raise ValueError(f"Expected a (serialize_env_func, restore_env_func) pair")
+            warnings.warn(
+                f"tuple is deprecated, please provide a CustomEnvironmentHandler object!",
+                DeprecationWarning, stacklevel=2,
+            )
+            # Construct an CustomEnvironmentHandler class on the fly to be backward compatible
+            cls = type("ProjectCustomEnvironmentHandler", (CustomEnvironmentHandler,),
+                       # serialize and restore will be bound methods.
+                       # Therefore, consume the self argument with lambda.
+                       {"serialize": lambda self: value[0](),
+                        "restore": lambda self, obj: value[1](obj)})
+            self._tasks_custom_environment_handler = cls()
+        else:
+            raise ValueError(f"Invalid type {type(value)}. Expected a CustomEnvironmentHandler object.")
+
+    tasks_default_queues: dict[str, str] = {
+        "__default__": "default",
+    }
+    """
+    @CallDeferred tasks run in the Cloud Tasks Queue "default" by default.
+    One way to run them in a different task queue is to use the `_queue` parameter
+    when calling the task.
+    However, as this is not possible for existing or low-hanging calls,
+    default values can be defined here for each task.
+    To do this, the task path must be mapped to the queue name:
+    ```
+    conf.tasks_default_queues["updateRelations.viur.core.skeleton"] = "update_relations"
+    ```
+    The queue (in the example: `"update_relations"`) must exist.
+    The default queue can be changed by overwriting `"__default__"`.
     """
 
     valid_application_ids: list[str] = []
@@ -697,6 +994,7 @@ class Conf(ConfigType):
         self.i18n = I18N(parent=self)
         self.user = User(parent=self)
         self.instance = Instance(parent=self)
+        self.history = History(parent=self)
 
     _mapping = {
         # debug
@@ -764,5 +1062,5 @@ class Conf(ConfigType):
 
 
 conf = Conf(
-    strict_mode=os.getenv("VIUR_CORE_CONFIG_STRICT_MODE", "").lower() == "true",
+    strict_mode=os.getenv("VIUR_CORE_CONFIG_STRICT_MODE", "").lower() != "false",
 )

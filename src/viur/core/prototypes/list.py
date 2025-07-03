@@ -4,6 +4,7 @@ from viur.core import current, db, errors, utils
 from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
+from viur.core.bones import BaseBone
 from .skelmodule import SkelModule
 
 
@@ -14,7 +15,7 @@ class List(SkelModule):
         The list module prototype handles datasets in a flat list. It can be extended to filters and views to provide
         various use-cases.
 
-        Definitely, it is the mostly-used prototype in any ViUR project.
+        It is undoubtedly the most frequently used prototype in any ViUR project.
     """
     handler = "list"
     accessRights = ("add", "edit", "view", "delete", "manage")
@@ -36,7 +37,7 @@ class List(SkelModule):
 
             :return: Returns a Skeleton instance for viewing an entry.
         """
-        return self.baseSkel(*args, **kwargs)
+        return self.baseSkel(**kwargs)
 
     def addSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -54,7 +55,7 @@ class List(SkelModule):
 
             :return: Returns a Skeleton instance for adding an entry.
         """
-        return self.baseSkel(*args, **kwargs)
+        return self.baseSkel(**kwargs)
 
     def editSkel(self, *args, **kwargs) -> SkeletonInstance:
         """
@@ -71,7 +72,26 @@ class List(SkelModule):
 
             :return: Returns a Skeleton instance for editing an entry.
         """
-        return self.baseSkel(*args, **kwargs)
+        return self.baseSkel(**kwargs)
+
+    def cloneSkel(self, *args, **kwargs) -> SkeletonInstance:
+        """
+        Retrieve a new instance of a :class:`viur.core.skeleton.Skeleton` that is used by the application
+        for cloning an existing entry from the list.
+
+        The default is a SkeletonInstance returned by :func:`~baseSkel`.
+
+        Like in :func:`viewSkel`, the skeleton can be post-processed. Bones that are being removed aren't visible
+        and cannot be set, but it's also possible to just set a bone to readOnly (revealing it's value to the user,
+        but preventing any modification.
+
+        .. seealso:: :func:`viewSkel`, :func:`editSkel`, :func:`~baseSkel`
+
+        :return: Returns a SkeletonInstance for editing an entry.
+        """
+
+        # On clone, by default, behave as this is a skeleton for adding.
+        return self.addSkel(**kwargs)
 
     ## External exposed functions
 
@@ -92,26 +112,46 @@ class List(SkelModule):
         if not self.canPreview():
             raise errors.Unauthorized()
 
-        skel = self.viewSkel()
+        skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
         skel.fromClient(kwargs)
 
         return self.render.view(skel)
 
     @exposed
-    def structure(self, *args, **kwargs) -> t.Any:
+    def structure(self, action: t.Optional[str] = "view") -> t.Any:
         """
             :returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
                 in each bone.
 
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
-        skel = self.viewSkel()
-        if not self.canAdd():  # We can't use canView here as it would require passing a skeletonInstance.
-            # As a fallback, we'll check if the user has the permissions to view at least one entry
-            qry = self.listFilter(skel.all())
-            if not qry or not qry.getEntry():
-                raise errors.Unauthorized()
-        return self.render.view(skel)
+        # FIXME: In ViUR > 3.7 this could also become dynamic (ActionSkel paradigm).
+        match action:
+            case "view":
+                skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
+                if not self.canView(skel):
+                    raise errors.Unauthorized()
+
+            case "edit":
+                skel = self.editSkel()
+                if not self.canEdit(skel):
+                    raise errors.Unauthorized()
+
+            case "add":
+                if not self.canAdd():
+                    raise errors.Unauthorized()
+
+                skel = self.addSkel()
+
+            case "clone":
+                skel = self.cloneSkel()
+                if not (self.canAdd() and self.canEdit(skel)):
+                    raise errors.Unauthorized()
+
+            case _:
+                raise errors.NotImplemented(f"The action {action!r} is not implemented.")
+
+        return self.render.render(f"structure.{action}", skel)
 
     @exposed
     def view(self, key: db.Key | int | str, *args, **kwargs) -> t.Any:
@@ -131,7 +171,7 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
         skel = self.viewSkel()
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         if not self.canView(skel):
@@ -157,11 +197,14 @@ class List(SkelModule):
 
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
-        query = self.listFilter(self.viewSkel().all().mergeExternalFilter(kwargs))  # Access control
-        if query is None:
+        skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
+
+        # The general access control is made via self.listFilter()
+        if not (query := self.listFilter(skel.all().mergeExternalFilter(kwargs))):
             raise errors.Unauthorized()
-        res = query.fetch()
-        return self.render.list(res)
+
+        self._apply_default_order(query)
+        return self.render.list(query.fetch())
 
     @force_ssl
     @exposed
@@ -185,7 +228,7 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
         skel = self.editSkel()
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         if not self.canEdit(skel):
@@ -194,14 +237,14 @@ class List(SkelModule):
         if (
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
-            or not skel.fromClient(kwargs)  # failure on reading into the bones
+            or not skel.fromClient(kwargs, amend=True)  # failure on reading into the bones
             or utils.parse.bool(kwargs.get("bounce"))  # review before changing
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self.render.edit(skel)
 
         self.onEdit(skel)
-        skel.toDB()  # write it!
+        skel.write()  # write it!
         self.onEdited(skel)
 
         return self.render.editSuccess(skel)
@@ -238,7 +281,7 @@ class List(SkelModule):
             return self.render.add(skel)
 
         self.onAdd(skel)
-        skel.toDB()
+        skel.write()
         self.onAdded(skel)
 
         return self.render.addSuccess(skel)
@@ -262,7 +305,7 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
         skel = self.editSkel()
-        if not skel.fromDB(key):
+        if not skel.read(key):
             raise errors.NotFound()
 
         if not self.canDelete(skel):
@@ -284,11 +327,14 @@ class List(SkelModule):
             :return: The rendered entity or list.
         """
         if args and args[0]:
+            skel = self.viewSkel(
+                allow_client_defined=utils.string.is_prefix(self.render.kind, "json"),
+                _excludeFromAccessLog=True,
+            )
+
             # We probably have a Database or SEO-Key here
-            seoKey = str(args[0]).lower()
-            skel = self.viewSkel().all(_excludeFromAccessLog=True).filter("viur.viurActiveSeoKeys =", seoKey).getSkel()
-            if skel:
-                db.currentDbAccessLog.get(set()).add(skel["key"])
+            if skel := skel.all().filter("viur.viurActiveSeoKeys =", str(args[0]).lower()).getSkel():
+                db.current_db_access_log.get(set()).add(skel["key"])
                 if not self.canView(skel):
                     raise errors.Forbidden()
                 seoUrl = utils.seoUrlToEntry(self.moduleName, skel)
@@ -306,6 +352,55 @@ class List(SkelModule):
     def getDefaultListParams(self):
         return {}
 
+    @exposed
+    @force_ssl
+    @skey(allow_empty=True)
+    def clone(self, key: db.Key | str | int, **kwargs):
+        """
+        Clone an existing entry, and render the entry, eventually with error notes on incorrect data.
+        Data is taken by any other arguments in *kwargs*.
+
+        The function performs several access control checks on the requested entity before it is added.
+
+        .. seealso:: :func:`canEdit`, :func:`canAdd`, :func:`onClone`, :func:`onCloned`
+
+        :param key: URL-safe key of the item to be edited.
+
+        :returns: The cloned object of the entry, eventually with error hints.
+
+        :raises: :exc:`viur.core.errors.NotAcceptable`, when no valid *skelType* was provided.
+        :raises: :exc:`viur.core.errors.NotFound`, when no *entry* to clone from was found.
+        :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
+        """
+
+        skel = self.cloneSkel()
+        if not skel.read(key):
+            raise errors.NotFound()
+
+        # a clone-operation is some kind of edit and add...
+        if not (self.canEdit(skel) and self.canAdd()):
+            raise errors.Unauthorized()
+
+        # Remember source skel and unset the key for clone operation!
+        src_skel = skel
+        skel = skel.clone(apply_clone_strategy=True)
+        skel["key"] = None
+
+        # Check all required preconditions for clone
+        if (
+            not kwargs  # no data supplied
+            or not current.request.get().isPostRequest  # failure if not using POST-method
+            or not skel.fromClient(kwargs)  # failure on reading into the bones
+            or utils.parse.bool(kwargs.get("bounce"))  # review before changing
+        ):
+            return self.render.edit(skel, action="clone")
+
+        self.onClone(skel, src_skel=src_skel)
+        assert skel.write()
+        self.onCloned(skel, src_skel=src_skel)
+
+        return self.render.editSuccess(skel, action="cloneSuccess")
+
     ## Default access control functions
 
     def listFilter(self, query: db.Query) -> t.Optional[db.Query]:
@@ -321,7 +416,7 @@ class List(SkelModule):
             :returns: The altered filter, or None if access is not granted.
         """
 
-        if (user := current.user.get()) and ("%s-view" % self.moduleName in user["access"] or "root" in user["access"]):
+        if (user := current.user.get()) and (f"{self.moduleName}-view" in user["access"] or "root" in user["access"]):
             return query
 
         return None
@@ -336,14 +431,15 @@ class List(SkelModule):
             :return: True if the current session is authorized to view that entry, False otherwise
         """
         # We log the key we're querying by hand so we don't have to lock on the entire kind in our query
-        db.currentDbAccessLog.get(set()).add(skel["key"])
-        query = self.viewSkel().all(_excludeFromAccessLog=True).mergeExternalFilter({"key": skel["key"]})
+        query = self.viewSkel().all(_excludeFromAccessLog=True)
+
+        if key := skel["key"]:
+            db.current_db_access_log.get(set()).add(key)
+            query.mergeExternalFilter({"key": key})
+
         query = self.listFilter(query)  # Access control
 
-        if query is None:
-            return False
-
-        if not query.getEntry():
+        if query is None or (key and not query.getEntry()):
             return False
 
         return True
@@ -373,7 +469,7 @@ class List(SkelModule):
             return True
 
         # user with add-permission is allowed.
-        if user and user["access"] and "%s-add" % self.moduleName in user["access"]:
+        if user and user["access"] and f"{self.moduleName}-add" in user["access"]:
             return True
 
         return False
@@ -403,8 +499,8 @@ class List(SkelModule):
             return True
 
         if (user and user["access"]
-            and ("%s-add" % self.moduleName in user["access"]
-                 or "%s-edit" % self.moduleName in user["access"])):
+            and (f"{self.moduleName}-add" in user["access"]
+                 or f"{self.moduleName}-edit" in user["access"])):
             return True
 
         return False
@@ -434,7 +530,7 @@ class List(SkelModule):
         if user["access"] and "root" in user["access"]:
             return True
 
-        if user and user["access"] and "%s-edit" % self.moduleName in user["access"]:
+        if user and user["access"] and f"{self.moduleName}-edit" in user["access"]:
             return True
 
         return False
@@ -465,7 +561,7 @@ class List(SkelModule):
         if user["access"] and "root" in user["access"]:
             return True
 
-        if user and user["access"] and "%s-delete" % self.moduleName in user["access"]:
+        if user and user["access"] and f"{self.moduleName}-delete" in user["access"]:
             return True
 
         return False
@@ -495,10 +591,10 @@ class List(SkelModule):
 
             .. seealso:: :func:`add`, , :func:`onAdd`
         """
-        logging.info("Entry added: %s" % skel["key"])
+        logging.info(f"""Entry added: {skel["key"]!r}""")
         flushCache(kind=skel.kindName)
         if user := current.user.get():
-            logging.info("User: %s (%s)" % (user["name"], user["key"]))
+            logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
     def onEdit(self, skel: SkeletonInstance):
         """
@@ -523,10 +619,10 @@ class List(SkelModule):
 
             .. seealso:: :func:`edit`, :func:`onEdit`
         """
-        logging.info("Entry changed: %s" % skel["key"])
+        logging.info(f"""Entry changed: {skel["key"]!r}""")
         flushCache(key=skel["key"])
         if user := current.user.get():
-            logging.info("User: %s (%s)" % (user["name"], user["key"]))
+            logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
     def onView(self, skel: SkeletonInstance):
         """
@@ -564,12 +660,41 @@ class List(SkelModule):
 
             .. seealso:: :func:`delete`, :func:`onDelete`
         """
-        logging.info("Entry deleted: %s" % skel["key"])
+        logging.info(f"""Entry deleted: {skel["key"]!r}""")
         flushCache(key=skel["key"])
         if user := current.user.get():
-            logging.info("User: %s (%s)" % (user["name"], user["key"]))
+            logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
+
+    def onClone(self, skel: SkeletonInstance, src_skel: SkeletonInstance):
+        """
+        Hook function that is called before cloning an entry.
+
+        It can be overwritten to a module-specific behavior.
+
+        :param skel: The new SkeletonInstance that is being created.
+        :param src_skel: The source SkeletonInstance `skel` is cloned from.
+
+        .. seealso:: :func:`clone`, :func:`onCloned`
+        """
+        pass
+
+    def onCloned(self, skel: SkeletonInstance, src_skel: SkeletonInstance):
+        """
+        Hook function that is called after cloning an entry.
+
+        It can be overwritten to a module-specific behavior.
+
+        :param skel: The new SkeletonInstance that was created.
+        :param src_skel: The source SkeletonInstance `skel` was cloned from.
+
+        .. seealso:: :func:`clone`, :func:`onClone`
+        """
+        logging.info(f"""Entry cloned: {skel["key"]!r}""")
+        flushCache(kind=skel.kindName)
+
+        if user := current.user.get():
+            logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
 
 List.admin = True
-List.html = True
 List.vi = True
