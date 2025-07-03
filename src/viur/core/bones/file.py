@@ -229,9 +229,10 @@ class FileBone(TreeLeafBone):
         super().postSavedHandler(skel, boneName, key)
         if (
             current.request.get().is_deferred
-            and "derived" in current.request_data.get().get("__update_relations_bones")
+            and "derived" in (current.request_data.get().get("__update_relations_bones") or ())
         ):
             return
+
         from viur.core.skeleton import RelSkel, Skeleton
 
         if issubclass(skel.skeletonCls, Skeleton):
