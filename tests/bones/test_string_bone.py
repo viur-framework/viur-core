@@ -1,12 +1,9 @@
-import unittest
-from unittest.mock import patch
+from abstract import ViURTestCase
 
 
-class TestStringBone(unittest.TestCase):
+class TestStringBone(ViURTestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        from main import monkey_patch
-        monkey_patch()
         cls.bone_name = "myStringBone"
 
     def test_isEmpty_default_bone(self):
@@ -27,11 +24,9 @@ class TestStringBone(unittest.TestCase):
         self.assertTrue(bone.isEmpty(str(bone.getEmptyValue())))
 
 
-class TestStringBone_setBoneValue(unittest.TestCase):
+class TestStringBone_setBoneValue(ViURTestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        from main import monkey_patch
-        monkey_patch()
         cls.bone_name = "myStringBone"
 
     def test_setBoneValue_single(self):
@@ -69,11 +64,9 @@ class TestStringBone_setBoneValue(unittest.TestCase):
             bone.setBoneValue(skel, self.bone_name, "foo", False, "en")
 
 
-class TestStringBone_fromClient(unittest.TestCase):
+class TestStringBone_fromClient(ViURTestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        from main import monkey_patch
-        monkey_patch()
         cls.bone_name = "myStringBone"
 
     def test_fromClient_single(self):
@@ -154,11 +147,9 @@ class TestStringBone_fromClient(unittest.TestCase):
         self.assertIs(ReadFromClientErrorSeverity.Invalid, rfce.severity)
 
 
-class TestStringBoneSerialize(unittest.TestCase):
+class TestStringBoneSerialize(ViURTestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        from main import monkey_patch
-        monkey_patch()
         cls.bone_name = "myStringBone"
 
     def test_singleValueSerialize_caseSensitive(self):

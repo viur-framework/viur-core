@@ -1,5 +1,6 @@
 import types
-import unittest
+
+from abstract import ViURTestCase
 
 OLD_MEMBERS = [
     "admin.name",
@@ -87,11 +88,9 @@ in viur-core==3.5.X
 """
 
 
-class TestConfig(unittest.TestCase):
+class TestConfig(ViURTestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        from main import monkey_patch
-        monkey_patch()
         # FIXME
         """
         cls.logger = logging.getLogger(cls.__qualname__)

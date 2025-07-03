@@ -1,5 +1,7 @@
 import typing as t
-
+import logging
+from viur.core import current, errors
+from viur.core.config import conf
 from viur.core.module import Method
 
 __all__ = [
@@ -99,9 +101,57 @@ def access(
     """
     access_config = locals()
 
+    def validate(*args, **kwargs):
+        # evaluate access guard setting?
+        user = current.user.get()
+
+        if trace := conf.debug.trace:
+            logging.debug(f"@access {user=} {access_config=}")
+
+        if not user:
+            if offer_login := access_config["offer_login"]:
+                raise errors.Redirect(offer_login if isinstance(offer_login, str) else "/user/login")
+
+            raise errors.Unauthorized(access_config["message"]) if access_config["message"] else errors.Unauthorized()
+
+        ok = "root" in user["access"]
+
+        if not ok and access_config["access"]:
+            for acc in access_config["access"]:
+                if trace:
+                    logging.debug(f"@access checking {acc=}")
+
+                # Callable directly tests access
+                if callable(acc):
+                    if acc():
+                        ok = True
+                        break
+
+                    continue
+
+                # Otherwise, check for access rights
+                if isinstance(acc, str):
+                    acc = (acc,)
+
+                assert isinstance(acc, (tuple, list, set))
+
+                if all(a in user["access"] for a in acc):
+                    ok = True
+                    break
+
+        if trace:
+            logging.debug(f"@access {ok=}")
+
+        if not ok:
+            raise errors.Forbidden(access_config["message"]) if access_config["message"] else errors.Forbidden()
+
     def decorator(func):
         meth = Method.ensure(func)
-        meth.access = access_config
+        meth.guards.append(validate)
+
+        # extend additional access descr, must be a list to be JSON-serializable
+        meth.additional_descr["access"] = [str(access) for access in access_config["access"]]
+
         return meth
 
     return decorator
@@ -135,9 +185,54 @@ def skey(
     """
     skey_config = locals()
 
+    def validate(args, kwargs, varargs, varkwargs):
+        # evaluate skey guard setting?
+        if not current.request.get().skey_checked:  # skey guardiance is only required once per request
+            if conf.debug.trace:
+                logging.debug(f"@skey {skey_config=}")
+
+            security_key = kwargs.pop(skey_config["name"], "")
+
+            # validation is necessary?
+            if allow_empty := skey_config["allow_empty"]:
+                # allow_empty can be callable, to detect programmatically
+                if callable(allow_empty):
+                    required = not allow_empty(args, kwargs)
+                # or allow_empty can be a sequence of allowed keys
+                elif isinstance(allow_empty, (list, tuple)):
+                    required = any(k for k in kwargs.keys() if k not in allow_empty)
+                # otherwise, varargs or varkwargs may not be empty.
+                else:
+                    required = varargs or varkwargs or security_key
+                    if conf.debug.trace:
+                        logging.debug(f"@skey {required=} because either {varargs=} or {varkwargs=} or {security_key=}")
+            else:
+                required = True
+
+            if required:
+                if conf.debug.trace:
+                    logging.debug(f"@skey wanted, validating {security_key!r}")
+
+                from viur.core import securitykey
+                payload = securitykey.validate(security_key, **skey_config["extra_kwargs"])
+                current.request.get().skey_checked = True
+
+                if not payload or (skey_config["validate"] and not skey_config["validate"](payload)):
+                    raise errors.PreconditionFailed(
+                        skey_config["message"] or f"Missing or invalid parameter {skey_config['name']!r}"
+                    )
+
+                if skey_config["forward_payload"]:
+                    kwargs |= {skey_config["forward_payload"]: payload}
+
     def decorator(func):
         meth = Method.ensure(func)
         meth.skey = skey_config
+        meth.guards.append(validate)
+
+        # extend additional access descr, must be a list to be JSON-serializable
+        meth.additional_descr["skey"] = skey_config["name"]
+
         return meth
 
     if func is None:
@@ -150,6 +245,7 @@ def cors(
     allow_headers: t.Iterable[str] = (),
 ) -> t.Callable:
     """Add additional CORS setting for a decorated :meth:`exposed` method."""
+
     def decorator(func):
         meth = Method.ensure(func)
         meth.cors_allow_headers = allow_headers
