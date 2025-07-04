@@ -31,7 +31,7 @@ class RecordBone(BaseBone):
         using: 'viur.core.skeleton.RelSkel' = None,
         **kwargs
     ):
-        from viur.core.skeleton import RelSkel
+        from viur.core.skeleton.relskel import RelSkel
         if not issubclass(using, RelSkel):
             raise ValueError("RecordBone requires for valid using-parameter (subclass of viur.core.skeleton.RelSkel)")
 
