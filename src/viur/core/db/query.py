@@ -173,6 +173,7 @@ class Query(object):
             # Process filters first
             for bone, key in bones:
                 bone.buildDBFilter(key, skel, self, filters)
+
             # Parse orders
             for bone, key in bones:
                 bone.buildDBSort(key, skel, self, filters)
@@ -195,7 +196,17 @@ class Query(object):
 
         if limit := filters.get("limit"):
             try:
-                self.limit(int(limit))
+                limit = int(limit)
+
+                # disallow limit beyond conf.db_query_external_limit
+                if limit > conf.db_query_external_limit:
+                    limit = conf.db_query_external_limit
+
+                # forbid any limit < 0, which might bypass defaults
+                if limit < 0:
+                    limit = 0
+
+                self.limit(limit)
             except ValueError:
                 pass  # ignore this
 
@@ -384,16 +395,11 @@ class Query(object):
 
     def limit(self, limit: int) -> t.Self:
         """
-        Sets the query limit to *amount* entities in the result.
+        Sets the query limit to *limit* entities in the result.
 
-        Specifying a limit of 0 disables the limit (use with care!).
-
-        :param limit: The maximum number of entities.
+        :param limit: The maximum number of entities per batch.
         :returns: Returns the query itself for chaining.
         """
-        if 0 < limit <= conf.db_query_max_limit:
-            raise ValueError(f"{limit=} is invalid")
-
         if isinstance(self.queries, QueryDefinition):
             self.queries.limit = limit
         elif isinstance(self.queries, list):
@@ -600,36 +606,46 @@ class Query(object):
         if self._fulltextQueryString:
             if utils.is_in_transaction():
                 raise ValueError("Can't run fulltextSearch inside transactions!")  # InvalidStateError FIXME!
+
             qryStr = self._fulltextQueryString
             self._fulltextQueryString = None  # Reset, so the adapter can still work with this query
             res = self.srcSkel.customDatabaseAdapter.fulltextSearch(qryStr, self)
+
             if not self.srcSkel.customDatabaseAdapter.fulltextSearchGuaranteesQueryConstrains:
                 # Search might yield results that are not included in the listfilter
                 if isinstance(self.queries, QueryDefinition):  # Just one
                     res = [x for x in res if _entryMatchesQuery(x, self.queries.filters)]
                 else:  # Multi-Query, must match at least one
                     res = [x for x in res if any([_entryMatchesQuery(x, y.filters) for y in self.queries])]
+
         elif isinstance(self.queries, list):
+            limit = limit if limit >= 0 else self.queries[0].limit
+
             # We have more than one query to run
             if self._calculateInternalMultiQueryLimit:
-                limit = self._calculateInternalMultiQueryLimit(self, limit if limit != -1 else self.queries[0].limit)
+                limit = self._calculateInternalMultiQueryLimit(self, limit)
+
             res = []
             # We run all queries first (preventing multiple round-trips to the server)
             for singleQuery in self.queries:
-                res.append(self._run_single_filter_query(singleQuery, limit if limit != -1 else singleQuery.limit))
+                res.append(self._run_single_filter_query(singleQuery, limit))
+
             # Wait for the actual results to arrive and convert the protobuffs to Entries
             res = [self._fixKind(x) for x in res]
             if self._customMultiQueryMerge:
                 # We have a custom merge function, use that
-                res = self._customMultiQueryMerge(self, res, limit if limit != -1 else self.queries[0].limit)
+                res = self._customMultiQueryMerge(self, res, limit)
             else:
                 # We must merge (and sort) the results ourself
                 res = self._merge_multi_query_results(res)
+
         else:  # We have just one single query
             res = self._fixKind(self._run_single_filter_query(
-                self.queries, limit if limit != -1 else self.queries.limit))
+                self.queries, limit if limit >= 0 else self.queries.limit))
+
         if res:
             self._lastEntry = res[-1]
+
         return res
 
     def count(self, up_to: int = 2 ** 63 - 1) -> int:
@@ -662,7 +678,6 @@ class Query(object):
         should be used.
 
         :param limit: Limits the query to the defined maximum entities.
-            A maximum value of `conf.db_query_max_limit` entries can be fetched at once.
 
         :raises: :exc:`BadFilterError` if a filter string is invalid
         :raises: :exc:`BadValueError` if a filter value is invalid.
@@ -674,16 +689,16 @@ class Query(object):
         if self.srcSkel is None:
             raise NotImplementedError("This query has not been created using skel.all()")
 
-        if limit != -1 and not (0 < limit <= conf.db_query_max_limit):
-            raise NotImplementedError(f"Query is not limited! Set limit between 1 and {conf.db_query_max_limit}")
-
         res = SkelList(self.srcSkel)
+
         for entity in self.run(limit):
             skel_instance = SkeletonInstance(self.srcSkel.skeletonCls, bone_map=self.srcSkel.boneMap)
             skel_instance.dbEntity = entity
             res.append(skel_instance)
+
         res.getCursor = lambda: self.getCursor()
         res.get_orders = lambda: self.get_orders()
+
         return res
 
     def iter(self) -> t.Iterator[Entity]:

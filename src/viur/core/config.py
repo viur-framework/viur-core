@@ -849,8 +849,8 @@ class Conf(ConfigType):
     ]
     """Backward compatibility flags; Remove to enforce new style."""
 
-    db_query_max_limit: int = 100
-    """Sets the maximum query limit."""
+    db_query_external_limit: int = 100
+    """Sets the maximum query limit allowed by external filters."""
 
     db_query_default_limit: int = 30
     """Sets the default query limit for all queries."""
