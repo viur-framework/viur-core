@@ -198,7 +198,7 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
             authRequest = google.auth.transport.requests.Request()
             expiresAt = datetime.datetime.now() + datetime.timedelta(seconds=60)
             signing_credentials = google.auth.compute_engine.IDTokenCredentials(authRequest, "")
-            content_disposition = f"""filename={fileSkel["name"]}"""
+            content_disposition = utils.build_content_disposition_header(fileSkel["name"])
             signedUrl = blob.generate_signed_url(
                 expiresAt,
                 credentials=signing_credentials,
@@ -1029,12 +1029,7 @@ class File(Tree):
         if not filename:
             filename = download_filename or urlquote(blob.name.rsplit("/", 1)[-1])
 
-        content_disposition = "; ".join(
-            item for item in (
-                "attachment" if download else None,
-                f"filename={filename}" if filename else None,
-            ) if item
-        )
+        content_disposition = utils.build_content_disposition_header(filename, attachment=download)
 
         if isinstance(_CREDENTIALS, ServiceAccountCredentials):
             expiresAt = datetime.datetime.now() + datetime.timedelta(seconds=60)
@@ -1152,10 +1147,7 @@ class File(Tree):
         response = current.request.get().response
         response.headers["Content-Type"] = f"image/{file_fmt}"
         response.headers["Cache-Control"] = "public, max-age=604800"  # 7 Days
-        if download:
-            response.headers["Content-Disposition"] = f"attachment; filename={filename}"
-        else:
-            response.headers["Content-Disposition"] = f"filename={filename}"
+        response.headers["Content-Disposition"] = utils.build_content_disposition_header(filename, attachment=download)
 
         answ = requests.get(url, timeout=20)
         if not answ.ok:
