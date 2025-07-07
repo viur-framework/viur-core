@@ -3,7 +3,7 @@ from __future__ import annotations  # noqa: required for pre-defined annotations
 import typing as t
 import fnmatch
 
-from .. import db
+from .. import db, utils
 from .meta import BaseSkeleton
 from .utils import skeletonByKind
 
@@ -68,16 +68,31 @@ class RefSkel(RelSkel):
         newClass.__boneMap__ = bone_map
         return newClass
 
-    def read(self, key: t.Optional[db.Key | str | int] = None) -> "SkeletonInstance":
+    def read(
+        self,
+        key: t.Optional[db.Key | str | int] = None,
+        *,
+        subskel: t.Iterable[str] = (),
+        bones: t.Iterable[str] = (),
+    ) -> "SkeletonInstance":
         """
         Read full skeleton instance referenced by the RefSkel from the database.
 
         Can be used for reading the full Skeleton from a RefSkel.
         The `key` parameter also allows to read another, given key from the related kind.
 
+        :param key: Can be used to overwrite the key; Ohterwise, the RefSkel's key-property will be used.
+        :param subskel: Optionally form skel from subskels
+        :param bones: Optionally create skeleton only from the specified bones
+
         :raise ValueError: If the entry is no longer in the database.
         """
-        skel = skeletonByKind(self.kindName)()
+        skel_cls = skeletonByKind(self.kindName)
+
+        if subskel or bones:
+            skel = skel_cls.subskel(*utils.ensure_iterable(subskel), bones=utils.ensure_iterable(bones))
+        else:
+            skel = skel_cls()
 
         if not skel.read(key or self["key"]):
             raise ValueError(f"""The key {key or self["key"]!r} seems to be gone""")
