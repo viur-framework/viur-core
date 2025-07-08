@@ -257,7 +257,7 @@ class SkeletonMaintenanceTask(tasks.CallableTaskBase):
         condition = RawBone(
             descr="Condition",
             required=True,
-            defaultValue="False  # fused: by default, doesn't affect anything.\n",
+            defaultValue="False  # fused: by default, doesn't affect anything.",
             params={
                 "tooltip": "Enter a Logics expression here to filter entries by specific skeleton values."
             },
