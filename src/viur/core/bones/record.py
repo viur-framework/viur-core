@@ -195,9 +195,9 @@ class RecordBone(BaseBone):
             "using": self.using().structure(),
         }
 
-    def render_single_value(self, value: "SkeletonInstance") -> dict | None:
+    def _atomic(self, value: "SkeletonInstance") -> dict | None:
         if value is not None:
-            return value.render_bone_values()
+            return value.get_values()
 
     def refresh(self, skel, bone_name):
         for _, lang, value in self.iter_bone_value(skel, bone_name):

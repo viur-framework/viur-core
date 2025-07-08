@@ -8,7 +8,7 @@ metadata.
 from hashlib import sha256
 from time import time
 import typing as t
-from viur.core import conf, db, current
+from viur.core import conf, db, current, utils
 from viur.core.bones.treeleaf import TreeLeafBone
 from viur.core.tasks import CallDeferred
 
@@ -354,8 +354,8 @@ class FileBone(TreeLeafBone):
             "public": self.public,
         }
 
-    def render_single_value(self, value: dict[str, "SkeletonInstance"]) -> dict | None:
-        res = super().render_single_value(value)
+    def _atomic(self, value: dict[str, "SkeletonInstance"]) -> dict | None:
+        res = super()._atomic(value)
         if res is not None:
             for key, value in res.items():
                 if value is not None:

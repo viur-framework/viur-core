@@ -1245,7 +1245,7 @@ class RelationalBone(BaseBone):
             "relskel": self._refSkelCache().structure(),
         }
 
-    def render_single_value(self, value: dict[str, "SkeletonInstance"]) -> dict | None:
+    def _atomic(self, value: dict[str, "SkeletonInstance"]) -> dict | None:
         if isinstance(value, dict):
             return {
                 "dest": value["dest"].render_bone_values(),

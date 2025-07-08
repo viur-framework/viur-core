@@ -1588,20 +1588,20 @@ class BaseBone(object):
             res = {}
             for language in self.languages:
                 if bone_value and language in bone_value and bone_value[language]:
-                    ret[language] = [self.render_single_value(value) for value in bone_value[language]]
+                    ret[language] = [self._atomic(value) for value in bone_value[language]]
                 else:
                     res[language] = []
         elif self.languages:
             for language in self.languages:
                 if bone_value and language in bone_value and bone_value[language]:
-                    ret[language] = self.render_single_value(bone_value[language])
+                    ret[language] = self._atomic(bone_value[language])
                 else:
                     ret[language] = None
         elif self.multiple:
-            ret = [self.render_single_value(value) for value in bone_value]
+            ret = [self._atomic(value) for value in bone_value]
 
         else:
-            ret = self.render_single_value(bone_value)
+            ret = self._atomic(bone_value)
         return ret
 
     def _atomic(self, value):

@@ -324,7 +324,7 @@ class SkeletonInstance:
             for i, (key, bone) in enumerate(self.items())
         }
 
-    def values(self):
+    def get_values(self):
         return {
             bone_name: bone.value(self, bone_name) for bone_name, bone in self.items()
         }
