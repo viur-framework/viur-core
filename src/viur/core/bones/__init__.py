@@ -1,5 +1,7 @@
 from .base import (
     BaseBone,
+    CloneBehavior,
+    CloneStrategy,
     Compute,
     ComputeInterval,
     ComputeMethod,
@@ -17,6 +19,7 @@ from .credential import CredentialBone
 from .date import DateBone
 from .email import EmailBone
 from .file import FileBone
+from .image import ImageBone
 from .json import JsonBone
 from .key import KeyBone
 from .numeric import NumericBone
@@ -48,6 +51,8 @@ __all = [
     "BaseBone",
     "BooleanBone",
     "CaptchaBone",
+    "CloneBehavior",
+    "CloneStrategy",
     "ColorBone",
     "Compute",
     "ComputeInterval",
@@ -56,6 +61,7 @@ __all = [
     "DateBone",
     "EmailBone",
     "FileBone",
+    "ImageBone",
     "JsonBone",
     "KeyBone",
     "MultipleConstraints",
@@ -82,8 +88,8 @@ __all = [
     "UidBone",
     "UniqueLockMethod",
     "UniqueValue",
-    "UserBone",
     "UriBone",
+    "UserBone",
     "translation_key_prefix_bonename",
     "translation_key_prefix_skeleton_bonename",
 ]

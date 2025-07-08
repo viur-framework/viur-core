@@ -3,6 +3,7 @@ import random
 import typing as t
 from viur.core import i18n, current
 from viur.core.bones import NumericBone
+from viur.core.bones.base import getSystemInitialized
 
 
 class SpamBone(NumericBone):
@@ -14,7 +15,7 @@ class SpamBone(NumericBone):
             "core.bones.spam.question",
             "What is the result of the addition of {{a}} and {{b}}?"
         ),
-        values: t.Iterable[str] = (
+        values: t.Iterable[str] = tuple(
             i18n.translate(f"core.bones.spam.value.{digit}", digit)
             for digit in ("one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
         ),
@@ -34,8 +35,11 @@ class SpamBone(NumericBone):
             **kwargs
         )
 
-        self.descr_template = descr
         self.values = tuple(values)
+        if not self.values or len(self.values) == 1:
+            raise ValueError("Requires for at least 2 values!")
+
+        self.descr_template = descr
         self.msg_invalid = msg_invalid
 
     def _dice(self) -> int:
@@ -46,10 +50,11 @@ class SpamBone(NumericBone):
         """
         The descr-property is generated and uses session variables to construct the question.
         """
-
-        # The session is not available during startup
-        if not (session := current.session.get()):
+        # This descr can only be evaluated on initialized systems.
+        if not getSystemInitialized():
             return None
+
+        session = current.session.get()
 
         a = session.get("spambone.value.a")
         b = session.get("spambone.value.b")

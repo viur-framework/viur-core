@@ -358,7 +358,7 @@ de = {
     # translation
     "translations": "Übersetzungen",
     "core.translations.view.missing": "Fehlende Übersetzungen für {{lang}}",
-    "core.translationskel.tr_key.descr": "Schlüssel",
+    "core.translationskel.name.descr": "Schlüssel",
     "core.translationskel.translations.descr": "Übersetzung",
     "core.translationskel.translations.tooltip":
         "Die Übersetzungen {{main}} sind erforderlich, {{accent}} können optional ausgefüllt werden.",
@@ -388,4 +388,13 @@ de = {
     "core.bones.spam.value.seven": "Sieben",
     "core.bones.spam.value.eight": "Acht",
     "core.bones.spam.value.nine": "Neun",
+
+    # user Status enum
+    "viur.core.user.status.0": "Nicht gesetzt",
+    "viur.core.user.status.1": "Warten auf E-Mail-Bestätigung",
+    "viur.core.user.status.2": "Warten auf Administratorbestätigung",
+    "viur.core.user.status.5": "Deaktiviert",
+    "viur.core.user.status.10": "Aktiv",
+
+    "viur.core.modules.user.bone.status": "Kontostatus",
 }

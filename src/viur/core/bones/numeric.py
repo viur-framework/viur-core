@@ -80,6 +80,18 @@ class NumericBone(BaseBone):
 
         return super().__setattr__(key, value)
 
+    def singleValueUnserialize(self, val):
+        if val is not None:
+            try:
+                return self._convert_to_numeric(val)
+            except (ValueError, TypeError):
+                return self.getDefaultValue(None)  # FIXME: callable needs the skeleton instance
+
+        return val
+
+    def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+        return self.singleValueUnserialize(value)  # same logic for unserialize here!
+
     def isInvalid(self, value):
         """
         This method checks if a given value is invalid (e.g., NaN) for the NumericBone instance.
@@ -205,10 +217,12 @@ class NumericBone(BaseBone):
         """Convert a value to an int or float considering the precision.
 
         If the value is not convertable an exception will be raised."""
+        if isinstance(value, db.Entity | dict) and "val" in value:
+            value = value["val"]  # was a StringBone before
         if isinstance(value, str):
             value = value.replace(",", ".", 1)
         if self.precision:
-            return float(value)
+            return round(float(value), self.precision)
         else:
             # First convert to float then to int to support "42.5" (str)
             return int(float(value))
