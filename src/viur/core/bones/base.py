@@ -1581,7 +1581,7 @@ class BaseBone(object):
 
         return ret
 
-    def render_value(self, skel: "SkeletonInstance", bone_name: str):
+    def value(self, skel: "SkeletonInstance", bone_name: str) -> t.Any:
         ret = {}
         bone_value = skel[bone_name]
         if self.languages and self.multiple:
@@ -1604,5 +1604,5 @@ class BaseBone(object):
             ret = self.render_single_value(bone_value)
         return ret
 
-    def render_single_value(self, value):
+    def _atomic(self, value):
         return value

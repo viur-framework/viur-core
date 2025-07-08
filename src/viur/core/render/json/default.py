@@ -75,12 +75,12 @@ class DefaultRender(AbstractRenderer):
         errors = None
 
         if isinstance(skel, list):
-            vals = [_skel.render_bone_values() for _skel in skel]
+            raise ValueError("renderEntry cannot handle lists")
             if isinstance(skel[0], SkeletonInstance):
                 structure = DefaultRender.render_structure(skel[0].structure())
 
         elif isinstance(skel, SkeletonInstance):
-            vals = skel.render_bone_values()
+            vals = skel.values()
             structure = DefaultRender.render_structure(skel.structure())
             errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage,
                        "invalidatedFields": x.invalidatedFields} for x in skel.errors]
@@ -117,7 +117,7 @@ class DefaultRender(AbstractRenderer):
                 cursor = skellist.getCursor()
                 orders = skellist.get_orders()
 
-            skellist = [skel.render_bone_values() for skel in skellist]
+            skellist = [item.values() for item in skellist]
         else:
             skellist = []
 
