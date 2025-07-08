@@ -536,6 +536,9 @@ class File(Tree):
         Rule set: https://stackoverflow.com/a/31976060/3749896
         Regex test: https://regex101.com/r/iBYpoC/1
         """
+        if not filename.strip():
+            return False
+
         if len(filename) > cls.MAX_FILENAME_LEN:
             return False
 
@@ -760,23 +763,26 @@ class File(Tree):
         return ", ".join(src_set)
 
     def write(
-            self,
-            filename: str,
-            content: t.Any,
-            mimetype: str = "text/plain",
-            width: int = None,
-            height: int = None,
-            public: bool = False,
-            foldername: t.Optional[str | t.Iterable[str]] = None,
-            rootnode: t.Optional[db.Key] = None,
+        self,
+        filename: str,
+        content: t.Any,
+        mimetype: str = "text/plain",
+        *,
+        width: int = None,
+        height: int = None,
+        public: bool = False,
+        rootnode: t.Optional[db.Key] = None,
+        folder: t.Iterable[str] | str = (),
     ) -> db.Key:
         """
         Write a file from any bytes-like object into the file module.
 
-        If foldername and rootnode are both set, the file is added to the repository in that folder.
-        If only foldername is set, the file is added to the default repository in that folder.
-        If only rootnode is set, the file is added to that repository in the root folder.
-        If both are not set, the file is added without a path or repository. It will not be visible in admin.
+        If *folder* and *rootnode* are both set, the file is added to the repository in that folder.
+        If only *folder* is set, the file is added to the default repository in that folder.
+        If only *rootnode* is set, the file is added to that repository in the root folder.
+
+        If both are not set, the file is added without a path or repository as a weak file.
+        It will not be visible in admin in this case.
 
         :param filename: Filename to be written.
         :param content:  The file content to be written, as bytes-like object.
@@ -784,48 +790,57 @@ class File(Tree):
         :param width: Optional width information for the file.
         :param height: Optional height information for the file.
         :param public: True if the file should be publicly accessible.
-        :param foldername: Optional folder the file should be written into.
         :param rootnode: Optional root-node of the repository to add the file to
+        :param folder: Optional folder the file should be written into.
+
         :return: Returns the key of the file object written. This can be associated e.g. with a FileBone.
         """
         # logging.info(f"{filename=} {mimetype=} {width=} {height=} {public=}")
         if not self.is_valid_filename(filename):
             raise ValueError(f"{filename=} is invalid")
 
-        # Check for foldername
-        if rootnode is None:
-            rootnode = self.ensureOwnModuleRootNode()
-        elif not foldername:
-            # if rootnode is set and foldername is not, save the file in the root of the rootnode
-            foldername = []
+        # Folder mode?
+        if folder:
+            # Validate correct folder naming
+            if isinstance(folder, str):
+                folder = folder,  # make it a tuple
 
-        if foldername is not None:
-            foldernames = foldername
-            if isinstance(foldername, str):
-                foldernames = foldernames.replace('\\', '/')
-                foldernames = (i for i in foldernames.split('/'))
-            foldernames = (i for i in foldernames if i)
+            for foldername in folder:
+                if not self.is_valid_filename(foldername):
+                    raise ValueError(f"{foldername=} is invalid")
+
+            # When in folder-mode, a rootnode must exist!
+            if rootnode is None:
+                rootnode = self.ensureOwnModuleRootNode()
 
             parentrepokey = rootnode.key
             parentfolderkey = rootnode.key
 
-            for fname in foldernames:
-                currentfolder = (self.addSkel("node").all()
-                                 .filter("parentrepo", parentrepokey)
-                                 .filter("parententry", parentfolderkey)
-                                 .filter("name", fname)
-                                 .getSkel())
-                if currentfolder:
-                    parentfolderkey = currentfolder.key
-                else:
-                    newfolderskel = self.addSkel("node")
-                    newfolderskel["name"] = fname
-                    newfolderskel["parentrepo"] = parentrepokey
-                    newfolderskel["parententry"] = parentfolderkey
-                    newfolderskel.write()
-                    parentfolderkey = newfolderskel["key"]
+            for foldername in folder:
+                query = self.addSkel("node").all()
+                query.filter("parentrepo", parentrepokey)
+                query.filter("parententry", parentfolderkey)
+                query.filter("name", foldername)
 
-        # Save the file into the folder.
+                if folder_skel := query.getSkel():
+                    # Skip existing folder
+                    parentfolderkey = folder_skel["key"]
+                else:
+                    # Create new folder
+                    folder_skel = self.addSkel("node")
+
+                    folder_skel["name"] = foldername
+                    folder_skel["parentrepo"] = parentrepokey
+                    folder_skel["parententry"] = parentfolderkey
+                    folder_skel.write()
+
+                    parentfolderkey = folder_skel["key"]
+
+        else:
+            parentrepokey = None
+            parentfolderkey = None
+
+        # Write the file
         dl_key = utils.string.random()
 
         if public:
@@ -837,11 +852,14 @@ class File(Tree):
         blob.upload_from_file(io.BytesIO(content), content_type=mimetype)
 
         fileskel = self.addSkel("leaf")
+
+        fileskel["parentrepo"] = parentrepokey
+        fileskel["parententry"] = parentfolderkey
         fileskel["name"] = filename
         fileskel["size"] = blob.size
         fileskel["mimetype"] = mimetype
         fileskel["dlkey"] = dl_key
-        fileskel["weak"] = foldername is None
+        fileskel["weak"] = bool(parentrepokey)
         fileskel["public"] = public
         fileskel["width"] = width
         fileskel["height"] = height
@@ -849,12 +867,7 @@ class File(Tree):
         fileskel["md5_checksum"] = base64.b64decode(blob.md5_hash).hex()
         fileskel["pending"] = False
 
-        if foldername is not None:
-            fileskel["parentrepo"] = parentrepokey
-            fileskel["parententry"] = parentfolderkey
-
-        fileskel.write()
-        return fileskel["key"]
+        return fileskel.write()["key"]
 
     def read(
             self,
