@@ -1419,7 +1419,7 @@ class User(List):
             second_factor.start_url: second_factor.NAME for second_factor in second_factor_providers
         }
 
-        return self.selectsecondfactorprovider()
+        return self.select_secondfactor_provider()
 
     def secondFactorSucceeded(self, provider: UserSecondFactorAuthentication, user_key: db.Key):
         """
@@ -1506,7 +1506,7 @@ class User(List):
         return SelectAuthenticationProviderSkel()
 
     @exposed
-    def selectauthenticationprovider(self, **kwargs):
+    def select_authentication_provider(self, **kwargs):
         if len(self.authenticationProviders) == 1:
             provider = getattr(self, f"auth_{self.authenticationProviders[0].__name__.lower()}")
             raise errors.Redirect(provider.start_url)
@@ -1515,7 +1515,7 @@ class User(List):
 
         # Read required bones from client
         if not skel.fromClient(kwargs):
-            return self.render.render("selectauthenticationprovider", skel)
+            return self.render.render("select_authentication_provider", skel)
 
         logging.info(f"Redirecting to {skel["provider"]!r}")
         raise errors.Redirect(skel["provider"])
@@ -1530,12 +1530,12 @@ class User(List):
         )
 
     @exposed
-    def selectsecondfactorprovider(self, **kwargs):
+    def select_secondfactor_provider(self, **kwargs):
         skel = self.SelectSecondFactorProviderSkel()
 
         # Read required bones from client
         if not skel.fromClient(kwargs):
-            return self.render.render("selectsecondfactorprovider", skel)
+            return self.render.render("select_secondfactor_provider", skel)
 
         del current.session.get()["_second_factor_providers"]
 
@@ -1565,7 +1565,7 @@ class User(List):
 
     @exposed
     def login(self, *args, **kwargs):
-        return self.selectauthenticationprovider()
+        return self.select_authentication_provider()
 
     def onLogin(self, skel: skeleton.SkeletonInstance):
         """
@@ -1642,11 +1642,8 @@ class User(List):
 
     @exposed
     def getAuthMethods(self, *args, **kwargs):
-        """Inform tools like Viur-Admin which authentication to use"""
-        # FIXME: This is almost the same code as in index()...
-        # FIXME: VIUR4: The entire function should be removed!
-        # TODO: Align result with index(), so that primary and secondary login is presented.
-        logging.warning("DEPRECATED!!! Use of 'User.getAuthMethods' is deprecated! Use 'User.login'-method instead!")
+        """Legacy method prior < viur-core 3.8: Inform tools like Admin which authentication to use"""
+        logging.warning("DEPRECATED!!! Use '/user/login'-method for this, or update your admin version!")
 
         res = [
             (primary.METHOD_NAME, secondary.METHOD_NAME if secondary else None)
@@ -1691,7 +1688,6 @@ class User(List):
         # Update user setting in all sessions
         for session_obj in db.Query("user").filter("user =", skel["key"]).iter():
             session_obj["data"]["user"] = skel.dbEntity
-
 
     def onDeleted(self, skel):
         super().onDeleted(skel)
