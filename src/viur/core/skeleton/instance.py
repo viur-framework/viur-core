@@ -62,7 +62,7 @@ class SkeletonInstance:
         bone_map = bone_map or {}
 
         if bones:
-            names = ("key", ) + tuple(bones)
+            names = ("key",) + tuple(bones)
 
             # generate full keys sequence based on definition; keeps order of patterns!
             keys = []
@@ -325,6 +325,11 @@ class SkeletonInstance:
         }
 
     def simplified(self):
+        """
+        Return a simplified version of the bone values in this skeleton.
+        This can be used for example in the JSON renderer.
+        """
+
         return {
             bone_name: bone.value(self, bone_name) for bone_name, bone in self.items()
         }

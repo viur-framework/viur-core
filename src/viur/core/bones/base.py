@@ -1582,6 +1582,12 @@ class BaseBone(object):
         return ret
 
     def value(self, skel: "SkeletonInstance", bone_name: str) -> t.Any:
+        """
+        Returns the value of a bone in a simplified version.
+        :param skel: The SkeletonInstance that contains the bone.
+        :param bone_name: The name of the bone to in the skeleton.
+        :return: The value of the bone in a simplified version.
+        """
         ret = {}
         bone_value = skel[bone_name]
         if self.languages and self.multiple:
@@ -1605,4 +1611,7 @@ class BaseBone(object):
         return ret
 
     def _atomic(self, value):
+        """
+        One atomic value of the bone.
+        """
         return value
