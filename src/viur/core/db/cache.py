@@ -161,7 +161,7 @@ def get_size(obj: t.Any) -> int:
 
 def check_for_memcache() -> bool:
     if conf.db_memcache_client is None:
-        #logging.warning(f"""conf.db_memcache_client is 'None'. It can not be used.""")
+        # logging.warning(f"""conf.db_memcache_client is 'None'. It can not be used.""")
         return False
     init_testbed()
     return True
