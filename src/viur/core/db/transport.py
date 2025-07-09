@@ -9,6 +9,7 @@ from google.cloud import datastore, exceptions
 
 from .overrides import entity_from_protobuf, key_from_protobuf
 from .types import Entity, Key, QueryDefinition, SortOrder, current_db_access_log
+from . import cache
 from viur.core.config import conf
 
 # patching our key and entity classes
@@ -44,13 +45,26 @@ def get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None
     :return: The entity (or None if it has not been found), or a list of entities.
     """
     _write_to_access_log(keys)
+    cached_keys = []
+    single_request = isinstance(keys, Key)
+    if cached_data := cache.get(keys):
+        if isinstance(cached_data, list):
+            cached_keys = [obj.key for obj in cached_data]
+        else:
+            if single_request:
+                return cached_data
 
-    if isinstance(keys, (list, set, tuple)):
-        res_list = list(__client__.get_multi(keys))
+    if not single_request:
+        missing_keys = [key for key in keys if key not in cached_keys]
+        res_list = list(__client__.get_multi(missing_keys))
+        cache.put(res_list)
+        res_list.extend(cached_keys)
         res_list.sort(key=lambda k: keys.index(k.key) if k else -1)
         return res_list
-
-    return __client__.get(keys)
+    res = __client__.get(keys)
+    if res:
+        cache.put(res)
+    return res
 
 
 @deprecated(version="3.8.0", reason="Use 'db.get' instead")
@@ -65,6 +79,7 @@ def put(entities: t.Union[Entity, t.List[Entity]]):
     :param entities: The entities to be saved to the datastore.
     """
     _write_to_access_log(entities)
+    cache.put(entities)
     if isinstance(entities, Entity):
         return __client__.put(entities)
 
@@ -83,6 +98,7 @@ def delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
     """
 
     _write_to_access_log(keys)
+    cache.delete(keys)
     if not isinstance(keys, (set, list, tuple)):
         return __client__.delete(keys)
 

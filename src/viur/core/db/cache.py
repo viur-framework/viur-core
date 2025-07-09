@@ -64,6 +64,7 @@ def get(keys: t.Union[Key, list[Key]], namespace: t.Optional[str] = None) -> t.U
         entity = Entity(Key(key))
         entity |= value
         result.append(entity)
+
     if single_request:
         return result[0] if result else None
     return result if result else None
@@ -160,7 +161,7 @@ def get_size(obj: t.Any) -> int:
 
 def check_for_memcache() -> bool:
     if conf.db_memcache_client is None:
-        logging.warning(f"""conf.db_memcache_client is 'None'. It can not be used.""")
+        #logging.warning(f"""conf.db_memcache_client is 'None'. It can not be used.""")
         return False
     init_testbed()
     return True
