@@ -1414,8 +1414,8 @@ class User(List):
             # We have only one second factor we don't need the choice template
             return second_factor_providers[0].start(user_key)
 
-        # In case there is more than one second factor, let the user decide.
-        current.session.get()["_second_factor_providers"] = {
+        # In case there is more than one second factor provider remaining, let the user decide!
+        current.session.get()["_secondfactor_providers"] = {
             second_factor.start_url: second_factor.NAME for second_factor in second_factor_providers
         }
 
@@ -1526,7 +1526,7 @@ class User(List):
         provider = SelectBone(
             descr="Second factor",
             required=True,
-            values=lambda: current.session.get()["_second_factor_providers"] or (),
+            values=lambda: current.session.get()["_secondfactor_providers"] or (),
         )
 
     @exposed
@@ -1537,7 +1537,7 @@ class User(List):
         if not skel.fromClient(kwargs):
             return self.render.render("select_secondfactor_provider", skel)
 
-        del current.session.get()["_second_factor_providers"]
+        del current.session.get()["_secondfactor_providers"]
 
         logging.info(f"Redirecting to {skel["provider"]!r}")
         raise errors.Redirect(skel["provider"])
