@@ -31,7 +31,7 @@ class RecordBone(BaseBone):
         using: 'viur.core.skeleton.RelSkel' = None,
         **kwargs
     ):
-        from viur.core.skeleton import RelSkel
+        from viur.core.skeleton.relskel import RelSkel
         if not issubclass(using, RelSkel):
             raise ValueError("RecordBone requires for valid using-parameter (subclass of viur.core.skeleton.RelSkel)")
 
@@ -64,7 +64,7 @@ class RecordBone(BaseBone):
         if isinstance(value, list) and value:
             value = value[0]
 
-        assert isinstance(value, dict), f"Read something from the datastore thats not a dict: {type(value)}"
+        assert isinstance(value, dict), f"Read {value=} ({type(value)})"
 
         usingSkel = self.using()
         usingSkel.unserialize(value)
@@ -97,27 +97,20 @@ class RecordBone(BaseBone):
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
         usingSkel = self.using()
+
         if not usingSkel.fromClient(value):
             usingSkel.errors.append(
                 ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Incomplete data")
             )
+
         return usingSkel, usingSkel.errors
 
     def postSavedHandler(self, skel, boneName, key) -> None:
         super().postSavedHandler(skel, boneName, key)
-        for idx, lang, value in self.iter_bone_value(skel, boneName):
-            using = self.using()
-            using.unserialize(value)
-            for bone_name, bone in using.items():
-                bone.postSavedHandler(using, bone_name, None)
 
-    def refresh(self, skel, boneName) -> None:
-        super().refresh(skel, boneName)
-        for idx, lang, value in self.iter_bone_value(skel, boneName):
-            using = self.using()
-            using.unserialize(value)
-            for bone_name, bone in using.items():
-                bone.refresh(using, bone_name)
+        for _, lang, value in self.iter_bone_value(skel, boneName):
+            for bone_name, bone in value.items():
+                bone.postSavedHandler(value, bone_name, None)
 
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
@@ -129,13 +122,14 @@ class RecordBone(BaseBone):
         """
         result = set()
 
-        using_skel_cache = self.using()
-        for idx, lang, value in self.iter_bone_value(skel, name):
+        for _, lang, value in self.iter_bone_value(skel, name):
             if value is None:
                 continue
-            for key, bone in using_skel_cache.items():
+
+            for key, bone in value.items():
                 if not bone.searchable:
                     continue
+
                 for tag in bone.getSearchTags(value, key):
                     result.add(tag)
 
@@ -178,11 +172,11 @@ class RecordBone(BaseBone):
         """
         result = set()
 
-        using_skel_cache = self.using()
-        for idx, lang, value in self.iter_bone_value(skel, name):
+        for _, lang, value in self.iter_bone_value(skel, name):
             if value is None:
                 continue
-            for key, bone in using_skel_cache.items():
+
+            for key, bone in value.items():
                 result |= bone.getReferencedBlobs(value, key)
 
         return result
@@ -198,16 +192,13 @@ class RecordBone(BaseBone):
     def structure(self) -> dict:
         return super().structure() | {
             "format": self.format,
-            "using": self.using().structure()}
+            "using": self.using().structure(),
+        }
 
     def refresh(self, skel, bone_name):
-        using_skel = self.using()
-
-        for idx, lang, value in self.iter_bone_value(skel, bone_name):
+        for _, lang, value in self.iter_bone_value(skel, bone_name):
             if value is None:
                 continue
 
-            using_skel.unserialize(value)
-
-            for key, bone in using_skel.items():
-                bone.refresh(using_skel, key)
+            for key, bone in value.items():
+                bone.refresh(value, key)

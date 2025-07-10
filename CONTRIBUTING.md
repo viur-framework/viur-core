@@ -77,6 +77,33 @@ If there are documentation changes to review, there should be a 'doc-review' tag
 
 Please document your changes and provide info in any form you can. We have established a documentation taskforce that takes care of chasing information from core developers, organizing and building the docs with sphinx/readthedocs. If you implement a feature or change, you can dump your documentation in the pull request and tag it accordingly ('doc-review' tag), so you do not need to waste time learning restructured text for sphinx or even correct English. The documentation team will pick up your text, translate and polish it so you can concentrate on coding and explaining in your own words.
 
+
+## Testing
+
+Before opening a pull request, please ensure that your code passes all tests locally.
+This helps maintain code quality and prevents unnecessary CI failures.
+
+### Install the Test Environment
+To install all necessary dependencies for running tests, execute:
+```sh
+pip install .[testing]
+```
+
+### Run the Tests
+You can run the test suite using `unittest`:
+```sh
+python -m unittest discover tests
+```
+
+Alternatively, you can check test coverage using:
+```sh
+./tests/do_coverage.sh
+```
+
+Please make sure all tests pass before submitting your pull request.
+If you encounter any issues, check the test logs and resolve them before proceeding.
+
+
 ## Versioning
 
 `viur-core` uses the semantic versioning scheme.<br>
@@ -103,13 +130,8 @@ In case you have appropriate permissions, a release can be done this way:
 - Bump version number in `src/viur/core/version.py`
 - Update [`CHANGELOG.md`](/CHANGELOG.md) and also check version number there
   - To quickly generate a changelog, run `git log --pretty="- %s" main..develop`
-  - todo: Changelog shall be generated automatically later.
-- Build and publish the package (ensure `pipenv install` was run before and is up-to-date)
-  - Ensure any old files are deleted by running `pipenv run clean`
-  - Build the wheel using `pipenv run build`
-  - Release the package `pipenv run release`
-- When all went well, commit and create a tag equally to the version number in `src/viur/core/version.py`
-- Finally, make sure all hotfixes from `main` are in `develop` as well (`git checkout develop && git pull && git merge main`)
+- Commit and create a tag equally to the version number in `src/viur/core/version.py`
+- CI/CD builds and deploys the package for you
 
 ## Branches
 

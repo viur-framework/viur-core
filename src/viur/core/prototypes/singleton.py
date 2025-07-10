@@ -170,16 +170,22 @@ class Singleton(SkelModule):
         self.onEdited(skel)
         return self.render.editSuccess(skel)
 
-    def getContents(self) -> SkeletonInstance | None:
+    def getContents(
+        self,
+        create: bool | dict | t.Callable[[SkeletonInstance], None] = False,
+    ) -> SkeletonInstance | None:
         """
-        Returns the entity of this singleton application as :class:`viur.core.skeleton.Skeleton` object.
+        Return the entity of this singleton application as :class:`SkeletonInstance` object.
 
-        :returns: The content as Skeleton provided by :func:`viewSkel`.
+        :param create: Whether the entity should be created if it does not exist.
+            See :meth:`Skeleton.read` for more details.
+
+        :returns: The read skeleton or `None`.
         """
         skel = self.viewSkel()
         key = db.Key(self.viewSkel().kindName, self.getKey())
 
-        if not skel.read(key):
+        if not skel.read(key, create=create):
             return None
 
         return skel
