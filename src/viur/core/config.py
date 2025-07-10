@@ -849,8 +849,11 @@ class Conf(ConfigType):
     ]
     """Backward compatibility flags; Remove to enforce new style."""
 
-    db_engine: str = "viur.datastore"
-    """Database engine module"""
+    db_query_external_limit: int = 100
+    """Sets the maximum query limit allowed by external filters."""
+
+    db_query_default_limit: int = 30
+    """Sets the default query limit for all queries."""
 
     db_memcache_client: Client | None = None
     """If set, ViUR cache data for the db.get in the Memcache for faster access."""
@@ -1031,7 +1034,6 @@ class Conf(ConfigType):
         "viur.cacheEnvironmentKey": "cache_environment_key",
         "viur.contentSecurityPolicy": "content_security_policy",
         "viur.bone.boolean.str2true": "bone_boolean_str2true",
-        "viur.db.engine": "db_engine",
         "viur.errorHandler": "error_handler",
         "viur.static.embedSvg.path": "static_embed_svg_path",
         "viur.file.hmacKey": "file_hmac_key",
