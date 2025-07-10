@@ -4,7 +4,7 @@ another entity's fields. FileBone provides additional file-specific properties a
 managing file derivatives, handling file size and mime type restrictions, and refreshing file
 metadata.
 """
-
+import warnings
 from hashlib import sha256
 from time import time
 import typing as t
@@ -16,26 +16,38 @@ import logging
 
 
 @CallDeferred
-def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refresh_key: db.Key = None):
+def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_key: db.Key = None,**kwargs):
     r"""
     The function is a deferred function that ensures all pending thumbnails or other derived files
     are built. It takes the following parameters:
 
     :param db.key key: The database key of the file-object that needs to have its derivation map
         updated.
-    :param str srcKey: A prefix for a stable key to prevent rebuilding derived files repeatedly.
-    :param dict[str,Any] deriveMap: A list of DeriveDicts that need to be built or updated.
+    :param str src_key: A prefix for a stable key to prevent rebuilding derived files repeatedly.
+    :param dict[str,Any] derive_map: A list of DeriveDicts that need to be built or updated.
     :param db.Key refresh_key: If set, the function fetches and refreshes the skeleton after
         building new derived files.
 
     The function works by fetching the skeleton of the file-object, checking if it has any derived
-    files, and updating the derivation map accordingly. It iterates through the deriveMap items and
+    files, and updating the derivation map accordingly. It iterates through the derive_map items and
     calls the appropriate deriver function. If the deriver function returns a result, the function
     creates a new or updated resultDict and merges it into the file-object's metadata. Finally,
     the updated results are written back to the database and the updateRelations function is called
     to ensure proper relations are maintained.
     """
-
+    # Todo Remove in Viur4
+    if "srcKey" in kwargs:
+        warnings.warn("srcKey parameter is deprecated, please use src_key instead",
+                     DeprecationWarning, stacklevel=2)
+        src_key = kwargs["srcKey"]
+    if "deriveMap" in kwargs:
+        warnings.warn("deriveMap parameter is deprecated, please use derive_map instead",
+                     DeprecationWarning, stacklevel=2)
+        derive_map = kwargs["deriveMap"]
+    if "refreshKey" in kwargs:
+        warnings.warn("refreshKey parameter is deprecated, please use refresh_key instead",
+                     DeprecationWarning, stacklevel=2)
+        refresh_key = kwargs["refreshKey"]
     from viur.core.skeleton.utils import skeletonByKind
     from viur.core.skeleton.tasks import updateRelations
 
@@ -49,8 +61,8 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refresh_key:
     skel["derived"]["deriveStatus"] = skel["derived"].get("deriveStatus") or {}
     skel["derived"]["files"] = skel["derived"].get("files") or {}
     res_dict = {}  # Will contain new or updated resultDicts that will be merged into our file
-    for callee_key, params in deriveMap.items():
-        full_src_key = f"{srcKey}_{callee_key}"
+    for callee_key, params in derive_map.items():
+        full_src_key = f"{src_key}_{callee_key}"
         params_hash = sha256(str(params).encode("UTF-8")).hexdigest()  # Hash over given params (dict?)
         if skel["derived"]["deriveStatus"].get(full_src_key) != params_hash:
             if not (callee := conf.file_derivations.get(callee_key)):
