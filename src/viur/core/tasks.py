@@ -609,7 +609,6 @@ def CallDeferred(func: t.Callable) -> t.Callable:
             parent = taskClient.queue_path(conf.instance.project_id, queueRegion, _queue)
             logging.debug(f"{parent=}, {task=}")
             taskClient.create_task(tasks_v2.CreateTaskRequest(parent=parent, task=task))
-
             logging.info(f"Created task {func.__name__}.{func.__module__} with {args=} {kwargs=} {env=}")
 
     global _deferred_tasks
