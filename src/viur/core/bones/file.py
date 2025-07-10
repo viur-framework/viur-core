@@ -16,7 +16,7 @@ import logging
 
 
 @CallDeferred
-def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_key: db.Key = None,**kwargs):
+def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_key: db.Key = None, **kwargs):
     r"""
     The function is a deferred function that ensures all pending thumbnails or other derived files
     are built. It takes the following parameters:
@@ -38,15 +38,15 @@ def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_ke
     # Todo Remove in Viur4
     if "srcKey" in kwargs:
         warnings.warn("srcKey parameter is deprecated, please use src_key instead",
-                     DeprecationWarning, stacklevel=2)
+                      DeprecationWarning, stacklevel=2)
         src_key = kwargs["srcKey"]
     if "deriveMap" in kwargs:
         warnings.warn("deriveMap parameter is deprecated, please use derive_map instead",
-                     DeprecationWarning, stacklevel=2)
+                      DeprecationWarning, stacklevel=2)
         derive_map = kwargs["deriveMap"]
     if "refreshKey" in kwargs:
         warnings.warn("refreshKey parameter is deprecated, please use refresh_key instead",
-                     DeprecationWarning, stacklevel=2)
+                      DeprecationWarning, stacklevel=2)
         refresh_key = kwargs["refreshKey"]
     from viur.core.skeleton.utils import skeletonByKind
     from viur.core.skeleton.tasks import updateRelations
