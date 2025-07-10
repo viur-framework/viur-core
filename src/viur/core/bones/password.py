@@ -203,5 +203,5 @@ class PasswordBone(StringBone):
             "test_threshold": self.test_threshold,
         }
 
-    def _atomic(self, value):
+    def _atomic_dump(self, value):
         return ""

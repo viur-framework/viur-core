@@ -354,8 +354,8 @@ class FileBone(TreeLeafBone):
             "public": self.public,
         }
 
-    def _atomic(self, value: dict[str, "SkeletonInstance"]) -> dict | None:
-        res = super()._atomic(value)
+    def _atomic_dump(self, value: dict[str, "SkeletonInstance"]) -> dict | None:
+        res = super()._atomic_dump(value)
         if res is not None:
             for key, value in res.items():
                 if value is not None:

@@ -195,7 +195,7 @@ class RecordBone(BaseBone):
             "using": self.using().structure(),
         }
 
-    def _atomic(self, value: "SkeletonInstance") -> dict | None:
+    def _atomic_dump(self, value: "SkeletonInstance") -> dict | None:
         if value is not None:
             return value.simplified()
 

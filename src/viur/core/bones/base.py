@@ -1581,7 +1581,7 @@ class BaseBone(object):
 
         return ret
 
-    def value(self, skel: "SkeletonInstance", bone_name: str) -> t.Any:
+    def dump(self, skel: "SkeletonInstance", bone_name: str) -> t.Any:
         """
         Returns the value of a bone in a simplified version.
         :param skel: The SkeletonInstance that contains the bone.
@@ -1594,23 +1594,23 @@ class BaseBone(object):
             res = {}
             for language in self.languages:
                 if bone_value and language in bone_value and bone_value[language]:
-                    ret[language] = [self._atomic(value) for value in bone_value[language]]
+                    ret[language] = [self._atomic_dump(value) for value in bone_value[language]]
                 else:
                     res[language] = []
         elif self.languages:
             for language in self.languages:
                 if bone_value and language in bone_value and bone_value[language]:
-                    ret[language] = self._atomic(bone_value[language])
+                    ret[language] = self._atomic_dump(bone_value[language])
                 else:
                     ret[language] = None
         elif self.multiple:
-            ret = [self._atomic(value) for value in bone_value]
+            ret = [self._atomic_dump(value) for value in bone_value]
 
         else:
-            ret = self._atomic(bone_value)
+            ret = self._atomic_dump(bone_value)
         return ret
 
-    def _atomic(self, value):
+    def _atomic_dump(self, value):
         """
         One atomic value of the bone.
         """

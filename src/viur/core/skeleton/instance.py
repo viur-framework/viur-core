@@ -324,14 +324,14 @@ class SkeletonInstance:
             for i, (key, bone) in enumerate(self.items())
         }
 
-    def simplified(self):
+    def dump(self):
         """
         Return a simplified version of the bone values in this skeleton.
         This can be used for example in the JSON renderer.
         """
 
         return {
-            bone_name: bone.value(self, bone_name) for bone_name, bone in self.items()
+            bone_name: bone.dump(self, bone_name) for bone_name, bone in self.items()
         }
 
     def __deepcopy__(self, memodict):
