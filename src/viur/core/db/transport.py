@@ -53,12 +53,13 @@ def get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None
         else:
             if single_request:
                 return cached_data
-
+    else:
+        cached_data = []
     if not single_request:
         missing_keys = [key for key in keys if key not in cached_keys]
         res_list = list(__client__.get_multi(missing_keys))
         cache.put(res_list)
-        res_list.extend(cached_keys)
+        res_list.extend(cached_data)
         res_list.sort(key=lambda k: keys.index(k.key) if k else -1)
         return res_list
     res = __client__.get(keys)
@@ -98,11 +99,23 @@ def delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
     """
 
     _write_to_access_log(keys)
-    cache.delete(keys)
-    if not isinstance(keys, (set, list, tuple)):
-        return __client__.delete(keys)
+    keys_data = []
+    single_request = isinstance(keys, (Key, Entity))
+    if isinstance(keys, Entity):
+        keys_data = keys.key
+    elif isinstance(keys, Key):
+        keys_data = keys
+    elif not single_request:
+        for key in keys:
+            if isinstance(key, Key):
+                keys_data.append(key)
+            elif isinstance(key, Entity):
+                keys_data.append(key.key)
+    cache.delete(keys_data)
+    if single_request:
+        return __client__.delete(keys_data)
 
-    return __client__.delete_multi(keys)
+    return __client__.delete_multi(keys_data)
 
 
 @deprecated(version="3.8.0", reason="Use 'db.delete' instead")

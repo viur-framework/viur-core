@@ -61,7 +61,7 @@ def get(keys: t.Union[Key, list[Key]], namespace: t.Optional[str] = None) -> t.U
     except Exception as e:
         logging.error(f"""Failed to get keys form the memcache with {e=}""")
     for key, value in cached_data.items():
-        entity = Entity(Key(key))
+        entity = Entity(Key.from_legacy_urlsafe(key))
         entity |= value
         result.append(entity)
 
