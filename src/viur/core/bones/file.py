@@ -38,7 +38,6 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refresh_key:
 
     from viur.core.skeleton.utils import skeletonByKind
     from viur.core.skeleton.tasks import updateRelations
-    deriveFuncMap = conf.file_derivations
 
     skel = skeletonByKind("file")()
     if not skel.read(key):
@@ -54,7 +53,7 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refresh_key:
         full_src_key = f"{srcKey}_{callee_key}"
         params_hash = sha256(str(params).encode("UTF-8")).hexdigest()  # Hash over given params (dict?)
         if skel["derived"]["deriveStatus"].get(full_src_key) != params_hash:
-            if not (callee := conf.file_derivations):
+            if not (callee := conf.file_derivations.get(callee_key)):
                 logging.warning(f"File-Deriver {callee_key} not found - skipping!")
                 continue
 
@@ -69,36 +68,37 @@ def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refresh_key:
                     }
 
     def __txn_update(_key, _res_dict):
-        obj = db.get(_key)
+        _skel = skeletonByKind("file")()
 
-        if not obj:  # File-object got deleted during building of our derives
+        if not _skel.read(_key):  # File-object got deleted during building of our derives
+            logging.error("File-Entry went missing in ensureDerived")
             return
-        obj["derived"] = obj.get("derived") or {}
-        obj["derived"]["deriveStatus"] = obj["derived"].get("deriveStatus") or {}
-        obj["derived"]["files"] = obj["derived"].get("files") or {}
+        _skel["derived"] = _skel["derived"] or {}
+        _skel["derived"]["deriveStatus"] = _skel["derived"].get("deriveStatus") or {}
+        _skel["derived"]["files"] = _skel["derived"].get("files") or {}
         for k, v in _res_dict.items():
-            obj["derived"]["deriveStatus"][k] = v["version"]
+            _skel["derived"]["deriveStatus"][k] = v["version"]
             for file_name, file_dict in v["files"].items():
-                obj["derived"]["files"][file_name] = file_dict
-        db.put(obj)
+                _skel["derived"]["files"][file_name] = file_dict
+        _skel.write(update_relations=False)
 
     if res_dict:  # Write updated results back and queue updateRelationsTask
-        db.RunInTransaction(__txn_update, key, res_dict)
-
+        db.run_in_transaction(__txn_update, key, res_dict)
         # Queue that updateRelations call at least 30 seconds into the future, so that other ensureDerived calls from
         # the same FileBone have the chance to finish, otherwise that updateRelations Task will call postSavedHandler
         # on that FileBone again - re-queueing any ensureDerivedCalls that have not finished yet.
-        updateRelations(key, time() + 1, "derived", _countdown=30)
+
         if refresh_key:
             def __txn_refresh():
-                skel = skeletonByKind(refresh_key.kind)()
-                if not skel.read(refresh_key):
+                _skel = skeletonByKind(refresh_key.kind)()
+                if not _skel.read(refresh_key):
                     return
-                skel.refresh()
-                skel.write(update_relations=False)
-
+                _skel.refresh()
+                _skel.write(update_relations=False)
 
             db.run_in_transaction(__txn_refresh)
+
+        updateRelations(key, int(time() + 1), ["derived"], _countdown=30)
 
 
 
@@ -251,7 +251,7 @@ class FileBone(TreeLeafBone):
             if isinstance(values, dict):
                 values = [values]
             for val in (values or ()):  # Ensure derives getting build for each file referenced in this relation
-                ensureDerived(val["dest"]["key"], prefix, self.derive)
+                ensureDerived(val["dest"]["key"], prefix, self.derive, key)
 
         values = skel[boneName]
         if self.derive and values:
