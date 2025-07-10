@@ -493,8 +493,12 @@ class RelationalBone(BaseBone):
         :param boneName: The name of the relational bone.
         :param key: The key of the saved skeleton instance.
         """
-        if key is None:  # RelSkel container (e.g. RecordBone) has no key, it's covered by it's parent
-            return
+        from viur.core.skeleton import RelSkel
+        if issubclass(skel.skeletonCls, RelSkel):  # RelSkel is just a container and has no kindname
+            viur_src_kind = key.kind
+        else:
+            viur_src_kind = skel.kindName
+
         if not skel[boneName]:
             values = []
         elif self.multiple and self.languages:
@@ -505,7 +509,7 @@ class RelationalBone(BaseBone):
             values = skel[boneName]
         else:
             values = [skel[boneName]]
-        values = [x for x in values if x is not None]
+        values = [value for value in values if value is not None]
         parentValues = db.Entity()
         srcEntity = skel.dbEntity
         parentValues.key = srcEntity.key
@@ -514,7 +518,7 @@ class RelationalBone(BaseBone):
                 continue
             parentValues[boneKey] = srcEntity.get(boneKey)
         dbVals = db.Query("viur-relations")
-        dbVals.filter("viur_src_kind =", skel.kindName)
+        dbVals.filter("viur_src_kind =", viur_src_kind)
         dbVals.filter("viur_dest_kind =", self.kind)
         dbVals.filter("viur_src_property =", boneName)
         dbVals.filter("src.__key__ =", key)
@@ -551,7 +555,7 @@ class RelationalBone(BaseBone):
                 usingSkel = val["rel"]
                 dbObj["rel"] = usingSkel.serialize(parentIndexed=True)
             dbObj["viur_delayed_update_tag"] = time()
-            dbObj["viur_src_kind"] = skel.kindName  # The kind of the entry referencing
+            dbObj["viur_src_kind"] = viur_src_kind  # The kind of the entry referencing
             dbObj["viur_src_property"] = boneName  # The key of the bone referencing
             dbObj["viur_dest_kind"] = self.kind
             dbObj["viur_relational_updateLevel"] = self.updateLevel.value

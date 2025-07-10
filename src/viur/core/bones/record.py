@@ -110,7 +110,7 @@ class RecordBone(BaseBone):
 
         for _, lang, value in self.iter_bone_value(skel, boneName):
             for bone_name, bone in value.items():
-                bone.postSavedHandler(value, bone_name, None)
+                bone.postSavedHandler(value, bone_name, key)
 
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
