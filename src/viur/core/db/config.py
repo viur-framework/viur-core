@@ -7,7 +7,7 @@ class DBConfig:
     """This class only exists for compatibility reasons and this file will be removed in the future"""
     _map = {
         "traceQueries": [core_conf.debug.trace_queries, "conf.debug.trace_queries"],
-        "memcache_client": [core_conf.database.memcache_client, "conf.database.memcache_client"]
+        "memcache_client": [core_conf.db.memcache_client, "conf.db.memcache_client"]
     }
 
     def __setitem__(self, key, value):

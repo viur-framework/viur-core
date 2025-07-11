@@ -993,7 +993,7 @@ class Conf(ConfigType):
         super().__init__()
         self._strict_mode = strict_mode
         self.admin = Admin(parent=self)
-        self.database = Database(parent=self)
+        self.db = Database(parent=self)
         self.security = Security(parent=self)
         self.debug = Debug(parent=self)
         self.email = Email(parent=self)
