@@ -30,11 +30,11 @@ dependencies = [
     "qrcode~=7.0",
     "requests~=2.0",
     "tzlocal~=5.0",
-    "urllib3==1.26.18", # for appengine-python-standard used by some projects (https://github.com/GoogleCloudPlatform/appengine-python-standard/blob/main/setup.py#L28)
+    "urllib3==1.26.20", # for appengine-python-standard (https://github.com/GoogleCloudPlatform/appengine-python-standard/blob/main/setup.py#L28)
     "user-agents~=2.0",
     "webob~=1.0",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 authors = [
     { name = "Mausbrand Informationssysteme GmbH", email = "devs@viur.dev" },
 ]
@@ -50,9 +50,8 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
 
