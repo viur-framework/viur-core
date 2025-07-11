@@ -99,23 +99,15 @@ def delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
     """
 
     _write_to_access_log(keys)
-    keys_data = []
-    single_request = isinstance(keys, (Key, Entity))
-    if isinstance(keys, Entity):
-        keys_data = keys.key
-    elif isinstance(keys, Key):
-        keys_data = keys
-    elif not single_request:
-        for key in keys:
-            if isinstance(key, Key):
-                keys_data.append(key)
-            elif isinstance(key, Entity):
-                keys_data.append(key.key)
-    cache.delete(keys_data)
-    if single_request:
-        return __client__.delete(keys_data)
+    keys = (k.key if isinstance(k, Entity) else k for k in utils.ensure_iterable(keys))
+    if not keys:
+        return
+    
+    cache.delete(keys)
+    if len(keys) == 1:
+        return __client__.delete(keys)
 
-    return __client__.delete_multi(keys_data)
+    return __client__.delete_multi(keys)
 
 
 @deprecated(version="3.8.0", reason="Use 'db.delete' instead")
