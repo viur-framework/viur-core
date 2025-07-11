@@ -74,7 +74,7 @@ def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_ke
                     res_files[file_name] = {
                         "size": size,
                         "mimetype": mimetype,
-                        "customData": custom_data # TODO: Rename in VIUR4
+                        "customData": custom_data  # TODO: Rename in VIUR4
                     }
 
     def merge_derives(patch_skel):
@@ -86,7 +86,7 @@ def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_ke
 
     if res_status:  # Write updated results back and queue updateRelationsTask
 
-        skel.patch(values=merge_derives,update_relations=False)
+        skel.patch(values=merge_derives, update_relations=False)
 
         # Queue that updateRelations call at least 30 seconds into the future, so that other ensureDerived calls from
         # the same FileBone have the chance to finish, otherwise that updateRelations Task will call postSavedHandler
