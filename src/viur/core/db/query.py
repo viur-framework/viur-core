@@ -198,9 +198,9 @@ class Query(object):
             try:
                 limit = int(limit)
 
-                # disallow limit beyond conf.db_query_external_limit
-                if limit > conf.db_query_external_limit:
-                    limit = conf.db_query_external_limit
+                # disallow limit beyond conf.database.query_external_limit
+                if limit > conf.database.query_external_limit:
+                    limit = conf.database.query_external_limit
 
                 # forbid any limit < 0, which might bypass defaults
                 if limit < 0:

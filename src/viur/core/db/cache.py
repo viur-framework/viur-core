@@ -22,7 +22,7 @@ TESTBED = None
     # Example
     from viur.core import conf
     from google.appengine.api.memcache import Client
-    conf.db_memcache_client = Client()
+    conf.database.memcache_client = Client()
 """
 
 __all__ = [
@@ -56,7 +56,7 @@ def get(keys: t.Union[Key, list[Key]], namespace: t.Optional[str] = None) -> t.U
     result = []
     try:
         while keys:
-            cached_data |= conf.db_memcache_client.get_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=namespace)
+            cached_data |= conf.database.memcache_client.get_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=namespace)
             keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
     except Exception as e:
         logging.error(f"""Failed to get keys form the memcache with {e=}""")
@@ -102,7 +102,7 @@ def put(
     try:
         while keys:
             data_batch = {key: data[key] for key in keys[:MEMCACHE_MAX_BATCH_SIZE]}
-            conf.db_memcache_client.set_multi(data_batch, namespace=namespace, time=timeout)
+            conf.database.memcache_client.set_multi(data_batch, namespace=namespace, time=timeout)
             keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
         return True
     except Exception as e:
@@ -125,7 +125,7 @@ def delete(keys: t.Union[Key, list[Key]], namespace: t.Optional[str] = None) -> 
     keys = [str(key) for key in keys]  # Enforce that all keys are strings
     try:
         while keys:
-            conf.db_memcache_client.delete_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=namespace)
+            conf.database.memcache_client.delete_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=namespace)
             keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
     except Exception as e:
         logging.error(f"""Failed to delete keys form the memcache with {e=}""")
@@ -139,7 +139,7 @@ def flush() -> bool:
     if not check_for_memcache():
         return False
     try:
-        conf.db_memcache_client.flush_all()
+        conf.database.memcache_client.flush_all()
     except Exception as e:
         logging.error(f"""Failed to flush the memcache with {e=}""")
         return False
@@ -159,8 +159,8 @@ def get_size(obj: t.Any) -> int:
 
 
 def check_for_memcache() -> bool:
-    if conf.db_memcache_client is None:
-        logging.warning(f"""conf.db_memcache_client is 'None'. It can not be used.""")
+    if conf.database.memcache_client is None:
+        logging.warning(f"""conf.database.memcache_client is 'None'. It can not be used.""")
         return False
     init_testbed()
     return True
@@ -168,7 +168,7 @@ def check_for_memcache() -> bool:
 
 def init_testbed() -> None:
     global TESTBED
-    if TESTBED is None and conf.instance.is_dev_server and conf.db_memcache_client:
+    if TESTBED is None and conf.instance.is_dev_server and conf.database.memcache_client:
         TESTBED = Testbed()
         TESTBED.activate()
         TESTBED.init_memcache_stub()

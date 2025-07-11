@@ -181,4 +181,4 @@ class QueryDefinition:
     """Will be set after this query has been run, pointing after the last entity returned"""
 
     def __post_init__(self):
-        self.limit = conf.db_query_default_limit
+        self.limit = conf.database.query_default_limit
