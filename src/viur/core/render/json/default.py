@@ -151,7 +151,7 @@ class DefaultRender(AbstractRenderer):
             )
         return res
 
-    def renderEntry(self, skel: SkeletonInstance, actionName, params=None):
+    def renderEntry(self, skel: SkeletonInstance, actionName, *, next_url: t.Optional[str] = None, params=None):
         structure = None
         errors = None
 
@@ -171,10 +171,11 @@ class DefaultRender(AbstractRenderer):
 
         res = {
             "action": actionName,
-            "errors": errors,
-            "params": params,
-            "structure": structure,
             "values": vals,
+            "structure": structure,
+            "errors": errors,
+            "next_url": next_url,
+            "params": params,
         }
 
         current.request.get().response.headers["Content-Type"] = "application/json"
@@ -236,10 +237,17 @@ class DefaultRender(AbstractRenderer):
         current.request.get().response.headers["Content-Type"] = "application/json"
         return json.dumps(rootNodes, cls=CustomJsonEncoder)
 
-    def render(self, action: str, skel: t.Optional[SkeletonInstance] = None, **kwargs):
+    def render(
+        self,
+        action: str,
+        skel: t.Optional[SkeletonInstance] = None,
+        *,
+        next_url: t.Optional[str] = None,
+        **kwargs
+    ):
         """
         Universal rendering function.
 
         Handles an action and a skeleton. It shall be used by any action, in future.
         """
-        return self.renderEntry(skel, action, params=kwargs)
+        return self.renderEntry(skel, action, next_url=next_url, params=kwargs)

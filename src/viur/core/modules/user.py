@@ -1492,33 +1492,33 @@ class User(List):
 
     def SelectAuthenticationProviderSkel(self):
         providers = {}
+        first = None
         for provider in self.authenticationProviders:
             provider = getattr(self, f"auth_{provider.__name__.lower()}")
             providers[provider.start_url] = provider.NAME
+
+            if first is None:
+                first = provider.start_url
 
         class SelectAuthenticationProviderSkel(skeleton.RelSkel):
             provider = SelectBone(
                 descr="Authentication method",
                 required=True,
                 values=providers,
+                defaultValue=first,
             )
 
         return SelectAuthenticationProviderSkel()
 
     @exposed
     def select_authentication_provider(self, **kwargs):
-        if len(self.authenticationProviders) == 1:
-            provider = getattr(self, f"auth_{self.authenticationProviders[0].__name__.lower()}")
-            raise errors.Redirect(provider.start_url)
-
         skel = self.SelectAuthenticationProviderSkel()
 
         # Read required bones from client
-        if not skel.fromClient(kwargs):
+        if len(self.authenticationProviders) > 1 and (not kwargs or not skel.fromClient(kwargs)):
             return self.render.render("select_authentication_provider", skel)
 
-        logging.info(f"Redirecting to {skel["provider"]!r}")
-        raise errors.Redirect(skel["provider"])
+        return self.render.render("select_authentication_provider_success", skel, next_url=skel["provider"])
 
     # Action for second factor select
 
@@ -1534,13 +1534,12 @@ class User(List):
         skel = self.SelectSecondFactorProviderSkel()
 
         # Read required bones from client
-        if not skel.fromClient(kwargs):
+        if not kwargs or not skel.fromClient(kwargs):
             return self.render.render("select_secondfactor_provider", skel)
 
         del current.session.get()["_secondfactor_providers"]
 
-        logging.info(f"Redirecting to {skel["provider"]!r}")
-        raise errors.Redirect(skel["provider"])
+        return self.render.render("select_secondfactor_provider_success", skel, next_url=skel["provider"])
 
     @exposed
     @skey

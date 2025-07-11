@@ -444,13 +444,24 @@ class Render(AbstractRenderer):
         template = self.get_template("listRootNodes", tpl)
         return template.render(repos=repos, action=action, params=params, **kwargs)
 
-    def render(self, action: str, skel: t.Optional[SkeletonInstance] = None, tpl: t.Optional[str] = None, **kwargs):
+    def render(
+        self,
+        action: str,
+        skel: t.Optional[SkeletonInstance] = None,
+        *,
+        tpl: t.Optional[str] = None,
+        next_url: t.Optional[str] = None,
+        **kwargs
+    ):
         """
         Universal rendering function.
 
         Handles an action and a skeleton. It shall be used by any action, in future.
         It additionally allows for a tpl-parameter in HTML-renderer.
         """
+        if next_url:
+            raise errors.Redirect(next_url)
+
         return self.render_action_template(action, skel, action, tpl, params=kwargs)
 
     def renderEmail(self,
