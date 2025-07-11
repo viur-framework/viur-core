@@ -37,7 +37,7 @@ __all__ = [
 ]
 
 
-def get(keys: t.Union[Key, list[Key]], namespace: t.Optional[str] = None) -> t.Union[Entity, list[Entity], None]:
+def get(keys: t.Union[Key, t.Iterable[Key]], namespace: t.Optional[str] = None) -> t.Union[Entity, list[Entity], None]:
     """
     Reads data form the memcache.
     :param keys: Unique identifier(s) for one or more entry(s).
@@ -48,15 +48,15 @@ def get(keys: t.Union[Key, list[Key]], namespace: t.Optional[str] = None) -> t.U
         return None
 
     namespace = namespace or MEMCACHE_NAMESPACE
-    single_request = not isinstance(keys, (list, tuple, set))
-    if single_request:
-        keys = [keys]
+    if not isinstance(keys, (tuple, list, set)):
+        keys = (keys,)
     keys = [str(key) for key in keys]  # Enforce that all keys are strings
-    cached_data = {}
+    cached_data_result = {}
     result = []
     try:
         while keys:
-            cached_data |= conf.db_memcache_client.get_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=namespace)
+            if cached_data := conf.db_memcache_client.get_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=namespace):
+                cached_data_result |= cached_data
             keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
     except Exception as e:
         logging.error(f"""Failed to get keys form the memcache with {e=}""")
@@ -65,7 +65,7 @@ def get(keys: t.Union[Key, list[Key]], namespace: t.Optional[str] = None) -> t.U
         entity |= value
         result.append(entity)
 
-    if single_request:
+    if len(result) == 1:
         return result[0] if result else None
     return result if result else None
 
@@ -84,18 +84,19 @@ def put(
     """
     if not check_for_memcache():
         return False
-
+    if not data:
+        return False
     namespace = namespace or MEMCACHE_NAMESPACE
     timeout = timeout or MEMCACHE_TIMEOUT
     if isinstance(timeout, datetime.timedelta):
         timeout = timeout.total_seconds()
-
     if isinstance(data, (list, tuple, set)):
         data = {item.key: item for item in data}
     elif isinstance(data, Entity):
         data = {data.key: data}
     elif not isinstance(data, dict):
         raise TypeError(f"Invalid type {type(data)}. Expected a db.Entity, list or dict.")
+
     # Add only values to cache <= MEMMAX_SIZE (1.000.000)
     data = {str(key): value for key, value in data.items() if get_size(value) <= MEMCACHE_MAX_SIZE}
 
@@ -111,7 +112,7 @@ def put(
         return False
 
 
-def delete(keys: t.Union[Key, list[Key]], namespace: t.Optional[str] = None) -> None:
+def delete(keys: t.Union[Key, t.Iterable[Key]], namespace: t.Optional[str] = None) -> None:
     """
     Deletes an Entry form memcache.
     :param keys: Unique identifier(s) for one or more entry(s).
@@ -119,10 +120,11 @@ def delete(keys: t.Union[Key, list[Key]], namespace: t.Optional[str] = None) -> 
     """
     if not check_for_memcache():
         return None
-
+    if not keys:
+        return None
     namespace = namespace or MEMCACHE_NAMESPACE
-    if not isinstance(keys, list):
-        keys = [keys]
+    if not isinstance(keys, (tuple, list, set)):
+        keys = (keys,)
     keys = [str(key) for key in keys]  # Enforce that all keys are strings
     try:
         while keys:
