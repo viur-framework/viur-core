@@ -35,19 +35,19 @@ def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_ke
     the updated results are written back to the database and the updateRelations function is called
     to ensure proper relations are maintained.
     """
-    # Todo Remove in Viur4
-    if "srcKey" in kwargs:
-        warnings.warn("srcKey parameter is deprecated, please use src_key instead",
-                      DeprecationWarning, stacklevel=2)
-        src_key = kwargs["srcKey"]
-    if "deriveMap" in kwargs:
-        warnings.warn("deriveMap parameter is deprecated, please use derive_map instead",
-                      DeprecationWarning, stacklevel=2)
-        derive_map = kwargs["deriveMap"]
-    if "refreshKey" in kwargs:
-        warnings.warn("refreshKey parameter is deprecated, please use refresh_key instead",
-                      DeprecationWarning, stacklevel=2)
-        refresh_key = kwargs["refreshKey"]
+    # TODO: Remove in VIUR4
+    for _dep, _new in {
+        "srcKey": "src_key",
+        "deriveMap": "derive_map",
+        "refreshKey": "refresh_key",
+    }.items():
+        if _dep in kwargs:
+            warnings.warn(
+                f"{_dep!r} parameter is deprecated, please use {_new!r} instead",
+                DeprecationWarning, stacklevel=2
+            )
+            
+            locals()[_new] = kwargs.pop(_dep)
     from viur.core.skeleton.utils import skeletonByKind
     from viur.core.skeleton.tasks import updateRelations
 
