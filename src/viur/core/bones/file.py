@@ -4,14 +4,13 @@ another entity's fields. FileBone provides additional file-specific properties a
 managing file derivatives, handling file size and mime type restrictions, and refreshing file
 metadata.
 """
+import hashlib
 import warnings
-from hashlib import sha256
-from time import time
+import time
 import typing as t
 from viur.core import conf, db, current
 from viur.core.bones.treeleaf import TreeLeafBone
 from viur.core.tasks import CallDeferred
-
 import logging
 
 
@@ -59,11 +58,10 @@ def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_ke
         logging.info("No Derives for this file")
         skel["derived"] = {}
     skel["derived"] = {"deriveStatus": {}, "files": {}} | skel["derived"]
-    res_status = {}  # Will contain new or updated derived status that will be merged into our file
-    res_files = {}  # Will contain new or updated derived files data that will be merged into our file
+    res_status, res_files = {}, {}
     for call_key, params in derive_map.items():
         full_src_key = f"{src_key}_{call_key}"
-        params_hash = sha256(str(params).encode("UTF-8")).hexdigest()  # Hash over given params (dict?)
+        params_hash = hashlib.sha256(str(params).encode("UTF-8")).hexdigest()  # Hash over given params (dict?)
         if skel["derived"]["deriveStatus"].get(full_src_key) != params_hash:
             if not (caller := conf.file_derivations.get(call_key)):
                 logging.warning(f"File-Deriver {call_key} not found - skipping!")
@@ -88,7 +86,6 @@ def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_ke
 
     if res_status:  # Write updated results back and queue updateRelationsTask
 
-        #skel.patch(values={})
         skel.patch(values=merge_derives,update_relations=False)
 
         # Queue that updateRelations call at least 30 seconds into the future, so that other ensureDerived calls from
@@ -105,7 +102,7 @@ def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_ke
 
             db.run_in_transaction(__txn_refresh)
 
-        updateRelations(key, int(time() + 1), ["derived"], _countdown=30)
+        updateRelations(key, int(time.time() + 1), ["derived"], _countdown=30)
 
 
 
