@@ -78,9 +78,8 @@ def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_ke
                     }
 
     def merge_derives(patch_skel):
-        if not patch_skel["derived"]:
-            patch_skel["derived"] = {}
-        patch_skel["derived"] = {"deriveStatus": {}, "files": {}} | patch_skel["derived"]
+
+        patch_skel["derived"] = {"deriveStatus": {}, "files": {}} | (patch_skel["derived"] or {})
         patch_skel["derived"]["deriveStatus"] = patch_skel["derived"]["deriveStatus"] | res_status
         patch_skel["derived"]["files"] = patch_skel["derived"]["files"] | res_files
 
@@ -93,14 +92,8 @@ def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_ke
         # on that FileBone again - re-queueing any ensureDerivedCalls that have not finished yet.
 
         if refresh_key:
-            def __txn_refresh():
-                _skel = skeletonByKind(refresh_key.kind)()
-                if not _skel.read(refresh_key):
-                    return
-                _skel.refresh()
-                _skel.write(update_relations=False)
-
-            db.run_in_transaction(__txn_refresh)
+            skel = skeletonByKind(refresh_key.kind)()
+            skel.patch(lambda _skel: _skel.refresh(), key=refresh_key, update_relations=False)
 
         updateRelations(key, int(time.time() + 1), ["derived"], _countdown=30)
 
