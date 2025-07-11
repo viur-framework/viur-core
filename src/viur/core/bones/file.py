@@ -46,56 +46,51 @@ def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_ke
                 f"{_dep!r} parameter is deprecated, please use {_new!r} instead",
                 DeprecationWarning, stacklevel=2
             )
-            
+
             locals()[_new] = kwargs.pop(_dep)
     from viur.core.skeleton.utils import skeletonByKind
     from viur.core.skeleton.tasks import updateRelations
 
-    skel = skeletonByKind("file")()
+    skel = skeletonByKind(key.kind)()
     if not skel.read(key):
         logging.info("File-Entry went missing in ensureDerived")
         return
     if not skel["derived"]:
         logging.info("No Derives for this file")
         skel["derived"] = {}
-    skel["derived"]["deriveStatus"] = skel["derived"].get("deriveStatus") or {}
-    skel["derived"]["files"] = skel["derived"].get("files") or {}
-    res_dict = {}  # Will contain new or updated resultDicts that will be merged into our file
-    for callee_key, params in derive_map.items():
-        full_src_key = f"{src_key}_{callee_key}"
+    skel["derived"] = {"deriveStatus": {}, "files": {}} | skel["derived"]
+    res_status = {}  # Will contain new or updated derived status that will be merged into our file
+    res_files = {}  # Will contain new or updated derived files data that will be merged into our file
+    for call_key, params in derive_map.items():
+        full_src_key = f"{src_key}_{call_key}"
         params_hash = sha256(str(params).encode("UTF-8")).hexdigest()  # Hash over given params (dict?)
         if skel["derived"]["deriveStatus"].get(full_src_key) != params_hash:
-            if not (callee := conf.file_derivations.get(callee_key)):
-                logging.warning(f"File-Deriver {callee_key} not found - skipping!")
+            if not (caller := conf.file_derivations.get(call_key)):
+                logging.warning(f"File-Deriver {call_key} not found - skipping!")
                 continue
 
-            if call_res := callee(skel, skel["derived"]["files"], params):
+            if call_res := caller(skel, skel["derived"]["files"], params):
                 assert isinstance(call_res, list), "Old (non-list) return value from deriveFunc"
-                res_dict[full_src_key] = {"version": params_hash, "files": {}}
-                for fileName, size, mimetype, custom_data in call_res:
-                    res_dict[full_src_key]["files"][fileName] = {
+                res_status[full_src_key] = params_hash
+                for file_name, size, mimetype, custom_data in call_res:
+                    res_files[file_name] = {
                         "size": size,
                         "mimetype": mimetype,
-                        "customData": custom_data
+                        "customData": custom_data # TODO: Rename in VIUR4
                     }
 
-    def __txn_update(_key, _res_dict):
-        _skel = skeletonByKind("file")()
+    def merge_derives(patch_skel):
+        if not patch_skel["derived"]:
+            patch_skel["derived"] = {}
+        patch_skel["derived"] = {"deriveStatus": {}, "files": {}} | patch_skel["derived"]
+        patch_skel["derived"]["deriveStatus"] = patch_skel["derived"]["deriveStatus"] | res_status
+        patch_skel["derived"]["files"] = patch_skel["derived"]["files"] | res_files
 
-        if not _skel.read(_key):  # File-object got deleted during building of our derives
-            logging.error("File-Entry went missing in ensureDerived")
-            return
-        _skel["derived"] = _skel["derived"] or {}
-        _skel["derived"]["deriveStatus"] = _skel["derived"].get("deriveStatus") or {}
-        _skel["derived"]["files"] = _skel["derived"].get("files") or {}
-        for k, v in _res_dict.items():
-            _skel["derived"]["deriveStatus"][k] = v["version"]
-            for file_name, file_dict in v["files"].items():
-                _skel["derived"]["files"][file_name] = file_dict
-        _skel.write(update_relations=False)
+    if res_status:  # Write updated results back and queue updateRelationsTask
 
-    if res_dict:  # Write updated results back and queue updateRelationsTask
-        db.run_in_transaction(__txn_update, key, res_dict)
+        #skel.patch(values={})
+        skel.patch(values=merge_derives,update_relations=False)
+
         # Queue that updateRelations call at least 30 seconds into the future, so that other ensureDerived calls from
         # the same FileBone have the chance to finish, otherwise that updateRelations Task will call postSavedHandler
         # on that FileBone again - re-queueing any ensureDerivedCalls that have not finished yet.
