@@ -312,7 +312,8 @@ class Admin(ConfigType):
         "color.secondary": "color_secondary",
     }
 
-class DataBase(ConfigType):
+
+class Database(ConfigType):
     query_external_limit: int = 100
     """Sets the maximum query limit allowed by external filters."""
 
@@ -324,6 +325,8 @@ class DataBase(ConfigType):
 
     create_access_log: bool = True
     """If False no access log will be created. But then the caching is disabled too."""
+
+
 class Security(ConfigType):
     """Security related settings"""
 
@@ -990,7 +993,7 @@ class Conf(ConfigType):
         super().__init__()
         self._strict_mode = strict_mode
         self.admin = Admin(parent=self)
-        self.database = DataBase(parent=self)
+        self.database = Database(parent=self)
         self.security = Security(parent=self)
         self.debug = Debug(parent=self)
         self.email = Email(parent=self)
