@@ -1,17 +1,29 @@
 import logging
 import typing as t
+import logics
 
-from viur.core import conf, current, db, email, translate, utils
+from viur.core import (
+    conf,
+    current,
+    db,
+    email,
+    errors,
+    tasks,
+    i18n,
+    utils,
+)
 from .utils import skeletonByKind, listKnownSkeletons
 from .meta import BaseSkeleton
+from .relskel import RelSkel
 
+from ..bones.raw import RawBone
+from ..bones.record import RecordBone
 from ..bones.relational import RelationalBone, RelationalConsistency, RelationalUpdateLevel
 from ..bones.select import SelectBone
+from ..bones.string import StringBone
 
-from viur.core.tasks import CallDeferred, CallableTask, CallableTaskBase, QueryIter
 
-
-@CallDeferred
+@tasks.CallDeferred
 def processRemovedRelations(removedKey, cursor=None):
     updateListQuery = (
         db.Query("viur-relations")
@@ -57,7 +69,7 @@ def processRemovedRelations(removedKey, cursor=None):
         processRemovedRelations(removedKey, updateListQuery.getCursor())
 
 
-@CallDeferred
+@tasks.CallDeferred
 def updateRelations(
         dest_key: db.Key,
         min_change_time: int,
@@ -129,151 +141,150 @@ def updateRelations(
         updateRelations(dest_key, min_change_time, changed_bones, next_cursor)
 
 
-@CallableTask
-class TaskUpdateSearchIndex(CallableTaskBase):
+class SkelIterTask(tasks.QueryIter):
     """
-    This tasks loads and saves *every* entity of the given module.
-    This ensures an updated searchIndex and verifies consistency of this data.
+    Iterates the skeletons of a query, and additionally checks a Logics expression.
+    When the skeleton is valid, it performs the action `data["action"]` on each entry.
     """
-    key = "rebuildSearchIndex"
-    name = "Rebuild search index"
-    descr = "This task can be called to update search indexes and relational information."
-
-    def canCall(self) -> bool:
-        """Checks wherever the current user can execute this task"""
-        user = current.user.get()
-        return user is not None and "root" in user["access"]
-
-    def dataSkel(self):
-        modules = ["*"] + listKnownSkeletons()
-        modules.sort()
-        skel = BaseSkeleton().clone()
-        skel.module = SelectBone(descr="Module", values={x: translate(x) for x in modules}, required=True)
-        return skel
-
-    def execute(self, module, *args, **kwargs):
-        usr = current.user.get()
-        if not usr:
-            logging.warning("Don't know who to inform after rebuilding finished")
-            notify = None
-        else:
-            notify = usr["name"]
-
-        if module == "*":
-            for module in listKnownSkeletons():
-                logging.info("Rebuilding search index for module %r", module)
-                self._run(module, notify)
-        else:
-            self._run(module, notify)
-
-    @staticmethod
-    def _run(module: str, notify: str):
-        Skel = skeletonByKind(module)
-        if not Skel:
-            logging.error("TaskUpdateSearchIndex: Invalid module")
-            return
-        RebuildSearchIndex.startIterOnQuery(Skel().all(), {"notify": notify, "module": module})
-
-
-class RebuildSearchIndex(QueryIter):
-    @classmethod
-    def handleEntry(cls, skel: "SkeletonInstance", customData: dict[str, str]):
-        skel.refresh()
-        skel.write(update_relations=False)
 
     @classmethod
-    def handleError(cls, skel, customData, exception) -> bool:
-        logging.exception(f'{cls.__qualname__}.handleEntry failed on skel {skel["key"]=!r}: {exception}')
+    def handleEntry(cls, skel, data):
+        data["total"] += 1
+
+        if logics.Logics(data["condition"]).run(skel):
+            data["count"] += 1
+
+            match data["action"]:
+                case "refresh":
+                    skel.refresh()
+                    skel.write(update_relations=False)
+
+                case "delete":
+                    skel.delete()
+
+                case other:
+                    assert other == "count"
+
+    @classmethod
+    def handleError(cls, skel, data, exception) -> bool:
+        logging.exception(exception)
+
         try:
             logging.debug(f"{skel=!r}")
         except Exception:  # noqa
             logging.warning("Failed to dump skel")
             logging.debug(f"{skel.dbEntity=}")
+
+        data["error"] += 1
         return True
 
     @classmethod
-    def handleFinish(cls, totalCount: int, customData: dict[str, str]):
-        QueryIter.handleFinish(totalCount, customData)
-        if not customData["notify"]:
+    def handleFinish(cls, total, data):
+        super().handleFinish(total, data)
+
+        if not data["notify"]:
             return
+
         txt = (
-            f"{conf.instance.project_id}: Rebuild search index finished for {customData['module']}\n\n"
-            f"ViUR finished to rebuild the search index for module {customData['module']}.\n"
-            f"{totalCount} records updated in total on this kind."
+            f"{conf.instance.project_id}: {data['action']!s} finished for {data['kind']!r}: "
+            f"{data['count']} of {data['total']}\n"
+            f"ViUR {data['action']!s}ed {data['count']} skeletons with condition <code>{data['condition']}</code> on a "
+            f"total of {data['total']} ({data['error']} errored) of kind {data['kind']}.\n"
         )
+
         try:
-            email.send_email(dests=customData["notify"], stringTemplate=txt, skel=None)
+            email.send_email(dests=data["notify"], stringTemplate=txt, skel=None)
         except Exception as exc:  # noqa; OverQuota, whatever
-            logging.exception(f'Failed to notify {customData["notify"]}')
+            logging.exception(f'Failed to notify {data["notify"]}')
 
 
-# Vacuum Relations
+@tasks.CallableTask
+class SkeletonMaintenanceTask(tasks.CallableTaskBase):
+    key = "SkeletonMaintenanceTask"
+    name = "Skeleton Maintenance"
+    descr = "Perform filtered maintenance operations on skeletons."
 
-@CallableTask
-class TaskVacuumRelations(TaskUpdateSearchIndex):
-    """
-    Checks entries in viur-relations and verifies that the src-kind
-    and it's RelationalBone still exists.
-    """
-    key = "vacuumRelations"
-    name = "Vacuum viur-relations (dangerous)"
-    descr = "Drop stale inbound relations for the given kind"
+    def canCall(self):
+        user = current.user.get()
+        return user and "root" in user["access"]
 
-    def execute(self, module: str, *args, **kwargs):
-        usr = current.user.get()
-        if not usr:
-            logging.warning("Don't know who to inform after rebuilding finished")
-            notify = None
-        else:
-            notify = usr["name"]
-        processVacuumRelationsChunk(module.strip(), None, notify=notify)
-
-
-@CallDeferred
-def processVacuumRelationsChunk(
-    module: str, cursor, count_total: int = 0, count_removed: int = 0, notify=None
-):
-    """
-    Processes 25 Entries and calls the next batch
-    """
-    query = db.Query("viur-relations")
-    if module != "*":
-        query.filter("viur_src_kind =", module)
-    query.setCursor(cursor)
-    for relation_object in query.run(25):
-        count_total += 1
-        if not (src_kind := relation_object.get("viur_src_kind")):
-            logging.critical("We got an relation-object without a src_kind!")
-            continue
-        if not (src_prop := relation_object.get("viur_src_property")):
-            logging.critical("We got an relation-object without a src_prop!")
-            continue
-        try:
-            skel = skeletonByKind(src_kind)()
-        except AssertionError:
-            # The referenced skeleton does not exist in this data model -> drop that relation object
-            logging.info(f"Deleting {relation_object.key} which refers to unknown kind {src_kind}")
-            db.delete(relation_object)
-            count_removed += 1
-            continue
-        if src_prop not in skel:
-            logging.info(f"Deleting {relation_object.key} which refers to "
-                         f"non-existing RelationalBone {src_prop} of {src_kind}")
-            db.delete(relation_object)
-            count_removed += 1
-    logging.info(f"END processVacuumRelationsChunk {module}, "
-                 f"{count_total} records processed, {count_removed} removed")
-    if new_cursor := query.getCursor():
-        # Start processing of the next chunk
-        processVacuumRelationsChunk(module, new_cursor, count_total, count_removed, notify)
-    elif notify:
-        txt = (
-            f"{conf.instance.project_id}: Vacuum relations finished for {module}\n\n"
-            f"ViUR finished to vacuum viur-relations for module {module}.\n"
-            f"{count_total} records processed, "
-            f"{count_removed} entries removed"
+    class dataSkel(RelSkel):
+        task = SelectBone(
+            descr="Task",
+            required=True,
+            values={
+                "count": "Count",
+                "refresh": "Refresh (formerly: RebuildSearchIndex)",
+                "delete": "Delete",
+            },
+            defaultValue="refresh",
         )
+
+        kinds = SelectBone(
+            descr="Kind",
+            values=listKnownSkeletons,
+            required=True,
+            multiple=True,
+        )
+
+        class FilterRowUsingSkel(RelSkel):
+            name = StringBone(
+                required=True,
+            )
+
+            op = SelectBone(
+                required=True,
+                values={
+                    "$eq": "=",
+                    "$lt": "<",
+                    "$gt": ">",
+                    "$lk": "like",
+                },
+                defaultValue=" ",
+            )
+
+            value = StringBone(
+                required=True,
+            )
+
+        filters = RecordBone(
+            descr="Filter",
+            using=FilterRowUsingSkel,
+            multiple=True,
+            format="$(name)$(op)=$(value)",
+        )
+
+        condition = RawBone(
+            descr="Condition",
+            required=True,
+            defaultValue="False  # fused: by default, doesn't affect anything.",
+            params={
+                "tooltip": "Enter a Logics expression here to filter entries by specific skeleton values."
+            },
+        )
+
+    def execute(self, task, kinds, filters, condition):
         try:
-            email.send_email(dests=notify, stringTemplate=txt, skel=None)
-        except Exception as exc:  # noqa; OverQuota, whatever
-            logging.exception(f"Failed to notify {notify}")
+            logics.Logics(condition)
+        except logics.ParseException as e:
+            raise errors.BadRequest(f"Error parsing condition {e}")
+
+        notify = current.user.get()["name"]
+
+        for kind in kinds:
+            q = skeletonByKind(kind)().all()
+
+            for flt in filters:
+                q.mergeExternalFilter({(flt["name"] + flt["op"]).rstrip("$eq"): flt["value"]})
+
+            params = {
+                "action": task,
+                "notify": notify,
+                "condition": condition,
+                "kind": kind,
+                "count": 0,
+                "total": 0,
+                "error": 0,
+            }
+
+            SkelIterTask.startIterOnQuery(q, params)
