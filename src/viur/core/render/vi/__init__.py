@@ -6,8 +6,7 @@ from viur.core import Module, conf, current, errors
 from viur.core.decorators import *
 from viur.core.render.json import skey as json_render_skey
 from viur.core.render.json.default import CustomJsonEncoder, DefaultRender
-# noinspection PyUnresolvedReferences
-from viur.core.render.vi.user import UserRender as user  # this import must exist!
+from viur.core.render.json.user import UserRender as user  # noqa: this import must exist!
 from viur.core.skeleton import SkeletonInstance
 
 

@@ -151,7 +151,7 @@ class DefaultRender(AbstractRenderer):
             )
         return res
 
-    def renderEntry(self, skel: SkeletonInstance, actionName, *, next_url: t.Optional[str] = None, params=None):
+    def renderEntry(self, skel: SkeletonInstance, actionName, params=None, *, next_url: t.Optional[str] = None):
         structure = None
         errors = None
 
