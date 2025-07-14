@@ -38,7 +38,7 @@ class DefaultRender(AbstractRenderer):
     def render_structure(structure: dict):
         """
         Performs structure rewriting according to VIUR2/3 compatibility flags.
-        # fixme: Remove this entire function with VIUR4
+        #FIXME: Remove this entire function with VIUR4
         """
         for struct in structure.values():
             # Optionally replace new-key by a copy of the value under the old-key
@@ -70,21 +70,27 @@ class DefaultRender(AbstractRenderer):
         return structure
 
     def renderEntry(self, skel: SkeletonInstance, actionName, params=None):
-
         structure = None
         errors = None
 
-        if isinstance(skel, list):
-            raise ValueError("renderEntry cannot handle lists")
-
-        elif isinstance(skel, SkeletonInstance):
+        if isinstance(skel, SkeletonInstance):
             vals = skel.dump()
             structure = DefaultRender.render_structure(skel.structure())
-            errors = [{"severity": x.severity.value, "fieldPath": x.fieldPath, "errorMessage": x.errorMessage,
-                       "invalidatedFields": x.invalidatedFields} for x in skel.errors]
+            errors = [{
+                "error": error.severity.name.upper(),
+                "errorMessage": error.errorMessage,
+                "fieldPath": error.fieldPath,
+                "invalidatedFields": error.invalidatedFields,
+                "severity": error.severity.value,
+            } for error in skel.errors]
 
-        else:  # Hopefully we can pass it directly...
-            vals = skel
+        else:
+            # VIUR4 DEPRECATION
+            logging.warning(f"Passing a {type(skel)!r} here is invalid. It should be a SkeletonInstance.")
+            if isinstance(skel, (list, tuple)):
+                raise ValueError("Cannot handle lists here")
+
+            vals = skel  # VIUR4 DEPRECATION!!!
 
         res = {
             "action": actionName,
@@ -101,7 +107,6 @@ class DefaultRender(AbstractRenderer):
         return self.renderEntry(skel, action, params)
 
     def list(self, skellist: SkelList, action: str = "list", params=None, **kwargs):
-
         # Rendering the structure in lists is flagged as deprecated
         structure = None
         cursor = None
