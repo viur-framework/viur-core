@@ -432,10 +432,6 @@ class History(List):
 
         return "\n".join(diffs).replace("\n\n", "\n")
 
-    @staticmethod
-    def _skel_to_dict(skel: SkeletonInstance):
-        return CustomJsonEncoder().default(skel)
-
     def _create_history_entry(
         self,
         action: str,
@@ -448,10 +444,10 @@ class History(List):
         diff_excludes: t.Set[str] = set(),
     ):
         skel = new_skel or old_skel
-        new_data = self._skel_to_dict(skel)
+        new_data = skel.dump()
 
         if change_list and old_skel != new_skel:
-            old_data = self._skel_to_dict(old_skel)
+            old_data = old_skel.dump()
             diff = self._create_diff(new_data, old_data, diff_excludes)
         else:
             old_data = {}
