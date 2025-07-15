@@ -1,7 +1,6 @@
 import abc
 import datetime
 import functools
-import json
 import logging
 import os
 import sys
@@ -320,14 +319,21 @@ class TaskHandler(Module):
         """Lists all user-callable tasks which are callable by this user"""
         global _callableTasks
 
-        from viur.core.skeleton import SkelList
-        tasks = SkelList()
-        tasks.extend([{
-            "key": x.key,
-            "name": str(x.name),
-            "descr": str(x.descr)
-        } for x in _callableTasks.values() if x().canCall()
-        ])
+        from viur.core.skeleton import SkeletonInstance, SkelList, RelSkel
+        from viur.core.bones import BaseBone, StringBone
+
+        class TaskSkel(RelSkel):
+            key = BaseBone()
+            name = StringBone()
+            descr = StringBone()
+
+        tasks = SkelList(TaskSkel, *(
+            SkeletonInstance(TaskSkel, {
+                "key": task.key,
+                "name": str(task.name),
+                "descr": str(task.descr)
+            }) for task in _callableTasks.values() if task().canCall()
+        ))
 
         return self.render.list(tasks)
 
