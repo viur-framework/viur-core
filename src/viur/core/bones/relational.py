@@ -512,7 +512,7 @@ class RelationalBone(BaseBone):
         values = [value for value in values if value is not None]
         parentValues = db.Entity()
         srcEntity = skel.dbEntity
-        parentValues.key = srcEntity.key
+        parentValues.key = key
         for boneKey in (self.parentKeys or []):
             if boneKey == "key":  # this is a relcit from viur2, as the key is encoded in the embedded entity
                 continue
