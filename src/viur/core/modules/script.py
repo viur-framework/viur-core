@@ -28,7 +28,7 @@ class BaseScriptAbstractSkel(TreeSkel):
         if not ret:
             # in case the path failed because the unique value is already taken, rewrite the error for name field
             for error in skel.errors:
-                if error.severity == skeleton.ReadFromClientErrorSeverity.Invalid and error.fieldPath == ["path"]:
+                if error.severity == ReadFromClientErrorSeverity.Invalid and error.fieldPath == ["path"]:
                     error.fieldPath = ["name"]
                     break
 

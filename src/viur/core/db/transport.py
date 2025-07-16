@@ -254,7 +254,7 @@ def runSingleFilter(query: QueryDefinition, limit: int) -> t.List[Entity]:
 
 # helper function for access log
 def _write_to_access_log(data: t.Union[Key, list[Key], Entity, list[Entity]]) -> None:
-    if not conf.db_create_access_log:
+    if not conf.db.create_access_log:
         return
     access_log = current_db_access_log.get()
     if not isinstance(access_log, set):

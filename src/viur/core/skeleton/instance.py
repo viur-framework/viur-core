@@ -31,6 +31,7 @@ class SkeletonInstance:
     def __init__(
         self,
         skel_cls: t.Type[Skeleton],
+        entity: t.Optional[db.Entity | dict] = None,
         *,
         bones: t.Iterable[str] = (),
         bone_map: t.Optional[t.Dict[str, BaseBone]] = None,
@@ -62,7 +63,7 @@ class SkeletonInstance:
         bone_map = bone_map or {}
 
         if bones:
-            names = ("key", ) + tuple(bones)
+            names = ("key",) + tuple(bones)
 
             # generate full keys sequence based on definition; keeps order of patterns!
             keys = []
@@ -95,7 +96,7 @@ class SkeletonInstance:
                 v.isClonedInstance = True
 
         self.accessedValues = {}
-        self.dbEntity = None
+        self.dbEntity = entity
         self.errors = []
         self.is_cloned = clone
         self.renderAccessedValues = {}
@@ -322,6 +323,16 @@ class SkeletonInstance:
         return {
             key: bone.structure() | {"sortindex": i}
             for i, (key, bone) in enumerate(self.items())
+        }
+
+    def dump(self):
+        """
+        Return a simplified version of the bone values in this skeleton.
+        This can be used for example in the JSON renderer.
+        """
+
+        return {
+            bone_name: bone.dump(self, bone_name) for bone_name, bone in self.items()
         }
 
     def __deepcopy__(self, memodict):
