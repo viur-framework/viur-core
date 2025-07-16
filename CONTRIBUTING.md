@@ -50,9 +50,9 @@ If there are documentation changes to review, there should be a 'doc-review' tag
   Apart from that we follow [PEP 257](https://peps.python.org/pep-0257)
 * bone names and skeletons should be written in Singular -- even if they are `multiple=True`
 * _Skeleton_ classes should end with `Skel`, not `Skeleton`
-* We use double quotes (`"`) for strings. Except, if we have to write a string inside an f-string
+* We use double quotes (`"`) for strings and make use of latest (Python >= 3.12) f-string features
 * We write bones always multiline; One line per argument
-* Multiline dicts, lists and bones should end with a trailing comma `,` like
+* Multiline dicts, lists and bones should end with a trailing comma `,` like to make change history cleaner when new lines are added
   ```py
   data = {
     "foo": 1,
@@ -137,10 +137,10 @@ In case you have appropriate permissions, a release can be done this way:
 
 `viur-core` has currently 4 actively maintained branches.
 
-- 1. **3.5** is the current stable LTS version as released on PyPI (3.5.x)
-- 2. **3.6** is the current stable LTS version as released on PyPI (3.6.x)
-- 3. **main** is the current version as released on PyPI (3.7.x)
-- 4. **develop**  is the next minor version and may be released as release candidates to PyPI (3.8.x)
+- **3.5** is the current stable LTS version as released on PyPI (3.5.x)
+- **3.6** is the current stable LTS version as released on PyPI (3.6.x)
+- **main** is the current version as released on PyPI (3.7.x)
+- **develop**  is the next minor version and may be released as release candidates to PyPI (3.8.x)
 
 Pull request should be made against one of these branches.
 

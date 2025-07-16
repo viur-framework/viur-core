@@ -125,11 +125,11 @@ def wrapCallable(f, urls: list[str], userSensitive: int, languageSensitive: bool
     @wraps(f)
     def wrapF(self, *args, **kwargs) -> str | bytes:
         currReq = current.request.get()
-        if conf.debug.disable_cache or currReq.disableCache or not conf.db_create_access_log:
+        if conf.debug.disable_cache or currReq.disableCache or not conf.db.create_access_log:
             # Caching disabled
             if conf.debug.disable_cache:
                 logging.debug("Caching is disabled by config")
-            elif not conf.db_create_access_log:
+            elif not conf.db.create_access_log:
                 logging.warning("The Access log is disabled by config")
             return f(self, *args, **kwargs)
         # How many arguments are part of the way to the function called (and how many are just *args)

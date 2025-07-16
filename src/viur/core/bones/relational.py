@@ -1248,3 +1248,10 @@ class RelationalBone(BaseBone):
             "using": self.using().structure() if self.using else None,
             "relskel": self._refSkelCache().structure(),
         }
+
+    def _atomic_dump(self, value: dict[str, "SkeletonInstance"]) -> dict | None:
+        if isinstance(value, dict):
+            return {
+                "dest": value["dest"].dump(),
+                "rel": value["rel"].dump() if value["rel"] else None,
+            }
