@@ -9,7 +9,9 @@ from google.cloud import datastore, exceptions
 
 from .overrides import entity_from_protobuf, key_from_protobuf
 from .types import Entity, Key, QueryDefinition, SortOrder, current_db_access_log
+from . import cache
 from viur.core.config import conf
+from viur.core import utils
 
 # patching our key and entity classes
 datastore.helpers.key_from_protobuf = key_from_protobuf
@@ -35,7 +37,7 @@ def AllocateIDs(kind_name):
     return allocate_ids(kind_name)[0]
 
 
-def get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None]:
+def get(keys: t.Union[Key, t.Iterable[Key]]) -> t.Union[t.List[Entity], Entity, None]:
     """
     Retrieves an entity (or a list thereof) from datastore.
     If only a single key has been given we'll return the entity or none in case the key has not been found,
@@ -45,12 +47,30 @@ def get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None
     """
     _write_to_access_log(keys)
 
-    if isinstance(keys, (list, set, tuple)):
-        res_list = list(__client__.get_multi(keys))
-        res_list.sort(key=lambda k: keys.index(k.key) if k else -1)
-        return res_list
+    keys = utils.ensure_iterable(keys)
+    if not keys:
+        return None
 
-    return __client__.get(keys)
+    cached = cache.get(keys) or ()
+
+    if len(keys) == 1:
+        if cached:
+            return cached
+
+        if res := __client__.get(keys[0]):
+            cache.put(res)
+
+        return res
+
+    keys = {key: cached.get(key) for key in keys}
+
+    uncached = __client__.get_multi((k for k, v in keys.items() if v is None))
+    cache.put(uncached)
+
+    for e in uncached:
+        keys[e.key] = e
+
+    return list(keys.values())
 
 
 @deprecated(version="3.8.0", reason="Use 'db.get' instead")
@@ -65,6 +85,7 @@ def put(entities: t.Union[Entity, t.List[Entity]]):
     :param entities: The entities to be saved to the datastore.
     """
     _write_to_access_log(entities)
+    cache.put(entities)
     if isinstance(entities, Entity):
         return __client__.put(entities)
 
@@ -76,15 +97,24 @@ def Put(entities: t.Union[Entity, t.List[Entity]]) -> t.Union[Entity, None]:
     return put(entities)
 
 
-def delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
+def delete(keys: t.Union[Entity, t.Iterable[Entity], Key, t.Iterable[Key]]):
     """
     Deletes the entities with the given key(s) from the datastore.
     :param keys: A Key (or a t.List of Keys) to delete
     """
-
+    if not keys:
+        return None
     _write_to_access_log(keys)
-    if not isinstance(keys, (set, list, tuple)):
-        return __client__.delete(keys)
+
+    if not isinstance(keys, (tuple, list, set)):
+        keys = (keys,)
+    keys = [k.key if isinstance(k, Entity) else k for k in keys]
+    if not keys:
+        return
+
+    cache.delete(keys)
+    if len(keys) == 1:
+        return __client__.delete(keys[0])
 
     return __client__.delete_multi(keys)
 
