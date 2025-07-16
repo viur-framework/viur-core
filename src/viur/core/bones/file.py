@@ -355,10 +355,13 @@ class FileBone(TreeLeafBone):
         }
 
     def _atomic_dump(self, value: dict[str, "SkeletonInstance"]) -> dict | None:
-        res = super()._atomic_dump(value)
-        if res is not None:
-            for key, value in res.items():
-                if value is not None:
-                    res[key]["downloadUrl"] = utils.downloadUrlFor(value["dlkey"], value["name"], derived=False,
-                                                                   expires=conf.render_json_download_url_expiration)
-        return res
+        value = super()._atomic_dump(value)
+        if value is not None:
+            value["dest"]["downloadUrl"] = utils.downloadUrlFor(
+                value["dest"]["dlkey"],
+                value["dest"]["name"],
+                derived=False,
+                expires=conf.render_json_download_url_expiration
+            )
+
+        return value
