@@ -354,10 +354,10 @@ class FileBone(TreeLeafBone):
             "public": self.public,
         }
 
-    def _atomic_dump(self, value: dict[str, "SkeletonInstance"]) -> dict | None:
+    def _atomic_dump(self, value) -> dict | None:
         value = super()._atomic_dump(value)
         if value is not None:
-            value["dest"]["downloadUrl"] = utils.downloadUrlFor(
+            value["dest"]["downloadUrl"] = conf.main_app.file.create_download_url(
                 value["dest"]["dlkey"],
                 value["dest"]["name"],
                 derived=False,
