@@ -31,6 +31,7 @@ class SkeletonInstance:
     def __init__(
         self,
         skel_cls: t.Type[Skeleton],
+        entity: t.Optional[db.Entity | dict] = None,
         *,
         bones: t.Iterable[str] = (),
         bone_map: t.Optional[t.Dict[str, BaseBone]] = None,
@@ -95,7 +96,7 @@ class SkeletonInstance:
                 v.isClonedInstance = True
 
         self.accessedValues = {}
-        self.dbEntity = None
+        self.dbEntity = entity
         self.errors = []
         self.is_cloned = clone
         self.renderAccessedValues = {}

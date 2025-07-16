@@ -3,7 +3,7 @@ import typing as t
 from enum import Enum
 from viur.core import db, current
 from viur.core.render.abstract import AbstractRenderer
-from viur.core.skeleton import SkeletonInstance, SkelList
+from viur.core.skeleton import SkeletonInstance, RelSkel, SkelList
 from viur.core.i18n import translate
 from viur.core.config import conf
 from datetime import datetime
@@ -107,34 +107,19 @@ class DefaultRender(AbstractRenderer):
         return self.renderEntry(skel, action, params)
 
     def list(self, skellist: SkelList, action: str = "list", params=None, **kwargs):
-        # Rendering the structure in lists is flagged as deprecated
-        structure = None
-        cursor = None
-        orders = None
-
-        if skellist:
-            if isinstance(skellist[0], SkeletonInstance):
-                if "json.bone.structure.inlists" in conf.compatibility:
-                    structure = DefaultRender.render_structure(skellist[0].structure())
-
-                cursor = skellist.getCursor()
-                orders = skellist.get_orders()
-
-            skellist = [item.dump() for item in skellist]
-        else:
-            skellist = []
-
-        # VIUR4 ;-)
-        # loc = locals()
-        # res = {k: loc[k] for k in ("action", "cursor", "params", "skellist", "structure", "orders") if loc[k]}
+        if not isinstance(skellist, SkelList):
+            raise ValueError("Function requires a SkelList")
 
         res = {
             "action": action,
-            "cursor": cursor,
+            "cursor": skellist.getCursor() if skellist else None,
             "params": params,
-            "skellist": skellist,
-            "structure": structure,
-            "orders": orders
+            "skellist": [item.dump() for item in skellist],
+            "structure":
+                DefaultRender.render_structure(skellist[0].structure())
+                if skellist and "json.bone.structure.inlists" in conf.compatibility
+                else None,
+            "orders": skellist.get_orders() if skellist else None,
         }
 
         current.request.get().response.headers["Content-Type"] = "application/json"
