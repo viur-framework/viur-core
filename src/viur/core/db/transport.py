@@ -11,6 +11,7 @@ from .overrides import entity_from_protobuf, key_from_protobuf
 from .types import Entity, Key, QueryDefinition, SortOrder, current_db_access_log
 from . import cache
 from viur.core.config import conf
+from viur.core import utils
 
 # patching our key and entity classes
 datastore.helpers.key_from_protobuf = key_from_protobuf
@@ -46,10 +47,9 @@ def get(keys: t.Union[Key, t.Iterable[Key]]) -> t.Union[t.List[Entity], Entity, 
     """
     _write_to_access_log(keys)
 
+    keys = utils.ensure_iterable(keys)
     if not keys:
         return None
-    if not isinstance(keys, (tuple, list, set)):
-        keys = (keys,)
 
     cached = cache.get(keys) or ()
 
@@ -59,15 +59,16 @@ def get(keys: t.Union[Key, t.Iterable[Key]]) -> t.Union[t.List[Entity], Entity, 
 
         if res := __client__.get(keys[0]):
             cache.put(res)
+
         return res
 
-    data = {key: cached.get(key) for key in keys}
+    keys = {key: cached.get(key) for key in keys}
 
-    uncached = __client__.get_multi((k for k, v in data.items() if v is None))
+    uncached = __client__.get_multi((k for k, v in keys.items() if v is None))
     cache.put(uncached)
 
     for e in uncached:
-        data[e.key] = e
+        keys[e.key] = e
 
     return list(keys.values())
 
