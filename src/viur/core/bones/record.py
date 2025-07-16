@@ -197,7 +197,7 @@ class RecordBone(BaseBone):
 
     def _atomic_dump(self, value: "SkeletonInstance") -> dict | None:
         if value is not None:
-            return value.simplified()
+            return value.dump()
 
     def refresh(self, skel, bone_name):
         for _, lang, value in self.iter_bone_value(skel, bone_name):
