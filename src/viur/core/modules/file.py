@@ -24,7 +24,8 @@ from google.cloud import storage
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
 from viur.core import conf, current, db, errors, utils, i18n
-from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
+from viur.core.bones import BaseBone, BooleanBone, JsonBone, KeyBone, NumericBone, StringBone
+
 from viur.core.decorators import *
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import SkeletonInstance, skeletonByKind
@@ -365,7 +366,7 @@ class FileLeafSkel(TreeSkel):
         visible=False,
     )
 
-    derived = BaseBone(
+    derived = JsonBone(
         descr="Derived Files",
         readOnly=True,
         visible=False,

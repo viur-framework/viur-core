@@ -722,7 +722,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             given key does not exist.
         :param update_relations: Trigger update relations task on success. Defaults to False.
         :param trust: Use internal `fromClient` with trusted data (may change readonly-bones)
-        :param retry: On ViurDatastoreError, retry for this amount of times.
+        :param retry: On RuntimeError, retry for this amount of times.
 
         If the function does not raise an Exception, all went well. The function always returns the input Skeleton.
 
@@ -736,6 +736,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         def __update_txn():
             # Try to read the skeleton, create on demand
             if not skel.read(key):
+                logging.debug(f"cant update key {skel=}")
                 if create is None or create is False:
                     raise ValueError("Creation during update is forbidden - explicitly provide `create=True` to allow.")
 
@@ -790,7 +791,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 try:
                     return db.run_in_transaction(__update_txn)
 
-                except db.ViurDatastoreError as e:
+                except RuntimeError:
                     retry -= 1
                     if retry < 0:
                         raise
