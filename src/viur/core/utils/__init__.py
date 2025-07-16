@@ -5,7 +5,7 @@ import urllib.parse
 import warnings
 from collections.abc import Iterable
 
-from viur.core import current, db
+from viur.core import current
 from viur.core.config import conf
 from deprecated.sphinx import deprecated
 from . import json, parse, string  # noqa: used by external imports
@@ -89,7 +89,7 @@ def seoUrlToFunction(module: str, function: str, render: t.Optional[str] = None)
 
 
 @deprecated(version="3.8.0", reason="Use 'db.normalize_key' instead")
-def normalizeKey(key: t.Union[None, db.Key]) -> t.Union[None, db.Key]:
+def normalizeKey(key: t.Union[None, "db.Key"]) -> t.Union[None, "db.Key"]:
     """
         Normalizes a datastore key (replacing _application with the current one)
 
@@ -97,6 +97,7 @@ def normalizeKey(key: t.Union[None, db.Key]) -> t.Union[None, db.Key]:
 
         :return: Normalized key in string representation.
     """
+    from viur.core import db  # let this be slow...
     db.normalize_key(key)
 
 

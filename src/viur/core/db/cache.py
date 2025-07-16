@@ -7,6 +7,7 @@ import sys
 import typing as t
 
 from viur.core.config import conf
+from viur.core import utils
 from .types import Entity, Key
 
 MEMCACHE_MAX_BATCH_SIZE = 30

@@ -887,7 +887,7 @@ class RelationalBone(BaseBone):
             else:
                 path = f"{name}.{_type}.{param}"
 
-            order = utils.parse.sortorder(params.get("orderdir"))
+            order = db.SortOrder.from_str(params.get("orderdir"))
             query = query.order((path, order))
 
             if self.multiple:

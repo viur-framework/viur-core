@@ -113,7 +113,7 @@ def delete(keys: t.Union[Entity, t.Iterable[Entity], Key, t.Iterable[Key]]):
 
     cache.delete(keys)
     if len(keys) == 1:
-        return __client__.delete(keys)
+        return __client__.delete(keys[0])
 
     return __client__.delete_multi(keys)
 

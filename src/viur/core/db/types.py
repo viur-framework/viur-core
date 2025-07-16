@@ -25,6 +25,10 @@ current_db_access_log: ContextVar[t.Optional[set[t.Union[Key, str]]]] = ContextV
 
 
 class SortOrder(enum.Enum):
+    """
+    Defines possible types of sort orders for queries.
+    """
+
     Ascending = 1
     """Sort A->Z"""
     Descending = 2
@@ -33,6 +37,21 @@ class SortOrder(enum.Enum):
     """Fetch Z->A, then flip the results (useful in pagination to go from a start cursor backwards)"""
     InvertedDescending = 4
     """Fetch A->Z, then flip the results (useful in pagination)"""
+
+    @classmethod
+    def from_str(cls, ident: str | int) -> SortOrder:
+        """
+        Parses a string defining a sort order into a db.SortOrder.
+        """
+        match str(ident or "").lower():
+            case "desc" | "descending" | "1":
+                return SortOrder.Descending
+            case "inverted_asc" | "inverted_ascending" | "2":
+                return SortOrder.InvertedAscending
+            case "inverted_desc" | "inverted_descending" | "3":
+                return SortOrder.InvertedDescending
+            case _:  # everything else
+                return SortOrder.Ascending
 
 
 class Key(Datastore_key):
