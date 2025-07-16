@@ -198,9 +198,9 @@ class Query(object):
             try:
                 limit = int(limit)
 
-                # disallow limit beyond conf.db_query_external_limit
-                if limit > conf.db_query_external_limit:
-                    limit = conf.db_query_external_limit
+                # disallow limit beyond conf.db.query_external_limit
+                if limit > conf.db.query_external_limit:
+                    limit = conf.db.query_external_limit
 
                 # forbid any limit < 0, which might bypass defaults
                 if limit < 0:
@@ -665,7 +665,7 @@ class Query(object):
         else:
             return count(queryDefinition=self.queries, up_to=up_to)
 
-    def fetch(self, limit: int = -1) -> "SkelList['SkeletonInstance']":
+    def fetch(self, limit: int = -1) -> "SkelList":
         """
         Run this query and fetch results as :class:`core.skeleton.SkelList`.
 
@@ -691,6 +691,7 @@ class Query(object):
 
         res = SkelList(self.srcSkel)
 
+        # FIXME: Why is this not like in ViUR2?
         for entity in self.run(limit):
             skel_instance = SkeletonInstance(self.srcSkel.skeletonCls, bone_map=self.srcSkel.boneMap)
             skel_instance.dbEntity = entity
