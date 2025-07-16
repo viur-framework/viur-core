@@ -1,6 +1,6 @@
 import json
 import typing as t
-
+from collections import defaultdict
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 if t.TYPE_CHECKING:
@@ -108,9 +108,17 @@ class RecordBone(BaseBone):
     def postSavedHandler(self, skel, boneName, key) -> None:
         super().postSavedHandler(skel, boneName, key)
 
-        for _, lang, value in self.iter_bone_value(skel, boneName):
-            for bone_name, bone in value.items():
-                bone.postSavedHandler(value, bone_name, key)
+        # for sub_bone_name in self.using.keys():
+        #     sub_bone = getattr(self.using, sub_bone_name)
+        #     sub_bone.postSavedHandler(skel[boneName], f"{boneName}.{sub_bone_name}", key)
+
+        for idx, lang, value in self.iter_bone_value(skel, boneName):
+            for sub_bone_name, bone in value.items():
+                bone.postSavedHandler(
+                    value,
+                    ".".join(name for name in (boneName, lang, str(idx), sub_bone_name) if name),
+                    key,
+                )
 
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """

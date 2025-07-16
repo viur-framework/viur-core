@@ -499,6 +499,10 @@ class RelationalBone(BaseBone):
         else:
             viur_src_kind = skel.kindName
 
+        viur_src_property = boneName
+        if "." in boneName:
+            _, boneName = boneName.rsplit(".", 1)
+
         if not skel[boneName]:
             values = []
         elif self.multiple and self.languages:
@@ -509,59 +513,62 @@ class RelationalBone(BaseBone):
             values = skel[boneName]
         else:
             values = [skel[boneName]]
-        values = [value for value in values if value is not None]
-        parentValues = db.Entity()
-        srcEntity = skel.dbEntity
-        parentValues.key = key
-        for boneKey in (self.parentKeys or []):
-            if boneKey == "key":  # this is a relcit from viur2, as the key is encoded in the embedded entity
-                continue
-            parentValues[boneKey] = srcEntity.get(boneKey)
-        dbVals = db.Query("viur-relations")
-        dbVals.filter("viur_src_kind =", viur_src_kind)
-        dbVals.filter("viur_dest_kind =", self.kind)
-        dbVals.filter("viur_src_property =", boneName)
-        dbVals.filter("src.__key__ =", key)
-        for dbObj in dbVals.iter():
+
+        # Keep a set of all referenced keys
+        values_keys = {value["dest"]["key"] for value in values}
+
+        # Referenced parent values
+        src_values = db.Entity(key)
+        src_values |= {bone: skel.dbEntity.get(bone) for bone in self.parentKeys or ()}
+
+        # Helper fcuntion to
+        def __update_relation(entity: db.Entity, data: dict):
+            ref_skel = data["dest"]
+            rel_skel = data["rel"]
+
+            entity["dest"] = ref_skel.serialize(parentIndexed=True)
+            entity["rel"] = rel_skel.serialize(parentIndexed=True) if rel_skel else None
+            entity["src"] = src_values
+
+            entity["viur_src_kind"] = viur_src_kind  # The kind of the entry referencing
+            entity["viur_src_property"] = viur_src_property  # The key of the bone referencing
+            entity["viur_dest_kind"] = self.kind
+            entity["viur_delayed_update_tag"] = time()
+            entity["viur_relational_updateLevel"] = self.updateLevel.value
+            entity["viur_relational_consistency"] = self.consistency.value
+            entity["viur_foreign_keys"] = list(self.refKeys)
+            entity["viurTags"] = skel.dbEntity.get("viurTags")
+
+            db.put(entity)
+
+        # Query existing entries pointing to this bone
+        query = db.Query("viur-relations") \
+            .filter("viur_src_kind =", viur_src_kind) \
+            .filter("viur_dest_kind =", self.kind) \
+            .filter("viur_src_property =", viur_src_property) \
+            .filter("src.__key__ =", key)
+
+        for entity in query.iter():
             try:
-                if not dbObj["dest"].key in [x["dest"]["key"] for x in values]:  # Relation has been removed
-                    db.delete(dbObj.key)
+                if entity["dest"].key not in values_keys:  # Relation has been removed
+                    db.delete(entity.key)
                     continue
-            except:  # This entry is corrupt
-                db.delete(dbObj.key)
+
+            except KeyError:  # This entry is corrupt
+                db.delete(entity.key)
+
             else:  # Relation: Updated
-                data = [x for x in values if x["dest"]["key"] == dbObj["dest"].key][0]
-                # Write our (updated) values in
-                refSkel = data["dest"]
-                dbObj["dest"] = refSkel.serialize(parentIndexed=True)
-                dbObj["src"] = parentValues
-                if self.using is not None:
-                    usingSkel = data["rel"]
-                    dbObj["rel"] = usingSkel.serialize(parentIndexed=True)
-                dbObj["viur_delayed_update_tag"] = time()
-                dbObj["viur_relational_updateLevel"] = self.updateLevel.value
-                dbObj["viur_relational_consistency"] = self.consistency.value
-                dbObj["viur_foreign_keys"] = list(self.refKeys)
-                dbObj["viurTags"] = srcEntity.get("viurTags")  # Copy tags over so we can still use our searchengine
-                db.put(dbObj)
-                values.remove(data)
-        # Add any new Relation
-        for val in values:
-            dbObj = db.Entity(db.Key("viur-relations", parent=key))
-            refSkel = val["dest"]
-            dbObj["dest"] = refSkel.serialize(parentIndexed=True)
-            dbObj["src"] = parentValues
-            if self.using is not None:
-                usingSkel = val["rel"]
-                dbObj["rel"] = usingSkel.serialize(parentIndexed=True)
-            dbObj["viur_delayed_update_tag"] = time()
-            dbObj["viur_src_kind"] = viur_src_kind  # The kind of the entry referencing
-            dbObj["viur_src_property"] = boneName  # The key of the bone referencing
-            dbObj["viur_dest_kind"] = self.kind
-            dbObj["viur_relational_updateLevel"] = self.updateLevel.value
-            dbObj["viur_relational_consistency"] = self.consistency.value
-            dbObj["viur_foreign_keys"] = list(self._ref_keys)
-            db.put(dbObj)
+                # Find the newest item matching this key (this has to been done so)...
+                value = [value for value in values if value["dest"]["key"] == entity["dest"].key][0]
+                # ... and remove it.
+                values.remove(value)
+
+                # Update the database entry
+                __update_relation(entity, value)
+
+        # Add new entries for the remaining values
+        for value in values:
+            __update_relation(db.Entity(db.Key("viur-relations", parent=key)), value)
 
     def postDeletedHandler(self, skel: "SkeletonInstance", boneName: str, key: db.Key) -> None:
         """

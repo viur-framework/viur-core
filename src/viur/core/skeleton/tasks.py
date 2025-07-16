@@ -75,6 +75,7 @@ def updateRelations(
         min_change_time: int,
         changed_bones: t.Optional[t.Iterable[str] | str] = (),
         cursor: t.Optional[str] = None,
+        total: int = 0,
         **kwargs
 ):
     """
@@ -94,51 +95,57 @@ def updateRelations(
         :param cursor: The database cursor for the current request as we only process five entities at once and then
             defer again.
     """
-    changed_bones = list(utils.ensure_iterable(changed_bones))
-    if "changedBone" in kwargs:
-        logging.warning("Use of `changedBone` is deprecated; Use `changed_bones` instead!", stacklevel=2)
-        changed_bones.extend(utils.ensure_iterable(kwargs["changedBone"]))
-    if "minChangeTime" in kwargs:
-        logging.warning("Use of `minChangeTime` is deprecated; Use `min_cahnge_time` instead!", stacklevel=2)
-        min_change_time = kwargs["minChangeTime"]
-    if "destKey" in kwargs:
-        logging.warning("Use of `destKey` is deprecated; Use `dest_key` instead!", stacklevel=2)
-        dest_key = kwargs["destKey"]
-    logging.debug(f"Starting updateRelations for {dest_key=}; {min_change_time=}, {changed_bones=}, {cursor=}")
+    # TODO: Remove in VIUR4
+    for _dep, _new in {
+        "changedBone": "changed_bones",
+        "minChangeTime": "min_change_time",
+        "destKey": "dest_key",
+    }.items():
+        if _dep in kwargs:
+            logging.warning(f"{_dep!r} parameter is deprecated, please use {_new!r} instead",)
+            locals()[_new] = kwargs.pop(_dep)
+
+    changed_bones = utils.ensure_iterable(changed_bones)
+
+    if not cursor:
+        logging.debug(f"updateRelations {dest_key=} {min_change_time=} {changed_bones=}")
+
     if request_data := current.request_data.get():
         request_data["__update_relations_bones"] = changed_bones
-    update_list_query = (
-        db.Query("viur-relations")
-        .filter("dest.__key__ =", dest_key)
-        .filter("viur_delayed_update_tag <", min_change_time)
+
+    query = db.Query("viur-relations") \
+        .filter("dest.__key__ =", dest_key) \
+        .filter("viur_delayed_update_tag <", min_change_time) \
         .filter("viur_relational_updateLevel =", RelationalUpdateLevel.Always.value)
-    )
+
     if changed_bones:
-        update_list_query.filter("viur_foreign_keys IN", changed_bones)
+        query.filter("viur_foreign_keys IN", changed_bones)
+
     if cursor:
-        update_list_query.setCursor(cursor)
-    update_list = update_list_query.run(limit=5)
+        query.setCursor(cursor)
 
-    def __txn_update(_skel, key, srcRelKey):
-        if not _skel.read(key):
-            logging.warning(f"Cannot update stale reference to {key=} (referenced from {srcRelKey=})")
-            return
-
-        _skel.refresh()
-        _skel.write(update_relations=False)
-
-    for src_rel in update_list:
+    for src_rel in query.run():
         try:
             skel = skeletonByKind(src_rel["viur_src_kind"])()
         except AssertionError:
             logging.info(f"""Ignoring {src_rel.key!r} which refers to unknown kind {src_rel["viur_src_kind"]!r}""")
             continue
-        if db.is_in_transaction():
-            __txn_update(skel, src_rel["src"].key, src_rel.key)
-        else:
-            db.run_in_transaction(__txn_update, skel, src_rel["src"].key, src_rel.key)
-    if len(update_list) == 5 and (next_cursor := update_list_query.getCursor()):
-        updateRelations(dest_key, min_change_time, changed_bones, next_cursor)
+
+        if not skel.patch(lambda skel: skel.refresh(), key=src_rel["src"].key, update_relations=False):
+            logging.warning(f"Cannot update stale reference to {src_rel["src"].key!r} referenced by {src_rel.key!r}")
+
+        total += 1
+
+    if next_cursor := query.getCursor():
+        updateRelations(
+            dest_key=dest_key,
+            min_change_time=min_change_time,
+            changed_bones=changed_bones,
+            cursor=next_cursor,
+            total=total
+        )
+    else:
+        logging.debug(f"updateRelations finished with {total=} on {dest_key=} {min_change_time=} {changed_bones=}")
 
 
 class SkelIterTask(tasks.QueryIter):
