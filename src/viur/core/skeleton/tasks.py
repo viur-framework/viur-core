@@ -70,7 +70,7 @@ def processRemovedRelations(removedKey, cursor=None):
 
 
 @tasks.CallDeferred
-def updateRelations(
+def update_relations(
         dest_key: db.Key,
         min_change_time: int,
         changed_bones: t.Optional[t.Iterable[str] | str] = (),
@@ -108,7 +108,7 @@ def updateRelations(
     changed_bones = utils.ensure_iterable(changed_bones)
 
     if not cursor:
-        logging.debug(f"updateRelations {dest_key=} {min_change_time=} {changed_bones=}")
+        logging.debug(f"update_relations {dest_key=} {min_change_time=} {changed_bones=}")
 
     if request_data := current.request_data.get():
         request_data["__update_relations_bones"] = changed_bones
@@ -137,7 +137,7 @@ def updateRelations(
         total += 1
 
     if next_cursor := query.getCursor():
-        updateRelations(
+        update_relations(
             dest_key=dest_key,
             min_change_time=min_change_time,
             changed_bones=changed_bones,
@@ -145,7 +145,7 @@ def updateRelations(
             total=total
         )
     else:
-        logging.debug(f"updateRelations finished with {total=} on {dest_key=} {min_change_time=} {changed_bones=}")
+        logging.debug(f"update_relations finished with {total=} on {dest_key=} {min_change_time=} {changed_bones=}")
 
 
 class SkelIterTask(tasks.QueryIter):

@@ -974,7 +974,7 @@ class Conf(ConfigType):
     default values can be defined here for each task.
     To do this, the task path must be mapped to the queue name:
     ```
-    conf.tasks_default_queues["updateRelations.viur.core.skeleton"] = "update_relations"
+    conf.tasks_default_queues["update_relations.viur.core.skeleton"] = "update_relations"
     ```
     The queue (in the example: `"update_relations"`) must exist.
     The default queue can be changed by overwriting `"__default__"`.

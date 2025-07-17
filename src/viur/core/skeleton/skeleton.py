@@ -10,7 +10,7 @@ from deprecated.sphinx import deprecated
 from viur.core import conf, db, errors, utils
 
 from .meta import BaseSkeleton, MetaSkel, _UNDEFINED_KINDNAME
-from .tasks import updateRelations, processRemovedRelations
+from .tasks import update_relations as update_relations_task, processRemovedRelations
 from .utils import skeletonByKind
 from ..bones.base import (
     Compute,
@@ -590,10 +590,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         if update_relations and not is_add:
             if change_list and len(change_list) < 5:  # Only a few bones have changed, process these individually
-                updateRelations(key, time.time() + 1, change_list, _countdown=10)
+                update_relations_task(key, time.time() + 1, change_list, _countdown=10)
 
             else:  # Update all inbound relations, regardless of which bones they mirror
-                updateRelations(key, time.time() + 1, None)
+                update_relations_task(key, time.time() + 1, None)
 
         # Trigger the database adapter of the changes made to the entry
         for adapter in skel.database_adapters:
