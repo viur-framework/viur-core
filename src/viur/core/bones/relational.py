@@ -5,10 +5,10 @@ and enums to parameterize it.
 import enum
 import json
 import logging
+import time
 import typing as t
 import warnings
 from itertools import chain
-from time import time
 
 from viur.core import db, utils
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
@@ -49,6 +49,7 @@ class RelationalUpdateLevel(enum.Enum):
 class RelDict(t.TypedDict):
     dest: "SkeletonInstance"
     rel: t.Optional["RelSkel"]
+
 
 class RelationalBone(BaseBone):
     """
@@ -494,14 +495,17 @@ class RelationalBone(BaseBone):
         :param key: The key of the saved skeleton instance.
         """
         from viur.core.skeleton import RelSkel
+
         if issubclass(skel.skeletonCls, RelSkel):  # RelSkel is just a container and has no kindname
             viur_src_kind = key.kind
         else:
             viur_src_kind = skel.kindName
 
         viur_src_property = boneName
+
+        # Hack for RelationalBones in containers (like RecordBones)
         if "." in boneName:
-            _, boneName = boneName.rsplit(".", 1)
+            _, boneName = boneName.rsplit(".", 1)  # bone name to fummel out of the skeleton (again...)
 
         if not skel[boneName]:
             values = []
@@ -521,6 +525,9 @@ class RelationalBone(BaseBone):
         src_values = db.Entity(key)
         src_values |= {bone: skel.dbEntity.get(bone) for bone in self.parentKeys or ()}
 
+        # Now is now, nana nananaaaaaaa...
+        now = time.time()
+
         # Helper fcuntion to
         def __update_relation(entity: db.Entity, data: dict):
             ref_skel = data["dest"]
@@ -530,10 +537,10 @@ class RelationalBone(BaseBone):
             entity["rel"] = rel_skel.serialize(parentIndexed=True) if rel_skel else None
             entity["src"] = src_values
 
-            entity["viur_src_kind"] = viur_src_kind  # The kind of the entry referencing
-            entity["viur_src_property"] = viur_src_property  # The key of the bone referencing
+            entity["viur_src_kind"] = viur_src_kind
+            entity["viur_src_property"] = viur_src_property
             entity["viur_dest_kind"] = self.kind
-            entity["viur_delayed_update_tag"] = time()
+            entity["viur_delayed_update_tag"] = now
             entity["viur_relational_updateLevel"] = self.updateLevel.value
             entity["viur_relational_consistency"] = self.consistency.value
             entity["viur_foreign_keys"] = list(self.refKeys)
@@ -541,7 +548,7 @@ class RelationalBone(BaseBone):
 
             db.put(entity)
 
-        # Query existing entries pointing to this bone
+        # Query and update existing entries pointing to this bone
         query = db.Query("viur-relations") \
             .filter("viur_src_kind =", viur_src_kind) \
             .filter("viur_dest_kind =", self.kind) \
@@ -558,15 +565,15 @@ class RelationalBone(BaseBone):
                 db.delete(entity.key)
 
             else:  # Relation: Updated
-                # Find the newest item matching this key (this has to been done so)...
+                # Find the newest item matching this key (this has to been done this way)...
                 value = [value for value in values if value["dest"]["key"] == entity["dest"].key][0]
-                # ... and remove it.
+                # ... and remove it from the list of values
                 values.remove(value)
 
-                # Update the database entry
+                # Update existing database entry
                 __update_relation(entity, value)
 
-        # Add new entries for the remaining values
+        # Add new database entries for the remaining values
         for value in values:
             __update_relation(db.Entity(db.Key("viur-relations", parent=key)), value)
 

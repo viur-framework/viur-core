@@ -1,7 +1,9 @@
 import json
+import logging
 import typing as t
-from collections import defaultdict
+
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core import db, utils, tasks
 
 if t.TYPE_CHECKING:
     from ..skeleton import SkeletonInstance
@@ -108,17 +110,30 @@ class RecordBone(BaseBone):
     def postSavedHandler(self, skel, boneName, key) -> None:
         super().postSavedHandler(skel, boneName, key)
 
-        # for sub_bone_name in self.using.keys():
-        #     sub_bone = getattr(self.using, sub_bone_name)
-        #     sub_bone.postSavedHandler(skel[boneName], f"{boneName}.{sub_bone_name}", key)
+        drop_relations_higher = {}
 
         for idx, lang, value in self.iter_bone_value(skel, boneName):
+            if idx > 99:
+                logging.warning("postSavedHandler entry limit maximum reached")
+                drop_relations_higher.clear()
+                break
+
             for sub_bone_name, bone in value.items():
-                bone.postSavedHandler(
-                    value,
-                    ".".join(name for name in (boneName, lang, str(idx), sub_bone_name) if name),
-                    key,
-                )
+                path = ".".join(name for name in (boneName, lang, f"{idx:02}", sub_bone_name) if name)
+                if utils.string.is_prefix(bone.type, "relational"):
+                    drop_relations_higher[sub_bone_name] = path
+
+                bone.postSavedHandler(value, path, key)
+
+        if drop_relations_higher:
+            for viur_src_property in drop_relations_higher.values():
+                query = db.Query("viur-relations") \
+                    .filter("viur_src_kind =", key.kind) \
+                    .filter("src.__key__ =", key) \
+                    .filter("viur_src_property >", viur_src_property)
+
+                logging.debug(f"Delete viur-relations with {query=}")
+                tasks.DeleteEntitiesIter.startIterOnQuery(query)
 
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
