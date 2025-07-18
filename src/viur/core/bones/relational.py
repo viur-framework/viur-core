@@ -630,6 +630,13 @@ class RelationalBone(BaseBone):
 
             return ret, errors
 
+        elif self.consistency == RelationalConsistency.Ignore:
+            # when RelationalConsistency.Ignore is on, keep existing relations, even when they where deleted
+            for _, _, value in self.iter_bone_value(skel, bone_name):
+                if str(value["dest"]["key"]) == str(dest_key):
+                    value["rel"] = rel
+                    return value, errors
+
         errors.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value submitted"))
         return self.getEmptyValue(), errors
 
