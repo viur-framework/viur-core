@@ -104,8 +104,9 @@ class UserSkel(skeleton.Skeleton):
     )
 
     status = SelectBone(
-        descr="Account status",
+        descr=i18n.translate("viur.core.modules.user.bone.status", "Account status"),
         values=Status,
+        translation_key_prefix="viur.core.user.status.",
         defaultValue=Status.ACTIVE,
         required=True,
     )
@@ -268,6 +269,8 @@ class UserPassword(UserPrimaryAuthentication):
         password = PasswordBone(
             required=True,
             test_threshold=0,
+            tests=(),
+            raw=True,
         )
 
     class LostPasswordStep1Skel(skeleton.RelSkel):
@@ -311,21 +314,25 @@ class UserPassword(UserPrimaryAuthentication):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def login(self, *, name: str | None = None, password: str | None = None, **kwargs):
-        if not name or not password:
-            return self._user_module.render.login(self.LoginSkel(), action="login")
+    def login(self, **kwargs):
+        # Obtain a fresh login skel
+        skel = self.LoginSkel()
+
+        # Read required bones from client
+        if not skel.fromClient(kwargs):
+            return self._user_module.render.login(skel, action="login")
 
         self.loginRateLimit.assertQuotaIsAvailable()
 
         # query for the username. The query might find another user, but the name is being checked for equality below
-        name = name.lower().strip()
+        name = skel["name"].lower().strip()
         user_skel = self._user_module.baseSkel()
         user_skel = user_skel.all().filter("name.idx >=", name).getSkel() or user_skel
 
         # extract password hash from raw database entity (skeleton access blocks it)
         password_data = (user_skel.dbEntity and user_skel.dbEntity.get("password")) or {}
         iterations = password_data.get("iterations", 1001)  # remember iterations; old password hashes used 1001
-        password_hash = encode_password(password, password_data.get("salt", "-invalid-"), iterations)["pwhash"]
+        password_hash = encode_password(skel["password"], password_data.get("salt", "-invalid-"), iterations)["pwhash"]
 
         # now check if the username matches
         is_okay = secrets.compare_digest((user_skel["name"] or "").lower().strip().encode(), name.encode())
@@ -334,8 +341,22 @@ class UserPassword(UserPrimaryAuthentication):
         is_okay &= secrets.compare_digest(password_data.get("pwhash", b"-invalid-"), password_hash)
 
         if not is_okay:
+            # Set error to all required fields
+            for name, bone in skel.items():
+                if bone.required:
+                    skel.errors.append(
+                        ReadFromClientError(
+                            ReadFromClientErrorSeverity.Invalid,
+                            i18n.translate(
+                                key="viur.core.modules.user.userpassword.login.failed",
+                                defaultText="Invalid username or password provided",
+                            ),
+                            name,
+                        )
+                    )
+
             self.loginRateLimit.decrementQuota()  # Only failed login attempts will count to the quota
-            return self._user_module.render.login(self.LoginSkel(), action="login")
+            return self._user_module.render.login(skel, action="login")
 
         # check if iterations are below current security standards, and update if necessary.
         if iterations < PBKDF2_DEFAULT_ITERATIONS:
@@ -494,7 +515,7 @@ class UserPassword(UserPrimaryAuthentication):
             skel.write(update_relations=False)
             return skel
 
-        if not isinstance(data, dict) or not (skel := db.RunInTransaction(transact, data.get("user_key"))):
+        if not isinstance(data, dict) or not (skel := db.run_in_transaction(transact, data.get("user_key"))):
             return self._user_module.render.view(None, tpl=self.verifyFailedTemplate)
 
         return self._user_module.render.view(skel, tpl=self.verifySuccessTemplate)
@@ -556,7 +577,7 @@ class UserPassword(UserPrimaryAuthentication):
         if self.registrationEmailVerificationRequired and skel["status"] == Status.WAITING_FOR_EMAIL_VERIFICATION:
             # The user will have to verify his email-address. Create a skey and send it to his address
             skey = securitykey.create(duration=datetime.timedelta(days=7), session_bound=False,
-                                      user_key=utils.normalizeKey(skel["key"]),
+                                      user_key=db.normalize_key(skel["key"]),
                                       name=skel["name"])
             skel.skey = BaseBone(descr="Skey")
             skel["skey"] = skey
@@ -850,7 +871,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             )
 
         # Remove otp user config from session
-        user_key = db.keyHelper(otp_user_conf["key"], self._user_module._resolveSkelCls().kindName)
+        user_key = db.key_helper(otp_user_conf["key"], self._user_module._resolveSkelCls().kindName)
         del session["_otp_user"]
         session.markChanged()
 
@@ -936,13 +957,13 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         # FIXME: The callback in viur-core must be improved, to accept user_skel
 
         def transaction(user_key, idx):
-            user = db.Get(user_key)
+            user = db.get(user_key)
             if not isinstance(user.get("otp_timedrift"), float):
                 user["otp_timedrift"] = 0.0
             user["otp_timedrift"] += min(max(0.1 * idx, -0.3), 0.3)
-            db.Put(user)
+            db.put(user)
 
-        db.RunInTransaction(transaction, user_key, idx)
+        db.run_in_transaction(transaction, user_key, idx)
 
 
 class AuthenticatorOTP(UserSecondFactorAuthentication):
@@ -1031,12 +1052,12 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             raise errors.Unauthorized()
 
         def transaction(user_key):
-            if not (user := db.Get(user_key)):
+            if not (user := db.get(user_key)):
                 raise errors.NotFound()
             user["otp_app_secret"] = otp_app_secret
-            db.Put(user)
+            db.put(user)
 
-        db.RunInTransaction(transaction, cuser["key"])
+        db.run_in_transaction(transaction, cuser["key"])
 
     @classmethod
     def generate_otp_app_secret_uri(cls, otp_app_secret) -> str:
@@ -1097,7 +1118,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         if (attempts := otp_user_conf.get("attempts") or 0) > self.MAX_RETRY:
             raise errors.Forbidden("Maximum amount of authentication retries exceeded")
 
-        if not (user := db.Get(user_key)):
+        if not (user := db.get(user_key)):
             raise errors.NotFound()
 
         skel = TimeBasedOTP.OtpSkel()

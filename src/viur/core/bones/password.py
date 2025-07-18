@@ -69,6 +69,7 @@ class PasswordBone(StringBone):
         descr: str = "Password",
         test_threshold: int = 4,
         tests: t.Iterable[t.Iterable[t.Tuple[str, str, bool]]] = tests,
+        raw: bool = False,
         **kwargs
     ):
         """
@@ -76,9 +77,11 @@ class PasswordBone(StringBone):
 
             :param test_threshold: The minimum number of tests the password must pass.
             :param password_tests: Defines separate tests specified as tuples of regex, hint and required-flag.
+            :param raw: Don't encode password's hash when reading from client, just save the provided string.
         """
         super().__init__(descr=descr, **kwargs)
         self.test_threshold = test_threshold
+        self.raw = raw
         if tests is not None:
             self.tests = tests
 
@@ -140,7 +143,7 @@ class PasswordBone(StringBone):
 
         # As we don't escape passwords and allow most special characters we'll hash it early on so we don't open
         # an XSS attack vector if a password is echoed back to the client (which should not happen)
-        skel[name] = encode_password(value, utils.string.random(self.saltLength))
+        skel[name] = value if self.raw else encode_password(value, utils.string.random(self.saltLength))
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
         """
@@ -199,3 +202,6 @@ class PasswordBone(StringBone):
             "tests": self.tests if self.test_threshold else (),
             "test_threshold": self.test_threshold,
         }
+
+    def _atomic_dump(self, value):
+        return ""

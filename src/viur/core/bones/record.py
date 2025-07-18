@@ -31,7 +31,7 @@ class RecordBone(BaseBone):
         using: 'viur.core.skeleton.RelSkel' = None,
         **kwargs
     ):
-        from viur.core.skeleton import RelSkel
+        from viur.core.skeleton.relskel import RelSkel
         if not issubclass(using, RelSkel):
             raise ValueError("RecordBone requires for valid using-parameter (subclass of viur.core.skeleton.RelSkel)")
 
@@ -194,6 +194,10 @@ class RecordBone(BaseBone):
             "format": self.format,
             "using": self.using().structure(),
         }
+
+    def _atomic_dump(self, value: "SkeletonInstance") -> dict | None:
+        if value is not None:
+            return value.dump()
 
     def refresh(self, skel, bone_name):
         for _, lang, value in self.iter_bone_value(skel, bone_name):

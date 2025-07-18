@@ -1,3 +1,4 @@
+import io
 import typing as t
 from viur.core.bones import *
 from viur.core.prototypes.tree import Tree, TreeSkel, SkelType
@@ -5,10 +6,10 @@ from viur.core.modules.file import File
 from viur.core import db, conf, current, skeleton, tasks, errors
 from viur.core.decorators import exposed
 from viur.core.i18n import translate
+import zipfile
 
 
 class BaseScriptAbstractSkel(TreeSkel):
-
     path = StringBone(
         descr="Path",
         readOnly=True,
@@ -27,7 +28,7 @@ class BaseScriptAbstractSkel(TreeSkel):
         if not ret:
             # in case the path failed because the unique value is already taken, rewrite the error for name field
             for error in skel.errors:
-                if error.severity == skeleton.ReadFromClientErrorSeverity.Invalid and error.fieldPath == ["path"]:
+                if error.severity == ReadFromClientErrorSeverity.Invalid and error.fieldPath == ["path"]:
                     error.fieldPath = ["name"]
                     break
 
@@ -162,3 +163,38 @@ class Script(Tree):
             key = parent_skel["parententry"]
 
         skel["path"] = "/".join(path)
+
+    @exposed
+    def get_importable(self):
+
+        # get importable key
+        qry_importable = (self.viewSkel("node").all()
+                          .filter("parententry", self.rootnodeSkel(ensure=True)["key"])
+                          .filter("name =", "importable"))
+        if not (qry_importable := self.listFilter(qry_importable)):
+            raise errors.Unauthorized()
+
+        importable_key = (entity := qry_importable.getEntry()) and entity.key
+
+        def get_files_recursively(_importable_key):
+            res = []
+            importable_files_query = self.viewSkel("leaf").all().filter("parententry", _importable_key)
+            if not (importable_files_query := self.listFilter(importable_files_query)):
+                raise errors.Unauthorized()
+            for script_entry in importable_files_query.iter():
+                if script_entry["script"]:
+                    res.append(script_entry)
+            importable_files_query = self.viewSkel("node").all().filter("parententry", _importable_key)
+            for folder_entry in importable_files_query.iter():
+                res.extend(get_files_recursively(folder_entry.key))
+            return res
+
+        importable_files = get_files_recursively(importable_key)
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
+            for file in importable_files:
+                zip_file.writestr(file["path"], file["script"])
+
+        current.request.get().response.headers["Content-Disposition"] = "attachment; filename=importable.zip"
+        current.request.get().response.headers["Content-Type"] = "application/zip"
+        return zip_buffer.getvalue()

@@ -17,7 +17,7 @@ from viur.core.config import conf
     http Header    along with their requests. Entities in this cache will expire if
         - Their TTL is exceeded
         - They're explicitly removed from the cache by calling :meth:`viur.core.cache.flushCache` using their path
-        - A Datastore entity that has been accessed using db.Get() from within the cached function has been modified
+        - A Datastore entity that has been accessed using db.get() from within the cached function has been modified
         - The wrapped function has run a query over a kind in which an entity has been added/edited/deleted
 
     ..Warning: As this cache is intended to be used with exposed functions, it will not only store the result of the
@@ -125,10 +125,12 @@ def wrapCallable(f, urls: list[str], userSensitive: int, languageSensitive: bool
     @wraps(f)
     def wrapF(self, *args, **kwargs) -> str | bytes:
         currReq = current.request.get()
-        if conf.debug.disable_cache or currReq.disableCache:
+        if conf.debug.disable_cache or currReq.disableCache or not conf.db.create_access_log:
             # Caching disabled
             if conf.debug.disable_cache:
                 logging.debug("Caching is disabled by config")
+            elif not conf.db.create_access_log:
+                logging.warning("The Access log is disabled by config")
             return f(self, *args, **kwargs)
         # How many arguments are part of the way to the function called (and how many are just *args)
         offset = -len(currReq.args) or len(currReq.path_list)
@@ -142,7 +144,7 @@ def wrapCallable(f, urls: list[str], userSensitive: int, languageSensitive: bool
             # Something is wrong (possibly the parameter-count)
             # Let's call f, but we knew already that this will clash
             return f(self, *args, **kwargs)
-        dbRes = db.Get(db.Key(viurCacheName, key))
+        dbRes = db.get(db.Key(viurCacheName, key))
         if dbRes is not None:
             if (
                     not maxCacheTime or dbRes["creationtime"] > utils.utcNow()
@@ -153,11 +155,11 @@ def wrapCallable(f, urls: list[str], userSensitive: int, languageSensitive: bool
                 currReq.response.headers['Content-Type'] = dbRes["content-type"]
                 return dbRes["data"]
         # If we made it this far, the request wasn't cached or too old; we need to rebuild it
-        oldAccessLog = db.startDataAccessLog()
+        oldAccessLog = db.start_data_access_log()
         try:
             res = f(self, *args, **kwargs)
         finally:
-            accessedEntries = db.endDataAccessLog(oldAccessLog)
+            accessedEntries = db.end_data_access_log(oldAccessLog)
         dbEntity = db.Entity(db.Key(viurCacheName, key))
         dbEntity["data"] = res
         dbEntity["creationtime"] = utils.utcNow()
@@ -165,7 +167,7 @@ def wrapCallable(f, urls: list[str], userSensitive: int, languageSensitive: bool
         dbEntity["content-type"] = currReq.response.headers['Content-Type']
         dbEntity["accessedEntries"] = list(accessedEntries)
         dbEntity.exclude_from_indexes = {"data", "content-type"}  # save two DB-writes.
-        db.Put(dbEntity)
+        db.put(dbEntity)
         logging.debug("This request was a cache-miss. Cache has been updated.")
         return res
 
@@ -234,31 +236,31 @@ def flushCache(prefix: str = None, key: db.Key | None = None, kind:  str | None 
     if prefix is not None:
         items = db.Query(viurCacheName).filter("path =", prefix.rstrip("*")).iter()
         for item in items:
-            db.Delete(item)
+            db.delete(item)
         if prefix.endswith("*"):
             items = db.Query(viurCacheName) \
                 .filter("path >", prefix.rstrip("*")) \
                 .filter("path <", prefix.rstrip("*") + u"\ufffd") \
                 .iter()
             for item in items:
-                db.Delete(item)
+                db.delete(item)
         logging.debug(f"Flushing cache succeeded. Everything matching {prefix=} is gone.")
     if key is not None:
         items = db.Query(viurCacheName).filter("accessedEntries =", key).iter()
         for item in items:
             logging.info(f"""Deleted cache entry {item["path"]!r}""")
-            db.Delete(item.key)
+            db.delete(item.key)
         if not isinstance(key, db.Key):
             key = db.Key.from_legacy_urlsafe(key)  # hopefully is a string
         items = db.Query(viurCacheName).filter("accessedEntries =", key.kind).iter()
         for item in items:
             logging.info(f"""Deleted cache entry {item["path"]!r}""")
-            db.Delete(item.key)
+            db.delete(item.key)
     if kind is not None:
         items = db.Query(viurCacheName).filter("accessedEntries =", kind).iter()
         for item in items:
             logging.info(f"""Deleted cache entry {item["path"]!r}""")
-            db.Delete(item.key)
+            db.delete(item.key)
 
 
 __all__ = ["enableCache", "flushCache"]

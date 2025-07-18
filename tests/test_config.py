@@ -1,5 +1,6 @@
 import types
-import unittest
+
+from abstract import ViURTestCase
 
 OLD_MEMBERS = [
     "admin.name",
@@ -14,7 +15,6 @@ OLD_MEMBERS = [
     "viur.cacheEnvironmentKey",
     "viur.compatibility",
     # "viur.contentSecurityPolicy", # removed this one, was not in use (we had it twice)
-    "viur.db.engine",
     "viur.debug.trace",
     "viur.debug.trace_exceptions",
     "viur.debug.trace_external_call_routing",
@@ -87,11 +87,9 @@ in viur-core==3.5.X
 """
 
 
-class TestConfig(unittest.TestCase):
+class TestConfig(ViURTestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        from main import monkey_patch
-        monkey_patch()
         # FIXME
         """
         cls.logger = logging.getLogger(cls.__qualname__)

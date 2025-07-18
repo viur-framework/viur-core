@@ -3,7 +3,7 @@ import typing as t
 from deprecated.sphinx import deprecated
 from viur.core import utils, errors, db, current
 from viur.core.decorators import *
-from viur.core.bones import KeyBone, SortIndexBone
+from viur.core.bones import KeyBone, SortIndexBone, BooleanBone
 from viur.core.cache import flushCache
 from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.tasks import CallDeferred
@@ -31,12 +31,17 @@ class TreeSkel(Skeleton):
         readOnly=True,
     )
 
+    is_root_node = BooleanBone(
+        defaultValue=False,
+        readOnly=True,
+        visible=False,
+    )
+
     @classmethod
     def refresh(cls, skelValues):  # ViUR2 Compatibility
         super().refresh(skelValues)
         if not skelValues["parententry"] and skelValues.dbEntity.get("parentdir"):  # parentdir for viur2 compatibility
-            skelValues["parententry"] = utils.normalizeKey(
-                db.Key.from_legacy_urlsafe(skelValues.dbEntity["parentdir"]))
+            skelValues["parententry"] = db.normalize_key(skelValues.dbEntity["parentdir"])
 
 
 class Tree(SkelModule):
@@ -161,7 +166,7 @@ class Tree(SkelModule):
         skel = self.baseSkel("node")
 
         skel["key"] = db.Key(skel.kindName, identifier)
-        skel["rootNode"] = True
+        skel["is_root_node"] = True
 
         if ensure not in (False, None):
             return skel.read(create=ensure)
@@ -243,21 +248,21 @@ class Tree(SkelModule):
             return
 
         def fixTxn(nodeKey, newRepoKey):
-            node = db.Get(nodeKey)
+            node = db.get(nodeKey)
             node["parentrepo"] = newRepoKey
-            db.Put(node)
+            db.put(node)
 
         # Fix all nodes
         q = db.Query(self.viewSkel("node").kindName).filter("parententry =", parentNode)
         for repo in q.iter():
             self.updateParentRepo(repo.key, newRepoKey, depth=depth + 1)
-            db.RunInTransaction(fixTxn, repo.key, newRepoKey)
+            db.run_in_transaction(fixTxn, repo.key, newRepoKey)
 
         # Fix the leafs on this level
         if self.leafSkelCls:
             q = db.Query(self.viewSkel("leaf").kindName).filter("parententry =", parentNode)
             for repo in q.iter():
-                db.RunInTransaction(fixTxn, repo.key, newRepoKey)
+                db.run_in_transaction(fixTxn, repo.key, newRepoKey)
 
     ## Internal exposed functions
 
@@ -475,10 +480,10 @@ class Tree(SkelModule):
         kind_name = self.nodeSkelCls.kindName if skelType == "node" else self.leafSkelCls.kindName
 
         # Adjust key
-        db_key = db.keyHelper(key, targetKind=kind_name, adjust_kind=True)
+        db_key = db.key_helper(key, target_kind=kind_name, adjust_kind=True)
 
         # Retrieve and verify existing entry
-        db_entity = db.Get(db_key)
+        db_entity = db.get(db_key)
         is_add = not bool(db_entity)
 
         # Instanciate relevant skeleton
@@ -621,7 +626,7 @@ class Tree(SkelModule):
 
         :param parentKey: URL-safe key of the node which children should be deleted.
         """
-        nodeKey = db.keyHelper(parentKey, self.viewSkel("node").kindName)
+        nodeKey = db.key_helper(parentKey, self.viewSkel("node").kindName)
         if self.leafSkelCls:
             for leaf in db.Query(self.viewSkel("leaf").kindName).filter("parententry =", nodeKey).iter():
                 leafSkel = self.viewSkel("leaf")
@@ -666,7 +671,7 @@ class Tree(SkelModule):
             raise errors.NotFound("Cannot find entity to move")
 
         if not parentNodeSkel.read(parentNode):
-            parentNode = utils.normalizeKey(db.Key.from_legacy_urlsafe(parentNode))
+            parentNode = db.normalize_key(parentNode)
 
             if parentNode.kind != parentNodeSkel.kindName:
                 raise errors.NotFound(
@@ -682,14 +687,14 @@ class Tree(SkelModule):
             raise errors.NotAcceptable("Cannot move a node into itself")
 
         ## Test for recursion
-        currLevel = db.Get(parentNodeSkel["key"])
+        currLevel = db.get(parentNodeSkel["key"])
         for _ in range(0, 99):
             if currLevel.key == skel["key"]:
                 break
             if currLevel.get("rootNode") or currLevel.get("is_root_node"):
                 # We reached a rootNode, so this is okay
                 break
-            currLevel = db.Get(currLevel["parententry"])
+            currLevel = db.get(currLevel["parententry"])
         else:  # We did not "break" - recursion-level exceeded or loop detected
             raise errors.NotAcceptable("Unable to find a root node in recursion?")
 

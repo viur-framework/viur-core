@@ -1055,7 +1055,7 @@ class BaseBone(object):
                 from viur.core.skeleton import RefSkel  # noqa: E402 # import works only here because circular imports
 
                 if issubclass(skel.skeletonCls, RefSkel):  # we have a ref skel we must load the complete Entity
-                    db_obj = db.Get(skel["key"])
+                    db_obj = db.get(skel["key"])
                     last_update = db_obj.get(f"_viur_compute_{name}_")
                 else:
                     last_update = skel.dbEntity.get(f"_viur_compute_{name}_")
@@ -1065,15 +1065,15 @@ class BaseBone(object):
                     # if so, recompute and refresh updated value
                     skel.accessedValues[name] = value = self._compute(skel, name)
                     def transact():
-                        db_obj = db.Get(skel["key"])
+                        db_obj = db.get(skel["key"])
                         db_obj[f"_viur_compute_{name}_"] = now
                         db_obj[name] = value
-                        db.Put(db_obj)
+                        db.put(db_obj)
 
-                    if db.IsInTransaction():
+                    if db.is_in_transaction():
                         transact()
                     else:
-                        db.RunInTransaction(transact)
+                        db.run_in_transaction(transact)
 
                     return True
 
@@ -1580,3 +1580,38 @@ class BaseBone(object):
                 ret["compute"]["lifetime"] = self.compute.interval.lifetime.total_seconds()
 
         return ret
+
+    def dump(self, skel: "SkeletonInstance", bone_name: str) -> t.Any:
+        """
+        Returns the value of a bone in a simplified version.
+        :param skel: The SkeletonInstance that contains the bone.
+        :param bone_name: The name of the bone to in the skeleton.
+        :return: The value of the bone in a simplified version.
+        """
+        ret = {}
+        bone_value = skel[bone_name]
+        if self.languages and self.multiple:
+            res = {}
+            for language in self.languages:
+                if bone_value and language in bone_value and bone_value[language]:
+                    ret[language] = [self._atomic_dump(value) for value in bone_value[language]]
+                else:
+                    res[language] = []
+        elif self.languages:
+            for language in self.languages:
+                if bone_value and language in bone_value and bone_value[language]:
+                    ret[language] = self._atomic_dump(bone_value[language])
+                else:
+                    ret[language] = None
+        elif self.multiple:
+            ret = [self._atomic_dump(value) for value in bone_value]
+
+        else:
+            ret = self._atomic_dump(bone_value)
+        return ret
+
+    def _atomic_dump(self, value):
+        """
+        One atomic value of the bone.
+        """
+        return value

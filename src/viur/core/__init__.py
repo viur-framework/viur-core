@@ -40,6 +40,7 @@ if not sys.argv[0].endswith("viur-migrate"):  # FIXME: What a "kinda hackish" so
     from viur.core import logging as viurLogging  # unused import, must exist, initializes request logging
 
 import logging  # this import has to stay here, see #571
+from deprecated.sphinx import deprecated
 
 __all__ = [
     # basics from this __init__
@@ -74,12 +75,22 @@ warnings.filterwarnings("once", category=DeprecationWarning)
 warnings.filterwarnings("ignore", category=DeprecationWarning, module=r"viur\.datastore.*",
                         message="'clonedBoneMap' was renamed into 'bone_map'")
 
+
+@deprecated(
+    version="3.8.0",
+    reason="Simply set `conf.i18n.default_language` to the desired language."
+)
 def setDefaultLanguage(lang: str):
     """
         Sets the default language used by ViUR to *lang*.
 
         :param lang: Name of the language module to use by default.
     """
+    msg = f"`setDefaultLanguage(\"{lang}\")` is deprecated; " \
+          f"Replace the call by `conf.i18n.default_language = \"{lang.lower()}\"`"
+    warnings.warn(msg, DeprecationWarning, stacklevel=2)
+    logging.warning(msg)
+
     conf.i18n.default_language = lang.lower()
 
 
@@ -142,11 +153,20 @@ def __build_app(modules: ModuleType | object, renderers: ModuleType | object, de
     from viur.core.modules.script import Script  # noqa: E402 # import works only here because circular imports
     from viur.core.modules.translation import Translation  # noqa: E402 # import works only here because circular imports
     from viur.core.prototypes.instanced_module import InstancedModule  # noqa: E402 # import works only here because circular imports
+    from viur.core.modules.history import History  # noqa: E402 # import works only here because circular imports
 
-    modules._tasks = TaskHandler
-    modules._moduleconf = ModuleConf
-    modules._translation = Translation
-    modules.script = Script
+    for name, cls in {
+        "_tasks": TaskHandler,
+        "_moduleconf": ModuleConf,
+        "_translation": Translation,
+        "_history": History,
+        "script": Script,
+    }.items():
+        # Check whether name is contained in modules so that it can be overwritten
+        if name not in vars(modules):
+            setattr(modules, name, cls)
+
+        assert issubclass(getattr(modules, name), cls)
 
     # Resolver defines the URL mapping
     resolver = {}
@@ -288,14 +308,14 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
     if conf.file_hmac_key is None:
         from viur.core import db
         key = db.Key("viur-conf", "viur-conf")
-        if not (obj := db.Get(key)):  # create a new "viur-conf"?
+        if not (obj := db.get(key)):  # create a new "viur-conf"?
             logging.info("Creating new viur-conf")
             obj = db.Entity(key)
 
         if "hmacKey" not in obj:  # create a new hmacKey
             logging.info("Creating new hmacKey")
             obj["hmacKey"] = utils.string.random(length=20)
-            db.Put(obj)
+            db.put(obj)
 
         conf.file_hmac_key = bytes(obj["hmacKey"], "utf-8")
 
