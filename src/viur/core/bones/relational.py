@@ -440,15 +440,18 @@ class RelationalBone(BaseBone):
 
         if not (new_vals := skel.accessedValues.get(name)):
             return False
-        elif self.languages:
+
+        # TODO: The good old leier... modernize this.
+        if self.languages:
             res = {"_viurLanguageWrapper_": True}
             for language in self.languages:
                 if language in new_vals:
                     if self.multiple:
                         res[language] = []
                         for val in new_vals[language]:
-                            using_data, ref_data = serialize_dest_rel(val)
-                            res[language].append({"rel": using_data, "dest": ref_data})
+                            if val:
+                                using_data, ref_data = serialize_dest_rel(val)
+                                res[language].append({"rel": using_data, "dest": ref_data})
                     else:
                         if (val := new_vals[language]) and val["dest"]:
                             using_data, ref_data = serialize_dest_rel(val)
@@ -456,11 +459,13 @@ class RelationalBone(BaseBone):
         elif self.multiple:
             res = []
             for val in new_vals:
-                using_data, ref_data = serialize_dest_rel(val)
-                res.append({"rel": using_data, "dest": ref_data})
-        else:
+                if val:
+                    using_data, ref_data = serialize_dest_rel(val)
+                    res.append({"rel": using_data, "dest": ref_data})
+        elif new_vals:
             using_data, ref_data = serialize_dest_rel(new_vals)
             res = {"rel": using_data, "dest": ref_data}
+
         skel.dbEntity[name] = res
 
         # Ensure our indexed flag is up2date
@@ -494,13 +499,7 @@ class RelationalBone(BaseBone):
         :param boneName: The name of the relational bone.
         :param key: The key of the saved skeleton instance.
         """
-        from viur.core.skeleton import RelSkel
-
-        if issubclass(skel.skeletonCls, RelSkel):  # RelSkel is just a container and has no kindname
-            viur_src_kind = key.kind
-        else:
-            viur_src_kind = skel.kindName
-
+        viur_src_kind = key.kind
         viur_src_property = boneName
 
         # Hack for RelationalBones in containers (like RecordBones)
@@ -519,11 +518,13 @@ class RelationalBone(BaseBone):
             values = [skel[boneName]]
 
         # Keep a set of all referenced keys
+        values = [value for value in values if value]
         values_keys = {value["dest"]["key"] for value in values}
 
         # Referenced parent values
         src_values = db.Entity(key)
-        src_values |= {bone: skel.dbEntity.get(bone) for bone in self.parentKeys or ()}
+        if skel.dbEntity:
+            src_values |= {bone: skel.dbEntity.get(bone) for bone in self.parentKeys or ()}
 
         # Now is now, nana nananaaaaaaa...
         now = time.time()
@@ -544,7 +545,7 @@ class RelationalBone(BaseBone):
             entity["viur_relational_updateLevel"] = self.updateLevel.value
             entity["viur_relational_consistency"] = self.consistency.value
             entity["viur_foreign_keys"] = list(self.refKeys)
-            entity["viurTags"] = skel.dbEntity.get("viurTags")
+            entity["viurTags"] = skel.dbEntity.get("viurTags") if skel.dbEntity else None
 
             db.put(entity)
 
@@ -588,11 +589,12 @@ class RelationalBone(BaseBone):
         :param boneName: The name of the RelationalBone in the Skeleton.
         :param key: The key of the deleted Entity.
         """
-        query = db.Query("viur-relations")
-        query.filter("viur_src_kind =", skel.kindName)
-        query.filter("viur_dest_kind =", self.kind)
-        query.filter("viur_src_property =", boneName)
-        query.filter("src.__key__ =", key)
+        query = db.Query("viur-relations") \
+            .filter("viur_src_kind =", key.kind) \
+            .filter("viur_dest_kind =", self.kind) \
+            .filter("viur_src_property =", boneName) \
+            .filter("src.__key__ =", key)
+
         db.delete([entity for entity in query.run()])
 
     def isInvalid(self, key) -> None:
@@ -1050,11 +1052,36 @@ class RelationalBone(BaseBone):
                 try:
                     target_skel = value["dest"].read()
                 except ValueError:
-                    logging.error(
-                        f"{name}: The key {value['dest']['key']!r} ({value['dest'].get('name')!r}) seems to be gone"
-                    )
+
+                    # Handle removed reference according to the RelationalConsistency settings
+                    match self.consistency:
+                        case RelationalConsistency.CascadeDeletion:
+                            logging.info(
+                                f"{name}: "
+                                f"Cascade deleting {skel["key"]!r} ({skel["name"]!r}) "
+                                f"due removal of relation {value["dest"]["key"]!r} ({value["dest"]["name"]!r})"
+                            )
+                            skel._deletion_marker = True
+                            break
+
+                        case RelationalConsistency.SetNull:
+                            logging.info(
+                                f"{name}: "
+                                f"Emptying relation {skel["key"]!r} ({skel["name"]!r}) "
+                                f"due removal of {value["dest"]["key"]!r} ({value["dest"]["name"]!r})"
+                            )
+                            value.clear()
+
+                        case _:
+                            logging.info(
+                                f"{name}: "
+                                f"Relation from {skel["key"]!r} ({skel["name"]!r}) "
+                                f"refers to deleted {value["dest"]["key"]!r} ({value["dest"]["name"]!r}), skipping"
+                            )
+
                     continue
 
+                # Copy over the refKey values
                 for key in self.refKeys:
                     value["dest"][key] = target_skel[key]
 

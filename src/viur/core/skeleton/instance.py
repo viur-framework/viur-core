@@ -18,6 +18,7 @@ class SkeletonInstance:
         class. This is much faster as this is a small class.
     """
     __slots__ = {
+        "_deletion_marker",
         "accessedValues",
         "boneMap",
         "dbEntity",
@@ -95,6 +96,7 @@ class SkeletonInstance:
             for v in self.boneMap.values():
                 v.isClonedInstance = True
 
+        self._deletion_marker = False
         self.accessedValues = {}
         self.dbEntity = entity
         self.errors = []
@@ -121,6 +123,9 @@ class SkeletonInstance:
 
     def __contains__(self, item):
         return item in self.boneMap
+
+    def __bool__(self):
+        return bool(self.accessedValues or self.dbEntity)
 
     def get(self, item, default=None):
         if item not in self:

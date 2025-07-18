@@ -10,7 +10,7 @@ from deprecated.sphinx import deprecated
 from viur.core import conf, db, errors, utils
 
 from .meta import BaseSkeleton, MetaSkel, _UNDEFINED_KINDNAME
-from .tasks import update_relations as update_relations_task, processRemovedRelations
+from . import tasks
 from .utils import skeletonByKind
 from ..bones.base import (
     Compute,
@@ -577,6 +577,13 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         if key:
             skel["key"] = db.key_helper(key, skel.kindName)
 
+        if skel._deletion_marker is True:
+            if skel["key"]:
+                logging.info(f"{skel._deletion_marker=}, will delete {skel["key"]!r}")
+                skel.delete()
+
+            return skel
+
         # Run transactional function
         if db.is_in_transaction():
             key, skel, change_list, is_add = __txn_write(skel)
@@ -590,10 +597,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         if update_relations and not is_add:
             if change_list and len(change_list) < 5:  # Only a few bones have changed, process these individually
-                update_relations_task(key, time.time() + 1, change_list, _countdown=10)
+                tasks.update_relations(key, changed_bones=change_list, _countdown=10)
 
             else:  # Update all inbound relations, regardless of which bones they mirror
-                update_relations_task(key, time.time() + 1, None)
+                tasks.update_relations(key)
 
         # Trigger the database adapter of the changes made to the entry
         for adapter in skel.database_adapters:
@@ -663,7 +670,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     db.put(lockObj)
 
             db.delete(key)
-            processRemovedRelations(key)
+            tasks.update_relations(key)
 
         if key := (key or skel["key"]):
             key = db.key_helper(key, skel.kindName)
@@ -791,7 +798,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 try:
                     return db.run_in_transaction(__update_txn)
 
-                except RuntimeError:
+                except RuntimeError as e:
                     retry -= 1
                     if retry < 0:
                         raise

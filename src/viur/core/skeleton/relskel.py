@@ -11,8 +11,7 @@ from .utils import skeletonByKind
 class RelSkel(BaseSkeleton):
     """
         This is a Skeleton-like class that acts as a container for Skeletons used as a
-        additional information data skeleton for
-        :class:`~viur.core.bones.extendedRelationalBone.extendedRelationalBone`.
+        additional information data skeleton for :class:`~viur.core.bones.relational.RelationalBone`.
 
         It needs to be sub-classed where information about the kindName and its attributes
         (bones) are specified.

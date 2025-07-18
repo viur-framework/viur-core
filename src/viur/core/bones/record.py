@@ -83,7 +83,7 @@ class RecordBone(BaseBone):
         :return: The serialized value.
         """
         if not value:
-            return value
+            return None
 
         return value.serialize(parentIndexed=False)
 
@@ -134,6 +134,14 @@ class RecordBone(BaseBone):
 
                 logging.debug(f"Delete viur-relations with {query=}")
                 tasks.DeleteEntitiesIter.startIterOnQuery(query)
+
+    def postDeletedHandler(self, skel, boneName, key) -> None:
+        super().postDeletedHandler(skel, boneName, key)
+
+        for idx, lang, value in self.iter_bone_value(skel, boneName):
+            for sub_bone_name, bone in value.items():
+                path = ".".join(name for name in (boneName, lang, f"{idx:02}", sub_bone_name) if name)
+                bone.postDeletedHandler(value, path, key)
 
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
@@ -223,9 +231,11 @@ class RecordBone(BaseBone):
             return value.dump()
 
     def refresh(self, skel, bone_name):
-        for _, lang, value in self.iter_bone_value(skel, bone_name):
-            if value is None:
-                continue
+        for _, _, using_skel in self.iter_bone_value(skel, bone_name):
+            for key, bone in using_skel.items():
+                bone.refresh(using_skel, key)
 
-            for key, bone in value.items():
-                bone.refresh(value, key)
+                # When the value (acting as a skel) is marked for deletion, clear it.
+                if using_skel._deletion_marker is True:
+                    # Unset the Entity, so the skeleton becomes a False truthyness.
+                    using_skel.setEntity(db.Entity())
