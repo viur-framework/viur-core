@@ -956,9 +956,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             :param user_key: For which user should the update occour
             :param idx: How many steps before/behind was that token
         """
-
-        user_skel = self._user_module.skel()
-        if user_skel.read(user_key):
+        if user_skel := self._user_module.skel().read(user_key):
             if otp_skel := self._get_otptoken(user_skel):
                 otp_skel.patch(
                     {
