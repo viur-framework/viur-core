@@ -1,6 +1,7 @@
 import logging
 import typing as t
 import logics
+import time
 
 from viur.core import (
     conf,
@@ -9,11 +10,9 @@ from viur.core import (
     email,
     errors,
     tasks,
-    i18n,
     utils,
 )
 from .utils import skeletonByKind, listKnownSkeletons
-from .meta import BaseSkeleton
 from .relskel import RelSkel
 
 from ..bones.raw import RawBone
@@ -24,58 +23,14 @@ from ..bones.string import StringBone
 
 
 @tasks.CallDeferred
-def processRemovedRelations(removedKey, cursor=None):
-    updateListQuery = (
-        db.Query("viur-relations")
-        .filter("dest.__key__ =", removedKey)
-        .filter("viur_relational_consistency >", RelationalConsistency.PreventDeletion.value)
-    )
-    updateListQuery = updateListQuery.setCursor(cursor)
-    updateList = updateListQuery.run(limit=5)
-
-    for entry in updateList:
-        skel = skeletonByKind(entry["viur_src_kind"])()
-
-        if not skel.read(entry["src"].key):
-            raise ValueError(f"processRemovedRelations detects inconsistency on src={entry['src'].key!r}")
-
-        if entry["viur_relational_consistency"] == RelationalConsistency.SetNull.value:
-            found = False
-
-            for key, bone in skel.items():
-                if isinstance(bone, RelationalBone):
-                    if relational_value := skel[key]:
-                        # TODO: LanguageWrapper is not considered here (<RelationalBone(languages=[...])>)
-                        if isinstance(relational_value, dict):
-                            if relational_value["dest"]["key"] == removedKey:
-                                skel[key] = None
-                                found = True
-
-                        elif isinstance(relational_value, list):
-                            skel[key] = [entry for entry in relational_value if entry["dest"]["key"] != removedKey]
-                            found = True
-
-                        else:
-                            raise NotImplementedError(f"In {entry['src'].key!r}, no handling for {relational_value=}")
-
-            if found:
-                skel.write(update_relations=False)
-
-        else:
-            logging.critical(f"""Cascade deletion of {skel["key"]!r}""")
-            skel.delete()
-
-    if len(updateList) == 5:
-        processRemovedRelations(removedKey, updateListQuery.getCursor())
-
-
-@tasks.CallDeferred
-def updateRelations(
-        dest_key: db.Key,
-        min_change_time: int,
-        changed_bones: t.Optional[t.Iterable[str] | str] = (),
-        cursor: t.Optional[str] = None,
-        **kwargs
+def update_relations(
+    key: db.Key,
+    *,
+    min_change_time: t.Optional[float] = None,
+    changed_bones: t.Optional[t.Iterable[str] | str] = (),
+    cursor: t.Optional[str] = None,
+    total: int = 0,
+    **kwargs
 ):
     """
         This function updates Entities, which may have a copy of values from another entity which has been recently
@@ -85,7 +40,7 @@ def updateRelations(
         us to track changes made to entities as we might have to update these mirrored values.     This is the deferred
         call from meth:`viur.core.skeleton.Skeleton.write()` after an update (edit) on one Entity to do exactly that.
 
-        :param dest_key: The database-key of the entity that has been edited
+        :param key: The database-key of the entity that has been edited
         :param min_change_time: The timestamp on which the edit occurred. As we run deferred, and the entity might have
             been edited multiple times before we get acutally called, we can ignore entities that have been updated
             in the meantime as they're  already up-to-date
@@ -94,51 +49,59 @@ def updateRelations(
         :param cursor: The database cursor for the current request as we only process five entities at once and then
             defer again.
     """
-    changed_bones = list(utils.ensure_iterable(changed_bones))
-    if "changedBone" in kwargs:
-        logging.warning("Use of `changedBone` is deprecated; Use `changed_bones` instead!", stacklevel=2)
-        changed_bones.extend(utils.ensure_iterable(kwargs["changedBone"]))
-    if "minChangeTime" in kwargs:
-        logging.warning("Use of `minChangeTime` is deprecated; Use `min_cahnge_time` instead!", stacklevel=2)
-        min_change_time = kwargs["minChangeTime"]
-    if "destKey" in kwargs:
-        logging.warning("Use of `destKey` is deprecated; Use `dest_key` instead!", stacklevel=2)
-        dest_key = kwargs["destKey"]
-    logging.debug(f"Starting updateRelations for {dest_key=}; {min_change_time=}, {changed_bones=}, {cursor=}")
+    # TODO: Remove in VIUR4
+    for _dep, _new in {
+        "changedBone": "changed_bones",
+        "minChangeTime": "min_change_time",
+        "destKey": "key",
+    }.items():
+        if _dep in kwargs:
+            logging.warning(f"{_dep!r} parameter is deprecated, please use {_new!r} instead",)
+            locals()[_new] = kwargs.pop(_dep)
+
+    if min_change_time is None:
+        min_change_time = time.time() + 1
+
+    changed_bones = utils.ensure_iterable(changed_bones)
+
+    if not cursor:
+        logging.debug(f"update_relations {key=} {min_change_time=} {changed_bones=}")
+
     if request_data := current.request_data.get():
         request_data["__update_relations_bones"] = changed_bones
-    update_list_query = (
-        db.Query("viur-relations")
-        .filter("dest.__key__ =", dest_key)
-        .filter("viur_delayed_update_tag <", min_change_time)
+
+    query = db.Query("viur-relations") \
+        .filter("dest.__key__ =", key) \
+        .filter("viur_delayed_update_tag <", min_change_time) \
         .filter("viur_relational_updateLevel =", RelationalUpdateLevel.Always.value)
-    )
+
     if changed_bones:
-        update_list_query.filter("viur_foreign_keys IN", changed_bones)
-    if cursor:
-        update_list_query.setCursor(cursor)
-    update_list = update_list_query.run(limit=5)
+        query.filter("viur_foreign_keys IN", changed_bones)
 
-    def __txn_update(_skel, key, srcRelKey):
-        if not _skel.read(key):
-            logging.warning(f"Cannot update stale reference to {key=} (referenced from {srcRelKey=})")
-            return
+    query.setCursor(cursor)
 
-        _skel.refresh()
-        _skel.write(update_relations=False)
-
-    for src_rel in update_list:
+    for src_rel in query.run():
         try:
             skel = skeletonByKind(src_rel["viur_src_kind"])()
         except AssertionError:
             logging.info(f"""Ignoring {src_rel.key!r} which refers to unknown kind {src_rel["viur_src_kind"]!r}""")
             continue
-        if db.is_in_transaction():
-            __txn_update(skel, src_rel["src"].key, src_rel.key)
-        else:
-            db.run_in_transaction(__txn_update, skel, src_rel["src"].key, src_rel.key)
-    if len(update_list) == 5 and (next_cursor := update_list_query.getCursor()):
-        updateRelations(dest_key, min_change_time, changed_bones, next_cursor)
+
+        if not skel.patch(lambda skel: skel.refresh(), key=src_rel["src"].key, update_relations=False):
+            logging.warning(f"Cannot update stale reference to {src_rel["src"].key!r} referenced by {src_rel.key!r}")
+
+        total += 1
+
+    if next_cursor := query.getCursor():
+        update_relations(
+            key=key,
+            min_change_time=min_change_time,
+            changed_bones=changed_bones,
+            cursor=next_cursor,
+            total=total
+        )
+    else:
+        logging.debug(f"update_relations finished with {total=} on {key=} {min_change_time=} {changed_bones=}")
 
 
 class SkelIterTask(tasks.QueryIter):
@@ -157,7 +120,8 @@ class SkelIterTask(tasks.QueryIter):
             match data["action"]:
                 case "refresh":
                     skel.refresh()
-                    skel.write(update_relations=False)
+                    if skel["key"]:
+                        skel.write(update_relations=False)
 
                 case "delete":
                     skel.delete()
