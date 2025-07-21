@@ -766,6 +766,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             descr="OTP time drift",
             readOnly=True,
             defaultValue=0,
+            precision=1,
             params={
                 "category": "Second Factor Authentication",
             }
@@ -906,11 +907,11 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         :param otp: the OTP token to check against
         :param secret: The OTP secret
         :param algorithm: digest function to use in the HMAC (expected to be sha1 or sha256)
-        :param interval: the time interval in seconds for OTP. This defaults to 60 (old OTP c200 Generators). In
-        pyotp, default is 30!
+        :param interval: the time interval in seconds for OTP. This defaults to 60 (old OTP c200 Generators).
         :param timedrift: The known timedrift (old index) of the hardware OTP generator
         :param for_time: Time to check OTP at (defaults to now)
         :param valid_window: extends the validity to this many counter ticks before and after the current one
+
         :returns: The index where verification succeeded, None otherwise
         """
         # get the hashing digest
@@ -944,26 +945,27 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
 
         return 0 if hmac.compare_digest(otp, str(totp.at(for_time, timedrift))) else None
 
+    # FIXME: VIUR4 rename
     def updateTimeDrift(self, user_key: db.Key, idx: float) -> None:
         """
             Updates the clock-drift value.
+
             The value is only changed in 1/10 steps, so that a late submit by an user doesn't skew
             it out of bounds. Maximum change per call is 0.3 minutes.
+
             :param user_key: For which user should the update occour
             :param idx: How many steps before/behind was that token
-            :return:
         """
 
-        # FIXME: The callback in viur-core must be improved, to accept user_skel
-
-        def transaction(user_key, idx):
-            user = db.get(user_key)
-            if not isinstance(user.get("otp_timedrift"), float):
-                user["otp_timedrift"] = 0.0
-            user["otp_timedrift"] += min(max(0.1 * idx, -0.3), 0.3)
-            db.put(user)
-
-        db.run_in_transaction(transaction, user_key, idx)
+        user_skel = self._user_module.skel(bones=("otp_timedrift", ))
+        if user_skel.read(user_key):
+            if otp_skel := self._get_otptoken(user_skel):
+                otp_skel.patch(
+                    {
+                        "+otp_timedrift": min(max(0.1 * idx, -0.3), 0.3)
+                    },
+                    update_relations=False,
+                )
 
 
 class AuthenticatorOTP(UserSecondFactorAuthentication):
