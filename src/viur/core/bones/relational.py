@@ -603,74 +603,42 @@ class RelationalBone(BaseBone):
         return self.using is not None
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
-        oldValues = skel[bone_name]
+        errors = []
 
-        def restoreSkels(key, usingData, index=None):
-            refSkel, usingSkel = self._getSkels()
-            isEntryFromBackup = False  # If the referenced entry has been deleted, restore information from backup
-            entry = None
-            dbKey = None
-            errors = []
-            try:
-                dbKey = db.key_helper(key, self.kind)
-                entry = db.get(dbKey)
-                assert entry
-            except:  # Invalid key or something like that
-                logging.info(f"Invalid reference key >{key}< detected on bone '{bone_name}'")
-                if isinstance(oldValues, dict):
-                    if oldValues["dest"]["key"] == dbKey:
-                        entry = oldValues["dest"]
-                        isEntryFromBackup = True
-                elif isinstance(oldValues, list):
-                    for dbVal in oldValues:
-                        if dbVal["dest"]["key"] == dbKey:
-                            entry = dbVal["dest"]
-                            isEntryFromBackup = True
-            if isEntryFromBackup:
-                refSkel = entry
-            elif entry:
-                refSkel.dbEntity = entry
-                for k in refSkel.keys():
-                    # Unserialize all bones from refKeys, then drop dbEntity - otherwise all properties will be copied
-                    _ = refSkel[k]
-                refSkel.dbEntity = None
-            else:
-                if index:
-                    errors.append(
-                        ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value submitted",
-                                            [str(index)]))
-                else:
-                    errors.append(
-                        ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value submitted"))
-                return None, None, errors  # We could not parse this
-            if usingSkel:
-                if not usingSkel.fromClient(usingData):
-                    usingSkel.errors.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Incomplete data"))
-                if index:
-                    for error in usingSkel.errors:
-                        error.fieldPath.insert(0, str(index))
-                errors.extend(usingSkel.errors)
-            return refSkel, usingSkel, errors
-
-        if self.using and isinstance(value, dict):
-            usingData = value
-            destKey = usingData["key"]
-            del usingData["key"]
+        if isinstance(value, dict):
+            dest_key = value.pop("key", None)
         else:
-            destKey = value
-            usingData = None
+            dest_key = value
+            value = {}
 
-        destKey = str(destKey)
+        if self.using:
+            rel = self.using()
+            if not rel.fromClient(value):
+                errors.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Incomplete data"))
 
-        refSkel, usingSkel, errors = restoreSkels(destKey, usingData)
-        if refSkel:
-            resVal = {"dest": refSkel, "rel": usingSkel}
-            err = self.isInvalid(resVal)
-            if err:
-                return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
-            return resVal, errors
+            errors.extend(rel.errors)
         else:
-            return self.getEmptyValue(), errors
+            rel = None
+
+        # FIXME VIUR4: createRelSkelFromKey doesn't accept an instance of a RelSkel...
+        if ret := self.createRelSkelFromKey(dest_key, None):  # ...therefore we need to first give None...
+            ret["rel"] = rel  # ...and then assign it manually.
+
+            if err := self.isInvalid(ret):
+                ret = self.getEmptyValue()
+                errors.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err))
+
+            return ret, errors
+
+        elif self.consistency == RelationalConsistency.Ignore:
+            # when RelationalConsistency.Ignore is on, keep existing relations, even when they where deleted
+            for _, _, value in self.iter_bone_value(skel, bone_name):
+                if str(value["dest"]["key"]) == str(dest_key):
+                    value["rel"] = rel
+                    return value, errors
+
+        errors.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value submitted"))
+        return self.getEmptyValue(), errors
 
     def _rewriteQuery(self, name, skel, dbFilter, rawFilter):
         """
@@ -1091,9 +1059,11 @@ class RelationalBone(BaseBone):
         :return: A dictionary containing a reference skeleton and optional relation data.
         """
 
-        if not all(db_objs := db.get([db.key_helper(value[0], self.kind) for value in key_rel_list])):
+        if not all(db_objs := db.get([db.key_helper(value[0], self.kind, adjust_kind=True) for value in key_rel_list])):
             return []  # return emtpy data when not all data is found
+
         res_rel_skels = []
+
         for (key, rel), db_obj in zip(key_rel_list, db_objs):
             dest_skel = self._refSkelCache()
             dest_skel.unserialize(db_obj)
@@ -1107,6 +1077,7 @@ class RelationalBone(BaseBone):
                     "rel": rel or None
                 }
             )
+
         return res_rel_skels
 
     def setBoneValue(
