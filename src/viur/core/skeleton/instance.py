@@ -18,7 +18,7 @@ class SkeletonInstance:
         class. This is much faster as this is a small class.
     """
     __slots__ = {
-        "_deletion_marker",
+        "_cascade_deletion",
         "accessedValues",
         "boneMap",
         "dbEntity",
@@ -96,7 +96,7 @@ class SkeletonInstance:
             for v in self.boneMap.values():
                 v.isClonedInstance = True
 
-        self._deletion_marker = False
+        self._cascade_deletion = False
         self.accessedValues = {}
         self.dbEntity = entity
         self.errors = []

@@ -577,9 +577,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         if key:
             skel["key"] = db.key_helper(key, skel.kindName)
 
-        if skel._deletion_marker is True:
+        if skel._cascade_deletion is True:
             if skel["key"]:
-                logging.info(f"{skel._deletion_marker=}, will delete {skel["key"]!r}")
+                logging.info(f"{skel._cascade_deletion=}, will delete {skel["key"]!r}")
                 skel.delete()
 
             return skel

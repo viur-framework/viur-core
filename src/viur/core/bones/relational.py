@@ -1061,7 +1061,7 @@ class RelationalBone(BaseBone):
                                 f"Cascade deleting {skel["key"]!r} ({skel["name"]!r}) "
                                 f"due removal of relation {value["dest"]["key"]!r} ({value["dest"]["name"]!r})"
                             )
-                            skel._deletion_marker = True
+                            skel._cascade_deletion = True
                             break
 
                         case RelationalConsistency.SetNull:

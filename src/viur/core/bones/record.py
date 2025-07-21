@@ -236,6 +236,6 @@ class RecordBone(BaseBone):
                 bone.refresh(using_skel, key)
 
                 # When the value (acting as a skel) is marked for deletion, clear it.
-                if using_skel._deletion_marker is True:
+                if using_skel._cascade_deletion is True:
                     # Unset the Entity, so the skeleton becomes a False truthyness.
                     using_skel.setEntity(db.Entity())
