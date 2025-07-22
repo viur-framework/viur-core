@@ -9,7 +9,7 @@ from deprecated.sphinx import deprecated
 
 from viur.core import conf, db, errors, utils
 
-from .meta import BaseSkeleton, MetaSkel, _UNDEFINED_KINDNAME
+from .meta import BaseSkeleton, MetaSkel, KeyType, _UNDEFINED_KINDNAME
 from . import tasks
 from .utils import skeletonByKind
 from ..bones.base import (
@@ -28,7 +28,7 @@ from ..bones.string import StringBone
 if t.TYPE_CHECKING:
     from .instance import SkeletonInstance
     from .adapter import DatabaseAdapter
-    from .meta import KeyType
+
 
 class SeoKeyBone(StringBone):
     """
