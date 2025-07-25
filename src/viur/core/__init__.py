@@ -153,13 +153,11 @@ def __build_app(modules: ModuleType | object, renderers: ModuleType | object, de
     from viur.core.modules.script import Script  # noqa: E402 # import works only here because circular imports
     from viur.core.modules.translation import Translation  # noqa: E402 # import works only here because circular imports
     from viur.core.prototypes.instanced_module import InstancedModule  # noqa: E402 # import works only here because circular imports
-    from viur.core.modules.history import History  # noqa: E402 # import works only here because circular imports
 
     for name, cls in {
         "_tasks": TaskHandler,
         "_moduleconf": ModuleConf,
         "_translation": Translation,
-        "_history": History,
         "script": Script,
     }.items():
         # Check whether name is contained in modules so that it can be overwritten

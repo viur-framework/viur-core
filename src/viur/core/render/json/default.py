@@ -4,10 +4,11 @@ import logging
 from enum import Enum
 from viur.core import db, current
 from viur.core.render.abstract import AbstractRenderer
-from viur.core.skeleton import SkeletonInstance, RelSkel, SkelList
+from viur.core.skeleton import SkeletonInstance, SkelList
 from viur.core.i18n import translate
 from viur.core.config import conf
 from datetime import datetime
+from deprecated.sphinx import deprecated
 
 
 class CustomJsonEncoder(json.JSONEncoder):
@@ -69,6 +70,11 @@ class DefaultRender(AbstractRenderer):
             return [(key, struct) for key, struct in structure.items()]
 
         return structure
+
+    @deprecated(version="3.8.0", reason="Just use `skel.dump()` for this now")
+    def renderSkelValues(self, skel: SkeletonInstance):
+        logging.warning("DefaultRender.renderSkelValues() is obsolete, just use `skel.dump()` for it now!")
+        return skel.dump()
 
     def renderEntry(self, skel: SkeletonInstance, actionName, params=None):
         structure = None
