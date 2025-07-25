@@ -93,8 +93,7 @@ def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_ke
             skel = skeletonByKind(refresh_key.kind)()
             skel.patch(lambda _skel: _skel.refresh(), key=refresh_key, update_relations=False)
 
-        update_relations(key, int(time.time() + 1), ["derived"], _countdown=30)
-
+        update_relations(key, min_change_time=int(time.time() + 1), changed_bones=["derived"], _countdown=30)
 
 
 class FileBone(TreeLeafBone):
