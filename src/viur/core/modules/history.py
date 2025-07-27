@@ -1,5 +1,5 @@
 import difflib
-import enum
+import json
 import logging
 import typing as t
 from google.cloud import exceptions, bigquery
@@ -300,7 +300,7 @@ class HistoryAdapter(DatabaseAdapter):
             return None
 
         # FIXME: Turn change_list into set, in entire Core...
-        if change_list and not (change_list := set(change_list).difference(self.diff_excludes)):
+        if change_list and not set(change_list).difference(self.diff_excludes):
             logging.info("change_list is empty, nothing to write")
             return None
 
@@ -377,7 +377,7 @@ class History(List):
 
     # Module-specific functions
     @staticmethod
-    def _create_diff(new: dict, old: dict, diff_excludes: set[str] = set()):
+    def _create_diff(new: dict, old: dict, diff_excludes: t.Iterable[str] = set()):
         """
         Creates a textual diff format string from the contents of two dicts.
         """
@@ -387,6 +387,7 @@ class History(List):
         keys = old.keys() | new.keys()
         keys = set(keys).difference(diff_excludes)
         keys = sorted(keys)
+
         for key in keys:
             def expand(name, obj):
                 ret = {}
@@ -398,21 +399,7 @@ class History(List):
                         ret.update(expand(name + (str(key),), val))
                 else:
                     name = ".".join(name)
-
-                    if obj is None:
-                        ret[name] = ""
-                    elif isinstance(obj, str):
-                        ret[name] = obj
-                    elif isinstance(obj, bytes):
-                        ret[name] = obj.decode()
-                    elif isinstance(obj, enum.Enum):
-                        ret[name] = str(obj.value)
-                    else:
-                        ret[name] = utils.json.dumps(
-                            obj,
-                            indent=4,
-                            sort_keys=True,
-                        )
+                    ret[name] = json.dumps(obj, cls=CustomJsonEncoder)
 
                 return ret
 
@@ -501,7 +488,7 @@ class History(List):
 
         if change_list and old_skel != new_skel:
             old_data = old_skel.dump()
-            diff = self._create_diff(new_data, old_data)
+            diff = self._create_diff(new_data, old_data, diff_excludes)
         else:
             old_data = {}
             diff = ""
@@ -583,15 +570,15 @@ class History(List):
         Write a history entry generated from an HistoryAdapter.
         """
         skel = self.addSkel()
-        for key, bone in skel.items():
-            if value := entry.get(key):
-                if isinstance(bone, (RelationalBone, RecordBone)):
-                    skel.setBoneValue(key, value)
-                else:
-                    skel[key] = value
 
-        skel["key"] = db.Key(skel.kindName, key)
-        skel.write()
+        for name, bone in skel.items():
+            if value := entry.get(name):
+                if isinstance(bone, (RelationalBone, RecordBone)):
+                    skel.setBoneValue(name, value)
+                else:
+                    skel[name] = value
+
+        skel.write(key=db.Key(skel.kindName, key))
 
         logging.info(f"History entry {key=} written to datastore")
 
