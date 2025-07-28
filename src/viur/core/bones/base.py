@@ -852,7 +852,9 @@ class BaseBone(object):
         self.serialize_compute(skel, name)
 
         if name in skel.accessedValues:
+            empty_value = self.getEmptyValue()
             newVal = skel.accessedValues[name]
+
             if self.languages and self.multiple:
                 res = db.Entity()
                 res["_viurLanguageWrapper_"] = True
@@ -862,7 +864,10 @@ class BaseBone(object):
                         res.exclude_from_indexes.add(language)
                     if language in newVal:
                         for singleValue in newVal[language]:
-                            res[language].append(self.singleValueSerialize(singleValue, skel, name, parentIndexed))
+                            value = self.singleValueSerialize(singleValue, skel, name, parentIndexed)
+                            if value != empty_value:
+                                res[language].append(value)
+
             elif self.languages:
                 res = db.Entity()
                 res["_viurLanguageWrapper_"] = True
@@ -872,6 +877,7 @@ class BaseBone(object):
                         res.exclude_from_indexes.add(language)
                     if language in newVal:
                         res[language] = self.singleValueSerialize(newVal[language], skel, name, parentIndexed)
+
             elif self.multiple:
                 res = []
 
@@ -879,11 +885,15 @@ class BaseBone(object):
                     f"Cannot handle {repr(newVal)} here. Expecting list or tuple."
 
                 for singleValue in (newVal or ()):
-                    res.append(self.singleValueSerialize(singleValue, skel, name, parentIndexed))
+                    value = self.singleValueSerialize(singleValue, skel, name, parentIndexed)
+                    if value != empty_value:
+                        res.append(value)
 
             else:  # No Languages, not Multiple
                 res = self.singleValueSerialize(newVal, skel, name, parentIndexed)
+
             skel.dbEntity[name] = res
+
             # Ensure our indexed flag is up2date
             indexed = self.indexed and parentIndexed
             if indexed and name in skel.dbEntity.exclude_from_indexes:
@@ -1604,7 +1614,7 @@ class BaseBone(object):
                 else:
                     ret[language] = None
         elif self.multiple:
-            ret = [self._atomic_dump(value) for value in bone_value]
+            ret = [self._atomic_dump(value) for value in bone_value or ()]
 
         else:
             ret = self._atomic_dump(bone_value)

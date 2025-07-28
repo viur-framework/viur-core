@@ -1,6 +1,6 @@
 import fnmatch
 import typing as t
-from . import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
+from .base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from urllib.parse import urlparse, urlunparse
 from collections.abc import Iterable
 from collections import namedtuple

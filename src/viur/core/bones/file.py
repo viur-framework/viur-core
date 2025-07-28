@@ -31,7 +31,7 @@ def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_ke
     files, and updating the derivation map accordingly. It iterates through the derive_map items and
     calls the appropriate deriver function. If the deriver function returns a result, the function
     creates a new or updated resultDict and merges it into the file-object's metadata. Finally,
-    the updated results are written back to the database and the updateRelations function is called
+    the updated results are written back to the database and the update_relations function is called
     to ensure proper relations are maintained.
     """
     # TODO: Remove in VIUR4
@@ -48,7 +48,7 @@ def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_ke
 
             locals()[_new] = kwargs.pop(_dep)
     from viur.core.skeleton.utils import skeletonByKind
-    from viur.core.skeleton.tasks import updateRelations
+    from viur.core.skeleton.tasks import update_relations
 
     skel = skeletonByKind(key.kind)()
     if not skel.read(key):
@@ -85,16 +85,15 @@ def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_ke
 
         skel.patch(values=_merge_derives, update_relations=False)
 
-        # Queue that updateRelations call at least 30 seconds into the future, so that other ensureDerived calls from
-        # the same FileBone have the chance to finish, otherwise that updateRelations Task will call postSavedHandler
+        # Queue that update_relations call at least 30 seconds into the future, so that other ensureDerived calls from
+        # the same FileBone have the chance to finish, otherwise that update_relations Task will call postSavedHandler
         # on that FileBone again - re-queueing any ensureDerivedCalls that have not finished yet.
 
         if refresh_key:
             skel = skeletonByKind(refresh_key.kind)()
             skel.patch(lambda _skel: _skel.refresh(), key=refresh_key, update_relations=False)
 
-        updateRelations(key, int(time.time() + 1), ["derived"], _countdown=30)
-
+        update_relations(key, min_change_time=int(time.time() + 1), changed_bones=["derived"], _countdown=30)
 
 
 class FileBone(TreeLeafBone):
@@ -354,11 +353,14 @@ class FileBone(TreeLeafBone):
             "public": self.public,
         }
 
-    def _atomic_dump(self, value: dict[str, "SkeletonInstance"]) -> dict | None:
-        res = super()._atomic_dump(value)
-        if res is not None:
-            for key, value in res.items():
-                if value is not None:
-                    res[key]["downloadUrl"] = utils.downloadUrlFor(value["dlkey"], value["name"], derived=False,
-                                                                   expires=conf.render_json_download_url_expiration)
-        return res
+    def _atomic_dump(self, value) -> dict | None:
+        value = super()._atomic_dump(value)
+        if value is not None:
+            value["dest"]["downloadUrl"] = conf.main_app.file.create_download_url(
+                value["dest"]["dlkey"],
+                value["dest"]["name"],
+                derived=False,
+                expires=conf.render_json_download_url_expiration
+            )
+
+        return value

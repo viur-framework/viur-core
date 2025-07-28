@@ -10,6 +10,7 @@ from google.cloud import datastore, exceptions
 from .overrides import entity_from_protobuf, key_from_protobuf
 from .types import Entity, Key, QueryDefinition, SortOrder, current_db_access_log
 from viur.core.config import conf
+from viur.core.errors import HTTPException
 
 # patching our key and entity classes
 datastore.helpers.key_from_protobuf = key_from_protobuf
@@ -122,6 +123,8 @@ def run_in_transaction(func: t.Callable, *args, **kwargs) -> t.Any:
                     res = func(*args, **kwargs)
                     break
 
+            except HTTPException:
+                raise
             except exceptions.Conflict:
                 logging.error(f"Transaction failed with a conflict, trying again in {2 ** i} seconds")
                 time.sleep(2 ** i)
