@@ -1614,7 +1614,7 @@ class BaseBone(object):
                 else:
                     ret[language] = None
         elif self.multiple:
-            ret = [self._atomic_dump(value) for value in bone_value]
+            ret = [self._atomic_dump(value) for value in bone_value or ()]
 
         else:
             ret = self._atomic_dump(bone_value)
