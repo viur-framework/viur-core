@@ -337,7 +337,8 @@ class List(SkelModule):
         )
 
         if isinstance(key, db.Key) and skel.read(key) or (
-        skel := skel.all().filter("viur.viurActiveSeoKeys =", str(key).lower()).getSkel()):
+            skel := skel.all().filter("viur.viurActiveSeoKeys =", str(key).lower()).getSkel()):
+
             db.current_db_access_log.get(set()).add(skel["key"])
             if not self.canView(skel):
                 raise errors.Forbidden()
