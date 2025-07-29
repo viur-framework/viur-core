@@ -318,7 +318,7 @@ class List(SkelModule):
         return self.render.deleteSuccess(skel)
 
     @exposed
-    def index(self, key: db.Key | str | None = None, *args, **kwargs) -> t.Any:
+    def index(self, key: db.Key | int | str = None, *args, **kwargs) -> t.Any:
         """
             Default, SEO-Friendly fallback for view and list.
 
@@ -326,38 +326,29 @@ class List(SkelModule):
             :param kwargs: Used for the fallback list.
             :return: The rendered entity or list.
         """
-        if key is not None:
+        if not key:
+            if not kwargs:
+                kwargs = self.getDefaultListParams()
+            return self.list(**kwargs)
 
-            skel = self.viewSkel(
-                allow_client_defined=utils.string.is_prefix(self.render.kind, "json"),
-                _excludeFromAccessLog=True,
-            )
-            if isinstance(key, db.Key):
-                if not key.kind == self.kindName:
-                    raise errors.UnprocessableEntity(f"The Key kind does not match")
-                skel = skel.read(key)
-            else:
-                # We probably have a Database or SEO-Key here
-                skel = skel.all().filter("viur.viurActiveSeoKeys =", str(key).lower()).getSkel()
+        skel = self.viewSkel(
+            allow_client_defined=utils.string.is_prefix(self.render.kind, "json"),
+            _excludeFromAccessLog=True,
+        )
 
-            if skel:
-                db.current_db_access_log.get(set()).add(skel["key"])
+        if isinstance(key, db.Key) and skel.read(key) or (
+        skel := skel.all().filter("viur.viurActiveSeoKeys =", str(key).lower()).getSkel()):
+            db.current_db_access_log.get(set()).add(skel["key"])
+            if not self.canView(skel):
+                raise errors.Forbidden()
+            seo_url = utils.seoUrlToEntry(self.moduleName, skel)
+            # Check whether this is the current seo-key, otherwise redirect to it
 
-                if not self.canView(skel):
-                    raise errors.Forbidden()
-                seoUrl = utils.seoUrlToEntry(self.moduleName, skel)
-                # Check whether this is the current seo-key, otherwise redirect to it
+            if current.request.get().request.path.lower() != seo_url:
+                raise errors.Redirect(seo_url, status=301)
+            self.onView(skel)
+            return self.render.view(skel)
 
-                if current.request.get().request.path.lower() != seoUrl:
-                    raise errors.Redirect(seoUrl, status=301)
-                self.onView(skel)
-                return self.render.view(skel)
-            # skel not found fallback
-            raise errors.NotFound()
-        # This was unsuccessfully, we'll render a list instead
-        if not kwargs:
-            kwargs = self.getDefaultListParams()
-        return self.list(**kwargs)
 
     def getDefaultListParams(self):
         return {}
