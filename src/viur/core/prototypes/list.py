@@ -321,8 +321,8 @@ class List(SkelModule):
     def index(self, key: db.Key | int | str = None, *args, **kwargs) -> t.Any:
         """
             Default, SEO-Friendly fallback for view and list.
-
-            :param args: The first argument - if provided - is interpreted as seoKey.
+            :param key: The key can be a database key or a seoKey.
+            :param args: Unused.
             :param kwargs: Used for the fallback list.
             :return: The rendered entity or list.
         """
