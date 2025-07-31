@@ -361,6 +361,9 @@ class DateBone(BaseBone):
         }
 
     def _atomic_dump(self, value):
-        if isinstance(value, datetime):
-            return value.isoformat()
-        return super()._atomic_dump(value)
+        if not value:
+            return None
+        if not isinstance(value, datetime):
+            raise ValueError("Expecting datetime object")
+
+        return value.isoformat()

@@ -175,4 +175,7 @@ class KeyBone(BaseBone):
             return dbFilter
 
     def _atomic_dump(self, value):
+        if not value:
+            return None
+
         return str(value)
