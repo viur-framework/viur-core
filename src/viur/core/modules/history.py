@@ -413,8 +413,8 @@ class History(List):
                         (values[0].get(value_key) or "").splitlines(),
                         (values[1].get(value_key) or "").splitlines(),
                         value_key, value_key,
-                        (old.get("changedate") or utils.utcNow()).isoformat(),
-                        (new.get("changedate") or utils.utcNow()).isoformat(),
+                        old.get("changedate") or utils.utcNow().isoformat(),
+                        new.get("changedate") or utils.utcNow().isoformat(),
                         n=1
                     )
                 )
