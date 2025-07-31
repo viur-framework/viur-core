@@ -173,3 +173,9 @@ class KeyBone(BaseBone):
                 except:  # Invalid key or something
                     raise RuntimeError()
             return dbFilter
+
+    def _atomic_dump(self, value):
+        if not value:
+            return None
+
+        return str(value)
