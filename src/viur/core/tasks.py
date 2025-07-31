@@ -195,7 +195,8 @@ class TaskHandler(Module):
 
         cmd, data = utils.json.loads(req.body)
         funcPath, args, kwargs, env = data
-        logging.debug(f"Call task {funcPath} with {cmd=} {args=} {kwargs=} {env=}")
+        if conf.debug.trace:
+            logging.debug(f"Call task {funcPath} with {cmd=} {args=} {kwargs=} {env=}")
 
         if env:
             if "user" in env and env["user"]:
@@ -503,11 +504,11 @@ def CallDeferred(func: t.Callable) -> t.Callable:
     ):
         if _eta is not None and _countdown:
             raise ValueError("You cannot set the _countdown and _eta argument together!")
-
-        logging.debug(
-            f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, "
-            f"{_queue=}, {_name=}, {_call_deferred=}, {_target_version=}, {_eta=}, {_countdown=}"
-        )
+        if conf.debug.trace:
+            logging.debug(
+                f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, "
+                f"{_queue=}, {_name=}, {_call_deferred=}, {_target_version=}, {_eta=}, {_countdown=}"
+            )
 
         try:
             req = current.request.get()
