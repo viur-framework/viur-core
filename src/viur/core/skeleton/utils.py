@@ -47,13 +47,15 @@ class SkelList(list):
         "renderPreparation",
     )
 
-    def __init__(self, baseSkel=None):
+    def __init__(self, skel, *items):
         """
             :param baseSkel: The baseclass for all entries in this list
         """
         super().__init__()
-        self.baseSkel = baseSkel or {}
+        self.baseSkel = skel or {}
         self.getCursor = lambda: None
         self.get_orders = lambda: None
         self.renderPreparation = None
         self.customQueryInfo = {}
+
+        self.extend(items)

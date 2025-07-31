@@ -4,97 +4,96 @@ another entity's fields. FileBone provides additional file-specific properties a
 managing file derivatives, handling file size and mime type restrictions, and refreshing file
 metadata.
 """
-
-from hashlib import sha256
-from time import time
+import hashlib
+import warnings
+import time
 import typing as t
-from viur.core import conf, db, current
+from viur.core import conf, db, current, utils
 from viur.core.bones.treeleaf import TreeLeafBone
 from viur.core.tasks import CallDeferred
-
 import logging
 
 
 @CallDeferred
-def ensureDerived(key: db.Key, srcKey, deriveMap: dict[str, t.Any], refreshKey: db.Key = None):
+def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_key: db.Key = None, **kwargs):
     r"""
     The function is a deferred function that ensures all pending thumbnails or other derived files
     are built. It takes the following parameters:
 
     :param db.key key: The database key of the file-object that needs to have its derivation map
         updated.
-    :param str srcKey: A prefix for a stable key to prevent rebuilding derived files repeatedly.
-    :param dict[str,Any] deriveMap: A list of DeriveDicts that need to be built or updated.
-    :param db.Key refreshKey: If set, the function fetches and refreshes the skeleton after
+    :param str src_key: A prefix for a stable key to prevent rebuilding derived files repeatedly.
+    :param dict[str,Any] derive_map: A list of DeriveDicts that need to be built or updated.
+    :param db.Key refresh_key: If set, the function fetches and refreshes the skeleton after
         building new derived files.
 
     The function works by fetching the skeleton of the file-object, checking if it has any derived
-    files, and updating the derivation map accordingly. It iterates through the deriveMap items and
+    files, and updating the derivation map accordingly. It iterates through the derive_map items and
     calls the appropriate deriver function. If the deriver function returns a result, the function
     creates a new or updated resultDict and merges it into the file-object's metadata. Finally,
-    the updated results are written back to the database and the updateRelations function is called
+    the updated results are written back to the database and the update_relations function is called
     to ensure proper relations are maintained.
     """
+    # TODO: Remove in VIUR4
+    for _dep, _new in {
+        "srcKey": "src_key",
+        "deriveMap": "derive_map",
+        "refreshKey": "refresh_key",
+    }.items():
+        if _dep in kwargs:
+            warnings.warn(
+                f"{_dep!r} parameter is deprecated, please use {_new!r} instead",
+                DeprecationWarning, stacklevel=2
+            )
+
+            locals()[_new] = kwargs.pop(_dep)
     from viur.core.skeleton.utils import skeletonByKind
-    from viur.core.skeleton.tasks import updateRelations
-    deriveFuncMap = conf.file_derivations
-    skel = skeletonByKind("file")()
+    from viur.core.skeleton.tasks import update_relations
+
+    skel = skeletonByKind(key.kind)()
     if not skel.read(key):
         logging.info("File-Entry went missing in ensureDerived")
         return
     if not skel["derived"]:
         logging.info("No Derives for this file")
         skel["derived"] = {}
-    skel["derived"]["deriveStatus"] = skel["derived"].get("deriveStatus") or {}
-    skel["derived"]["files"] = skel["derived"].get("files") or {}
-    resDict = {}  # Will contain new or updated resultDicts that will be merged into our file
-    for calleeKey, params in deriveMap.items():
-        fullSrcKey = f"{srcKey}_{calleeKey}"
-        paramsHash = sha256(str(params).encode("UTF-8")).hexdigest()  # Hash over given params (dict?)
-        if skel["derived"]["deriveStatus"].get(fullSrcKey) != paramsHash:
-            if calleeKey not in deriveFuncMap:
-                logging.warning(f"File-Deriver {calleeKey} not found - skipping!")
+    skel["derived"] = {"deriveStatus": {}, "files": {}} | skel["derived"]
+    res_status, res_files = {}, {}
+    for call_key, params in derive_map.items():
+        full_src_key = f"{src_key}_{call_key}"
+        params_hash = hashlib.sha256(str(params).encode("UTF-8")).hexdigest()  # Hash over given params (dict?)
+        if skel["derived"]["deriveStatus"].get(full_src_key) != params_hash:
+            if not (caller := conf.file_derivations.get(call_key)):
+                logging.warning(f"File-Deriver {call_key} not found - skipping!")
                 continue
-            callee = deriveFuncMap[calleeKey]
-            callRes = callee(skel, skel["derived"]["files"], params)
-            if callRes:
-                assert isinstance(callRes, list), "Old (non-list) return value from deriveFunc"
-                resDict[fullSrcKey] = {"version": paramsHash, "files": {}}
-                for fileName, size, mimetype, customData in callRes:
-                    resDict[fullSrcKey]["files"][fileName] = {
+
+            if call_res := caller(skel, skel["derived"]["files"], params):
+                assert isinstance(call_res, list), "Old (non-list) return value from deriveFunc"
+                res_status[full_src_key] = params_hash
+                for file_name, size, mimetype, custom_data in call_res:
+                    res_files[file_name] = {
                         "size": size,
                         "mimetype": mimetype,
-                        "customData": customData
+                        "customData": custom_data  # TODO: Rename in VIUR4
                     }
 
-    def updateTxn(key, resDict):
-        obj = db.get(key)
-        if not obj:  # File-object got deleted during building of our derives
-            return
-        obj["derived"] = obj.get("derived") or {}
-        obj["derived"]["deriveStatus"] = obj["derived"].get("deriveStatus") or {}
-        obj["derived"]["files"] = obj["derived"].get("files") or {}
-        for k, v in resDict.items():
-            obj["derived"]["deriveStatus"][k] = v["version"]
-            for fileName, fileDict in v["files"].items():
-                obj["derived"]["files"][fileName] = fileDict
-        db.put(obj)
+    if res_status:  # Write updated results back and queue updateRelationsTask
+        def _merge_derives(patch_skel):
+            patch_skel["derived"] = {"deriveStatus": {}, "files": {}} | (patch_skel["derived"] or {})
+            patch_skel["derived"]["deriveStatus"] = patch_skel["derived"]["deriveStatus"] | res_status
+            patch_skel["derived"]["files"] = patch_skel["derived"]["files"] | res_files
 
-    if resDict:  # Write updated results back and queue updateRelationsTask
-        db.run_in_transaction(updateTxn, key, resDict)
-        # Queue that updateRelations call at least 30 seconds into the future, so that other ensureDerived calls from
-        # the same FileBone have the chance to finish, otherwise that updateRelations Task will call postSavedHandler
+        skel.patch(values=_merge_derives, update_relations=False)
+
+        # Queue that update_relations call at least 30 seconds into the future, so that other ensureDerived calls from
+        # the same FileBone have the chance to finish, otherwise that update_relations Task will call postSavedHandler
         # on that FileBone again - re-queueing any ensureDerivedCalls that have not finished yet.
-        updateRelations(key, time() + 1, "derived", _countdown=30)
-        if refreshKey:
-            def refreshTxn():
-                skel = skeletonByKind(refreshKey.kind)()
-                if not skel.read(refreshKey):
-                    return
-                skel.refresh()
-                skel.write(update_relations=False)
 
-            db.run_in_transaction(refreshTxn)
+        if refresh_key:
+            skel = skeletonByKind(refresh_key.kind)()
+            skel.patch(lambda _skel: _skel.refresh(), key=refresh_key, update_relations=False)
+
+        update_relations(key, min_change_time=int(time.time() + 1), changed_bones=["derived"], _countdown=30)
 
 
 class FileBone(TreeLeafBone):
@@ -246,7 +245,7 @@ class FileBone(TreeLeafBone):
             if isinstance(values, dict):
                 values = [values]
             for val in (values or ()):  # Ensure derives getting build for each file referenced in this relation
-                ensureDerived(val["dest"]["key"], prefix, self.derive)
+                ensureDerived(val["dest"]["key"], prefix, self.derive, key)
 
         values = skel[boneName]
         if self.derive and values:
@@ -353,3 +352,15 @@ class FileBone(TreeLeafBone):
             "valid_mime_types": self.validMimeTypes,
             "public": self.public,
         }
+
+    def _atomic_dump(self, value) -> dict | None:
+        value = super()._atomic_dump(value)
+        if value is not None:
+            value["dest"]["downloadUrl"] = conf.main_app.file.create_download_url(
+                value["dest"]["dlkey"],
+                value["dest"]["name"],
+                derived=False,
+                expires=conf.render_json_download_url_expiration
+            )
+
+        return value

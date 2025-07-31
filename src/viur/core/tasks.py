@@ -1,11 +1,9 @@
 import abc
 import datetime
 import functools
-import json
 import logging
 import os
 import sys
-import time
 import traceback
 import typing as t
 
@@ -197,7 +195,8 @@ class TaskHandler(Module):
 
         cmd, data = utils.json.loads(req.body)
         funcPath, args, kwargs, env = data
-        logging.debug(f"Call task {funcPath} with {cmd=} {args=} {kwargs=} {env=}")
+        if conf.debug.trace:
+            logging.debug(f"Call task {funcPath} with {cmd=} {args=} {kwargs=} {env=}")
 
         if env:
             if "user" in env and env["user"]:
@@ -320,14 +319,21 @@ class TaskHandler(Module):
         """Lists all user-callable tasks which are callable by this user"""
         global _callableTasks
 
-        from viur.core.skeleton import SkelList
-        tasks = SkelList()
-        tasks.extend([{
-            "key": x.key,
-            "name": str(x.name),
-            "descr": str(x.descr)
-        } for x in _callableTasks.values() if x().canCall()
-        ])
+        from viur.core.skeleton import SkeletonInstance, SkelList, RelSkel
+        from viur.core.bones import BaseBone, StringBone
+
+        class TaskSkel(RelSkel):
+            key = BaseBone()
+            name = StringBone()
+            descr = StringBone()
+
+        tasks = SkelList(TaskSkel, *(
+            SkeletonInstance(TaskSkel, {
+                "key": task.key,
+                "name": str(task.name),
+                "descr": str(task.descr)
+            }) for task in _callableTasks.values() if task().canCall()
+        ))
 
         return self.render.list(tasks)
 
@@ -498,11 +504,11 @@ def CallDeferred(func: t.Callable) -> t.Callable:
     ):
         if _eta is not None and _countdown:
             raise ValueError("You cannot set the _countdown and _eta argument together!")
-
-        logging.debug(
-            f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, "
-            f"{_queue=}, {_name=}, {_call_deferred=}, {_target_version=}, {_eta=}, {_countdown=}"
-        )
+        if conf.debug.trace:
+            logging.debug(
+                f"make_deferred {func=}, {self=}, {args=}, {kwargs=}, "
+                f"{_queue=}, {_name=}, {_call_deferred=}, {_target_version=}, {_eta=}, {_countdown=}"
+            )
 
         try:
             req = current.request.get()
@@ -743,7 +749,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
         assert isinstance(query.queries, db.QueryDefinition), "Unsatisfiable query or query with an IN filter"
         qryDict = {
             "kind": query.kind,
-            "srcSkel": query.srcSkel.kindName if query.srcSkel else None,
+            "srcSkel": query.srcSkel.kindName if query.srcSkel is not None else None,
             "filters": query.queries.filters,
             "orders": [(propName, sortOrder.value) for propName, sortOrder in query.queries.orders],
             "startCursor": query.queries.startCursor,
@@ -789,6 +795,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
             reschedules the next block.
         """
         from viur.core.skeleton import skeletonByKind
+
         qry = db.Query(qryDict["kind"])
         qry.srcSkel = skeletonByKind(qryDict["srcSkel"])() if qryDict["srcSkel"] else None
         qry.queries.filters = qryDict["filters"]
@@ -796,15 +803,17 @@ class QueryIter(object, metaclass=MetaQueryIter):
         qry.setCursor(qryDict["startCursor"], qryDict["endCursor"])
         qry.origKind = qryDict["origKind"]
         qry.queries.distinct = qryDict["distinct"]
-        if qry.srcSkel:
+
+        if qry.srcSkel is not None:
             qryIter = qry.fetch(5)
         else:
             qryIter = qry.run(5)
+
         for item in qryIter:
             try:
                 cls.handleEntry(item, qryDict["customData"])
-            except:  # First exception - we'll try another time (probably/hopefully transaction collision)
-                time.sleep(5)
+            except Exception as exception:
+                logging.error(f"{exception=}")
                 try:
                     cls.handleEntry(item, qryDict["customData"])
                 except Exception as e:  # Second exception - call error_handler
@@ -814,11 +823,15 @@ class QueryIter(object, metaclass=MetaQueryIter):
                         logging.error(f"handleError failed on {item} - bailing out")
                         logging.exception(e)
                         doCont = False
+
                     if not doCont:
                         logging.error(f"Exiting queryIter on cursor {qry.getCursor()!r}")
                         return
+
             qryDict["totalCount"] += 1
+
         cursor = qry.getCursor()
+
         if cursor:
             qryDict["startCursor"] = cursor
             cls._requeueStep(qryDict)

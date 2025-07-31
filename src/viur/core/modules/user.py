@@ -191,9 +191,18 @@ class UserAuthentication(Module, abc.ABC):
         """
         ...
 
+    @property
+    @abc.abstractstaticmethod
+    def NAME() -> str:
+        """
+        Define a descriptive name for this authentication.
+        """
+        ...
+
     def __init__(self, moduleName, modulePath, userModule):
         super().__init__(moduleName, modulePath)
         self._user_module = userModule
+        self.start_url = f"{self.modulePath}/login"
 
     def can_handle(self, skel: skeleton.SkeletonInstance) -> bool:
         return True
@@ -227,6 +236,7 @@ class UserPrimaryAuthentication(UserAuthentication, abc.ABC):
 
 class UserPassword(UserPrimaryAuthentication):
     METHOD_NAME = "X-VIUR-AUTH-User-Password"
+    NAME = "Username & Password"
 
     registrationEmailVerificationRequired = True
     registrationAdminVerificationRequired = True
@@ -588,6 +598,7 @@ class UserPassword(UserPrimaryAuthentication):
 
 class GoogleAccount(UserPrimaryAuthentication):
     METHOD_NAME = "X-VIUR-AUTH-Google-Account"
+    NAME = "Google Account"
 
     @classmethod
     def patch_user_skel(cls, skel_cls):
@@ -715,7 +726,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
     METHOD_NAME = "X-VIUR-2FACTOR-TimeBasedOTP"
     WINDOW_SIZE = 5
     ACTION_NAME = "otp"
-    NAME = "Time based Otp"
+    NAME = "Time-based OTP"
     second_factor_login_template = "user_login_secondfactor"
 
     @dataclasses.dataclass
@@ -766,6 +777,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             descr="OTP time drift",
             readOnly=True,
             defaultValue=0,
+            precision=1,
             params={
                 "category": "Second Factor Authentication",
             }
@@ -820,7 +832,10 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         return self._user_module.render.edit(
             self.OtpSkel(),
             params={
-                "name": i18n.translate(f"viur.core.modules.user.{self.NAME}"),
+                "name": i18n.translate(
+                    f"viur.core.modules.user.{self.ACTION_NAME}",
+                    default_variables={"name": self.NAME},
+                ),
                 "action_name": self.ACTION_NAME,
                 "action_url": f"{self.modulePath}/{self.ACTION_NAME}",
             },
@@ -864,7 +879,10 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
             return self._user_module.render.edit(
                 skel,
-                name=i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
+                name=i18n.translate(
+                    f"viur.core.modules.user.auth.{self.ACTION_NAME}",
+                    default_variables={"name": self.NAME},
+                ),
                 action_name=self.ACTION_NAME,
                 action_url=f"{self.modulePath}/{self.ACTION_NAME}",
                 tpl=self.second_factor_login_template
@@ -906,11 +924,11 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         :param otp: the OTP token to check against
         :param secret: The OTP secret
         :param algorithm: digest function to use in the HMAC (expected to be sha1 or sha256)
-        :param interval: the time interval in seconds for OTP. This defaults to 60 (old OTP c200 Generators). In
-        pyotp, default is 30!
+        :param interval: the time interval in seconds for OTP. This defaults to 60 (old OTP c200 Generators).
         :param timedrift: The known timedrift (old index) of the hardware OTP generator
         :param for_time: Time to check OTP at (defaults to now)
         :param valid_window: extends the validity to this many counter ticks before and after the current one
+
         :returns: The index where verification succeeded, None otherwise
         """
         # get the hashing digest
@@ -944,26 +962,25 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
 
         return 0 if hmac.compare_digest(otp, str(totp.at(for_time, timedrift))) else None
 
+    # FIXME: VIUR4 rename
     def updateTimeDrift(self, user_key: db.Key, idx: float) -> None:
         """
             Updates the clock-drift value.
+
             The value is only changed in 1/10 steps, so that a late submit by an user doesn't skew
             it out of bounds. Maximum change per call is 0.3 minutes.
+
             :param user_key: For which user should the update occour
             :param idx: How many steps before/behind was that token
-            :return:
         """
-
-        # FIXME: The callback in viur-core must be improved, to accept user_skel
-
-        def transaction(user_key, idx):
-            user = db.get(user_key)
-            if not isinstance(user.get("otp_timedrift"), float):
-                user["otp_timedrift"] = 0.0
-            user["otp_timedrift"] += min(max(0.1 * idx, -0.3), 0.3)
-            db.put(user)
-
-        db.run_in_transaction(transaction, user_key, idx)
+        if user_skel := self._user_module.skel().read(user_key):
+            if otp_skel := self._get_otptoken(user_skel):
+                otp_skel.patch(
+                    {
+                        "+otp_timedrift": min(max(0.1 * idx, -0.3), 0.3)
+                    },
+                    update_relations=False,
+                )
 
 
 class AuthenticatorOTP(UserSecondFactorAuthentication):
@@ -1002,7 +1019,10 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             return self._user_module.render.second_factor_add(
                 tpl=self.second_factor_add_template,
                 action_name=self.ACTION_NAME,
-                name=i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
+                name=i18n.translate(
+                    f"viur.core.modules.user.auth{self.ACTION_NAME}",
+                    default_variables={"name": self.NAME},
+                ),
                 add_url=self.add_url,
                 otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))
         else:
@@ -1010,7 +1030,10 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
                 return self._user_module.render.second_factor_add(
                     tpl=self.second_factor_add_template,
                     action_name=self.ACTION_NAME,
-                    name=i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
+                    name=i18n.translate(
+                        f"viur.core.modules.user.auth.{self.ACTION_NAME}",
+                        default_variables={"name": self.NAME},
+                    ),
                     add_url=self.add_url,
                     otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))  # to add errors
 
@@ -1018,7 +1041,10 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             AuthenticatorOTP.set_otp_app_secret(otp_app_secret)
             return self._user_module.render.second_factor_add_success(
                 action_name=self.ACTION_NAME,
-                name=i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
+                name=i18n.translate(
+                    f"viur.core.modules.user.auth.{self.ACTION_NAME}",
+                    default_variables={"name": self.NAME},
+                ),
             )
 
     def can_handle(self, skel: skeleton.SkeletonInstance) -> bool:
@@ -1094,7 +1120,10 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         return self._user_module.render.edit(
             TimeBasedOTP.OtpSkel(),
             params={
-                "name": i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
+                "name": i18n.translate(
+                    f"viur.core.modules.user.auth.{self.ACTION_NAME}",
+                    default_variables={"name": self.NAME},
+                ),
                 "action_name": self.ACTION_NAME,
                 "action_url": self.action_url,
             },
@@ -1133,7 +1162,10 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
         return self._user_module.render.edit(
             skel,
-            name=i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
+            name=i18n.translate(
+                f"viur.core.modules.user.auth.{self.ACTION_NAME}",
+                default_variables={"name": self.NAME},
+            ),
             action_name=self.ACTION_NAME,
             action_url=self.action_url,
             tpl=self.second_factor_login_template,
@@ -1382,8 +1414,12 @@ class User(List):
             # We have only one second factor we don't need the choice template
             return second_factor_providers[0].start(user_key)
 
-        # In case there is more than one second factor, let the user select a method.
-        return self.render.second_factor_choice(second_factors=second_factor_providers)
+        # In case there is more than one second factor provider remaining, let the user decide!
+        current.session.get()["_secondfactor_providers"] = {
+            second_factor.start_url: second_factor.NAME for second_factor in second_factor_providers
+        }
+
+        return self.select_secondfactor_provider()
 
     def secondFactorSucceeded(self, provider: UserSecondFactorAuthentication, user_key: db.Key):
         """
@@ -1452,6 +1488,59 @@ class User(List):
 
         return self.render.loginSucceeded(**kwargs)
 
+    # Action for primary authentication selection
+
+    def SelectAuthenticationProviderSkel(self):
+        providers = {}
+        first = None
+        for provider in self.authenticationProviders:
+            provider = getattr(self, f"auth_{provider.__name__.lower()}")
+            providers[provider.start_url] = provider.NAME
+
+            if first is None:
+                first = provider.start_url
+
+        class SelectAuthenticationProviderSkel(skeleton.RelSkel):
+            provider = SelectBone(
+                descr="Authentication method",
+                required=True,
+                values=providers,
+                defaultValue=first,
+            )
+
+        return SelectAuthenticationProviderSkel()
+
+    @exposed
+    def select_authentication_provider(self, **kwargs):
+        skel = self.SelectAuthenticationProviderSkel()
+
+        # Read required bones from client
+        if len(self.authenticationProviders) > 1 and (not kwargs or not skel.fromClient(kwargs)):
+            return self.render.render("select_authentication_provider", skel)
+
+        return self.render.render("select_authentication_provider_success", skel, next_url=skel["provider"])
+
+    # Action for second factor select
+
+    class SelectSecondFactorProviderSkel(skeleton.RelSkel):
+        provider = SelectBone(
+            descr="Second factor",
+            required=True,
+            values=lambda: current.session.get()["_secondfactor_providers"] or (),
+        )
+
+    @exposed
+    def select_secondfactor_provider(self, **kwargs):
+        skel = self.SelectSecondFactorProviderSkel()
+
+        # Read required bones from client
+        if not kwargs or not skel.fromClient(kwargs):
+            return self.render.render("select_secondfactor_provider", skel)
+
+        del current.session.get()["_secondfactor_providers"]
+
+        return self.render.render("select_secondfactor_provider_success", skel, next_url=skel["provider"])
+
     @exposed
     @skey
     def logout(self, *args, **kwargs):
@@ -1475,10 +1564,7 @@ class User(List):
 
     @exposed
     def login(self, *args, **kwargs):
-        return self.render.loginChoices([
-            (primary.METHOD_NAME, secondary.METHOD_NAME if secondary else None)
-            for primary, secondary in self.validAuthenticationMethods
-        ])
+        return self.select_authentication_provider()
 
     def onLogin(self, skel: skeleton.SkeletonInstance):
         """
@@ -1555,11 +1641,8 @@ class User(List):
 
     @exposed
     def getAuthMethods(self, *args, **kwargs):
-        """Inform tools like Viur-Admin which authentication to use"""
-        # FIXME: This is almost the same code as in index()...
-        # FIXME: VIUR4: The entire function should be removed!
-        # TODO: Align result with index(), so that primary and secondary login is presented.
-        # logging.warning("DEPRECATED!!! Use of 'User.getAuthMethods' is deprecated! Use 'User.login'-method instead!")
+        """Legacy method prior < viur-core 3.8: Inform tools like Admin which authentication to use"""
+        logging.warning("DEPRECATED!!! Use '/user/login'-method for this, or update your admin version!")
 
         res = [
             (primary.METHOD_NAME, secondary.METHOD_NAME if secondary else None)
@@ -1604,7 +1687,6 @@ class User(List):
         # Update user setting in all sessions
         for session_obj in db.Query("user").filter("user =", skel["key"]).iter():
             session_obj["data"]["user"] = skel.dbEntity
-
 
     def onDeleted(self, skel):
         super().onDeleted(skel)

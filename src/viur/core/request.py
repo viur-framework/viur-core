@@ -369,7 +369,7 @@ class Router:
             url = e.url
             url = unquote(url)  # decode first
             # safe = https://url.spec.whatwg.org/#url-path-segment-string
-            url = quote(url, encoding="utf-8", safe="!$&'()*+,-./:;=?@_~")  # re-encode all in utf-8
+            url = quote(url, encoding="utf-8", safe="!$&'()*+,-./:;=?@_~#")  # re-encode all in utf-8
             if url.startswith(('.', '/')):
                 url = str(urljoin(self.request.url, url))
             self.response.headers['Location'] = url

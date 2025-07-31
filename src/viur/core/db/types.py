@@ -7,7 +7,8 @@ import datetime
 import enum
 import typing as t
 from contextvars import ContextVar
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from ..config import conf
 
 from google.cloud.datastore import Entity as Datastore_entity, Key as Datastore_key
 
@@ -167,7 +168,7 @@ class QueryDefinition:
     distinct: t.Optional[list[str]] = None
     """If set, a list of fields that we should return distinct values of"""
 
-    limit: int = 30
+    limit: int = field(init=False)
     """The maximum amount of entities that should be returned"""
 
     startCursor: t.Optional[str] = None
@@ -178,3 +179,6 @@ class QueryDefinition:
 
     currentCursor: t.Optional[str] = None
     """Will be set after this query has been run, pointing after the last entity returned"""
+
+    def __post_init__(self):
+        self.limit = conf.db.query_default_limit

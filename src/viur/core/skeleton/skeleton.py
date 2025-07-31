@@ -9,8 +9,8 @@ from deprecated.sphinx import deprecated
 
 from viur.core import conf, db, errors, utils
 
-from .meta import BaseSkeleton, MetaSkel, _UNDEFINED_KINDNAME
-from .tasks import updateRelations, processRemovedRelations
+from .meta import BaseSkeleton, MetaSkel, KeyType, _UNDEFINED_KINDNAME
+from . import tasks
 from .utils import skeletonByKind
 from ..bones.base import (
     Compute,
@@ -28,7 +28,7 @@ from ..bones.string import StringBone
 if t.TYPE_CHECKING:
     from .instance import SkeletonInstance
     from .adapter import DatabaseAdapter
-    from .meta import KeyType
+
 
 class SeoKeyBone(StringBone):
     """
@@ -577,6 +577,13 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         if key:
             skel["key"] = db.key_helper(key, skel.kindName)
 
+        if skel._cascade_deletion is True:
+            if skel["key"]:
+                logging.info(f"{skel._cascade_deletion=}, will delete {skel["key"]!r}")
+                skel.delete()
+
+            return skel
+
         # Run transactional function
         if db.is_in_transaction():
             key, skel, change_list, is_add = __txn_write(skel)
@@ -590,10 +597,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         if update_relations and not is_add:
             if change_list and len(change_list) < 5:  # Only a few bones have changed, process these individually
-                updateRelations(key, time.time() + 1, change_list, _countdown=10)
+                tasks.update_relations(key, changed_bones=change_list, _countdown=10)
 
             else:  # Update all inbound relations, regardless of which bones they mirror
-                updateRelations(key, time.time() + 1, None)
+                tasks.update_relations(key)
 
         # Trigger the database adapter of the changes made to the entry
         for adapter in skel.database_adapters:
@@ -663,7 +670,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     db.put(lockObj)
 
             db.delete(key)
-            processRemovedRelations(key)
+            tasks.update_relations(key)
 
         if key := (key or skel["key"]):
             key = db.key_helper(key, skel.kindName)
@@ -722,7 +729,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             given key does not exist.
         :param update_relations: Trigger update relations task on success. Defaults to False.
         :param trust: Use internal `fromClient` with trusted data (may change readonly-bones)
-        :param retry: On ViurDatastoreError, retry for this amount of times.
+        :param retry: On RuntimeError, retry for this amount of times.
 
         If the function does not raise an Exception, all went well. The function always returns the input Skeleton.
 
@@ -736,6 +743,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         def __update_txn():
             # Try to read the skeleton, create on demand
             if not skel.read(key):
+                logging.debug(f"cant update key {skel=}")
                 if create is None or create is False:
                     raise ValueError("Creation during update is forbidden - explicitly provide `create=True` to allow.")
 
@@ -790,7 +798,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 try:
                     return db.run_in_transaction(__update_txn)
 
-                except db.ViurDatastoreError as e:
+                except RuntimeError as e:
                     retry -= 1
                     if retry < 0:
                         raise
