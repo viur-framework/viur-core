@@ -326,32 +326,31 @@ class List(SkelModule):
             :param kwargs: Used for the fallback list.
             :return: The rendered entity or list.
         """
-        if not key:
-            if not kwargs:
-                kwargs = self.getDefaultListParams()
-            return self.list(**kwargs)
+        if key:
+            skel = self.viewSkel(
+                allow_client_defined=utils.string.is_prefix(self.render.kind, "json"),
+                _excludeFromAccessLog=True,
+            )
 
-        skel = self.viewSkel(
-            allow_client_defined=utils.string.is_prefix(self.render.kind, "json"),
-            _excludeFromAccessLog=True,
-        )
+            if (
+                isinstance(key, db.Key) and skel.read(key) or
+                (skel := skel.all().filter("viur.viurActiveSeoKeys =", str(key).lower()).getSkel())
+            ):
 
-        if (
-            isinstance(key, db.Key) and skel.read(key) or
-            (skel := skel.all().filter("viur.viurActiveSeoKeys =", str(key).lower()).getSkel())
-        ):
+                db.current_db_access_log.get(set()).add(skel["key"])
+                if not self.canView(skel):
+                    raise errors.Forbidden()
+                seo_url = utils.seoUrlToEntry(self.moduleName, skel)
+                # Check whether this is the current seo-key, otherwise redirect to it
 
-            db.current_db_access_log.get(set()).add(skel["key"])
-            if not self.canView(skel):
-                raise errors.Forbidden()
-            seo_url = utils.seoUrlToEntry(self.moduleName, skel)
-            # Check whether this is the current seo-key, otherwise redirect to it
+                if current.request.get().request.path.lower() != seo_url:
+                    raise errors.Redirect(seo_url, status=301)
+                self.onView(skel)
+                return self.render.view(skel)
 
-            if current.request.get().request.path.lower() != seo_url:
-                raise errors.Redirect(seo_url, status=301)
-            self.onView(skel)
-            return self.render.view(skel)
-
+        if not kwargs:
+            kwargs = self.getDefaultListParams()
+        return self.list(**kwargs)
 
     def getDefaultListParams(self):
         return {}
