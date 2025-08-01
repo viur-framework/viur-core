@@ -123,19 +123,13 @@ def run_in_transaction(func: t.Callable, *args, **kwargs) -> t.Any:
                     res = func(*args, **kwargs)
                     break
 
-            except HTTPException:
-                raise
             except exceptions.Conflict:
                 logging.error(f"Transaction failed with a conflict, trying again in {2 ** i} seconds")
                 time.sleep(2 ** i)
                 continue
-            except Exception as e:
-                logging.error(f"Transaction failed with exception, trying again in {2 ** i} seconds")
-                logging.exception(e)
-                time.sleep(2 ** i)
-                continue
+
         else:
-            raise RuntimeError(f"Maximum transaction retries exceeded")
+            raise RuntimeError("Maximum transaction retries exceeded")
 
     return res
 
