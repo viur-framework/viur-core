@@ -70,6 +70,11 @@ class HistorySkel(Skeleton):
         indexed=False,
     )
 
+    changed_fields = StringBone(
+        descr="Changed fields",
+        multiple=True
+    )
+
     diff = RawBone(
         descr="Human-readable diff",
         indexed=False,
@@ -194,6 +199,12 @@ class BigQueryHistory:
             "name": "diff",
             "mode": "NULLABLE",
             "description": "diff data",
+        },
+        {
+            "type": "STRING",
+            "name": "changed_fields",
+            "mode": "REPEATED",
+            "description": "Changed fields from old to new",
         },
     )
     """
@@ -505,6 +516,7 @@ class History(List):
             "current_key": skel and str(skel["key"]),
             "current_kind": skel and getattr(skel, "kindName", None),
             "current": new_data,
+            "changed_fields": change_list if change_list else [],
             "descr": descr or self.build_descr(action, skel, change_list),
             "diff": diff,
             "name": self.build_name(skel) if skel else ((user and user["name"] or "") + " " + action),
