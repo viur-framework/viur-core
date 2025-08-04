@@ -8,7 +8,8 @@ import typing as t
 import warnings
 from html.parser import HTMLParser
 from viur.core import db, conf
-from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
+from .base import ReadFromClientError, ReadFromClientErrorSeverity
+from .raw import RawBone
 
 
 class HtmlBoneConfiguration(t.TypedDict):
@@ -286,7 +287,7 @@ class HtmlSerializer(HTMLParser):
         return self.result
 
 
-class TextBone(BaseBone):
+class TextBone(RawBone):
     """
     A bone for storing and validating HTML or plain text content. Can be configured to allow
     only specific HTML tags and attributes, and enforce a maximum length. Supports the use of
@@ -436,27 +437,6 @@ class TextBone(BaseBone):
                 skel[boneName] = {k: self.singleValueFromClient(v, skel, boneName, None)[0] for k, v in val.items()}
             elif not self.languages and isinstance(val, str):
                 skel[boneName] = self.singleValueFromClient(val, skel, boneName, None)[0]
-
-    def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
-        """
-        Extracts search tags from the text content of a TextBone.
-
-        This method iterates over the values of the TextBone in the given skeleton, and for each non-empty value,
-        it tokenizes the text by lines and words. Then, it adds the lowercase version of each word to a set of
-        search tags, which is returned at the end.
-
-        :param skel: A SkeletonInstance containing the TextBone.
-        :param name: The name of the TextBone in the skeleton.
-        :return: A set of unique search tags (lowercase words) extracted from the text content of the TextBone.
-        """
-        result = set()
-        for idx, lang, value in self.iter_bone_value(skel, name):
-            if value is None:
-                continue
-            for line in str(value).splitlines():
-                for word in line.split(" "):
-                    result.add(word.lower())
-        return result
 
     def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> list[str]:
         """
