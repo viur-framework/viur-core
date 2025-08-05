@@ -1673,10 +1673,8 @@ class User(List):
 
     @exposed
     def trigger(self, action: str, key: str):
-        current.request.get().response.headers["Content-Type"] = "application/json"
-
         # Check for provided access right definition (equivalent to client-side check), fallback to root!
-        access = self.adminInfo.get("customActions", {}).get(f"trigger_{action}", {}).get("access") or ()
+        access = self.adminInfo().get("customActions", {}).get(f"trigger_{action}", {}).get("access") or ()
         if not (
             (cuser := current.user.get())
             and (
@@ -1688,7 +1686,7 @@ class User(List):
 
         skel = self.skel()
         if not skel.read(key) and not (skel := skel.all().mergeExternalFilter({"name": key}).getSkel()):
-            raise errors.NotFound()
+            raise errors.NotFound("The provided user does not exist.")
 
         match action:
             case "takeover":
@@ -1700,7 +1698,7 @@ class User(List):
             case _:
                 raise errors.NotImplemented(f"Action {action!r} not implemented")
 
-        return json.dumps("OKAY")
+        return self.render.render(f"trigger/{action}Success", skel)
 
     def onEdited(self, skel):
         super().onEdited(skel)
