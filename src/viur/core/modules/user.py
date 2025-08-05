@@ -1323,7 +1323,7 @@ class User(List):
 
     def addSkel(self):
         skel = super().addSkel().clone()
-        user = current.user.get()
+
         if self.is_admin(current.user.get()):
             # An admin tries to add a new user.
             skel.status.readOnly = False
@@ -1444,6 +1444,8 @@ class User(List):
         Hookable check if a user is defined as "active" and can login.
 
         :param skel: The UserSkel of the user who wants to login.
+        :returns: Returns True or False when the result is unambigous and the user is active or not. \
+            Returns None when the provided skel doesn't provide enough information for determination.
         """
         if skel and "status" in skel:
             status = skel["status"]
@@ -1463,6 +1465,8 @@ class User(List):
         Defaults to "root" users only.
 
         :param skel: The UserSkel of the user who wants should be checked for user admin privileges.
+        :returns: Returns True or False when the result is unambigous and the user is admin or not. \
+            Returns None when the provided skel doesn't provide enough information for determination.
         """
         if skel and "access" in skel:
             return "root" in skel["access"]
