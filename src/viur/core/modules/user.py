@@ -1232,56 +1232,6 @@ class User(List):
 
     default_order = "name.idx"
 
-    adminInfo = {
-        "icon": "person-fill",
-        "actions": [
-            "trigger_kick",
-            "trigger_takeover",
-        ],
-        "customActions": {
-            "trigger_kick": {
-                "name": i18n.translate(
-                    key="viur.core.modules.user.customActions.kick",
-                    defaultText="Kick user",
-                    hint="Title of the kick user function"
-                ),
-                "icon": "trash2-fill",
-                "access": ["root"],
-                "action": "fetch",
-                "url": "/vi/{{module}}/trigger/kick/{{key}}?skey={{skey}}",
-                "confirm": i18n.translate(
-                    key="viur.core.modules.user.customActions.kick.confirm",
-                    defaultText="Do you really want to drop all sessions of the selected user from the system?",
-                ),
-                "success": i18n.translate(
-                    key="viur.core.modules.user.customActions.kick.success",
-                    defaultText="Sessions of the user are being invalidated.",
-                ),
-            },
-            "trigger_takeover": {
-                "name": i18n.translate(
-                    key="viur.core.modules.user.customActions.takeover",
-                    defaultText="Take-over user",
-                    hint="Title of the take user over function"
-                ),
-                "icon": "file-person-fill",
-                "access": ["root"],
-                "action": "fetch",
-                "url": "/vi/{{module}}/trigger/takeover/{{key}}?skey={{skey}}",
-                "confirm": i18n.translate(
-                    key="viur.core.modules.user.customActions.takeover.confirm",
-                    defaultText="Do you really want to replace your current user session by a "
-                                "user session of the selected user?",
-                ),
-                "success": i18n.translate(
-                    key="viur.core.modules.user.customActions.takeover.success",
-                    defaultText="You're now know as the selected user!",
-                ),
-                "then": "reload-vi",
-            },
-        },
-    }
-
     roles = {
         "admin": "*",
     }
@@ -1298,6 +1248,61 @@ class User(List):
             setattr(self, name, provider(name, f"{modulePath}/{name}", self))
 
         super().__init__(moduleName, modulePath)
+
+    def adminInfo(self):
+        ret = {
+            "icon": "person-fill",
+        }
+
+        if self.is_admin(current.user.get()):
+            ret |= {
+                "actions": [
+                    "trigger_kick",
+                    "trigger_takeover",
+                ],
+                "customActions": {
+                    "trigger_kick": {
+                        "name": i18n.translate(
+                            key="viur.core.modules.user.customActions.kick",
+                            defaultText="Kick user",
+                            hint="Title of the kick user function"
+                        ),
+                        "icon": "trash2-fill",
+                        "action": "fetch",
+                        "url": "/vi/{{module}}/trigger/kick/{{key}}",
+                        "confirm": i18n.translate(
+                            key="viur.core.modules.user.customActions.kick.confirm",
+                            defaultText="Do you really want to drop all sessions of the selected user from the system?",
+                        ),
+                        "success": i18n.translate(
+                            key="viur.core.modules.user.customActions.kick.success",
+                            defaultText="Sessions of the user are being invalidated.",
+                        ),
+                    },
+                    "trigger_takeover": {
+                        "name": i18n.translate(
+                            key="viur.core.modules.user.customActions.takeover",
+                            defaultText="Take-over user",
+                            hint="Title of the take user over function"
+                        ),
+                        "icon": "file-person-fill",
+                        "action": "fetch",
+                        "url": "/vi/{{module}}/trigger/takeover/{{key}}",
+                        "confirm": i18n.translate(
+                            key="viur.core.modules.user.customActions.takeover.confirm",
+                            defaultText="Do you really want to replace your current user session by a "
+                                        "user session of the selected user?",
+                        ),
+                        "success": i18n.translate(
+                            key="viur.core.modules.user.customActions.takeover.success",
+                            defaultText="You're now know as the selected user!",
+                        ),
+                        "then": "reload-vi",
+                    },
+                },
+            }
+
+        return ret
 
     def get_role_defaults(self, role: str) -> set[str]:
         """
@@ -1318,20 +1323,21 @@ class User(List):
 
     def addSkel(self):
         skel = super().addSkel().clone()
-        user = current.user.get()
-        if not (user and user["access"] and (f"{self.moduleName}-add" in user["access"] or "root" in user["access"])):
+
+        if self.is_admin(current.user.get()):
+            # An admin tries to add a new user.
+            skel.status.readOnly = False
+            skel.status.visible = True
+            skel.access.readOnly = False
+            skel.access.visible = True
+
+        else:
             skel.status.readOnly = True
             skel["status"] = Status.UNSET
             skel.status.visible = False
             skel.access.readOnly = True
             skel["access"] = []
             skel.access.visible = False
-        else:
-            # An admin tries to add a new user.
-            skel.status.readOnly = False
-            skel.status.visible = True
-            skel.access.readOnly = False
-            skel.access.visible = True
 
         if "password" in skel:
             # Unlock and require a password
@@ -1350,12 +1356,10 @@ class User(List):
             skel.password.visible = True
             skel.password.readOnly = False
 
-        user = current.user.get()
-
-        lockFields = not (user and "root" in user["access"])  # If we aren't root, make certain fields read-only
-        skel.name.readOnly = lockFields
-        skel.access.readOnly = lockFields
-        skel.status.readOnly = lockFields
+        lock = not self.is_admin(current.user.get())
+        skel.name.readOnly = lock
+        skel.access.readOnly = lock
+        skel.status.readOnly = lock
 
         return skel
 
@@ -1440,8 +1444,10 @@ class User(List):
         Hookable check if a user is defined as "active" and can login.
 
         :param skel: The UserSkel of the user who wants to login.
+        :returns: Returns True or False when the result is unambigous and the user is active or not. \
+            Returns None when the provided skel doesn't provide enough information for determination.
         """
-        if "status" in skel:
+        if skel and "status" in skel:
             status = skel["status"]
             if not isinstance(status, (Status, int)):
                 try:
@@ -1450,6 +1456,20 @@ class User(List):
                     status = Status.UNSET
 
             return status >= Status.ACTIVE.value
+
+        return None
+
+    def is_admin(self, skel: skeleton.SkeletonInstance) -> bool | None:
+        """
+        Hookable check if a user is defined as "admin" and can edit or log into other users.
+        Defaults to "root" users only.
+
+        :param skel: The UserSkel of the user who wants should be checked for user admin privileges.
+        :returns: Returns True or False when the result is unambigous and the user is admin or not. \
+            Returns None when the provided skel doesn't provide enough information for determination.
+        """
+        if skel and "access" in skel:
+            return "root" in skel["access"]
 
         return None
 
@@ -1613,7 +1633,7 @@ class User(List):
             if skel["key"] == user["key"]:
                 return True
 
-            if "root" in user["access"] or "user-view" in user["access"]:
+            if self.is_admin(user) or "user-view" in user["access"]:
                 return True
 
         return False
@@ -1652,18 +1672,21 @@ class User(List):
         return json.dumps(res)
 
     @exposed
-    @skey
     def trigger(self, action: str, key: str):
-        current.request.get().response.headers["Content-Type"] = "application/json"
-
         # Check for provided access right definition (equivalent to client-side check), fallback to root!
-        access = self.adminInfo.get("customActions", {}).get(f"trigger_{action}", {}).get("access") or ("root", )
-        if not ((cuser := current.user.get()) and any(role in cuser["access"] for role in access)):
+        access = self.adminInfo().get("customActions", {}).get(f"trigger_{action}", {}).get("access") or ()
+        if not (
+            (cuser := current.user.get())
+            and (
+                any(role in cuser["access"] for role in access)
+                or self.is_admin(cuser)
+            )
+        ):
             raise errors.Unauthorized()
 
-        skel = self.baseSkel()
-        if not skel.read(key):
-            raise errors.NotFound()
+        skel = self.skel()
+        if not skel.read(key) and not (skel := skel.all().mergeExternalFilter({"name": key}).getSkel()):
+            raise errors.NotFound("The provided user does not exist.")
 
         match action:
             case "takeover":
@@ -1675,7 +1698,7 @@ class User(List):
             case _:
                 raise errors.NotImplemented(f"Action {action!r} not implemented")
 
-        return json.dumps("OKAY")
+        return self.render.render(f"trigger/{action}Success", skel)
 
     def onEdited(self, skel):
         super().onEdited(skel)
