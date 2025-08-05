@@ -1668,14 +1668,13 @@ class User(List):
         return json.dumps(res)
 
     @exposed
-    @skey
     def trigger(self, action: str, key: str):
         current.request.get().response.headers["Content-Type"] = "application/json"
 
         # Check for provided access right definition (equivalent to client-side check), fallback to root!
         access = self.adminInfo.get("customActions", {}).get(f"trigger_{action}", {}).get("access") or ()
         if not (
-            cuser := current.user.get()
+            (cuser := current.user.get())
             and (
                 any(role in cuser["access"] for role in access)
                 or self.is_admin(cuser)
@@ -1683,8 +1682,8 @@ class User(List):
         ):
             raise errors.Unauthorized()
 
-        skel = self.baseSkel()
-        if not skel.read(key):
+        skel = self.skel()
+        if not skel.read(key) and not (skel := skel.all().mergeExternalFilter({"name": key}).getSkel()):
             raise errors.NotFound()
 
         match action:
