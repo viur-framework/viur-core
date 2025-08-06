@@ -560,7 +560,7 @@ class UserPassword(UserPrimaryAuthentication):
     @force_ssl
     @exposed
     @skey(allow_empty=True)
-    def add(self, *args, **kwargs):
+    def add(self, *, bounce: bool = False, **kwargs):
         """
             Allows guests to register a new account if self.registrationEnabled is set to true
 
@@ -573,17 +573,21 @@ class UserPassword(UserPrimaryAuthentication):
         """
         if not self.canAdd():
             raise errors.Unauthorized()
+
         skel = self.addSkel()
+
         if (
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # bail out if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or utils.parse.bool(kwargs.get("bounce"))  # review before adding
+            or bounce  # review before adding
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self._user_module.render.add(skel)
+
         self._user_module.onAdd(skel)
         skel.write()
+
         if self.registrationEmailVerificationRequired and skel["status"] == Status.WAITING_FOR_EMAIL_VERIFICATION:
             # The user will have to verify his email-address. Create a skey and send it to his address
             skey = securitykey.create(duration=datetime.timedelta(days=7), session_bound=False,
@@ -592,6 +596,7 @@ class UserPassword(UserPrimaryAuthentication):
             skel.skey = BaseBone(descr="Skey")
             skel["skey"] = skey
             email.send_email(dests=[skel["name"]], tpl=self._user_module.verifyEmailAddressMail, skel=skel)
+
         self._user_module.onAdded(skel)  # Call onAdded on our parent user module
         return self._user_module.render.addSuccess(skel)
 

@@ -209,7 +209,7 @@ class List(SkelModule):
     @force_ssl
     @exposed
     @skey(allow_empty=True)
-    def edit(self, key: db.Key | int | str, *args, **kwargs) -> t.Any:
+    def edit(self, key: db.Key | int | str, *, bounce: bool = False, **kwargs) -> t.Any:
         """
             Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
             Data is taken by any other arguments in *kwargs*.
@@ -238,7 +238,7 @@ class List(SkelModule):
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
             or not skel.fromClient(kwargs, amend=True)  # failure on reading into the bones
-            or utils.parse.bool(kwargs.get("bounce"))  # review before changing
+            or bounce  # review before changing
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self.render.edit(skel)
@@ -252,7 +252,7 @@ class List(SkelModule):
     @force_ssl
     @exposed
     @skey(allow_empty=True)
-    def add(self, *args, **kwargs) -> t.Any:
+    def add(self, *, bounce: bool = False, **kwargs) -> t.Any:
         """
             Add a new entry, and render the entry, eventually with error notes on incorrect data.
             Data is taken by any other arguments in *kwargs*.
@@ -274,8 +274,8 @@ class List(SkelModule):
         if (
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
-            or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or utils.parse.bool(kwargs.get("bounce"))  # review before adding
+            or not skel.fromClient(kwargs, amend=bounce)  # failure on reading into the bones
+            or bounce  # review before adding
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self.render.add(skel)
@@ -290,7 +290,7 @@ class List(SkelModule):
     @force_post
     @exposed
     @skey
-    def delete(self, key: db.Key | int | str, *args, **kwargs) -> t.Any:
+    def delete(self, key: db.Key | int | str, **kwargs) -> t.Any:
         """
             Delete an entry.
 
@@ -358,7 +358,7 @@ class List(SkelModule):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def clone(self, key: db.Key | str | int, **kwargs):
+    def clone(self, key: db.Key | str | int, *, bounce: bool = False, **kwargs):
         """
         Clone an existing entry, and render the entry, eventually with error notes on incorrect data.
         Data is taken by any other arguments in *kwargs*.
@@ -393,8 +393,8 @@ class List(SkelModule):
         if (
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
-            or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or utils.parse.bool(kwargs.get("bounce"))  # review before changing
+            or not skel.fromClient(kwargs, amend=bounce)  # failure on reading into the bones
+            or bounce  # review before changing
         ):
             return self.render.edit(skel, action="clone")
 
