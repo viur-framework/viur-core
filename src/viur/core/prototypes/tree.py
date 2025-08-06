@@ -2,7 +2,7 @@ import time
 import logging
 import typing as t
 from deprecated.sphinx import deprecated
-from viur.core import utils, errors, db, current
+from viur.core import errors, db, current
 from viur.core.decorators import *
 from viur.core.bones import KeyBone, SortIndexBone, BooleanBone
 from viur.core.cache import flushCache

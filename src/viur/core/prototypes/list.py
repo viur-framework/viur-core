@@ -4,7 +4,6 @@ from viur.core import current, db, errors, utils
 from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
-from viur.core.bones import BaseBone
 from .skelmodule import SkelModule
 
 
