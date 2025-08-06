@@ -6,7 +6,6 @@ built, such as string, numeric, and date/time bones.
 """
 
 import copy
-import dataclasses
 import enum
 import hashlib
 import inspect
@@ -46,6 +45,7 @@ def setSystemInitialized():
         skelCls.setSystemInitialized()
 
     __system_initialized = True
+
 
 def getSystemInitialized():
     """
@@ -185,6 +185,7 @@ class MultipleConstraints:
     A boolean value indicating if sorted values shall be sorted in reversed order (default: False).
     It is only applied when the `sorted`-flag is set accordingly.
     """
+
 
 class ComputeMethod(Enum):
     Always = 0  # Always compute on deserialization
@@ -331,7 +332,7 @@ class BaseBone(object):
         if type_suffix:
             self.type += f".{type_suffix}"
 
-        if isinstance(category := self.params.get("category"), str):
+        if conf.i18n.auto_translate_bones and isinstance(category := self.params.get("category"), str):
             self.params["category"] = i18n.translate(category, hint=f"category of a <{type(self).__name__}>")
 
         # Multi-language support
@@ -447,17 +448,18 @@ class BaseBone(object):
 
     def setSystemInitialized(self) -> None:
         """
-        Can be overridden to initialize properties that depend on the Skeleton system
-        being initialized.
-
-        Here, in the BaseBone, we set descr to the bone_name if no descr argument
-        was given in __init__ and make sure that it is a :class:i18n.translate` object.
+        For the BaseBone, this performs some automatisms regarding bone descr and translations.
+        It can be overwritten to initialize properties that depend on the Skeleton system being initialized.
         """
+
+        # Set descr to the bone_name if no descr argument is given
         if self.descr is None:
             # TODO: The super().__setattr__() call is kinda hackish,
             #  but unfortunately viur-core has no *during system initialisation* state
             super().__setattr__("descr", self.name or "")
-        if self.descr and isinstance(self.descr, str):
+
+        if conf.i18n.auto_translate_bones and self.descr and isinstance(self.descr, str):
+            # Make sure that it is a :class:i18n.translate` object.
             super().__setattr__(
                 "descr",
                 i18n.translate(self.descr, hint=f"descr of a <{type(self).__name__}>{self.name}")

@@ -626,6 +626,9 @@ class I18N(ConfigType):
     language_module_map: dict[str, dict[str, str]] = {}
     """Maps modules to their translation (if set)"""
 
+    auto_translate_bones: bool = True
+    """Defines whether bone descr and categories should be automatically translated via i18n.translate-objects."""
+
     @property
     def available_dialects(self) -> list[str]:
         """Main languages and language aliases"""
