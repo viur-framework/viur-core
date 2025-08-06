@@ -393,8 +393,8 @@ class List(SkelModule):
         if (
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
-            or not skel.fromClient(kwargs)  # failure on reading into the bones
             or utils.parse.bool(kwargs.get("bounce"))  # review before changing
+            or not skel.fromClient(kwargs)  # failure on reading into the bones
         ):
             return self.render.edit(skel, action="clone")
 
