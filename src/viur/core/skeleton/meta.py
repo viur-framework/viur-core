@@ -411,6 +411,8 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                                 f"""{getattr(cls, "kindName", cls.__name__)}: {".".join(error.fieldPath)}: """
                                 f"""({error.severity}) {error.errorMessage}"""
                             )
+                    else:
+                        errors.clear()
 
                 skel.errors += errors
 

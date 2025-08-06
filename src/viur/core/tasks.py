@@ -339,19 +339,28 @@ class TaskHandler(Module):
 
     @exposed
     @skey(allow_empty=True)
-    def execute(self, taskID, *args, **kwargs):
+    def execute(self, taskID, *, bounce: bool = False, **kwargs):
         """Queues a specific task for the next maintenance run"""
         global _callableTasks
+
         if taskID in _callableTasks:
             task = _callableTasks[taskID]()
         else:
             return
+
         if not task.canCall():
             raise errors.Unauthorized()
+
         skel = task.dataSkel()
-        if not kwargs or not skel.fromClient(kwargs) or utils.parse.bool(kwargs.get("bounce")):
+        if (
+            not kwargs
+            or not skel.fromClient(kwargs)
+            or bounce
+        ):
             return self.render.add(skel)
+
         task.execute(**skel.accessedValues)
+
         return self.render.addSuccess(skel)
 
 

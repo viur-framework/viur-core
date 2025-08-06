@@ -2,7 +2,7 @@ import time
 import logging
 import typing as t
 from deprecated.sphinx import deprecated
-from viur.core import utils, errors, db, current
+from viur.core import errors, db, current
 from viur.core.decorators import *
 from viur.core.bones import KeyBone, SortIndexBone, BooleanBone
 from viur.core.cache import flushCache
@@ -416,7 +416,8 @@ class Tree(SkelModule):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def add(self, skelType: SkelType, node: db.Key | int | str, *args, **kwargs) -> t.Any:
+    def add(self, skelType: SkelType, node: db.Key | int | str, *, bounce: bool = False, **kwargs) -> t.Any:
+        # FIXME: VIUR4 rename node into key...
         """
         Add a new entry with the given parent *node*, and render the entry, eventually with error notes
         on incorrect data. Data is taken by any other arguments in *kwargs*.
@@ -454,8 +455,8 @@ class Tree(SkelModule):
         if (
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
-            or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or utils.parse.bool(kwargs.get("bounce"))  # review before adding
+            or not skel.fromClient(kwargs, amend=bounce)  # failure on reading into the bones
+            or bounce  # review before adding
         ):
             return self.render.add(skel)
 
@@ -535,7 +536,7 @@ class Tree(SkelModule):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def edit(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> t.Any:
+    def edit(self, skelType: SkelType, key: db.Key | int | str, *, bounce: bool = False, **kwargs) -> t.Any:
         """
         Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
         Data is taken by any other arguments in *kwargs*.
@@ -568,7 +569,7 @@ class Tree(SkelModule):
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
             or not skel.fromClient(kwargs, amend=True)  # failure on reading into the bones
-            or utils.parse.bool(kwargs.get("bounce"))  # review before adding
+            or bounce  # review before adding
         ):
             return self.render.edit(skel)
 
@@ -582,7 +583,7 @@ class Tree(SkelModule):
     @force_ssl
     @force_post
     @skey
-    def delete(self, skelType: SkelType, key: str, *args, **kwargs) -> t.Any:
+    def delete(self, skelType: SkelType, key: str, **kwargs) -> t.Any:
         """
         Deletes an entry or an directory (including its contents).
 
@@ -727,7 +728,7 @@ class Tree(SkelModule):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def clone(self, skelType: SkelType, key: db.Key | str | int, **kwargs):
+    def clone(self, skelType: SkelType, key: db.Key | str | int, *, bounce: bool = False, **kwargs):
         """
         Clone an existing entry, and render the entry, eventually with error notes on incorrect data.
         Data is taken by any other arguments in *kwargs*.
@@ -780,8 +781,8 @@ class Tree(SkelModule):
         if (
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
-            or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or utils.parse.bool(kwargs.get("bounce"))  # review before changing
+            or not skel.fromClient(kwargs, amend=bounce)  # failure on reading into the bones
+            or bounce  # review before changing
         ):
             return self.render.edit(skel, action="clone")
 
