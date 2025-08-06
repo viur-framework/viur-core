@@ -2,7 +2,7 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.8.0.rc1]
+## [3.8.0.rc2]
 
 - chore: Disable all compatibility flags by default (#1413)
 - chore: Enforce config strict mode (#1411)
@@ -11,6 +11,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - docs(cicd): Fix .readthedocs.yaml
 - docs(cicd): Update to Python 3.13 and latest sphinx (#1530)
 - feat: `conf.db.query_default_limit` and `conf.db.query_external_limit` (#1492)
+- feat: `db` re-integration of Google Datastore API (#1431)
 - feat: `ImageBone` (and some little splitting of skeleton.py) (#1454)
 - feat: `RelSkel.read()` with (dynamic) subskel shortcuts (#1510)
 - feat: `Script.get_importable()` endpoint (#1451)
@@ -24,7 +25,6 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - feat: History module (#1441)
 - feat: Make `skeleton.KeyType` generally available (#1527)
 - feat: Move `db.conf` to `viur.core.config` (#1464)
-- feat: `db` re-integration of Google Datastore API (#1431)
 - feat+refactor: `skel.dump()` for simplified value serialization (replacement for JSON value rendering) (#1000)
 - fix: 'dlkey' is not availabale in possible 'rel'
 - fix: `access_log` for `db.delete` (#1463)
@@ -36,6 +36,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: `query.srcSkel is None`-test and removal of time
 - fix: `RelSkel.simplified()` invalid, must be `RelSkel.dump()`
 - fix: `SelectBone.dump()` cannot handle Enum values (#1523)
+- fix: `User.is_admin()` to determine User admin privileges (#1538)
 - fix: `utils.ensure_iterable()` should handle `str` (#1496)
 - fix: Add missing imports for skeleton (#1500)
 - fix: db: Add a `Key` in `access_log` (#1466)
@@ -45,6 +46,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: History diff fixes
 - fix: Hotfix `BaseBone.dump()`
 - fix: Hotfix for BaseSkel.readonly()
+- fix: Provide `conf.i18n.auto_translate_bones` (#1542)
 - fix: Remove `bigquery` from the default databases (#1486)
 - fix: set transaction marker in `request_data` (#1481)
 - fix: Update skeleton write update relations (#1508)
@@ -52,6 +54,8 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: Use `skel.dump()` in `History` (#1522)
 - fix: Use of `skeleton.ReadFromClientErrorSeverity` invalid
 - fix+refactor: `_tasks/list` and `SkelList` (#1525)
+- fix+refactor: `(Raw|String|Text)Bone\.getSearchTags` (#1536)
+- fix+refactor: `Tree.move()` (#1541)
 - fix+refactor: `viur-relations` management, stack `RelationalBones` in `RecordBones` (#1515)
 - refactor: `db.cache` (#1512)
 - refactor: `ensureDerived` is now a JsonBone (#1517)
@@ -67,6 +71,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Replace old `db` calls (#1505)
 - refactor: Replace old db calls (#1498)
 - refactor: Silence Tasks logging (#1532)
+- refactor+fix: `bounce`-flag and `amend`-handling (#1544)
 
 ## [3.7.20]
 
