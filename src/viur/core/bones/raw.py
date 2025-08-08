@@ -29,7 +29,7 @@ class RawBone(BaseBone):
             if not value:
                 continue
 
-            for tag in re.finditer(SEARCH_TAGS, value):
+            for tag in re.finditer(SEARCH_TAGS, str(value)):
                 result.add(tag.group())
 
         return result

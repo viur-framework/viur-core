@@ -319,8 +319,8 @@ class FileLeafSkel(TreeSkel):
         languages=conf.i18n.available_languages,
     )
 
-    size = StringBone(
-        descr="Size",
+    size = NumericBone(
+        descr="Filesize in Bytes",
         readOnly=True,
         searchable=True,
     )
