@@ -2,12 +2,13 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.8.0.rc2]
+## [3.8.0]
 
 - chore: Disable all compatibility flags by default (#1413)
 - chore: Enforce config strict mode (#1411)
 - chore: Lift viur-core to Python >= 3.12 (#1516)
 - chore: Remove Pipfile and Pipfile.lock
+- docs: `Skeleton.patch()` docstring was outdated
 - docs(cicd): Fix .readthedocs.yaml
 - docs(cicd): Update to Python 3.13 and latest sphinx (#1530)
 - feat: `conf.db.query_default_limit` and `conf.db.query_external_limit` (#1492)
@@ -30,10 +31,12 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: `access_log` for `db.delete` (#1463)
 - fix: `ensureDerived.update_relations()`-call
 - fix: `ensureDerived` imports (#1499)
+- fix: `getSearchTags` convert values to string (#1545)
 - fix: `History` clean-up, part 1 (#1487)
 - fix: `History`-module improvements (#1531)
 - fix: `otp_timedrift` and its updating is broken and outdated (#1526)
 - fix: `query.srcSkel is None`-test and removal of time
+- fix: `ReadFromClientError`-usages with translated error messages (#1546)
 - fix: `RelSkel.simplified()` invalid, must be `RelSkel.dump()`
 - fix: `SelectBone.dump()` cannot handle Enum values (#1523)
 - fix: `User.is_admin()` to determine User admin privileges (#1538)

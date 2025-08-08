@@ -10,7 +10,7 @@ import typing as t
 import warnings
 from itertools import chain
 
-from viur.core import db, utils
+from viur.core import db, utils, i18n
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 
 if t.TYPE_CHECKING:
@@ -634,7 +634,12 @@ class RelationalBone(BaseBone):
         if self.using:
             rel = self.using()
             if not rel.fromClient(value):
-                errors.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Incomplete data"))
+                errors.append(
+                    ReadFromClientError(
+                        ReadFromClientErrorSeverity.Invalid,
+                        i18n.translate("core.bones.error.incomplete", "Incomplete data"),
+                    )
+                )
 
             errors.extend(rel.errors)
         else:
@@ -657,7 +662,7 @@ class RelationalBone(BaseBone):
                     value["rel"] = rel
                     return value, errors
 
-        errors.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value submitted"))
+        errors.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid))
         return self.getEmptyValue(), errors
 
     def _rewriteQuery(self, name, skel, dbFilter, rawFilter):

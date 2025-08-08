@@ -3,7 +3,7 @@ import logging
 import typing as t
 
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import db, utils, tasks
+from viur.core import db, utils, tasks, i18n
 
 if t.TYPE_CHECKING:
     from ..skeleton import SkeletonInstance
@@ -102,7 +102,10 @@ class RecordBone(BaseBone):
 
         if not usingSkel.fromClient(value):
             usingSkel.errors.append(
-                ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Incomplete data")
+                ReadFromClientError(
+                    ReadFromClientErrorSeverity.Invalid,
+                    i18n.translate("core.bones.error.incomplete", "Incomplete data"),
+                )
             )
 
         return usingSkel, usingSkel.errors

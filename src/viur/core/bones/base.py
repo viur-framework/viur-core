@@ -81,12 +81,25 @@ class ReadFromClientError:
     """
     severity: ReadFromClientErrorSeverity
     """A ReadFromClientErrorSeverity enumeration value representing the severity of the error."""
-    errorMessage: str
+    errorMessage: t.Optional[str] = None
     """A string containing a human-readable error message describing the issue."""
     fieldPath: list[str] = field(default_factory=list)
     """A list of strings representing the path to the field where the error occurred."""
     invalidatedFields: list[str] = None
     """A list of strings containing the names of invalidated fields, if any."""
+
+    def __post_init__(self):
+        if not self.errorMessage:
+            self.errorMessage = {
+                ReadFromClientErrorSeverity.NotSet:
+                    i18n.translate("core.bones.error.notset", "Field not submitted"),
+                ReadFromClientErrorSeverity.InvalidatesOther:
+                    i18n.translate("core.bones.error.invalidatesother", "Field invalidates another field"),
+                ReadFromClientErrorSeverity.Empty:
+                    i18n.translate("core.bones.error.empty", "Field not set"),
+                ReadFromClientErrorSeverity.Invalid:
+                    i18n.translate("core.bones.error.invalid", "Invalid value provided"),
+            }[self.severity]
 
     def __str__(self):
         return f"{'.'.join(self.fieldPath)}: {self.errorMessage} [{self.severity.name}]"
@@ -680,7 +693,8 @@ class BaseBone(object):
         """
         # The BaseBone will not read any client_data in fromClient. Use rawValueBone if needed.
         return self.getEmptyValue(), [
-            ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Will not read a BaseBone fromClient!")]
+            ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Will not read a BaseBone from client!")
+        ]
 
     def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> None | list[ReadFromClientError]:
         """
@@ -698,7 +712,8 @@ class BaseBone(object):
         subFields = self.parseSubfieldsFromClient()
         parsedData, fieldSubmitted = self.collectRawClientData(name, data, self.multiple, self.languages, subFields)
         if not fieldSubmitted:
-            return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "Field not submitted")]
+            return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet)]
+
         errors = []
         isEmpty = True
         filled_languages = set()
@@ -774,10 +789,13 @@ class BaseBone(object):
         if self.languages and isinstance(self.required, (list, tuple)):
             missing = set(self.required).difference(filled_languages)
             if missing:
-                return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "Field not set", fieldPath=[lang])
-                        for lang in missing]
+                return [
+                    ReadFromClientError(ReadFromClientErrorSeverity.Empty, fieldPath=[lang])
+                    for lang in missing
+                ]
+
         if isEmpty:
-            return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "Field not set")]
+            return [ReadFromClientError(ReadFromClientErrorSeverity.Empty)]
 
         # Check multiple constraints on demand
         if self.multiple and isinstance(self.multiple, MultipleConstraints):
@@ -821,14 +839,29 @@ class BaseBone(object):
         value = self._get_destinct_hash(skel[name])
 
         if constraints.min and len(value) < constraints.min:
-            res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Too few items"))
+            res.append(
+                ReadFromClientError(
+                    ReadFromClientErrorSeverity.Invalid,
+                    i18n.translate("core.bones.error.toofewitems", "Too few items")
+                )
+            )
 
         if constraints.max and len(value) > constraints.max:
-            res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Too many items"))
+            res.append(
+                ReadFromClientError(
+                    ReadFromClientErrorSeverity.Invalid,
+                    i18n.translate("core.bones.error.toomanyitems", "Too many items")
+                )
+            )
 
         if not constraints.duplicates:
             if len(set(value)) != len(value):
-                res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Duplicate items"))
+                res.append(
+                    ReadFromClientError(
+                        ReadFromClientErrorSeverity.Invalid,
+                        i18n.translate("core.bones.error.duplicateitems", "Duplicate items"),
+                    )
+                )
 
         return res
 

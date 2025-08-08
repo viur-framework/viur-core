@@ -4,7 +4,7 @@ import typing as t
 import pytz
 import tzlocal
 
-from viur.core import conf, current, db
+from viur.core import conf, current, db, i18n
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.utils import utcNow
 
@@ -177,12 +177,15 @@ class DateBone(BaseBone):
 
         if not value:
             return self.getEmptyValue(), [
-                ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")
+                ReadFromClientError(ReadFromClientErrorSeverity.Invalid)
             ]
 
         if value.tzinfo and self.naive:
             return self.getEmptyValue(), [
-                ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Datetime must be naive")
+                ReadFromClientError(
+                    ReadFromClientErrorSeverity.Invalid,
+                    i18n.translate("core.bones.error.datetimenaive", "Datetime must be naive")
+                )
             ]
 
         if not value.tzinfo and not self.naive:

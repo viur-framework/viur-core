@@ -7,7 +7,7 @@ import string
 import typing as t
 import warnings
 from html.parser import HTMLParser
-from viur.core import db, conf
+from viur.core import db, conf, i18n
 from .base import ReadFromClientError, ReadFromClientErrorSeverity
 from .raw import RawBone
 
@@ -376,10 +376,10 @@ class TextBone(RawBone):
         :rtype: Optional[str]
         """
 
-        if value == None:
-            return "No value entered"
+        if value is None:
+            return i18n.translate("core.bones.error.novalueentered", "No value entered")
         if len(value) > self.max_length:
-            return "Maximum length exceeded"
+            return i18n.translate("core.bones.error.maximumlengthexceeded", "Maximum length exceeded")
 
     def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
