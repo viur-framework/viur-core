@@ -227,7 +227,7 @@ class SpatialBone(BaseBone):
             # Check for NaNs
             assert rawLat == rawLat
             assert rawLng == rawLng
-        except:
+        except (ValueError, AssertionError):
             return self.getEmptyValue(), [
                 ReadFromClientError(ReadFromClientErrorSeverity.Invalid)]
         err = self.isInvalid((rawLat, rawLng))

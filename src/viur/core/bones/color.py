@@ -21,7 +21,7 @@ class ColorBone(BaseBone):
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
         value = value.lower()
-        
+
         if value.count("#") > 1:
             return self.getEmptyValue(), [
                 ReadFromClientError(ReadFromClientErrorSeverity.Invalid)]

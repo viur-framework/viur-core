@@ -2,7 +2,7 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.8.0]
+## [3.8.0.rc3]
 
 - chore: Disable all compatibility flags by default (#1413)
 - chore: Enforce config strict mode (#1411)

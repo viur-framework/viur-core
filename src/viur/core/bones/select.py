@@ -131,7 +131,7 @@ class SelectBone(BaseBone):
             return self.getEmptyValue(), [
                 ReadFromClientError(
                     ReadFromClientErrorSeverity.Empty,
-                    translate("core.bones.errors.noselected", "No value selected"),
+                    translate("core.bones.error.nothingselected", "No value selected"),
                 )
             ]
 
@@ -145,7 +145,7 @@ class SelectBone(BaseBone):
         return self.getEmptyValue(), [
             ReadFromClientError(
                 ReadFromClientErrorSeverity.Invalid,
-                translate("core.bones.errors.invalidselected", "Invalid value selected"),
+                translate("core.bones.error.invalidselected", "Invalid value selected"),
             )
         ]
 

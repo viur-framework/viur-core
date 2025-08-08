@@ -36,7 +36,7 @@ class EmailBone(StringBone):
         if not value:
             return i18n.translate("core.bones.error.novalueentered", "No value entered")
 
-        isValid = True
+        is_valid = True
 
         try:
             assert len(value) < 256
@@ -45,26 +45,24 @@ class EmailBone(StringBone):
             assert account and subDomain and tld
             assert subDomain[0] != "."
             assert len(account) <= 64
-        except:
-            isValid = False
+        except (ValueError, AssertionError):
+            is_valid = False
 
-        if isValid:
+        if is_valid:
             validChars = string.ascii_letters + string.digits + "!#$%&'*+-/=?^_`{|}~."
             unicodeLowerBound = u"\u0080"
             unicodeUpperBound = u"\U0010FFFF"
             for char in account:
                 if not (char in validChars or (char >= unicodeLowerBound and char <= unicodeUpperBound)):
-                    isValid = False
+                    is_valid = False
             try:
                 idna.ToASCII(subDomain)
                 idna.ToASCII(tld)
-            except:
-                isValid = False
+            except Exception:
+                is_valid = False
 
             if " " in subDomain or " " in tld:
-                isValid = False
+                is_valid = False
 
-        if isValid:
-            return None
-        else:
-            return i18n.translate("core.bones.error.invaldemail", "Invalid email entered")
+        if not is_valid:
+            return i18n.translate("core.bones.error.invalidemail", "Invalid email entered")
