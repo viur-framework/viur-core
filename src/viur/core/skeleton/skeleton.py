@@ -728,10 +728,12 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         :param create: Allows to specify a dict or initial callable that is executed in case the Skeleton with the
             given key does not exist.
         :param update_relations: Trigger update relations task on success. Defaults to False.
-        :param trust: Use internal `fromClient` with trusted data (may change readonly-bones)
-        :param retry: On RuntimeError, retry for this amount of times.
+        :param ignore: optional list of bones to be ignored from values; Defaults to an empty list,
+            so that all bones are accepted (even read-only ones, as skel.patch() is being used internally)
+        :param retry: On RuntimeError, retry for this amount of times. - DEPRECATED!
 
-        If the function does not raise an Exception, all went well. The function always returns the input Skeleton.
+        If the function does not raise an Exception, all went well.
+        The function always returns the input Skeleton.
 
         Raises:
             ValueError: In case parameters where given wrong or incomplete.
