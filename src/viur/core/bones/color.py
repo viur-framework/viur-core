@@ -1,5 +1,6 @@
 import string
-from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core import i18n
+from .base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 
 class ColorBone(BaseBone):
@@ -20,13 +21,16 @@ class ColorBone(BaseBone):
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
         value = value.lower()
+
         if value.count("#") > 1:
             return self.getEmptyValue(), [
-                ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
+                ReadFromClientError(ReadFromClientErrorSeverity.Invalid)]
+
         for char in value:
             if char not in string.hexdigits + "#":
                 return self.getEmptyValue(), [
-                    ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
+                    ReadFromClientError(ReadFromClientErrorSeverity.Invalid)]
+
         if self.mode == "rgb":
             if len(value) == 3:
                 value = "#" + value
@@ -37,15 +41,18 @@ class ColorBone(BaseBone):
                     value = "#" + value
             else:
                 return self.getEmptyValue(), [
-                    ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
+                    ReadFromClientError(ReadFromClientErrorSeverity.Invalid)]
+
         if self.mode == "rgba":
             if len(value) == 8 or len(value) == 9:
                 if len(value) == 8:
                     value = "#" + value
             else:
                 return self.getEmptyValue(), [
-                    ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
+                    ReadFromClientError(ReadFromClientErrorSeverity.Invalid)]
+
         err = self.isInvalid(value)
         if not err:
             return value, None
+
         return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]

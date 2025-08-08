@@ -1,8 +1,7 @@
 import string
 from encodings import idna
-
 from viur.core.bones.string import StringBone
-
+from viur.core import i18n
 
 class EmailBone(StringBone):
     """
@@ -35,7 +34,10 @@ class EmailBone(StringBone):
         7. The local part (account) can also contain Unicode characters within the range of U+0080 to U+10FFFF.
         """
         if not value:
-            return "No value entered"
+            return i18n.translate("core.bones.error.novalueentered", "No value entered")
+
+        is_valid = True
+
         try:
             assert len(value) < 256
             account, domain = value.split(u"@")
@@ -43,23 +45,24 @@ class EmailBone(StringBone):
             assert account and subDomain and tld
             assert subDomain[0] != "."
             assert len(account) <= 64
-        except:
-            return "Invalid email entered"
-        isValid = True
-        validChars = string.ascii_letters + string.digits + "!#$%&'*+-/=?^_`{|}~."
-        unicodeLowerBound = u"\u0080"
-        unicodeUpperBound = u"\U0010FFFF"
-        for char in account:
-            if not (char in validChars or (char >= unicodeLowerBound and char <= unicodeUpperBound)):
-                isValid = False
-        try:
-            idna.ToASCII(subDomain)
-            idna.ToASCII(tld)
-        except:
-            isValid = False
-        if " " in subDomain or " " in tld:
-            isValid = False
-        if isValid:
-            return None
-        else:
-            return "Invalid email entered"
+        except (ValueError, AssertionError):
+            is_valid = False
+
+        if is_valid:
+            validChars = string.ascii_letters + string.digits + "!#$%&'*+-/=?^_`{|}~."
+            unicodeLowerBound = u"\u0080"
+            unicodeUpperBound = u"\U0010FFFF"
+            for char in account:
+                if not (char in validChars or (char >= unicodeLowerBound and char <= unicodeUpperBound)):
+                    is_valid = False
+            try:
+                idna.ToASCII(subDomain)
+                idna.ToASCII(tld)
+            except Exception:
+                is_valid = False
+
+            if " " in subDomain or " " in tld:
+                is_valid = False
+
+        if not is_valid:
+            return i18n.translate("core.bones.error.invalidemail", "Invalid email entered")

@@ -128,7 +128,12 @@ class SelectBone(BaseBone):
 
         value = str(value)
         if not value:
-            return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value selected")]
+            return self.getEmptyValue(), [
+                ReadFromClientError(
+                    ReadFromClientErrorSeverity.Empty,
+                    translate("core.bones.error.nothingselected", "No value selected"),
+                )
+            ]
 
         for key in self.values.keys():
             if str(key) == value:
@@ -138,7 +143,10 @@ class SelectBone(BaseBone):
                 return key, None
 
         return self.getEmptyValue(), [
-            ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value selected")
+            ReadFromClientError(
+                ReadFromClientErrorSeverity.Invalid,
+                translate("core.bones.error.invalidselected", "Invalid value selected"),
+            )
         ]
 
     def structure(self) -> dict:
