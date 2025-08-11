@@ -52,7 +52,7 @@ class Session(db.Entity):
     """
     kindName = "viur-session"
     same_site = "lax"  # Either None (don't issue same_site header), "none", "lax" or "strict"
-    use_session_cookie = True  # If True, issue the cookie without a lifeTime (will disappear on browser close)
+    use_session_cookie = False  # If True, issue the cookie without a lifeTime (will disappear on browser close)
     cookie_name = f"""viur_cookie_{conf.instance.project_id}"""
     GUEST_USER = "__guest__"
 
@@ -135,7 +135,7 @@ class Session(db.Entity):
             "HttpOnly",
             f"SameSite={self.same_site}" if self.same_site and not conf.instance.is_dev_server else None,
             "Secure" if not conf.instance.is_dev_server else None,
-            f"Max-Age={conf.user.session_life_time.total_seconds()}" if not self.use_session_cookie else None,
+            f"Max-Age={int(conf.user.session_life_time.total_seconds())}" if not self.use_session_cookie else None,
         )
 
         current_request.response.headerlist.append(
