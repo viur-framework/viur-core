@@ -570,6 +570,7 @@ class RelationalBone(BaseBone):
                 value = [value for value in values if value["dest"]["key"] == entity["dest"].key][0]
                 # ... and remove it from the list of values
                 values.remove(value)
+                values_keys.remove(entity["dest"]["key"])
 
                 # Update existing database entry
                 __update_relation(entity, value)
