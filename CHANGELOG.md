@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.0.rc4]
+
+- fix: Remove key form values_keys (#1548)
+- fix: Cookie lifetime (#1547)
+
 ## [3.8.0.rc3]
 
 - chore: Disable all compatibility flags by default (#1413)
