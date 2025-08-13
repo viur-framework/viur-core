@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.0.rc5]
+
+- fix: relational bone post saved handler (#1549)
+
 ## [3.8.0.rc4]
 
 - fix: Remove key form values_keys (#1548)
