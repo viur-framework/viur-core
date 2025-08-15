@@ -177,26 +177,6 @@ def build_content_disposition_header(
     return content_disposition
 
 
-def remove_render_preparation_deep(skel: t.Any) -> "SkeletonInstance":
-    """Remove renderPreparation of nested skeletons
-
-    _refSkelCache can have renderPreparation too.
-    """
-    from viur.core.skeleton import SkeletonInstance  # Circular import
-
-    if isinstance(skel, SkeletonInstance):
-        skel.renderPreparation = None
-        for bone, value in skel.items(yieldBoneValues=True):
-            remove_render_preparation_deep(value)
-    elif isinstance(skel, dict):
-        for value in skel.values():
-            remove_render_preparation_deep(value)
-    elif isinstance(skel, (list, tuple, set)):
-        for value in skel:
-            remove_render_preparation_deep(value)
-    return skel
-
-
 # DEPRECATED ATTRIBUTES HANDLING
 __UTILS_CONF_REPLACEMENT = {
     "projectID": "viur.instance.project_id",
