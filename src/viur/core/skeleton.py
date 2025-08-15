@@ -1873,7 +1873,7 @@ def remove_render_preparation_deep(skel: t.Any) -> SkeletonInstance:
     """
     if isinstance(skel, SkeletonInstance):
         skel.renderPreparation = None
-        for bone, value in skel.items(yieldBoneValues=True):
+        for _, value in skel.items(yieldBoneValues=True):
             remove_render_preparation_deep(value)
     elif isinstance(skel, dict):
         for value in skel.values():
