@@ -1866,7 +1866,7 @@ def iterAllSkelClasses() -> t.Iterable[Skeleton]:
         yield cls
 
 
-def remove_render_preparation_deep(skel: t.Any) -> SkeletonInstance:
+def remove_render_preparation_deep(skel: t.Any) -> t.Any:
     """Remove renderPreparation of nested skeletons
 
     _refSkelCache can have renderPreparation too.
