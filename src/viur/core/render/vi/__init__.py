@@ -14,7 +14,7 @@ class default(DefaultRender):
     kind = "json.vi"
 
 
-__all__ = [default,user]
+__all__ = [default, user]
 
 
 @exposed
