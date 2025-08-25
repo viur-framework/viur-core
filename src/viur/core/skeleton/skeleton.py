@@ -113,7 +113,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         readOnly=True,
         visible=False,
         indexed=True,
-        compute=Compute(fn=utils.utcNow, interval=ComputeInterval(ComputeMethod.Once)),
+        compute=Compute(
+            lambda: utils.utcNow().replace(microsecond=0),
+            interval=ComputeInterval(ComputeMethod.Once)
+        ),
     )
 
     # The last date (including time) when this entry has been updated
@@ -123,7 +126,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         readOnly=True,
         visible=False,
         indexed=True,
-        compute=Compute(fn=utils.utcNow, interval=ComputeInterval(ComputeMethod.OnWrite)),
+        compute=Compute(
+            lambda: utils.utcNow().replace(microsecond=0),
+            interval=ComputeInterval(ComputeMethod.OnWrite)
+        ),
     )
 
     viurCurrentSeoKeys = SeoKeyBone(
