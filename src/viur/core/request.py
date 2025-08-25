@@ -192,9 +192,13 @@ class Router:
                     # no q => q = 1
                     locale_q_pairs.append((language.strip(), "1"))
                 else:
-                    locale = language.split(";")[0].strip()
-                    q = language.split(";")[1].split("=")[1]
-                    locale_q_pairs.append((locale, q))
+                    try:
+                        locale = language.split(";")[0].strip()
+                        q = language.split(";")[1].split("=")[1]
+                        locale_q_pairs.append((locale, q))
+                    except IndexError:
+                        continue  # skip language
+            locale_q_pairs.sort(key=lambda pair: pair[1], reverse=True)  # sort by Quality values
             for locale_q_pair in locale_q_pairs:
                 if "-" in locale_q_pair[0]:  # Check for de-DE
                     lang = locale_q_pair[0].split("-")[0]
@@ -202,6 +206,8 @@ class Router:
                     lang = locale_q_pair[0]
                 if lang in conf.i18n.available_languages + list(conf.i18n.language_alias_map.keys()):
                     return lang
+                if lang == "*":  # fallback
+                    return conf.i18n.available_languages[0]
             return None
 
         if not conf.i18n.available_languages:

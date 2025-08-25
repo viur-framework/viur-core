@@ -9,7 +9,7 @@ from .meta import MetaSkel, MetaBaseSkel, BaseSkeleton, KeyType
 
 from .relskel import RelSkel, RefSkel
 from .skeleton import Skeleton, SeoKeyBone, _UNDEFINED_KINDNAME
-from .utils import SkelList, skeletonByKind, listKnownSkeletons, iterAllSkelClasses
+from .utils import SkelList, skeletonByKind, listKnownSkeletons, iterAllSkelClasses, remove_render_preparation_deep
 
 
 # Forward our references to SkelInstance to the database (needed for queries)
@@ -36,18 +36,19 @@ def __getattr__(attr: str) -> object:
 __all__ = [
     BaseSkeleton,
     DatabaseAdapter,
+    getSystemInitialized,  # FIXME: This is an import from BaseBone
     iterAllSkelClasses,
     listKnownSkeletons,
     MetaBaseSkel,
     MetaSkel,
     RefSkel,
     RelSkel,
+    remove_render_preparation_deep,
     SeoKeyBone,
     Skeleton,
     skeletonByKind,
     SkeletonInstance,
     SkelList,
     ViurTagsSearchAdapter,
-    getSystemInitialized,  # FIXME: This is an import from BaseBone
     _UNDEFINED_KINDNAME
 ]

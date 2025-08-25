@@ -2,17 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.8.0.rc5]
+## [3.8.0.rc6]
 
 - fix: relational bone post saved handler (#1549)
-
-## [3.8.0.rc4]
-
 - fix: Remove key form values_keys (#1548)
 - fix: Cookie lifetime (#1547)
-
-## [3.8.0.rc3]
-
 - chore: Disable all compatibility flags by default (#1413)
 - chore: Enforce config strict mode (#1411)
 - chore: Lift viur-core to Python >= 3.12 (#1516)
@@ -84,6 +78,11 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Replace old db calls (#1498)
 - refactor: Silence Tasks logging (#1532)
 - refactor+fix: `bounce`-flag and `amend`-handling (#1544)
+
+## [3.7.21]
+
+- fix: Remove renderPreparation of nested skeletons (#1511)
+- fix: Add `try/except` for `get_language_from_header` (#1507)
 
 ## [3.7.20]
 
