@@ -18,7 +18,14 @@ class DatabaseAdapter:
     providesCustomQueries: bool = False
     """Indicate that we can run more types of queries than originally supported by datastore"""
 
-    def prewrite(self, skel: "SkeletonInstance", is_add: bool, change_list: t.Iterable[str] = ()):
+    def prewrite(
+        self,
+        skel: "SkeletonInstance",
+        *,
+        is_add: bool,
+        change_list: t.Iterable[str] = (),
+        update_relations: bool = False,
+    ):
         """
         Hook being called on a add, edit or delete operation before the skeleton-specific action is performed.
 
@@ -31,7 +38,14 @@ class DatabaseAdapter:
         """
         pass
 
-    def write(self, skel: "SkeletonInstance", is_add: bool, change_list: t.Iterable[str] = ()):
+    def write(
+        self,
+        skel: "SkeletonInstance",
+        *,
+        is_add: bool,
+        change_list: t.Iterable[str] = (),
+        update_relations: bool = False,
+    ):
         """
         Hook being called on a write operations after the skeleton is written.
 
@@ -106,7 +120,7 @@ class ViurTagsSearchAdapter(DatabaseAdapter):
 
         return res
 
-    def prewrite(self, skel: "SkeletonInstance", *args, **kwargs):
+    def prewrite(self, skel: "SkeletonInstance", **kwargs):
         """
         Collect searchTags from skeleton and build viurTags
         """

@@ -916,7 +916,7 @@ class BaseBone(object):
             elif self.multiple:
                 res = []
 
-                assert newVal is None or isinstance(newVal, (list, tuple)), \
+                assert newVal is None or isinstance(newVal, (list, tuple, set)), \
                     f"Cannot handle {repr(newVal)} here. Expecting list or tuple."
 
                 for singleValue in (newVal or ()):

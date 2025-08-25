@@ -515,7 +515,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             # Allow the database adapter to apply last minute changes to the object
             for adapter in skel.database_adapters:
-                adapter.prewrite(skel, is_add, change_list)
+                adapter.prewrite(skel, is_add=is_add, change_list=change_list, update_relations=update_relations)
 
             # ViUR2 import compatibility - remove properties containing. if we have a dict with the same name
             def fixDotNames(entity):
@@ -604,7 +604,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         # Trigger the database adapter of the changes made to the entry
         for adapter in skel.database_adapters:
-            adapter.write(skel, is_add, change_list)
+            adapter.write(skel, is_add=is_add, change_list=change_list, update_relations=update_relations)
 
         return skel
 

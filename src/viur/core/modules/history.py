@@ -276,14 +276,14 @@ class HistoryAdapter(DatabaseAdapter):
         # add excludes to diff excludes
         self.diff_excludes = set(excludes)
 
-    def prewrite(self, skel, is_add, change_list=()):
-        if not is_add:  # edit
+    def prewrite(self, skel, *, is_add, change_list, update_relations, **kwargs):
+        if not is_add and update_relations:  # edit
             old_skel = skel.clone()
             old_skel.read(skel["key"])
             self.trigger("edit", old_skel, skel, change_list)
 
-    def write(self, skel, is_add, change_list=()):
-        if is_add:  # add
+    def write(self, skel, *, is_add, update_relations, **kwargs):
+        if is_add and update_relations:  # add
             self.trigger("add", None, skel)
 
     def delete(self, skel):
@@ -311,7 +311,7 @@ class HistoryAdapter(DatabaseAdapter):
             return None
 
         # FIXME: Turn change_list into set, in entire Core...
-        if change_list and not set(change_list).difference(self.diff_excludes):
+        if not (change_list := set(change_list).difference(self.diff_excludes)):
             logging.info("change_list is empty, nothing to write")
             return None
 
