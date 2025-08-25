@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.7.21]
+
+- fix: Remove renderPreparation of nested skeletons (#1511)
+- fix: Add `try/except` for `get_language_from_header` (#1507)
+
 ## [3.7.20]
 
 - fix: Ensure redirect's location header is always utf-8 encoded/quoted (#1504)
