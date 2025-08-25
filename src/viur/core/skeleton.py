@@ -1866,6 +1866,24 @@ def iterAllSkelClasses() -> t.Iterable[Skeleton]:
         yield cls
 
 
+def remove_render_preparation_deep(skel: t.Any) -> t.Any:
+    """Remove renderPreparation of nested skeletons
+
+    _refSkelCache can have renderPreparation too.
+    """
+    if isinstance(skel, SkeletonInstance):
+        skel.renderPreparation = None
+        for _, value in skel.items(yieldBoneValues=True):
+            remove_render_preparation_deep(value)
+    elif isinstance(skel, dict):
+        for value in skel.values():
+            remove_render_preparation_deep(value)
+    elif isinstance(skel, (list, tuple, set)):
+        for value in skel:
+            remove_render_preparation_deep(value)
+    return skel
+
+
 ### Tasks ###
 
 @CallDeferred
