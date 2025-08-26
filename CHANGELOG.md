@@ -2,8 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.8.0.rc6]
+## [3.8.0.rc7]
 
+- fix: SEARCH_TAGS regex was too restricting (#1553)
+- refactor+fix: `DateBone` and creationdate/changedate computes (#1551)
 - fix: relational bone post saved handler (#1549)
 - fix: Remove key form values_keys (#1548)
 - fix: Cookie lifetime (#1547)
