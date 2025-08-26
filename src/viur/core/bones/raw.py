@@ -1,7 +1,7 @@
 import re
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
-SEARCH_TAGS = re.compile(r"\w+")
+SEARCH_TAGS = re.compile(r"[^\s]+")
 
 
 class RawBone(BaseBone):
