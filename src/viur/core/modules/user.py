@@ -329,8 +329,8 @@ class UserPassword(UserPrimaryAuthentication):
         skel = self.LoginSkel()
 
         # Read required bones from client
-        if not skel.fromClient(kwargs):
-            return self._user_module.render.login(skel, action="login")
+        if not (kwargs and skel.fromClient(kwargs)):
+            return self._user_module.render.render("login", skel)
 
         self.loginRateLimit.assertQuotaIsAvailable()
 
@@ -366,14 +366,14 @@ class UserPassword(UserPrimaryAuthentication):
                     )
 
             self.loginRateLimit.decrementQuota()  # Only failed login attempts will count to the quota
-            return self._user_module.render.login(skel, action="login")
+            return self._user_module.render.render("login", skel)
 
         # check if iterations are below current security standards, and update if necessary.
         if iterations < PBKDF2_DEFAULT_ITERATIONS:
             logging.info(f"Update password hash for user {name}.")
             # re-hash the password with more iterations
             # FIXME: This must be done within a transaction!
-            user_skel["password"] = password  # will be hashed on serialize
+            user_skel["password"] = kwargs["password"]  # will be hashed on serialize
             user_skel.write(update_relations=False)
 
         return self.next_or_finish(user_skel)
@@ -994,20 +994,22 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
     """
     METHOD_NAME = "X-VIUR-2FACTOR-AuthenticatorOTP"
 
-    second_factor_add_template = "user_secondfactor_add"
-    """Template to configure (add) a new TOPT"""
+    # second_factor_add_template = "user_secondfactor_add"
+    # """Template to configure (add) a new TOPT"""
 
     ACTION_NAME = "authenticator_otp"
     """Action name provided for *otp_template* on login"""
 
     NAME = "Authenticator App"
 
+    # FIXME: The second factor add has to be rewritten entirely to ActionSkel paradigm.
+    '''
     @exposed
     @force_ssl
     @skey(allow_empty=True)
     def add(self, otp=None):
         """
-        We try to read the otp_app_secret form the current session. When this fails we generate a new one and store
+        We try to read the otp_app_secret from the current session. When this fails we generate a new one and store
         it in the session.
 
         If an otp and a skey are provided we are validate the skey and the otp. If both is successfully we store
@@ -1051,6 +1053,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
                     default_variables={"name": self.NAME},
                 ),
             )
+    '''
 
     def can_handle(self, skel: skeleton.SkeletonInstance) -> bool:
         """
@@ -1511,7 +1514,7 @@ class User(List):
 
         self.onLogin(skel)
 
-        return self.render.loginSucceeded(**kwargs)
+        return self.render.render("login_success", skel, **kwargs)
 
     # Action for primary authentication selection
 
@@ -1568,7 +1571,7 @@ class User(List):
 
     @exposed
     @skey
-    def logout(self, *args, **kwargs):
+    def logout(self, **kwargs):
         """
             Implements the logout action. It also terminates the current session (all keys not listed
             in viur.session_persistent_fields_on_logout will be lost).
@@ -1579,13 +1582,16 @@ class User(List):
         self.onLogout(user)
 
         session = current.session.get()
+
         if take_over := {k: v for k, v in session.items() if k in conf.user.session_persistent_fields_on_logout}:
             session.reset()
             session |= take_over
         else:
             session.clear()
+
         current.user.set(None)  # set user to none in context var
-        return self.render.logoutSuccess()
+
+        return self.render.render("logout_success")
 
     @exposed
     def login(self, *args, **kwargs):
