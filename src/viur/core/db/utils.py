@@ -83,8 +83,7 @@ def key_helper(
         # Try to parse key from str
         try:
             decoded_key = normalize_key(in_key)
-        except Exception as e:
-            print(f"Failed to decode key: {in_key!r} {e}")
+        except Exception:
             decoded_key = None
 
         # If it did decode, recall keyHelper with Key object
