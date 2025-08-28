@@ -102,7 +102,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         descr="Name",
         visible=False,
         compute=Compute(
-            fn=lambda skel: str(skel["key"]),
+            fn=lambda skel: f"{skel["key"].kind}/{skel["key"].id_or_name}" if skel["key"] else None,
             interval=ComputeInterval(ComputeMethod.OnWrite)
         )
     )
