@@ -2,13 +2,8 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.8.0.rc7]
+## [3.8.0.rc8]
 
-- fix: SEARCH_TAGS regex was too restricting (#1553)
-- refactor+fix: `DateBone` and creationdate/changedate computes (#1551)
-- fix: relational bone post saved handler (#1549)
-- fix: Remove key form values_keys (#1548)
-- fix: Cookie lifetime (#1547)
 - chore: Disable all compatibility flags by default (#1413)
 - chore: Enforce config strict mode (#1411)
 - chore: Lift viur-core to Python >= 3.12 (#1516)
@@ -47,6 +42,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: `User.is_admin()` to determine User admin privileges (#1538)
 - fix: `utils.ensure_iterable()` should handle `str` (#1496)
 - fix: Add missing imports for skeleton (#1500)
+- fix: Cookie lifetime (#1547)
 - fix: db: Add a `Key` in `access_log` (#1466)
 - fix: db: Set the correct variable in `order` (#1467)
 - fix: Deprecation warning for replaced `renderSkelValues()`
@@ -54,8 +50,12 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: History diff fixes
 - fix: Hotfix `BaseBone.dump()`
 - fix: Hotfix for BaseSkel.readonly()
+- fix: Improved computed `skel["name"]` default
 - fix: Provide `conf.i18n.auto_translate_bones` (#1542)
+- fix: relational bone post saved handler (#1549)
 - fix: Remove `bigquery` from the default databases (#1486)
+- fix: Remove key form values_keys (#1548)
+- fix: SEARCH_TAGS regex was too restricting (#1553)
 - fix: set transaction marker in `request_data` (#1481)
 - fix: Update skeleton write update relations (#1508)
 - fix: Use `conf.main_app.file.create_download_url` due deprecation
@@ -79,7 +79,9 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Replace old `db` calls (#1505)
 - refactor: Replace old db calls (#1498)
 - refactor: Silence Tasks logging (#1532)
+- refactor: User-Login rendering (#1554)
 - refactor+fix: `bounce`-flag and `amend`-handling (#1544)
+- refactor+fix: `DateBone` and creationdate/changedate computes (#1551)
 
 ## [3.7.21]
 
