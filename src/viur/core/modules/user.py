@@ -199,6 +199,14 @@ class UserAuthentication(Module, abc.ABC):
         """
         ...
 
+    @property
+    @staticmethod
+    def VISIBLE(cls) -> bool:
+        """
+        Defines if the authentication method is visible to the user.
+        """
+        return True
+
     def __init__(self, moduleName, modulePath, userModule):
         super().__init__(moduleName, modulePath)
         self._user_module = userModule
@@ -1428,7 +1436,9 @@ class User(List):
 
         # In case there is more than one second factor provider remaining, let the user decide!
         current.session.get()["_secondfactor_providers"] = {
-            second_factor.start_url: second_factor.NAME for second_factor in second_factor_providers
+            second_factor.start_url: second_factor.NAME
+            for second_factor in second_factor_providers
+            if second_factor.VISIBLE
         }
 
         return self.select_secondfactor_provider()
@@ -1522,6 +1532,9 @@ class User(List):
         providers = {}
         first = None
         for provider in self.authenticationProviders:
+            if not provider.VISIBLE:
+                continue
+
             provider = getattr(self, f"auth_{provider.__name__.lower()}")
             providers[provider.start_url] = provider.NAME
 
@@ -1543,7 +1556,7 @@ class User(List):
         skel = self.SelectAuthenticationProviderSkel()
 
         # Read required bones from client
-        if len(self.authenticationProviders) > 1 and (not kwargs or not skel.fromClient(kwargs)):
+        if len(skel.provider.values) > 1 and (not kwargs or not skel.fromClient(kwargs)):
             return self.render.render("select_authentication_provider", skel)
 
         return self.render.render("select_authentication_provider_success", skel, next_url=skel["provider"])
