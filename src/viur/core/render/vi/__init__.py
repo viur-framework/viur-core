@@ -6,7 +6,6 @@ from viur.core import Module, conf, current, errors
 from viur.core.decorators import *
 from viur.core.render.json import skey as json_render_skey
 from viur.core.render.json.default import CustomJsonEncoder, DefaultRender
-from viur.core.render.vi.user import UserRender as user  # noqa: this import must exist!
 from viur.core.skeleton import SkeletonInstance
 
 
@@ -14,7 +13,7 @@ class default(DefaultRender):
     kind = "json.vi"
 
 
-__all__ = [default, user]
+__all__ = [default]
 
 
 @exposed
