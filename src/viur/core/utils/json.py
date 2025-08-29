@@ -47,7 +47,14 @@ class ViURJsonEncoder(json.JSONEncoder):
             return tuple(ViURJsonEncoder.preprocess(value) for value in obj)
 
         elif hasattr(obj, "__class__") and obj.__class__.__name__ == "SkeletonInstance":  # SkeletonInstance
-            return {bone_name: ViURJsonEncoder.preprocess(obj[bone_name]) for bone_name in obj}
+            data = obj.dbEntity
+            if data is None:
+                data ={}
+            return {
+                ".__entity__": ViURJsonEncoder.preprocess(dict(data)),
+                ".__key__": str(obj["key"]) if obj["key"] else None,
+                ".__skel__": obj.kindName
+            }
 
         return obj
 
@@ -80,6 +87,15 @@ def _decode_object_hook(obj: t.Any):
         entity = db.Entity(db.Key.from_legacy_urlsafe(obj[".__key__"]) if obj[".__key__"] else None)
         entity.update(obj[".__entity__"])
         return entity
+    elif len(obj) == 3 and all(k in obj for k in (".__entity__", ".__key__", ".__skel__")):
+        from viur.core.skeleton.utils import skeletonByKind
+        skel = skeletonByKind(obj[".__skel__"])()
+        entity = db.Entity()
+        if obj[".__key__"]:
+            entity.key = db.Key.from_legacy_urlsafe(obj[".__key__"])
+        entity.update(obj[".__entity__"])
+        skel |= entity
+        return skel
 
     return obj
 
