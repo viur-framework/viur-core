@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_449d6c2f6cb6a0b5___init___py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.10.5">coverage.py v7.10.5</a>,
-            created at 2025-08-25 07:54 +0000
+            created at 2025-08-29 14:59 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -161,7 +161,7 @@
     <p class="mis show_mis"><span class="n"><a id="t77" href="#t77">77</a></span><span class="t">        <span class="nam">key</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">key_from_query</span><span class="op">(</span><span class="nam">orig_query</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t78" href="#t78">78</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t79" href="#t79">79</a></span><span class="t">        <span class="com"># We don't have it cached - try to load it from DB</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t80" href="#t80">80</a></span><span class="t">        <span class="nam">index</span> <span class="op">=</span> <span class="nam">db</span><span class="op">.</span><span class="nam">Get</span><span class="op">(</span><span class="nam">db</span><span class="op">.</span><span class="nam">Key</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">_db_type</span><span class="op">,</span> <span class="nam">key</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t80" href="#t80">80</a></span><span class="t">        <span class="nam">index</span> <span class="op">=</span> <span class="nam">db</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="nam">db</span><span class="op">.</span><span class="nam">Key</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">_db_type</span><span class="op">,</span> <span class="nam">key</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t81" href="#t81">81</a></span><span class="t">        <span class="key">if</span> <span class="nam">index</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t82" href="#t82">82</a></span><span class="t">            <span class="key">return</span> <span class="nam">index</span><span class="op">[</span><span class="str">"data"</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t83" href="#t83">83</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -183,7 +183,7 @@
     <p class="mis show_mis"><span class="n"><a id="t99" href="#t99">99</a></span><span class="t">        <span class="nam">entry</span> <span class="op">=</span> <span class="nam">db</span><span class="op">.</span><span class="nam">Entity</span><span class="op">(</span><span class="nam">db</span><span class="op">.</span><span class="nam">Key</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">_db_type</span><span class="op">,</span> <span class="nam">key</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t100" href="#t100">100</a></span><span class="t">        <span class="nam">entry</span><span class="op">[</span><span class="str">"data"</span><span class="op">]</span> <span class="op">=</span> <span class="nam">cursors</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t101" href="#t101">101</a></span><span class="t">        <span class="nam">entry</span><span class="op">[</span><span class="str">"creationdate"</span><span class="op">]</span> <span class="op">=</span> <span class="nam">utils</span><span class="op">.</span><span class="nam">utcNow</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t102" href="#t102">102</a></span><span class="t">        <span class="nam">db</span><span class="op">.</span><span class="nam">Put</span><span class="op">(</span><span class="nam">entry</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t102" href="#t102">102</a></span><span class="t">        <span class="nam">db</span><span class="op">.</span><span class="nam">put</span><span class="op">(</span><span class="nam">entry</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t103" href="#t103">103</a></span><span class="t">        <span class="key">return</span> <span class="nam">cursors</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t104" href="#t104">104</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t105" href="#t105">105</a></span><span class="t">    <span class="key">def</span> <span class="nam">cursor_for_query</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">query</span><span class="op">:</span> <span class="nam">db</span><span class="op">.</span><span class="nam">Query</span><span class="op">,</span> <span class="nam">page</span><span class="op">:</span> <span class="nam">int</span><span class="op">)</span> <span class="op">-></span> <span class="nam">t</span><span class="op">.</span><span class="nam">Optional</span><span class="op">[</span><span class="nam">str</span><span class="op">]</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
@@ -223,7 +223,7 @@
     <p class="pln"><span class="n"><a id="t139" href="#t139">139</a></span><span class="t"><span class="str">        :param query: Query for which the index should be refreshed</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t140" href="#t140">140</a></span><span class="t"><span class="str">        """</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t141" href="#t141">141</a></span><span class="t">        <span class="nam">key</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">key_from_query</span><span class="op">(</span><span class="nam">query</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t142" href="#t142">142</a></span><span class="t">        <span class="nam">db</span><span class="op">.</span><span class="nam">Delete</span><span class="op">(</span><span class="nam">db</span><span class="op">.</span><span class="nam">Key</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">_db_type</span><span class="op">,</span> <span class="nam">key</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t142" href="#t142">142</a></span><span class="t">        <span class="nam">db</span><span class="op">.</span><span class="nam">delete</span><span class="op">(</span><span class="nam">db</span><span class="op">.</span><span class="nam">Key</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">_db_type</span><span class="op">,</span> <span class="nam">key</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -233,7 +233,7 @@
             <a class="nav" href="z_449d6c2f6cb6a0b5___init___py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.10.5">coverage.py v7.10.5</a>,
-            created at 2025-08-25 07:54 +0000
+            created at 2025-08-29 14:59 +0000
         </p>
     </div>
 </footer>

@@ -64,10 +64,10 @@
         <p class="text">
             <a id="prevFileLink" class="nav" href="z_fbba8a17d36e225c_tests_py.html">&#xab; prev</a> &nbsp; &nbsp;
             <a id="indexLink" class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
-            <a id="nextFileLink" class="nav" href="z_19411c06ed8e0ad5_user_py.html">&#xbb; next</a>
+            <a id="nextFileLink" class="nav" href="z_19411c06ed8e0ad5_utils_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.10.5">coverage.py v7.10.5</a>,
-            created at 2025-08-25 07:54 +0000
+            created at 2025-08-29 14:59 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -535,7 +535,7 @@
     <p class="pln"><span class="n"><a id="t451" href="#t451">451</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t452" href="#t452">452</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t453" href="#t453">453</a></span><span class="t"><span class="op">@</span><span class="nam">jinjaGlobalFilter</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t454" href="#t454">454</a></span><span class="t"><span class="op">@</span><span class="nam">deprecated</span><span class="op">(</span><span class="nam">version</span><span class="op">=</span><span class="str">"3.7.0"</span><span class="op">,</span> <span class="nam">reason</span><span class="op">=</span><span class="str">"Use Jinja filter filesizeformat instead"</span><span class="op">,</span> <span class="nam">action</span><span class="op">=</span><span class="str">"always"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t454" href="#t454">454</a></span><span class="t"><span class="op">@</span><span class="nam">deprecated</span><span class="op">(</span><span class="nam">version</span><span class="op">=</span><span class="str">"3.7.0"</span><span class="op">,</span> <span class="nam">reason</span><span class="op">=</span><span class="str">"Use Jinja filter filesizeformat instead"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t455" href="#t455">455</a></span><span class="t"><span class="key">def</span> <span class="nam">fileSize</span><span class="op">(</span><span class="nam">render</span><span class="op">:</span> <span class="nam">Render</span><span class="op">,</span> <span class="nam">value</span><span class="op">:</span> <span class="nam">int</span> <span class="op">|</span> <span class="nam">float</span><span class="op">,</span> <span class="nam">binary</span><span class="op">:</span> <span class="nam">bool</span> <span class="op">=</span> <span class="key">False</span><span class="op">)</span> <span class="op">-></span> <span class="nam">str</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t456" href="#t456">456</a></span><span class="t">    <span class="str">"""</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t457" href="#t457">457</a></span><span class="t"><span class="str">    Jinja2 filter: Format the value in an 'human-readable' file size (i.e. 13 kB, 4.1 MB, 102 Bytes, etc).</span>&nbsp;</span><span class="r"></span></p>
@@ -792,7 +792,7 @@
     <p class="mis show_mis"><span class="n"><a id="t708" href="#t708">708</a></span><span class="t">        <span class="key">return</span> <span class="str">""</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t709" href="#t709">709</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t710" href="#t710">710</a></span><span class="t">    <span class="key">if</span> <span class="nam">derived</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t711" href="#t711">711</a></span><span class="t">        <span class="key">return</span> <span class="nam">file</span><span class="op">.</span><span class="nam">File</span><span class="op">.</span><span class="nam">create_download_url</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t711" href="#t711">711</a></span><span class="t">        <span class="key">return</span> <span class="nam">conf</span><span class="op">.</span><span class="nam">main_app</span><span class="op">.</span><span class="nam">file</span><span class="op">.</span><span class="nam">create_download_url</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t712" href="#t712">712</a></span><span class="t">            <span class="nam">fileObj</span><span class="op">[</span><span class="str">"dlkey"</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t713" href="#t713">713</a></span><span class="t">            <span class="nam">filename</span><span class="op">=</span><span class="nam">derived</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t714" href="#t714">714</a></span><span class="t">            <span class="nam">derived</span><span class="op">=</span><span class="key">True</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
@@ -800,7 +800,7 @@
     <p class="mis mis2 show_mis"><span class="n"><a id="t716" href="#t716">716</a></span><span class="t">            <span class="nam">download_filename</span><span class="op">=</span><span class="nam">downloadFileName</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t717" href="#t717">717</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t718" href="#t718">718</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t719" href="#t719">719</a></span><span class="t">    <span class="key">return</span> <span class="nam">file</span><span class="op">.</span><span class="nam">File</span><span class="op">.</span><span class="nam">create_download_url</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t719" href="#t719">719</a></span><span class="t">    <span class="key">return</span> <span class="nam">conf</span><span class="op">.</span><span class="nam">main_app</span><span class="op">.</span><span class="nam">file</span><span class="op">.</span><span class="nam">create_download_url</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t720" href="#t720">720</a></span><span class="t">        <span class="nam">fileObj</span><span class="op">[</span><span class="str">"dlkey"</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t721" href="#t721">721</a></span><span class="t">        <span class="nam">filename</span><span class="op">=</span><span class="nam">fileObj</span><span class="op">[</span><span class="str">"name"</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t722" href="#t722">722</a></span><span class="t">        <span class="nam">expires</span><span class="op">=</span><span class="nam">expires</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
@@ -835,7 +835,7 @@
     <p class="pln"><span class="n"><a id="t751" href="#t751">751</a></span><span class="t"><span class="str">        :param language: Language overwrite if fileObj has multiple languages and we want to explicitly specify one</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t752" href="#t752">752</a></span><span class="t"><span class="str">    :return: The srctag generated or an empty string if a invalid file object was supplied</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t753" href="#t753">753</a></span><span class="t"><span class="str">    """</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t754" href="#t754">754</a></span><span class="t">    <span class="key">return</span> <span class="nam">file</span><span class="op">.</span><span class="nam">File</span><span class="op">.</span><span class="nam">create_src_set</span><span class="op">(</span><span class="nam">fileObj</span><span class="op">,</span> <span class="nam">expires</span><span class="op">,</span> <span class="nam">width</span><span class="op">,</span> <span class="nam">height</span><span class="op">,</span> <span class="nam">language</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t754" href="#t754">754</a></span><span class="t">    <span class="key">return</span> <span class="nam">conf</span><span class="op">.</span><span class="nam">main_app</span><span class="op">.</span><span class="nam">file</span><span class="op">.</span><span class="nam">create_src_set</span><span class="op">(</span><span class="nam">fileObj</span><span class="op">,</span> <span class="nam">expires</span><span class="op">,</span> <span class="nam">width</span><span class="op">,</span> <span class="nam">height</span><span class="op">,</span> <span class="nam">language</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t755" href="#t755">755</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t756" href="#t756">756</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t757" href="#t757">757</a></span><span class="t"><span class="op">@</span><span class="nam">jinjaGlobalFunction</span>&nbsp;</span><span class="r"></span></p>
@@ -843,7 +843,7 @@
     <p class="pln"><span class="n"><a id="t759" href="#t759">759</a></span><span class="t">    <span class="str">"""</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t760" href="#t760">760</a></span><span class="t"><span class="str">    Jinja wrapper for File.create_internal_serving_url(), see there for parameter information.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t761" href="#t761">761</a></span><span class="t"><span class="str">    """</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t762" href="#t762">762</a></span><span class="t">    <span class="key">return</span> <span class="nam">file</span><span class="op">.</span><span class="nam">File</span><span class="op">.</span><span class="nam">create_internal_serving_url</span><span class="op">(</span><span class="op">*</span><span class="nam">args</span><span class="op">,</span> <span class="op">**</span><span class="nam">kwargs</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t762" href="#t762">762</a></span><span class="t">    <span class="key">return</span> <span class="nam">conf</span><span class="op">.</span><span class="nam">main_app</span><span class="op">.</span><span class="nam">file</span><span class="op">.</span><span class="nam">create_internal_serving_url</span><span class="op">(</span><span class="op">*</span><span class="nam">args</span><span class="op">,</span> <span class="op">**</span><span class="nam">kwargs</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t763" href="#t763">763</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t764" href="#t764">764</a></span><span class="t"><span class="op">@</span><span class="nam">jinjaGlobalFunction</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t765" href="#t765">765</a></span><span class="t"><span class="key">def</span> <span class="nam">seoUrlForEntry</span><span class="op">(</span><span class="nam">render</span><span class="op">:</span> <span class="nam">Render</span><span class="op">,</span> <span class="op">*</span><span class="nam">args</span><span class="op">,</span> <span class="op">**</span><span class="nam">kwargs</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
@@ -871,10 +871,10 @@
         <p>
             <a class="nav" href="z_fbba8a17d36e225c_tests_py.html">&#xab; prev</a> &nbsp; &nbsp;
             <a class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
-            <a class="nav" href="z_19411c06ed8e0ad5_user_py.html">&#xbb; next</a>
+            <a class="nav" href="z_19411c06ed8e0ad5_utils_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.10.5">coverage.py v7.10.5</a>,
-            created at 2025-08-25 07:54 +0000
+            created at 2025-08-29 14:59 +0000
         </p>
     </div>
 </footer>
