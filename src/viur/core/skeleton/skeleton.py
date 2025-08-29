@@ -102,7 +102,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         descr="Name",
         visible=False,
         compute=Compute(
-            fn=lambda skel: str(skel["key"]),
+            fn=lambda skel: f"{skel["key"].kind}/{skel["key"].id_or_name}" if skel["key"] else None,
             interval=ComputeInterval(ComputeMethod.OnWrite)
         )
     )
@@ -751,7 +751,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         def __update_txn():
             # Try to read the skeleton, create on demand
             if not skel.read(key):
-                logging.debug(f"cant update key {skel=}")
                 if create is None or create is False:
                     raise ValueError("Creation during update is forbidden - explicitly provide `create=True` to allow.")
 
