@@ -175,7 +175,8 @@ class Script(Tree):
             raise errors.Unauthorized()
 
         importable_key = (entity := qry_importable.getEntry()) and entity.key
-
+        if not importable_key:
+            raise errors.NotFound()
         def get_files_recursively(_importable_key):
             res = []
             importable_files_query = self.viewSkel("leaf").all().filter("parententry", _importable_key)
