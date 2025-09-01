@@ -4,6 +4,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 
 ## [3.8.1]
 
+- fix: Add fallback if no importables are found (#1557)
 - fix: `RelationalBone.getReferencedBlobs` fails with new `update_relations` (#1556)
 
 ## [3.8.0]
