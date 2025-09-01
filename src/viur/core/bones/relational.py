@@ -1229,14 +1229,18 @@ class RelationalBone(BaseBone):
         :rtype: Set[str]
         """
         result = set()
+
         for idx, lang, value in self.iter_bone_value(skel, name):
-            if value is None:
+            if not value:
                 continue
-            for key, bone_ in value["dest"].items():
-                result.update(bone_.getReferencedBlobs(value["dest"], key))
+
+            for key, bone in value["dest"].items():
+                result.update(bone.getReferencedBlobs(value["dest"], key))
+
             if value["rel"]:
-                for key, bone_ in value["rel"].items():
-                    result.update(bone_.getReferencedBlobs(value["rel"], key))
+                for key, bone in value["rel"].items():
+                    result.update(bone.getReferencedBlobs(value["rel"], key))
+
         return result
 
     def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> list[str]:
@@ -1256,7 +1260,7 @@ class RelationalBone(BaseBone):
         if isinstance(value, dict):
             return self._hashValueForUniquePropertyIndex(value["dest"]["key"])
         elif isinstance(value, list):
-            return self._hashValueForUniquePropertyIndex([x["dest"]["key"] for x in value])
+            return self._hashValueForUniquePropertyIndex([entry["dest"]["key"] for entry in value if entry])
 
     def structure(self) -> dict:
         return super().structure() | {
