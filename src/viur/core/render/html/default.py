@@ -10,7 +10,7 @@ from jinja2 import ChoiceLoader, Environment, FileSystemLoader, Template
 
 from viur.core import conf, current, errors, securitykey
 from viur.core.bones import *
-from viur.core.i18n import LanguageWrapper, TranslationExtension
+from viur.core.i18n import translate, LanguageWrapper, TranslationExtension
 from viur.core.skeleton import SkelList, SkeletonInstance, remove_render_preparation_deep
 from . import utils as jinjaUtils
 from ..abstract import AbstractRenderer
@@ -237,15 +237,24 @@ class Render(AbstractRenderer):
 
         return None
 
-    def get_template(self, action: str, template: str) -> Template:
+    def get_template(self, action: str, template: str) -> t.Optional[Template]:
         """
         Internal function for retrieving a template from an action name.
         """
         if not template:
             default_template = action + "Template"
-            template = getattr(self.parent, default_template, None) or getattr(self, default_template)
+            template = getattr(self.parent, default_template, None) or getattr(self, default_template, None)
 
-        return self.getEnv().get_template(self.getTemplateFileName(template))
+            if not template:
+                raise errors.NotFound(str(translate(
+                    "core.html.error.template_not_configured",
+                    "Template '{{default_template}}' not configured.",
+                    default_variables={
+                        "default_template": default_template,
+                    }
+                )))
+
+        return template and self.getEnv().get_template(self.getTemplateFileName(template))
 
     def render_action_template(
         self,
