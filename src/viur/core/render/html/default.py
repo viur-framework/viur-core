@@ -246,7 +246,7 @@ class Render(AbstractRenderer):
             template = getattr(self.parent, default_template, None) or getattr(self, default_template, None)
 
             if not template:
-                raise errors.NotFound(str(translate(
+                raise errors.NotImplemented(str(translate(
                     "core.html.error.template_not_configured",
                     "Template '{{default_template}}' not configured.",
                     default_variables={
