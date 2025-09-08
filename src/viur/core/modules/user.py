@@ -252,12 +252,9 @@ class UserPassword(UserPrimaryAuthentication):
     verifySuccessTemplate = "user_verify_success"
     verifyEmailAddressMail = "user_verify_address"
     verifyFailedTemplate = "user_verify_failed"
-    passwordRecoveryTemplate = "user_passwordrecover"
     passwordRecoveryMail = "user_password_recovery"
     passwordRecoverySuccessTemplate = "user_passwordrecover_success"
-    passwordRecoveryStep1Template = "user_passwordrecover_step1"
-    passwordRecoveryStep2Template = "user_passwordrecover_step2"
-    passwordRecoveryStep3Template = "user_passwordrecover_step3"
+    passwordRecoveryTemplate = "user_passwordrecover"
 
     # The default rate-limit for password recovery (10 tries each 15 minutes)
     passwordRecoveryRateLimit = RateLimit("user.passwordrecovery", 10, 15, "ip")
@@ -394,15 +391,15 @@ class UserPassword(UserPrimaryAuthentication):
 
             The process is as following:
 
-            - The user enters his email adress
-            - We'll generate a random code and store it as a security-key and call sendUserPasswordRecoveryCode
+            - The user enters the registered email adress (not validated here)
+            - A random code is generated and stored as a security-ke, then sendUserPasswordRecoveryCode is called.
             - sendUserPasswordRecoveryCode will run in the background, check if we have a user with that name
-              and send a link with the code . It runs as a deferredTask so we don't leak the information if a user
-              account exists.
-            - If the user received his email, he can click on the link and set a new password for his account.
+              and send a link with the code. It runs as a deferred task so no information if a user account exists
+              is being leaked.
+            - If the user received an email, the link can be clicked to set a new password for the account.
 
-            To prevent automated attacks, the fist step is guarded by a captcha and we limited calls to this function
-            to 10 actions per 15 minutes. (One complete recovery process consists of two calls).
+            To prevent automated attacks, the first step is guarded by limited calls to this function to 10 actions
+            per 15 minutes. (One complete recovery process consists of two calls).
         """
         self.passwordRecoveryRateLimit.assertQuotaIsAvailable()
         current_request = current.request.get()
@@ -412,7 +409,10 @@ class UserPassword(UserPrimaryAuthentication):
             skel = self.LostPasswordStep1Skel()
 
             if not current_request.isPostRequest or not skel.fromClient(kwargs):
-                return self._user_module.render.edit(skel, tpl=self.passwordRecoveryStep1Template)
+                return self._user_module.render.render(
+                    "pwrecover", skel,
+                    tpl=self.passwordRecoveryTemplate,
+                )
 
             # validate security key
             if not securitykey.validate(skey):
@@ -434,9 +434,9 @@ class UserPassword(UserPrimaryAuthentication):
 
             # step 2 is only an action-skel, and can be ignored by a direct link in the
             # e-mail previously sent. It depends on the implementation of the specific project.
-            return self._user_module.render.edit(
-                self.LostPasswordStep2Skel(),
-                tpl=self.passwordRecoveryStep2Template,
+            return self._user_module.render.render(
+                "pwrecover", self.LostPasswordStep2Skel(),
+                tpl=self.passwordRecoveryTemplate,
             )
 
         # in step 3
@@ -445,9 +445,9 @@ class UserPassword(UserPrimaryAuthentication):
 
         # check for any input; Render input-form again when incomplete.
         if not skel.fromClient(kwargs) or not current_request.isPostRequest:
-            return self._user_module.render.edit(
-                skel=skel,
-                tpl=self.passwordRecoveryStep3Template,
+            return self._user_module.render.render(
+                "pwrecover", skel,
+                tpl=self.passwordRecoveryTemplate,
             )
 
         # validate security key
@@ -491,10 +491,7 @@ class UserPassword(UserPrimaryAuthentication):
         user_skel["password"] = skel["password"]
         user_skel.write(update_relations=False)
 
-        return self._user_module.render.view(
-            None,
-            tpl=self.passwordRecoverySuccessTemplate,
-        )
+        return self._user_module.render.render("pwrecover_success", tpl=self.passwordRecoverySuccessTemplate)
 
     @tasks.CallDeferred
     def sendUserPasswordRecoveryCode(self, user_name: str, recovery_key: str, user_agent: str) -> None:
@@ -603,7 +600,7 @@ class UserPassword(UserPrimaryAuthentication):
                                       name=skel["name"])
             skel.skey = BaseBone(descr="Skey")
             skel["skey"] = skey
-            email.send_email(dests=[skel["name"]], tpl=self._user_module.verifyEmailAddressMail, skel=skel)
+            email.send_email(dests=[skel["name"]], tpl=self.verifyEmailAddressMail, skel=skel)
 
         self._user_module.onAdded(skel)  # Call onAdded on our parent user module
         return self._user_module.render.addSuccess(skel)
@@ -1198,9 +1195,6 @@ class User(List):
     kindName = "user"
     addTemplate = "user_add"
     addSuccessTemplate = "user_add_success"
-    lostPasswordTemplate = "user_lostpassword"
-    verifyEmailAddressMail = "user_verify_address"
-    passwordRecoveryMail = "user_password_recovery"
 
     authenticationProviders: t.Iterable[UserPrimaryAuthentication] = tuple(filter(
         None, (
