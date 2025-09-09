@@ -319,6 +319,8 @@ class UserPassword(UserPrimaryAuthentication):
         password = PasswordBone(
             descr="New Password",
             required=True,
+            tests=PasswordBone.STANDARD_TESTS,
+            test_threshold=4,
             params={
                 "tooltip": i18n.translate(
                     key="viur.core.modules.user.userpassword.lostpasswordstep3.password",
