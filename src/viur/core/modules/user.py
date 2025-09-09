@@ -319,6 +319,7 @@ class UserPassword(UserPrimaryAuthentication):
         password = PasswordBone(
             descr="New Password",
             required=True,
+            type_suffix="doublecheck",
             tests=PasswordBone.STANDARD_TESTS,
             test_threshold=4,
             params={
