@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.3]
+
+- fix: Improve ActionSkels in `UserPassword.pwrecover` for ViForms (#1563)
+
 ## [3.8.2]
 
 - fix: ActionSkel paradigm for `user.UserPassword.pwrecover` (#1561)

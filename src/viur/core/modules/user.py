@@ -312,7 +312,6 @@ class UserPassword(UserPrimaryAuthentication):
         recovery_key = StringBone(
             descr="Recovery Key",
             visible=False,
-            readOnly=True,
         )
 
         password = PasswordBone(
@@ -384,7 +383,7 @@ class UserPassword(UserPrimaryAuthentication):
         return self.next_or_finish(user_skel)
 
     @exposed
-    def pwrecover(self, recovery_key: str | None = None, skey: str | None = None, *args, **kwargs):
+    def pwrecover(self, recovery_key: str | None = None, skey: str | None = None, **kwargs):
         """
             This implements a password recovery process which lets users set a new password for their account,
             after validating a recovery key sent by email.
@@ -408,7 +407,11 @@ class UserPassword(UserPrimaryAuthentication):
             # This is the first step, where we ask for the username of the account we'll going to reset the password on
             skel = self.LostPasswordStep1Skel()
 
-            if not current_request.isPostRequest or not skel.fromClient(kwargs):
+            if (
+                not kwargs
+                or not current_request.isPostRequest
+                or not skel.fromClient(kwargs)
+            ):
                 return self._user_module.render.render(
                     "pwrecover", skel,
                     tpl=self.passwordRecoveryTemplate,
@@ -444,7 +447,11 @@ class UserPassword(UserPrimaryAuthentication):
         skel["recovery_key"] = recovery_key  # resend the recovery key again, in case the fromClient() fails.
 
         # check for any input; Render input-form again when incomplete.
-        if not skel.fromClient(kwargs) or not current_request.isPostRequest:
+        if (
+            not kwargs
+            or not current_request.isPostRequest
+            or not skel.fromClient(kwargs, ignore=("recovery_key",))
+        ):
             return self._user_module.render.render(
                 "pwrecover", skel,
                 tpl=self.passwordRecoveryTemplate,
@@ -491,7 +498,11 @@ class UserPassword(UserPrimaryAuthentication):
         user_skel["password"] = skel["password"]
         user_skel.write(update_relations=False)
 
-        return self._user_module.render.render("pwrecover_success", tpl=self.passwordRecoverySuccessTemplate)
+        return self._user_module.render.render(
+            "pwrecover_success",
+            next_url=self.start_url,
+            tpl=self.passwordRecoverySuccessTemplate
+        )
 
     @tasks.CallDeferred
     def sendUserPasswordRecoveryCode(self, user_name: str, recovery_key: str, user_agent: str) -> None:
