@@ -283,22 +283,23 @@ class Render(AbstractRenderer):
         """
         template = self.get_template(default, tpl)
 
-        skel.skey = BaseBone(descr="SecurityKey", readOnly=True, visible=False)
-        skel["skey"] = securitykey.create()
+        if skel is not None:
+            skel.skey = BaseBone(descr="SecurityKey", readOnly=True, visible=False)
+            skel["skey"] = securitykey.create()
 
-        # fixme: Is this still be used?
-        if current.request.get().kwargs.get("nomissing") == "1":
-            if isinstance(skel, SkeletonInstance):
-                super(SkeletonInstance, skel).__setattr__("errors", [])
+            # fixme: Is this still be used?
+            if current.request.get().kwargs.get("nomissing") == "1":
+                if isinstance(skel, SkeletonInstance):
+                    super(SkeletonInstance, skel).__setattr__("errors", [])
 
-        skel.renderPreparation = self.renderBoneValue
+            skel.renderPreparation = self.renderBoneValue
 
         return template.render(
             skel={
                 "structure": skel.structure(),
                 "errors": skel.errors,
                 "value": skel
-            },
+            } if skel is not None else None,
             action=action,
             params=params,
             **kwargs
