@@ -364,8 +364,10 @@ class Router:
 
             if conf.request_preprocessor:
                 path = conf.request_preprocessor(path)
-
-            self._route(path)
+            if self.method != "options":
+                # Route actual request only when the methode is not options,
+                # because the preflight not set the cookies so  a normal request can be returned with an error
+                self._route(path)
 
         except errors.Redirect as e:
             if conf.debug.trace_exceptions:
