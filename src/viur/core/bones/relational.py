@@ -385,7 +385,8 @@ class RelationalBone(BaseBone):
             return None
         elif isinstance(value, list) and value:
             value = value[0]
-        assert isinstance(value, dict), f"Read something from the datastore that's not a dict: {self.name=} -> {type(value)}"
+        assert isinstance(value, dict), \
+            f"Read something from the datastore that's not a dict: {self.name=} -> {type(value)}"
         if "dest" not in value:
             return None
         relSkel, usingSkel = self._getSkels()
