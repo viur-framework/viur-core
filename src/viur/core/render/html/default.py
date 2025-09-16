@@ -10,7 +10,7 @@ from jinja2 import ChoiceLoader, Environment, FileSystemLoader, Template
 
 from viur.core import conf, current, errors, securitykey
 from viur.core.bones import *
-from viur.core.i18n import LanguageWrapper, TranslationExtension
+from viur.core.i18n import translate, LanguageWrapper, TranslationExtension
 from viur.core.skeleton import SkelList, SkeletonInstance, remove_render_preparation_deep
 from . import utils as jinjaUtils
 from ..abstract import AbstractRenderer
@@ -237,15 +237,24 @@ class Render(AbstractRenderer):
 
         return None
 
-    def get_template(self, action: str, template: str) -> Template:
+    def get_template(self, action: str, template: str) -> t.Optional[Template]:
         """
         Internal function for retrieving a template from an action name.
         """
         if not template:
             default_template = action + "Template"
-            template = getattr(self.parent, default_template, None) or getattr(self, default_template)
+            template = getattr(self.parent, default_template, None) or getattr(self, default_template, None)
 
-        return self.getEnv().get_template(self.getTemplateFileName(template))
+            if not template:
+                raise errors.NotImplemented(str(translate(
+                    "core.html.error.template_not_configured",
+                    "Template '{{default_template}}' not configured.",
+                    default_variables={
+                        "default_template": default_template,
+                    }
+                )))
+
+        return template and self.getEnv().get_template(self.getTemplateFileName(template))
 
     def render_action_template(
         self,
@@ -274,22 +283,23 @@ class Render(AbstractRenderer):
         """
         template = self.get_template(default, tpl)
 
-        skel.skey = BaseBone(descr="SecurityKey", readOnly=True, visible=False)
-        skel["skey"] = securitykey.create()
+        if skel is not None:
+            skel.skey = BaseBone(descr="SecurityKey", readOnly=True, visible=False)
+            skel["skey"] = securitykey.create()
 
-        # fixme: Is this still be used?
-        if current.request.get().kwargs.get("nomissing") == "1":
-            if isinstance(skel, SkeletonInstance):
-                super(SkeletonInstance, skel).__setattr__("errors", [])
+            # fixme: Is this still be used?
+            if current.request.get().kwargs.get("nomissing") == "1":
+                if isinstance(skel, SkeletonInstance):
+                    super(SkeletonInstance, skel).__setattr__("errors", [])
 
-        skel.renderPreparation = self.renderBoneValue
+            skel.renderPreparation = self.renderBoneValue
 
         return template.render(
             skel={
                 "structure": skel.structure(),
                 "errors": skel.errors,
                 "value": skel
-            },
+            } if skel is not None else None,
             action=action,
             params=params,
             **kwargs

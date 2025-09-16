@@ -167,15 +167,6 @@ class Script(Tree):
     @exposed
     def get_importable(self):
 
-        # get importable key
-        qry_importable = (self.viewSkel("node").all()
-                          .filter("parententry", self.rootnodeSkel(ensure=True)["key"])
-                          .filter("name =", "importable"))
-        if not (qry_importable := self.listFilter(qry_importable)):
-            raise errors.Unauthorized()
-
-        importable_key = (entity := qry_importable.getEntry()) and entity.key
-
         def get_files_recursively(_importable_key):
             res = []
             importable_files_query = self.viewSkel("leaf").all().filter("parententry", _importable_key)
@@ -189,7 +180,21 @@ class Script(Tree):
                 res.extend(get_files_recursively(folder_entry.key))
             return res
 
+        # get importable key
+        qry_importable = (self.viewSkel("node").all()
+                          .filter("parententry", self.rootnodeSkel(ensure=True)["key"])
+                          .filter("name =", "importable"))
+        if not (qry_importable := self.listFilter(qry_importable)):
+            raise errors.Unauthorized()
+
+        importable_key = (entity := qry_importable.getEntry()) and entity.key
+        if not importable_key:
+            raise errors.NotFound("No importable folder defined")
+
         importable_files = get_files_recursively(importable_key)
+        if not importable_files:
+            raise errors.NotFound("Importable folder is empty")
+
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
             for file in importable_files:

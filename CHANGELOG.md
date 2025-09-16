@@ -2,6 +2,21 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.3]
+
+- fix: Improve ActionSkels in `UserPassword.pwrecover` for ViForms (#1563)
+
+## [3.8.2]
+
+- fix: ActionSkel paradigm for `user.UserPassword.pwrecover` (#1561)
+- fix: Handle unconfigured template in HTML-render (#1559)
+- fix: `Script.get_importable()` must fail when there are no files (#1560)
+
+## [3.8.1]
+
+- fix: Add fallback if no importables are found (#1557)
+- fix: `RelationalBone.getReferencedBlobs` fails with new `update_relations` (#1556)
+
 ## [3.8.0]
 
 - chore: Disable all compatibility flags by default (#1413)

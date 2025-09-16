@@ -138,9 +138,10 @@ In case you have appropriate permissions, a release can be done this way:
 `viur-core` has currently 4 actively maintained branches.
 
 - **3.5** is the current stable LTS version as released on PyPI (3.5.x)
-- **3.6** is the current stable LTS version as released on PyPI (3.6.x)
-- **main** is the current version as released on PyPI (3.7.x)
-- **develop**  is the next minor version and may be released as release candidates to PyPI (3.8.x)
+- **3.6** is the current version as released on PyPI (3.6.x)
+- **3.7** is the current version as released on PyPI (3.7.x)
+- **main** is the current version as released on PyPI (3.8.x)
+- **develop**  is the next minor version and may be released as release candidates to PyPI (3.9.x)
 
 Pull request should be made against one of these branches.
 
