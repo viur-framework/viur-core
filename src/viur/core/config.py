@@ -440,6 +440,7 @@ class Security(ConfigType):
         "vi/user/auth_*",
         "vi/user/f2_*",
         "vi/user/getAuthMethods",  # FIXME: deprecated, use `login` for this
+        "vi/user/select_authentication_provider",
         "vi/user/login",
     ]
     """Specifies admin tool paths which are being accessible without authenticated user."""
@@ -454,6 +455,7 @@ class Security(ConfigType):
         "user/auth_*",
         "user/f2_*",
         "user/getAuthMethods",  # FIXME: deprecated, use `login` for this
+        "user/select_authentication_provider",
         "user/login",
     ]
     """Paths that are accessible without authentication in a closed system, see `closed_system` for details."""
