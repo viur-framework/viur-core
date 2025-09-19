@@ -132,22 +132,29 @@ class FileBone(TreeLeafBone):
     type = "relational.tree.leaf.file"
     """The type of this bone is 'relational.tree.leaf.file'."""
 
+    DEFAULT_REFKEYS = (
+        "derived",
+        "dlkey",
+        "height",
+        "mimetype",
+        "name",
+        "public",
+        "serving_url",
+        "size",
+        "width",
+    )
+    """
+    Default RefKeys for FileBone.
+    Use this as extendable reference.
+    """
+
     def __init__(
         self,
         *,
         derive: None | dict[str, t.Any] = None,
         maxFileSize: None | int = None,
         validMimeTypes: None | list[str] = None,
-        refKeys: t.Optional[t.Iterable[str]] = (
-            "name",
-            "mimetype",
-            "size",
-            "width",
-            "height",
-            "derived",
-            "public",
-            "serving_url",
-        ),
+        refKeys: t.Optional[t.Iterable[str]] = DEFAULT_REFKEYS,
         public: bool = False,
         **kwargs
     ):
@@ -179,7 +186,10 @@ class FileBone(TreeLeafBone):
         """
         super().__init__(refKeys=refKeys, **kwargs)
 
-        self.refKeys.add("dlkey")
+        for _required in ("dlkey", "name"):
+            if _required not in self.refKeys:
+                raise ValueError(f"FileBone not operable without refKey {_required!r}")
+
         self.derive = derive
         self.public = public
         self.validMimeTypes = validMimeTypes
@@ -356,6 +366,7 @@ class FileBone(TreeLeafBone):
     def _atomic_dump(self, value) -> dict | None:
         value = super()._atomic_dump(value)
         if value is not None:
+            # VIUR4: Rename "downloadUrl" into "download_url"
             value["dest"]["downloadUrl"] = conf.main_app.file.create_download_url(
                 value["dest"]["dlkey"],
                 value["dest"]["name"],
