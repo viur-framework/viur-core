@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.5]
+
+- fix: `FileBone` with bullet-proven default `refKeys` (#1575)
+
 ## [3.8.4]
 
 - fix: `select_authentication_provider` must be reachable (#1574)
