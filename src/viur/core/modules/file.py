@@ -105,6 +105,7 @@ def importBlobFromViur2(dlKey, fileName):
 def thumbnailer(fileSkel, existingFiles, params):
     file_name = html.unescape(fileSkel["name"])
     bucket = conf.main_app.file.get_bucket(fileSkel["dlkey"])
+
     blob = bucket.get_blob(f"""{fileSkel["dlkey"]}/source/{file_name}""")
     if not blob:
         logging.warning(f"""Blob {fileSkel["dlkey"]}/source/{file_name} is missing from cloud storage!""")
@@ -116,8 +117,6 @@ def thumbnailer(fileSkel, existingFiles, params):
     result = []
 
     for info in params:
-        logging.debug(f"{info=}")
-
         # Read the image into PIL
         try:
             source.seek(0)
@@ -126,8 +125,6 @@ def thumbnailer(fileSkel, existingFiles, params):
             break
 
         if icc_profile := img.info.get("icc_profile"):
-            logging.debug(f"{icc_profile=}")
-
             # JPEGs might be encoded with a non-standard color-profile; we need to compensate for this if we convert
             # to WEBp as we'll loose this color-profile information
             f = io.BytesIO(icc_profile)
@@ -140,13 +137,12 @@ def thumbnailer(fileSkel, existingFiles, params):
                     outputProfile=dst_profile,
                     outputMode="RGBA" if img.has_transparency_data else "RGB")
             except Exception as e:
+                logging.debug(f"{info=}")
                 logging.exception(e)
                 continue
 
         file_extension = info.get("fileExtension", "webp")
         mimetype = info.get("mimeType", "image/webp")
-
-        logging.debug(f"{file_extension=} {mimetype=}")
 
         if "width" in info and "height" in info:
             width = info["width"]
@@ -163,7 +159,15 @@ def thumbnailer(fileSkel, existingFiles, params):
 
         # Create resized version of the source
         target = io.BytesIO()
-        img = img.resize((width, height), PIL.Image.LANCZOS)
+
+        try:
+            img = img.resize((width, height), PIL.Image.LANCZOS)
+        except ValueError as e:
+            # Usually happens to some files, like TIFF-images.
+            logging.debug(f"{info=}")
+            logging.exception(e)
+            break
+
         img.save(target, file_extension)
 
         # Safe derived target file

@@ -15,7 +15,13 @@ import logging
 
 
 @CallDeferred
-def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_key: db.Key = None, **kwargs):
+def ensureDerived(
+    key: db.Key,
+    src_key: str,
+    derive_map: dict[str, t.Any],
+    refresh_key: db.Key = None,
+    **kwargs
+):
     r"""
     The function is a deferred function that ensures all pending thumbnails or other derived files
     are built. It takes the following parameters:
@@ -47,17 +53,21 @@ def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_ke
             )
 
             locals()[_new] = kwargs.pop(_dep)
+
     from viur.core.skeleton.utils import skeletonByKind
     from viur.core.skeleton.tasks import update_relations
 
     skel = skeletonByKind(key.kind)()
     if not skel.read(key):
-        logging.info("File-Entry went missing in ensureDerived")
+        logging.error(f"{src_key}: File not found, is it gone?")
         return
+
     if not skel["derived"]:
-        logging.info("No Derives for this file")
+        logging.info(f"{src_key}: No derives for this file")
         skel["derived"] = {}
+
     skel["derived"] = {"deriveStatus": {}, "files": {}} | skel["derived"]
+
     res_status, res_files = {}, {}
     for call_key, params in derive_map.items():
         full_src_key = f"{src_key}_{call_key}"
