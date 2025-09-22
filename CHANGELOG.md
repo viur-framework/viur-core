@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.6]
+
+- fix: Update `pillow>=11`
+
 ## [3.8.5]
 
 - fix: `FileBone` with bullet-proven default `refKeys` (#1575)
