@@ -4,7 +4,8 @@ This file documents any relevant changes done to ViUR-core since version 3.
 
 ## [3.8.6]
 
-- fix: Update `pillow>=11`
+- fix: Update `pillow>=11` (#1576)
+- fix+refactor: `File.thumbnailer` with better debug and `try...except` around resize (#1576)
 
 ## [3.8.5]
 
