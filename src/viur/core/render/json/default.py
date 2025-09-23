@@ -11,6 +11,7 @@ from datetime import datetime
 from deprecated.sphinx import deprecated
 
 
+# VIUR4: Remove this piece of sh..
 class CustomJsonEncoder(json.JSONEncoder):
     """
         This custom JSON-Encoder for this json-render ensures that translations are evaluated and can be dumped.
@@ -73,7 +74,10 @@ class DefaultRender(AbstractRenderer):
 
     @deprecated(version="3.8.0", reason="Just use `skel.dump()` for this now")
     def renderSkelValues(self, skel: SkeletonInstance):
-        logging.warning("DefaultRender.renderSkelValues() is obsolete, just use `skel.dump()` for it now!")
+        logging.warning(
+            "DefaultRender.renderSkelValues() is obsolete, just use `skel.dump()` for it now!",
+            stacklevel=3,
+        )
         return skel.dump()
 
     def renderEntry(self, skel: SkeletonInstance, actionName, params=None, *, next_url: t.Optional[str] = None):
