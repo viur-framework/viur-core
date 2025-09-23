@@ -105,27 +105,31 @@ def importBlobFromViur2(dlKey, fileName):
 def thumbnailer(fileSkel, existingFiles, params):
     file_name = html.unescape(fileSkel["name"])
     bucket = conf.main_app.file.get_bucket(fileSkel["dlkey"])
+
     blob = bucket.get_blob(f"""{fileSkel["dlkey"]}/source/{file_name}""")
     if not blob:
         logging.warning(f"""Blob {fileSkel["dlkey"]}/source/{file_name} is missing from cloud storage!""")
         return
-    fileData = io.BytesIO()
-    blob.download_to_file(fileData)
-    resList = []
-    for sizeDict in params:
-        fileData.seek(0)
-        outData = io.BytesIO()
+
+    source = io.BytesIO()
+    blob.download_to_file(source)
+
+    result = []
+
+    for info in params:
+        # Read the image into PIL
         try:
-            img = PIL.Image.open(fileData)
+            source.seek(0)
+            img = PIL.Image.open(source)
         except PIL.Image.UnidentifiedImageError:  # Can't load this image; so there's no need to try other resolutions
-            return []
-        iccProfile = img.info.get('icc_profile')
-        if iccProfile:
+            break
+
+        if icc_profile := img.info.get("icc_profile"):
             # JPEGs might be encoded with a non-standard color-profile; we need to compensate for this if we convert
             # to WEBp as we'll loose this color-profile information
-            f = io.BytesIO(iccProfile)
+            f = io.BytesIO(icc_profile)
             src_profile = PIL.ImageCms.ImageCmsProfile(f)
-            dst_profile = PIL.ImageCms.createProfile('sRGB')
+            dst_profile = PIL.ImageCms.createProfile("sRGB")
             try:
                 img = PIL.ImageCms.profileToProfile(
                     img,
@@ -133,28 +137,50 @@ def thumbnailer(fileSkel, existingFiles, params):
                     outputProfile=dst_profile,
                     outputMode="RGBA" if img.has_transparency_data else "RGB")
             except Exception as e:
+                logging.debug(f"{info=}")
                 logging.exception(e)
                 continue
-        fileExtension = sizeDict.get("fileExtension", "webp")
-        if "width" in sizeDict and "height" in sizeDict:
-            width = sizeDict["width"]
-            height = sizeDict["height"]
-            targetName = f"thumbnail-{width}-{height}.{fileExtension}"
-        elif "width" in sizeDict:
-            width = sizeDict["width"]
+
+        file_extension = info.get("fileExtension", "webp")
+        mimetype = info.get("mimeType", "image/webp")
+
+        if "width" in info and "height" in info:
+            width = info["width"]
+            height = info["height"]
+            target_filename = f"thumbnail-{width}-{height}.{file_extension}"
+
+        elif "width" in info:
+            width = info["width"]
             height = int((float(img.size[1]) * float(width / float(img.size[0]))))
-            targetName = f"thumbnail-w{width}.{fileExtension}"
+            target_filename = f"thumbnail-w{width}.{file_extension}"
+
         else:  # No default fallback - ignore
             continue
-        mimeType = sizeDict.get("mimeType", "image/webp")
-        img = img.resize((width, height), PIL.Image.LANCZOS)
-        img.save(outData, fileExtension)
-        outSize = outData.tell()
-        outData.seek(0)
-        targetBlob = bucket.blob(f"""{fileSkel["dlkey"]}/derived/{targetName}""")
-        targetBlob.upload_from_file(outData, content_type=mimeType)
-        resList.append((targetName, outSize, mimeType, {"mimetype": mimeType, "width": width, "height": height}))
-    return resList
+
+        # Create resized version of the source
+        target = io.BytesIO()
+
+        try:
+            img = img.resize((width, height), PIL.Image.LANCZOS)
+        except ValueError as e:
+            # Usually happens to some files, like TIFF-images.
+            logging.debug(f"{info=}")
+            logging.exception(e)
+            break
+
+        img.save(target, file_extension)
+
+        # Safe derived target file
+        target_size = target.tell()
+        target.seek(0)
+        target_blob = bucket.blob(f"""{fileSkel["dlkey"]}/derived/{target_filename}""")
+        target_blob.upload_from_file(target, content_type=mimetype)
+
+        result.append(
+            (target_filename, target_size, mimetype, {"mimetype": mimetype, "width": width, "height": height})
+        )
+
+    return result
 
 
 def cloudfunction_thumbnailer(fileSkel, existingFiles, params):

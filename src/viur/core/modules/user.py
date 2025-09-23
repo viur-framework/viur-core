@@ -1521,13 +1521,13 @@ class User(List):
         # and copy them over to the new session
         session |= take_over
 
+        self.onLogin(skel)
+
         # Update session, user and request
         session["user"] = skel.dbEntity
 
         current.request.get().response.headers[securitykey.SECURITYKEY_STATIC_HEADER] = session.static_security_key
         current.user.set(self.getCurrentUser())
-
-        self.onLogin(skel)
 
         return self.render.render("login_success", skel, **kwargs)
 

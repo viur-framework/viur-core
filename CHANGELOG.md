@@ -2,6 +2,24 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.6]
+
+- fix: Update `pillow>=11` (#1576)
+- fix+refactor: `File.thumbnailer` with better debug and `try...except` around resize (#1576)
+
+## [3.8.5]
+
+- fix: `FileBone` with bullet-proven default `refKeys` (#1575)
+
+## [3.8.4]
+
+- fix: `select_authentication_provider` must be reachable (#1574)
+- fix: `User.onLogin()` shall be called earlier (#1573)
+- fix: catch errors for annotated int or float arguments and reraise chained NotAcceptable (#1572)
+- fix: Invalid use of `skel.patch()` in `update_relations` (#1571)
+- fix: add bone name in assert error for better debugging in RelationalBone (#1568)
+- fix: `Skel.fromClient(amend=True)` doesn't respect required unsets (#1567)
+
 ## [3.8.3]
 
 - fix: Improve ActionSkels in `UserPassword.pwrecover` for ViForms (#1563)

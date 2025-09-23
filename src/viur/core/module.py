@@ -193,7 +193,10 @@ class Method:
                 value = kwargs.pop(param_name)
 
                 if param_type is not param.empty:
-                    value = parse_value_by_annotation(param_type, param_name, value)
+                    try:
+                        value = parse_value_by_annotation(param_type, param_name, value)
+                    except ValueError as exc:
+                        raise errors.NotAcceptable(f"Invalid value for {param_name}") from exc
 
                 parsed_kwargs[param_name] = value
 

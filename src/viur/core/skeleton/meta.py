@@ -376,7 +376,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                     # insert current bone name into error's fieldPath
                     error.fieldPath.insert(0, str(key))
 
-                    # logging.debug(f"BaseSkel.fromClient {key=} {error=}")
+                    # logging.info(f"{key=} {error=} {skel[key]=} {bone.getEmptyValue()=}")
 
                     incomplete = (
                         # always when something is invalid
@@ -390,8 +390,12 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                                 and (
                                     # and value is either empty
                                     error.severity == ReadFromClientErrorSeverity.Empty
-                                    # or when not amending, not set
-                                    or (not amend and error.severity == ReadFromClientErrorSeverity.NotSet)
+                                    # or not set, depending on amending mode
+                                    or (
+                                        error.severity == ReadFromClientErrorSeverity.NotSet
+                                        and (amend and bone.isEmpty(skel[key]))
+                                        or not amend
+                                    )
                                 )
                             )
                         )

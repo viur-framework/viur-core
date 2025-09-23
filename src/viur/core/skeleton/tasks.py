@@ -87,8 +87,11 @@ def update_relations(
             logging.info(f"""Ignoring {src_rel.key!r} which refers to unknown kind {src_rel["viur_src_kind"]!r}""")
             continue
 
-        if not skel.patch(lambda skel: skel.refresh(), key=src_rel["src"].key, update_relations=False):
+        try:
+            skel.patch(lambda skel: skel.refresh(), key=src_rel["src"].key, update_relations=False)
+        except ValueError:
             logging.warning(f"Cannot update stale reference to {src_rel["src"].key!r} referenced by {src_rel.key!r}")
+            continue
 
         total += 1
 
