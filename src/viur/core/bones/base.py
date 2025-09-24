@@ -201,23 +201,32 @@ class MultipleConstraints:
 
 
 class ComputeMethod(Enum):
-    Always = 0  # Always compute on deserialization
-    Lifetime = 1  # Update only when given lifetime is outrun; value is only being stored when the skeleton is written
-    Once = 2  # Compute only once
-    OnWrite = 3  # Compute before written
+    Always = 0
+    """Always compute on deserialization"""
+    Lifetime = 1
+    """Update only when given lifetime is outrun; value is only being stored when the skeleton is written"""
+    Once = 2
+    """Compute only once, when it is unset"""
+    OnWrite = 3
+    """Compute before every write of the skeleton"""
 
 
 @dataclass
 class ComputeInterval:
     method: ComputeMethod = ComputeMethod.Always
-    lifetime: timedelta = None  # defines a timedelta until which the value stays valid (`ComputeMethod.Lifetime`)
+    """The compute-method to use for this bone"""
+    lifetime: timedelta = None
+    """Defines a timedelta until which the value stays valid (only used by `ComputeMethod.Lifetime`)"""
 
 
 @dataclass
 class Compute:
-    fn: callable  # the callable computing the value
-    interval: ComputeInterval = field(default_factory=ComputeInterval)  # the value caching interval
-    raw: bool = True  # defines whether the value returned by fn is used as is, or is passed through bone.fromClient
+    fn: callable
+    """The callable computing the value"""
+    interval: ComputeInterval = field(default_factory=ComputeInterval)
+    """The value caching interval"""
+    raw: bool = True
+    """Defines whether the value returned by fn is used as is, or is passed through `bone.fromClient()`"""
 
 
 class CloneStrategy(enum.StrEnum):
