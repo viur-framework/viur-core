@@ -1,6 +1,6 @@
 from logging import critical, debug, error, info, warning
 
-import pprint
+import pprint as pp
 import typing as t
 
 from ..utils import jinjaGlobalFunction
@@ -43,4 +43,4 @@ def pprint(render: Render, obj: t.Any) -> str:
     :param obj: Object to be pprinted.
     :return: HTML-enabled pprint output.
     """
-    return pprint.pformat(obj).replace("\n", "<br>").replace(" ", "&nbsp;")
+    return pp.pformat(obj).replace("\n", "<br>").replace(" ", "&nbsp;")
