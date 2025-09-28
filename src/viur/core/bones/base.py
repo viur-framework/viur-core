@@ -1099,7 +1099,7 @@ class BaseBone(object):
         :param name: The name of the Bone in the Skeleton
         :return: True if the Bone was unserialized, False otherwise
         """
-        if not self.compute or self._prevent_compute:
+        if not self.compute or self._prevent_compute or skel._cascade_deletion:
             return False
 
         match self.compute.interval.method:
@@ -1557,7 +1557,9 @@ class BaseBone(object):
             if issubclass(skel.skeletonCls, RefSkel):  # we have a ref skel we must load the complete skeleton
                 cloned_skel = skeletonByKind(skel.kindName)()
                 if not cloned_skel.read(skel["key"]):
-                    raise ValueError(f'{skel["key"]=!r} does no longer exists. Cannot compute a broken relation')
+                    raise ValueError(
+                        f"{bone_name!r}: {skel["key"]=!r} does no longer exists. Cannot compute a broken relation"
+                    )
             else:
                 cloned_skel = skel.clone()
             cloned_skel[bone_name] = None  # remove value form accessedValues to avoid endless recursion
