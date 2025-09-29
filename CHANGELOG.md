@@ -5,6 +5,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 ## [3.8.7]
 
 - fix: Avoid compute bones when the skel in deleted in a cascade (#1581)
+- fix: Import `pprint` as `pp` (#1579)
 - doc: Docstrings for compute-related enum variants
 - fix: `json.default.renderSkelValues` with correct stacklevel
 
