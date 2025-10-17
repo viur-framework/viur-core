@@ -16,6 +16,7 @@ from .types import (
     SortOrder,
     TFilters,
     TOrders,
+    Key
 )
 from . import utils
 
@@ -471,7 +472,7 @@ class Query(object):
         """
         return self.kind
 
-    def _run_single_filter_query(self, query: QueryDefinition, limit: int) -> t.List[Entity]:
+    def _run_single_filter_query(self, query: QueryDefinition, limit: int, keys_only: bool) -> t.List[Entity]:
         """
         Internal helper function that runs a single query definition on the datastore and returns a list of
         entities found.
@@ -479,7 +480,7 @@ class Query(object):
         :param limit: How many results should at most be returned
         :return: The first *limit* entities that matches this query
         """
-        return run_single_filter(query, limit)
+        return run_single_filter(query, limit, keys_only)
 
     def _merge_multi_query_results(self, input_result: t.List[t.List[Entity]]) -> t.List[Entity]:
         """
@@ -580,7 +581,7 @@ class Query(object):
 
         return resultList
 
-    def run(self, limit: int = -1) -> t.List[Entity]:
+    def run(self, limit: int = -1, keys_only: bool = False) -> t.List[Entity | Key]:
         """
         Run this query.
 
@@ -590,6 +591,7 @@ class Query(object):
         should be used.
 
         :param limit: Limits the query to the defined maximum entities.
+        :param keys_only: If True, only return entities keys.
 
         :returns: The list of found entities
 
@@ -628,7 +630,7 @@ class Query(object):
             res = []
             # We run all queries first (preventing multiple round-trips to the server)
             for singleQuery in self.queries:
-                res.append(self._run_single_filter_query(singleQuery, limit))
+                res.append(self._run_single_filter_query(singleQuery, limit, keys_only))
 
             # Wait for the actual results to arrive and convert the protobuffs to Entries
             res = [self._fixKind(x) for x in res]
@@ -641,9 +643,20 @@ class Query(object):
 
         else:  # We have just one single query
             res = self._fixKind(self._run_single_filter_query(
-                self.queries, limit if limit >= 0 else self.queries.limit))
+                self.queries,
+                limit if limit >= 0 else self.queries.limit,
+                keys_only
+            ))
 
         if res:
+            if keys_only:
+                keys_only_res = []
+                for obj in res:
+                    if isinstance(obj, Entity):
+                        keys_only_res.append(obj.key)
+                    elif isinstance(obj, Key):
+                        keys_only_res.append(obj)
+                res = keys_only_res
             self._lastEntry = res[-1]
 
         return res
@@ -780,6 +793,9 @@ class Query(object):
         res._fulltextQueryString = self._fulltextQueryString
         # res._distinct = self._distinct
         return res
+
+    def keys_only(self, limit: int = -1) -> t.List["Key"]:
+        return self.run(limit, True)
 
     def __repr__(self) -> str:
         return f"<db.Query on {self.kind} with queries {self.queries}>"
