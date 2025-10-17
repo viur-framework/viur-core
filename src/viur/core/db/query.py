@@ -608,7 +608,8 @@ class Query(object):
         if self._fulltextQueryString:
             if utils.is_in_transaction():
                 raise ValueError("Can't run fulltextSearch inside transactions!")  # InvalidStateError FIXME!
-
+            if keys_only:
+                raise ValueError("Can't run fulltextSearch with keysOnly!")
             qryStr = self._fulltextQueryString
             self._fulltextQueryString = None  # Reset, so the adapter can still work with this query
             res = self.srcSkel.customDatabaseAdapter.fulltextSearch(qryStr, self)
