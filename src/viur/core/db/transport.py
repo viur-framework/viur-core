@@ -164,7 +164,7 @@ def Count(kind: str = None, up_to=2 ** 31 - 1, queryDefinition: QueryDefinition 
     return count(kind, up_to, queryDefinition)
 
 
-def run_single_filter(query: QueryDefinition, limit: int) -> t.List[Entity]:
+def run_single_filter(query: QueryDefinition, limit: int, keys_only: bool) -> t.List[Entity | Key]:
     """
         Internal helper function that runs a single query definition on the datastore and returns a list of
         entities found.
@@ -205,10 +205,10 @@ def run_single_filter(query: QueryDefinition, limit: int) -> t.List[Entity]:
 
         startCursor = query.startCursor
         endCursor = query.endCursor
-
+    if keys_only:
+        qry.keys_only()
     qryRes = qry.fetch(limit=limit, start_cursor=startCursor, end_cursor=endCursor)
     res = list(qryRes)
-
     query.currentCursor = qryRes.next_page_token
     if hasInvertedOrderings:
         res.reverse()
