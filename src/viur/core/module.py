@@ -326,7 +326,7 @@ class Module:
     seo_language_map: dict[str: str] = {}
     r"""
     The module name is the first part of a URL.
-    SEO-identifiers have to be set as class-attribute ``seoLanguageMap`` of type ``dict[str, str]`` in the module.
+    SEO-identifiers have to be set as class-attribute ``seo_language_map`` of type ``dict[str, str]`` in the module.
     It maps a *language* to the according *identifier*.
 
     .. code-block:: python
@@ -343,7 +343,7 @@ class Module:
             }
 
     By default the module would be available under */myorders*, the lowercase module name.
-    With the defined :attr:`seoLanguageMap`, it will become available as */de/bestellungen* and */en/orders*.
+    With the defined :attr:`seo_language_map`, it will become available as */de/bestellungen* and */en/orders*.
 
     Great, this part is now user and robot friendly :)
     """
