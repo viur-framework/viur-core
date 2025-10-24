@@ -651,13 +651,11 @@ class Query(object):
 
         if res:
             if keys_only:
-                keys_only_res = []
-                for obj in res:
-                    if isinstance(obj, Entity):
-                        keys_only_res.append(obj.key)
-                    elif isinstance(obj, Key):
-                        keys_only_res.append(obj)
-                res = keys_only_res
+                res = [
+                    obj if isinstance(obj, Key) else obj.key 
+                    for obj in res
+                    if isinstance(obj, (Entity, Key))
+                ]
             self._lastEntry = res[-1]
 
         return res
