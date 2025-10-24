@@ -714,7 +714,7 @@ class Query(object):
 
         return res
 
-    def iter(self) -> t.Iterator[Entity]:
+    def iter(self, keys_only=False) -> t.Iterator[Entity]:
         """
         Run this query and return an iterator for the results.
 
@@ -733,7 +733,7 @@ class Query(object):
         elif isinstance(self.queries, list):
             raise ValueError("No iter on Multiqueries")
         while True:
-            yield from self._run_single_filter_query(self.queries, 100)
+            yield from self._run_single_filter_query(self.queries, 100, keys_only)
             if not self.queries.currentCursor:  # We reached the end of that query
                 break
             self.queries.startCursor = self.queries.currentCursor
