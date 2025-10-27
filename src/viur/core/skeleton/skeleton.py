@@ -711,6 +711,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         create: t.Optional[bool | dict | t.Callable[[SkeletonInstance], None]] = None,
         update_relations: bool = True,
         ignore: t.Optional[t.Iterable[str]] = (),
+        internal: bool = True,
         retry: int = 0,
     ) -> SkeletonInstance:
         """
@@ -736,6 +737,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         :param update_relations: Trigger update relations task on success. Defaults to False.
         :param ignore: optional list of bones to be ignored from values; Defaults to an empty list,
             so that all bones are accepted (even read-only ones, as skel.patch() is being used internally)
+        :param internal: Internal patch does ignore any NotSet and Empty errors that may raise in skel.fromClient()
         :param retry: On RuntimeError, retry for this amount of times. - DEPRECATED!
 
         If the function does not raise an Exception, all went well.
@@ -779,8 +781,20 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             # Set values
             if isinstance(values, dict):
-                if values and not skel.fromClient(values, amend=True, ignore=ignore):
+                if values and not skel.fromClient(values, amend=True, ignore=ignore) and not internal:
                     raise ReadFromClientException(skel.errors)
+
+                # In case we're in internal-mode, only raise fatal errors.
+                if skel.errors and internal:
+                    for error in skel.errors:
+                        if error.severity in (
+                            ReadFromClientErrorSeverity.Invalid,
+                            ReadFromClientErrorSeverity.InvalidatesOther,
+                        ):
+                            raise ReadFromClientException(skel.errors)
+
+                    # otherwise, ignore any reported errors
+                    skel.errors.clear()
 
                 # Special-feature: "+" and "-" prefix for simple calculations
                 # TODO: This can maybe integrated into skel.fromClient() later...
