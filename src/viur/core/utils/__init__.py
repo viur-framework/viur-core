@@ -3,8 +3,9 @@ import logging
 import typing as t
 import urllib.parse
 import warnings
+import datetime
+import operator
 from collections.abc import Iterable
-
 from viur.core import current, db
 from viur.core.config import conf
 from deprecated.sphinx import deprecated
@@ -129,6 +130,17 @@ def ensure_iterable(
         return ()  # empty tuple
 
     return obj,  # return a tuple with the obj
+
+
+def freeze_dict(value: dict[str, t.Any]) -> list:
+    """Sort a dict recursively by keys and return as list"""
+    return sorted(
+        [
+            (pair[0], freeze_dict(pair[1])) if isinstance(pair[1], dict) else pair
+            for pair in value.items()
+        ],
+        key=operator.itemgetter(0),
+    )
 
 
 def build_content_disposition_header(
