@@ -2,6 +2,13 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.8]
+
+- doc: Fix seo_language_map in docstring
+- feat: `skel.patch()` with internal-mode default (#1587)
+- feat: Check `conf.valid_application_ids` with `fnmatch` and generally make it optional (#1590)
+- revert: Change regarding `self.onLogin()` in ViUR3 (#1584)
+
 ## [3.8.7]
 
 - fix: Avoid compute bones when the skel in deleted in a cascade (#1581)
