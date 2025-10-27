@@ -652,7 +652,7 @@ class Query(object):
         if res:
             if keys_only:
                 res = [
-                    obj if isinstance(obj, Key) else obj.key 
+                    obj if isinstance(obj, Key) else obj.key
                     for obj in res
                     if isinstance(obj, (Entity, Key))
                 ]
