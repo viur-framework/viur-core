@@ -985,7 +985,7 @@ class Conf(ConfigType):
     The default queue can be changed by overwriting `"__default__"`.
     """
 
-    valid_application_ids: list[str] = []
+    valid_application_ids: list[str] = ["*"]
     """Which application-ids we're supposed to run on"""
 
     version: tuple[int, int, int] = tuple(int(part) if part.isdigit() else part for part in __version__.split(".", 3))

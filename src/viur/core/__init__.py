@@ -5,7 +5,7 @@ Copyright © 2025 Mausbrand Informationssysteme GmbH
 https://core.docs.viur.dev
 Licensed under the MIT license. See LICENSE for more information.
 """
-
+import fnmatch
 import os
 import sys
 
@@ -256,7 +256,10 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
     # noinspection PyUnresolvedReferences
     import skeletons  # This import is not used here but _must_ remain to ensure that the
     # application's data models are explicitly imported at some place!
-    if conf.instance.project_id not in conf.valid_application_ids:
+    for application_id in conf.valid_application_ids:
+        if fnmatch.fnmatch(conf.instance.project_id, application_id):
+            break
+    else:
         raise RuntimeError(
             f"""Refusing to start, {conf.instance.project_id=} is not in {conf.valid_application_ids=}""")
     if not render:
