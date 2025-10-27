@@ -1,7 +1,7 @@
 import copy
 import logging
 import typing as t
-from viur.core import db
+from viur.core import db, i18n
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 
@@ -52,7 +52,7 @@ class KeyBone(BaseBone):
                 return self.getEmptyValue(), [
                     ReadFromClientError(
                         ReadFromClientErrorSeverity.Invalid,
-                        "The provided key is not a valid database key"
+                        i18n.translate("core.bones.error.invalidkey", "No valid database key could be parsed")
                     )
                 ]
 
@@ -66,7 +66,7 @@ class KeyBone(BaseBone):
                     return self.getEmptyValue(), [
                         ReadFromClientError(
                             ReadFromClientErrorSeverity.Invalid,
-                            "The provided key does not exist"
+                            i18n.translate("core.bones.error.keynotfound", "The provided database key does not exist")
                         )
                     ]
 
@@ -173,3 +173,9 @@ class KeyBone(BaseBone):
                 except:  # Invalid key or something
                     raise RuntimeError()
             return dbFilter
+
+    def _atomic_dump(self, value):
+        if not value:
+            return None
+
+        return str(value)

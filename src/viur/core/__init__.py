@@ -5,7 +5,7 @@ Copyright © 2025 Mausbrand Informationssysteme GmbH
 https://core.docs.viur.dev
 Licensed under the MIT license. See LICENSE for more information.
 """
-
+import fnmatch
 import os
 import sys
 
@@ -153,13 +153,11 @@ def __build_app(modules: ModuleType | object, renderers: ModuleType | object, de
     from viur.core.modules.script import Script  # noqa: E402 # import works only here because circular imports
     from viur.core.modules.translation import Translation  # noqa: E402 # import works only here because circular imports
     from viur.core.prototypes.instanced_module import InstancedModule  # noqa: E402 # import works only here because circular imports
-    from viur.core.modules.history import History  # noqa: E402 # import works only here because circular imports
 
     for name, cls in {
         "_tasks": TaskHandler,
         "_moduleconf": ModuleConf,
         "_translation": Translation,
-        "_history": History,
         "script": Script,
     }.items():
         # Check whether name is contained in modules so that it can be overwritten
@@ -258,7 +256,10 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
     # noinspection PyUnresolvedReferences
     import skeletons  # This import is not used here but _must_ remain to ensure that the
     # application's data models are explicitly imported at some place!
-    if conf.instance.project_id not in conf.valid_application_ids:
+    for application_id in conf.valid_application_ids:
+        if fnmatch.fnmatch(conf.instance.project_id, application_id):
+            break
+    else:
         raise RuntimeError(
             f"""Refusing to start, {conf.instance.project_id=} is not in {conf.valid_application_ids=}""")
     if not render:

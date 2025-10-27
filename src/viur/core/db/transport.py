@@ -10,6 +10,7 @@ from google.cloud import datastore, exceptions
 from .overrides import entity_from_protobuf, key_from_protobuf
 from .types import Entity, Key, QueryDefinition, SortOrder, current_db_access_log
 from viur.core.config import conf
+from viur.core.errors import HTTPException
 
 # patching our key and entity classes
 datastore.helpers.key_from_protobuf = key_from_protobuf
@@ -126,13 +127,9 @@ def run_in_transaction(func: t.Callable, *args, **kwargs) -> t.Any:
                 logging.error(f"Transaction failed with a conflict, trying again in {2 ** i} seconds")
                 time.sleep(2 ** i)
                 continue
-            except Exception as e:
-                logging.error(f"Transaction failed with exception, trying again in {2 ** i} seconds")
-                logging.exception(e)
-                time.sleep(2 ** i)
-                continue
+
         else:
-            raise RuntimeError(f"Maximum transaction retries exceeded")
+            raise RuntimeError("Maximum transaction retries exceeded")
 
     return res
 
@@ -167,7 +164,7 @@ def Count(kind: str = None, up_to=2 ** 31 - 1, queryDefinition: QueryDefinition 
     return count(kind, up_to, queryDefinition)
 
 
-def run_single_filter(query: QueryDefinition, limit: int) -> t.List[Entity]:
+def run_single_filter(query: QueryDefinition, limit: int, keys_only: bool) -> t.List[Entity | Key]:
     """
         Internal helper function that runs a single query definition on the datastore and returns a list of
         entities found.
@@ -208,10 +205,10 @@ def run_single_filter(query: QueryDefinition, limit: int) -> t.List[Entity]:
 
         startCursor = query.startCursor
         endCursor = query.endCursor
-
+    if keys_only:
+        qry.keys_only()
     qryRes = qry.fetch(limit=limit, start_cursor=startCursor, end_cursor=endCursor)
     res = list(qryRes)
-
     query.currentCursor = qryRes.next_page_token
     if hasInvertedOrderings:
         res.reverse()
@@ -225,7 +222,7 @@ def runSingleFilter(query: QueryDefinition, limit: int) -> t.List[Entity]:
 
 # helper function for access log
 def _write_to_access_log(data: t.Union[Key, list[Key], Entity, list[Entity]]) -> None:
-    if not conf.db_create_access_log:
+    if not conf.db.create_access_log:
         return
     access_log = current_db_access_log.get()
     if not isinstance(access_log, set):

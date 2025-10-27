@@ -218,18 +218,18 @@ class SpatialBone(BaseBone):
         rawLng = value.get("lng", None)
         if rawLat is None and rawLng is None:
             return self.getEmptyValue(), [
-                ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "Field not submitted")]
+                ReadFromClientError(ReadFromClientErrorSeverity.NotSet)]
         elif rawLat is None or rawLng is None:
-            return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value submitted")]
+            return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Empty)]
         try:
             rawLat = float(rawLat)
             rawLng = float(rawLng)
             # Check for NaNs
             assert rawLat == rawLat
             assert rawLng == rawLng
-        except:
+        except (ValueError, AssertionError):
             return self.getEmptyValue(), [
-                ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")]
+                ReadFromClientError(ReadFromClientErrorSeverity.Invalid)]
         err = self.isInvalid((rawLat, rawLng))
         if err:
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]

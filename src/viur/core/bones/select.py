@@ -120,9 +120,7 @@ class SelectBone(BaseBone):
         return val
 
     def singleValueSerialize(self, val, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
-        if isinstance(self._values, enum.EnumMeta) and isinstance(val, self._values):
-            return val.value
-        return val
+        return self._atomic_dump(val)
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
         if isinstance(self._values, enum.EnumMeta) and isinstance(value, self._values):
@@ -130,7 +128,12 @@ class SelectBone(BaseBone):
 
         value = str(value)
         if not value:
-            return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value selected")]
+            return self.getEmptyValue(), [
+                ReadFromClientError(
+                    ReadFromClientErrorSeverity.Empty,
+                    translate("core.bones.error.nothingselected", "No value selected"),
+                )
+            ]
 
         for key in self.values.keys():
             if str(key) == value:
@@ -140,7 +143,10 @@ class SelectBone(BaseBone):
                 return key, None
 
         return self.getEmptyValue(), [
-            ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value selected")
+            ReadFromClientError(
+                ReadFromClientErrorSeverity.Invalid,
+                translate("core.bones.error.invalidselected", "Invalid value selected"),
+            )
         ]
 
     def structure(self) -> dict:
@@ -150,3 +156,9 @@ class SelectBone(BaseBone):
                 if "bone.select.structure.values.keytuple" not in conf.compatibility
                 else [(k, str(v)) for k, v in self.values.items()]  # old-style key-tuple
         }
+
+    def _atomic_dump(self, value):
+        if isinstance(self._values, enum.EnumMeta) and isinstance(value, self._values):
+            return value.value
+
+        return value

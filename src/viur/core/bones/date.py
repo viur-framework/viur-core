@@ -1,10 +1,11 @@
-from datetime import datetime, timedelta, timezone
-import typing as t
-
+import datetime
+import logging
 import pytz
+import typing as t
 import tzlocal
+import warnings
 
-from viur.core import conf, current, db
+from viur.core import conf, current, db, i18n
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.utils import utcNow
 
@@ -28,11 +29,13 @@ class DateBone(BaseBone):
     def __init__(
         self,
         *,
-        creationMagic: bool = False,
         date: bool = True,
         localize: bool = None,
         naive: bool = False,
         time: bool = True,
+
+        # deprecated:
+        creationMagic: bool = False,
         updateMagic: bool = False,
         **kwargs
     ):
@@ -65,14 +68,19 @@ class DateBone(BaseBone):
             raise ValueError("Localize and naive is not possible!")
 
         # Magic is only possible in non-multiple bones and why ever only on readonly bones...
+        # FIXME: VIUR4 remove any magical things and finally start to write robust and relisient software...
         if creationMagic or updateMagic:
+            _depmsg = "'creationMagic/updateMagic' is deprecated; Use 'compute'-features instead!"
+            logging.warning(_depmsg)
+            warnings.warn(_depmsg, DeprecationWarning, stacklevel=2)
+
             if self.multiple:
                 raise ValueError("Cannot be multiple and have a creation/update-magic set!")
 
             self.readonly = True  # todo: why???
 
-        self.creationMagic = creationMagic
-        self.updateMagic = updateMagic
+        self.creationMagic = creationMagic  # FIXME: VIUR4 remove this
+        self.updateMagic = updateMagic  # FIXME: VIUR4 remove this
         self.date = date
         self.time = time
         self.localize = localize
@@ -117,23 +125,30 @@ class DateBone(BaseBone):
             if int(value) < -1 * (2 ** 30) or int(value) > (2 ** 31) - 2:
                 value = None
             else:
-                value = datetime.fromtimestamp(float(value), tz=time_zone).replace(microsecond=0)
+                value = datetime.datetime.fromtimestamp(float(value), tz=time_zone).replace(microsecond=0)
 
         elif not self.date and self.time:
             try:
-                value = datetime.fromisoformat(value)
+                value = datetime.datetime.fromisoformat(value)
 
             except ValueError:
                 try:
                     if value.count(":") > 1:
                         (hour, minute, second) = [int(x.strip()) for x in value.split(":")]
-                        value = datetime(year=1970, month=1, day=1, hour=hour, minute=minute, second=second,
-                                         tzinfo=time_zone)
+                        value = datetime.datetime(
+                            year=1970,
+                            month=1,
+                            day=1,
+                            hour=hour,
+                            minute=minute,
+                            second=second,
+                            tzinfo=time_zone,
+                        )
                     elif value.count(":") > 0:
                         (hour, minute) = [int(x.strip()) for x in value.split(":")]
-                        value = datetime(year=1970, month=1, day=1, hour=hour, minute=minute, tzinfo=time_zone)
+                        value = datetime.datetime(year=1970, month=1, day=1, hour=hour, minute=minute, tzinfo=time_zone)
                     elif value.replace("-", "", 1).isdigit():
-                        value = datetime(year=1970, month=1, day=1, second=int(value), tzinfo=time_zone)
+                        value = datetime.datetime(year=1970, month=1, day=1, second=int(value), tzinfo=time_zone)
                     else:
                         value = None
 
@@ -141,10 +156,10 @@ class DateBone(BaseBone):
                     value = None
 
         elif value.lower().startswith("now"):
-            now = datetime.now(time_zone)
+            now = datetime.datetime.now(time_zone)
             if len(value) > 4:
                 try:
-                    now += timedelta(seconds=int(value[3:]))
+                    now += datetime.timedelta(seconds=int(value[3:]))
                 except ValueError:
                     now = None
 
@@ -153,7 +168,7 @@ class DateBone(BaseBone):
         else:
             # try to parse ISO-formatted date string
             try:
-                value = datetime.fromisoformat(value)
+                value = datetime.datetime.fromisoformat(value)
             except ValueError:
                 # otherwise, test against several format strings
                 for fmt in (
@@ -168,7 +183,7 @@ class DateBone(BaseBone):
                     "%d.%m.%Y",
                 ):
                     try:
-                        value = datetime.strptime(value, fmt)
+                        value = datetime.datetime.strptime(value, fmt)
                         break
                     except ValueError:
                         continue
@@ -177,12 +192,15 @@ class DateBone(BaseBone):
 
         if not value:
             return self.getEmptyValue(), [
-                ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid value entered")
+                ReadFromClientError(ReadFromClientErrorSeverity.Invalid)
             ]
 
         if value.tzinfo and self.naive:
             return self.getEmptyValue(), [
-                ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Datetime must be naive")
+                ReadFromClientError(
+                    ReadFromClientErrorSeverity.Invalid,
+                    i18n.translate("core.bones.error.datetimenaive", "Datetime must be naive")
+                )
             ]
 
         if not value.tzinfo and not self.naive:
@@ -212,7 +230,7 @@ class DateBone(BaseBone):
             the superclass's isInvalid method.
         :rtype: str or None
         """
-        if isinstance(value, datetime):
+        if isinstance(value, datetime.datetime):
             if value.year < 1900:
                 return "Year must be >= 1900"
 
@@ -284,7 +302,7 @@ class DateBone(BaseBone):
             elif not self.date:
                 value = value.replace(year=1970, month=1, day=1)
             if self.naive:
-                value = value.replace(tzinfo=timezone.utc)
+                value = value.replace(tzinfo=datetime.timezone.utc)
             # We should always deal with timezone aware datetimes
             assert value.tzinfo, f"Encountered a naive Datetime object in {name} - refusing to save."
         return value
@@ -299,7 +317,7 @@ class DateBone(BaseBone):
             value is not a valid datetime object.
         :rtype: datetime or None
         """
-        if isinstance(value, datetime):
+        if isinstance(value, datetime.datetime):
             # Serialized value is timezone aware.
             if self.naive:
                 value = value.replace(tzinfo=None)
@@ -359,3 +377,11 @@ class DateBone(BaseBone):
             "time": self.time,
             "naive": self.naive
         }
+
+    def _atomic_dump(self, value):
+        if not value:
+            return None
+        if not isinstance(value, datetime.datetime):
+            raise ValueError("Expecting datetime object")
+
+        return value.isoformat()

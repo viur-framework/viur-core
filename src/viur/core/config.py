@@ -313,6 +313,20 @@ class Admin(ConfigType):
     }
 
 
+class Database(ConfigType):
+    query_external_limit: int = 100
+    """Sets the maximum query limit allowed by external filters."""
+
+    query_default_limit: int = 30
+    """Sets the default query limit for all queries."""
+
+    memcache_client: Client | None = None
+    """If set, ViUR cache data for the db.get in the Memcache for faster access."""
+
+    create_access_log: bool = True
+    """If False no access log will be created. But then the caching is disabled too."""
+
+
 class Security(ConfigType):
     """Security related settings"""
 
@@ -426,6 +440,7 @@ class Security(ConfigType):
         "vi/user/auth_*",
         "vi/user/f2_*",
         "vi/user/getAuthMethods",  # FIXME: deprecated, use `login` for this
+        "vi/user/select_authentication_provider",
         "vi/user/login",
     ]
     """Specifies admin tool paths which are being accessible without authenticated user."""
@@ -440,6 +455,7 @@ class Security(ConfigType):
         "user/auth_*",
         "user/f2_*",
         "user/getAuthMethods",  # FIXME: deprecated, use `login` for this
+        "user/select_authentication_provider",
         "user/login",
     ]
     """Paths that are accessible without authentication in a closed system, see `closed_system` for details."""
@@ -611,6 +627,9 @@ class I18N(ConfigType):
 
     language_module_map: dict[str, dict[str, str]] = {}
     """Maps modules to their translation (if set)"""
+
+    auto_translate_bones: bool = True
+    """Defines whether bone descr and categories should be automatically translated via i18n.translate-objects."""
 
     @property
     def available_dialects(self) -> list[str]:
@@ -849,15 +868,6 @@ class Conf(ConfigType):
     ]
     """Backward compatibility flags; Remove to enforce new style."""
 
-    db_engine: str = "viur.datastore"
-    """Database engine module"""
-
-    db_memcache_client: Client | None = None
-    """If set, ViUR cache data for the db.get in the Memcache for faster access."""
-
-    db_create_access_log: bool = True
-    """If False no access log will be created. But then the caching is disabled too."""
-
     error_handler: t.Callable[[Exception], str] | None = None
     """If set, ViUR calls this function instead of rendering the viur.errorTemplate if an exception occurs"""
 
@@ -969,13 +979,13 @@ class Conf(ConfigType):
     default values can be defined here for each task.
     To do this, the task path must be mapped to the queue name:
     ```
-    conf.tasks_default_queues["updateRelations.viur.core.skeleton"] = "update_relations"
+    conf.tasks_default_queues["update_relations.viur.core.skeleton"] = "update_relations"
     ```
     The queue (in the example: `"update_relations"`) must exist.
     The default queue can be changed by overwriting `"__default__"`.
     """
 
-    valid_application_ids: list[str] = []
+    valid_application_ids: list[str] = ["*"]
     """Which application-ids we're supposed to run on"""
 
     version: tuple[int, int, int] = tuple(int(part) if part.isdigit() else part for part in __version__.split(".", 3))
@@ -988,6 +998,7 @@ class Conf(ConfigType):
         super().__init__()
         self._strict_mode = strict_mode
         self.admin = Admin(parent=self)
+        self.db = Database(parent=self)
         self.security = Security(parent=self)
         self.debug = Debug(parent=self)
         self.email = Email(parent=self)
@@ -1031,7 +1042,6 @@ class Conf(ConfigType):
         "viur.cacheEnvironmentKey": "cache_environment_key",
         "viur.contentSecurityPolicy": "content_security_policy",
         "viur.bone.boolean.str2true": "bone_boolean_str2true",
-        "viur.db.engine": "db_engine",
         "viur.errorHandler": "error_handler",
         "viur.static.embedSvg.path": "static_embed_svg_path",
         "viur.file.hmacKey": "file_hmac_key",

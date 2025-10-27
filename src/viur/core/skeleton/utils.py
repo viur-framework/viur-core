@@ -47,13 +47,37 @@ class SkelList(list):
         "renderPreparation",
     )
 
-    def __init__(self, baseSkel=None):
+    def __init__(self, skel, *items):
         """
             :param baseSkel: The baseclass for all entries in this list
         """
         super().__init__()
-        self.baseSkel = baseSkel or {}
+        self.baseSkel = skel or {}
         self.getCursor = lambda: None
         self.get_orders = lambda: None
         self.renderPreparation = None
         self.customQueryInfo = {}
+
+        self.extend(items)
+
+
+# FIXME: REMOVE WITH VIUR4
+def remove_render_preparation_deep(skel: t.Any) -> t.Any:
+    """Remove renderPreparation of nested skeletons
+
+    _refSkelCache can have renderPreparation too.
+    """
+    from .instance import SkeletonInstance
+
+    if isinstance(skel, SkeletonInstance):
+        skel.renderPreparation = None
+        for _, value in skel.items(yieldBoneValues=True):
+            remove_render_preparation_deep(value)
+    elif isinstance(skel, dict):
+        for value in skel.values():
+            remove_render_preparation_deep(value)
+    elif isinstance(skel, (list, tuple, set)):
+        for value in skel:
+            remove_render_preparation_deep(value)
+
+    return skel

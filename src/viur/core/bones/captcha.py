@@ -96,7 +96,7 @@ class CaptchaBone(BaseBone):
             logging.info("Skipping captcha validation for root user")
             return None  # Don't bother trusted users with this (not supported by admin/vi anyway)
         if name not in data and "g-recaptcha-response" not in data:
-            return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "No Captcha given!")]
+            return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet)]
 
         result = requests.post(
             url="https://www.google.com/recaptcha/api/siteverify",

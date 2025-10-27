@@ -18,6 +18,7 @@ class SkeletonInstance:
         class. This is much faster as this is a small class.
     """
     __slots__ = {
+        "_cascade_deletion",
         "accessedValues",
         "boneMap",
         "dbEntity",
@@ -31,6 +32,7 @@ class SkeletonInstance:
     def __init__(
         self,
         skel_cls: t.Type[Skeleton],
+        entity: t.Optional[db.Entity | dict] = None,
         *,
         bones: t.Iterable[str] = (),
         bone_map: t.Optional[t.Dict[str, BaseBone]] = None,
@@ -62,7 +64,7 @@ class SkeletonInstance:
         bone_map = bone_map or {}
 
         if bones:
-            names = ("key", ) + tuple(bones)
+            names = ("key",) + tuple(bones)
 
             # generate full keys sequence based on definition; keeps order of patterns!
             keys = []
@@ -94,8 +96,9 @@ class SkeletonInstance:
             for v in self.boneMap.values():
                 v.isClonedInstance = True
 
+        self._cascade_deletion = False
         self.accessedValues = {}
-        self.dbEntity = None
+        self.dbEntity = entity
         self.errors = []
         self.is_cloned = clone
         self.renderAccessedValues = {}
@@ -120,6 +123,9 @@ class SkeletonInstance:
 
     def __contains__(self, item):
         return item in self.boneMap
+
+    def __bool__(self):
+        return bool(self.accessedValues or self.dbEntity)
 
     def get(self, item, default=None):
         if item not in self:
@@ -322,6 +328,16 @@ class SkeletonInstance:
         return {
             key: bone.structure() | {"sortindex": i}
             for i, (key, bone) in enumerate(self.items())
+        }
+
+    def dump(self):
+        """
+        Return a simplified version of the bone values in this skeleton.
+        This can be used for example in the JSON renderer.
+        """
+
+        return {
+            bone_name: bone.dump(self, bone_name) for bone_name, bone in self.items()
         }
 
     def __deepcopy__(self, memodict):

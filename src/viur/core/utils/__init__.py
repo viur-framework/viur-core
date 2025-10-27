@@ -11,6 +11,9 @@ from viur.core.config import conf
 from deprecated.sphinx import deprecated
 from . import json, parse, string  # noqa: used by external imports
 
+if t.TYPE_CHECKING:
+    from viur.core.skeleton import SkeletonInstance
+
 
 def utcNow() -> datetime.datetime:
     """

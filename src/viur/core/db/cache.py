@@ -1,6 +1,9 @@
+import datetime
+
+from google.appengine.ext.testbed import Testbed
+
 import logging
 import sys
-import time
 import typing as t
 
 from viur.core.config import conf
@@ -8,9 +11,9 @@ from .types import Entity, Key
 
 MEMCACHE_MAX_BATCH_SIZE = 30
 MEMCACHE_NAMESPACE = "viur-datastore"
-MEMCACHE_TIMEOUT = 60 * 60
-MEMCACHE_MAX_SIZE = 1_000_000
-
+MEMCACHE_TIMEOUT: int | datetime.timedelta = datetime.timedelta(days=1)
+MEMCACHE_MAX_SIZE: t.Final[int] = 1_000_000
+TESTBED = None
 """
 
     This Module controls the Interaction with the Memcache from Google
@@ -18,12 +21,8 @@ MEMCACHE_MAX_SIZE = 1_000_000
     ..  code-block:: python
     # Example
     from viur.core import conf
-    if not conf.instance.is_dev_server:
-        from google.appengine.api.memcache import Client
-        conf.db_memcache_client = Client()
-    else:
-        conf.db_memcache_client = db.cache.LocalMemcache()
-
+    from google.appengine.api.memcache import Client
+    conf.db.memcache_client = Client()
 """
 
 __all__ = [
@@ -34,40 +33,63 @@ __all__ = [
     "get",
     "put",
     "delete",
-    "LocalMemcache",
+    "flush",
 ]
 
 
-def get(keys: t.Union[str, Key, t.List[str], t.List[Key]]) -> t.Dict[str, dict]:
+def get(keys: t.Union[Key, list[Key]], namespace: t.Optional[str] = None) -> t.Union[Entity, list[Entity], None]:
     """
     Reads data form the memcache.
     :param keys: Unique identifier(s) for one or more entry(s).
-    :return: A dict with the entry(s) that found in the memcache.
+    :param namespace: Optional namespace to use.
+    :return: The entity (or None if it has not been found), or a list of entities.
     """
     if not check_for_memcache():
-        return {}
-    if not isinstance(keys, list):
+        return None
+
+    namespace = namespace or MEMCACHE_NAMESPACE
+    single_request = not isinstance(keys, (list, tuple, set))
+    if single_request:
         keys = [keys]
     keys = [str(key) for key in keys]  # Enforce that all keys are strings
-    res = {}
+    cached_data = {}
+    result = []
     try:
         while keys:
-            res |= conf.db_memcache_client.get_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=MEMCACHE_NAMESPACE)
+            cached_data |= conf.db.memcache_client.get_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=namespace)
             keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
     except Exception as e:
         logging.error(f"""Failed to get keys form the memcache with {e=}""")
-    return res
+    for key, value in cached_data.items():
+        entity = Entity(Key(key))
+        entity |= value
+        result.append(entity)
+    if single_request:
+        return result[0] if result else None
+    return result if result else None
 
 
-def put(data: t.Union[Entity, t.Dict[Key, Entity], t.List[Entity]]):
+def put(
+    data: t.Union[Entity, t.Dict[Key, Entity], t.Iterable[Entity]],
+    namespace: t.Optional[str] = None,
+    timeout: t.Optional[t.Union[int, datetime.timedelta]] = None
+) -> bool:
     """
     Writes Data to the memcache.
-
     :param data: Data to write
+    :param namespace: Optional namespace to use.
+    :param timeout: Optional timeout in seconds or a timedelta object.
+    :return: A boolean indicating success.
     """
     if not check_for_memcache():
-        return
-    if isinstance(data, list):
+        return False
+
+    namespace = namespace or MEMCACHE_NAMESPACE
+    timeout = timeout or MEMCACHE_TIMEOUT
+    if isinstance(timeout, datetime.timedelta):
+        timeout = timeout.total_seconds()
+
+    if isinstance(data, (list, tuple, set)):
         data = {item.key: item for item in data}
     elif isinstance(data, Entity):
         data = {data.key: data}
@@ -80,41 +102,48 @@ def put(data: t.Union[Entity, t.Dict[Key, Entity], t.List[Entity]]):
     try:
         while keys:
             data_batch = {key: data[key] for key in keys[:MEMCACHE_MAX_BATCH_SIZE]}
-            conf.db_memcache_client.set_multi(data_batch, namespace=MEMCACHE_NAMESPACE, time=MEMCACHE_TIMEOUT)
+            conf.db.memcache_client.set_multi(data_batch, namespace=namespace, time=timeout)
             keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
+        return True
     except Exception as e:
         logging.error(f"""Failed to put data to the memcache with {e=}""")
+        return False
 
 
-def delete(keys: t.Union[str, Key, t.List[str], t.List[Key]]) -> None:
+def delete(keys: t.Union[Key, list[Key]], namespace: t.Optional[str] = None) -> None:
     """
     Deletes an Entry form memcache.
-
     :param keys: Unique identifier(s) for one or more entry(s).
+    :param namespace: Optional namespace to use.
     """
     if not check_for_memcache():
-        return
+        return None
+
+    namespace = namespace or MEMCACHE_NAMESPACE
     if not isinstance(keys, list):
         keys = [keys]
     keys = [str(key) for key in keys]  # Enforce that all keys are strings
     try:
         while keys:
-            conf.db_memcache_client.delete_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=MEMCACHE_NAMESPACE)
+            conf.db.memcache_client.delete_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=namespace)
             keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
     except Exception as e:
         logging.error(f"""Failed to delete keys form the memcache with {e=}""")
 
 
-def flush():
+def flush() -> bool:
     """
     Deletes everything in memcache.
+    :return: A boolean indicating success.
     """
     if not check_for_memcache():
-        return
+        return False
     try:
-        conf.db_memcache_client.flush_all()
+        conf.db.memcache_client.flush_all()
     except Exception as e:
         logging.error(f"""Failed to flush the memcache with {e=}""")
+        return False
+    return True
 
 
 def get_size(obj: t.Any) -> int:
@@ -130,39 +159,16 @@ def get_size(obj: t.Any) -> int:
 
 
 def check_for_memcache() -> bool:
-    if conf.db_memcache_client is None:
-        logging.warning(f"""conf.db_memcache_client is 'None'. It can not be used.""")
+    if conf.db.memcache_client is None:
+        logging.warning(f"""conf.db.memcache_client is 'None'. It can not be used.""")
         return False
+    init_testbed()
     return True
 
 
-class LocalMemcache:
-    def __init__(self):
-        self._data = {}
-
-    def get_multi(self, keys: t.List[str], namespace: str = MEMCACHE_NAMESPACE):
-        self._data.setdefault(namespace, {})
-        res = {}
-        for key in keys:
-            if (data := self._data[namespace].get(key)) is not None:
-                if data["__lifetime__"]["last_seen"] + data["__lifetime__"]["timeout"] > time.time():
-                    res[key] = data["__data__"]
-                else:
-                    self._data[namespace].pop(key)
-        return res
-
-    def set_multi(self, data: t.Dict[str, t.Any], namespace: str = MEMCACHE_NAMESPACE, time: int = MEMCACHE_TIMEOUT):
-        self._data.setdefault(namespace, {})
-        for key, value in data.items():
-            self._data[namespace][key] = {}
-            self._data[namespace][key]["__data__"] = value
-            self._data[namespace][key]["__lifetime__"] = {"timeout": time, "last_seen": time.time()}
-
-    def delete_multi(self, keys: t.List[str] = [], namespace: str = MEMCACHE_NAMESPACE):
-        self._data.setdefault(namespace, {})
-        for key in keys:
-            if (data := self._data[namespace].get(key)) is not None:
-                self._data[namespace].pop(key)
-
-    def flush_all(self):
-        self._data.clear()
+def init_testbed() -> None:
+    global TESTBED
+    if TESTBED is None and conf.instance.is_dev_server and conf.db.memcache_client:
+        TESTBED = Testbed()
+        TESTBED.activate()
+        TESTBED.init_memcache_stub()

@@ -24,7 +24,8 @@ from google.cloud import storage
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
 from viur.core import conf, current, db, errors, utils, i18n
-from viur.core.bones import BaseBone, BooleanBone, KeyBone, NumericBone, StringBone
+from viur.core.bones import BaseBone, BooleanBone, JsonBone, KeyBone, NumericBone, StringBone
+
 from viur.core.decorators import *
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import SkeletonInstance, skeletonByKind
@@ -104,27 +105,31 @@ def importBlobFromViur2(dlKey, fileName):
 def thumbnailer(fileSkel, existingFiles, params):
     file_name = html.unescape(fileSkel["name"])
     bucket = conf.main_app.file.get_bucket(fileSkel["dlkey"])
+
     blob = bucket.get_blob(f"""{fileSkel["dlkey"]}/source/{file_name}""")
     if not blob:
         logging.warning(f"""Blob {fileSkel["dlkey"]}/source/{file_name} is missing from cloud storage!""")
         return
-    fileData = io.BytesIO()
-    blob.download_to_file(fileData)
-    resList = []
-    for sizeDict in params:
-        fileData.seek(0)
-        outData = io.BytesIO()
+
+    source = io.BytesIO()
+    blob.download_to_file(source)
+
+    result = []
+
+    for info in params:
+        # Read the image into PIL
         try:
-            img = PIL.Image.open(fileData)
+            source.seek(0)
+            img = PIL.Image.open(source)
         except PIL.Image.UnidentifiedImageError:  # Can't load this image; so there's no need to try other resolutions
-            return []
-        iccProfile = img.info.get('icc_profile')
-        if iccProfile:
+            break
+
+        if icc_profile := img.info.get("icc_profile"):
             # JPEGs might be encoded with a non-standard color-profile; we need to compensate for this if we convert
             # to WEBp as we'll loose this color-profile information
-            f = io.BytesIO(iccProfile)
+            f = io.BytesIO(icc_profile)
             src_profile = PIL.ImageCms.ImageCmsProfile(f)
-            dst_profile = PIL.ImageCms.createProfile('sRGB')
+            dst_profile = PIL.ImageCms.createProfile("sRGB")
             try:
                 img = PIL.ImageCms.profileToProfile(
                     img,
@@ -132,28 +137,50 @@ def thumbnailer(fileSkel, existingFiles, params):
                     outputProfile=dst_profile,
                     outputMode="RGBA" if img.has_transparency_data else "RGB")
             except Exception as e:
+                logging.debug(f"{info=}")
                 logging.exception(e)
                 continue
-        fileExtension = sizeDict.get("fileExtension", "webp")
-        if "width" in sizeDict and "height" in sizeDict:
-            width = sizeDict["width"]
-            height = sizeDict["height"]
-            targetName = f"thumbnail-{width}-{height}.{fileExtension}"
-        elif "width" in sizeDict:
-            width = sizeDict["width"]
+
+        file_extension = info.get("fileExtension", "webp")
+        mimetype = info.get("mimeType", "image/webp")
+
+        if "width" in info and "height" in info:
+            width = info["width"]
+            height = info["height"]
+            target_filename = f"thumbnail-{width}-{height}.{file_extension}"
+
+        elif "width" in info:
+            width = info["width"]
             height = int((float(img.size[1]) * float(width / float(img.size[0]))))
-            targetName = f"thumbnail-w{width}.{fileExtension}"
+            target_filename = f"thumbnail-w{width}.{file_extension}"
+
         else:  # No default fallback - ignore
             continue
-        mimeType = sizeDict.get("mimeType", "image/webp")
-        img = img.resize((width, height), PIL.Image.LANCZOS)
-        img.save(outData, fileExtension)
-        outSize = outData.tell()
-        outData.seek(0)
-        targetBlob = bucket.blob(f"""{fileSkel["dlkey"]}/derived/{targetName}""")
-        targetBlob.upload_from_file(outData, content_type=mimeType)
-        resList.append((targetName, outSize, mimeType, {"mimetype": mimeType, "width": width, "height": height}))
-    return resList
+
+        # Create resized version of the source
+        target = io.BytesIO()
+
+        try:
+            img = img.resize((width, height), PIL.Image.LANCZOS)
+        except ValueError as e:
+            # Usually happens to some files, like TIFF-images.
+            logging.debug(f"{info=}")
+            logging.exception(e)
+            break
+
+        img.save(target, file_extension)
+
+        # Safe derived target file
+        target_size = target.tell()
+        target.seek(0)
+        target_blob = bucket.blob(f"""{fileSkel["dlkey"]}/derived/{target_filename}""")
+        target_blob.upload_from_file(target, content_type=mimetype)
+
+        result.append(
+            (target_filename, target_size, mimetype, {"mimetype": mimetype, "width": width, "height": height})
+        )
+
+    return result
 
 
 def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
@@ -318,8 +345,8 @@ class FileLeafSkel(TreeSkel):
         languages=conf.i18n.available_languages,
     )
 
-    size = StringBone(
-        descr="Size",
+    size = NumericBone(
+        descr="Filesize in Bytes",
         readOnly=True,
         searchable=True,
     )
@@ -365,7 +392,7 @@ class FileLeafSkel(TreeSkel):
         visible=False,
     )
 
-    derived = BaseBone(
+    derived = JsonBone(
         descr="Derived Files",
         readOnly=True,
         visible=False,
@@ -536,6 +563,9 @@ class File(Tree):
         Rule set: https://stackoverflow.com/a/31976060/3749896
         Regex test: https://regex101.com/r/iBYpoC/1
         """
+        if not filename.strip():
+            return False
+
         if len(filename) > cls.MAX_FILENAME_LEN:
             return False
 
@@ -588,12 +618,12 @@ class File(Tree):
 
         # Append additional parameters
         if params := {
-                k: v for k, v in {
-                    "download": download,
-                    "filename": filename,
-                    "options": options,
-                    "size": size,
-                }.items() if v
+            k: v for k, v in {
+                "download": download,
+                "filename": filename,
+                "options": options,
+                "size": size,
+            }.items() if v
         }:
             serving_url += f"?{urlencode(params)}"
 
@@ -732,9 +762,9 @@ class File(Tree):
         from viur.core.skeleton import SkeletonInstance  # avoid circular imports
 
         if not (
-            isinstance(file, (SkeletonInstance, dict))
-            and "dlkey" in file
-            and "derived" in file
+                isinstance(file, (SkeletonInstance, dict))
+                and "dlkey" in file
+                and "derived" in file
         ):
             logging.error("Invalid file supplied")
             return ""
@@ -764,12 +794,22 @@ class File(Tree):
         filename: str,
         content: t.Any,
         mimetype: str = "text/plain",
+        *,
         width: int = None,
         height: int = None,
         public: bool = False,
+        rootnode: t.Optional[db.Key] = None,
+        folder: t.Iterable[str] | str = (),
     ) -> db.Key:
         """
-        Write a file from any buffer into the file module.
+        Write a file from any bytes-like object into the file module.
+
+        If *folder* and *rootnode* are both set, the file is added to the repository in that folder.
+        If only *folder* is set, the file is added to the default repository in that folder.
+        If only *rootnode* is set, the file is added to that repository in the root folder.
+
+        If both are not set, the file is added without a path or repository as a weak file.
+        It will not be visible in admin in this case.
 
         :param filename: Filename to be written.
         :param content:  The file content to be written, as bytes-like object.
@@ -777,12 +817,57 @@ class File(Tree):
         :param width: Optional width information for the file.
         :param height: Optional height information for the file.
         :param public: True if the file should be publicly accessible.
+        :param rootnode: Optional root-node of the repository to add the file to
+        :param folder: Optional folder the file should be written into.
+
         :return: Returns the key of the file object written. This can be associated e.g. with a FileBone.
         """
         # logging.info(f"{filename=} {mimetype=} {width=} {height=} {public=}")
         if not self.is_valid_filename(filename):
             raise ValueError(f"{filename=} is invalid")
 
+        # Folder mode?
+        if folder:
+            # Validate correct folder naming
+            if isinstance(folder, str):
+                folder = folder,  # make it a tuple
+
+            for foldername in folder:
+                if not self.is_valid_filename(foldername):
+                    raise ValueError(f"{foldername=} is invalid")
+
+            # When in folder-mode, a rootnode must exist!
+            if rootnode is None:
+                rootnode = self.ensureOwnModuleRootNode()
+
+            parentrepokey = rootnode.key
+            parentfolderkey = rootnode.key
+
+            for foldername in folder:
+                query = self.addSkel("node").all()
+                query.filter("parentrepo", parentrepokey)
+                query.filter("parententry", parentfolderkey)
+                query.filter("name", foldername)
+
+                if folder_skel := query.getSkel():
+                    # Skip existing folder
+                    parentfolderkey = folder_skel["key"]
+                else:
+                    # Create new folder
+                    folder_skel = self.addSkel("node")
+
+                    folder_skel["name"] = foldername
+                    folder_skel["parentrepo"] = parentrepokey
+                    folder_skel["parententry"] = parentfolderkey
+                    folder_skel.write()
+
+                    parentfolderkey = folder_skel["key"]
+
+        else:
+            parentrepokey = None
+            parentfolderkey = None
+
+        # Write the file
         dl_key = utils.string.random()
 
         if public:
@@ -793,25 +878,28 @@ class File(Tree):
         blob = bucket.blob(f"{dl_key}/source/{filename}")
         blob.upload_from_file(io.BytesIO(content), content_type=mimetype)
 
-        skel = self.addSkel("leaf")
-        skel["name"] = filename
-        skel["size"] = blob.size
-        skel["mimetype"] = mimetype
-        skel["dlkey"] = dl_key
-        skel["weak"] = True
-        skel["public"] = public
-        skel["width"] = width
-        skel["height"] = height
-        skel["crc32c_checksum"] = base64.b64decode(blob.crc32c).hex()
-        skel["md5_checksum"] = base64.b64decode(blob.md5_hash).hex()
+        fileskel = self.addSkel("leaf")
 
-        skel.write()
-        return skel["key"]
+        fileskel["parentrepo"] = parentrepokey
+        fileskel["parententry"] = parentfolderkey
+        fileskel["name"] = filename
+        fileskel["size"] = blob.size
+        fileskel["mimetype"] = mimetype
+        fileskel["dlkey"] = dl_key
+        fileskel["weak"] = bool(parentrepokey)
+        fileskel["public"] = public
+        fileskel["width"] = width
+        fileskel["height"] = height
+        fileskel["crc32c_checksum"] = base64.b64decode(blob.crc32c).hex()
+        fileskel["md5_checksum"] = base64.b64decode(blob.md5_hash).hex()
+        fileskel["pending"] = False
+
+        return fileskel.write()["key"]
 
     def read(
-        self,
-        key: db.Key | int | str | None = None,
-        path: str | None = None,
+            self,
+            key: db.Key | int | str | None = None,
+            path: str | None = None,
     ) -> tuple[io.BytesIO, str]:
         """
         Read a file from the Cloud Storage.
@@ -861,14 +949,14 @@ class File(Tree):
     @exposed
     @skey
     def getUploadURL(
-        self,
-        fileName: str,
-        mimeType: str,
-        size: t.Optional[int] = None,
-        node: t.Optional[str | db.Key] = None,
-        authData: t.Optional[str] = None,
-        authSig: t.Optional[str] = None,
-        public: bool = False,
+            self,
+            fileName: str,
+            mimeType: str,
+            size: t.Optional[int] = None,
+            node: t.Optional[str | db.Key] = None,
+            authData: t.Optional[str] = None,
+            authSig: t.Optional[str] = None,
+            public: bool = False,
     ):
         filename = fileName.strip()  # VIUR4 FIXME: just for compatiblity of the parameter names
 
@@ -878,9 +966,9 @@ class File(Tree):
         # Validate the mimetype from the client seems legit
         mimetype = mimeType.strip().lower()
         if not (
-            mimetype
-            and mimetype.count("/") == 1
-            and all(ch in string.ascii_letters + string.digits + "/-.+" for ch in mimetype)
+                mimetype
+                and mimetype.count("/") == 1
+                and all(ch in string.ascii_letters + string.digits + "/-.+" for ch in mimetype)
         ):
             raise errors.UnprocessableEntity(f"Invalid mime-type {mimetype!r} provided")
 
@@ -898,8 +986,8 @@ class File(Tree):
             if authData["validMimeTypes"]:
                 for validMimeType in authData["validMimeTypes"]:
                     if (
-                        validMimeType == mimetype
-                        or (validMimeType.endswith("*") and mimetype.startswith(validMimeType[:-1]))
+                            validMimeType == mimetype
+                            or (validMimeType.endswith("*") and mimetype.startswith(validMimeType[:-1]))
                     ):
                         break
                 else:
@@ -1092,13 +1180,13 @@ class File(Tree):
 
     @exposed
     def serve(
-        self,
-        host: str,
-        key: str,
-        size: t.Optional[int] = None,
-        filename: t.Optional[str] = None,
-        options: str = "",
-        download: bool = False,
+            self,
+            host: str,
+            key: str,
+            size: t.Optional[int] = None,
+            filename: t.Optional[str] = None,
+            options: str = "",
+            download: bool = False,
     ):
         """
         Requests an image using the serving url to bypass direct Google requests.
@@ -1463,8 +1551,8 @@ def start_delete_pending_files():
 
 def __getattr__(attr: str) -> object:
     if entry := {
-            # stuff prior viur-core < 3.7
-            "GOOGLE_STORAGE_BUCKET": ("conf.main_app.file.get_bucket()", _private_bucket),
+        # stuff prior viur-core < 3.7
+        "GOOGLE_STORAGE_BUCKET": ("conf.main_app.file.get_bucket()", _private_bucket),
     }.get(attr):
         msg = f"{attr} was replaced by {entry[0]}"
         warnings.warn(msg, DeprecationWarning, stacklevel=2)

@@ -131,12 +131,12 @@ class PasswordBone(StringBone):
         :rtype: Union[None, List[ReadFromClientError]]
         """
         if name not in data:
-            return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "Field not submitted")]
+            return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet)]
 
         if not (value := data[name]):
             # PasswordBone is special: As it cannot be read, don't set back to None if no value is given
             # This means a password once set can only be changed - but not deleted.
-            return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value entered")]
+            return [ReadFromClientError(ReadFromClientErrorSeverity.Empty)]
 
         if err := self.isInvalid(value):
             return [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
@@ -202,3 +202,6 @@ class PasswordBone(StringBone):
             "tests": self.tests if self.test_threshold else (),
             "test_threshold": self.test_threshold,
         }
+
+    def _atomic_dump(self, value):
+        return ""

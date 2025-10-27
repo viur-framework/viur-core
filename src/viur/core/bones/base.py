@@ -6,7 +6,6 @@ built, such as string, numeric, and date/time bones.
 """
 
 import copy
-import dataclasses
 import enum
 import hashlib
 import inspect
@@ -47,6 +46,7 @@ def setSystemInitialized():
 
     __system_initialized = True
 
+
 def getSystemInitialized():
     """
     Retrieves the current state of the system initialization by returning the value of the
@@ -81,12 +81,25 @@ class ReadFromClientError:
     """
     severity: ReadFromClientErrorSeverity
     """A ReadFromClientErrorSeverity enumeration value representing the severity of the error."""
-    errorMessage: str
+    errorMessage: t.Optional[str] = None
     """A string containing a human-readable error message describing the issue."""
     fieldPath: list[str] = field(default_factory=list)
     """A list of strings representing the path to the field where the error occurred."""
     invalidatedFields: list[str] = None
     """A list of strings containing the names of invalidated fields, if any."""
+
+    def __post_init__(self):
+        if not self.errorMessage:
+            self.errorMessage = {
+                ReadFromClientErrorSeverity.NotSet:
+                    i18n.translate("core.bones.error.notset", "Field not submitted"),
+                ReadFromClientErrorSeverity.InvalidatesOther:
+                    i18n.translate("core.bones.error.invalidatesother", "Field invalidates another field"),
+                ReadFromClientErrorSeverity.Empty:
+                    i18n.translate("core.bones.error.empty", "Field not set"),
+                ReadFromClientErrorSeverity.Invalid:
+                    i18n.translate("core.bones.error.invalid", "Invalid value provided"),
+            }[self.severity]
 
     def __str__(self):
         return f"{'.'.join(self.fieldPath)}: {self.errorMessage} [{self.severity.name}]"
@@ -186,24 +199,34 @@ class MultipleConstraints:
     It is only applied when the `sorted`-flag is set accordingly.
     """
 
+
 class ComputeMethod(Enum):
-    Always = 0  # Always compute on deserialization
-    Lifetime = 1  # Update only when given lifetime is outrun; value is only being stored when the skeleton is written
-    Once = 2  # Compute only once
-    OnWrite = 3  # Compute before written
+    Always = 0
+    """Always compute on deserialization"""
+    Lifetime = 1
+    """Update only when given lifetime is outrun; value is only being stored when the skeleton is written"""
+    Once = 2
+    """Compute only once, when it is unset"""
+    OnWrite = 3
+    """Compute before every write of the skeleton"""
 
 
 @dataclass
 class ComputeInterval:
     method: ComputeMethod = ComputeMethod.Always
-    lifetime: timedelta = None  # defines a timedelta until which the value stays valid (`ComputeMethod.Lifetime`)
+    """The compute-method to use for this bone"""
+    lifetime: timedelta = None
+    """Defines a timedelta until which the value stays valid (only used by `ComputeMethod.Lifetime`)"""
 
 
 @dataclass
 class Compute:
-    fn: callable  # the callable computing the value
-    interval: ComputeInterval = field(default_factory=ComputeInterval)  # the value caching interval
-    raw: bool = True  # defines whether the value returned by fn is used as is, or is passed through bone.fromClient
+    fn: callable
+    """The callable computing the value"""
+    interval: ComputeInterval = field(default_factory=ComputeInterval)
+    """The value caching interval"""
+    raw: bool = True
+    """Defines whether the value returned by fn is used as is, or is passed through `bone.fromClient()`"""
 
 
 class CloneStrategy(enum.StrEnum):
@@ -331,7 +354,7 @@ class BaseBone(object):
         if type_suffix:
             self.type += f".{type_suffix}"
 
-        if isinstance(category := self.params.get("category"), str):
+        if conf.i18n.auto_translate_bones and isinstance(category := self.params.get("category"), str):
             self.params["category"] = i18n.translate(category, hint=f"category of a <{type(self).__name__}>")
 
         # Multi-language support
@@ -447,17 +470,18 @@ class BaseBone(object):
 
     def setSystemInitialized(self) -> None:
         """
-        Can be overridden to initialize properties that depend on the Skeleton system
-        being initialized.
-
-        Here, in the BaseBone, we set descr to the bone_name if no descr argument
-        was given in __init__ and make sure that it is a :class:i18n.translate` object.
+        For the BaseBone, this performs some automatisms regarding bone descr and translations.
+        It can be overwritten to initialize properties that depend on the Skeleton system being initialized.
         """
+
+        # Set descr to the bone_name if no descr argument is given
         if self.descr is None:
             # TODO: The super().__setattr__() call is kinda hackish,
             #  but unfortunately viur-core has no *during system initialisation* state
             super().__setattr__("descr", self.name or "")
-        if self.descr and isinstance(self.descr, str):
+
+        if conf.i18n.auto_translate_bones and self.descr and isinstance(self.descr, str):
+            # Make sure that it is a :class:i18n.translate` object.
             super().__setattr__(
                 "descr",
                 i18n.translate(self.descr, hint=f"descr of a <{type(self).__name__}>{self.name}")
@@ -678,7 +702,8 @@ class BaseBone(object):
         """
         # The BaseBone will not read any client_data in fromClient. Use rawValueBone if needed.
         return self.getEmptyValue(), [
-            ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Will not read a BaseBone fromClient!")]
+            ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Will not read a BaseBone from client!")
+        ]
 
     def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> None | list[ReadFromClientError]:
         """
@@ -696,7 +721,8 @@ class BaseBone(object):
         subFields = self.parseSubfieldsFromClient()
         parsedData, fieldSubmitted = self.collectRawClientData(name, data, self.multiple, self.languages, subFields)
         if not fieldSubmitted:
-            return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "Field not submitted")]
+            return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet)]
+
         errors = []
         isEmpty = True
         filled_languages = set()
@@ -772,10 +798,13 @@ class BaseBone(object):
         if self.languages and isinstance(self.required, (list, tuple)):
             missing = set(self.required).difference(filled_languages)
             if missing:
-                return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "Field not set", fieldPath=[lang])
-                        for lang in missing]
+                return [
+                    ReadFromClientError(ReadFromClientErrorSeverity.Empty, fieldPath=[lang])
+                    for lang in missing
+                ]
+
         if isEmpty:
-            return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "Field not set")]
+            return [ReadFromClientError(ReadFromClientErrorSeverity.Empty)]
 
         # Check multiple constraints on demand
         if self.multiple and isinstance(self.multiple, MultipleConstraints):
@@ -819,14 +848,29 @@ class BaseBone(object):
         value = self._get_destinct_hash(skel[name])
 
         if constraints.min and len(value) < constraints.min:
-            res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Too few items"))
+            res.append(
+                ReadFromClientError(
+                    ReadFromClientErrorSeverity.Invalid,
+                    i18n.translate("core.bones.error.toofewitems", "Too few items")
+                )
+            )
 
         if constraints.max and len(value) > constraints.max:
-            res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Too many items"))
+            res.append(
+                ReadFromClientError(
+                    ReadFromClientErrorSeverity.Invalid,
+                    i18n.translate("core.bones.error.toomanyitems", "Too many items")
+                )
+            )
 
         if not constraints.duplicates:
             if len(set(value)) != len(value):
-                res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Duplicate items"))
+                res.append(
+                    ReadFromClientError(
+                        ReadFromClientErrorSeverity.Invalid,
+                        i18n.translate("core.bones.error.duplicateitems", "Duplicate items"),
+                    )
+                )
 
         return res
 
@@ -852,7 +896,9 @@ class BaseBone(object):
         self.serialize_compute(skel, name)
 
         if name in skel.accessedValues:
+            empty_value = self.getEmptyValue()
             newVal = skel.accessedValues[name]
+
             if self.languages and self.multiple:
                 res = db.Entity()
                 res["_viurLanguageWrapper_"] = True
@@ -862,7 +908,10 @@ class BaseBone(object):
                         res.exclude_from_indexes.add(language)
                     if language in newVal:
                         for singleValue in newVal[language]:
-                            res[language].append(self.singleValueSerialize(singleValue, skel, name, parentIndexed))
+                            value = self.singleValueSerialize(singleValue, skel, name, parentIndexed)
+                            if value != empty_value:
+                                res[language].append(value)
+
             elif self.languages:
                 res = db.Entity()
                 res["_viurLanguageWrapper_"] = True
@@ -872,6 +921,7 @@ class BaseBone(object):
                         res.exclude_from_indexes.add(language)
                     if language in newVal:
                         res[language] = self.singleValueSerialize(newVal[language], skel, name, parentIndexed)
+
             elif self.multiple:
                 res = []
 
@@ -879,11 +929,15 @@ class BaseBone(object):
                     f"Cannot handle {repr(newVal)} here. Expecting list or tuple."
 
                 for singleValue in (newVal or ()):
-                    res.append(self.singleValueSerialize(singleValue, skel, name, parentIndexed))
+                    value = self.singleValueSerialize(singleValue, skel, name, parentIndexed)
+                    if value != empty_value:
+                        res.append(value)
 
             else:  # No Languages, not Multiple
                 res = self.singleValueSerialize(newVal, skel, name, parentIndexed)
+
             skel.dbEntity[name] = res
+
             # Ensure our indexed flag is up2date
             indexed = self.indexed and parentIndexed
             if indexed and name in skel.dbEntity.exclude_from_indexes:
@@ -1045,7 +1099,7 @@ class BaseBone(object):
         :param name: The name of the Bone in the Skeleton
         :return: True if the Bone was unserialized, False otherwise
         """
-        if not self.compute or self._prevent_compute:
+        if not self.compute or self._prevent_compute or skel._cascade_deletion:
             return False
 
         match self.compute.interval.method:
@@ -1503,7 +1557,9 @@ class BaseBone(object):
             if issubclass(skel.skeletonCls, RefSkel):  # we have a ref skel we must load the complete skeleton
                 cloned_skel = skeletonByKind(skel.kindName)()
                 if not cloned_skel.read(skel["key"]):
-                    raise ValueError(f'{skel["key"]=!r} does no longer exists. Cannot compute a broken relation')
+                    raise ValueError(
+                        f"{bone_name!r}: {skel["key"]=!r} does no longer exists. Cannot compute a broken relation"
+                    )
             else:
                 cloned_skel = skel.clone()
             cloned_skel[bone_name] = None  # remove value form accessedValues to avoid endless recursion
@@ -1580,3 +1636,38 @@ class BaseBone(object):
                 ret["compute"]["lifetime"] = self.compute.interval.lifetime.total_seconds()
 
         return ret
+
+    def dump(self, skel: "SkeletonInstance", bone_name: str) -> t.Any:
+        """
+        Returns the value of a bone in a simplified version.
+        :param skel: The SkeletonInstance that contains the bone.
+        :param bone_name: The name of the bone to in the skeleton.
+        :return: The value of the bone in a simplified version.
+        """
+        ret = {}
+        bone_value = skel[bone_name]
+        if self.languages and self.multiple:
+            res = {}
+            for language in self.languages:
+                if bone_value and language in bone_value and bone_value[language]:
+                    ret[language] = [self._atomic_dump(value) for value in bone_value[language]]
+                else:
+                    res[language] = []
+        elif self.languages:
+            for language in self.languages:
+                if bone_value and language in bone_value and bone_value[language]:
+                    ret[language] = self._atomic_dump(bone_value[language])
+                else:
+                    ret[language] = None
+        elif self.multiple:
+            ret = [self._atomic_dump(value) for value in bone_value or ()]
+
+        else:
+            ret = self._atomic_dump(bone_value)
+        return ret
+
+    def _atomic_dump(self, value):
+        """
+        One atomic value of the bone.
+        """
+        return value

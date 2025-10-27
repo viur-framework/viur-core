@@ -94,6 +94,60 @@ class DefaultSettings(ConfigType):
     settings can be set here once.
     Argument provided directly to @ResponseCache will always have priority.
     """
+    method = None
+    if isinstance(f, Method):
+        # Wrapping an (exposed) Method; continue with Method._func
+        method = f
+        f = f._func
+
+    @wraps(f)
+    def wrapF(self, *args, **kwargs) -> str | bytes:
+        currReq = current.request.get()
+        if conf.debug.disable_cache or currReq.disableCache or not conf.db.create_access_log:
+            # Caching disabled
+            if conf.debug.disable_cache:
+                logging.debug("Caching is disabled by config")
+            elif not conf.db.create_access_log:
+                logging.warning("The Access log is disabled by config")
+            return f(self, *args, **kwargs)
+        # How many arguments are part of the way to the function called (and how many are just *args)
+        offset = -len(currReq.args) or len(currReq.path_list)
+        path = "/" + "/".join(currReq.path_list[: offset])
+        if not path in urls:
+            # This path (possibly a sub-render) should not be cached
+            logging.info(f"No caching for {path}")
+            return f(self, *args, **kwargs)
+        key = keyFromArgs(f, userSensitive, languageSensitive, evaluatedArgs, path, args, kwargs)
+        if not key:
+            # Something is wrong (possibly the parameter-count)
+            # Let's call f, but we knew already that this will clash
+            return f(self, *args, **kwargs)
+        dbRes = db.get(db.Key(viurCacheName, key))
+        if dbRes is not None:
+            if (
+                    not maxCacheTime or dbRes["creationtime"] > utils.utcNow()
+                    - utils.parse.timedelta(maxCacheTime)
+            ):
+                # We store it unlimited or the cache is fresh enough
+                logging.debug("This request was served from cache.")
+                currReq.response.headers['Content-Type'] = dbRes["content-type"]
+                return dbRes["data"]
+        # If we made it this far, the request wasn't cached or too old; we need to rebuild it
+        oldAccessLog = db.start_data_access_log()
+        try:
+            res = f(self, *args, **kwargs)
+        finally:
+            accessedEntries = db.end_data_access_log(oldAccessLog)
+        dbEntity = db.Entity(db.Key(viurCacheName, key))
+        dbEntity["data"] = res
+        dbEntity["creationtime"] = utils.utcNow()
+        dbEntity["path"] = path
+        dbEntity["content-type"] = currReq.response.headers['Content-Type']
+        dbEntity["accessedEntries"] = list(accessedEntries)
+        dbEntity.exclude_from_indexes = {"data", "content-type"}  # save two DB-writes.
+        db.put(dbEntity)
+        logging.debug("This request was a cache-miss. Cache has been updated.")
+        return res
 
     language_sensitive: bool = False
     user_sensitive: UserSensitive = UserSensitive.IGNORE

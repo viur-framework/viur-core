@@ -4,7 +4,6 @@ from viur.core import current, db, errors, utils
 from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
-from viur.core.bones import BaseBone
 from .skelmodule import SkelModule
 
 
@@ -209,7 +208,7 @@ class List(SkelModule):
     @force_ssl
     @exposed
     @skey(allow_empty=True)
-    def edit(self, key: db.Key | int | str, *args, **kwargs) -> t.Any:
+    def edit(self, key: db.Key | int | str, *, bounce: bool = False, **kwargs) -> t.Any:
         """
             Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
             Data is taken by any other arguments in *kwargs*.
@@ -238,7 +237,7 @@ class List(SkelModule):
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
             or not skel.fromClient(kwargs, amend=True)  # failure on reading into the bones
-            or utils.parse.bool(kwargs.get("bounce"))  # review before changing
+            or bounce  # review before changing
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self.render.edit(skel)
@@ -252,7 +251,7 @@ class List(SkelModule):
     @force_ssl
     @exposed
     @skey(allow_empty=True)
-    def add(self, *args, **kwargs) -> t.Any:
+    def add(self, *, bounce: bool = False, **kwargs) -> t.Any:
         """
             Add a new entry, and render the entry, eventually with error notes on incorrect data.
             Data is taken by any other arguments in *kwargs*.
@@ -274,8 +273,8 @@ class List(SkelModule):
         if (
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
-            or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or utils.parse.bool(kwargs.get("bounce"))  # review before adding
+            or not skel.fromClient(kwargs, amend=bounce)  # failure on reading into the bones
+            or bounce  # review before adding
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self.render.add(skel)
@@ -290,7 +289,7 @@ class List(SkelModule):
     @force_post
     @exposed
     @skey
-    def delete(self, key: db.Key | int | str, *args, **kwargs) -> t.Any:
+    def delete(self, key: db.Key | int | str, **kwargs) -> t.Any:
         """
             Delete an entry.
 
@@ -318,33 +317,36 @@ class List(SkelModule):
         return self.render.deleteSuccess(skel)
 
     @exposed
-    def index(self, *args, **kwargs) -> t.Any:
+    def index(self, key: db.Key | int | str = None, *args, **kwargs) -> t.Any:
         """
             Default, SEO-Friendly fallback for view and list.
-
-            :param args: The first argument - if provided - is interpreted as seoKey.
+            :param key: The key can be a database key or a seoKey.
+            :param args: Unused.
             :param kwargs: Used for the fallback list.
             :return: The rendered entity or list.
         """
-        if args and args[0]:
+        if key:
             skel = self.viewSkel(
                 allow_client_defined=utils.string.is_prefix(self.render.kind, "json"),
                 _excludeFromAccessLog=True,
             )
 
-            # We probably have a Database or SEO-Key here
-            if skel := skel.all().filter("viur.viurActiveSeoKeys =", str(args[0]).lower()).getSkel():
+            if (
+                isinstance(key, db.Key) and skel.read(key) or
+                (skel := skel.all().filter("viur.viurActiveSeoKeys =", str(key).lower()).getSkel())
+            ):
+
                 db.current_db_access_log.get(set()).add(skel["key"])
                 if not self.canView(skel):
                     raise errors.Forbidden()
-                seoUrl = utils.seoUrlToEntry(self.moduleName, skel)
+                seo_url = utils.seoUrlToEntry(self.moduleName, skel)
                 # Check whether this is the current seo-key, otherwise redirect to it
 
-                if current.request.get().request.path.lower() != seoUrl:
-                    raise errors.Redirect(seoUrl, status=301)
+                if current.request.get().request.path.lower() != seo_url:
+                    raise errors.Redirect(seo_url, status=301)
                 self.onView(skel)
                 return self.render.view(skel)
-        # This was unsuccessfully, we'll render a list instead
+
         if not kwargs:
             kwargs = self.getDefaultListParams()
         return self.list(**kwargs)
@@ -355,7 +357,7 @@ class List(SkelModule):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def clone(self, key: db.Key | str | int, **kwargs):
+    def clone(self, key: db.Key | str | int, *, bounce: bool = False, **kwargs):
         """
         Clone an existing entry, and render the entry, eventually with error notes on incorrect data.
         Data is taken by any other arguments in *kwargs*.
@@ -390,8 +392,8 @@ class List(SkelModule):
         if (
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
-            or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or utils.parse.bool(kwargs.get("bounce"))  # review before changing
+            or not skel.fromClient(kwargs, amend=bounce)  # failure on reading into the bones
+            or bounce  # review before changing
         ):
             return self.render.edit(skel, action="clone")
 

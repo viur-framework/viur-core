@@ -1,4 +1,7 @@
+import re
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
+
+SEARCH_TAGS = re.compile(r"[^\s]+")
 
 
 class RawBone(BaseBone):
@@ -18,3 +21,15 @@ class RawBone(BaseBone):
         if err:
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
         return value, None
+
+    def getSearchTags(self, skel: "SkeletonInstance", name: str) -> set[str]:
+        result = set()
+
+        for idx, lang, value in self.iter_bone_value(skel, name):
+            if not value:
+                continue
+
+            for tag in re.finditer(SEARCH_TAGS, str(value)):
+                result.add(tag.group())
+
+        return result

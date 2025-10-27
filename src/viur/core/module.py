@@ -133,7 +133,11 @@ class Method:
             elif annotation is db.Key:
                 if isinstance(value, db.Key):
                     return value
-
+                elif isinstance(value, str):  # Maybe we have an url encoded Key
+                    try:
+                        return db.Key.from_legacy_urlsafe(value)
+                    except Exception:
+                        pass
                 return parse_value_by_annotation(int | str, name, value)
 
             elif isinstance(annotation, enum.EnumMeta):
@@ -189,7 +193,10 @@ class Method:
                 value = kwargs.pop(param_name)
 
                 if param_type is not param.empty:
-                    value = parse_value_by_annotation(param_type, param_name, value)
+                    try:
+                        value = parse_value_by_annotation(param_type, param_name, value)
+                    except ValueError as exc:
+                        raise errors.NotAcceptable(f"Invalid value for {param_name}") from exc
 
                 parsed_kwargs[param_name] = value
 
@@ -319,7 +326,7 @@ class Module:
     seo_language_map: dict[str: str] = {}
     r"""
     The module name is the first part of a URL.
-    SEO-identifiers have to be set as class-attribute ``seoLanguageMap`` of type ``dict[str, str]`` in the module.
+    SEO-identifiers have to be set as class-attribute ``seo_language_map`` of type ``dict[str, str]`` in the module.
     It maps a *language* to the according *identifier*.
 
     .. code-block:: python
@@ -336,7 +343,7 @@ class Module:
             }
 
     By default the module would be available under */myorders*, the lowercase module name.
-    With the defined :attr:`seoLanguageMap`, it will become available as */de/bestellungen* and */en/orders*.
+    With the defined :attr:`seo_language_map`, it will become available as */de/bestellungen* and */en/orders*.
 
     Great, this part is now user and robot friendly :)
     """
