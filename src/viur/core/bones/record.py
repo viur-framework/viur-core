@@ -116,13 +116,13 @@ class RecordBone(BaseBone):
         drop_relations_higher = {}
 
         for idx, lang, value in self.iter_bone_value(skel, boneName):
-            if idx > 99:
+            if idx is not None and idx > 99:
                 logging.warning("postSavedHandler entry limit maximum reached")
                 drop_relations_higher.clear()
                 break
 
             for sub_bone_name, bone in value.items():
-                path = ".".join(name for name in (boneName, lang, f"{idx:02}", sub_bone_name) if name)
+                path = ".".join(name for name in (boneName, lang, f"{idx or 0:02}", sub_bone_name) if name)
                 if utils.string.is_prefix(bone.type, "relational"):
                     drop_relations_higher[sub_bone_name] = path
 
