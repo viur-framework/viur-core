@@ -1111,7 +1111,7 @@ class Tree(SkelModule):
         logging.debug(f"_clone_recursive {count=}")
 
         if cursor := q.getCursor():
-            self._clone_recursive(skel_type, src_key, target_key, target_repo, skel_type, cursor)
+            self._clone_recursive(skel_type, src_key, target_key, target_repo, cursor)
 
     def onCloned(self, skelType: SkelType, skel: SkeletonInstance, src_skel: SkeletonInstance):
         """
