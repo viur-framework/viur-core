@@ -45,30 +45,56 @@ class PasswordBone(StringBone):
     """A string representing the bone type, which is "password" in this case."""
     saltLength = 13
 
-    tests: t.Iterable[t.Iterable[t.Tuple[str, str, bool]]] = (
-        (r"^.*[A-Z].*$", translate("core.bones.password.no_capital_letters",
-                                   defaultText="The password entered has no capital letters."), False),
-        (r"^.*[a-z].*$", translate("core.bones.password.no_lowercase_letters",
-                                   defaultText="The password entered has no lowercase letters."), False),
-        (r"^.*\d.*$", translate("core.bones.password.no_digits",
-                                defaultText="The password entered has no digits."), False),
-        (r"^.*\W.*$", translate("core.bones.password.no_special_characters",
-                                defaultText="The password entered has no special characters."), False),
-        (r"^.{8,}$", translate("core.bones.password.too_short",
-                               defaultText="The password is too short. It requires for at least 8 characters."), True),
+    STANDARD_TESTS = (
+        (
+            r"^.{8,}$",
+            translate(
+                "core.bones.password.too_short",
+                "The password is too short. It requires for at least 8 characters."
+            ),
+            True,
+        ),
+        (
+            r"^.*[A-Z].*$",
+            translate(
+                "core.bones.password.no_capital_letters",
+                "The password entered has no capital letters."
+            ),
+            False,
+        ),
+        (
+            r"^.*[a-z].*$",
+            translate(
+                "core.bones.password.no_lowercase_letters",
+                "The password entered has no lowercase letters."
+            ),
+            False,
+        ),
+        (
+            r"^.*\d.*$",
+            translate(
+                "core.bones.password.no_digits",
+                "The password entered has no digits."
+            ),
+            False,
+        ),
+        (
+            r"^.*\W.*$",
+            translate(
+                "core.bones.password.no_special_characters",
+                "The password entered has no special characters."
+            ),
+            False
+        ),
     )
-    """Provides tests based on regular expressions to test the password strength.
-
-    Note: The provided regular expressions have to produce exactly the same results in Python and JavaScript.
-          This requires that some feature either cannot be used, or must be rewritten to match on both engines.
-    """
+    """Provides a set of standard tests based on regular expressions to test the password strength."""
 
     def __init__(
         self,
         *,
         descr: str = "Password",
-        test_threshold: int = 4,
-        tests: t.Iterable[t.Iterable[t.Tuple[str, str, bool]]] = tests,
+        test_threshold: int = 0,
+        tests: t.Iterable[t.Iterable[t.Tuple[str, str, bool]]] = (),
         raw: bool = False,
         **kwargs
     ):
@@ -76,14 +102,15 @@ class PasswordBone(StringBone):
             Initializes a new PasswordBone.
 
             :param test_threshold: The minimum number of tests the password must pass.
-            :param password_tests: Defines separate tests specified as tuples of regex, hint and required-flag.
+            :param tests: Defines separate tests specified as tuples of regex, hint and required-flag. \
+                The provided regular expressions have to produce exactly the same results in Python and JavaScript. \
+                This requires that some feature either cannot be used, or must be rewritten to match on both engines.
             :param raw: Don't encode password's hash when reading from client, just save the provided string.
         """
         super().__init__(descr=descr, **kwargs)
         self.test_threshold = test_threshold
         self.raw = raw
-        if tests is not None:
-            self.tests = tests
+        self.tests = tests
 
     def isInvalid(self, value):
         """
