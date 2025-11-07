@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.9]
+
+- fix: `Tree._clone_recursive` internal call (#1593)
+- fix: `RecordBone(multiple=False)` raise exception (#1591)
+
 ## [3.8.8]
 
 - doc: Fix seo_language_map in docstring
