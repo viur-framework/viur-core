@@ -10,6 +10,7 @@ class RawBone(BaseBone):
     Can be used to store any textual content.
 
     Use the dot-notation like "raw.code.markdown" or similar to describe subsequent types.
+    This can also be achieved by adding `type_suffix="code.markdown"` to the RawBone's instantiation.
 
     ..Warning: Using this bone will lead to security vulnerabilities like reflected XSS unless the
         data is either otherwise validated/stripped or from a trusted source! Don't use this unless
