@@ -149,6 +149,9 @@ class RelationalBone(BaseBone):
                 relational updates this will cascade. If Entity A references B with CascadeDeletion set, and
                 B references C also with CascadeDeletion; if C gets deleted, both B and A will be deleted as well.
 
+    :param consistency_fn:
+        Allows to define a callable that checks whether a found target skeleton is flagged as deleted,
+        altought it still exists.
     """
     type = "relational"
     kind = None
@@ -157,6 +160,7 @@ class RelationalBone(BaseBone):
         self,
         *,
         consistency: RelationalConsistency = RelationalConsistency.Ignore,
+        consistency_fn: t.Optional[t.Callable[["SkeletonInstance"], bool]] = None,
         format: str = "$(dest.name)",
         kind: str = None,
         module: t.Optional[str] = None,
@@ -283,6 +287,7 @@ class RelationalBone(BaseBone):
 
         self.updateLevel = updateLevel
         self.consistency = consistency
+        self.consistency_fn = consistency_fn
 
         if getSystemInitialized():
             from viur.core.skeleton import RefSkel, SkeletonInstance
@@ -1026,6 +1031,11 @@ class RelationalBone(BaseBone):
             if value and value["dest"]:
                 try:
                     target_skel = value["dest"].read()
+
+                    # Trigger target_skel as deleted by consistency_fn?
+                    if self.consistency_fn and self.consistency_fn(target_skel):
+                        raise ValueError("consistency_fn triggers target_skel as deleted")
+
                 except ValueError:
 
                     # Handle removed reference according to the RelationalConsistency settings
