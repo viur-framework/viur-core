@@ -13,6 +13,7 @@ from .meta import BaseSkeleton, MetaSkel, KeyType, _UNDEFINED_KINDNAME
 from . import tasks
 from .utils import skeletonByKind
 from ..bones.base import (
+    BaseBone,
     Compute,
     ComputeInterval,
     ComputeMethod,
@@ -96,6 +97,12 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     # it gets stored in. Must be kept readOnly to avoid security-issues with add/edit.
     key = KeyBone(
         descr="Key"
+    )
+
+    shortkey = BaseBone(
+        descr="Shortkey",
+        readOnly=True,
+        compute=Compute(lambda skel: skel["key"].id_or_name if skel["key"] else None)
     )
 
     name = StringBone(
