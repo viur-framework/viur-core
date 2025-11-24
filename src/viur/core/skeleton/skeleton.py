@@ -13,7 +13,6 @@ from .meta import BaseSkeleton, MetaSkel, KeyType, _UNDEFINED_KINDNAME
 from . import tasks
 from .utils import skeletonByKind
 from ..bones.base import (
-    BaseBone,
     Compute,
     ComputeInterval,
     ComputeMethod,
@@ -21,6 +20,7 @@ from ..bones.base import (
     ReadFromClientError,
     ReadFromClientErrorSeverity
 )
+from ..bones.raw import RawBone
 from ..bones.relational import RelationalConsistency
 from ..bones.key import KeyBone
 from ..bones.date import DateBone
@@ -99,11 +99,12 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         descr="Key"
     )
 
-    shortkey = BaseBone(
+    shortkey = RawBone(
         descr="Shortkey",
+        compute=Compute(lambda skel: skel["key"].id_or_name if skel["key"] else None),
         readOnly=True,
-        compute=Compute(lambda skel: skel["key"].id_or_name if skel["key"] else None)
-    searchable=True,
+        visible=False,
+        searchable=True,
     )
 
     name = StringBone(
