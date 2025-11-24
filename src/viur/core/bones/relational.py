@@ -262,7 +262,7 @@ class RelationalBone(BaseBone):
             raise NotImplementedError("'kind' and 'module' of RelationalBone must not be None")
 
         # Referenced keys
-        self.refKeys = {"key"}
+        self.refKeys = {"key", "shortkey"}
         if refKeys:
             self.refKeys |= set(refKeys)
 

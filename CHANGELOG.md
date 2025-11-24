@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.10]
+
+- fix: RawBone looses its value when invalid (#1595)
+
 ## [3.8.9]
 
 - fix: `Tree._clone_recursive` internal call (#1593)
