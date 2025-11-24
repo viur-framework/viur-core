@@ -103,6 +103,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         descr="Shortkey",
         readOnly=True,
         compute=Compute(lambda skel: skel["key"].id_or_name if skel["key"] else None)
+    searchable=True,
     )
 
     name = StringBone(
