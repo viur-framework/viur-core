@@ -149,9 +149,9 @@ class RelationalBone(BaseBone):
                 relational updates this will cascade. If Entity A references B with CascadeDeletion set, and
                 B references C also with CascadeDeletion; if C gets deleted, both B and A will be deleted as well.
 
-    :param consistency_fn:
-        Allows to define a callable that checks whether a found target skeleton is flagged as deleted,
-        altought it still exists.
+    :param consistency_check_fn:
+        Allows to define a callable that checks whether an existing target skeleton should be handled with a
+        different consistency than configured as `consistency`.
     """
     type = "relational"
     kind = None
@@ -160,7 +160,7 @@ class RelationalBone(BaseBone):
         self,
         *,
         consistency: RelationalConsistency = RelationalConsistency.Ignore,
-        consistency_fn: t.Optional[t.Callable[["SkeletonInstance"], bool]] = None,
+        consistency_check_fn: t.Optional[t.Callable[["SkeletonInstance"], RelationalConsistency]] = None,
         format: str = "$(dest.name)",
         kind: str = None,
         module: t.Optional[str] = None,
@@ -287,7 +287,7 @@ class RelationalBone(BaseBone):
 
         self.updateLevel = updateLevel
         self.consistency = consistency
-        self.consistency_fn = consistency_fn
+        self.consistency_check_fn = consistency_check_fn
 
         if getSystemInitialized():
             from viur.core.skeleton import RefSkel, SkeletonInstance
@@ -1031,15 +1031,14 @@ class RelationalBone(BaseBone):
             if value and value["dest"]:
                 try:
                     target_skel = value["dest"].read()
-
-                    # Trigger target_skel as deleted by consistency_fn?
-                    if self.consistency_fn and self.consistency_fn(target_skel):
-                        raise ValueError("consistency_fn triggers target_skel as deleted")
-
+                    found = not bool(self.consistency_check_fn)  # Trigger target_skel as deleted by consistency_check_fn?
                 except ValueError:
+                    target_skel = None
+                    found = False
 
+                if not found:
                     # Handle removed reference according to the RelationalConsistency settings
-                    match self.consistency:
+                    match self.consistency_check_fn(target_skel) if self.consistency_check_fn else self.consistency:
                         case RelationalConsistency.CascadeDeletion:
                             logging.info(
                                 f"{name}: "
@@ -1056,15 +1055,16 @@ class RelationalBone(BaseBone):
                                 f"due removal of {value["dest"]["key"]!r} ({value["dest"]["name"]!r})"
                             )
                             value.clear()
+                            continue
 
-                        case _:
+                        case _ if target_skel is None:
                             logging.info(
                                 f"{name}: "
                                 f"Relation from {skel["key"]!r} ({skel["name"]!r}) "
                                 f"refers to deleted {value["dest"]["key"]!r} ({value["dest"]["name"]!r}), skipping"
                             )
 
-                    continue
+                            continue
 
                 # Copy over the refKey values
                 for key in self.refKeys:
