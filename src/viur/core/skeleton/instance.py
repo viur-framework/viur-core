@@ -332,8 +332,11 @@ class SkeletonInstance:
 
     def dump(self):
         """
-        Return a simplified version of the bone values in this skeleton.
-        This can be used for example in the JSON renderer.
+        Return a JSON-serializable version of the bone values in this skeleton.
+
+        The function is not called "to_json()" because the JSON-serializable
+        format can be used for different purposes and renderings, not just
+        JSON.
         """
 
         return {
