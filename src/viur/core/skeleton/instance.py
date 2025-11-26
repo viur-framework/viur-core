@@ -147,15 +147,19 @@ class SkeletonInstance:
         if self.renderPreparation:
             if key in self.renderAccessedValues:
                 return self.renderAccessedValues[key]
+
         if key not in self.accessedValues:
-            boneInstance = self.boneMap.get(key, None)
-            if boneInstance:
+            if bone := self.boneMap.get(key):
                 if self.dbEntity is not None:
-                    boneInstance.unserialize(self, key)
+                    bone.unserialize(self, key)
+                elif bone.unserialize_compute(self, key):
+                    pass  # self.accessedValues[key] updated by unserialize_compute()
                 else:
-                    self.accessedValues[key] = boneInstance.getDefaultValue(self)
+                    self.accessedValues[key] = bone.getDefaultValue(self)
+
         if not self.renderPreparation:
             return self.accessedValues.get(key)
+
         value = self.renderPreparation(getattr(self, key), self, key, self.accessedValues.get(key))
         self.renderAccessedValues[key] = value
         return value
