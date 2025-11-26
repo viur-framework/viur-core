@@ -20,6 +20,7 @@ from ..bones.base import (
     ReadFromClientError,
     ReadFromClientErrorSeverity
 )
+from ..bones.raw import RawBone
 from ..bones.relational import RelationalConsistency
 from ..bones.key import KeyBone
 from ..bones.date import DateBone
@@ -96,6 +97,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     # it gets stored in. Must be kept readOnly to avoid security-issues with add/edit.
     key = KeyBone(
         descr="Key"
+    )
+
+    shortkey = RawBone(
+        descr="Shortkey",
+        compute=Compute(lambda skel: skel["key"].id_or_name if skel["key"] else None),
+        readOnly=True,
+        visible=False,
+        searchable=True,
     )
 
     name = StringBone(

@@ -2,6 +2,23 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.11]
+
+- feat: Provide a `shortkey` bone with each Skeleton (#1598)
+- fix: `BaseBone.dump()` uses unused variable `ret` (#1603)
+- fix: `ComputeMethod.Always/Lifetime` on unwritten Skeleton (#1605)
+- fix: `FileBone.postSavedHandler()` cannot be used outside of request (#1597)
+- fix: `RecordBone.postDeletedHandler()`: Check if the index is None (#1604)
+
+## [3.8.10]
+
+- fix: RawBone looses its value when invalid (#1595)
+
+## [3.8.9]
+
+- fix: `Tree._clone_recursive` internal call (#1593)
+- fix: `RecordBone(multiple=False)` raise exception (#1591)
+
 ## [3.8.8]
 
 - doc: Fix seo_language_map in docstring

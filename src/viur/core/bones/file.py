@@ -247,7 +247,7 @@ class FileBone(TreeLeafBone):
         """
         super().postSavedHandler(skel, boneName, key)
         if (
-            current.request.get().is_deferred
+            current.request.get() and current.request.get().is_deferred
             and "derived" in (current.request_data.get().get("__update_relations_bones") or ())
         ):
             return
