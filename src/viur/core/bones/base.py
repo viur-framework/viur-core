@@ -1108,28 +1108,34 @@ class BaseBone(object):
                 now = utils.utcNow()
                 from viur.core.skeleton import RefSkel  # noqa: E402 # import works only here because circular imports
 
-                if issubclass(skel.skeletonCls, RefSkel):  # we have a ref skel we must load the complete Entity
-                    db_obj = db.get(skel["key"])
-                    last_update = db_obj.get(f"_viur_compute_{name}_")
-                else:
-                    last_update = skel.dbEntity.get(f"_viur_compute_{name}_")
-                    skel.accessedValues[f"_viur_compute_{name}_"] = last_update or now
-
-                if not last_update or last_update + self.compute.interval.lifetime <= now:
-                    # if so, recompute and refresh updated value
-                    skel.accessedValues[name] = value = self._compute(skel, name)
-                    def transact():
+                if skel["key"] and skel.dbEntity:
+                    if issubclass(skel.skeletonCls, RefSkel):  # we have a ref skel we must load the complete Entity
                         db_obj = db.get(skel["key"])
-                        db_obj[f"_viur_compute_{name}_"] = now
-                        db_obj[name] = value
-                        db.put(db_obj)
-
-                    if db.is_in_transaction():
-                        transact()
+                        last_update = db_obj.get(f"_viur_compute_{name}_")
                     else:
-                        db.run_in_transaction(transact)
+                        last_update = skel.dbEntity.get(f"_viur_compute_{name}_")
+                        skel.accessedValues[f"_viur_compute_{name}_"] = last_update or now
 
-                    return True
+                    if not last_update or last_update + self.compute.interval.lifetime <= now:
+                        # if so, recompute and refresh updated value
+                        skel.accessedValues[name] = value = self._compute(skel, name)
+
+                        def transact():
+                            db_obj = db.get(skel["key"])
+                            db_obj[f"_viur_compute_{name}_"] = now
+                            db_obj[name] = value
+                            db.put(db_obj)
+
+                        if db.is_in_transaction():
+                            transact()
+                        else:
+                            db.run_in_transaction(transact)
+
+                else:
+                    # Run like ComputeMethod.Always on unwritten skeleton
+                    skel.accessedValues[name] = self._compute(skel, name)
+
+                return True
 
             # Compute on every deserialization
             case ComputeMethod.Always:
@@ -1639,20 +1645,25 @@ class BaseBone(object):
 
     def dump(self, skel: "SkeletonInstance", bone_name: str) -> t.Any:
         """
-        Returns the value of a bone in a simplified version.
+        Returns the value of a bone in a JSON-serializable format.
+
+        The function is not called "to_json()" because the JSON-serializable
+        format can be used for different purposes and renderings, not just
+        JSON.
+
         :param skel: The SkeletonInstance that contains the bone.
         :param bone_name: The name of the bone to in the skeleton.
-        :return: The value of the bone in a simplified version.
+
+        :return: The value of the bone in a JSON-serializable version.
         """
         ret = {}
         bone_value = skel[bone_name]
         if self.languages and self.multiple:
-            res = {}
             for language in self.languages:
                 if bone_value and language in bone_value and bone_value[language]:
                     ret[language] = [self._atomic_dump(value) for value in bone_value[language]]
                 else:
-                    res[language] = []
+                    ret[language] = []
         elif self.languages:
             for language in self.languages:
                 if bone_value and language in bone_value and bone_value[language]:
