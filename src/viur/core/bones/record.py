@@ -143,7 +143,7 @@ class RecordBone(BaseBone):
 
         for idx, lang, value in self.iter_bone_value(skel, boneName):
             for sub_bone_name, bone in value.items():
-                path = ".".join(name for name in (boneName, lang, f"{idx:02}", sub_bone_name) if name)
+                path = ".".join(part for part in (boneName, lang, f"{idx or 0:02}", sub_bone_name) if part)
                 bone.postDeletedHandler(value, path, key)
 
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
