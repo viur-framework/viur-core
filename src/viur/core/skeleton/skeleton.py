@@ -291,13 +291,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         elif create in (False, None):
             return None
         elif isinstance(create, dict):
-            if create and not skel.fromClient(create, amend=True):
+            if create and not skel.fromClient(create, amend=True, ignore=()):
                 raise ReadFromClientException(skel.errors)
         elif callable(create):
             create(skel)
         elif create is not True:
             raise ValueError("'create' must either be dict, a callable or True.")
 
+        skel["key"] = db_key
         return skel.write()
 
     @classmethod
