@@ -1639,20 +1639,25 @@ class BaseBone(object):
 
     def dump(self, skel: "SkeletonInstance", bone_name: str) -> t.Any:
         """
-        Returns the value of a bone in a simplified version.
+        Returns the value of a bone in a JSON-serializable format.
+
+        The function is not called "to_json()" because the JSON-serializable
+        format can be used for different purposes and renderings, not just
+        JSON.
+
         :param skel: The SkeletonInstance that contains the bone.
         :param bone_name: The name of the bone to in the skeleton.
-        :return: The value of the bone in a simplified version.
+
+        :return: The value of the bone in a JSON-serializable version.
         """
         ret = {}
         bone_value = skel[bone_name]
         if self.languages and self.multiple:
-            res = {}
             for language in self.languages:
                 if bone_value and language in bone_value and bone_value[language]:
                     ret[language] = [self._atomic_dump(value) for value in bone_value[language]]
                 else:
-                    res[language] = []
+                    ret[language] = []
         elif self.languages:
             for language in self.languages:
                 if bone_value and language in bone_value and bone_value[language]:
