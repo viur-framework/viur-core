@@ -96,10 +96,11 @@ class KeyBone(BaseBone):
         return super().unserialize(skel, name)
 
     def serialize(self, skel: 'SkeletonInstance', name: str, parentIndexed: bool) -> bool:
-        if name not in skel.accessedValues:
-            return False
         if name == "key":
-            skel.dbEntity.key = skel.accessedValues["key"]
+            if name not in skel.accessedValues:
+                return False
+
+            skel.dbEntity.key = skel.accessedValues[name]
             return True
 
         return super().serialize(skel, name, parentIndexed=parentIndexed)
