@@ -957,6 +957,7 @@ class BaseBone(object):
         """
         if not self.compute:
             return None
+
         match self.compute.interval.method:
             case ComputeMethod.OnWrite:
                 skel.accessedValues[name] = self._compute(skel, name)
