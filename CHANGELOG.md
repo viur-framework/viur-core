@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.12]
+
+- fix: `skel.read()` with `create`-mode totally broken (#1607)
+- fix: `KeyBone.serialize()` didn't evaluate compute-OnWrite (#1606)
+
 ## [3.8.11]
 
 - feat: Provide a `shortkey` bone with each Skeleton (#1598)
