@@ -1056,9 +1056,13 @@ class RelationalBone(BaseBone):
 
                     continue
 
+                # Reset the dbEntity for a clean rewrite
+                value["dest"].dbEntity = None
+
                 # Copy over the refKey values
                 for key in self.refKeys:
                     value["dest"][key] = target_skel[key]
+                    # logging.debug(f"Refreshed {key=} to {value["dest"][key]!r} ({str(value["dest"][key])!r})")
 
     def getSearchTags(self, skel: "SkeletonInstance", name: str) -> set[str]:
         """
