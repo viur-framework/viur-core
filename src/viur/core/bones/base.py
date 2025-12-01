@@ -1559,14 +1559,19 @@ class BaseBone(object):
         compute_fn_parameters = inspect.signature(self.compute.fn).parameters
         compute_fn_args = {}
         if "skel" in compute_fn_parameters:
-            from viur.core.skeleton import skeletonByKind, RefSkel  # noqa: E402 # import works only here because circular imports
+            from viur.core.skeleton import RefSkel  # noqa: E402 # import works only here because circular imports
 
             if issubclass(skel.skeletonCls, RefSkel):  # we have a ref skel we must load the complete skeleton
-                cloned_skel = skeletonByKind(skel.kindName)()
-                if not cloned_skel.read(skel["key"]):
-                    raise ValueError(
-                        f"{bone_name!r}: {skel["key"]=!r} does no longer exists. Cannot compute a broken relation"
+                try:
+                    cloned_skel = skel.read()
+                except ValueError:
+                    logging.warning(
+                        f"{bone_name!r}: {skel["key"]=!r} does no longer exist, cannot compute with a broken relation."
                     )
+                    self._prevent_compute = True
+                    ret = skel[bone_name]  # return the last computed value
+                    self._prevent_compute = False
+                    return ret
             else:
                 cloned_skel = skel.clone()
             cloned_skel[bone_name] = None  # remove value form accessedValues to avoid endless recursion
