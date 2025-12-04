@@ -340,7 +340,10 @@ class Tree(SkelModule):
 
         # The general access control is made via self.listFilter()
         if not (query := self.listFilter(self.viewSkel(skelType).all().mergeExternalFilter(kwargs))):
-            raise errors.Unauthorized()
+            if current.user.get():
+                raise errors.Forbidden()
+            else:
+                raise errors.Unauthorized()
 
         self._apply_default_order(query)
         return self.render.list(query.fetch())
