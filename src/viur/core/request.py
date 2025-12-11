@@ -287,7 +287,11 @@ class Router:
                 self.response.write(statusDescr)
                 return
 
-        path = self.request.path
+        try:
+            path = self.request.path
+        except UnicodeDecodeError:  # webob can fail with UnicodeDecodeError on broken/invalid URLs
+            self.response.status = "400 Bad Request"  # let's send the client onto a health cure in Bad Request ...
+            return
 
         # Add CSP headers early (if any)
         if conf.security.content_security_policy and conf.security.content_security_policy["_headerCache"]:

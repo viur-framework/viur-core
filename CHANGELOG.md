@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.13]
+
+- fix: `RelationalBone.refresh()` should write a clean dbEntity (#1609)
+- fix: Raise error 400 on broken UTF-8 URL request (#1610)
+
 ## [3.8.12]
 
 - fix: `skel.read()` with `create`-mode totally broken (#1607)
