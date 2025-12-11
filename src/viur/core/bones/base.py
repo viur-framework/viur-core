@@ -1581,11 +1581,14 @@ class BaseBone(object):
                     lang: unserialize_raw_value(ret.get(lang, [] if self.multiple else None))
                     for lang in self.languages
                 }
+
             return unserialize_raw_value(ret)
+
         self._prevent_compute = True
         if errors := self.fromClient(skel, bone_name, {bone_name: ret}):
             raise ValueError(f"Computed value fromClient failed with {errors!r}")
         self._prevent_compute = False
+
         return skel[bone_name]
 
     def structure(self) -> dict:
