@@ -1555,22 +1555,12 @@ class BaseBone(object):
 
     def _compute(self, skel: 'viur.core.skeleton.SkeletonInstance', bone_name: str):
         """Performs the evaluation of a bone configured as compute"""
-
         compute_fn_parameters = inspect.signature(self.compute.fn).parameters
         compute_fn_args = {}
-        if "skel" in compute_fn_parameters:
-            from viur.core.skeleton import skeletonByKind, RefSkel  # noqa: E402 # import works only here because circular imports
 
-            if issubclass(skel.skeletonCls, RefSkel):  # we have a ref skel we must load the complete skeleton
-                cloned_skel = skeletonByKind(skel.kindName)()
-                if not cloned_skel.read(skel["key"]):
-                    raise ValueError(
-                        f"{bone_name!r}: {skel["key"]=!r} does no longer exists. Cannot compute a broken relation"
-                    )
-            else:
-                cloned_skel = skel.clone()
-            cloned_skel[bone_name] = None  # remove value form accessedValues to avoid endless recursion
-            compute_fn_args["skel"] = cloned_skel
+        if "skel" in compute_fn_parameters:
+            skel[bone_name] = None  # remove value from accessedValues to avoid endless recursion
+            compute_fn_args["skel"] = skel
 
         if "bone" in compute_fn_parameters:
             compute_fn_args["bone"] = getattr(skel, bone_name)
@@ -1591,11 +1581,14 @@ class BaseBone(object):
                     lang: unserialize_raw_value(ret.get(lang, [] if self.multiple else None))
                     for lang in self.languages
                 }
+
             return unserialize_raw_value(ret)
+
         self._prevent_compute = True
         if errors := self.fromClient(skel, bone_name, {bone_name: ret}):
             raise ValueError(f"Computed value fromClient failed with {errors!r}")
         self._prevent_compute = False
+
         return skel[bone_name]
 
     def structure(self) -> dict:
