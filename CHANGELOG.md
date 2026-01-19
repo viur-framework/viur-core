@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.14]
+
+- fix: No exception raise on compute attempt on deleted RefSkel (#1608)
+
 ## [3.8.13]
 
 - fix: `RelationalBone.refresh()` should write a clean dbEntity (#1609)
