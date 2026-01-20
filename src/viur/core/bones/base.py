@@ -1559,7 +1559,7 @@ class BaseBone(object):
         compute_fn_args = {}
 
         if "skel" in compute_fn_parameters:
-            skel[bone_name] = None  # remove value from accessedValues to avoid endless recursion
+            skel.accessedValues[bone_name] = None  # remove value from accessedValues to avoid endless recursion
             compute_fn_args["skel"] = skel
 
         if "bone" in compute_fn_parameters:
