@@ -100,6 +100,7 @@ class Router:
         The basic control flow is
         - Setting up internal variables
         - Running the Request validators
+        - Check the Redirect Map
         - Emitting the headers (especially the security related ones)
         - Run the TLS check (ensure it's a secure connection or check if the URL is whitelisted)
         - Load or initialize a new session
@@ -292,6 +293,22 @@ class Router:
         except UnicodeDecodeError:  # webob can fail with UnicodeDecodeError on broken/invalid URLs
             self.response.status = "400 Bad Request"  # let's send the client onto a health cure in Bad Request ...
             return
+
+        if conf.redirect_map:
+            redirect_url: str | None = None
+            if conf.redirect_map_advanced_mode:
+                for pattern, target in conf.redirect_map.items():
+                    if fnmatch.fnmatch(path, pattern):
+                        redirect_url = target
+                        break
+            else:
+                redirect_url = conf.redirect_map.get(path)
+
+            if redirect_url:
+                self.response.status = "302 Redirect"
+                self.response.headers["Location"] = redirect_url
+                self.response.write("")
+                return
 
         # Add CSP headers early (if any)
         if conf.security.content_security_policy and conf.security.content_security_policy["_headerCache"]:
