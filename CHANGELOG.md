@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.15]
+
+- fix: `ComputeMethod.Always` fails when skeleton is being rendered (#1614)
+
 ## [3.8.14]
 
 - fix: No exception raise on compute attempt on deleted RefSkel (#1608)
