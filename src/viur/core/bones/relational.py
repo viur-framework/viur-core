@@ -1267,6 +1267,37 @@ class RelationalBone(BaseBone):
         elif isinstance(value, list):
             return self._hashValueForUniquePropertyIndex([entry["dest"]["key"] for entry in value if entry])
 
+    def getDefaultValue(self, skeletonInstance):
+        def get_default_value_intern(value):
+            print(f"in get_default_value_intern ==")
+            if callable(value):
+                a= value(skeletonInstance, self)
+                print(a)
+                return a
+            return value
+
+        if callable(self.defaultValue):
+            key = self.defaultValue(skeletonInstance, self)
+        elif isinstance(self.defaultValue, list):
+            key = self.defaultValue
+        elif isinstance(self.defaultValue, dict):
+            data= {k: self.createRelSkelFromKey(get_default_value_intern(v)) for k, v in self.defaultValue.items()}
+            #print(data)
+            return data
+        else:
+            key = self.defaultValue
+        if not key:
+            return None
+        if self.multiple:
+            if isinstance(key, list):
+                return [self.createRelSkelFromKey(k) for k in key]
+            else:
+                return [self.createRelSkelFromKey(key)]
+        else:
+            if isinstance(key, list):
+                key = key[0]
+            return self.createRelSkelFromKey(key)
+
     def structure(self) -> dict:
         return super().structure() | {
             "type": f"{self.type}.{self.kind}",
