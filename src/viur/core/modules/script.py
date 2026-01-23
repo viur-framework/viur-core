@@ -68,6 +68,7 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
 
     script = RawBone(
         descr="Code",
+        type_suffix="code.python",
         indexed=False,
     )
 
