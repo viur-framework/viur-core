@@ -5,12 +5,13 @@ import os
 import string
 import sys
 import typing as t
-from deprecated.sphinx import deprecated
-from .adapter import ViurTagsSearchAdapter
-from ..bones.base import BaseBone, ReadFromClientErrorSeverity, getSystemInitialized
-from .. import db, utils
-from ..config import conf
 
+from deprecated.sphinx import deprecated
+
+from .adapter import ViurTagsSearchAdapter
+from .. import db, utils
+from ..bones.base import BaseBone, ReadFromClientErrorSeverity, getSystemInitialized
+from ..config import conf
 
 _UNDEFINED_KINDNAME = object()
 ABSTRACT_SKEL_CLS_SUFFIX = "AbstractSkel"
@@ -109,6 +110,10 @@ class MetaSkel(MetaBaseSkel):
 
     def __init__(cls, name, bases, dct, **kwargs):
         super().__init__(name, bases, dct, **kwargs)
+        from .relskel import RefSkel
+
+        if issubclass(cls, RefSkel):
+            return
 
         relNewFileName = inspect.getfile(cls) \
             .replace(str(conf.instance.project_base_path), "") \
@@ -124,9 +129,9 @@ class MetaSkel(MetaBaseSkel):
 
         # Automatic determination of the kindName, if the class is not part of viur.core.
         if (
-                cls.kindName is _UNDEFINED_KINDNAME
-                and not relNewFileName.strip(os.path.sep).startswith("viur")
-                and "viur_doc_build" not in dir(sys)  # do not check during documentation build
+            cls.kindName is _UNDEFINED_KINDNAME
+            and not relNewFileName.strip(os.path.sep).startswith("viur")
+            and "viur_doc_build" not in dir(sys)  # do not check during documentation build
         ):
             if cls.__name__.endswith("Skel"):
                 cls.kindName = cls.__name__.lower()[:-4]
@@ -157,8 +162,8 @@ class MetaSkel(MetaBaseSkel):
 
         # Ensure that all skeletons are defined in folders listed in conf.skeleton_search_path
         if (
-                not any([relNewFileName.startswith(path) for path in conf.skeleton_search_path])
-                and "viur_doc_build" not in dir(sys)  # do not check during documentation build
+            not any([relNewFileName.startswith(path) for path in conf.skeleton_search_path])
+            and "viur_doc_build" not in dir(sys)  # do not check during documentation build
         ):
             raise NotImplementedError(
                 f"""{relNewFileName} must be defined in a folder listed in {conf.skeleton_search_path}""")
