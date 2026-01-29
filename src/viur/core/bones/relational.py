@@ -309,6 +309,10 @@ class RelationalBone(BaseBone):
             raise NotImplementedError(
                 f"Skeleton {self.skel_cls!r} {self.__class__.__name__} {self.name!r}: Kind {self.kind!r} unknown"
             )
+        logging.debug(f"RelationalBone.setSystemInitialized {self.kind} {self.name} {self._refSkelCache=} {list(self._refSkelCache.__boneMap__.keys())=}")
+        # logging.debug(f"RelationalBone.setSystemInitialized {self.kind} {self.name} {self._refSkelCache=} {list(self._refSkelCache.__boneMap__.keys())=} {self._refSkelCache().structure()=}")
+        # logging.debug(f"RelationalBone.setSystemInitialized {self.kind} {self.name} {self._refSkelCache()=} {list(self._refSkelCache().boneMap.keys())=}")
+        # logging.debug(f"RelationalBone.setSystemInitialized {self.kind} {self.name} {self._refSkelCache=} {list(self._refSkelCache.boneMap)=}")
 
         self._skeletonInstanceClassRef = SkeletonInstance
         self._ref_keys = set(self._refSkelCache.__boneMap__.keys())
@@ -1268,6 +1272,7 @@ class RelationalBone(BaseBone):
             return self._hashValueForUniquePropertyIndex([entry["dest"]["key"] for entry in value if entry])
 
     def structure(self) -> dict:
+        print(f"RelationalBone structure: {self.kind=} {self.name=} ")
         return super().structure() | {
             "type": f"{self.type}.{self.kind}",
             "module": self.module,

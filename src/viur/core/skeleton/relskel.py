@@ -1,11 +1,11 @@
 from __future__ import annotations  # noqa: required for pre-defined annotations
 
-import typing as t
 import fnmatch
+import typing as t
 
-from .. import db, utils
 from .meta import BaseSkeleton
 from .utils import skeletonByKind
+from .. import db, utils
 
 
 class RelSkel(BaseSkeleton):
@@ -58,13 +58,16 @@ class RefSkel(RelSkel):
             :param args: List of bone names we'll adapt
             :return: A new instance of RefSkel
         """
-        newClass = type("RefSkelFor" + kindName, (RefSkel,), {})
         fromSkel = skeletonByKind(kindName)
+        newClass = type("RefSkelFor" + kindName, (RefSkel, fromSkel), {})
         newClass.kindName = kindName
+        newClass._ignore_base = fromSkel
         bone_map = {}
         for arg in args:
             bone_map |= {k: fromSkel.__boneMap__[k] for k in fnmatch.filter(fromSkel.__boneMap__.keys(), arg)}
         newClass.__boneMap__ = bone_map
+        print(f"RefSkelFor{kindName}: {bone_map.keys()}")
+        print(f"RefSkelFor{kindName}: {newClass.__boneMap__.keys()}")
         return newClass
 
     def read(
