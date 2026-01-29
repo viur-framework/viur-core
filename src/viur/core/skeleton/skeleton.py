@@ -101,7 +101,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
     shortkey = RawBone(
         descr="Shortkey",
-        compute=Compute(lambda skel: skel["key"].id_or_name if skel["key"] else None),
+        compute=Compute(lambda skel: 'skel["key"].id_or_name' if skel["key"] else None),
         readOnly=True,
         visible=False,
         searchable=True,

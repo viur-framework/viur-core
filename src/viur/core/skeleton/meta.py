@@ -77,9 +77,20 @@ class MetaBaseSkel(type):
         """
         Recursively constructs a dict of bones from
         """
+        print(f"{cls.__name__} generated")
         map = {}
 
+        # from .relskel import  RefSkel, RelSkel
+        # from .skeleton import  Skeleton
+        ignore_base = getattr(cls, "_ignore_base", None)
+
+        print(f"{cls=} {cls.__bases__=} {ignore_base=}")
         for base in cls.__bases__:
+
+            # if issubclass(base, RefSkel) and issubclass(base,Skeleton):
+            #     continue
+            if base is ignore_base:
+                continue
             if "__viurBaseSkeletonMarker__" in dir(base):
                 map |= MetaBaseSkel.generate_bonemap(base)
 
@@ -456,4 +467,5 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 
     def __new__(cls, *args, **kwargs) -> "SkeletonInstance":
         from .instance import SkeletonInstance
+        print(f"BaseSkeleton.NEW {cls=} {args} {kwargs} {list(cls.__boneMap__.keys())=}")
         return SkeletonInstance(cls, *args, **kwargs)

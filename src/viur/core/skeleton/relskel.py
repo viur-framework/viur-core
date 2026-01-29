@@ -61,10 +61,13 @@ class RefSkel(RelSkel):
         fromSkel = skeletonByKind(kindName)
         newClass = type("RefSkelFor" + kindName, (RefSkel, fromSkel), {})
         newClass.kindName = kindName
+        newClass._ignore_base = fromSkel
         bone_map = {}
         for arg in args:
             bone_map |= {k: fromSkel.__boneMap__[k] for k in fnmatch.filter(fromSkel.__boneMap__.keys(), arg)}
         newClass.__boneMap__ = bone_map
+        print(f"RefSkelFor{kindName}: {bone_map.keys()}")
+        print(f"RefSkelFor{kindName}: {newClass.__boneMap__.keys()}")
         return newClass
 
     def read(
