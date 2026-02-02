@@ -436,7 +436,7 @@ class Security(ConfigType):
     admin_allowed_paths: t.Iterable[str] = [
         "vi",
         "vi/skey",
-        "vi/settings",
+        "vi/config",
         "vi/user/auth_*",
         "vi/user/f2_*",
         "vi/user/getAuthMethods",  # FIXME: deprecated, use `login` for this

@@ -76,49 +76,6 @@ def setLanguage(lang):
 
 
 @exposed
-def dumpConfig():
-    res = {}
-    visited_objects = set()
-
-    def collect_modules(parent, depth: int = 0) -> None:
-        """Recursively collects all routable modules for the vi renderer"""
-        if depth > 10:
-            logging.warning(f"Reached maximum recursion limit of {depth} at {parent=}")
-            return
-
-        for key in dir(parent):
-            module = getattr(parent, key, None)
-            if not isinstance(module, Module):
-                continue
-            if module in visited_objects:
-                # Some modules reference other modules as parents, this will
-                # lead to infinite recursion. We can avoid reaching the
-                # maximum recursion limit by remembering already seen modules.
-                if conf.debug.trace:
-                    logging.debug(f"Already visited and added {module=}")
-                continue
-            visited_objects.add(module)
-
-            if admin_info := module.describe():
-                # map path --> config
-                res[module.modulePath.removeprefix("/vi/").replace("/", ".")] = admin_info
-            # Collect children
-            collect_modules(module, depth=depth + 1)
-
-    collect_modules(conf.main_app.vi)
-
-    res = {
-        "modules": res,
-        # "configuration": dict(conf.admin.items()), # TODO: this could be the short vision, if we use underscores
-        "configuration": {
-            k.replace("_", "."): v for k, v in conf.admin.items(True)
-        }
-    }
-    current.request.get().response.headers["Content-Type"] = "application/json"
-    return json.dumps(res, cls=CustomJsonEncoder)
-
-
-@exposed
 def getVersion(*args, **kwargs):
     """
     Returns viur-core version number
@@ -167,15 +124,53 @@ def index(*args, **kwargs):
 
 
 @exposed
-def get_settings():
+def get_config():
     """
     Get public admin-tool specific settings, requires no user to be logged in.
     This is used by new vi-admin.
     """
-    fields = {k.replace("_", "."): v for k, v in conf.admin.items(True)}
+    modules = {}
+    config = {k.replace("_", "."): v for k, v in conf.admin.items(True)}
 
     if conf.user.google_client_id:
-        fields["admin.user.google.clientID"] = conf.user.google_client_id
+        config["admin.user.google.clientID"] = conf.user.google_client_id
+    config["admin.language"] = current.language.get() or conf.i18n.default_language
+    config["admin.languages"] = conf.i18n.available_languages
+    if (cuser := current.user.get()) and any(right in cuser["access"] for right in ("root", "admin")):
+
+        visited_objects = set()
+
+        def collect_modules(parent, depth: int = 0) -> None:
+            """Recursively collects all routable modules for the vi renderer"""
+            if depth > 10:
+                logging.warning(f"Reached maximum recursion limit of {depth} at {parent=}")
+                return
+
+            for key in dir(parent):
+                module = getattr(parent, key, None)
+                if not isinstance(module, Module):
+                    continue
+                if module in visited_objects:
+                    # Some modules reference other modules as parents, this will
+                    # lead to infinite recursion. We can avoid reaching the
+                    # maximum recursion limit by remembering already seen modules.
+                    if conf.debug.trace:
+                        logging.debug(f"Already visited and added {module=}")
+                    continue
+                visited_objects.add(module)
+
+                if admin_info := module.describe():
+                    # map path --> config
+                    modules[module.modulePath.removeprefix("/vi/").replace("/", ".")] = admin_info
+                # Collect children
+                collect_modules(module, depth=depth + 1)
+
+        collect_modules(conf.main_app.vi)
+
+    fields = {
+        "modules": modules,
+        "configuration": config
+    }
 
     current.request.get().response.headers["Content-Type"] = "application/json"
     return json.dumps(fields, cls=CustomJsonEncoder)
@@ -184,8 +179,7 @@ def get_settings():
 def _postProcessAppObj(obj):
     obj["skey"] = json_render_skey
     obj["timestamp"] = timestamp
-    obj["config"] = dumpConfig
-    obj["settings"] = get_settings
+    obj["config"] = get_config
     obj["getStructure"] = getStructure
     obj["canAccess"] = canAccess
     obj["setLanguage"] = setLanguage
