@@ -2,7 +2,7 @@ import datetime
 import fnmatch
 import json
 import logging
-from viur.core import Module, conf, current, errors, i18n
+from viur.core import Module, conf, current, errors
 from viur.core.decorators import *
 from viur.core.render.json import skey as json_render_skey
 from viur.core.render.json.default import CustomJsonEncoder, DefaultRender
@@ -136,7 +136,7 @@ def get_config():
         config["admin.user.google.clientID"] = conf.user.google_client_id
     config["admin.language"] = current.language.get() or conf.i18n.default_language
     config["admin.languages"] = conf.i18n.available_languages
-    if current.user.get():
+    if (cuser := current.user.get()) and any(right in cuser["access"] for right in ("root", "admin")):
 
         visited_objects = set()
         def collect_modules(parent, depth: int = 0) -> None:
