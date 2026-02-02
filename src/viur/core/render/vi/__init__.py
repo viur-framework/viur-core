@@ -139,6 +139,7 @@ def get_config():
     if (cuser := current.user.get()) and any(right in cuser["access"] for right in ("root", "admin")):
 
         visited_objects = set()
+
         def collect_modules(parent, depth: int = 0) -> None:
             """Recursively collects all routable modules for the vi renderer"""
             if depth > 10:
