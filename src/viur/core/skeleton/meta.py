@@ -105,6 +105,14 @@ class MetaBaseSkel(type):
             value.__set_name__(self, key)
 
 
+    # @classmethod
+    # # def __subclasscheck__(self, subclass):
+    # def __subclasshook__(cls, subclass):
+    #
+    #     if self.skeletonCls is not None:
+    #         return issubclass(self.skeletonCls, subclass)
+    #     return NotImplemented
+
 class MetaSkel(MetaBaseSkel):
 
     def __init__(cls, name, bases, dct, **kwargs):

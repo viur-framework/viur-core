@@ -1,5 +1,10 @@
+import typing
 import typing as t
+
 from .meta import MetaBaseSkel
+
+if t.TYPE_CHECKING:
+    from . import RefSkel, Skeleton, SkeletonInstance
 
 
 def skeletonByKind(kindName: str) -> t.Type["Skeleton"]:
@@ -81,3 +86,17 @@ def remove_render_preparation_deep(skel: t.Any) -> t.Any:
             remove_render_preparation_deep(value)
 
     return skel
+
+
+def is_subskel_or_refskel(obj: t.Any, skel_cls: type["Skeleton"]) -> bool:
+    from . import RefSkel, Skeleton, SkeletonInstance
+
+    if not issubclass(skel_cls, Skeleton):
+        raise TypeError(f"{skel_cls=} is not a subclass of Skeleton.")
+    if not isinstance(obj, SkeletonInstance):
+        return False
+    if issubclass(obj.skeletonCls, skel_cls):
+        return True
+    if issubclass(obj.skeletonCls, RefSkel) and issubclass(obj.skeletonCls.skeletonCls, skel_cls):
+        return True
+    return False

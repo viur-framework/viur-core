@@ -2,10 +2,12 @@ from __future__ import annotations  # noqa: required for pre-defined annotations
 
 import copy
 import fnmatch
+import logging
 import typing as t
 import warnings
 
 from functools import partial
+
 from ..bones.base import BaseBone
 from .skeleton import Skeleton
 from viur.core import db
@@ -214,14 +216,34 @@ class SkeletonInstance:
         }:
             return partial(getattr(self.skeletonCls, item), self)
 
-        # Load a @property from the Skeleton class
+        # logging.info(f"Accessing {item=} from {self=}")
+        from .relskel import RefSkel
+        if issubclass(self.skeletonCls, RefSkel) and self.skeletonCls.skeletonCls is not None:
+            # logging.info(f"Is RefSkel {self.skeletonCls.skeletonCls=}")
+            skeletonCls = self.skeletonCls.skeletonCls
+        else:
+            # logging.info(f"Is NOT RefSkel {self.skeletonCls=}")
+            skeletonCls = self.skeletonCls
+
         try:
             # Use try/except to save an if check
-            class_value = getattr(self.skeletonCls, item)
+            class_value = getattr(skeletonCls, item)
 
         except AttributeError:
             # Not inside the Skeleton class, okay at this point.
             pass
+            # logging.info(f"Accessing {item=} from {self=} failed")
+        #
+        # # Load a @property from the Skeleton class
+        # try:
+        #     # Use try/except to save an if check
+        #     class_value = getattr(skeletonCls, item)
+
+        # except AttributeError:
+        #     # Not inside the Skeleton class, okay at this point.
+        #     pass
+        #     if issubclass(self.skeletonCls, RelSkel):
+
 
         else:
             if isinstance(class_value, property):
@@ -232,6 +254,7 @@ class SkeletonInstance:
                 try:
                     return class_value.fget(self)
                 except AttributeError as exc:
+                    # logging.info(f"Accessing @property {item=} from {skeletonCls=} failed")
                     # The AttributeError cannot be re-raised any further at this point.
                     # Since this would then be evaluated as an access error
                     # to the property attribute.
