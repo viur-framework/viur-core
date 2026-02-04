@@ -1,12 +1,13 @@
 from __future__ import annotations  # noqa: required for pre-defined annotations
 
-import logging
-import typing as t
 import fnmatch
+import logging  # noqa
+import typing as t
 
-from .. import db, utils
+from . import Skeleton
 from .meta import BaseSkeleton
 from .utils import skeletonByKind
+from .. import db, utils
 
 
 class RelSkel(BaseSkeleton):
@@ -51,7 +52,8 @@ class RelSkel(BaseSkeleton):
 
 
 class RefSkel(RelSkel):
-    skeletonCls = None
+    skeletonCls: t.Optional[t.Type["Skeleton"]] = None
+    """Reference source skeleton class"""
 
     @classmethod
     def fromSkel(cls, kindName: str, *args: list[str]) -> t.Type[RefSkel]:
@@ -101,47 +103,3 @@ class RefSkel(RelSkel):
             raise ValueError(f"""The key {key or self["key"]!r} seems to be gone""")
 
         return skel
-    #
-    # def __getattr__(self, item: str) -> t.Any:
-    #     if self.skeletonCls is None:
-    #         return super().__getattribute__(self, item)
-    #     logging.info(f"{item=} | {self=}")
-    #
-    #     # Load a @property from the Skeleton class
-    #     try:
-    #         # Use try/except to save an if check
-    #         class_value = getattr(self.skeletonCls, item)
-    #
-    #     except AttributeError:
-    #         # Not inside the Skeleton class, okay at this point.
-    #         pass
-    #
-    #     else:
-    #         logging.info(f"{item=} | {self=}")
-    #
-    #         if isinstance(class_value, property):
-    #             # The attribute is a @property and can be called
-    #             # Note: `self` is this SkeletonInstance, not the Skeleton class.
-    #             #       Therefore, you can access values inside the property method
-    #             #       with item-access like `self["key"]`.
-    #             try:
-    #                 return class_value.fget(self)
-    #             except AttributeError as exc:
-    #                 # The AttributeError cannot be re-raised any further at this point.
-    #                 # Since this would then be evaluated as an access error
-    #                 # to the property attribute.
-    #                 # Otherwise, it would be lost that it is an incorrect attribute access
-    #                 # within this property (during the method call).
-    #                 msg, *args = exc.args
-    #                 msg = f"AttributeError: {msg}"
-    #                 raise ValueError(msg, *args) from exc
-    #     # Load the bone instance from the bone map of this SkeletonInstance
-    #
-    #     return super().__getattribute__(item)
-    #
-    # @classmethod
-    # # def __subclasscheck__(self, subclass):
-    # def __subclasshook__(cls, subclass):
-    #     if self.skeletonCls is not None:
-    #         return issubclass(self.skeletonCls, subclass)
-    #     return NotImplemented

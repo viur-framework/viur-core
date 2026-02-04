@@ -513,7 +513,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             skel.dbEntity["viur"].setdefault("viurActiveSeoKeys", [])
             for language, seo_key in last_set_seo_keys.items():
                 if skel.dbEntity["viur"]["viurCurrentSeoKeys"][language] not in \
-                        skel.dbEntity["viur"]["viurActiveSeoKeys"]:
+                    skel.dbEntity["viur"]["viurActiveSeoKeys"]:
                     # Ensure the current, active seo key is in the list of all seo keys
                     skel.dbEntity["viur"]["viurActiveSeoKeys"].insert(0, seo_key)
             if str(skel.dbEntity.key.id_or_name) not in skel.dbEntity["viur"]["viurActiveSeoKeys"]:
@@ -798,8 +798,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 if skel.errors and internal:
                     for error in skel.errors:
                         if error.severity in (
-                            ReadFromClientErrorSeverity.Invalid,
-                            ReadFromClientErrorSeverity.InvalidatesOther,
+                                ReadFromClientErrorSeverity.Invalid,
+                                ReadFromClientErrorSeverity.InvalidatesOther,
                         ):
                             raise ReadFromClientException(skel.errors)
 

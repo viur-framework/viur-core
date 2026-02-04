@@ -117,15 +117,29 @@ def without_render_preparation(skel: "SkeletonInstance", full_clone: bool = Fals
     return skel
 
 
-def is_subskel_or_refskel(obj: t.Any, skel_cls: type["Skeleton"]) -> bool:
+def is_skeletoninstance_of(
+    obj: t.Any,
+    skel_cls: type["Skeleton"],
+    *,
+    accept_ref_skel: bool = True,
+) -> bool:
+    """
+    Checks whether an object is an SkeletonInstance that belongs to a specific Skeleton class.
+
+    :param obj: The object to check.
+    :param skel_cls: The skeleton class that will be checked against ``obj``.
+    :param accept_ref_skel: If True, ``obj`` can also be just a RefSkelFor``skel_cls``.
+        If False, no ``RefSkel`` is accepted.
+    """
     from . import RefSkel, Skeleton, SkeletonInstance
 
     if not issubclass(skel_cls, Skeleton):
-        raise TypeError(f"{skel_cls=} is not a subclass of Skeleton.")
+        raise TypeError(f"{skel_cls=} is not a Skeleton.")
+
     if not isinstance(obj, SkeletonInstance):
         return False
     if issubclass(obj.skeletonCls, skel_cls):
         return True
-    if issubclass(obj.skeletonCls, RefSkel) and issubclass(obj.skeletonCls.skeletonCls, skel_cls):
+    if accept_ref_skel and issubclass(obj.skeletonCls, RefSkel) and issubclass(obj.skeletonCls.skeletonCls, skel_cls):
         return True
     return False
