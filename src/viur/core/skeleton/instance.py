@@ -218,6 +218,7 @@ class SkeletonInstance:
 
         # logging.info(f"Accessing {item=} from {self=}")
         from .relskel import RefSkel
+        from .utils import without_render_preparation
         if issubclass(self.skeletonCls, RefSkel) and self.skeletonCls.skeletonCls is not None:
             # logging.info(f"Is RefSkel {self.skeletonCls.skeletonCls=}")
             skeletonCls = self.skeletonCls.skeletonCls
@@ -252,7 +253,8 @@ class SkeletonInstance:
                 #       Therefore, you can access values inside the property method
                 #       with item-access like `self["key"]`.
                 try:
-                    return class_value.fget(self)
+                    # return class_value.fget(self)
+                    return class_value.fget(without_render_preparation(self))
                 except AttributeError as exc:
                     # logging.info(f"Accessing @property {item=} from {skeletonCls=} failed")
                     # The AttributeError cannot be re-raised any further at this point.
