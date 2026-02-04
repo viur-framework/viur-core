@@ -444,7 +444,9 @@ class UserPassword(UserPrimaryAuthentication):
 
         # in step 3
         skel = self.LostPasswordStep3Skel()
-        skel["recovery_key"] = recovery_key  # resend the recovery key again, in case the fromClient() fails.
+
+        # reset the recovery key again, in case the fromClient() fails.
+        skel["recovery_key"] = str(recovery_key).strip()
 
         # check for any input; Render input-form again when incomplete.
         if (
