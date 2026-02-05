@@ -2,13 +2,14 @@ from __future__ import annotations  # noqa: required for pre-defined annotations
 
 import copy
 import fnmatch
+import logging  # noqa
 import typing as t
 import warnings
-
 from functools import partial
-from ..bones.base import BaseBone
-from .skeleton import Skeleton
+
 from viur.core import db
+from .skeleton import Skeleton
+from ..bones.base import BaseBone
 
 
 class SkeletonInstance:
@@ -214,10 +215,18 @@ class SkeletonInstance:
         }:
             return partial(getattr(self.skeletonCls, item), self)
 
-        # Load a @property from the Skeleton class
+        # logging.info(f"Accessing {item=} from {self=}")
+        from .relskel import RefSkel
+        from .utils import without_render_preparation
+
+        if issubclass(self.skeletonCls, RefSkel) and self.skeletonCls.skeletonCls is not None:
+            skeletonCls = self.skeletonCls.skeletonCls
+        else:
+            skeletonCls = self.skeletonCls
+
         try:
             # Use try/except to save an if check
-            class_value = getattr(self.skeletonCls, item)
+            class_value = getattr(skeletonCls, item)
 
         except AttributeError:
             # Not inside the Skeleton class, okay at this point.
@@ -230,7 +239,9 @@ class SkeletonInstance:
                 #       Therefore, you can access values inside the property method
                 #       with item-access like `self["key"]`.
                 try:
-                    return class_value.fget(self)
+                    # It is not reasonable to process two types of data (raw and rendered) in one
+                    # and the same @property. Therefore, @properties always receive the raw data.
+                    return class_value.fget(without_render_preparation(self))
                 except AttributeError as exc:
                     # The AttributeError cannot be re-raised any further at this point.
                     # Since this would then be evaluated as an access error
