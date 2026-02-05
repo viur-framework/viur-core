@@ -4,10 +4,12 @@ import fnmatch
 import logging  # noqa
 import typing as t
 
-from . import Skeleton
 from .meta import BaseSkeleton
 from .utils import skeletonByKind
 from .. import db, utils
+
+if t.TYPE_CHECKING:
+    from . import Skeleton
 
 
 class RelSkel(BaseSkeleton):

@@ -4,26 +4,20 @@ import logging
 import time
 import typing as t
 import warnings
+from pprint import pprint
 
 from deprecated.sphinx import deprecated
 
 from viur.core import conf, db, errors, utils
-
-from .meta import BaseSkeleton, MetaSkel, KeyType, _UNDEFINED_KINDNAME
 from . import tasks
+from .meta import BaseSkeleton, KeyType, MetaSkel, _UNDEFINED_KINDNAME
 from .utils import skeletonByKind
-from ..bones.base import (
-    Compute,
-    ComputeInterval,
-    ComputeMethod,
-    ReadFromClientException,
-    ReadFromClientError,
-    ReadFromClientErrorSeverity
-)
+from ..bones.base import (Compute, ComputeInterval, ComputeMethod, ReadFromClientError, ReadFromClientErrorSeverity,
+                          ReadFromClientException)
+from ..bones.date import DateBone
+from ..bones.key import KeyBone
 from ..bones.raw import RawBone
 from ..bones.relational import RelationalConsistency
-from ..bones.key import KeyBone
-from ..bones.date import DateBone
 from ..bones.string import StringBone
 
 if t.TYPE_CHECKING:
@@ -351,6 +345,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 warnings.simplefilter("ignore", DeprecationWarning)
                 return cls.toDB(skel, update_relations=update_relations)
 
+        # FIXME: This check is incomplete as long it does nt check the entire tree!
         assert skel.renderPreparation is None, "Cannot modify values while rendering"
 
         def __txn_write(write_skel):

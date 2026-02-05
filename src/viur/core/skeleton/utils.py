@@ -114,6 +114,7 @@ def without_render_preparation(skel: "SkeletonInstance", full_clone: bool = Fals
             skel.errors = src_skel.errors
             skel.is_cloned = src_skel.is_cloned
         assert skel.renderPreparation is None
+        skel = remove_render_preparation_deep(skel)
     return skel
 
 
