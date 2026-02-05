@@ -214,6 +214,8 @@ class SkeletonInstance:
         }:
             return partial(getattr(self.skeletonCls, item), self)
 
+        print(f"Accessing {item} from {self.skeletonCls}")
+
         # Load a @property from the Skeleton class
         try:
             # Use try/except to save an if check
@@ -329,6 +331,7 @@ class SkeletonInstance:
         self.renderAccessedValues = {}
 
     def structure(self) -> dict:
+        print(f"SkeletonInstance structure: {self.skeletonCls=} {list(self.keys())=}")
         return {
             key: bone.structure() | {"sortindex": i}
             for i, (key, bone) in enumerate(self.items())
