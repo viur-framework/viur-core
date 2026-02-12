@@ -28,7 +28,7 @@ from viur.core.bones import BaseBone, BooleanBone, JsonBone, KeyBone, NumericBon
 
 from viur.core.decorators import *
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
-from viur.core.skeleton import SkeletonInstance, skeletonByKind
+from viur.core.skeleton import KeyType, SkeletonInstance, skeletonByKind
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
 
 # Globals for connectivity
@@ -898,7 +898,7 @@ class File(Tree):
 
     def read(
             self,
-            key: db.Key | int | str | None = None,
+            key: KeyType | None = None,
             path: str | None = None,
     ) -> tuple[io.BytesIO, str]:
         """
@@ -1248,7 +1248,7 @@ class File(Tree):
     @force_ssl
     @force_post
     @skey(allow_empty=True)
-    def add(self, skelType: SkelType, node: db.Key | int | str | None = None, *args, **kwargs):
+    def add(self, skelType: SkelType, node: KeyType | None = None, *args, **kwargs):
         # We can't add files directly (they need to be uploaded
         if skelType == "leaf":  # We need to handle leafs separately here
             targetKey = kwargs.get("key")

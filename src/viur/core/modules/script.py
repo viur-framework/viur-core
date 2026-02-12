@@ -1,6 +1,7 @@
 import io
 import typing as t
 from viur.core.bones import *
+from viur.core.skeleton import KeyType
 from viur.core.prototypes.tree import Tree, TreeSkel, SkelType
 from viur.core.modules.file import File
 from viur.core import db, conf, current, skeleton, tasks, errors
@@ -106,7 +107,7 @@ class Script(Tree):
         }]
 
     @exposed
-    def view(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> t.Any:
+    def view(self, skelType: SkelType, key: KeyType, *args, **kwargs) -> t.Any:
         try:
             return super().view(skelType, key, *args, **kwargs)
         except errors.NotFound:
