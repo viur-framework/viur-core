@@ -716,13 +716,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         skel: SkeletonInstance,
         values: t.Optional[dict | t.Callable[[SkeletonInstance], None]] = {},
         *,
-        key: t.Optional[db.Key | int | str] = None,
         check: t.Optional[dict | t.Callable[[SkeletonInstance], None]] = None,
         create: t.Optional[bool | dict | t.Callable[[SkeletonInstance], None]] = None,
-        update_relations: bool = True,
         ignore: t.Optional[t.Iterable[str]] = (),
         internal: bool = True,
+        key: t.Optional[db.Key | int | str] = None,
+        preprocess: t.Optional[t.Callable[[SkeletonInstance], None]] = None,
         retry: int = 0,
+        update_relations: bool = True,
     ) -> SkeletonInstance:
         """
         Performs an edit operation on a Skeleton within a transaction.
@@ -821,6 +822,11 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             else:
                 raise ValueError("'values' must either be dict or a callable.")
 
+            # Run preprocess hook
+            if preprocess:
+                preprocess(skel)
+
+            # Finally write the skeleton
             return skel.write(update_relations=update_relations)
 
         if not db.is_in_transaction():
