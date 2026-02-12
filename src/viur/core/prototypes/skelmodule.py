@@ -4,7 +4,7 @@ import logging
 from viur.core import Module, db, current, errors
 from viur.core.decorators import *
 from viur.core.config import conf
-from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
+from viur.core.skeleton import KeyType, skeletonByKind, Skeleton, SkeletonInstance
 import typing as t
 
 
@@ -209,7 +209,7 @@ class SkelModule(Module):
     @exposed
     @skey
     @access("root")
-    def add_or_edit(self, key: db.Key | int | str, **kwargs) -> t.Any:
+    def add_or_edit(self, key: KeyType, **kwargs) -> t.Any:
         """
         This function is intended to be used by importers.
         Only "root"-users are allowed to use it.

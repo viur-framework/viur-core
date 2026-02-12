@@ -3,7 +3,7 @@ import typing as t
 from viur.core import current, db, errors, utils
 from viur.core.decorators import *
 from viur.core.cache import flushCache
-from viur.core.skeleton import SkeletonInstance
+from viur.core.skeleton import SkeletonInstance, KeyType
 from .skelmodule import SkelModule
 
 
@@ -153,7 +153,7 @@ class List(SkelModule):
         return self.render.render(f"structure.{action}", skel)
 
     @exposed
-    def view(self, key: db.Key | int | str, *args, **kwargs) -> t.Any:
+    def view(self, key: KeyType, *args, **kwargs) -> t.Any:
         """
             Prepares and renders a single entry for viewing.
 
@@ -208,7 +208,7 @@ class List(SkelModule):
     @force_ssl
     @exposed
     @skey(allow_empty=True)
-    def edit(self, key: db.Key | int | str, *, bounce: bool = False, **kwargs) -> t.Any:
+    def edit(self, key: KeyType, *, bounce: bool = False, **kwargs) -> t.Any:
         """
             Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
             Data is taken by any other arguments in *kwargs*.
@@ -289,7 +289,7 @@ class List(SkelModule):
     @force_post
     @exposed
     @skey
-    def delete(self, key: db.Key | int | str, **kwargs) -> t.Any:
+    def delete(self, key: KeyType, **kwargs) -> t.Any:
         """
             Delete an entry.
 
@@ -317,7 +317,7 @@ class List(SkelModule):
         return self.render.deleteSuccess(skel)
 
     @exposed
-    def index(self, key: db.Key | int | str = None, *args, **kwargs) -> t.Any:
+    def index(self, key: KeyType = None, *args, **kwargs) -> t.Any:
         """
             Default, SEO-Friendly fallback for view and list.
             :param key: The key can be a database key or a seoKey.
