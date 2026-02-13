@@ -572,7 +572,14 @@ class Router:
 
             idx += 1
 
+            # Try to get the requested path segment
+            # If it doesn't exist, try "index" as a fallback ONLY at the end of the path
             if part not in caller:
+                # If this is not the last segment, or if "index" doesn't exist, mark as not found
+                if idx < len(self.path_list) or "index" not in caller:
+                    path_found = False
+                    break
+                # Otherwise, use "index" as the default handler
                 part = "index"
 
             if caller := caller.get(part):
