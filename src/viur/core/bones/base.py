@@ -1555,7 +1555,7 @@ class BaseBone(object):
 
     def _compute(self, skel: 'viur.core.skeleton.SkeletonInstance', bone_name: str):
         """Performs the evaluation of a bone configured as compute"""
-        from ..skeleton.utils import without_render_preparation, remove_render_preparation_deep
+        from ..skeleton.utils import without_render_preparation
 
         compute_fn_parameters = inspect.signature(self.compute.fn).parameters
         compute_fn_args = {}
