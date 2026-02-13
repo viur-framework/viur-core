@@ -2,6 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.16]
+
+- fix: Propagate `@property` from Skeleton to `SkeletonInstance` that belongs to a `RefSkel` + reset `renderPreparation` (#1623)
+- fix: `UserPassword.pwrecover` should strip the recovery_key (#1621)
+- fix: Use new vi-admin code-feature with syntax highlighting (#1615)
+
 ## [3.8.15]
 
 - fix: `ComputeMethod.Always` fails when skeleton is being rendered (#1614)
