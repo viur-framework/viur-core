@@ -8,22 +8,21 @@ import warnings
 from deprecated.sphinx import deprecated
 
 from viur.core import conf, db, errors, utils
-
-from .meta import BaseSkeleton, MetaSkel, KeyType, _UNDEFINED_KINDNAME
 from . import tasks
+from .meta import BaseSkeleton, KeyType, MetaSkel, _UNDEFINED_KINDNAME
 from .utils import skeletonByKind
 from ..bones.base import (
     Compute,
     ComputeInterval,
     ComputeMethod,
-    ReadFromClientException,
     ReadFromClientError,
-    ReadFromClientErrorSeverity
+    ReadFromClientErrorSeverity,
+    ReadFromClientException,
 )
+from ..bones.date import DateBone
+from ..bones.key import KeyBone
 from ..bones.raw import RawBone
 from ..bones.relational import RelationalConsistency
-from ..bones.key import KeyBone
-from ..bones.date import DateBone
 from ..bones.string import StringBone
 
 if t.TYPE_CHECKING:
@@ -351,6 +350,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 warnings.simplefilter("ignore", DeprecationWarning)
                 return cls.toDB(skel, update_relations=update_relations)
 
+        # FIXME: This check is incomplete as long it does nt check the entire tree!
         assert skel.renderPreparation is None, "Cannot modify values while rendering"
 
         def __txn_write(write_skel):
@@ -512,8 +512,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             skel.dbEntity["viur"].setdefault("viurActiveSeoKeys", [])
             for language, seo_key in last_set_seo_keys.items():
-                if skel.dbEntity["viur"]["viurCurrentSeoKeys"][language] not in \
-                        skel.dbEntity["viur"]["viurActiveSeoKeys"]:
+                if (
+                    skel.dbEntity["viur"]["viurCurrentSeoKeys"][language]
+                    not in skel.dbEntity["viur"]["viurActiveSeoKeys"]
+                ):
                     # Ensure the current, active seo key is in the list of all seo keys
                     skel.dbEntity["viur"]["viurActiveSeoKeys"].insert(0, seo_key)
             if str(skel.dbEntity.key.id_or_name) not in skel.dbEntity["viur"]["viurActiveSeoKeys"]:
@@ -799,8 +801,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 if skel.errors and internal:
                     for error in skel.errors:
                         if error.severity in (
-                            ReadFromClientErrorSeverity.Invalid,
-                            ReadFromClientErrorSeverity.InvalidatesOther,
+                                ReadFromClientErrorSeverity.Invalid,
+                                ReadFromClientErrorSeverity.InvalidatesOther,
                         ):
                             raise ReadFromClientException(skel.errors)
 

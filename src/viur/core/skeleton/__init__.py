@@ -1,16 +1,22 @@
 import logging
 import warnings
 
-from ..bones.base import getSystemInitialized
-
 from .adapter import DatabaseAdapter, ViurTagsSearchAdapter
 from .instance import SkeletonInstance
-from .meta import MetaSkel, MetaBaseSkel, BaseSkeleton, KeyType
-
-from .relskel import RelSkel, RefSkel
-from .skeleton import Skeleton, SeoKeyBone, _UNDEFINED_KINDNAME
-from .utils import SkelList, skeletonByKind, listKnownSkeletons, iterAllSkelClasses, remove_render_preparation_deep
-
+from .meta import ABSTRACT_SKEL_CLS_SUFFIX, BaseSkeleton, KeyType, MetaBaseSkel, MetaSkel
+from .relskel import RefSkel, RelSkel
+from .skeleton import SeoKeyBone, Skeleton, _UNDEFINED_KINDNAME
+from .tasks import SkelIterTask, SkeletonMaintenanceTask, update_relations
+from .utils import (  # noqa
+    SkelList,
+    is_skeletoninstance_of,
+    iterAllSkelClasses,
+    listKnownSkeletons,
+    remove_render_preparation_deep,
+    skeletonByKind,
+    without_render_preparation,
+)
+from ..bones.base import getSystemInitialized
 
 # Forward our references to SkelInstance to the database (needed for queries)
 
@@ -34,21 +40,27 @@ def __getattr__(attr: str) -> object:
 
 
 __all__ = [
+    ABSTRACT_SKEL_CLS_SUFFIX,
     BaseSkeleton,
     DatabaseAdapter,
-    getSystemInitialized,  # FIXME: This is an import from BaseBone
-    iterAllSkelClasses,
-    listKnownSkeletons,
     MetaBaseSkel,
     MetaSkel,
     RefSkel,
     RelSkel,
-    remove_render_preparation_deep,
     SeoKeyBone,
-    Skeleton,
-    skeletonByKind,
-    SkeletonInstance,
+    SkelIterTask,
     SkelList,
+    Skeleton,
+    SkeletonInstance,
+    SkeletonMaintenanceTask,
     ViurTagsSearchAdapter,
-    _UNDEFINED_KINDNAME
+    _UNDEFINED_KINDNAME,
+    getSystemInitialized,  # FIXME: This is an import from BaseBone
+    is_skeletoninstance_of,
+    iterAllSkelClasses,
+    listKnownSkeletons,
+    remove_render_preparation_deep,
+    skeletonByKind,
+    update_relations,
+    without_render_preparation,
 ]
