@@ -754,8 +754,13 @@ class Tree(SkelModule):
         if not skel.read(key):
             raise errors.NotFound()
 
+        parent_node_skel = None
+        if parententry := kwargs.get("parententry"):
+            if not (parent_node_skel := self.viewSkel("node").read(parententry)):
+                raise errors.NotFound("The provided parent node could not be found.")
+
         # a clone-operation is some kind of edit and add...
-        if not (self.canEdit(skelType, skel) and self.canAdd(skelType, kwargs.get("parententry"))):
+        if not (self.canEdit(skelType, skel) and self.canAdd(skelType, parent_node_skel)):
             raise errors.Unauthorized()
 
         # Remember source skel and unset the key for clone operation!
