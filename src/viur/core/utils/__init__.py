@@ -188,7 +188,7 @@ __UTILS_NAME_REPLACEMENT = {
     "currentSession": ("current.session", current.session),
     "downloadUrlFor": ("conf.main_app.file.create_download_url", lambda: conf.main_app.file.create_download_url),
     "escapeString": ("utils.string.escape", lambda: string.escape),
-    "generateRandomString": ("utils.string.random", lambda : string.random),
+    "generateRandomString": ("utils.string.random", lambda: string.random),
     "getCurrentUser": ("current.user.get", lambda: current.user.get),
     "is_prefix": ("utils.string.is_prefix", lambda: string.is_prefix),
     "parse_bool": ("utils.parse.bool", lambda: parse.bool),
