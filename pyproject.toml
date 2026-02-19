@@ -63,6 +63,7 @@ mailjet = [
     "mailjet-rest~=1.3",
 ]
 testing = [
+    "setuptools",
     "coverage",
     "coverage-badge",
 ]
