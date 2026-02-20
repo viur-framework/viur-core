@@ -245,7 +245,6 @@ class FileBone(TreeLeafBone):
         setup and iterates over each language to handle the derived files. Otherwise, it handles
         the derived files directly.
         """
-        logging.debug(f"postSavedHandler {type(self)} {boneName=} {key=}")
         super().postSavedHandler(skel, boneName, key)
         if (
             current.request.get() and current.request.get().is_deferred

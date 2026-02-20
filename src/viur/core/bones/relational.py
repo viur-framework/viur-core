@@ -499,7 +499,6 @@ class RelationalBone(BaseBone):
         :param boneName: The name of the relational bone.
         :param key: The key of the saved skeleton instance.
         """
-        logging.debug(f"postSavedHandler {type(self)} {boneName=} {key=}")
         viur_src_kind = key.kind
         viur_src_property = boneName
 
@@ -582,11 +581,8 @@ class RelationalBone(BaseBone):
 
         # Call postSavedHandler on UsingSkel (RelSkel)
         if self.using:
-            logging.debug(f"iter_bone_value {boneName=}")
             for idx, lang, value in self.iter_bone_value(skel, boneName):
-                logging.debug(f" > {idx=} | {lang=} | {value=}")
                 for bone_name, bone in value["rel"].items():
-                    logging.debug(f"Call postSavedHandler at {bone_name=}")
                     bone.postSavedHandler(value["rel"], bone_name, key)
 
     def postDeletedHandler(self, skel: "SkeletonInstance", boneName: str, key: db.Key) -> None:
@@ -1189,8 +1185,11 @@ class RelationalBone(BaseBone):
                 raise ValueError(f"You must supply a tuple of (Database-Key, relSkel) to {boneName}")
             parsed_value = value
         elif self.multiple and not self.using:
-            if not isinstance(value, (str, int, db.Key)) and not (isinstance(value, list)) \
-                and all([isinstance(val, (str, int, db.Key)) for val in value]):
+            if (
+                not isinstance(value, (str, int, db.Key))
+                and not (isinstance(value, list))
+                and all(isinstance(val, (str, int, db.Key)) for val in value)
+            ):
                 raise ValueError(f"You must supply a Database-Key or a list hereof to {boneName}")
             if isinstance(value, list):
                 parsed_value = [(key, None) for key in value]
