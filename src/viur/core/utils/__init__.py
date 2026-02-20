@@ -207,9 +207,6 @@ def __getattr__(attr):
         msg = f"Use of `utils.{attr}` is deprecated; Use `{replace[0]}` instead!"
         warnings.warn(msg, DeprecationWarning, stacklevel=3)
         logging.warning(msg, stacklevel=3)
-        res = replace[1]
-        if isinstance(res, t.Callable):
-            res = res()
-        return res
+        return replace[1]
 
     return super(__import__(__name__).__class__).__getattribute__(attr)
