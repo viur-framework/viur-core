@@ -10,7 +10,7 @@ import typing as t
 import warnings
 from itertools import chain
 
-from viur.core import db, utils, i18n
+from viur.core import db, i18n, utils
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity, getSystemInitialized
 
 if t.TYPE_CHECKING:
@@ -429,7 +429,6 @@ class RelationalBone(BaseBone):
 
             return using_data_serialized, ref_data_serialized
 
-
         super().serialize(skel, name, parentIndexed)
 
         # Clean old properties from entry (prevent name collision)
@@ -579,6 +578,12 @@ class RelationalBone(BaseBone):
         # Add new database entries for the remaining values
         for value in values:
             __update_relation(db.Entity(db.Key("viur-relations", parent=key)), value)
+
+        # Call postSavedHandler on UsingSkel (RelSkel)
+        if self.using:
+            for idx, lang, value in self.iter_bone_value(skel, boneName):
+                for bone_name, bone in value["rel"].items():
+                    bone.postSavedHandler(value["rel"], bone_name, key)
 
     def postDeletedHandler(self, skel: "SkeletonInstance", boneName: str, key: db.Key) -> None:
         """
@@ -1168,8 +1173,8 @@ class RelationalBone(BaseBone):
             Furthermore, the second field must be a skeletonInstanceClassRef.
             """
             return (isinstance(in_value, tuple) and len(in_value) == 2
-                        and isinstance(in_value[0], (str, int, db.Key))
-                        and isinstance(in_value[1], self._skeletonInstanceClassRef))
+                    and isinstance(in_value[0], (str, int, db.Key))
+                    and isinstance(in_value[1], self._skeletonInstanceClassRef))
 
         if not self.multiple and not self.using:
             if not isinstance(value, (str, int, db.Key)):
@@ -1180,8 +1185,11 @@ class RelationalBone(BaseBone):
                 raise ValueError(f"You must supply a tuple of (Database-Key, relSkel) to {boneName}")
             parsed_value = value
         elif self.multiple and not self.using:
-            if not isinstance(value, (str, int, db.Key)) and not (isinstance(value, list)) \
-                    and all([isinstance(val, (str, int, db.Key)) for val in value]):
+            if (
+                not isinstance(value, (str, int, db.Key))
+                and not (isinstance(value, list))
+                and all(isinstance(val, (str, int, db.Key)) for val in value)
+            ):
                 raise ValueError(f"You must supply a Database-Key or a list hereof to {boneName}")
             if isinstance(value, list):
                 parsed_value = [(key, None) for key in value]
