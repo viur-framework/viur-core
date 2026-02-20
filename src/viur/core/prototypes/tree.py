@@ -728,7 +728,14 @@ class Tree(SkelModule):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def clone(self, skelType: SkelType, key: db.Key | str | int, *, bounce: bool = False, **kwargs):
+    def clone(
+        self, 
+        skelType: SkelType, 
+        key: db.Key | str | int, *, 
+        bounce: bool = False,
+        parententry: t.Optional[db.Key | str | int] = None,
+        **kwargs
+    ):
         """
         Clone an existing entry, and render the entry, eventually with error notes on incorrect data.
         Data is taken by any other arguments in *kwargs*.
@@ -754,10 +761,11 @@ class Tree(SkelModule):
         if not skel.read(key):
             raise errors.NotFound()
 
-        parent_node_skel = None
-        if parententry := kwargs.get("parententry"):
+        if parententry is not None:
             if not (parent_node_skel := self.viewSkel("node").read(parententry)):
                 raise errors.NotFound("The provided parent node could not be found.")
+        else:
+            parent_node_skel = None
 
         # a clone-operation is some kind of edit and add...
         if not (self.canEdit(skelType, skel) and self.canAdd(skelType, parent_node_skel)):
