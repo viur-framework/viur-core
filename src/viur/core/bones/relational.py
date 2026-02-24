@@ -1173,8 +1173,8 @@ class RelationalBone(BaseBone):
             Furthermore, the second field must be a skeletonInstanceClassRef.
             """
             return (isinstance(in_value, tuple) and len(in_value) == 2
-                    and isinstance(in_value[0], (str, int, db.Key))
-                    and isinstance(in_value[1], self._skeletonInstanceClassRef))
+                        and isinstance(in_value[0], (str, int, db.Key))
+                        and isinstance(in_value[1], self._skeletonInstanceClassRef))
 
         if not self.multiple and not self.using:
             if not isinstance(value, (str, int, db.Key)):
@@ -1185,11 +1185,8 @@ class RelationalBone(BaseBone):
                 raise ValueError(f"You must supply a tuple of (Database-Key, relSkel) to {boneName}")
             parsed_value = value
         elif self.multiple and not self.using:
-            if (
-                not isinstance(value, (str, int, db.Key))
-                and not (isinstance(value, list))
-                and all(isinstance(val, (str, int, db.Key)) for val in value)
-            ):
+            if not isinstance(value, (str, int, db.Key)) and not (isinstance(value, list)) \
+                    and all([isinstance(val, (str, int, db.Key)) for val in value]):
                 raise ValueError(f"You must supply a Database-Key or a list hereof to {boneName}")
             if isinstance(value, list):
                 parsed_value = [(key, None) for key in value]
