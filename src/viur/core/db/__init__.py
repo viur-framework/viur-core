@@ -5,13 +5,47 @@ from . import cache
 from .config import conf as config
 from .query import Query
 # new exports for 3.8
-from .transport import (AllocateIDs, Count, Delete, Get, Put, RunInTransaction, allocate_ids, count, delete, get, put,
-                        run_in_transaction)
-from .types import (DATASTORE_BASE_TYPES, Entity, KEY_SPECIAL_PROPERTY, Key, QueryDefinition, SortOrder,
-                    current_db_access_log)
-from .utils import (GetOrInsert, IsInTransaction, acquire_transaction_success_marker, encodeKey, endDataAccessLog,
-                    end_data_access_log, fix_unindexable_properties, get_or_insert, is_in_transaction, keyHelper,
-                    key_helper, normalizeKey, normalize_key, startDataAccessLog, start_data_access_log)
+from .transport import (
+    allocate_ids,
+    AllocateIDs,
+    count,
+    Count,
+    delete,
+    Delete,
+    get,
+    Get,
+    put,
+    Put,
+    run_in_transaction,
+    RunInTransaction,
+)
+from .types import (
+    current_db_access_log,
+    DATASTORE_BASE_TYPES,
+    Entity,
+    KEY_SPECIAL_PROPERTY,
+    Key,
+    KeyType,
+    QueryDefinition,
+    SortOrder,
+)
+from .utils import (
+    acquire_transaction_success_marker,
+    encodeKey,
+    end_data_access_log,
+    endDataAccessLog,
+    fix_unindexable_properties,
+    get_or_insert,
+    GetOrInsert,
+    is_in_transaction,
+    IsInTransaction,
+    key_helper,
+    keyHelper,
+    normalize_key,
+    normalizeKey,
+    start_data_access_log,
+    startDataAccessLog,
+)
 
 __all__ = [
     "KEY_SPECIAL_PROPERTY",
@@ -20,6 +54,7 @@ __all__ = [
     "Entity",
     "QueryDefinition",
     "Key",
+    "KeyType",
     "Query",
     "fix_unindexable_properties",
     "normalizeKey",

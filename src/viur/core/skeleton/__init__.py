@@ -3,7 +3,7 @@ import warnings
 
 from .adapter import DatabaseAdapter, ViurTagsSearchAdapter
 from .instance import SkeletonInstance
-from .meta import ABSTRACT_SKEL_CLS_SUFFIX, BaseSkeleton, KeyType, MetaBaseSkel, MetaSkel
+from .meta import ABSTRACT_SKEL_CLS_SUFFIX, BaseSkeleton, MetaBaseSkel, MetaSkel
 from .relskel import RefSkel, RelSkel
 from .skeleton import SeoKeyBone, Skeleton, _UNDEFINED_KINDNAME
 from .tasks import SkelIterTask, SkeletonMaintenanceTask, update_relations

@@ -9,7 +9,7 @@ from deprecated.sphinx import deprecated
 
 from viur.core import conf, db, errors, utils
 from . import tasks
-from .meta import BaseSkeleton, KeyType, MetaSkel, _UNDEFINED_KINDNAME
+from .meta import BaseSkeleton, MetaSkel, _UNDEFINED_KINDNAME
 from .utils import skeletonByKind
 from ..bones.base import (
     Compute,
@@ -238,7 +238,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         version="3.7.0",
         reason="Use skel.read() instead of skel.fromDB()",
     )
-    def fromDB(cls, skel: SkeletonInstance, key: KeyType) -> bool:
+    def fromDB(cls, skel: SkeletonInstance, key: db.KeyType) -> bool:
         """
         Deprecated function, replaced by Skeleton.read().
         """
@@ -248,7 +248,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     def read(
         cls,
         skel: SkeletonInstance,
-        key: t.Optional[KeyType] = None,
+        key: t.Optional[db.KeyType] = None,
         *,
         create: bool | dict | t.Callable[[SkeletonInstance], None] = False,
         _check_legacy: bool = True
@@ -324,7 +324,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     def write(
         cls,
         skel: SkeletonInstance,
-        key: t.Optional[KeyType] = None,
+        key: t.Optional[db.KeyType] = None,
         *,
         update_relations: bool = True,
         _check_legacy: bool = True,
@@ -627,7 +627,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return skel
 
     @classmethod
-    def delete(cls, skel: SkeletonInstance, key: t.Optional[KeyType] = None) -> None:
+    def delete(cls, skel: SkeletonInstance, key: t.Optional[db.KeyType] = None) -> None:
         """
             Deletes the entity associated with the current Skeleton from the data store.
 

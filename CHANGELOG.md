@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.18]
+
+- refactor: Provide `db.KeyType` for better integration
+
 ## [3.8.17]
 
 - fix: `utils` replace map (#1632)

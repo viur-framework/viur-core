@@ -1173,11 +1173,11 @@ class RelationalBone(BaseBone):
             Furthermore, the second field must be a skeletonInstanceClassRef.
             """
             return (isinstance(in_value, tuple) and len(in_value) == 2
-                    and isinstance(in_value[0], KeyType)
+                    and isinstance(in_value[0], db.KeyType)
                     and isinstance(in_value[1], self._skeletonInstanceClassRef))
 
         if not self.multiple and not self.using:
-            if not isinstance(value, KeyType):
+            if not isinstance(value, db.KeyType):
                 raise ValueError(f"You must supply exactly one Database-Key str or int to {boneName}")
             parsed_value = (value, None)
         elif not self.multiple and self.using:
@@ -1186,9 +1186,9 @@ class RelationalBone(BaseBone):
             parsed_value = value
         elif self.multiple and not self.using:
             if (
-                not isinstance(value, KeyType)
+                not isinstance(value, db.KeyType)
                 and not (isinstance(value, list))
-                and all(isinstance(val, KeyType) for val in value)
+                and all(isinstance(val, db.KeyType) for val in value)
             ):
                 raise ValueError(f"You must supply a Database-Key or a list hereof to {boneName}")
             if isinstance(value, list):

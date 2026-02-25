@@ -15,7 +15,6 @@ from ..config import conf
 
 _UNDEFINED_KINDNAME = object()
 ABSTRACT_SKEL_CLS_SUFFIX = "AbstractSkel"
-KeyType: t.TypeAlias = db.Key | str | int
 
 
 class MetaBaseSkel(type):
