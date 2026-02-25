@@ -8,22 +8,21 @@ import warnings
 from deprecated.sphinx import deprecated
 
 from viur.core import conf, db, errors, utils
-
-from .meta import BaseSkeleton, MetaSkel, KeyType, _UNDEFINED_KINDNAME
 from . import tasks
+from .meta import BaseSkeleton, MetaSkel, _UNDEFINED_KINDNAME
 from .utils import skeletonByKind
 from ..bones.base import (
     Compute,
     ComputeInterval,
     ComputeMethod,
-    ReadFromClientException,
     ReadFromClientError,
-    ReadFromClientErrorSeverity
+    ReadFromClientErrorSeverity,
+    ReadFromClientException,
 )
+from ..bones.date import DateBone
+from ..bones.key import KeyBone
 from ..bones.raw import RawBone
 from ..bones.relational import RelationalConsistency
-from ..bones.key import KeyBone
-from ..bones.date import DateBone
 from ..bones.string import StringBone
 
 if t.TYPE_CHECKING:
@@ -239,7 +238,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         version="3.7.0",
         reason="Use skel.read() instead of skel.fromDB()",
     )
-    def fromDB(cls, skel: SkeletonInstance, key: KeyType) -> bool:
+    def fromDB(cls, skel: SkeletonInstance, key: db.KeyType) -> bool:
         """
         Deprecated function, replaced by Skeleton.read().
         """
@@ -249,7 +248,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     def read(
         cls,
         skel: SkeletonInstance,
-        key: t.Optional[KeyType] = None,
+        key: t.Optional[db.KeyType] = None,
         *,
         create: bool | dict | t.Callable[[SkeletonInstance], None] = False,
         _check_legacy: bool = True
@@ -325,7 +324,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     def write(
         cls,
         skel: SkeletonInstance,
-        key: t.Optional[KeyType] = None,
+        key: t.Optional[db.KeyType] = None,
         *,
         update_relations: bool = True,
         _check_legacy: bool = True,
@@ -351,6 +350,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 warnings.simplefilter("ignore", DeprecationWarning)
                 return cls.toDB(skel, update_relations=update_relations)
 
+        # FIXME: This check is incomplete as long it does nt check the entire tree!
         assert skel.renderPreparation is None, "Cannot modify values while rendering"
 
         def __txn_write(write_skel):
@@ -512,8 +512,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             skel.dbEntity["viur"].setdefault("viurActiveSeoKeys", [])
             for language, seo_key in last_set_seo_keys.items():
-                if skel.dbEntity["viur"]["viurCurrentSeoKeys"][language] not in \
-                        skel.dbEntity["viur"]["viurActiveSeoKeys"]:
+                if (
+                    skel.dbEntity["viur"]["viurCurrentSeoKeys"][language]
+                    not in skel.dbEntity["viur"]["viurActiveSeoKeys"]
+                ):
                     # Ensure the current, active seo key is in the list of all seo keys
                     skel.dbEntity["viur"]["viurActiveSeoKeys"].insert(0, seo_key)
             if str(skel.dbEntity.key.id_or_name) not in skel.dbEntity["viur"]["viurActiveSeoKeys"]:
@@ -625,7 +627,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return skel
 
     @classmethod
-    def delete(cls, skel: SkeletonInstance, key: t.Optional[KeyType] = None) -> None:
+    def delete(cls, skel: SkeletonInstance, key: t.Optional[db.KeyType] = None) -> None:
         """
             Deletes the entity associated with the current Skeleton from the data store.
 
@@ -716,13 +718,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         skel: SkeletonInstance,
         values: t.Optional[dict | t.Callable[[SkeletonInstance], None]] = {},
         *,
-        key: t.Optional[KeyType] = None,
         check: t.Optional[dict | t.Callable[[SkeletonInstance], None]] = None,
         create: t.Optional[bool | dict | t.Callable[[SkeletonInstance], None]] = None,
-        update_relations: bool = True,
         ignore: t.Optional[t.Iterable[str]] = (),
         internal: bool = True,
+        key: t.Optional[db.KeyType] = None,
+        preprocess: t.Optional[t.Callable[[SkeletonInstance], None]] = None,
         retry: int = 0,
+        update_relations: bool = True,
     ) -> SkeletonInstance:
         """
         Performs an edit operation on a Skeleton within a transaction.
@@ -798,8 +801,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 if skel.errors and internal:
                     for error in skel.errors:
                         if error.severity in (
-                            ReadFromClientErrorSeverity.Invalid,
-                            ReadFromClientErrorSeverity.InvalidatesOther,
+                                ReadFromClientErrorSeverity.Invalid,
+                                ReadFromClientErrorSeverity.InvalidatesOther,
                         ):
                             raise ReadFromClientException(skel.errors)
 
@@ -821,6 +824,11 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             else:
                 raise ValueError("'values' must either be dict or a callable.")
 
+            # Run preprocess hook
+            if preprocess:
+                preprocess(skel)
+
+            # Finally write the skeleton
             return skel.write(update_relations=update_relations)
 
         if not db.is_in_transaction():

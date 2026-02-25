@@ -146,6 +146,11 @@ class Entity(Datastore_entity):
             raise ValueError(f"key must be a Key-Object (or None for an embedded entity). Got {key!r} ({type(key)})")
 
 
+KeyType: t.TypeAlias = Key | str | int
+"""
+Alias that describes a key-type.
+"""
+
 TOrders: t.TypeAlias = list[tuple[str, SortOrder]]
 TFilters: t.TypeAlias = dict[str, DATASTORE_BASE_TYPES | list[DATASTORE_BASE_TYPES]]
 

@@ -1555,8 +1555,11 @@ class BaseBone(object):
 
     def _compute(self, skel: 'viur.core.skeleton.SkeletonInstance', bone_name: str):
         """Performs the evaluation of a bone configured as compute"""
+        from ..skeleton.utils import without_render_preparation
+
         compute_fn_parameters = inspect.signature(self.compute.fn).parameters
         compute_fn_args = {}
+        skel = without_render_preparation(skel)
 
         if "skel" in compute_fn_parameters:
             skel.accessedValues[bone_name] = None  # remove value from accessedValues to avoid endless recursion

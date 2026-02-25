@@ -64,7 +64,7 @@ mailjet = [
 ]
 testing = [
     "coverage",
-    "coverage-badge",
+    "genbadge[coverage]",
 ]
 
 [tool.setuptools.packages.find]
