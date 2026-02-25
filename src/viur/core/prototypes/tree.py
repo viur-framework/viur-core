@@ -1,15 +1,16 @@
-import time
 import logging
+import time
 import typing as t
+
 from deprecated.sphinx import deprecated
-from viur.core import errors, db, current
-from viur.core.decorators import *
-from viur.core.bones import KeyBone, SortIndexBone, BooleanBone
+
+from viur.core import current, db, errors
+from viur.core.bones import BooleanBone, KeyBone, SortIndexBone
 from viur.core.cache import flushCache
+from viur.core.decorators import *
 from viur.core.skeleton import Skeleton, SkeletonInstance
 from viur.core.tasks import CallDeferred
 from .skelmodule import SkelModule
-
 
 SkelType = t.Literal["node", "leaf"]
 
@@ -728,7 +729,15 @@ class Tree(SkelModule):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def clone(self, skelType: SkelType, key: db.Key | str | int, *, bounce: bool = False, **kwargs):
+    def clone(
+        self,
+        skelType: SkelType,
+        key: db.Key | str | int,
+        *,
+        bounce: bool = False,
+        parententry: t.Optional[db.Key | str | int] = None,
+        **kwargs,
+    ):
         """
         Clone an existing entry, and render the entry, eventually with error notes on incorrect data.
         Data is taken by any other arguments in *kwargs*.
@@ -739,6 +748,8 @@ class Tree(SkelModule):
 
         :param skelType: Defines the type of the entry that should be cloned and may either be "node" or "leaf".
         :param key: URL-safe key of the item to be edited.
+        :param bounce: Return the skeleton after applying client data and validtion without writing.
+        :param parententry: URL-safe key of the destination parent node.
 
         :returns: The cloned object of the entry, eventually with error hints.
 
@@ -754,8 +765,14 @@ class Tree(SkelModule):
         if not skel.read(key):
             raise errors.NotFound()
 
+        if parententry is not None:
+            if not (parent_node_skel := self.viewSkel("node").read(parententry)):
+                raise errors.NotFound("The provided parent node could not be found.")
+        else:
+            parent_node_skel = None
+
         # a clone-operation is some kind of edit and add...
-        if not (self.canEdit(skelType, skel) and self.canAdd(skelType, kwargs.get("parententry"))):
+        if not (self.canEdit(skelType, skel) and self.canAdd(skelType, parent_node_skel)):
             raise errors.Unauthorized()
 
         # Remember source skel and unset the key for clone operation!

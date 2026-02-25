@@ -2,6 +2,15 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.17]
+
+- fix: `utils` replace map (#1632)
+- fix: Call `Tree.canAdd` with `SkeletonInstance` in `Tree.clone` (#1631)
+- fix: Call postSavedHandler on UsingSkel (RelSkel) (#1637)
+- fix: switch from coverage-badge to genbadge (formerly #1629)
+- fix: viur-migrate (#1634)
+- refactor: Use `KeyType` for `isinstance` checks (#1638)
+
 ## [3.8.16]
 
 - fix: Propagate `@property` from Skeleton to `SkeletonInstance` that belongs to a `RefSkel` + reset `renderPreparation` (#1623)
