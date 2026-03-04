@@ -209,7 +209,7 @@ class SkelModule(Module):
     @exposed
     @skey
     @access("root")
-    def add_or_edit(self, key: db.Key | int | str, **kwargs) -> t.Any:
+    def add_or_edit(self, key: db.KeyType, **kwargs) -> t.Any:
         """
         This function is intended to be used by importers.
         Only "root"-users are allowed to use it.

@@ -296,7 +296,7 @@ class Tree(SkelModule):
     ## External exposed functions
 
     @exposed
-    def index(self, skelType: SkelType = "node", parententry: t.Optional[db.Key | int | str] = None, **kwargs):
+    def index(self, skelType: SkelType = "node", parententry: t.Optional[db.KeyType] = None, **kwargs):
         if not parententry:
             repos = self.getAvailableRootNodes(**kwargs)
             match len(repos):
@@ -383,7 +383,7 @@ class Tree(SkelModule):
         return self.render.render(f"structure.{skelType}.{action}", skel)
 
     @exposed
-    def view(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> t.Any:
+    def view(self, skelType: SkelType, key: db.KeyType, *args, **kwargs) -> t.Any:
         """
         Prepares and renders a single entry for viewing.
 
@@ -417,7 +417,7 @@ class Tree(SkelModule):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def add(self, skelType: SkelType, node: db.Key | int | str, *, bounce: bool = False, **kwargs) -> t.Any:
+    def add(self, skelType: SkelType, node: db.KeyType, *, bounce: bool = False, **kwargs) -> t.Any:
         # FIXME: VIUR4 rename node into key...
         """
         Add a new entry with the given parent *node*, and render the entry, eventually with error notes
@@ -472,7 +472,7 @@ class Tree(SkelModule):
     @exposed
     @skey
     @access("root")
-    def add_or_edit(self, skelType: SkelType, key: db.Key | int | str, **kwargs) -> t.Any:
+    def add_or_edit(self, skelType: SkelType, key: db.KeyType, **kwargs) -> t.Any:
         """
         This function is intended to be used by importers.
         Only "root"-users are allowed to use it.
@@ -537,7 +537,7 @@ class Tree(SkelModule):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def edit(self, skelType: SkelType, key: db.Key | int | str, *, bounce: bool = False, **kwargs) -> t.Any:
+    def edit(self, skelType: SkelType, key: db.KeyType, *, bounce: bool = False, **kwargs) -> t.Any:
         """
         Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
         Data is taken by any other arguments in *kwargs*.
@@ -650,8 +650,8 @@ class Tree(SkelModule):
     def move(
         self,
         skelType: SkelType,
-        key: db.Key | int | str,
-        parentNode: db.Key | int | str,
+        key: db.KeyType,
+        parentNode: db.KeyType,
         sortindex: t.Optional[float] = None
     ) -> str:
         """

@@ -1640,7 +1640,7 @@ class User(List):
         logging.info(f"""User {skel["name"]} logged out""")
 
     @exposed
-    def view(self, key: db.Key | int | str = "self", *args, **kwargs):
+    def view(self, key: db.KeyType = "self", *args, **kwargs):
         """
             Allow a special key "self" to reference the current user.
 
@@ -1672,7 +1672,7 @@ class User(List):
 
     @exposed
     @skey(allow_empty=True)
-    def edit(self, key: db.Key | int | str = "self", *args, **kwargs):
+    def edit(self, key: db.KeyType = "self", *args, **kwargs):
         """
             Allow a special key "self" to reference the current user.
 

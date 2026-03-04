@@ -107,7 +107,7 @@ class Script(Tree):
         }]
 
     @exposed
-    def view(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> t.Any:
+    def view(self, skelType: SkelType, key: db.KeyType, *args, **kwargs) -> t.Any:
         try:
             return super().view(skelType, key, *args, **kwargs)
         except errors.NotFound:
