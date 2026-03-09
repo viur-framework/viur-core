@@ -25,9 +25,9 @@ from ..db import KeyType as _KeyType
 
 __DEPRECATED_NAMES = {
     # stuff prior viur-core < 3.6
-    "seoKeyBone": ("SeoKeyBone", SeoKeyBone),
+    "getSystemInitialized": ("bones.base.getSystemInitialized", _getSystemInitialized),
     "KeyType": ("db.KeyType", _KeyType),
-    "getSystemInitialized": ("getSystemInitialized", _getSystemInitialized)
+    "seoKeyBone": ("SeoKeyBone", SeoKeyBone),
 }
 
 def __getattr__(attr: str) -> object:
