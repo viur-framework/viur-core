@@ -1,44 +1,43 @@
 import datetime
-import logging
 import sys
+import typing as t
 
 from deprecated.sphinx import deprecated
-import typing as t
-from .transport import get, put, run_in_transaction, __client__
-from .types import Entity, Key, current_db_access_log
 from google.cloud.datastore.transaction import Transaction
+
 from viur.core import current
+from .transport import __client__, get, put, run_in_transaction
+from .types import Entity, Key, current_db_access_log
 
 
-def fix_unindexable_properties(entry: Entity) -> Entity:
+def fix_unindexable_properties(entry: Entity, *, keep_exclusions: bool = False) -> Entity:
     """
-        Recursively walk the given Entity and add all properties to the list of unindexed properties if they contain
-        a string longer than 1500 bytes (which is maximum size of a string that can be indexed). The datastore would
-        return an error otherwise.
-        https://cloud.google.com/datastore/docs/concepts/limits?hl=en#limits
+    Recursively walk the given Entity and add all properties to the list of unindexed properties if they contain
+    a string longer than 1500 bytes (which is maximum size of a string that can be indexed). The datastore would
+    return an error otherwise.
+    https://cloud.google.com/datastore/docs/concepts/limits?hl=en#limits
+
     :param entry: The entity to fix (inplace)
+    :param keep_exclusions: If true, keep the properties already included in ``exclude_from_indexes``.
+        Otherwise, ignore them and exclude only non-indexable properties.
     :return: The fixed entity
     """
 
     def has_unindexable_property(prop):
-        if isinstance(prop, dict|Entity):
-            return any([has_unindexable_property(x) for x in prop.values()])
+        if isinstance(prop, dict):
+            return any(has_unindexable_property(x) for x in prop.values())
         elif isinstance(prop, list):
-            return any([has_unindexable_property(x) for x in prop])
+            return any(has_unindexable_property(x) for x in prop)
         elif isinstance(prop, (str, bytes)):
             return sys.getsizeof(prop) >= 1500
-            return len(prop) >= 1500
         else:
             return False
 
     unindexable_properties = set()
     for key, value in entry.items():
-        logging.debug(f" fix_unindexable_properties {key=} {value=}")
-        if not (res:=has_unindexable_property(value)):
-            logging.debug(f"  fix_unindexable_properties {key=}  --> {res=}")
+        if not has_unindexable_property(value):
             continue
-        logging.debug(f"  fix_unindexable_properties {key=}  --> {res=}")
-        if isinstance(value, dict|Entity):
+        if isinstance(value, dict):
             inner_entity = Entity()
             inner_entity.update(value)
             entry[key] = fix_unindexable_properties(inner_entity)
@@ -46,8 +45,10 @@ def fix_unindexable_properties(entry: Entity) -> Entity:
                 inner_entity.key = value.key
         else:
             unindexable_properties.add(key)
-    logging.debug(f"fix_unindexable_properties {entry.key=} {unindexable_properties=}")
-    entry.exclude_from_indexes = unindexable_properties
+    if keep_exclusions:
+        entry.exclude_from_indexes.update(unindexable_properties)  # type:ignore
+    else:
+        entry.exclude_from_indexes = unindexable_properties
     return entry
 
 
