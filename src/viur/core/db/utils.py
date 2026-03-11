@@ -1,4 +1,7 @@
 import datetime
+import logging
+import sys
+
 from deprecated.sphinx import deprecated
 import typing as t
 from .transport import get, put, run_in_transaction, __client__
@@ -18,20 +21,24 @@ def fix_unindexable_properties(entry: Entity) -> Entity:
     """
 
     def has_unindexable_property(prop):
-        if isinstance(prop, dict):
+        if isinstance(prop, dict|Entity):
             return any([has_unindexable_property(x) for x in prop.values()])
         elif isinstance(prop, list):
             return any([has_unindexable_property(x) for x in prop])
         elif isinstance(prop, (str, bytes)):
+            return sys.getsizeof(prop) >= 1500
             return len(prop) >= 1500
         else:
             return False
 
     unindexable_properties = set()
     for key, value in entry.items():
-        if not has_unindexable_property(value):
+        logging.debug(f" fix_unindexable_properties {key=} {value=}")
+        if not (res:=has_unindexable_property(value)):
+            logging.debug(f"  fix_unindexable_properties {key=}  --> {res=}")
             continue
-        if isinstance(value, dict):
+        logging.debug(f"  fix_unindexable_properties {key=}  --> {res=}")
+        if isinstance(value, dict|Entity):
             inner_entity = Entity()
             inner_entity.update(value)
             entry[key] = fix_unindexable_properties(inner_entity)
@@ -39,6 +46,7 @@ def fix_unindexable_properties(entry: Entity) -> Entity:
                 inner_entity.key = value.key
         else:
             unindexable_properties.add(key)
+    logging.debug(f"fix_unindexable_properties {entry.key=} {unindexable_properties=}")
     entry.exclude_from_indexes = unindexable_properties
     return entry
 
