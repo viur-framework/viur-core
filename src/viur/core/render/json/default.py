@@ -3,6 +3,7 @@ import typing as t
 import logging
 from enum import Enum
 from viur.core import db, current
+from viur.core.bones import BaseBone
 from viur.core.render.abstract import AbstractRenderer
 from viur.core.skeleton import SkeletonInstance, SkelList
 from viur.core.i18n import translate
@@ -73,12 +74,20 @@ class DefaultRender(AbstractRenderer):
         return structure
 
     @deprecated(version="3.8.0", reason="Just use `skel.dump()` for this now")
-    def renderSkelValues(self, skel: SkeletonInstance):
+    def renderSkelValues(self, skel: SkeletonInstance, injectDownloadURL: bool = False):
         logging.warning(
             "DefaultRender.renderSkelValues() is obsolete, just use `skel.dump()` for it now!",
             stacklevel=3,
         )
         return skel.dump()
+
+    @deprecated(version="3.8.0", reason="Just use `skel.dump()` for this now")
+    def renderBoneValue(self, bone: BaseBone, skel: SkeletonInstance, key: str) -> list | dict | None:
+        logging.warning(
+            "DefaultRender.renderBoneValue() is obsolete, just use `bone.dump()` for it now!",
+            stacklevel=3,
+        )
+        return bone.dump(skel, key)
 
     def renderEntry(self, skel: SkeletonInstance, actionName, params=None, *, next_url: t.Optional[str] = None):
         structure = None
