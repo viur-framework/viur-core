@@ -509,12 +509,11 @@ def add_missing_translation(
         return
 
     if isinstance(filename, str):
-        try:
-            filename = str(Path(filename)
-                           .relative_to(conf.instance.project_base_path,
-                                        conf.instance.core_base_path))
-        except ValueError:
-            pass  # not a subpath
+        filename = Path(filename)
+        if filename.is_relative_to(conf.instance.project_base_path):
+            filename = str(filename.relative_to(conf.instance.project_base_path, walk_up=True))
+        else:
+            filename = str(filename.relative_to(conf.instance.core_base_path, walk_up=True))
 
     logging.info(f"Add missing translation {key}")
     skel = TranslationSkel()
