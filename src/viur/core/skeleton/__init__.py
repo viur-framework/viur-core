@@ -16,17 +16,20 @@ from .utils import (  # noqa
     skeletonByKind,
     without_render_preparation,
 )
-from ..bones.base import getSystemInitialized
-
-# Forward our references to SkelInstance to the database (needed for queries)
 
 # DEPRECATED ATTRIBUTES HANDLING
+# FIXME: REMOVE WITH VIUR4
+
+from ..bones.base import getSystemInitialized as _getSystemInitialized
+from ..db import KeyType as _KeyType
 
 __DEPRECATED_NAMES = {
     # stuff prior viur-core < 3.6
     "seoKeyBone": ("SeoKeyBone", SeoKeyBone),
+    # stuff prior viur-core < 3.8
+    "getSystemInitialized": ("bones.base.getSystemInitialized", _getSystemInitialized),
+    "KeyType": ("db.KeyType", _KeyType),
 }
-
 
 def __getattr__(attr: str) -> object:
     if entry := __DEPRECATED_NAMES.get(attr):
@@ -55,7 +58,6 @@ __all__ = [
     SkeletonMaintenanceTask,
     ViurTagsSearchAdapter,
     _UNDEFINED_KINDNAME,
-    getSystemInitialized,  # FIXME: This is an import from BaseBone
     is_skeletoninstance_of,
     iterAllSkelClasses,
     listKnownSkeletons,

@@ -438,7 +438,7 @@ class FileLeafSkel(TreeSkel):
             and not skel["serving_url"]
         ):
             bucket = File.get_bucket(skel["dlkey"])
-            filename = f"/gs/{bucket.name}/{skel['dlkey']}/source/{skel['name']}"
+            filename = f"/gs/{bucket.name}/{skel['dlkey']}/source/{utils.string.unescape(skel['name'])}"
 
             # Trying this on local development server will raise a
             # `google.appengine.runtime.apiproxy_errors.RPCFailedError`
