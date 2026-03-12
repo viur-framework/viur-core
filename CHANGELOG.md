@@ -2,6 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.19]
+
+- fix: Adding further cases for deprecation handling (#1644)
+- fix: Unescape file name for `serving_url` generation (#1643)
+- fix: `renderSkelValues` and `renderBoneValue` for backward compatibility (#1641)
+
 ## [3.8.18]
 
 - refactor: Provide `db.KeyType` for better integration
