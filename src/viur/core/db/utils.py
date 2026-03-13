@@ -10,7 +10,7 @@ from .transport import __client__, get, put, run_in_transaction
 from .types import Entity, Key, current_db_access_log
 
 
-def fix_unindexable_properties(entry: Entity, *, keep_exclusions: bool = False) -> Entity:
+def fix_unindexable_properties(entry: Entity, *, keep_exclusions: bool = True) -> Entity:
     """
     Recursively walk the given Entity and add all properties to the list of unindexed properties if they contain
     a string longer than 1500 bytes (which is maximum size of a string that can be indexed). The datastore would
