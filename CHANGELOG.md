@@ -2,6 +2,14 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.20]
+
+- fix: `postSavedHandler` should ignore `value["rel"] == None` (#1645)
+- fix: `PurePath.relative_to()` does no longer support multiple arguments (#1646)
+- fix: Convert digit-only `id_or_name` attributes to `int` (#1649)
+- fix(cicd): Add RSA package (#1650)
+- refactor: `db.fix_unindexable_properties` (#1647)
+
 ## [3.8.19]
 
 - fix: Adding further cases for deprecation handling (#1644)
