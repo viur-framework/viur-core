@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import datetime
 import enum
+import itertools
 import typing as t
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -42,12 +43,25 @@ class Key(Datastore_key):
         does not support accessing data in multiple projects.
     """
 
-    def __init__(self, *args, project=None, **kwargs):
+    def __init__(self, *path_args, project: str | None = None, **kwargs):
+        # Convert digit-only id_or_name attributes to int
+        # See https://github.com/viur-framework/viur-core/issues/1636
+        new_path_args = []
+        for pair in itertools.batched(path_args, 2):
+            try:
+                kind, id_or_name = pair
+            except ValueError:  # it's a incomplete key
+                new_path_args.append(pair[0])
+                continue
+            if isinstance(id_or_name, str) and id_or_name.isdigit():
+                id_or_name = int(id_or_name)
+            new_path_args.extend((kind, id_or_name))
+
         if project is None:
             from .transport import __client__  # noqa: E402 # import works only here because circular imports
             project = __client__.project
 
-        super().__init__(*args, project=project, **kwargs)
+        super().__init__(*new_path_args, project=project, **kwargs)
 
     def __str__(self):
         return self.to_legacy_urlsafe().decode("ASCII")
