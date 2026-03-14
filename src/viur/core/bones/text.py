@@ -329,6 +329,10 @@ class TextBone(RawBone):
         if "maxLength" in kwargs:
             warnings.warn("maxLength parameter is deprecated, please use max_length", DeprecationWarning)
             max_length = kwargs.pop("maxLength")
+
+        if not isinstance(max_length, int):
+            raise TypeError(f"max_length must be an int, got {type(max_length).__name__}")
+
         super().__init__(indexed=indexed, **kwargs)
 
         if validHtml == TextBone.__undefinedC__:
