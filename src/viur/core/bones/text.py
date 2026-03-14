@@ -378,7 +378,7 @@ class TextBone(RawBone):
 
         if value is None:
             return i18n.translate("core.bones.error.novalueentered", "No value entered")
-        if len(value) > self.max_length:
+        if self.max_length is not None and len(value) > self.max_length:
             return i18n.translate("core.bones.error.maximumlengthexceeded", "Maximum length exceeded")
 
     def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
