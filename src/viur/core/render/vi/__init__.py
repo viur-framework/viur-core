@@ -7,6 +7,7 @@ from viur.core.decorators import *
 from viur.core.render.json import skey as json_render_skey
 from viur.core.render.json.default import CustomJsonEncoder, DefaultRender
 from viur.core.skeleton import SkeletonInstance
+from deprecated.sphinx import deprecated
 
 
 class default(DefaultRender):
@@ -24,12 +25,18 @@ def timestamp(*args, **kwargs):
 
 
 @exposed
+@deprecated(version="3.9.0", reason="Use '/vi/module/structure' as new endpoint")
 def getStructure(module):
     """
     Returns all available skeleton structures for a given module.
 
     To access the structure of a nested module, separate the path with dots (.).
     """
+    logging.warning(
+        f"DEPRECATED!!! Use '/vi/{module}/structure' or '/json/{module}/structure' for this, "
+        "or update your admin version!"
+    )
+
     path = module.split(".")
     moduleObj = conf.main_app.vi
     while path:
