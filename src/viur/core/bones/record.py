@@ -43,6 +43,11 @@ class RecordBone(BaseBone):
         if not format or indexed:
             raise NotImplementedError("A RecordBone must not be indexed and must have a format set")
 
+    def setSystemInitialized(self):
+        super().setSystemInitialized()
+        for bone_name, bone in self.using.__boneMap__.items():
+            bone.setSystemInitialized()
+
     def singleValueUnserialize(self, val):
         """
         Unserializes a single value, creating an instance of the 'using' class and unserializing
@@ -121,6 +126,9 @@ class RecordBone(BaseBone):
                 drop_relations_higher.clear()
                 break
 
+            if value is None:
+                continue
+
             for sub_bone_name, bone in value.items():
                 path = ".".join(name for name in (boneName, lang, f"{idx or 0:02}", sub_bone_name) if name)
                 if utils.string.is_prefix(bone.type, "relational"):
@@ -142,6 +150,8 @@ class RecordBone(BaseBone):
         super().postDeletedHandler(skel, boneName, key)
 
         for idx, lang, value in self.iter_bone_value(skel, boneName):
+            if value is None:
+                continue
             for sub_bone_name, bone in value.items():
                 path = ".".join(part for part in (boneName, lang, f"{idx or 0:02}", sub_bone_name) if part)
                 bone.postDeletedHandler(value, path, key)
@@ -235,6 +245,8 @@ class RecordBone(BaseBone):
 
     def refresh(self, skel, bone_name):
         for _, _, using_skel in self.iter_bone_value(skel, bone_name):
+            if using_skel is None:
+                continue
             for key, bone in using_skel.items():
                 bone.refresh(using_skel, key)
 
