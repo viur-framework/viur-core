@@ -136,6 +136,28 @@ class Session(db.Entity):
 
     @classmethod
     def build_flags(cls) -> str:
+        """
+        Assembles the attribute part of a ``Set-Cookie`` header for ViUR sessions.
+
+        The method was extracted from :meth:`save` so that the same cookie flags can be reused
+        when constructing out-of-band session cookies (e.g. for the App Login Flow in
+        :meth:`~viur.core.modules.user.User._get_cookie_for_app`).
+
+        Flag behaviour:
+
+        - ``Path=/``        – cookie is valid for the whole application.
+        - ``HttpOnly``      – cookie is not accessible via JavaScript (XSS mitigation).
+        - ``SameSite=…``    – only added when :attr:`same_site` is set **and** we are not running
+          on the dev server (the dev server often operates cross-site, so the flag would break
+          local development).
+        - ``Secure``        – only added on non-dev servers (requires HTTPS).
+        - ``Max-Age=…``     – only added when :attr:`use_session_cookie` is ``False``; omitting it
+          turns the cookie into a browser-session cookie that disappears on close.
+
+        :returns: Semicolon-joined flag string ready to be appended to
+            ``<cookie_name>=<value>;`` in a ``Set-Cookie`` header, e.g.
+            ``Path=/;HttpOnly;SameSite=lax;Secure;Max-Age=86400``.
+        """
         flags = (
             "Path=/",
             "HttpOnly",
