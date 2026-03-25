@@ -1791,7 +1791,9 @@ class User(List):
             if "?" not in redirect_to:
                 redirect_to = f"{redirect_to}?"
             raise errors.Redirect(
-                f"{redirect_to}&cookie={urllib.parse.quote_plus(self._get_cookie_for_app())}&app={conf.instance.project_id}"
+                f"{redirect_to}"
+                f"&cookie={urllib.parse.quote_plus(self._get_cookie_for_app())}"
+                f"&app={conf.instance.project_id}"
             )
         current.request.get().response.headers["Content-Type"] = "text/plain"
         return self._get_cookie_for_app()
