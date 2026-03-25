@@ -130,17 +130,20 @@ class Session(db.Entity):
         db.put(dbSession)
 
         # Provide Set-Cookie header entry with configured properties
+        current_request.response.headerlist.append(
+            ("Set-Cookie", f"{self.cookie_name}={self.cookie_key};{self.build_flags()}")
+        )
+
+    @classmethod
+    def build_flags(cls) -> str:
         flags = (
             "Path=/",
             "HttpOnly",
-            f"SameSite={self.same_site}" if self.same_site and not conf.instance.is_dev_server else None,
+            f"SameSite={cls.same_site}" if cls.same_site and not conf.instance.is_dev_server else None,
             "Secure" if not conf.instance.is_dev_server else None,
-            f"Max-Age={int(conf.user.session_life_time.total_seconds())}" if not self.use_session_cookie else None,
+            f"Max-Age={int(conf.user.session_life_time.total_seconds())}" if not cls.use_session_cookie else None,
         )
-
-        current_request.response.headerlist.append(
-            ("Set-Cookie", f"{self.cookie_name}={self.cookie_key};{';'.join([f for f in flags if f])}")
-        )
+        return ";".join(flag for flag in flags if flag)
 
     def __setitem__(self, key: str, item: t.Any):
         """

@@ -7,7 +7,11 @@ import hmac
 import json
 import logging
 import secrets
+import time
+import urllib.parse
 import warnings
+from http.cookies import SimpleCookie
+
 import user_agents
 
 import pyotp
@@ -27,6 +31,7 @@ from viur.core.bones.password import PBKDF2_DEFAULT_ITERATIONS, encode_password
 from viur.core.prototypes.list import List
 from viur.core.ratelimit import RateLimit
 from viur.core.securityheaders import extendCsp
+from viur.core.session import Session
 
 
 @functools.total_ordering
@@ -1731,6 +1736,50 @@ class User(List):
                 raise errors.NotImplemented(f"Action {action!r} not implemented")
 
         return self.render.render(f"trigger/{action}Success", skel)
+
+    @exposed
+    @access("admin", "root", "mausbrand")
+    def get_cookie_for_app(self, redirect_to: str = None):
+        if redirect_to:
+            if "?" not in redirect_to:
+                redirect_to = f"{redirect_to}?"
+            raise errors.Redirect(
+                f"{redirect_to}&cookie={urllib.parse.quote_plus(self._get_cookie_for_app())}&app={conf.instance.project_id}"
+            )
+        current.request.get().response.headers["Content-Type"] = "text/plain"
+        return self._get_cookie_for_app()
+
+    def _get_cookie_for_app(self):
+        cookie_key = utils.string.random(42)
+        db_session = db.Entity(db.Key(Session.kindName, cookie_key))
+        data = db.Entity()
+        data["user"] = current.user.get().dbEntity
+        data["is_app_session"] = True
+        db_session["data"] = db.fix_unindexable_properties(data)
+        db_session["static_security_key"] = utils.string.random(42)
+        db_session["lastseen"] = time.time()
+        db_session["user"] = str(current.user.get()["key"])
+        db_session.exclude_from_indexes = {"data"}
+        db.put(db_session)
+
+        # Provide Set-Cookie header entry with configured properties
+        return f"{Session.cookie_name}={cookie_key};{Session.build_flags()}"
+
+    @exposed
+    def apply_login_cookie(self, cookie: str):
+        """
+        Redirect endpoint to load session from the given cookie.
+        """
+        cookies = SimpleCookie()
+        cookies.load(cookie)
+        if Session.cookie_name in cookies:
+            session_cookie = cookies[Session.cookie_name]
+            current.session.get().reset()
+            current.request.get().request.cookies[session_cookie.key] = session_cookie.value
+            current.session.get().load()
+            raise errors.Redirect("/")
+        else:
+            raise errors.BadRequest
 
     def onEdited(self, skel):
         super().onEdited(skel)
