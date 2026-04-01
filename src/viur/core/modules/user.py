@@ -1,6 +1,7 @@
 import abc
 import datetime
 import enum
+import fnmatch
 import functools
 import hashlib
 import hmac
@@ -1738,7 +1739,7 @@ class User(List):
         return self.render.render(f"trigger/{action}Success", skel)
 
     @exposed
-    @access("admin", "root")
+    @access("admin", "root", offer_login=True)
     def get_cookie_for_app(self, redirect_to: str = None):
         """
         Generates a session cookie for the currently logged-in user and hands it to an external
@@ -1785,9 +1786,28 @@ class User(List):
             When omitted, the raw ``Set-Cookie`` string is returned as ``text/plain``
             (useful for debugging or direct API calls).
 
-        :raises errors.Redirect: Always raised when *redirect_to* is supplied.
+        .. warning:: **Open-redirect / session-hijacking risk**
+
+            Because the session cookie is appended as a plain query parameter, an
+            attacker who can convince an authenticated admin to click a crafted link
+            (e.g. via phishing) could redirect the browser to an evil server that
+            simply harvests the ``cookie`` parameter and gains full session access.
+
+            To mitigate this, all ``redirect_to`` values are validated against
+            :attr:`conf.user.redirect_whitelist` using :func:`fnmatch.fnmatch`.
+            Only explicitly whitelisted URL patterns are accepted;
+            anything else is rejected with ``403 Forbidden``.
+            Configure the whitelist in your project to include every legitimate
+            callback origin (local scripts, internal tooling, etc.).
+
+        :raises errors.Forbidden: When *redirect_to* does not match any pattern in
+            :attr:`conf.user.redirect_whitelist`.
+        :raises errors.Redirect: Always raised when *redirect_to* is supplied and allowed.
         """
         if redirect_to:
+            whitelist = utils.ensure_iterable(conf.user.redirect_whitelist)
+            if not any(fnmatch.fnmatch(redirect_to, pat) for pat in whitelist):
+                raise errors.Forbidden(f"Redirect target is not whitelisted")
             if "?" not in redirect_to:
                 redirect_to = f"{redirect_to}?"
             raise errors.Redirect(
