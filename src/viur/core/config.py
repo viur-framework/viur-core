@@ -730,6 +730,27 @@ class User(ConfigType):
     If the user's email address belongs to any other domain,
     no account is created."""
 
+    redirect_whitelist: list[str] | t.Callable[[], list[str]] = (
+        lambda: ["http://localhost:*", f"https://*{_project_id}.appspot.com*"]
+    )
+    """Allowed redirect_to patterns for get_cookie_for_app (matched via :func:`fnmatch.fnmatch`).
+
+    The default is a callable that permits only ``http://localhost:*`` and any URL
+    containing the current GCP project-ID — a safe built-in policy.
+    A zero-argument callable is supported and evaluated on every request.
+    Use ``["*"]`` to disable the restriction entirely.
+
+    Examples::
+
+        conf.user.redirect_whitelist = [
+            "http://localhost:*",
+            "https://*.myapp.appspot.com*",
+        ]
+
+        # dynamic / lazily evaluated
+        conf.user.redirect_whitelist = lambda: load_whitelist_from_db()
+    """
+
     def __setattr__(self, name: str, value: t.Any) -> None:
         if name == "session_life_time":
             if not isinstance(value, datetime.timedelta):
