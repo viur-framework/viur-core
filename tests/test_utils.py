@@ -139,7 +139,10 @@ class TestEnsureIterable(ViURTestCase):
 
     def test_callable_disabled(self):
         from viur.core.utils import ensure_iterable
-        fn = lambda: [1, 2]
+
+        def fn():
+            return [1, 2]
+
         # with allow_callable=False the lambda itself is wrapped, not called
         result = tuple(ensure_iterable(fn, allow_callable=False))
         self.assertEqual((fn,), result)
