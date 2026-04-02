@@ -242,3 +242,100 @@ class TestNumericBone_fromClient(ViURTestCase):
         self.assertIn(self.bone_name, skel)
         self.assertEqual(1234.56, skel[self.bone_name])
         self.assertIsInstance(skel[self.bone_name], float)
+
+
+class TestNumericBoneSingleValueFromClient(ViURTestCase):
+
+    def _from_client(self, bone, value):
+        return bone.singleValueFromClient(value, {}, "n", {})
+
+    def test_integer_value(self):
+        from viur.core.bones import NumericBone
+        bone = NumericBone()
+        val, err = self._from_client(bone, 42)
+        self.assertIsNone(err)
+        self.assertEqual(42, val)
+
+    def test_float_string_with_comma(self):
+        from viur.core.bones import NumericBone
+        bone = NumericBone(precision=2)
+        val, err = self._from_client(bone, "3,14")
+        self.assertIsNone(err)
+        self.assertAlmostEqual(3.14, val)
+
+    def test_float_string_with_dot(self):
+        from viur.core.bones import NumericBone
+        bone = NumericBone(precision=2)
+        val, err = self._from_client(bone, "3.14")
+        self.assertIsNone(err)
+        self.assertAlmostEqual(3.14, val)
+
+    def test_invalid_string_returns_error(self):
+        from viur.core.bones import NumericBone
+        bone = NumericBone()
+        val, err = self._from_client(bone, "not-a-number")
+        self.assertIsNotNone(err)
+
+    def test_below_min_returns_error(self):
+        from viur.core.bones import NumericBone
+        bone = NumericBone(min=0)
+        val, err = self._from_client(bone, -1)
+        self.assertIsNotNone(err)
+
+    def test_above_max_returns_error(self):
+        from viur.core.bones import NumericBone
+        bone = NumericBone(max=100)
+        val, err = self._from_client(bone, 101)
+        self.assertIsNotNone(err)
+
+    def test_boundary_min_accepted(self):
+        from viur.core.bones import NumericBone
+        bone = NumericBone(min=0, max=100)
+        val, err = self._from_client(bone, 0)
+        self.assertIsNone(err)
+        self.assertEqual(0, val)
+
+    def test_boundary_max_accepted(self):
+        from viur.core.bones import NumericBone
+        bone = NumericBone(min=0, max=100)
+        val, err = self._from_client(bone, 100)
+        self.assertIsNone(err)
+        self.assertEqual(100, val)
+
+    def test_precision_rounds_value(self):
+        from viur.core.bones import NumericBone
+        bone = NumericBone(precision=2)
+        val, err = self._from_client(bone, 3.14159)
+        self.assertIsNone(err)
+        self.assertAlmostEqual(3.14, val)
+
+    def test_integer_bone_rejects_float_string(self):
+        from viur.core.bones import NumericBone
+        bone = NumericBone(precision=0)
+        val, err = self._from_client(bone, "3.5")
+        self.assertIsNotNone(err)  # int() of "3.5" raises ValueError
+
+
+class TestNumericBoneInit(ViURTestCase):
+
+    def test_min_out_of_range_raises(self):
+        from viur.core.bones import NumericBone
+        from viur.core.bones.numeric import MIN
+        with self.assertRaises(ValueError):
+            NumericBone(min=MIN - 1)
+
+    def test_max_out_of_range_raises(self):
+        from viur.core.bones import NumericBone
+        from viur.core.bones.numeric import MAX
+        with self.assertRaises(ValueError):
+            NumericBone(max=MAX + 1)
+
+    def test_getEmptyValue_int(self):
+        from viur.core.bones import NumericBone
+        bone = NumericBone(precision=0)
+        self.assertIsInstance(bone.getEmptyValue(), int)
+
+    def test_getEmptyValue_float(self):
+        from viur.core.bones import NumericBone
+        bone = NumericBone(precision=2)
+        self.assertIsInstance(bone.getEmptyValue(), float)
