@@ -189,3 +189,104 @@ class TestStringBoneSerialize(ViURTestCase):
         self.assertEqual("Foo", res)
         res = bone.singleValueUnserialize(None)
         self.assertEqual("", res)
+
+
+class TestStringBoneIsInvalid(ViURTestCase):
+
+    def test_within_max_length(self):
+        from viur.core.bones import StringBone
+        bone = StringBone(max_length=10)
+        self.assertIsNone(bone.isInvalid("hello"))
+
+    def test_exceeds_max_length(self):
+        from viur.core.bones import StringBone
+        bone = StringBone(max_length=5)
+        self.assertIsNotNone(bone.isInvalid("toolong"))
+
+    def test_min_length_satisfied(self):
+        from viur.core.bones import StringBone
+        bone = StringBone(min_length=3)
+        self.assertIsNone(bone.isInvalid("abc"))
+
+    def test_min_length_not_reached(self):
+        from viur.core.bones import StringBone
+        bone = StringBone(min_length=5)
+        self.assertIsNotNone(bone.isInvalid("ab"))
+
+    def test_max_length_none_no_limit(self):
+        from viur.core.bones import StringBone
+        bone = StringBone(max_length=None)
+        self.assertIsNone(bone.isInvalid("x" * 10_000))
+
+
+class TestStringBoneInit(ViURTestCase):
+
+    def test_invalid_max_length_zero_raises(self):
+        from viur.core.bones import StringBone
+        with self.assertRaises(ValueError):
+            StringBone(max_length=0)
+
+    def test_invalid_min_length_zero_raises(self):
+        from viur.core.bones import StringBone
+        with self.assertRaises(ValueError):
+            StringBone(min_length=0)
+
+    def test_min_greater_than_max_raises(self):
+        from viur.core.bones import StringBone
+        with self.assertRaises(ValueError):
+            StringBone(min_length=10, max_length=5)
+
+
+class TestStringBoneTypeCoerce(ViURTestCase):
+
+    def setUp(self):
+        super().setUp()
+        from viur.core.bones import StringBone
+        self.bone = StringBone()
+
+    def test_string_passthrough(self):
+        self.assertEqual("hello", self.bone.type_coerce_single_value("hello"))
+
+    def test_int_to_string(self):
+        self.assertEqual("42", self.bone.type_coerce_single_value(42))
+
+    def test_float_to_string(self):
+        self.assertEqual("3.14", self.bone.type_coerce_single_value(3.14))
+
+    def test_none_returns_empty(self):
+        self.assertEqual("", self.bone.type_coerce_single_value(None))
+
+    def test_datetime_to_iso(self):
+        import datetime
+        dt = datetime.datetime(2024, 1, 15, 12, 0, 0)
+        result = self.bone.type_coerce_single_value(dt)
+        self.assertIn("2024-01-15", result)
+
+    def test_unsupported_type_raises(self):
+        with self.assertRaises(ValueError):
+            self.bone.type_coerce_single_value(object())
+
+
+class TestStringBoneSingleValueFromClientEscape(ViURTestCase):
+
+    def test_html_escaped_by_default(self):
+        from viur.core.bones import StringBone
+        bone = StringBone()
+        val, err = bone.singleValueFromClient("<b>bold</b>", {}, "txt", {})
+        self.assertIsNone(err)
+        self.assertIn("&lt;", val)
+
+    def test_no_escape_when_disabled(self):
+        from viur.core.bones import StringBone
+        bone = StringBone(escape_html=False)
+        val, err = bone.singleValueFromClient("<b>bold</b>", {}, "txt", {})
+        self.assertIsNone(err)
+        self.assertEqual("<b>bold</b>", val)
+
+    def test_max_length_exceeded_no_escape_returns_error(self):
+        from viur.core.bones import StringBone
+        # isInvalid() rejects over-length values before truncation happens
+        bone = StringBone(max_length=5, escape_html=False)
+        val, err = bone.singleValueFromClient("abcdefgh", {}, "txt", {})
+        self.assertIsNotNone(err)
+        self.assertEqual("", val)
