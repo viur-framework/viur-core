@@ -11,7 +11,7 @@ from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from abstract import ViURTestCase
+from abstract import ViURTestCase  # noqa: E402
 
 
 def _ensure_skeleton_search_path():
