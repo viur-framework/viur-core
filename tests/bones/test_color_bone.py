@@ -31,11 +31,14 @@ class TestColorBoneSingleValueFromClient(ViURTestCase):
     def test_rgb_full_without_hash(self):
         self._valid(self.rgb, "aabbcc", "#aabbcc")
 
-    def test_rgb_short_3_chars(self):
-        # 3 chars → prepend # → expand is handled differently
-        # "abc" → "#abc" → length 4 → expansion: #a + a + bb + cc
-        val, err = self._from_client(self.rgb, "abc")
-        self.assertIsNone(err)
+    def test_rgb_short_3_chars_expanded(self):
+        # "abc" → prepend # → "#abc" (len 4) → CSS shorthand expansion:
+        # value[0:2] + value[1] + 2*value[2] + 2*value[3] = "#a"+"a"+"bb"+"cc" = "#aabbcc"
+        self._valid(self.rgb, "abc", "#aabbcc")
+
+    def test_rgb_hash_short_3_chars_expanded(self):
+        # "#abc" (len 4) → same CSS shorthand expansion → "#aabbcc"
+        self._valid(self.rgb, "#abc", "#aabbcc")
 
     def test_rgb_uppercase_normalised(self):
         self._valid(self.rgb, "AABBCC", "#aabbcc")

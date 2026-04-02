@@ -66,3 +66,22 @@ class TestEmailBoneIsInvalid(ViURTestCase):
 
     def test_dot_at_start_of_subdomain(self):
         self._invalid("user@.example.com")
+
+    def test_double_dot_in_local_is_invalid(self):
+        # RFC 5321: consecutive dots in the local part are forbidden
+        self._invalid("first..last@example.com")
+
+    def test_leading_dot_in_local_is_invalid(self):
+        self._invalid(".user@example.com")
+
+    def test_trailing_dot_in_local_is_invalid(self):
+        self._invalid("user.@example.com")
+
+    def test_space_in_local_is_invalid(self):
+        self._invalid("first last@example.com")
+
+    def test_leading_space_is_invalid(self):
+        self._invalid(" user@example.com")
+
+    def test_trailing_space_is_invalid(self):
+        self._invalid("user@example.com ")
