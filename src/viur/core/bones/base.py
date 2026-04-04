@@ -1341,6 +1341,8 @@ class BaseBone(object):
         :return: A list of strings representing the hashed values for the current bone value(s) in the skeleton.
                 If the bone has no value, an empty list is returned.
         """
+        if self.compute:
+            self.serialize_compute(skel, name)
         val = skel[name]
         if val is None:
             return []
