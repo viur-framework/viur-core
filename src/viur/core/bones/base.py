@@ -819,15 +819,16 @@ class BaseBone(object):
         """
         return value
 
-    def _get_destinct_hash(self, value) -> t.Any:
+    def _get_destinct_hash(self, skel: 'SkeletonInstance', name: str) -> t.Any:
         """
         Returns a distinct hash value for this bone.
         The returned value must be hashable.
         """
-        if not isinstance(value, str) and isinstance(value, Iterable):
-            return tuple(self._get_single_destinct_hash(item) for item in value)
+        values = []
+        for _, _, value in self.iter_bone_value(skel, name):
+            values.append(self._get_single_destinct_hash(value))
 
-        return value
+        return tuple(values)
 
     def _validate_multiple_contraints(
         self,
@@ -845,7 +846,7 @@ class BaseBone(object):
         :return: A list of ReadFromClientError objects for each constraint violation.
         """
         res = []
-        value = self._get_destinct_hash(skel[name])
+        value = self._get_destinct_hash(skel, name)
 
         if constraints.min and len(value) < constraints.min:
             res.append(
