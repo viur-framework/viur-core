@@ -107,7 +107,7 @@ def _can_access(user_skel: SkeletonInstance) -> bool:
     Internal check for vi-render if a given user is allowed to use this render.
     The function is used in several places for better integration.
     """
-    return bool(user_skel and "admin" in user_skel["access"])
+    return bool(user_skel and user_skel["access"] and any(flag in user_skel["access"] for flag in ("admin", "root")))
 
 
 def canAccess(*args, **kwargs) -> bool:
