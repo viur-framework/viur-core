@@ -44,6 +44,8 @@ def get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None
     :param keys: A datastore key (or a list thereof) to lookup
     :return: The entity (or None if it has not been found), or a list of entities.
     """
+    if conf.debug.trace_queries:
+        logging.info(f"Calling db.get({keys=})")
     _write_to_access_log(keys)
 
     if isinstance(keys, (list, set, tuple)):
@@ -212,6 +214,11 @@ def run_single_filter(query: QueryDefinition, limit: int) -> t.List[Entity]:
     query.currentCursor = qryRes.next_page_token
     if hasInvertedOrderings:
         res.reverse()
+
+    distinctOn = " distinct on %s" % str(query.distinct) if query.distinct else ""
+    logging.debug("Queried %s with filter %s and orders %s%s. Returned %s results" % (
+        query.kind, query.filters, query.orders, distinctOn, len(res)))
+
     return res
 
 
