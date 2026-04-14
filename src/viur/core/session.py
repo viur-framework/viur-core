@@ -130,17 +130,42 @@ class Session(db.Entity):
         db.put(dbSession)
 
         # Provide Set-Cookie header entry with configured properties
+        current_request.response.headerlist.append(
+            ("Set-Cookie", f"{self.cookie_name}={self.cookie_key};{self.build_flags()}")
+        )
+
+    @classmethod
+    def build_flags(cls) -> str:
+        """
+        Assembles the attribute part of a ``Set-Cookie`` header for ViUR sessions.
+
+        The method was extracted from :meth:`save` so that the same cookie flags can be reused
+        when constructing out-of-band session cookies (e.g. for the App Login Flow in
+        :meth:`~viur.core.modules.user.User._get_cookie_for_app`).
+
+        Flag behaviour:
+
+        - ``Path=/``        – cookie is valid for the whole application.
+        - ``HttpOnly``      – cookie is not accessible via JavaScript (XSS mitigation).
+        - ``SameSite=…``    – only added when :attr:`same_site` is set **and** we are not running
+          on the dev server (the dev server often operates cross-site, so the flag would break
+          local development).
+        - ``Secure``        – only added on non-dev servers (requires HTTPS).
+        - ``Max-Age=…``     – only added when :attr:`use_session_cookie` is ``False``; omitting it
+          turns the cookie into a browser-session cookie that disappears on close.
+
+        :returns: Semicolon-joined flag string ready to be appended to
+            ``<cookie_name>=<value>;`` in a ``Set-Cookie`` header, e.g.
+            ``Path=/;HttpOnly;SameSite=lax;Secure;Max-Age=86400``.
+        """
         flags = (
             "Path=/",
             "HttpOnly",
-            f"SameSite={self.same_site}" if self.same_site and not conf.instance.is_dev_server else None,
+            f"SameSite={cls.same_site}" if cls.same_site and not conf.instance.is_dev_server else None,
             "Secure" if not conf.instance.is_dev_server else None,
-            f"Max-Age={int(conf.user.session_life_time.total_seconds())}" if not self.use_session_cookie else None,
+            f"Max-Age={int(conf.user.session_life_time.total_seconds())}" if not cls.use_session_cookie else None,
         )
-
-        current_request.response.headerlist.append(
-            ("Set-Cookie", f"{self.cookie_name}={self.cookie_key};{';'.join([f for f in flags if f])}")
-        )
+        return ";".join(flag for flag in flags if flag)
 
     def __setitem__(self, key: str, item: t.Any):
         """

@@ -1,13 +1,18 @@
 import abc
 import datetime
 import enum
+import fnmatch
 import functools
 import hashlib
 import hmac
 import json
 import logging
 import secrets
+import time
+import urllib.parse
 import warnings
+from http.cookies import SimpleCookie
+
 import user_agents
 
 import pyotp
@@ -27,6 +32,7 @@ from viur.core.bones.password import PBKDF2_DEFAULT_ITERATIONS, encode_password
 from viur.core.prototypes.list import List
 from viur.core.ratelimit import RateLimit
 from viur.core.securityheaders import extendCsp
+from viur.core.session import Session
 
 
 @functools.total_ordering
@@ -1731,6 +1737,158 @@ class User(List):
                 raise errors.NotImplemented(f"Action {action!r} not implemented")
 
         return self.render.render(f"trigger/{action}Success", skel)
+
+    @exposed
+    @access("admin", "root", offer_login=True)
+    def get_cookie_for_app(self, redirect_to: str = None):
+        """
+        Generates a session cookie for the currently logged-in user and hands it to an external
+        client (script, native app, or WebView).
+
+        This endpoint is the entry point of a *App Login Flow*.  A privileged user
+        (admin/root) authenticates normally in the browser and then opens this URL.
+        The backend creates a fresh ViUR session (see :meth:`_get_cookie_for_app`) and
+        delivers the resulting ``Set-Cookie`` string to the caller.
+
+        **Typical usage — local Python client / script:**
+
+        The caller spins up a temporary local HTTP server (e.g. on ``http://localhost:60000``)
+        and passes its address as *redirect_to*::
+
+            /vi/user/get_cookie_for_app?redirect_to=http://localhost:60000
+
+        After the user authenticates in the browser, the backend redirects to::
+
+            http://localhost:60000?cookie=<url-encoded Set-Cookie string>&app=<project_id>
+
+        The local server can then extract only the ``name=value`` part of the cookie string
+        (everything before the first ``;``) and use it for subsequent API calls::
+
+            cookie_str = qs["cookie"][0]              # full Set-Cookie value
+            key, value = cookie_str.split(";", 1)[0].split("=")
+            session.cookies.update({key: value})
+
+        The ``app`` query parameter is set by the server to ``conf.instance.project_id`` and
+        lets the client distinguish between multiple backends / cache credentials per project.
+
+        **Alternative — WebView / browser redirect:**
+
+        When the receiving side is a browser or WebView the full ``Set-Cookie`` string can be
+        forwarded to :meth:`apply_login_cookie` to let the framework activate the session.
+
+        :param redirect_to: Optional callback URL.  When provided the caller is redirected to
+            that URL with two query parameters appended automatically:
+
+            - ``cookie`` – URL-encoded ``Set-Cookie`` string (``name=value;flags…``).
+            - ``app`` – the server's GCP project ID (``conf.instance.project_id``).
+
+            A ``?`` is appended if the URL does not already contain one.
+            When omitted, the raw ``Set-Cookie`` string is returned as ``text/plain``
+            (useful for debugging or direct API calls).
+
+        .. warning:: **Open-redirect / session-hijacking risk**
+
+            Because the session cookie is appended as a plain query parameter, an
+            attacker who can convince an authenticated admin to click a crafted link
+            (e.g. via phishing) could redirect the browser to an evil server that
+            simply harvests the ``cookie`` parameter and gains full session access.
+
+            To mitigate this, all ``redirect_to`` values are validated against
+            :attr:`conf.user.redirect_whitelist` using :func:`fnmatch.fnmatch`.
+            Only explicitly whitelisted URL patterns are accepted;
+            anything else is rejected with ``403 Forbidden``.
+            Configure the whitelist in your project to include every legitimate
+            callback origin (local scripts, internal tooling, etc.).
+
+        :raises errors.Forbidden: When *redirect_to* does not match any pattern in
+            :attr:`conf.user.redirect_whitelist`.
+        :raises errors.Redirect: Always raised when *redirect_to* is supplied and allowed.
+        """
+        if redirect_to:
+            whitelist = utils.ensure_iterable(conf.user.redirect_whitelist)
+            if not any(fnmatch.fnmatch(redirect_to, pat) for pat in whitelist):
+                raise errors.Forbidden(f"Redirect target is not whitelisted")
+            if "?" not in redirect_to:
+                redirect_to = f"{redirect_to}?"
+            raise errors.Redirect(
+                f"{redirect_to}"
+                f"&cookie={urllib.parse.quote_plus(self._get_cookie_for_app())}"
+                f"&app={conf.instance.project_id}"
+            )
+        current.request.get().response.headers["Content-Type"] = "text/plain"
+        return self._get_cookie_for_app()
+
+    def _get_cookie_for_app(self) -> str:
+        """
+        Creates a new, standalone ViUR session for the current user and returns the
+        corresponding ``Set-Cookie`` header value.
+
+        Unlike the regular session created during a normal login, this session is intentionally
+        **not** attached to the current HTTP request.  Instead it is persisted directly in
+        Datastore so that a different HTTP client can pick it up via :meth:`apply_login_cookie`.
+
+        The created session entity mirrors the structure of a regular :class:`Session` entry:
+
+        - ``data["user"]``          – the full user ``dbEntity`` (needed by the session loader).
+        - ``data["is_app_session"]``– flag to distinguish app sessions from regular browser sessions.
+        - ``static_security_key``   – random value, same role as in normal sessions.
+        - ``lastseen``              – current timestamp so the session is not immediately garbage-
+          collected.
+        - ``user``                  – stringified user key for server-side user-based queries.
+
+        :returns: A ``Set-Cookie`` header value in the form
+            ``<cookie_name>=<key>;<flags>`` where ``<flags>`` is produced by
+            :meth:`Session.build_flags` (``Path=/; HttpOnly; SameSite=…; Secure; Max-Age=…``).
+        """
+        cookie_key = utils.string.random(42)
+        db_session = db.Entity(db.Key(Session.kindName, cookie_key))
+        data = db.Entity()
+        data["user"] = current.user.get().dbEntity
+        data["is_app_session"] = True
+        db_session["data"] = db.fix_unindexable_properties(data)
+        db_session["static_security_key"] = utils.string.random(42)
+        db_session["lastseen"] = time.time()
+        db_session["user"] = str(current.user.get()["key"])
+        db_session.exclude_from_indexes = {"data"}
+        db.put(db_session)
+
+        # Provide Set-Cookie header entry with configured properties
+        return f"{Session.cookie_name}={cookie_key};{Session.build_flags()}"
+
+    @exposed
+    def apply_login_cookie(self, cookie: str):
+        """
+        Redirect endpoint to load session from the given cookie.
+
+        This is the second half of the *App Login Flow*.  A native app or WebView that received a
+        ``Set-Cookie`` string from :meth:`get_cookie_for_app` (typically via a redirect URL
+        parameter) calls this endpoint to activate the embedded session for its own HTTP context.
+
+        The flow is:
+
+        1. Parse the raw ``Set-Cookie`` string with :class:`http.cookies.SimpleCookie`.
+        2. Look for the expected session cookie name (:attr:`Session.cookie_name`).
+        3. Reset the caller's current (anonymous) session.
+        4. Inject the cookie value into the current request's cookie jar so that
+           :meth:`Session.load` can find the pre-built Datastore session.
+        5. Redirect to ``/`` – from this point on the caller is fully authenticated.
+
+        :param cookie: A raw ``Set-Cookie`` header value as produced by :meth:`_get_cookie_for_app`,
+            e.g. ``viur_cookie_myproject=<key>;Path=/;HttpOnly;…``.
+        :raises errors.Redirect: On success – redirects to ``/``.
+        :raises errors.BadRequest: When the cookie string does not contain a recognisable session
+            cookie (i.e. :attr:`Session.cookie_name` is absent after parsing).
+        """
+        cookies = SimpleCookie()
+        cookies.load(cookie)
+        if Session.cookie_name in cookies:
+            session_cookie = cookies[Session.cookie_name]
+            current.session.get().reset()
+            current.request.get().request.cookies[session_cookie.key] = session_cookie.value
+            current.session.get().load()
+            raise errors.Redirect("/")
+        else:
+            raise errors.BadRequest
 
     def onEdited(self, skel):
         super().onEdited(skel)

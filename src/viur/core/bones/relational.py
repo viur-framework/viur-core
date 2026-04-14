@@ -484,7 +484,7 @@ class RelationalBone(BaseBone):
 
         if self.using:
             for name, bone in self.using.__boneMap__.items():
-                parts.append(bone._get_destinct_hash(value["rel"][name]))
+                parts.append(bone._get_destinct_hash(value["rel"], name))
 
         return tuple(parts)
 

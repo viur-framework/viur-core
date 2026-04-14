@@ -2,6 +2,13 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.21]
+
+- fix: `BaseBone._get_distinct_hash` (#1662)
+- fix: Whitelist redirect_to in `get_cookie_for_app` to prevent open-redirect attacks (#1660)
+- feat: Implement endpoints for App Login Flow via session cookie (#1657)
+- chore: update copyright year to 2026 (#1656)
+
 ## [3.8.20]
 
 - fix: `postSavedHandler` should ignore `value["rel"] == None` (#1645)
