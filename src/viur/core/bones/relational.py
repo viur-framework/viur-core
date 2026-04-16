@@ -582,7 +582,7 @@ class RelationalBone(BaseBone):
         # Call postSavedHandler on UsingSkel (RelSkel)
         if self.using:
             for idx, lang, value in self.iter_bone_value(skel, boneName):
-                if not value["rel"]:
+                if not value or not value["rel"]:
                     continue
                 for bone_name, bone in value["rel"].items():
                     bone.postSavedHandler(value["rel"], bone_name, key)
