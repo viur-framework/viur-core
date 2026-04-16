@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_95981fee56026c4c_select_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-04-14 09:26 +0000
+            created at 2026-04-16 20:55 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -666,7 +666,7 @@
     <p class="pln"><span class="n"><a id="t582" href="#t582">582</a></span><span class="t">        <span class="com"># Call postSavedHandler on UsingSkel (RelSkel)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t583" href="#t583">583</a></span><span class="t">        <span class="key">if</span> <span class="nam">self</span><span class="op">.</span><span class="nam">using</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t584" href="#t584">584</a></span><span class="t">            <span class="key">for</span> <span class="nam">idx</span><span class="op">,</span> <span class="nam">lang</span><span class="op">,</span> <span class="nam">value</span> <span class="key">in</span> <span class="nam">self</span><span class="op">.</span><span class="nam">iter_bone_value</span><span class="op">(</span><span class="nam">skel</span><span class="op">,</span> <span class="nam">boneName</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t585" href="#t585">585</a></span><span class="t">                <span class="key">if</span> <span class="key">not</span> <span class="nam">value</span><span class="op">[</span><span class="str">"rel"</span><span class="op">]</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t585" href="#t585">585</a></span><span class="t">                <span class="key">if</span> <span class="key">not</span> <span class="nam">value</span> <span class="key">or</span> <span class="key">not</span> <span class="nam">value</span><span class="op">[</span><span class="str">"rel"</span><span class="op">]</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t586" href="#t586">586</a></span><span class="t">                    <span class="key">continue</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t587" href="#t587">587</a></span><span class="t">                <span class="key">for</span> <span class="nam">bone_name</span><span class="op">,</span> <span class="nam">bone</span> <span class="key">in</span> <span class="nam">value</span><span class="op">[</span><span class="str">"rel"</span><span class="op">]</span><span class="op">.</span><span class="nam">items</span><span class="op">(</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t588" href="#t588">588</a></span><span class="t">                    <span class="nam">bone</span><span class="op">.</span><span class="nam">postSavedHandler</span><span class="op">(</span><span class="nam">value</span><span class="op">[</span><span class="str">"rel"</span><span class="op">]</span><span class="op">,</span> <span class="nam">bone_name</span><span class="op">,</span> <span class="nam">key</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -1385,7 +1385,7 @@
             <a class="nav" href="z_95981fee56026c4c_select_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-04-14 09:26 +0000
+            created at 2026-04-16 20:55 +0000
         </p>
     </div>
 </footer>
