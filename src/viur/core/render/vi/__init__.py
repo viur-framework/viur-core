@@ -83,6 +83,7 @@ def setLanguage(lang):
 
 
 @exposed
+@deprecated(version="3.9.0", reason="Use '/vi/config' as new endpoint, see 'version' property.")
 def getVersion(*args, **kwargs):
     """
     Returns viur-core version number
@@ -95,11 +96,7 @@ def getVersion(*args, **kwargs):
     while len(version) < 4:
         version += (None,)
 
-    if conf.instance.is_dev_server or _can_access(current.user.get()):
-        return json.dumps(version[:4])
-
-    # Hide patch level + appendix to non-authorized users
-    return json.dumps((version[0], version[1], None, None))
+    return json.dumps(version[:4])
 
 
 def _can_access(user_skel: SkeletonInstance) -> bool:
@@ -137,7 +134,7 @@ def index(*args, **kwargs):
 
 
 @exposed
-def get_config():
+def config():
     """
     Get public admin-tool specific settings, requires no user to be logged in.
     This is used by new vi-admin.
@@ -154,6 +151,16 @@ def get_config():
     config["admin.languages"] = conf.i18n.available_languages
 
     if _can_access(current.user.get()):
+        # Core Version
+        version = conf.version
+
+        # always fill up to 4 parts
+        while len(version) < 4:
+            version += (None,)
+
+        result["version"] = version[:4]
+
+        # Modules
         modules = {}
         visited_objects = set()
 
@@ -190,16 +197,27 @@ def get_config():
         result["modules"] = modules
 
     result["configuration"] = config
+
     return json.dumps(result, cls=CustomJsonEncoder)
 
 
+@exposed
+@deprecated(version="3.9.0", reason="Use '/vi/config' as new endpoint, see 'configuration' property.")
+def settings():
+    return json.dumps(json.loads(config())["configuration"])
+
+
 def _postProcessAppObj(obj):
+    obj["canAccess"] = canAccess
+    obj["config"] = config
+    obj["getStructure"] = getStructure
+    obj["index"] = index
+    obj["setLanguage"] = setLanguage
     obj["skey"] = json_render_skey
     obj["timestamp"] = timestamp
-    obj["config"] = get_config
-    obj["getStructure"] = getStructure
-    obj["canAccess"] = canAccess
-    obj["setLanguage"] = setLanguage
-    obj["getVersion"] = getVersion
-    obj["index"] = index
+
+    # DEPRECATED:
+    obj["settings"] = settings  # FIXME: Deprecated; vi-admin 4.x backward compatiblity
+    obj["getVersion"] = getVersion  # FIXME: Deprecated; vi-admin 4.x backward compatiblity
+
     return obj
