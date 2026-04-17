@@ -103,6 +103,24 @@ def normalizeKey(key: t.Union[None, db.Key]) -> t.Union[None, db.Key]:
     db.normalize_key(key)
 
 
+def get_base_url() -> str:
+    """
+    Retrieve current request's base URL with protocol.
+
+    :returns: Returns the hostname, including the currently used protocol, e.g: https://www.example.com
+    :rtype: str
+    """
+    url = current.request.get().request.url  # retrireve URL by request
+    url = url[:url.find("/", url.find("://") + 5)]  # cut out base-url
+
+    # Always enforce https!
+    if not any(url.startswith(f"http://{i}") for i in ("localhost", "127.0.0.1")):
+        url = "https://" + url[7:]
+
+    # Replace non-SSL-ready-"appspot.com"-URLs with their SSL-ready counterpart
+    return url.replace(f".{conf.instance.project_id}.", f"-dot-{conf.instance.project_id}.")
+
+
 def ensure_iterable(
     obj: t.Any,
     *,
