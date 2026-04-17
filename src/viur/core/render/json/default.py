@@ -1,6 +1,8 @@
 import json
 import typing as t
 import logging
+import warnings
+from decimal import Decimal
 from enum import Enum
 from viur.core import db, current
 from viur.core.bones import BaseBone
@@ -20,7 +22,18 @@ class CustomJsonEncoder(json.JSONEncoder):
 
     def default(self, o: t.Any) -> t.Any:
 
-        if isinstance(o, translate):
+        if isinstance(o, Decimal):
+            if "json.decimal.as_string" in conf.compatibility:
+                return str(o)
+            warnings.warn(
+                "Decimal values are currently serialized as float in JSON responses. "
+                "This will change to string in a future version for exact representation. "
+                'Add "json.decimal.as_string" to conf.compatibility to opt-in now.',
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return float(o)
+        elif isinstance(o, translate):
             return str(o)
         elif isinstance(o, datetime):
             return o.isoformat()
