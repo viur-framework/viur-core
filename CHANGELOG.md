@@ -2,6 +2,13 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.22]
+
+- feat: `utils.get_base_url()` refactors `getHostUrl()` (#1665)
+- feat: SkeletonMaintenanceTask with code highlighting (#1667)
+- fix: postSavedHandler should ignore `value == None` (#1664)
+- fix: Add Argument for `conf.user.redirect_whitelist` (#1663)
+
 ## [3.8.21]
 
 - fix: `BaseBone._get_distinct_hash` (#1662)
