@@ -731,7 +731,7 @@ class User(ConfigType):
     no account is created."""
 
     redirect_whitelist: list[str] | t.Callable[[], list[str]] = (
-        lambda: ["http://localhost:*", f"https://*{_project_id}.appspot.com*"]
+        lambda _: ["http://localhost:*", f"https://*{_project_id}.appspot.com*"]
     )
     """Allowed redirect_to patterns for get_cookie_for_app (matched via :func:`fnmatch.fnmatch`).
 

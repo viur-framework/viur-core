@@ -222,18 +222,14 @@ def getSkel(
 
 
 @jinjaGlobalFunction
-def getHostUrl(render: Render, forceSSL=False, *args, **kwargs):
+def getHostUrl(render: Render, *args, **kwargs) -> str:
     """
     Jinja2 global: Retrieve hostname with protocol.
 
-    :returns: Returns the hostname, including the currently used protocol, e.g: http://www.example.com
+    :returns: Returns the hostname, including the currently used protocol, e.g: https://www.example.com
     :rtype: str
     """
-    url = current.request.get().request.url
-    url = url[:url.find("/", url.find("://") + 5)]
-    if forceSSL and url.startswith("http://"):
-        url = "https://" + url[7:]
-    return url
+    return utils.get_base_url()
 
 
 @jinjaGlobalFunction

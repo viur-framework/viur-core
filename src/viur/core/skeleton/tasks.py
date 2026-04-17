@@ -223,6 +223,7 @@ class SkeletonMaintenanceTask(tasks.CallableTaskBase):
 
         condition = RawBone(
             descr="Condition",
+            type_suffix="code.python",  # Logics expression
             required=True,
             defaultValue="False  # fused: by default, doesn't affect anything.\n",
             params={
