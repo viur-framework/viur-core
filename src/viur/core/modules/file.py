@@ -580,7 +580,10 @@ class File(Tree):
 
     @classmethod
     def hmac_verify(cls, data: t.Any, signature: str) -> bool:
-        return hmac.compare_digest(cls.hmac_sign(data.encode("ASCII")), signature)
+        try:
+            return hmac.compare_digest(cls.hmac_sign(data.encode("ASCII")), signature)
+        except (TypeError, UnicodeEncodeError):
+            return False
 
     @classmethod
     def create_internal_serving_url(
