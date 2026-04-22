@@ -435,13 +435,15 @@ class Security(ConfigType):
 
     admin_allowed_paths: t.Iterable[str] = [
         "vi",
-        "vi/skey",
         "vi/config",
+        "vi/skey",
         "vi/user/auth_*",
         "vi/user/f2_*",
-        "vi/user/getAuthMethods",  # FIXME: deprecated, use `login` for this
-        "vi/user/select_authentication_provider",
         "vi/user/login",
+        "vi/user/select_authentication_provider",
+        # DEPRECATED:
+        "vi/settings",  # FIXME: Deprecated; vi-admin 4.x backward compatiblity
+        "vi/user/getAuthMethods",  # FIXME: Deprecated; vi-admin 4.x backward compatiblity
     ]
     """Specifies admin tool paths which are being accessible without authenticated user."""
 
