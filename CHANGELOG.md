@@ -2,6 +2,19 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.9.0.dev1]
+
+- chore: Deprecate endpoint `/vi/getStructure` (#1616)
+- chore: Deprecate endpoints `/vi/getVersion` and `/vi/settings` (#1669)
+- feat: Add `keys_only`-tooling for `Query` (#1586)
+- feat: Add check for compute in getUniquePropertyIndexValues (#1316)
+- feat: Combine `setting` and `config` for the admin (#1620)
+- feat: Implement `preprocess`-function to `Skeleton.patch` (#1625)
+- feat: Implement new version of `@ResponseCache` decorator (formerly `@enableCache`) (#1446)
+- fix: Code fixes due long aging and invalid merge
+- refactor: Provide and use `_can_access`-function in vi-render (#1659)
+- refactor: Use `db.KeyType` type annotation in several places (#1639)
+
 ## [3.8.22]
 
 - feat: `utils.get_base_url()` refactors `getHostUrl()` (#1665)
