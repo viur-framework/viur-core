@@ -645,6 +645,10 @@ class RelationalBone(BaseBone):
             dest_key = value
             value = {}
 
+        if not isinstance(dest_key, (str, int, db.Key)):
+            errors.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid))
+            return self.getEmptyValue(), errors
+
         if self.using:
             rel = self.using()
             if not rel.fromClient(value):
