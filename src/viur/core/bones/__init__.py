@@ -13,6 +13,7 @@ from .base import (
     UniqueValue,
 )
 from .boolean import BooleanBone
+from .code import CodeBone, JinjaBone, LogicsBone, PythonBone
 from .captcha import CaptchaBone
 from .color import ColorBone
 from .credential import CredentialBone
@@ -51,6 +52,10 @@ __all = [
     "BaseBone",
     "BooleanBone",
     "CaptchaBone",
+    "CodeBone",
+    "JinjaBone",
+    "LogicsBone",
+    "PythonBone",
     "CloneBehavior",
     "CloneStrategy",
     "ColorBone",

@@ -66,10 +66,8 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
             else "Filename is invalid or doesn't have a '.py'-suffix",
     )
 
-    script = RawBone(
+    script = PythonBone(
         descr="Code",
-        type_suffix="code.python",
-        indexed=False,
     )
 
     access = SelectBone(
