@@ -15,6 +15,13 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Provide and use `_can_access`-function in vi-render (#1659)
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
 
+## [3.8.23]
+
+- cicd: upgrade Read the Docs build image to `ubuntu-24.04` (#1675)
+- fix: `hmac_verify` must return `False` instead of raising TypeError (#1673)
+- fix: expand refKeys wildcard patterns to actual bone names (#1670)
+- fix: Reject invalid `dest_key` types early in `RelationalBone.singleValueFromClient` (#1674)
+
 ## [3.8.22]
 
 - feat: `utils.get_base_url()` refactors `getHostUrl()` (#1665)
