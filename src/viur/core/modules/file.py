@@ -659,6 +659,7 @@ class File(Tree):
 
         # Undo escaping on ()= performed on fileNames
         filename = filename.replace("&#040;", "(").replace("&#041;", ")").replace("&#061;", "=")
+        filename = filename.replace("&#40;", "(").replace("&#41;", ")").replace("&#61;", "=")
         filepath = f"""{dlkey}/{"derived" if derived else "source"}/{filename}"""
 
         if download_filename:
