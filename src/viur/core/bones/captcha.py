@@ -26,7 +26,8 @@ class CaptchaBone(BaseBone):
 
     .. seealso::
 
-        `Google reCAPTCHA Enterprise setup <https://cloud.google.com/recaptcha/docs/set-up-non-google-cloud-environments-api-keys>`_
+        `Google reCAPTCHA Enterprise setup
+        <https://cloud.google.com/recaptcha/docs/set-up-non-google-cloud-environments-api-keys>`
         for creating a site key and enabling the API.
 
         Option :attr:`core.config.Security.captcha_default_credentials`
