@@ -1345,10 +1345,13 @@ class BaseBone(object):
             self.serialize_compute(skel, name)
 
         values = [value for _, _, value in self.iter_bone_value(skel, name) if value is not None]
+
         if not values:
             return []
+
         if not self.languages and not self.multiple:
             return self._hashValueForUniquePropertyIndex(values[0])
+
         return self._hashValueForUniquePropertyIndex(values)
 
     def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
