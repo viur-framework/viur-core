@@ -298,10 +298,13 @@ class StringBone(RawBone):
                 value.lower() if isinstance(value, str) else value
                 for _, _, value in self.iter_bone_value(skel, name)
             ]
+
             if not values:
                 return []
+
             if not self.languages and not self.multiple:
                 return self._hashValueForUniquePropertyIndex(values[0])
+
             return self._hashValueForUniquePropertyIndex(values)
 
         return super().getUniquePropertyIndexValues(skel, name)
