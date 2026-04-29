@@ -6,24 +6,34 @@ import requests
 from viur.core import conf, current
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
+from google.cloud import recaptchaenterprise_v1
+from google.cloud.recaptchaenterprise_v1 import Assessment
+
 if t.TYPE_CHECKING:
     from viur.core.skeleton import SkeletonInstance
 
 
 class CaptchaBone(BaseBone):
     r"""
-    The CaptchaBone is used to ensure that a user is not a bot.
+    The CaptchaBone validates reCAPTCHA Enterprise tokens to protect forms from bots.
 
-    The Captcha bone uses the Google reCAPTCHA API to perform the Captcha
-    validation and supports v2 and v3.
+    It uses the Google reCAPTCHA Enterprise API and supports both invisible (v3-style score-based)
+    and visible (checkbox widget) challenges via the ``render_challenge`` parameter.
+
+    The token is submitted by the client as the bone's field value and verified server-side
+    against the configured site key. A configurable score threshold determines whether
+    invisible challenges pass.
 
     .. seealso::
+
+        `Google reCAPTCHA Enterprise setup <https://cloud.google.com/recaptcha/docs/set-up-non-google-cloud-environments-api-keys>`_
+        for creating a site key and enabling the API.
 
         Option :attr:`core.config.Security.captcha_default_credentials`
         for global security settings.
 
         Option :attr:`core.config.Security.captcha_enforce_always`
-        for developing.
+        to enforce validation even on development servers.
     """
 
     type = "captcha"
@@ -31,36 +41,35 @@ class CaptchaBone(BaseBone):
     def __init__(
         self,
         *,
-        publicKey: str = None,
-        privateKey: str = None,
+        public_key: str = None,
         score_threshold: float = 0.5,
+        render_challenge: bool = False,
+        recaptcha_action="",
         **kwargs: t.Any
     ):
         """
         Initializes a new CaptchaBone.
 
-        `publicKey` and `privateKey` can be omitted, if they are set globally
-        in :attr:`core.config.Security.captcha_default_credentials`.
-
-        :param publicKey: The public key for the Captcha validation.
-        :param privateKey: The private key for the Captcha validation.
-        :score_threshold: If reCAPTCHA v3 is used, the score must be at least this threshold.
-            For reCAPTCHA v2 this property will be ignored.
+        :param public_key: The reCAPTCHA Enterprise site key shown to the client.
+            Can be omitted if set globally via :attr:`core.config.Security.captcha_default_credentials`.
+        :param score_threshold: Minimum score (0–1) required for invisible challenges to pass.
+            Ignored when ``render_challenge`` is ``True``.
+        :param render_challenge: If ``True``, renders a visible checkbox widget instead of
+            running an invisible background check.
+        :param recaptcha_action: The action name passed to reCAPTCHA for analytics and scoring.
+            Should match the action used on the client side.
         """
         super().__init__(**kwargs)
-        self.defaultValue = self.publicKey = publicKey
-        self.privateKey = privateKey
+        if "publicKey" in kwargs:
+            public_key = kwargs.pop("publicKey")
+        self.public_key = public_key
+
         if not (0 < score_threshold <= 1):
             raise ValueError("score_threshold must be between 0 and 1.")
+        self.render_challenge = render_challenge
+        self.recaptcha_action = recaptcha_action
         self.score_threshold = score_threshold
-        if not self.defaultValue and not self.privateKey:
-            # Merge these values from the side-wide configuration if set
-            if conf.security.captcha_default_credentials:
-                self.defaultValue = self.publicKey = conf.security.captcha_default_credentials["sitekey"]
-                self.privateKey = conf.security.captcha_default_credentials["secret"]
         self.required = True
-        if not self.privateKey:
-            raise ValueError("privateKey must be set.")
 
     def serialize(self, skel: "SkeletonInstance", name: str, parentIndexed: bool) -> bool:
         """
@@ -70,14 +79,14 @@ class CaptchaBone(BaseBone):
 
     def unserialize(self, skel: "SkeletonInstance", name) -> t.Literal[True]:
         """
-        Stores the publicKey in the SkeletonInstance
+        Stores the public_key in the SkeletonInstance
 
         :param skel: The target :class:`SkeletonInstance`.
         :param name: The name of the CaptchaBone in the :class:`SkeletonInstance`.
 
         :returns: boolean, that is true, as the Captcha bone is always unserialized successfully.
         """
-        skel.accessedValues[name] = self.publicKey
+        skel.accessedValues[name] = self.public_key
         return True
 
     def fromClient(self, skel: "SkeletonInstance", name: str, data: dict) -> None | list[ReadFromClientError]:
@@ -89,42 +98,73 @@ class CaptchaBone(BaseBone):
         So the token can be provided as "g-recaptcha-response" or the name of the CaptchaBone in the Skeleton.
         While the latter one is the preferred name.
         """
+
         if not conf.security.captcha_enforce_always and conf.instance.is_dev_server:
             logging.info("Skipping captcha validation on development server")
             return None
         if not conf.security.captcha_enforce_always and (user := current.user.get()) and "root" in user["access"]:
             logging.info("Skipping captcha validation for root user")
             return None  # Don't bother trusted users with this (not supported by admin/vi anyway)
-        if name not in data and "g-recaptcha-response" not in data:
-            return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet)]
 
-        result = requests.post(
-            url="https://www.google.com/recaptcha/api/siteverify",
-            data={
-                "secret": self.privateKey,
-                "remoteip": current.request.get().request.remote_addr,
-                "response": data.get(name, data.get("g-recaptcha-response")),
-            },
-            timeout=10,
-        )
-        if not result.ok:
-            logging.error(f"{result.status_code} {result.reason}: {result.text}")
-            raise ValueError(f"Request to reCAPTCHA failed: {result.status_code} {result.reason}")
-        data = result.json()
-        logging.debug(f"Captcha verification {data=}")
+        client = recaptchaenterprise_v1.RecaptchaEnterpriseServiceClient()
 
-        if not data.get("success"):
-            logging.error(data.get("error-codes"))
+        # Set the attributes of the event to be tracked.
+        event = recaptchaenterprise_v1.Event()
+        event.site_key = self.public_key
+        if name in data:
+            event.token = data[name]
+        else:
+            return [ReadFromClientError(
+                ReadFromClientErrorSeverity.NotSet,
+                "Token not set"
+            )]
+        assessment = recaptchaenterprise_v1.Assessment()
+        assessment.event = event
+
+        project_name = f"projects/{conf.instance.project_id}"
+
+        # Create the assessment request.
+        request = recaptchaenterprise_v1.CreateAssessmentRequest()
+        request.assessment = assessment
+        request.parent = project_name
+
+        response = client.create_assessment(request)
+
+        if not response.token_properties.valid:
+            logging.info(
+                "The CreateAssessment call failed because the token was "
+                + "invalid for the following reasons: "
+                + str(response.token_properties.invalid_reason)
+            )
             return [ReadFromClientError(
                 ReadFromClientErrorSeverity.Invalid,
-                f'Invalid Captcha: {", ".join(data.get("error-codes", []))}'
+                "Invalid Token"
             )]
 
-        if "score" in data and data["score"] < self.score_threshold:
-            # it's reCAPTCHA v3; check the score
+        # Check if the expected action was executed.
+        if response.token_properties.action != self.recaptcha_action:
+            logging.info(
+                "The action attribute in your reCAPTCHA tag does not match the action you are expecting to score"
+            )
             return [ReadFromClientError(
                 ReadFromClientErrorSeverity.Invalid,
-                f'Invalid Captcha: {data["score"]} is lower than threshold {self.score_threshold}'
+                f"Invalid Action: {self.recaptcha_action}"
             )]
+        else:
+            # Retrieve the risk score and reasons.
+            # For more information on interpreting the assessment, see:
+            # https://cloud.google.com/recaptcha/docs/interpret-assessment
+            if response.risk_analysis.score < self.score_threshold:
+                return [ReadFromClientError(
+                    ReadFromClientErrorSeverity.Invalid,
+                    f"Invalid Captcha: {response.risk_analysis.score}"
+                )]
 
-        return None  # okay
+        return None
+
+    def structure(self) -> dict:
+        return super().structure() | {
+            "public_key": self.public_key,
+            "render_challenge": self.render_challenge,
+            "action": self.recaptcha_action
+        }
