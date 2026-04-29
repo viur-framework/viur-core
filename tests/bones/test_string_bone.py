@@ -189,3 +189,123 @@ class TestStringBoneSerialize(ViURTestCase):
         self.assertEqual("Foo", res)
         res = bone.singleValueUnserialize(None)
         self.assertEqual("", res)
+
+
+class TestStringBone_getUniquePropertyIndexValues(ViURTestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.bone_name = "myStringBone"
+
+    def _make_bone(self, **kwargs):
+        from viur.core.bones import StringBone
+        from viur.core.bones.base import UniqueValue, UniqueLockMethod
+        return StringBone(unique=UniqueValue(UniqueLockMethod.SameValue, False, ""), **kwargs)
+
+    def _make_bone_sameset(self, **kwargs):
+        from viur.core.bones import StringBone
+        from viur.core.bones.base import UniqueValue, UniqueLockMethod
+        return StringBone(unique=UniqueValue(UniqueLockMethod.SameSet, False, ""), **kwargs)
+
+    # --- empty / None ---
+
+    def test_empty_value_returns_empty_list(self):
+        bone = self._make_bone()
+        self.assertEqual([], bone.getUniquePropertyIndexValues({self.bone_name: None}, self.bone_name))
+
+    def test_empty_value_languages_returns_empty_list(self):
+        bone = self._make_bone(languages=["de", "en"])
+        self.assertEqual([], bone.getUniquePropertyIndexValues(
+            {self.bone_name: {"de": None, "en": None}}, self.bone_name,
+        ))
+
+    def test_partial_language_none_skipped(self):
+        bone = self._make_bone(languages=["de", "en"])
+        result = bone.getUniquePropertyIndexValues(
+            {self.bone_name: {"de": "Hallo", "en": None}}, self.bone_name,
+        )
+        self.assertEqual(1, len(result))
+
+    # --- single, no languages ---
+
+    def test_single_value_produces_one_hash(self):
+        bone = self._make_bone()
+        result = bone.getUniquePropertyIndexValues({self.bone_name: "Hello"}, self.bone_name)
+        self.assertEqual(1, len(result))
+        self.assertTrue(result[0].startswith("S-"))
+
+    def test_single_case_sensitive_distinct(self):
+        bone = self._make_bone(caseSensitive=True)
+        r_upper = bone.getUniquePropertyIndexValues({self.bone_name: "Hello"}, self.bone_name)
+        r_lower = bone.getUniquePropertyIndexValues({self.bone_name: "hello"}, self.bone_name)
+        self.assertNotEqual(r_upper, r_lower)
+
+    def test_single_case_insensitive_normalizes(self):
+        bone = self._make_bone(caseSensitive=False)
+        r1 = bone.getUniquePropertyIndexValues({self.bone_name: "Hello"}, self.bone_name)
+        r2 = bone.getUniquePropertyIndexValues({self.bone_name: "HELLO"}, self.bone_name)
+        r3 = bone.getUniquePropertyIndexValues({self.bone_name: "hello"}, self.bone_name)
+        self.assertEqual(r1, r2)
+        self.assertEqual(r1, r3)
+
+    # --- single, with languages ---
+
+    def test_languages_produces_one_hash_per_language(self):
+        bone = self._make_bone(languages=["de", "en"])
+        result = bone.getUniquePropertyIndexValues(
+            {self.bone_name: {"de": "Hallo", "en": "Hello"}}, self.bone_name,
+        )
+        self.assertEqual(2, len(result))
+
+    def test_languages_case_insensitive_normalizes(self):
+        bone = self._make_bone(languages=["de", "en"], caseSensitive=False)
+        r1 = bone.getUniquePropertyIndexValues(
+            {self.bone_name: {"de": "Hallo", "en": "Hello"}}, self.bone_name,
+        )
+        r2 = bone.getUniquePropertyIndexValues(
+            {self.bone_name: {"de": "HALLO", "en": "HELLO"}}, self.bone_name,
+        )
+        self.assertEqual(r1, r2)
+
+    def test_languages_case_sensitive_distinct(self):
+        bone = self._make_bone(languages=["de", "en"], caseSensitive=True)
+        r1 = bone.getUniquePropertyIndexValues(
+            {self.bone_name: {"de": "Hallo", "en": "Hello"}}, self.bone_name,
+        )
+        r2 = bone.getUniquePropertyIndexValues(
+            {self.bone_name: {"de": "HALLO", "en": "HELLO"}}, self.bone_name,
+        )
+        self.assertNotEqual(r1, r2)
+
+    # --- multiple, no languages ---
+
+    def test_multiple_samevalue_produces_one_hash_per_entry(self):
+        bone = self._make_bone(multiple=True)
+        result = bone.getUniquePropertyIndexValues({self.bone_name: ["Foo", "Bar", "Baz"]}, self.bone_name)
+        self.assertEqual(3, len(result))
+
+    def test_multiple_sameset_produces_one_combined_hash(self):
+        bone = self._make_bone_sameset(multiple=True)
+        result = bone.getUniquePropertyIndexValues({self.bone_name: ["Foo", "Bar"]}, self.bone_name)
+        self.assertEqual(1, len(result))
+
+    def test_multiple_sameset_order_independent(self):
+        bone = self._make_bone_sameset(multiple=True)
+        r1 = bone.getUniquePropertyIndexValues({self.bone_name: ["Foo", "Bar"]}, self.bone_name)
+        r2 = bone.getUniquePropertyIndexValues({self.bone_name: ["Bar", "Foo"]}, self.bone_name)
+        self.assertEqual(r1, r2)
+
+    # --- multiple, with languages ---
+
+    def test_multiple_languages_flattens_all_values(self):
+        bone = self._make_bone(multiple=True, languages=["de", "en"])
+        result = bone.getUniquePropertyIndexValues(
+            {self.bone_name: {"de": ["Foo", "Bar"], "en": ["Baz"]}}, self.bone_name,
+        )
+        self.assertEqual(3, len(result))
+
+    def test_multiple_languages_empty_lang_skipped(self):
+        bone = self._make_bone(multiple=True, languages=["de", "en"])
+        result = bone.getUniquePropertyIndexValues(
+            {self.bone_name: {"de": ["Foo"], "en": []}}, self.bone_name,
+        )
+        self.assertEqual(1, len(result))

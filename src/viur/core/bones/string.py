@@ -297,6 +297,7 @@ class StringBone(RawBone):
             values = [
                 value.lower() if isinstance(value, str) else value
                 for _, _, value in self.iter_bone_value(skel, name)
+                if value is not None
             ]
 
             if not values:
