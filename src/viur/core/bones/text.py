@@ -438,25 +438,6 @@ class TextBone(RawBone):
             elif not self.languages and isinstance(val, str):
                 skel[boneName] = self.singleValueFromClient(val, skel, boneName, None)[0]
 
-    def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> list[str]:
-        """
-        Retrieves the unique property index values for the TextBone.
-
-        If the TextBone supports multiple languages, this method raises a NotImplementedError, as it's unclear
-        whether each language should be kept distinct or not. Otherwise, it calls the superclass's
-        getUniquePropertyIndexValues method to retrieve the unique property index values.
-
-        :param valuesCache: A dictionary containing the cached values for the TextBone.
-        :param name: The name of the TextBone.
-        :return: A list of unique property index values for the TextBone.
-        :raises NotImplementedError: If the TextBone supports multiple languages.
-        """
-        if self.languages:
-            # Not yet implemented as it's unclear if we should keep each language distinct or not
-            raise NotImplementedError()
-
-        return super().getUniquePropertyIndexValues(valuesCache, name)
-
     def structure(self) -> dict:
         return super().structure() | {
             "valid_html": self.validHtml,
