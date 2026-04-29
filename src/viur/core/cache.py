@@ -574,10 +574,9 @@ def flushCache(prefix: str = None, key: db.Key | None = None, kind:  str | None 
             logging.info(f"""Deleted cache entry {item["path"]!r}""")
             db.delete(item.key)
 
-        if not isinstance(key, db.Key):
+        if kind is None and not isinstance(key, db.Key):
             key = db.Key.from_legacy_urlsafe(key)  # hopefully is a string
-
-        kind = key.kind
+            kind = key.kind
 
     if kind is not None:
         items = db.Query(CACHE_KINDNAME).filter("accessedEntries =", kind).iter()
