@@ -226,13 +226,7 @@ class RecordBone(BaseBone):
                 continue
             values.append(json.dumps(using_skel.dump(), sort_keys=True, default=str))
 
-        if not values:
-            return []
-
-        if not self.languages and not self.multiple:
-            return self._hashValueForUniquePropertyIndex(values[0])
-
-        return self._hashValueForUniquePropertyIndex(values)
+        return self._hashValueForUniquePropertyIndex(values) if values else []
 
     def structure(self) -> dict:
         return super().structure() | {

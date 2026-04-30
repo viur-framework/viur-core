@@ -300,13 +300,7 @@ class StringBone(RawBone):
                 if value is not None
             ]
 
-            if not values:
-                return []
-
-            if not self.languages and not self.multiple:
-                return self._hashValueForUniquePropertyIndex(values[0])
-
-            return self._hashValueForUniquePropertyIndex(values)
+            return self._hashValueForUniquePropertyIndex(values) if values else []
 
         return super().getUniquePropertyIndexValues(skel, name)
 
