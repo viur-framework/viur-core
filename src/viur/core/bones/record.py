@@ -215,13 +215,18 @@ class RecordBone(BaseBone):
 
         return result
 
-    def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> list[str]:
+    def getUniquePropertyIndexValues(self, skel: "SkeletonInstance", name: str) -> list[str]:
         """
-        This method is intentionally not implemented as it's not possible to determine how to derive
-        a key from the related skeleton being used (i.e., which fields to include and how).
+        Returns hashes over all fields of each record value, using the serialized form as canonical input.
+        """
+        values = []
 
-        """
-        raise NotImplementedError()
+        for _, _, using_skel in self.iter_bone_value(skel, name):
+            if using_skel is None:
+                continue
+            values.append(json.dumps(using_skel.dump(), sort_keys=True, default=str))
+
+        return self._hashValueForUniquePropertyIndex(values) if values else []
 
     def structure(self) -> dict:
         return super().structure() | {

@@ -292,19 +292,15 @@ class StringBone(RawBone):
         :param skel: The skeleton instance.
         :param name: The name of the property.
         :return: A list of unique index values for the property.
-        :raises NotImplementedError: If the StringBone has languages and the implementation
-            for this case is not yet defined.
         """
-        if self.languages:
-            # Not yet implemented as it's unclear if we should keep each language distinct or not
-            raise NotImplementedError()
+        if not self.caseSensitive:
+            values = [
+                value.lower() if isinstance(value, str) else value
+                for _, _, value in self.iter_bone_value(skel, name)
+                if value is not None
+            ]
 
-        if not self.caseSensitive and (value := skel[name]) is not None:
-            if self.multiple:
-                value = [v.lower() for v in value]
-            else:
-                value = value.lower()
-            return self._hashValueForUniquePropertyIndex(value)
+            return self._hashValueForUniquePropertyIndex(values) if values else []
 
         return super().getUniquePropertyIndexValues(skel, name)
 
