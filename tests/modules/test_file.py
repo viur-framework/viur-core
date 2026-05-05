@@ -4,7 +4,7 @@ from abstract import ViURTestCase
 
 # storage.Client is called at module level in file.py — mock before import
 with mock.patch("google.cloud.storage.Client"):
-    from viur.core.modules.file import File, FilePath
+    from viur.core.modules.file import File
 
 
 class TestFileDownloadUrl(ViURTestCase):
