@@ -553,6 +553,7 @@ def flushCache(prefix: str = None, key: db.Key | None = None, kind:  str | None 
     """
     if prefix is None and key is None and kind is None:
         prefix = "/*"
+
     if prefix is not None:
         items = db.Query(CACHE_KINDNAME).filter("path =", prefix.rstrip("*")).iter()
         for item in items:
@@ -565,20 +566,20 @@ def flushCache(prefix: str = None, key: db.Key | None = None, kind:  str | None 
             for item in items:
                 db.delete(item)
         logging.debug(f"Flushing cache succeeded. Everything matching {prefix=} is gone.")
+
     if key is not None:
         items = db.Query(CACHE_KINDNAME).filter("accessedEntries =", key).iter()
+
         for item in items:
             logging.info(f"""Deleted cache entry {item["path"]!r}""")
             db.delete(item.key)
-        if not isinstance(key, db.Key):
+
+        if kind is None and not isinstance(key, db.Key):
             key = db.Key.from_legacy_urlsafe(key)  # hopefully is a string
-        items = db.Query(CACHE_KINDNAME).filter("accessedEntries =", key.kind).iter()
-        for item in items:
-            logging.info(f"""Deleted cache entry {item["path"]!r}""")
-            db.delete(item.key)
+            kind = key.kind
+
     if kind is not None:
         items = db.Query(CACHE_KINDNAME).filter("accessedEntries =", kind).iter()
         for item in items:
             logging.info(f"""Deleted cache entry {item["path"]!r}""")
             db.delete(item.key)
-
