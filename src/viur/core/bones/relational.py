@@ -1300,7 +1300,7 @@ class RelationalBone(BaseBone):
         }
 
     def _atomic_dump(self, value: dict[str, "SkeletonInstance"]) -> dict | None:
-        if isinstance(value, dict):
+        if value and isinstance(value, dict):  # can be an empty dict due RelationalConsistency.SetNull
             return {
                 "dest": value["dest"].dump(),
                 "rel": value["rel"].dump() if value["rel"] else None,
