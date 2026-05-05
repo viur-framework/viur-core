@@ -1293,10 +1293,11 @@ class BaseBone(object):
                 the list may contain more than one hashed value.
         """
 
-        def hashValue(value: str | int | float | db.Key) -> str:
+        def hash_value(value: str | int | float | db.Key) -> str:
             h = hashlib.sha256()
             h.update(str(value).encode("UTF-8"))
             res = h.hexdigest()
+
             if isinstance(value, int | float):
                 return f"I-{res}"
             elif isinstance(value, str):
@@ -1307,27 +1308,32 @@ class BaseBone(object):
                 def keyHash(key):
                     if key is None:
                         return "-"
-                    return f"{hashValue(key.kind)}-{hashValue(key.id_or_name)}-<{keyHash(key.parent)}>"
+                    return f"{hash_value(key.kind)}-{hash_value(key.id_or_name)}-<{keyHash(key.parent)}>"
 
                 return f"K-{keyHash(value)}"
+
             raise NotImplementedError(f"Type {type(value)} can't be safely used in an uniquePropertyIndex")
 
+        # zero/empty string and these should not be locked
         if not value and not self.unique.lockEmpty:
-            return []  # We are zero/empty string and these should not be locked
-        if not self.multiple and not isinstance(value, list):
-            return [hashValue(value)]
-        # We have a multiple bone or multiple values here
+            return []
+
+        # Always work with list of values
         if not isinstance(value, list):
             value = [value]
-        tmpList = [hashValue(x) for x in value]
+
+        values = [hash_value(val) for val in value]
+
         if self.unique.method == UniqueLockMethod.SameValue:
-            # We should lock each entry individually; lock each value
-            return tmpList
+            # Lock each entry individually
+            return values
+
         elif self.unique.method == UniqueLockMethod.SameSet:
-            # We should ignore the sort-order; so simply sort that List
-            tmpList.sort()
-        # Lock the value for that specific list
-        return [hashValue(", ".join(tmpList))]
+            # Ignore the sort-order; so simply sort that list
+            values.sort()
+
+        # Lock the value for that specific list (equals to UniqueLockMethod.SameList)
+        return [hash_value(", ".join(values))]
 
     def getUniquePropertyIndexValues(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> list[str]:
         """
@@ -1343,10 +1349,9 @@ class BaseBone(object):
         """
         if self.compute:
             self.serialize_compute(skel, name)
-        val = skel[name]
-        if val is None:
-            return []
-        return self._hashValueForUniquePropertyIndex(val)
+
+        values = [value for _, _, value in self.iter_bone_value(skel, name) if value is not None]
+        return self._hashValueForUniquePropertyIndex(values) if values else []
 
     def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """

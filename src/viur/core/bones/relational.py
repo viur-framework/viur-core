@@ -1271,24 +1271,32 @@ class RelationalBone(BaseBone):
 
         return result
 
-    def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> list[str]:
+    def getUniquePropertyIndexValues(self, skel: "SkeletonInstance", name: str) -> list[str]:
         """
         Generates unique property index values for the RelationalBone based on the referenced keys.
         Can be overridden if different behavior is required (e.g., examining values from `prop:usingSkel`).
 
-        :param dict valuesCache: The cache containing the current values of the bone.
+        :param skel: The skeleton instance.
         :param str name: The name of the bone for which to generate unique property index values.
 
         :return: A list containing the unique property index values for the specified bone.
         :rtype: List[str]
         """
-        value = valuesCache.get(name)
-        if not value:  # We don't have a value to lock
-            return []
-        if isinstance(value, dict):
-            return self._hashValueForUniquePropertyIndex(value["dest"]["key"])
-        elif isinstance(value, list):
-            return self._hashValueForUniquePropertyIndex([entry["dest"]["key"] for entry in value if entry])
+        values = []
+
+        for _, _, v in self.iter_bone_value(skel, name):
+            if not v:
+                continue
+
+            if self.using and (rel_skel := v.get("rel")):
+                values.append(json.dumps(
+                    {"key": str(v["dest"]["key"]), "rel": rel_skel.dump()},
+                    sort_keys=True, default=str,
+                ))
+            else:
+                values.append(v["dest"]["key"])
+
+        return self._hashValueForUniquePropertyIndex(values) if values else []
 
     def structure(self) -> dict:
         return super().structure() | {
