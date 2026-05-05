@@ -21,11 +21,7 @@ if t.TYPE_CHECKING:  # pragma: no cover
     from viur.core.tasks import CustomEnvironmentHandler
     from viur.core import i18n
 
-# Construct an alias with a generic type to be able to write Multiple[str]
-# TODO: Backward compatible implementation, refactor when viur-core
-#       becomes >= Python 3.12 with a type statement (PEP 695)
-_T = t.TypeVar("_T")
-Multiple: t.TypeAlias = list[_T] | tuple[_T] | set[_T] | frozenset[_T]  # TODO: Refactor for Python 3.12
+type Multiple[T] = list[T] | tuple[T] | set[T] | frozenset[T]
 
 
 class CaptchaDefaultCredentialsType(t.TypedDict):

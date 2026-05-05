@@ -12,7 +12,7 @@ jobs:
   linter:
     strategy:
       matrix:
-        python: [ "3.12" ]
+        python: [ "3.13" ]
     runs-on: ubuntu-latest
 
     steps:
