@@ -2,10 +2,6 @@ from unittest import mock
 
 from abstract import ViURTestCase
 
-# storage.Client is called at module level in file.py — mock before import
-with mock.patch("google.cloud.storage.Client"):
-    from viur.core.modules.file import File
-
 
 class TestFileDownloadUrl(ViURTestCase):
 
@@ -16,6 +12,11 @@ class TestFileDownloadUrl(ViURTestCase):
 
     def _roundtrip(self, filename, *, derived=False):
         """create_download_url → parse_download_url round-trip, returns parsed FilePath."""
+        # Lazy import: viur.core.modules.file initializes a GCS client at module level.
+        # Importing inside a test method ensures the AppEngine testbed is already active,
+        # so google.auth.default() is mocked and storage.Client() won't fail.
+        with mock.patch("google.cloud.storage.Client"):
+            from viur.core.modules.file import File
         url = File.create_download_url("testdlkey", filename, derived=derived, expires=None)
         return File.parse_download_url(url)
 
