@@ -17,6 +17,16 @@ class TestUtils(ViURTestCase):
         self.assertEqual(utils.string.unescape("Hello&#039;World&#39;s"), "Hello'World's")
         self.assertEqual(utils.string.unescape(E), S.replace("\n", " "))
 
+    def test_string_unescape_filename_entities(self):
+        """unescape() must handle both 2- and 3-digit numeric HTML entities used in filenames."""
+        from viur.core import utils
+        # short-form: &#40; &#41; &#61;
+        self.assertEqual(utils.string.unescape("file&#40;1&#41;&#61;x.pdf"), "file(1)=x.pdf")
+        # long-form (leading zero): &#040; &#041; &#061;
+        self.assertEqual(utils.string.unescape("file&#040;1&#041;&#061;x.pdf"), "file(1)=x.pdf")
+        # mixed
+        self.assertEqual(utils.string.unescape("&#040;test&#41;&#061;val"), "(test)=val")
+
     def test_string_escape(self):
         from viur.core import utils
         self.assertEqual("None", utils.string.escape(None))
