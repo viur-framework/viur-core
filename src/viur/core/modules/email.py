@@ -8,9 +8,12 @@ KINDNAME = "viur-emails"  # FIXME: VIUR4: Rename into "viur-email"
 class EmailSkel(Skeleton):
     kindName = KINDNAME
 
-    creationdate = None
+    creationdate = None  # FIXME: VIUR4: See "creationDate" below!
     changedate = None
     name = None
+
+    sendDate = DateBone()  # FIXME: VIUR4: Rename to senddate
+    creationDate = DateBone()  # FIXME: VIUR4: This should become the ordinary creationdate!
 
     sender = EmailBone()
 
@@ -34,11 +37,9 @@ class EmailSkel(Skeleton):
         multiple=True,
     )
 
-    sendDate = DateBone()
-    creationDate = DateBone()
-    isSend = BooleanBone()
-    errorCount = NumericBone()
-    transportFuncResult = JsonBone()
+    isSend = BooleanBone()  # FIXME: VIUR4: Rename into is_send
+    errorCount = NumericBone()  # FIXME: VIUR4: Rename into error_count
+    transportFuncResult = JsonBone()  # FIXME: VIUR4: Rename into transport_func_result
 
 
 class Email(List):
