@@ -657,8 +657,7 @@ class File(Tree):
         if isinstance(expires, int):
             expires = datetime.timedelta(minutes=expires)
 
-        # Undo escaping on ()= performed on fileNames
-        filename = filename.replace("&#040;", "(").replace("&#041;", ")").replace("&#061;", "=")
+        filename = html.unescape(filename)
         filepath = f"""{dlkey}/{"derived" if derived else "source"}/{filename}"""
 
         if download_filename:

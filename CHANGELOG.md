@@ -15,6 +15,11 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Provide and use `_can_access`-function in vi-render (#1659)
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
 
+## [3.8.24]
+
+- fix: unescape short-form HTML numeric entities in download filename (#1679)
+- fix: `RelationalBone._atomic_dump()` raises `KeyError` (#1684)
+
 ## [3.8.23]
 
 - cicd: upgrade Read the Docs build image to `ubuntu-24.04` (#1675)
