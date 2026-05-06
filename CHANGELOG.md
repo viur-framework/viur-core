@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.24]
+
+- fix: unescape short-form HTML numeric entities in download filename (#1679)
+- fix: `RelationalBone._atomic_dump()` raises `KeyError` (#1684)
+
 ## [3.8.23]
 
 - cicd: upgrade Read the Docs build image to `ubuntu-24.04` (#1675)
