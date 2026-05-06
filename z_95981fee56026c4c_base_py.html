@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for /home/runner/work/viur-core/viur-core/viur/src/viur/core/bones/base.py: 30%</title>
+    <title>Coverage for /home/runner/work/viur-core/viur-core/viur/src/viur/core/bones/base.py: 31%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_c827f16f.png">
     <link rel="stylesheet" href="style_cb_9ff733b0.css" type="text/css">
     <script src="coverage_html_cb_dd2e7eb5.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>&#8201;/&#8201;home&#8201;/&#8201;runner&#8201;/&#8201;work&#8201;/&#8201;viur-core&#8201;/&#8201;viur-core&#8201;/&#8201;viur&#8201;/&#8201;src&#8201;/&#8201;viur&#8201;/&#8201;core&#8201;/&#8201;bones&#8201;/&#8201;base.py</b>:
-            <span class="pc_cov">30%</span>
+            <span class="pc_cov">31%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -56,8 +56,8 @@
         </aside>
         <h2>
             <span class="text">831 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">306<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">525<span class="text"> missing</span></button>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">311<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">520<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">3<span class="text"> excluded</span></button>
             <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">45<span class="text"> partial</span></button>
         </h2>
@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_95981fee56026c4c_boolean_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-05-05 15:37 +0000
+            created at 2026-05-06 14:09 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -465,10 +465,10 @@
     <p class="mis show_mis"><span class="n"><a id="t381" href="#t381">381</a></span><span class="t">            <span class="key">raise</span> <span class="nam">ValueError</span><span class="op">(</span><span class="fst">f"</span><span class="fst">The language(s) </span><span class="op">{</span><span class="str">', '</span><span class="op">.</span><span class="nam">join</span><span class="op">(</span><span class="nam">map</span><span class="op">(</span><span class="nam">repr</span><span class="op">,</span> <span class="nam">diff</span><span class="op">)</span><span class="op">)</span><span class="op">}</span><span class="fst"> can not be required, </span><span class="fst">"</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t382" href="#t382">382</a></span><span class="t">                             <span class="fst">f"</span><span class="fst">because they're not defined.</span><span class="fst">"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t383" href="#t383">383</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="par run show_par"><span class="n"><a id="t384" href="#t384">384</a></span><span class="t">        <span class="key">if</span> <span class="nam">callable</span><span class="op">(</span><span class="nam">defaultValue</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">384&#x202F;&#x219B;&#x202F;386</span><span class="annotate long">line 384 didn't jump to line 386 because the condition on line 384 was never true</span></span></p>
+    <p class="run"><span class="n"><a id="t384" href="#t384">384</a></span><span class="t">        <span class="key">if</span> <span class="nam">callable</span><span class="op">(</span><span class="nam">defaultValue</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t385" href="#t385">385</a></span><span class="t">            <span class="com"># check if the signature of defaultValue can bind two (fictive) parameters.</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t386" href="#t386">386</a></span><span class="t">            <span class="key">try</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t387" href="#t387">387</a></span><span class="t">                <span class="nam">inspect</span><span class="op">.</span><span class="nam">signature</span><span class="op">(</span><span class="nam">defaultValue</span><span class="op">)</span><span class="op">.</span><span class="nam">bind</span><span class="op">(</span><span class="str">"skel"</span><span class="op">,</span> <span class="str">"bone"</span><span class="op">)</span>  <span class="com"># the strings are just for the test!</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t386" href="#t386">386</a></span><span class="t">            <span class="key">try</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t387" href="#t387">387</a></span><span class="t">                <span class="nam">inspect</span><span class="op">.</span><span class="nam">signature</span><span class="op">(</span><span class="nam">defaultValue</span><span class="op">)</span><span class="op">.</span><span class="nam">bind</span><span class="op">(</span><span class="str">"skel"</span><span class="op">,</span> <span class="str">"bone"</span><span class="op">)</span>  <span class="com"># the strings are just for the test!</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t388" href="#t388">388</a></span><span class="t">            <span class="key">except</span> <span class="nam">TypeError</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t389" href="#t389">389</a></span><span class="t">                <span class="key">raise</span> <span class="nam">ValueError</span><span class="op">(</span><span class="fst">f"</span><span class="fst">Callable </span><span class="op">{</span><span class="nam">defaultValue</span><span class="op">=</span><span class="op">}</span><span class="fst"> requires for the parameters 'skel' and 'bone'.</span><span class="fst">"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t390" href="#t390">390</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -535,16 +535,16 @@
     <p class="pln"><span class="n"><a id="t451" href="#t451">451</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t452" href="#t452">452</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">compute</span> <span class="op">=</span> <span class="nam">compute</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t453" href="#t453">453</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="par run show_par"><span class="n"><a id="t454" href="#t454">454</a></span><span class="t">        <span class="key">if</span> <span class="nam">clone_behavior</span> <span class="key">is</span> <span class="key">None</span><span class="op">:</span>  <span class="com"># auto choose</span>&nbsp;</span><span class="r"><span class="annotate short">454&#x202F;&#x219B;&#x202F;460</span><span class="annotate long">line 454 didn't jump to line 460 because the condition on line 454 was always true</span></span></p>
+    <p class="run"><span class="n"><a id="t454" href="#t454">454</a></span><span class="t">        <span class="key">if</span> <span class="nam">clone_behavior</span> <span class="key">is</span> <span class="key">None</span><span class="op">:</span>  <span class="com"># auto choose</span>&nbsp;</span><span class="r"></span></p>
     <p class="par run show_par"><span class="n"><a id="t455" href="#t455">455</a></span><span class="t">            <span class="key">if</span> <span class="nam">self</span><span class="op">.</span><span class="nam">unique</span> <span class="key">and</span> <span class="nam">self</span><span class="op">.</span><span class="nam">readOnly</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">455&#x202F;&#x219B;&#x202F;456</span><span class="annotate long">line 455 didn't jump to line 456 because the condition on line 455 was never true</span></span></p>
     <p class="mis show_mis"><span class="n"><a id="t456" href="#t456">456</a></span><span class="t">                <span class="nam">self</span><span class="op">.</span><span class="nam">clone_behavior</span> <span class="op">=</span> <span class="nam">CloneBehavior</span><span class="op">(</span><span class="nam">CloneStrategy</span><span class="op">.</span><span class="nam">SET_DEFAULT</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t457" href="#t457">457</a></span><span class="t">            <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t458" href="#t458">458</a></span><span class="t">                <span class="nam">self</span><span class="op">.</span><span class="nam">clone_behavior</span> <span class="op">=</span> <span class="nam">CloneBehavior</span><span class="op">(</span><span class="nam">CloneStrategy</span><span class="op">.</span><span class="nam">COPY_VALUE</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t459" href="#t459">459</a></span><span class="t">            <span class="com"># TODO: Any different setting for computed bones?</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t460" href="#t460">460</a></span><span class="t">        <span class="key">elif</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">clone_behavior</span><span class="op">,</span> <span class="nam">CloneStrategy</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="par run show_par"><span class="n"><a id="t460" href="#t460">460</a></span><span class="t">        <span class="key">elif</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">clone_behavior</span><span class="op">,</span> <span class="nam">CloneStrategy</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">460&#x202F;&#x219B;&#x202F;461</span><span class="annotate long">line 460 didn't jump to line 461 because the condition on line 460 was never true</span></span></p>
     <p class="mis show_mis"><span class="n"><a id="t461" href="#t461">461</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">clone_behavior</span> <span class="op">=</span> <span class="nam">CloneBehavior</span><span class="op">(</span><span class="nam">strategy</span><span class="op">=</span><span class="nam">clone_behavior</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t462" href="#t462">462</a></span><span class="t">        <span class="key">elif</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">clone_behavior</span><span class="op">,</span> <span class="nam">CloneBehavior</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t463" href="#t463">463</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">clone_behavior</span> <span class="op">=</span> <span class="nam">clone_behavior</span>&nbsp;</span><span class="r"></span></p>
+    <p class="par run show_par"><span class="n"><a id="t462" href="#t462">462</a></span><span class="t">        <span class="key">elif</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">clone_behavior</span><span class="op">,</span> <span class="nam">CloneBehavior</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">462&#x202F;&#x219B;&#x202F;465</span><span class="annotate long">line 462 didn't jump to line 465 because the condition on line 462 was always true</span></span></p>
+    <p class="run"><span class="n"><a id="t463" href="#t463">463</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">clone_behavior</span> <span class="op">=</span> <span class="nam">clone_behavior</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t464" href="#t464">464</a></span><span class="t">        <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t465" href="#t465">465</a></span><span class="t">            <span class="key">raise</span> <span class="nam">TypeError</span><span class="op">(</span><span class="fst">f"</span><span class="fst">'clone_behavior' must be an instance of Clone, but </span><span class="op">{</span><span class="nam">clone_behavior</span><span class="op">=</span><span class="op">}</span><span class="fst"> was specified</span><span class="fst">"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t466" href="#t466">466</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -1772,7 +1772,7 @@
             <a class="nav" href="z_95981fee56026c4c_boolean_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-05-05 15:37 +0000
+            created at 2026-05-06 14:09 +0000
         </p>
     </div>
 </footer>
