@@ -106,19 +106,21 @@ def normalizeKey(key: t.Union[None, db.Key]) -> t.Union[None, db.Key]:
 def get_base_url() -> str:
     """
     Retrieve current request's base URL with protocol.
+    The function enforces use of https-protocol on non-localhost hostnames.
 
     :returns: Returns the hostname, including the currently used protocol, e.g: https://www.example.com
     :rtype: str
     """
-    url = current.request.get().request.url  # retrireve URL by request
-    url = url[:url.find("/", url.find("://") + 5)]  # cut out base-url
+    base = urllib.parse.urlparse(current.request.get().request.url).netloc  # retrieve URL of request
 
     # Always enforce https!
-    if not any(url.startswith(f"http://{i}") for i in ("localhost", "127.0.0.1")):
-        url = "https://" + url[7:]
+    if any(base.startswith(i) for i in ("localhost", "127.0.0.1", "[::1]", "0.0.0.0")):
+        base = f"http://{base}"
+    else:
+        base = f"https://{base}"
 
     # Replace non-SSL-ready-"appspot.com"-URLs with their SSL-ready counterpart
-    return url.replace(f".{conf.instance.project_id}.", f"-dot-{conf.instance.project_id}.")
+    return base.replace(f".{conf.instance.project_id}.", f"-dot-{conf.instance.project_id}.")
 
 
 def ensure_iterable(
