@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.25]
+
+- fix: `utils.get_base_url()` using urllib.parse (#1686)
+
 ## [3.8.24]
 
 - fix: unescape short-form HTML numeric entities in download filename (#1679)
