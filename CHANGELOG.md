@@ -15,6 +15,10 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Provide and use `_can_access`-function in vi-render (#1659)
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
 
+## [3.8.25]
+
+- fix: `utils.get_base_url()` using urllib.parse (#1686)
+
 ## [3.8.24]
 
 - fix: unescape short-form HTML numeric entities in download filename (#1679)
