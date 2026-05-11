@@ -2,7 +2,7 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.9.0.dev1]
+## [3.9.0.dev2]
 
 - chore: Deprecate endpoint `/vi/getStructure` (#1616)
 - chore: Deprecate endpoints `/vi/getVersion` and `/vi/settings` (#1669)
