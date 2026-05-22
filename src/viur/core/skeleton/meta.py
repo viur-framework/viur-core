@@ -16,6 +16,37 @@ from ..config import conf
 _UNDEFINED_KINDNAME = object()
 ABSTRACT_SKEL_CLS_SUFFIX = "AbstractSkel"
 
+#: TypeVar for generic skeleton typing.
+#:
+#: Use this to annotate functions and classes that work with a specific, but not yet known, Skeleton subclass.
+#: The type checker then knows which concrete Skeleton is in use and can validate bone access.
+#:
+#: Example — typed helper function::
+#:
+#:     from viur.core.skeleton import Skeleton_Cls, SkeletonInstance
+#:
+#:     def clone_and_set_owner(skel: SkeletonInstance[Skeleton_Cls], owner: str) -> SkeletonInstance[Skeleton_Cls]:
+#:         cloned = skel.clone()
+#:         cloned["owner"] = owner
+#:         return cloned
+#:
+#: Example — typed module override::
+#:
+#:     class ProductModule(List):
+#:         def editSkel(self) -> SkeletonInstance[ProductSkel]:
+#:             skel = super().editSkel()
+#:             skel.price.readOnly = True
+#:             return skel
+#:
+#: When calling a classmethod on a concrete Skeleton, use ``t.Self`` instead so the type checker
+#: automatically narrows to the calling class::
+#:
+#:     class BaseSkeleton:
+#:         @classmethod
+#:         def fromClient(cls, skel: SkeletonInstance[t.Self], data: dict) -> bool: ...
+#:
+#:     # Calling on a concrete class: type checker knows skel is SkeletonInstance[ProductSkel]
+#:     ProductSkel.fromClient(skel, request.POST)
 Skeleton_Cls = t.TypeVar("Skeleton_Cls", bound="BaseSkeleton")
 
 

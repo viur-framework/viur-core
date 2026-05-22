@@ -33,14 +33,24 @@ def iterAllSkelClasses() -> t.Iterable["Skeleton"]:
 
 
 class SkelList(list, t.Generic[Skeleton_Cls]):
-    """
-        This class is used to hold multiple skeletons together with other, commonly used information.
+    """A typed list of :class:`SkeletonInstance` objects with query metadata.
 
-        SkelLists are returned by Skel().all()...fetch()-constructs and provide additional information
-        about the data base query, for fetching additional entries.
+    Returned by ``Skel().all()...fetch()`` constructs.  The generic parameter
+    mirrors the one on :class:`SkeletonInstance` so that the element type flows
+    through without manual casts::
 
-        :ivar cursor: Holds the cursor within a query.
-        :vartype cursor: str
+        result: SkelList[ProductSkel] = ProductSkel().all().fetch(10)
+        for skel in result:
+            # skel is SkeletonInstance[ProductSkel]
+            print(skel["price"])
+
+    Without the type parameter the class behaves exactly as before.
+
+    :ivar baseSkel: The base skeleton instance used to construct this list.
+    :ivar getCursor: Callable returning the datastore cursor for pagination.
+    :ivar get_orders: Callable returning the active query ordering.
+    :ivar renderPreparation: Render-preparation callback, set by renderers.
+    :ivar customQueryInfo: Arbitrary extra metadata attached by query helpers.
     """
 
     __slots__ = (

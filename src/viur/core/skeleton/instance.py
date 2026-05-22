@@ -14,10 +14,56 @@ from ..bones.base import BaseBone
 
 
 class SkeletonInstance(t.Generic[Skeleton_Cls]):
-    """
-        The actual wrapper around a Skeleton-Class. An object of this class is what's actually returned when you
-        call a Skeleton-Class. With ViUR3, you don't get an instance of a Skeleton-Class any more - it's always this
-        class. This is much faster as this is a small class.
+    """The actual wrapper around a Skeleton-Class.
+
+    An object of this class is what's actually returned when you call a Skeleton-Class.
+    With ViUR3, you don't get an instance of a Skeleton-Class any more - it's always this
+    class. This is much faster as this is a small class.
+
+    The class is generic over :data:`Skeleton_Cls`, which lets the type checker track which
+    concrete Skeleton subclass a given instance belongs to.  Without the type parameter the
+    class still works exactly as before — the parameter is purely a static-analysis hint.
+
+    **Basic usage**
+
+    Calling a Skeleton class returns a typed ``SkeletonInstance``::
+
+        skel = ProductSkel()          # -> SkeletonInstance[ProductSkel]
+        skel.skeletonCls              # ProductSkel
+        skel["price"]                 # type-safe bone access
+
+    **Typed module method**
+
+    Override ``viewSkel`` / ``editSkel`` etc. in your module with an explicit return type
+    so that callers and IDE auto-complete know which bones are available::
+
+        class ProductModule(List):
+            def editSkel(self) -> SkeletonInstance[ProductSkel]:
+                skel = super().editSkel()
+                skel.price.readOnly = True
+                return skel
+
+    **Generic helper**
+
+    Use :data:`Skeleton_Cls` when writing utilities that must stay agnostic about the
+    concrete skeleton but still preserve the type through the call::
+
+        def set_owner(skel: SkeletonInstance[Skeleton_Cls], owner: str) -> SkeletonInstance[Skeleton_Cls]:
+            skel = skel.clone()
+            skel["owner"] = owner
+            return skel  # type checker keeps SkeletonInstance[ProductSkel] etc.
+
+    **Classmethod signatures** (``t.Self``)
+
+    Inside Skeleton classmethods, ``t.Self`` is preferred over :data:`Skeleton_Cls` because
+    the type checker automatically narrows to the class the method is called on::
+
+        class BaseSkeleton:
+            @classmethod
+            def fromClient(cls, skel: SkeletonInstance[t.Self], data: dict) -> bool: ...
+
+        # Inferred as SkeletonInstance[ProductSkel] when called on ProductSkel
+        ProductSkel.fromClient(skel, request.POST)
     """
     __slots__ = {
         "_cascade_deletion",
