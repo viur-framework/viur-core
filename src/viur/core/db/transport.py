@@ -219,9 +219,11 @@ def run_single_filter(query: QueryDefinition, limit: int, keys_only: bool) -> t.
         res.reverse()
 
     if conf.debug.trace_queries:
-        distinctOn = " distinct on %s" % str(query.distinct) if query.distinct else ""
-        logging.debug("Queried %s with filter %s and orders %s%s. Returned %s results" % (
-            query.kind, query.filters, query.orders, distinctOn, len(res)))
+        distinct_on = f" distinct on {query.distinct}" if query.distinct else ""
+        logging.debug(
+            f"Queried {query.kind} with filter {query.filters} and orders {query.orders}{distinct_on}."
+            f" Returned {len(res)} results"
+        )
 
     return res
 
