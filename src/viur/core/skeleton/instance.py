@@ -8,11 +8,12 @@ import warnings
 from functools import partial
 
 from viur.core import db
+from .meta import Skeleton_Cls
 from .skeleton import Skeleton
 from ..bones.base import BaseBone
 
 
-class SkeletonInstance:
+class SkeletonInstance(t.Generic[Skeleton_Cls]):
     """
         The actual wrapper around a Skeleton-Class. An object of this class is what's actually returned when you
         call a Skeleton-Class. With ViUR3, you don't get an instance of a Skeleton-Class any more - it's always this
@@ -32,7 +33,7 @@ class SkeletonInstance:
 
     def __init__(
         self,
-        skel_cls: t.Type[Skeleton],
+        skel_cls: t.Type[Skeleton_Cls],
         entity: t.Optional[db.Entity | dict] = None,
         *,
         bones: t.Iterable[str] = (),
@@ -104,7 +105,7 @@ class SkeletonInstance:
         self.is_cloned = clone
         self.renderAccessedValues = {}
         self.renderPreparation = None
-        self.skeletonCls = skel_cls
+        self.skeletonCls: t.Type[Skeleton_Cls] = skel_cls
 
     def items(self, yieldBoneValues: bool = False) -> t.Iterable[tuple[str, BaseBone]]:
         if yieldBoneValues:

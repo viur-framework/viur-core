@@ -1,6 +1,6 @@
 import typing as t
 
-from .meta import MetaBaseSkel
+from .meta import MetaBaseSkel, Skeleton_Cls
 
 if t.TYPE_CHECKING:
     from . import RefSkel, Skeleton, SkeletonInstance
@@ -32,7 +32,7 @@ def iterAllSkelClasses() -> t.Iterable["Skeleton"]:
         yield cls
 
 
-class SkelList(list):
+class SkelList(list, t.Generic[Skeleton_Cls]):
     """
         This class is used to hold multiple skeletons together with other, commonly used information.
 
@@ -51,12 +51,12 @@ class SkelList(list):
         "renderPreparation",
     )
 
-    def __init__(self, skel, *items):
+    def __init__(self, skel: "SkeletonInstance[Skeleton_Cls]" = None, *items):
         """
             :param baseSkel: The baseclass for all entries in this list
         """
         super().__init__()
-        self.baseSkel = skel or {}
+        self.baseSkel: "SkeletonInstance[Skeleton_Cls] | dict" = skel or {}
         self.getCursor = lambda: None
         self.get_orders = lambda: None
         self.renderPreparation = None

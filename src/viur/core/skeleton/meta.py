@@ -16,6 +16,8 @@ from ..config import conf
 _UNDEFINED_KINDNAME = object()
 ABSTRACT_SKEL_CLS_SUFFIX = "AbstractSkel"
 
+Skeleton_Cls = t.TypeVar("Skeleton_Cls", bound="BaseSkeleton")
+
 
 class MetaBaseSkel(type):
     """
@@ -424,7 +426,7 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
         return complete
 
     @classmethod
-    def refresh(cls, skel: "SkeletonInstance"):
+    def refresh(cls, skel: "SkeletonInstance[t.Self]"):
         """
             Refresh the bones current content.
 
