@@ -67,6 +67,8 @@ def put(entities: t.Union[Entity, t.List[Entity]]):
     Also ensures that no string-key with a digit-only name can be used.
     :param entities: The entities to be saved to the datastore.
     """
+    if conf.debug.trace_queries:
+        logging.info(f"Calling db.put({entities=})")
     _write_to_access_log(entities)
     if isinstance(entities, Entity):
         return __client__.put(entities)
@@ -84,7 +86,8 @@ def delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
     Deletes the entities with the given key(s) from the datastore.
     :param keys: A Key (or a t.List of Keys) to delete
     """
-
+    if conf.debug.trace_queries:
+        logging.info(f"Calling db.delete({keys=})")
     _write_to_access_log(keys)
     if not isinstance(keys, (set, list, tuple)):
         return __client__.delete(keys)
@@ -215,9 +218,10 @@ def run_single_filter(query: QueryDefinition, limit: int, keys_only: bool) -> t.
     if hasInvertedOrderings:
         res.reverse()
 
-    distinctOn = " distinct on %s" % str(query.distinct) if query.distinct else ""
-    logging.debug("Queried %s with filter %s and orders %s%s. Returned %s results" % (
-        query.kind, query.filters, query.orders, distinctOn, len(res)))
+    if conf.debug.trace_queries:
+        distinctOn = " distinct on %s" % str(query.distinct) if query.distinct else ""
+        logging.debug("Queried %s with filter %s and orders %s%s. Returned %s results" % (
+            query.kind, query.filters, query.orders, distinctOn, len(res)))
 
     return res
 
