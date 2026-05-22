@@ -51,7 +51,7 @@ class SkelList(list, t.Generic[Skeleton_Cls]):
         "renderPreparation",
     )
 
-    def __init__(self, skel: "SkeletonInstance[Skeleton_Cls]" = None, *items):
+    def __init__(self, skel: t.Optional["SkeletonInstance[Skeleton_Cls]"] = None, *items):
         """
             :param baseSkel: The baseclass for all entries in this list
         """

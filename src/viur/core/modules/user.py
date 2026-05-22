@@ -557,7 +557,7 @@ class UserPassword(UserPrimaryAuthentication):
     def canAdd(self) -> bool:
         return self.registrationEnabled
 
-    def addSkel(self):
+    def addSkel(self) -> skeleton.SkeletonInstance["UserSkel"]:
         """
             Prepare the add-Skel for rendering.
             Currently only calls self._user_module.addSkel() and sets skel["status"] depending on
@@ -1350,7 +1350,7 @@ class User(List):
 
         return ret
 
-    def addSkel(self):
+    def addSkel(self) -> skeleton.SkeletonInstance["UserSkel"]:
         skel = super().addSkel().clone()
 
         if self.is_admin(current.user.get()):
@@ -1377,7 +1377,7 @@ class User(List):
         skel.name.readOnly = False  # Don't enforce readonly name in user/add
         return skel
 
-    def editSkel(self, *args, **kwargs):
+    def editSkel(self, *args, **kwargs) -> skeleton.SkeletonInstance["UserSkel"]:
         skel = super().editSkel().clone()
 
         if "password" in skel:
