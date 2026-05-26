@@ -4,14 +4,14 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <title>Coverage for /home/runner/work/viur-core/viur-core/viur/src/viur/core/modules/file.py: 16%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_c827f16f.png">
-    <link rel="stylesheet" href="style_cb_9ff733b0.css" type="text/css">
+    <link rel="stylesheet" href="style_cb_4667309f.css" type="text/css">
     <script src="coverage_html_cb_dd2e7eb5.js" defer></script>
 </head>
 <body class="pyfile">
 <header>
     <div class="content">
         <h1>
-            <span class="text">Coverage for </span><b>&#8201;/&#8201;home&#8201;/&#8201;runner&#8201;/&#8201;work&#8201;/&#8201;viur-core&#8201;/&#8201;viur-core&#8201;/&#8201;viur&#8201;/&#8201;src&#8201;/&#8201;viur&#8201;/&#8201;core&#8201;/&#8201;modules&#8201;/&#8201;file.py</b>:
+            <span class="text">Coverage for </span><b><span class="sep">/</span>home<span class="sep">/</span>runner<span class="sep">/</span>work<span class="sep">/</span>viur-core<span class="sep">/</span>viur-core<span class="sep">/</span>viur<span class="sep">/</span>src<span class="sep">/</span>viur<span class="sep">/</span>core<span class="sep">/</span>modules<span class="sep">/</span>file.py</b>:
             <span class="pc_cov">16%</span>
         </h1>
         <aside id="help_panel_wrapper">
@@ -66,8 +66,8 @@
             <a id="indexLink" class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a id="nextFileLink" class="nav" href="z_005c967b6588bb62_formmailer_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.14.0">coverage.py v7.14.0</a>,
-            created at 2026-05-21 21:16 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.14.1">coverage.py v7.14.1</a>,
+            created at 2026-05-26 23:24 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -95,7 +95,7 @@
     <p class="run"><span class="n"><a id="t11" href="#t11">11</a></span><span class="t"><span class="key">import</span> <span class="nam">typing</span> <span class="key">as</span> <span class="nam">t</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t12" href="#t12">12</a></span><span class="t"><span class="key">import</span> <span class="nam">warnings</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t13" href="#t13">13</a></span><span class="t"><span class="key">from</span> <span class="nam">collections</span> <span class="key">import</span> <span class="nam">namedtuple</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t14" href="#t14">14</a></span><span class="t"><span class="key">from</span> <span class="nam">urllib</span><span class="op">.</span><span class="nam">parse</span> <span class="key">import</span> <span class="nam">quote</span> <span class="key">as</span> <span class="nam">urlquote</span><span class="op">,</span> <span class="nam">urlencode</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t14" href="#t14">14</a></span><span class="t"><span class="key">from</span> <span class="nam">urllib</span><span class="op">.</span><span class="nam">parse</span> <span class="key">import</span> <span class="nam">quote</span> <span class="key">as</span> <span class="nam">urlquote</span><span class="op">,</span> <span class="nam">unquote</span> <span class="key">as</span> <span class="nam">urlunquote</span><span class="op">,</span> <span class="nam">urlencode</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t15" href="#t15">15</a></span><span class="t"><span class="key">from</span> <span class="nam">urllib</span><span class="op">.</span><span class="nam">request</span> <span class="key">import</span> <span class="nam">urlopen</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t16" href="#t16">16</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t17" href="#t17">17</a></span><span class="t"><span class="key">import</span> <span class="nam">PIL</span>&nbsp;</span><span class="r"></span></p>
@@ -1201,7 +1201,7 @@
     <p class="mis show_mis"><span class="n"><a id="t1117" href="#t1117">1117</a></span><span class="t">            <span class="key">raise</span> <span class="nam">errors</span><span class="op">.</span><span class="nam">Gone</span><span class="op">(</span><span class="str">"The requested blob has expired."</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1118" href="#t1118">1118</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t1119" href="#t1119">1119</a></span><span class="t">        <span class="key">if</span> <span class="key">not</span> <span class="nam">filename</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1120" href="#t1120">1120</a></span><span class="t">            <span class="nam">filename</span> <span class="op">=</span> <span class="nam">download_filename</span> <span class="key">or</span> <span class="nam">urlquote</span><span class="op">(</span><span class="nam">blob</span><span class="op">.</span><span class="nam">name</span><span class="op">.</span><span class="nam">rsplit</span><span class="op">(</span><span class="str">"/"</span><span class="op">,</span> <span class="num">1</span><span class="op">)</span><span class="op">[</span><span class="op">-</span><span class="num">1</span><span class="op">]</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1120" href="#t1120">1120</a></span><span class="t">            <span class="nam">filename</span> <span class="op">=</span> <span class="nam">urlunquote</span><span class="op">(</span><span class="nam">download_filename</span><span class="op">)</span> <span class="key">if</span> <span class="nam">download_filename</span> <span class="key">else</span> <span class="nam">blob</span><span class="op">.</span><span class="nam">name</span><span class="op">.</span><span class="nam">rsplit</span><span class="op">(</span><span class="str">"/"</span><span class="op">,</span> <span class="num">1</span><span class="op">)</span><span class="op">[</span><span class="op">-</span><span class="num">1</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1121" href="#t1121">1121</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t1122" href="#t1122">1122</a></span><span class="t">        <span class="nam">content_disposition</span> <span class="op">=</span> <span class="nam">utils</span><span class="op">.</span><span class="nam">build_content_disposition_header</span><span class="op">(</span><span class="nam">filename</span><span class="op">,</span> <span class="nam">attachment</span><span class="op">=</span><span class="nam">download</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1123" href="#t1123">1123</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -1654,8 +1654,8 @@
             <a class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a class="nav" href="z_005c967b6588bb62_formmailer_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.14.0">coverage.py v7.14.0</a>,
-            created at 2026-05-21 21:16 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.14.1">coverage.py v7.14.1</a>,
+            created at 2026-05-26 23:24 +0000
         </p>
     </div>
 </footer>
