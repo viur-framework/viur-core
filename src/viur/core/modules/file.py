@@ -11,7 +11,7 @@ import string
 import typing as t
 import warnings
 from collections import namedtuple
-from urllib.parse import quote as urlquote, urlencode
+from urllib.parse import quote as urlquote, unquote as urlunquote, urlencode
 from urllib.request import urlopen
 
 import PIL
@@ -1117,7 +1117,7 @@ class File(Tree):
             raise errors.Gone("The requested blob has expired.")
 
         if not filename:
-            filename = download_filename or urlquote(blob.name.rsplit("/", 1)[-1])
+            filename = urlunquote(download_filename) if download_filename else blob.name.rsplit("/", 1)[-1]
 
         content_disposition = utils.build_content_disposition_header(filename, attachment=download)
 
