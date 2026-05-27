@@ -29,15 +29,13 @@ def key_from_protobuf(pb):  # !!! 100% Copy, only uses our Key Class
     project = None
     if pb.partition_id.project_id:  # Simple field (string)
         project = pb.partition_id.project_id
-    database = None
-
-    if pb.partition_id.database_id:  # Simple field (string)
-        database = pb.partition_id.database_id
     namespace = None
     if pb.partition_id.namespace_id:  # Simple field (string)
         namespace = pb.partition_id.namespace_id
 
-    return Key(*path_args, namespace=namespace, project=project, database=database)
+    # database_id is intentionally ignored: the database is a client-level concern
+    # configured via conf.db.database_id / DATASTORE_DATABASE, never stored on keys.
+    return Key(*path_args, namespace=namespace, project=project)
 
 
 def entity_from_protobuf(pb):
