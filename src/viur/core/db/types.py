@@ -155,7 +155,7 @@ class Entity(Datastore_entity):
         key: t.Optional[Key] = None,
         exclude_from_indexes: t.Optional[list[str]] = None,
     ) -> None:
-        super().__init__(key, exclude_from_indexes or [])
+        super().__init__(key, list(exclude_from_indexes) if exclude_from_indexes else [])
         if not (key is None or isinstance(key, Key)):
             raise ValueError(f"key must be a Key-Object (or None for an embedded entity). Got {key!r} ({type(key)})")
 
