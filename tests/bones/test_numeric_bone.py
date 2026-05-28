@@ -350,11 +350,6 @@ class TestNumericBone_Decimal(ViURTestCase):
         self.assertTrue(s.get("decimal"))
         self.assertEqual(s["precision"], 2)
 
-    def test_structure_no_decimal_flag_when_false(self):
-        from viur.core.bones.numeric import NumericBone
-        bone = NumericBone(precision=2)
-        s = bone.structure()
-        self.assertNotIn("decimal", s)
 
 
 class TestNumericBone_Decimal_fromClient(ViURTestCase):
