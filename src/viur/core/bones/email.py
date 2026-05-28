@@ -45,6 +45,10 @@ class EmailBone(StringBone):
             assert account and subDomain and tld
             assert subDomain[0] != "."
             assert len(account) <= 64
+            # RFC 5321: local part must not start/end with a dot or contain consecutive dots
+            assert not account.startswith(".")
+            assert not account.endswith(".")
+            assert ".." not in account
         except (ValueError, AssertionError):
             is_valid = False
 

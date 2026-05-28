@@ -22,4 +22,22 @@ Usage example::
 
     class MyUser(User):
         authenticationProviders = [LoginKey, ...]
+
+ratelimit
+    :class:`~viur.core.contrib.ratelimit.RequestRateLimit` — a
+    :class:`~viur.core.request.RequestValidator` that enforces per-IP /
+    per-user request-rate limits using App Engine Memcache.  Suitable for
+    global rate-limiting and basic DDoS mitigation at the WSGI boundary.
+
+Usage example::
+
+    from viur.core.request import Router
+    from viur.core.contrib.ratelimit import RequestRateLimit, TimeWindow
+
+    Router.requestValidators.append(
+        RequestRateLimit(
+            rate_for_guests=TimeWindow(limit=200, time_window=60),
+            rate_for_users=TimeWindow(limit=500, time_window=60),
+        )
+    )
 """
