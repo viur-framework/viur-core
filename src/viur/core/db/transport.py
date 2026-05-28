@@ -49,9 +49,15 @@ def get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None
     if isinstance(keys, (list, set, tuple)):
         res_list = list(__client__.get_multi(keys))
         res_list.sort(key=lambda k: keys.index(k.key) if k else -1)
+        if conf.debug.trace_queries:
+            found = sum(1 for r in res_list if r is not None)
+            logging.info(f"db.get: {found}/{len(keys)} entities found")
         return res_list
 
-    return __client__.get(keys)
+    res = __client__.get(keys)
+    if conf.debug.trace_queries:
+        logging.info(f"db.get({keys}): {'found' if res is not None else 'not found'}")
+    return res
 
 
 @deprecated(version="3.8.0", reason="Use 'db.get' instead")
@@ -67,9 +73,15 @@ def put(entities: t.Union[Entity, t.List[Entity]]):
     """
     _write_to_access_log(entities)
     if isinstance(entities, Entity):
-        return __client__.put(entities)
+        res = __client__.put(entities)
+        if conf.debug.trace_queries:
+            logging.info(f"db.put: saved {entities.key}")
+        return res
 
-    return __client__.put_multi(entities=entities)
+    res = __client__.put_multi(entities=entities)
+    if conf.debug.trace_queries:
+        logging.info(f"db.put: saved {len(entities)} entities")
+    return res
 
 
 @deprecated(version="3.8.0", reason="Use 'db.put' instead")
@@ -82,12 +94,17 @@ def delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
     Deletes the entities with the given key(s) from the datastore.
     :param keys: A Key (or a t.List of Keys) to delete
     """
-
     _write_to_access_log(keys)
     if not isinstance(keys, (set, list, tuple)):
-        return __client__.delete(keys)
+        res = __client__.delete(keys)
+        if conf.debug.trace_queries:
+            logging.info(f"db.delete: deleted {keys}")
+        return res
 
-    return __client__.delete_multi(keys)
+    res = __client__.delete_multi(keys)
+    if conf.debug.trace_queries:
+        logging.info(f"db.delete: deleted {len(keys)} keys")
+    return res
 
 
 @deprecated(version="3.8.0", reason="Use 'db.delete' instead")
@@ -212,6 +229,14 @@ def run_single_filter(query: QueryDefinition, limit: int, keys_only: bool) -> t.
     query.currentCursor = qryRes.next_page_token
     if hasInvertedOrderings:
         res.reverse()
+
+    if conf.debug.trace_queries:
+        distinct_on = f" distinct on {query.distinct}" if query.distinct else ""
+        logging.debug(
+            f"Queried {query.kind} with filter {query.filters} and orders {query.orders}{distinct_on}."
+            f" Returned {len(res)} results"
+        )
+
     return res
 
 
