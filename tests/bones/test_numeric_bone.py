@@ -117,6 +117,11 @@ class TestNumericBone_fromClient(ViURTestCase):
         self.assertIsNone(bone.fromClient(skel, self.bone_name, data))  # None = no error
         self.assertIn(self.bone_name, skel)
         self.assertEqual(LARGE_INT, skel[self.bone_name])
+        # invalid: allows only not 0
+        data = {self.bone_name: 0}
+        self.assertIsInstance(res := bone.fromClient(skel, self.bone_name, data), list)
+        self.assertTrue(res)  # list not empty
+        self.assertIsInstance(res[0], ReadFromClientError)
         # invalid: precision=0 allows only ints
         data = {self.bone_name: "1234.0"}
         self.assertIsInstance(res := bone.fromClient(skel, self.bone_name, data), list)
@@ -291,24 +296,27 @@ class TestNumericBone_Decimal(ViURTestCase):
         self.assertFalse(bone.isEmpty("123.45"))
         self.assertFalse(bone.isEmpty(42))
 
-    def test_to_decimal_conversions(self):
+    def test_convert_to_decimal_conversions(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
         bone = NumericBone(precision=2, decimal=True)
-        self.assertEqual(bone._to_decimal("1234.56"), Decimal("1234.56"))
-        self.assertEqual(bone._to_decimal(1234.56), Decimal("1234.56"))
-        self.assertEqual(str(bone._to_decimal(1234.56)), "1234.56")
-        self.assertEqual(bone._to_decimal(1234), Decimal("1234.00"))
-        self.assertEqual(bone._to_decimal(Decimal("1234.567")), Decimal("1234.57"))
-        self.assertIsNone(bone._to_decimal(None))
+        self.assertEqual(bone._convert_to_decimal("1234.56"), Decimal("1234.56"))
+        self.assertEqual(bone._convert_to_decimal(1234.56), Decimal("1234.56"))
+        self.assertEqual(str(bone._convert_to_decimal(1234.56)), "1234.56")
+        self.assertEqual(bone._convert_to_decimal(1234), Decimal("1234.00"))
+        self.assertEqual(bone._convert_to_decimal(Decimal("1234.567")), Decimal("1234.57"))
+        self.assertIsNone(bone._convert_to_decimal(None))
 
     def test_singleValueSerialize_decimal(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
+        import types
         bone = NumericBone(precision=2, decimal=True)
-        result = bone.singleValueSerialize(Decimal("1234.56"), None, "amount", True)
+        skel = types.SimpleNamespace(dbEntity={})
+        result = bone.singleValueSerialize(Decimal("1234.56"), skel, "amount", True)
         self.assertIsInstance(result, float)
         self.assertAlmostEqual(result, 1234.56)
+        self.assertEqual(skel.dbEntity.get("amount.decimal"), "1234.56")
 
     def test_singleValueSerialize_decimal_none(self):
         from viur.core.bones.numeric import NumericBone
@@ -405,14 +413,6 @@ class TestNumericBone_Decimal_fromClient(ViURTestCase):
         self.assertIsNone(bone.fromClient(skel, self.bone_name, data))
         self.assertEqual(skel[self.bone_name], Decimal("1234.57"))
 
-    def test_fromClient_decimal_zero(self):
-        from viur.core.bones.numeric import NumericBone
-        from decimal import Decimal
-        bone = NumericBone(precision=2, decimal=True)
-        skel = {}
-        data = {self.bone_name: 0}
-        self.assertIsNone(bone.fromClient(skel, self.bone_name, data))
-        self.assertEqual(skel[self.bone_name], Decimal("0.00"))
 
     def test_fromClient_decimal_negative(self):
         from viur.core.bones.numeric import NumericBone
@@ -428,7 +428,7 @@ class TestNumericBone_Decimal_fromClient(ViURTestCase):
         from viur.core.bones.base import ReadFromClientError
         bone = NumericBone(precision=2, decimal=True)
         skel = {}
-        for invalid in ("abc", "", None):
+        for invalid in ("abc", "", None,0):
             data = {self.bone_name: invalid}
             res = bone.fromClient(skel, self.bone_name, data)
             self.assertIsInstance(res, list, msg=f"Expected error for {invalid!r}")

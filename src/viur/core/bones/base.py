@@ -720,6 +720,7 @@ class BaseBone(object):
         """
         subFields = self.parseSubfieldsFromClient()
         parsedData, fieldSubmitted = self.collectRawClientData(name, data, self.multiple, self.languages, subFields)
+        logging.debug(f"{parsedData=}, {fieldSubmitted=}")
         if not fieldSubmitted:
             return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet)]
 
