@@ -359,7 +359,6 @@ class TestNumericBone_Decimal(ViURTestCase):
         self.assertEqual(s["precision"], 2)
 
 
-
 class TestNumericBone_Decimal_fromClient(ViURTestCase):
 
     @classmethod
@@ -413,7 +412,6 @@ class TestNumericBone_Decimal_fromClient(ViURTestCase):
         self.assertIsNone(bone.fromClient(skel, self.bone_name, data))
         self.assertEqual(skel[self.bone_name], Decimal("1234.57"))
 
-
     def test_fromClient_decimal_negative(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
@@ -428,7 +426,7 @@ class TestNumericBone_Decimal_fromClient(ViURTestCase):
         from viur.core.bones.base import ReadFromClientError
         bone = NumericBone(precision=2, decimal=True)
         skel = {}
-        for invalid in ("abc", "", None,0):
+        for invalid in ("abc", "", None, 0):
             data = {self.bone_name: invalid}
             res = bone.fromClient(skel, self.bone_name, data)
             self.assertIsInstance(res, list, msg=f"Expected error for {invalid!r}")
