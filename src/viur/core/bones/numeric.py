@@ -92,6 +92,7 @@ class NumericBone(BaseBone):
         if value is None:
             return None
         with localcontext() as ctx:
+            # +20 as buffer for integer digits to avoid InvalidOperation on quantize
             ctx.prec = self.precision + 20
             if isinstance(value, Decimal):
                 return value.quantize(self._quantize_exp)
@@ -115,38 +116,10 @@ class NumericBone(BaseBone):
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
         if self.decimal:
-            if value is None:
-                return None
-            if isinstance(value, Decimal):
-                return float(value)
-            return float(self._convert_to_decimal(value))
+            if value is not None:
+                skel.dbEntity[f"{name}.decimal"] = str(self._convert_to_decimal(value))
+                return self._convert_to_numeric(value)
         return self.singleValueUnserialize(value)  # same logic for unserialize here!
-
-    def serialize(self, skel: "SkeletonInstance", name: str, parentIndexed: bool) -> bool:
-
-        if not self.decimal:
-            return super().serialize(skel, name, parentIndexed)
-        self.serialize_compute(skel, name)
-        # Capture Decimal values before super() converts to float
-        raw_values = skel.accessedValues.get(name)
-
-        result = super().serialize(skel, name, parentIndexed)
-        if not result:
-            return False
-
-        # Write exact string representation to _decimal field
-        decimal_name = f"{name}.decimal"
-        if self.multiple and isinstance(raw_values, list):
-            skel.dbEntity[decimal_name] = [
-                str(self._convert_to_decimal(v)) if v is not None else None
-                for v in raw_values
-            ]
-        elif raw_values is not None:
-            skel.dbEntity[decimal_name] = str(self._convert_to_decimal(raw_values))
-        else:
-            skel.dbEntity[decimal_name] = None
-
-        return True
 
     def unserialize(self, skel: "SkeletonInstance", name: str) -> bool:
         if self.decimal:
@@ -275,24 +248,17 @@ class NumericBone(BaseBone):
                     # It's just another bone which name start's with our's
                     continue
                 try:
-                    if self.decimal:
-                        paramValue = str(self._convert_to_decimal(paramValue))
-                        if "$" in parmKey:
-                            parmKey = parmKey.replace(f"{name}$", f"{name}.decimal$")
-                        else:
-                            parmKey = f"{name}.decimal"
+                    if not self.precision:
+                        paramValue = int(paramValue)
                     else:
-                        if not self.precision:
-                            paramValue = int(paramValue)
-                        else:
-                            paramValue = float(paramValue)
-                except (ValueError, InvalidOperation):
+                        paramValue = float(paramValue)
+                except ValueError:
                     # The value we should filter by is garbage, cancel this query
                     logging.warning(f"Invalid filtering! Unparsable int/float supplied to NumericBone {name}")
                     raise RuntimeError()
                 updatedFilter[parmKey] = paramValue
-        effective_name = f"{name}.decimal" if self.decimal else name
-        return super().buildDBFilter(effective_name, skel, dbFilter, updatedFilter, prefix)
+
+        return super().buildDBFilter(name, skel, dbFilter, updatedFilter, prefix)
 
     def getSearchTags(self, skel: "SkeletonInstance", name: str) -> set[str]:
         """
