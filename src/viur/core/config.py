@@ -504,8 +504,6 @@ class Security(ConfigType):
         "xXssProtection": "x_xss_protection",
         "xContentTypeOptions": "x_content_type_options",
         "xPermittedCrossDomainPolicies": "x_permitted_cross_domain_policies",
-        "captcha_defaultCredentials": "captcha_default_credentials",
-        "captcha.defaultCredentials": "captcha_default_credentials",
     }
 
 
