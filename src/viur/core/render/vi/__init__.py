@@ -207,17 +207,40 @@ def settings():
     return json.dumps(json.loads(config())["configuration"])
 
 
+@exposed
+def routes():
+    """
+    Endpoint to retrieve an array of all available routes on this ViUR instance.
+    """
+    current.request.get().response.headers["Content-Type"] = "application/json"
+
+    def resolve(o):
+        result = []
+
+        for key, value in o.items():
+            if isinstance(value, dict):
+                for subresult in resolve(value):
+                    result.append(f"{key}/{subresult}")
+            else:
+                result.append(key)
+
+        return result
+
+    return json.dumps(resolve(conf.main_resolver))
+
+
 def _postProcessAppObj(obj):
     obj["canAccess"] = canAccess
     obj["config"] = config
-    obj["getStructure"] = getStructure
     obj["index"] = index
+    obj["routes"] = routes
     obj["setLanguage"] = setLanguage
     obj["skey"] = json_render_skey
     obj["timestamp"] = timestamp
 
     # DEPRECATED:
-    obj["settings"] = settings  # FIXME: Deprecated; vi-admin 4.x backward compatiblity
+    obj["getStructure"] = getStructure
     obj["getVersion"] = getVersion  # FIXME: Deprecated; vi-admin 4.x backward compatiblity
+    obj["settings"] = settings  # FIXME: Deprecated; vi-admin 4.x backward compatiblity
 
     return obj
