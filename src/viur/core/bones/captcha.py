@@ -1,7 +1,6 @@
 import logging
 import typing as t
-
-import requests
+import warnings
 
 from viur.core import conf, current
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
@@ -30,7 +29,7 @@ class CaptchaBone(BaseBone):
         <https://cloud.google.com/recaptcha/docs/set-up-non-google-cloud-environments-api-keys>`
         for creating a site key and enabling the API.
 
-        Option :attr:`core.config.Security.captcha_default_credentials`
+        Option :attr:`core.config.Security.captcha_default_public_key`
         for global security settings.
 
         Option :attr:`core.config.Security.captcha_enforce_always`
@@ -52,7 +51,7 @@ class CaptchaBone(BaseBone):
         Initializes a new CaptchaBone.
 
         :param public_key: The reCAPTCHA Enterprise site key shown to the client.
-            Can be omitted if set globally via :attr:`core.config.Security.captcha_default_credentials`.
+            Can be omitted if set globally via :attr:`core.config.Security.captcha_default_public_key`.
         :param score_threshold: Minimum score (0–1) required for invisible challenges to pass.
             Ignored when ``render_challenge`` is ``True``.
         :param render_challenge: If ``True``, renders a visible checkbox widget instead of
@@ -60,9 +59,13 @@ class CaptchaBone(BaseBone):
         :param recaptcha_action: The action name passed to reCAPTCHA for analytics and scoring.
             Should match the action used on the client side.
         """
-        super().__init__(**kwargs)
         if "publicKey" in kwargs:
+            warnings.warn("publicKey parameter is deprecated, please use public_key",
+                          DeprecationWarning, stacklevel=2)
             public_key = kwargs.pop("publicKey")
+        super().__init__(**kwargs)
+        if not public_key and conf.security.captcha_default_public_key:
+            public_key = conf.security.captcha_default_public_key
         self.public_key = public_key
 
         if not (0 < score_threshold <= 1):

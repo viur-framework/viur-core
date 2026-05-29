@@ -28,10 +28,6 @@ _T = t.TypeVar("_T")
 Multiple: t.TypeAlias = list[_T] | tuple[_T] | set[_T] | frozenset[_T]  # TODO: Refactor for Python 3.12
 
 
-class CaptchaDefaultCredentialsType(t.TypedDict):
-    """Expected type of global captcha credential, see :attr:`Security.captcha_default_credentials`"""
-    sitekey: str
-    secret: str
 
 
 class ConfigType:
@@ -415,7 +411,7 @@ class Security(ConfigType):
     x_permitted_cross_domain_policies: t.Optional[t.Literal["none", "master-only", "by-content-type", "all"]] = "none"
     """Unless set to logical none; ViUR will emit a X-Permitted-Cross-Domain-Policies with each request"""
 
-    captcha_default_credentials: t.Optional[CaptchaDefaultCredentialsType] = None
+    captcha_default_public_key: t.Optional[str] = None
     """The default sitekey and secret to use for the :class:`CaptchaBone`.
     If set, must be a dictionary of "sitekey" and "secret".
     """
