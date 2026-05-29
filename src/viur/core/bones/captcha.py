@@ -66,6 +66,9 @@ class CaptchaBone(BaseBone):
         super().__init__(**kwargs)
         if not public_key and conf.security.captcha_default_public_key:
             public_key = conf.security.captcha_default_public_key
+        if not public_key:
+            raise ValueError("CaptchaBone requires either a public_key or conf.security.captcha_default_public_key")
+
         self.public_key = public_key
 
         if not (0 < score_threshold <= 1):
