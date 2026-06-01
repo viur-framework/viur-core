@@ -808,7 +808,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
         qry = db.Query(qryDict["kind"])
         qry.srcSkel = skeletonByKind(qryDict["srcSkel"])() if qryDict["srcSkel"] else None
         qry.queries.filters = qryDict["filters"]
-        qry.queries.orders = [(propName, db.SortOrder(sortOrder)) for propName, sortOrder in qryDict["orders"]]
+        qry.queries.orders = [db.QueryOrder(propName, db.SortOrder(sortOrder)) for propName, sortOrder in qryDict["orders"]]
         qry.setCursor(qryDict["startCursor"], qryDict["endCursor"])
         qry.origKind = qryDict["origKind"]
         qry.queries.distinct = qryDict["distinct"]

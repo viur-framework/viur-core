@@ -281,22 +281,22 @@ class SpatialBone(BaseBone):
             q1 = deepcopy(origQuery)
             q1.filters[name + ".coordinates.lat >="] = lat
             q1.filters[name + ".tiles.lat ="] = tileLat
-            q1.orders = [(name + ".coordinates.lat", db.SortOrder.Ascending)]
+            q1.orders = [db.QueryOrder(name + ".coordinates.lat", db.SortOrder.Ascending)]
             # Lat - Left Side
             q2 = deepcopy(origQuery)
             q2.filters[name + ".coordinates.lat <"] = lat
             q2.filters[name + ".tiles.lat ="] = tileLat
-            q2.orders = [(name + ".coordinates.lat", db.SortOrder.Descending)]
+            q2.orders = [db.QueryOrder(name + ".coordinates.lat", db.SortOrder.Descending)]
             # Lng - Down
             q3 = deepcopy(origQuery)
             q3.filters[name + ".coordinates.lng >="] = lng
             q3.filters[name + ".tiles.lng ="] = tileLng
-            q3.orders = [(name + ".coordinates.lng", db.SortOrder.Ascending)]
+            q3.orders = [db.QueryOrder(name + ".coordinates.lng", db.SortOrder.Ascending)]
             # Lng - Top
             q4 = deepcopy(origQuery)
             q4.filters[name + ".coordinates.lng <"] = lng
             q4.filters[name + ".tiles.lng ="] = tileLng
-            q4.orders = [(name + ".coordinates.lng", db.SortOrder.Descending)]
+            q4.orders = [db.QueryOrder(name + ".coordinates.lng", db.SortOrder.Descending)]
             dbFilter.queries = [q1, q2, q3, q4]
             dbFilter._customMultiQueryMerge = lambda *args, **kwargs: self.customMultiQueryMerge(name, lat, lng, *args,
                                                                                                  **kwargs)

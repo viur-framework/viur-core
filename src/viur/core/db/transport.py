@@ -207,13 +207,11 @@ def run_single_filter(query: QueryDefinition, limit: int, keys_only: bool) -> t.
 
         if query.orders:
             hasInvertedOrderings = any(
-                [
-                    x[1] in [SortOrder.InvertedAscending, SortOrder.InvertedDescending]
-                    for x in query.orders
-                ]
+                x.order in (SortOrder.InvertedAscending, SortOrder.InvertedDescending)
+                for x in query.orders
             )
             qry.order = [
-                x[0] if x[1] in [SortOrder.Ascending, SortOrder.InvertedDescending] else f"-{x[0]}"
+                x.name if x.order in (SortOrder.Ascending, SortOrder.InvertedDescending) else f"-{x.name}"
                 for x in query.orders
             ]
 

@@ -8,7 +8,7 @@ from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
 import typing as t
 
 
-SINGLE_ORDER_TYPE = str | tuple[str, db.SortOrder]
+SINGLE_ORDER_TYPE = str | db.QueryOrder | tuple[str, db.SortOrder]
 """
 Type for exactly one sort order definitions.
 """
@@ -190,16 +190,9 @@ class SkelModule(Module):
             elif default_order:
                 logging.debug(f"Applying {default_order=}")
 
-                # FIXME: This ugly test can be removed when there is type that abstracts SortOrders
-                if (
-                    isinstance(default_order, str)
-                    or (
-                        isinstance(default_order, tuple)
-                        and len(default_order) == 2
-                        and isinstance(default_order[0], str)
-                        and isinstance(default_order[1], db.SortOrder)
-                    )
-                ):
+                if isinstance(default_order, (str, db.QueryOrder)):
+                    query.order(default_order)
+                elif isinstance(default_order, tuple) and len(default_order) == 2 and isinstance(default_order[0], str) and isinstance(default_order[1], db.SortOrder):
                     query.order(default_order)
                 else:
                     query.order(*default_order)

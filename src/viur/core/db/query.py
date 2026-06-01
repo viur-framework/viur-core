@@ -13,6 +13,7 @@ from .types import (
     Entity,
     KEY_SPECIAL_PROPERTY,
     QueryDefinition,
+    QueryOrder,
     SortOrder,
     TFilters,
     TOrders,
@@ -282,14 +283,14 @@ class Query(object):
             if op in {"<", "<=", ">", ">="}:
                 if isinstance(self.queries, list):
                     for queryObj in self.queries:
-                        if not queryObj.orders or queryObj.orders[0][0] != field:
-                            queryObj.orders = [(field, SortOrder.Ascending)] + (queryObj.orders or [])
+                        if not queryObj.orders or queryObj.orders[0].name != field:
+                            queryObj.orders = [QueryOrder(field, SortOrder.Ascending)] + (queryObj.orders or [])
                 else:
-                    if not self.queries.orders or self.queries.orders[0][0] != field:
-                        self.queries.orders = [(field, SortOrder.Ascending)] + (self.queries.orders or [])
+                    if not self.queries.orders or self.queries.orders[0].name != field:
+                        self.queries.orders = [QueryOrder(field, SortOrder.Ascending)] + (self.queries.orders or [])
         return self
 
-    def order(self, *orderings: t.Tuple[str, SortOrder]) -> t.Self:
+    def order(self, *orderings: QueryOrder | t.Tuple[str, SortOrder] | str) -> t.Self:
         """
         Specify a query sorting.
 
@@ -301,7 +302,10 @@ class Query(object):
         .. code-block:: python
 
             query = Query("Person")
-            query.order(("bday" db.SortOrder.Ascending), ("age", db.SortOrder.Descending))
+            query.order(
+                db.QueryOrder("bday", db.SortOrder.Ascending),
+                db.QueryOrder("age", db.SortOrder.Descending),
+            )
 
         sorts every Person in order of their birthday, starting with January 1.
         People with the same birthday are sorted by age, oldest to youngest.
@@ -311,7 +315,7 @@ class Query(object):
         from scratch.
 
         If an inequality filter exists in this Query it must be the first property
-        passed to ``order()``. t.Any number of sort orders may be used after the
+        passed to ``order()``. Any number of sort orders may be used after the
         inequality filter property. Without inequality filters, any number of
         filters with different orders may be specified.
 
@@ -328,8 +332,9 @@ class Query(object):
         made to compare property values across types.
 
 
-        :param orderings: The properties to sort by, in sort order.
-            Each argument must be a (name, direction) 2-tuple.
+        :param orderings: The properties to sort by, in sort order. Each argument may be a
+            :class:`QueryOrder`, a ``(name, direction)`` tuple, or a plain ``str`` (implies
+            ``SortOrder.Ascending``).
         :returns: Returns the query itself for chaining.
         """
         if self.queries is None:
@@ -340,12 +345,20 @@ class Query(object):
         orders = []
         for order in orderings:
             if isinstance(order, str):
-                order = (order, SortOrder.Ascending)
-
-            if not (isinstance(order[0], str) and isinstance(order[1], SortOrder)):
+                order = QueryOrder(order, SortOrder.Ascending)
+            elif isinstance(order, QueryOrder):
+                pass
+            elif (
+                isinstance(order, (tuple, list)) and
+                len(order) == 2 and
+                isinstance(order[0], str) and isinstance(order[1], SortOrder)
+            ):
+                order = QueryOrder(order[0], order[1])
+            else:
                 raise TypeError(
-                    f"Invalid ordering {order}, it has to be a tuple. Try: `(\"{order}\", SortOrder.Ascending)`")
-
+                    f"Invalid ordering {order!r}, expected a (str, SortOrder) tuple or QueryOrder."
+                    f' Try: `QueryOrder("{order}", SortOrder.Ascending)`'
+                )
             orders.append(order)
 
         if self._orderHook is not None:
@@ -445,7 +458,7 @@ class Query(object):
                 q = self.queries[0]
         return base64.urlsafe_b64encode(q.currentCursor).decode("ASCII") if q.currentCursor else None
 
-    def get_orders(self) -> t.List[t.Tuple[str, SortOrder]] | None:
+    def get_orders(self) -> t.List[QueryOrder] | None:
         """
         Get the orders from this query.
 
@@ -502,10 +515,10 @@ class Query(object):
         return self._resort_result(res, {}, self.queries[0].orders)
 
     def _resort_result(
-            self,
-            entities: t.List[Entity],
-            filters: t.Dict[str, DATASTORE_BASE_TYPES],
-            orders: t.List[t.Tuple[str, SortOrder]],
+        self,
+        entities: t.List[Entity],
+        filters: t.Dict[str, DATASTORE_BASE_TYPES],
+        orders: t.List[QueryOrder],
     ) -> t.List[Entity]:
         """
         Internal helper that takes a (deduplicated) list of entities that has been fetched from different internal
@@ -550,8 +563,8 @@ class Query(object):
             if "<" in end or ">" in end:
                 ineqFilter = k.split(" ")[0]
                 break
-        if ineqFilter and (not orders or not orders[0][0] == ineqFilter):
-            orders = [(ineqFilter, SortOrder.Ascending)] + (orders or [])
+        if ineqFilter and (not orders or not orders[0].name == ineqFilter):
+            orders = [QueryOrder(ineqFilter, SortOrder.Ascending)] + (orders or [])
 
         for orderField, direction in orders[::-1]:
             if orderField == KEY_SPECIAL_PROPERTY:
@@ -572,10 +585,10 @@ class Query(object):
         """
         resultList = list(resultList)
         if (
-                resultList
-                and resultList[0].key.kind != self.origKind
-                and resultList[0].key.parent
-                and resultList[0].key.parent.kind == self.origKind
+            resultList
+            and resultList[0].key.kind != self.origKind
+            and resultList[0].key.parent
+            and resultList[0].key.parent.kind == self.origKind
         ):
             return list(get(list(dict.fromkeys([x.key.parent for x in resultList]))))
 

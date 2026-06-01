@@ -977,21 +977,25 @@ class RelationalBone(BaseBone):
         :param name: The name of the bone.
         :param query: The datastore query to be modified.
         :param orderings: A list or tuple of orderings to be checked and potentially modified.
-        :type orderings: List[Union[str, Tuple[str, db.SortOrder]]] or Tuple[Union[str, Tuple[str, db.SortOrder]]]
+        :type orderings: List[Union[str, db.QueryOrder]] or Tuple[Union[str, db.QueryOrder]]
 
         :return: A list of modified orderings that are compatible with the viur-relations index.
-        :rtype: List[Union[str, Tuple[str, db.SortOrder]]]
+        :rtype: List[Union[str, db.QueryOrder]]
 
         :raises RuntimeError: If the ordering is invalid, e.g., using properties not in 'refKeys' or 'parentKeys'.
         """
         res = []
-        if not isinstance(orderings, list) and not isinstance(orderings, tuple):
+        if isinstance(orderings, (str, db.QueryOrder)):
             orderings = [orderings]
+        elif not isinstance(orderings, list):
+            orderings = list(orderings)
         for order in orderings:
-            if isinstance(order, tuple):
-                orderKey = order[0]
-            else:
+            if isinstance(order, db.QueryOrder):
+                orderKey = order.name
+            elif isinstance(order, str):
                 orderKey = order
+            else:
+                raise TypeError(f"Invalid ordering {order!r} in orderHook")
             if orderKey.startswith("dest.") or orderKey.startswith("rel.") or orderKey.startswith("src."):
                 # This is already valid for our relational index
                 res.append(order)
@@ -1005,7 +1009,7 @@ class RelationalBone(BaseBone):
                     res.append(order)
                 else:
                     if isinstance(order, tuple):
-                        res.append((f"dest.{k}", order[1]))
+                        res.append(db.QueryOrder(f"dest.{k}", order[1]))
                     else:
                         res.append(f"dest.{k}")
             else:
@@ -1019,7 +1023,7 @@ class RelationalBone(BaseBone):
                             f"Invalid ordering! {orderKey} is not in parentKeys of RelationalBone {name}!")
                         raise RuntimeError()
                     if isinstance(order, tuple):
-                        res.append((f"src.{orderKey}", order[1]))
+                        res.append(db.QueryOrder(f"src.{orderKey}", order[1]))
                     else:
                         res.append(f"src.{orderKey}")
         return res
