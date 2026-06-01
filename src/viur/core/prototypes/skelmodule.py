@@ -192,7 +192,12 @@ class SkelModule(Module):
 
                 if isinstance(default_order, (str, db.QueryOrder)):
                     query.order(default_order)
-                elif isinstance(default_order, tuple) and len(default_order) == 2 and isinstance(default_order[0], str) and isinstance(default_order[1], db.SortOrder):
+                elif (
+                    isinstance(default_order, (tuple,list)) and
+                    len(default_order) == 2 and
+                    isinstance(default_order[0], str) and
+                    isinstance(default_order[1], db.SortOrder)
+                ):
                     query.order(default_order)
                 else:
                     query.order(*default_order)
