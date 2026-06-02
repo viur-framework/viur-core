@@ -105,9 +105,11 @@ class Router:
         - Load or initialize a new session
         - Set up i18n (choosing the language etc)
         - Run the request preprocessor (if any)
+        - Run before_request hooks (if any)
         - Normalize & sanity check the parameters
         - Resolve the exposed function and call it
         - Save the session / tear down the request
+        - Run after_request hooks (if any)
         - Return the response generated
 
 
@@ -116,6 +118,9 @@ class Router:
 
     # List of requestValidators used to preflight-check an request before it's being dispatched within ViUR
     requestValidators = [FetchMetaDataValidator]
+
+    before_request_funcs: t.ClassVar[list[t.Callable[[], None]]] = []
+    after_request_funcs: t.ClassVar[list[t.Callable[[], None]]] = []
 
     def __init__(self, environ: dict):
         super().__init__()
@@ -154,8 +159,14 @@ class Router:
         current.session.set(session.Session())
         current.request_data.set({})
 
+        for fn in Router.before_request_funcs:
+            fn()
+
         # Process actual request
         self._process()
+
+        for fn in Router.after_request_funcs:
+            fn()
 
         self._cors()
 
@@ -778,6 +789,50 @@ class Router:
 
     def saveSession(self) -> None:
         current.session.get().save()
+
+
+def before_request(fn: t.Callable[[], None]) -> t.Callable[[], None]:
+    """Register a function to be called before each request is processed.
+
+    The function is called after context variables are set (``current.request``,
+    ``current.session``, ``current.request_data`` are available), but a fresh
+    ``Session`` container has not been loaded yet — call ``current.session.get().load()``
+    explicitly if you need session data. ``current.user`` is not set. Exceptions
+    raised by the hook propagate and abort request processing. No arguments are passed;
+    use ``current.request.get()`` to access the request. The function must not return a value.
+
+    Usage::
+
+        from viur.core import before_request
+
+        @before_request
+        def my_hook():
+            ...
+    """
+    Router.before_request_funcs.append(fn)
+    return fn
+
+
+def after_request(fn: t.Callable[[], None]) -> t.Callable[[], None]:
+    """Register a function to be called after each request has been processed.
+
+    The function is called after :meth:`Router._process` completes — the response
+    is fully generated, the session is saved, and ``current.user.get()`` is still
+    available. The call happens before CORS headers are applied. Exceptions raised
+    by the hook propagate and abort CORS processing. No arguments are passed;
+    use ``current.request.get().response`` to inspect the response. The function
+    must not return a value.
+
+    Usage::
+
+        from viur.core import after_request
+
+        @after_request
+        def my_hook():
+            ...
+    """
+    Router.after_request_funcs.append(fn)
+    return fn
 
 
 from .i18n import translate  # noqa: E402

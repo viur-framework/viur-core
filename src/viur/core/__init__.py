@@ -18,6 +18,7 @@ from types import ModuleType
 from viur.core import i18n, request, utils
 from viur.core.config import conf
 from viur.core.decorators import access, exposed, force_post, force_ssl, internal_exposed, skey
+from viur.core.request import after_request, before_request
 from viur.core.i18n import translate
 from viur.core.module import Method, Module
 import inspect
@@ -60,6 +61,8 @@ __all__ = [
     "PeriodicTask",
     # Decorators
     "access",
+    "after_request",
+    "before_request",
     "exposed",
     "force_post",
     "force_ssl",

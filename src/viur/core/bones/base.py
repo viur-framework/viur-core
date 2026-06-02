@@ -798,18 +798,23 @@ class BaseBone(object):
         if self.languages and isinstance(self.required, (list, tuple)):
             missing = set(self.required).difference(filled_languages)
             if missing:
-                return [
+                result_errors = [
                     ReadFromClientError(ReadFromClientErrorSeverity.Empty, fieldPath=[lang])
                     for lang in missing
                 ]
+                self.after_from_client(skel, name, result_errors)
+                return result_errors or None
 
         if isEmpty:
-            return [ReadFromClientError(ReadFromClientErrorSeverity.Empty)]
+            result_errors = [ReadFromClientError(ReadFromClientErrorSeverity.Empty)]
+            self.after_from_client(skel, name, result_errors)
+            return result_errors or None
 
         # Check multiple constraints on demand
         if self.multiple and isinstance(self.multiple, MultipleConstraints):
             errors.extend(self._validate_multiple_contraints(self.multiple, skel, name))
 
+        self.after_from_client(skel, name, errors)
         return errors or None
 
     def _get_single_destinct_hash(self, value) -> t.Any:
@@ -1384,6 +1389,24 @@ class BaseBone(object):
             :param skel: The skeleton this bone belongs to
             :param boneName: Name of this bone
             :param key: The old Database Key of the entity we've deleted
+        """
+        pass
+
+    def after_from_client(self, skel: "SkeletonInstance", name: str, errors: list[ReadFromClientError]) -> None:
+        """
+        Called at the end of :meth:`fromClient` after ``skel[name]`` has been set and all
+        validation (including multiple-constraints) has run.
+
+        Override to post-process or normalize ``skel[name]`` in-place, or to add/remove
+        entries from ``errors``. Always called when the field was part of the submitted data
+        (i.e. ``skel[name]`` has been written), regardless of whether errors occurred.
+        The ``NotSet`` early-return (field absent from request) is the only case where this
+        hook is *not* called.
+
+        :param skel: The skeleton instance whose bone value was just read.
+        :param name: The attribute name of this bone within the skeleton.
+        :param errors: Mutable list of :class:`ReadFromClientError` collected so far.
+            Changes here affect the return value of :meth:`fromClient`.
         """
         pass
 
