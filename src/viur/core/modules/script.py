@@ -1,5 +1,4 @@
 import io
-import logging
 import typing as t
 from viur.core.bones import *
 from viur.core.prototypes.tree import Tree, TreeSkel, SkelType
