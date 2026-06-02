@@ -16,6 +16,7 @@ from .types import (
     SortOrder,
     TFilters,
     TOrders,
+    TOrFilters,
     Key
 )
 from . import utils
@@ -29,7 +30,11 @@ TFilterHook = t.TypeVar("TFilterHook", bound=t.Callable[
 ])
 
 
-def _entryMatchesQuery(entry: Entity, singleFilter: dict) -> bool:
+def _entryMatchesQuery(
+    entry: Entity,
+    singleFilter: dict,
+    or_filters: TOrFilters | None = None,
+) -> bool:
     """
     Utility function which checks if the given entity could have been returned by a query filtering by the
     properties in singleFilter. This can be used if a list of entities have been retrieved (e.g. by a 3rd party
@@ -37,6 +42,7 @@ def _entryMatchesQuery(entry: Entity, singleFilter: dict) -> bool:
     :meth:`viur.core.prototypes.list.listFilter` method.
     :param entry: The entity which will be tested
     :param singleFilter: A dictionary containing all the filters from the query
+    :param or_filters: Optional list of OR groups; each group is a list of (filterStr, value) pairs
     :return: True if the entity could have been returned by such an query, False otherwise
     """
 
@@ -53,6 +59,13 @@ def _entryMatchesQuery(entry: Entity, singleFilter: dict) -> bool:
             return True
         elif opcode == ">=" and entryValue >= requestedValue:
             return True
+        elif opcode == "IN" and entryValue in requestedValue:
+            return True
+        elif opcode == "NOT_IN" and entryValue not in requestedValue:
+            return True
+        # any()-semantics for multi-value properties: list dispatch above handles iteration
+        elif opcode == "!=" and entryValue != requestedValue:
+            return True
         return False
 
     for filterStr, filterValue in singleFilter.items():
@@ -60,6 +73,15 @@ def _entryMatchesQuery(entry: Entity, singleFilter: dict) -> bool:
         entryValue = entry.get(field)
         if not doesMatch(entryValue, filterValue, opcode):
             return False
+
+    if or_filters:
+        for or_group in or_filters:
+            if not any(
+                doesMatch(entry.get(fs.split(" ", 1)[0]), v, fs.split(" ", 1)[1])
+                for fs, v in or_group
+            ):
+                return False
+
     return True
 
 
@@ -238,55 +260,82 @@ class Query(object):
                 return self
             prop, value = r
         if " " not in prop:
-            # Ensure that an equality filter is explicitly postfixed with " ="
             field = prop
             op = "="
         else:
             field, op = prop.split(" ")
-        if op.lower() in {"!=", "in"}:
-            if isinstance(self.queries, list):
-                raise NotImplementedError("You cannot use multiple IN or != filter")
-            origQuery = self.queries
-            self.queries = []
-            if op == "!=":
-                newFilter = copy.deepcopy(origQuery)
-                newFilter.filters[f"{field} <"] = value
-                self.queries.append(newFilter)
-                newFilter = copy.deepcopy(origQuery)
-                newFilter.filters[f"{field} >"] = value
-                self.queries.append(newFilter)
-            else:  # IN filter
-                if not isinstance(value, (list, tuple)):
-                    raise ValueError("Value must be list or tuple if using IN filter!")
-                for val in value:
-                    newFilter = copy.deepcopy(origQuery)
-                    newFilter.filters[f"{field} ="] = val
-                    self.queries.append(newFilter)
+
+        # Normalize to uppercase for native Datastore operators passed as lowercase
+        op = op.upper() if op.lower() in {"in", "!=", "not_in"} else op
+
+        if op in {"IN", "!=", "NOT_IN"} and not isinstance(self.queries, list):
+            if f"{field} {op}" in self.queries.filters:
+                raise ValueError(f"Cannot use multiple {op} filters on the same field '{field}'")
+
+        filterStr = f"{field} {op}"
+        if isinstance(self.queries, list):
+            for singleFilter in self.queries:
+                if filterStr not in singleFilter.filters:
+                    singleFilter.filters[filterStr] = value
+                else:
+                    if not isinstance(singleFilter.filters[filterStr], list):
+                        singleFilter.filters[filterStr] = [singleFilter.filters[filterStr]]
+                    singleFilter.filters[filterStr].append(value)
         else:
-            filterStr = f"{field} {op}"
+            if filterStr not in self.queries.filters:
+                self.queries.filters[filterStr] = value
+            else:
+                if not isinstance(self.queries.filters[filterStr], list):
+                    self.queries.filters[filterStr] = [self.queries.filters[filterStr]]
+                self.queries.filters[filterStr].append(value)
+
+        if op in {"<", "<=", ">", ">="}:
             if isinstance(self.queries, list):
-                for singeFilter in self.queries:
-                    if filterStr not in singeFilter.filters:
-                        singeFilter.filters[filterStr] = value
-                    else:
-                        if not isinstance(singeFilter.filters[filterStr]):
-                            singeFilter.filters[filterStr] = [singeFilter.filters[filterStr]]
-                        singeFilter.filters[filterStr].append(value)
-            else:  # It must be still a dict (we tested for None already above)
-                if filterStr not in self.queries.filters:
-                    self.queries.filters[filterStr] = value
-                else:
-                    if not isinstance(self.queries.filters[filterStr], list):
-                        self.queries.filters[filterStr] = [self.queries.filters[filterStr]]
-                    self.queries.filters[filterStr].append(value)
-            if op in {"<", "<=", ">", ">="}:
-                if isinstance(self.queries, list):
-                    for queryObj in self.queries:
-                        if not queryObj.orders or queryObj.orders[0][0] != field:
-                            queryObj.orders = [(field, SortOrder.Ascending)] + (queryObj.orders or [])
-                else:
-                    if not self.queries.orders or self.queries.orders[0][0] != field:
-                        self.queries.orders = [(field, SortOrder.Ascending)] + (self.queries.orders or [])
+                for queryObj in self.queries:
+                    if not queryObj.orders or queryObj.orders[0][0] != field:
+                        queryObj.orders = [(field, SortOrder.Ascending)] + (queryObj.orders or [])
+            else:
+                if not self.queries.orders or self.queries.orders[0][0] != field:
+                    self.queries.orders = [(field, SortOrder.Ascending)] + (self.queries.orders or [])
+        return self
+
+    def or_filter(self, *conditions: tuple[str, DATASTORE_BASE_TYPES]) -> t.Self:
+        """
+        Add an OR composite filter group.
+
+        Each call appends one OR group; multiple calls produce multiple groups
+        that are AND-ed together with each other and with any regular filters.
+
+        Example — continent is Africa OR Asia::
+
+            q.or_filter(("continent =", "Africa"), ("continent =", "Asia"))
+
+        Example — two independent OR groups (both must match)::
+
+            q.or_filter(("continent =", "Africa"), ("continent =", "Asia"))
+            q.or_filter(("sortindex >", 200), ("sortindex <", 50))
+
+        :param conditions: One or more ``("field op", value)`` pairs to OR together.
+        :returns: Returns the query itself for chaining.
+        """
+        if self.queries is None:
+            return self
+
+        parsed = []
+        for prop, value in conditions:
+            if " " not in prop:
+                field, op = prop, "="
+            else:
+                field, op = prop.split(" ", 1)
+            op = op.upper() if op.lower() in {"in", "!=", "not_in"} else op
+            parsed.append((f"{field} {op}", value))
+
+        if isinstance(self.queries, list):
+            for q in self.queries:
+                q.or_filters.append(parsed)
+        else:
+            self.queries.or_filters.append(parsed)
+
         return self
 
     def order(self, *orderings: t.Tuple[str, SortOrder]) -> t.Self:
@@ -509,8 +558,8 @@ class Query(object):
     ) -> t.List[Entity]:
         """
         Internal helper that takes a (deduplicated) list of entities that has been fetched from different internal
-        queries (the datastore does not support IN filters itself, so we have to query each item in that array
-        separately) and resorts the list so it matches the query again.
+        queries (e.g. from SpatialBone or RandomSliceBone custom multi-queries) and resorts the list so it matches
+        the query again. Regular IN/!= filters no longer use this path — they are handled natively by the Datastore.
 
         :param entities: t.List of entities to resort
         :param filters: The filter used in the query (used to determine implicit sort order by an inequality filter)
@@ -597,8 +646,6 @@ class Query(object):
 
         :raises: :exc:`BadFilterError` if a filter string is invalid
         :raises: :exc:`BadValueError` if a filter value is invalid.
-        :raises: :exc:`BadQueryError` if an IN filter in combination with a sort order on\
-        another property is provided
         """
         if self.queries is None:
             if conf.debug.trace_queries:
@@ -617,9 +664,9 @@ class Query(object):
             if not self.srcSkel.customDatabaseAdapter.fulltextSearchGuaranteesQueryConstrains:
                 # Search might yield results that are not included in the listfilter
                 if isinstance(self.queries, QueryDefinition):  # Just one
-                    res = [x for x in res if _entryMatchesQuery(x, self.queries.filters)]
+                    res = [x for x in res if _entryMatchesQuery(x, self.queries.filters, self.queries.or_filters)]
                 else:  # Multi-Query, must match at least one
-                    res = [x for x in res if any([_entryMatchesQuery(x, y.filters) for y in self.queries])]
+                    res = [x for x in res if any([_entryMatchesQuery(x, y.filters, y.or_filters) for y in self.queries])]
 
         elif isinstance(self.queries, list):
             limit = limit if limit >= 0 else self.queries[0].limit
@@ -693,8 +740,6 @@ class Query(object):
 
         :raises: :exc:`BadFilterError` if a filter string is invalid
         :raises: :exc:`BadValueError` if a filter value is invalid.
-        :raises: :exc:`BadQueryError` if an IN filter in combination with a sort order on
-            another property is provided
         """
         from viur.core.skeleton import SkelList, SkeletonInstance
 
