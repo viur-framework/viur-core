@@ -666,7 +666,8 @@ class Query(object):
                 if isinstance(self.queries, QueryDefinition):  # Just one
                     res = [x for x in res if _entryMatchesQuery(x, self.queries.filters, self.queries.or_filters)]
                 else:  # Multi-Query, must match at least one
-                    res = [x for x in res if any([_entryMatchesQuery(x, y.filters, y.or_filters) for y in self.queries])]
+                    res = [x for x in res if
+                           any([_entryMatchesQuery(x, y.filters, y.or_filters) for y in self.queries])]
 
         elif isinstance(self.queries, list):
             limit = limit if limit >= 0 else self.queries[0].limit

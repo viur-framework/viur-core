@@ -755,7 +755,8 @@ class QueryIter(object, metaclass=MetaQueryIter):
         """
         assert not (query._customMultiQueryMerge or query._calculateInternalMultiQueryLimit), \
             "Cannot iter a query with postprocessing"
-        assert isinstance(query.queries, db.QueryDefinition), "Unsatisfiable query or query with a custom multi-query (SpatialBone/RandomSliceBone)"
+        assert isinstance(query.queries, db.QueryDefinition), ("Unsatisfiable query or query with a custom multi-query "
+                                                               "(SpatialBone/RandomSliceBone)")
         assert not query.queries.or_filters, "Cannot serialize a query with OR filters into a deferred task"
         qryDict = {
             "kind": query.kind,
