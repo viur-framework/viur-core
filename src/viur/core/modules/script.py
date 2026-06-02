@@ -1,4 +1,5 @@
 import io
+import logging
 import typing as t
 from viur.core.bones import *
 from viur.core.prototypes.tree import Tree, TreeSkel, SkelType
@@ -122,6 +123,11 @@ class Script(Tree):
         super().onEdit(skelType, skel)
 
     def onEdited(self, skelType, skel):
+        old_path = skel["path"]
+        self.update_path(skel)
+        if skel["path"] != old_path:
+            skel.write()
+
         if skelType == "node":
             self.update_path_recursive("node", skel["path"], skel["key"])
             self.update_path_recursive("leaf", skel["path"], skel["key"])
@@ -160,9 +166,9 @@ class Script(Tree):
             if not parent_skel.read(key) or parent_skel["key"] == skel["parentrepo"]:
                 break
 
-            path.insert(0, parent_skel["name"])
+            if parent_skel["name"]:
+                path.insert(0, parent_skel["name"])
             key = parent_skel["parententry"]
-
         skel["path"] = "/".join(path)
 
     @exposed
