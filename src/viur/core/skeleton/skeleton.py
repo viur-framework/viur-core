@@ -35,6 +35,10 @@ class SeoKeyBone(StringBone):
     Special kind of StringBone saving its contents as `viurCurrentSeoKeys` into the entity's `viur` dict.
     """
 
+    def setSystemInitialized(self):
+        super().setSystemInitialized()
+        self.languages = conf.i18n.available_languages
+
     def unserialize(self, skel: SkeletonInstance, name: str) -> bool:
         try:
             skel.accessedValues[name] = skel.dbEntity["viur"]["viurCurrentSeoKeys"]
