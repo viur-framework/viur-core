@@ -105,11 +105,11 @@ class Router:
         - Load or initialize a new session
         - Set up i18n (choosing the language etc)
         - Run the request preprocessor (if any)
-        - Run before_request hooks (if any)
+        - Run pre_request hooks (if any)
         - Normalize & sanity check the parameters
         - Resolve the exposed function and call it
         - Save the session / tear down the request
-        - Run after_request hooks (if any)
+        - Run post_request hooks (if any)
         - Return the response generated
 
 
@@ -119,8 +119,8 @@ class Router:
     # List of requestValidators used to preflight-check an request before it's being dispatched within ViUR
     requestValidators = [FetchMetaDataValidator]
 
-    before_request_funcs: t.ClassVar[list[t.Callable[[], None]]] = []
-    after_request_funcs: t.ClassVar[list[t.Callable[[], None]]] = []
+    pre_request_funcs: t.ClassVar[list[t.Callable[[], None]]] = []
+    post_request_funcs: t.ClassVar[list[t.Callable[[], None]]] = []
 
     def __init__(self, environ: dict):
         super().__init__()
@@ -159,13 +159,13 @@ class Router:
         current.session.set(session.Session())
         current.request_data.set({})
 
-        for fn in Router.before_request_funcs:
+        for fn in Router.pre_request_funcs:
             fn()
 
         # Process actual request
         self._process()
 
-        for fn in Router.after_request_funcs:
+        for fn in Router.post_request_funcs:
             fn()
 
         self._cors()
@@ -791,7 +791,7 @@ class Router:
         current.session.get().save()
 
 
-def before_request(fn: t.Callable[[], None]) -> t.Callable[[], None]:
+def pre_request(fn: t.Callable[[], None]) -> t.Callable[[], None]:
     """Register a function to be called before each request is processed.
 
     The function is called after context variables are set (``current.request``,
@@ -803,17 +803,17 @@ def before_request(fn: t.Callable[[], None]) -> t.Callable[[], None]:
 
     Usage::
 
-        from viur.core import before_request
+        from viur.core import pre_request
 
-        @before_request
+        @pre_request
         def my_hook():
             ...
     """
-    Router.before_request_funcs.append(fn)
+    Router.pre_request_funcs.append(fn)
     return fn
 
 
-def after_request(fn: t.Callable[[], None]) -> t.Callable[[], None]:
+def post_request(fn: t.Callable[[], None]) -> t.Callable[[], None]:
     """Register a function to be called after each request has been processed.
 
     The function is called after :meth:`Router._process` completes — the response
@@ -825,13 +825,13 @@ def after_request(fn: t.Callable[[], None]) -> t.Callable[[], None]:
 
     Usage::
 
-        from viur.core import after_request
+        from viur.core import post_request
 
-        @after_request
+        @post_request
         def my_hook():
             ...
     """
-    Router.after_request_funcs.append(fn)
+    Router.post_request_funcs.append(fn)
     return fn
 
 
