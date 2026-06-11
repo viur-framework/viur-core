@@ -125,7 +125,7 @@ class Script(Tree):
         old_path = skel["path"]
         self.update_path(skel)
         if skel["path"] != old_path:
-            skel.write()
+            skel.patch({"path": skel["path"]})
 
         if skelType == "node":
             self.update_path_recursive("node", skel["path"], skel["key"])
