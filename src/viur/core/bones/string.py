@@ -6,7 +6,7 @@ import typing as t
 import warnings
 from numbers import Number
 
-from viur.core import current, db, utils
+from viur.core import conf, current, db, utils
 from .base import ReadFromClientError, ReadFromClientErrorSeverity
 from .raw import RawBone
 
@@ -29,7 +29,7 @@ class StringBone(RawBone):
         max_length: int | None = 254,
         min_length: int | None = None,
         natural_sorting: bool | t.Callable = False,
-        escape_html: bool = True,
+        escape_html: bool | None = None,
         **kwargs
     ):
         """
@@ -46,6 +46,7 @@ class StringBone(RawBone):
             that creates the value for the index property.
         :param escape_html: Replace some characters in the string with HTML-safe sequences with
             using :meth:`utils.string.escape` for safe use in HTML.
+            Defaults to :attr:`conf.bone_string_escape_html` if not set explicitly.
         :param kwargs: Inherited arguments from the BaseBone.
         """
         # fixme: Remove in viur-core >= 4
@@ -71,7 +72,7 @@ class StringBone(RawBone):
         elif not natural_sorting:
             self.natural_sorting = None
         # else: keep self.natural_sorting as is
-        self.escape_html = escape_html
+        self.escape_html = conf.bone_string_escape_html if escape_html is None else escape_html
 
     def type_coerce_single_value(self, value: t.Any) -> str:
         """Convert a value to a string (if not already)
