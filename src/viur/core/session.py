@@ -320,11 +320,16 @@ def update_session_user(user_key: "db.Key"):
         logging.warning(f"Cannot update sessions, {user_key=} not found")
         return
 
-    for session_entity in db.Query(Session.kindName).filter("user =", str(user_key)).iter():
-        session_entity["data"]["user"] = user_entity
-        session_entity["data"] = db.fix_unindexable_properties(session_entity["data"])
-        session_entity.exclude_from_indexes = {"data"}
-        db.put(session_entity)
+    def _update_txn(key):
+        if not (entity := db.get(key)):
+            return
+        entity["data"]["user"] = user_entity
+        entity["data"] = db.fix_unindexable_properties(entity["data"])
+        entity.exclude_from_indexes = {"data"}
+        db.put(entity)
+
+    for e in db.Query(Session.kindName).filter("user =", str(user_key)).iter():
+        db.run_in_transaction(_update_txn, e.key)
 
 
 @tasks.PeriodicTask(interval=datetime.timedelta(hours=4))
