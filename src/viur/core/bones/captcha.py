@@ -44,7 +44,7 @@ class CaptchaBone(BaseBone):
         public_key: str = None,
         score_threshold: float = 0.5,
         render_challenge: bool = False,
-        recaptcha_action:str = "",
+        recaptcha_action: str = "",
         **kwargs: t.Any
     ):
         """
