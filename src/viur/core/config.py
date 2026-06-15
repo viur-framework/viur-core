@@ -794,6 +794,9 @@ class Conf(ConfigType):
     bone_boolean_str2true: Multiple[str | int] = ("true", "yes", "1")
     """Allowed values that define a str to evaluate to true"""
 
+    bone_string_escape_html: bool = True
+    """Default escape_html setting for StringBone. Set to False to disable HTML escaping globally."""
+
     bone_html_default_allow: "HtmlBoneConfiguration" = {
         "validTags": [
             "a",
