@@ -2,6 +2,13 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.26]
+
+- fix: propagate user-entity changes into active sessions on edit (#1704)
+- fix: `RelationalBone.getSearchTags` should ignore any falsy values (#1707)
+- fix: `SignatureDoesNotMatch` for filenames containing `+` (#1697)
+- fix: Import Testbed on dev-server only (#1695)
+
 ## [3.8.25]
 
 - fix: `utils.get_base_url()` using urllib.parse (#1686)
