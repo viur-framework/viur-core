@@ -10,7 +10,7 @@ from viur.core.decorators import exposed
 from viur.core.bones import *
 from viur.core.i18n import KINDNAME, initializeTranslations, systemTranslations, translate
 from viur.core.prototypes.list import List
-from viur.core.skeleton import Skeleton, ViurTagsSearchAdapter
+from viur.core.skeleton import Skeleton, SkeletonInstance, ViurTagsSearchAdapter
 
 
 class Creator(enum.Enum):
@@ -211,7 +211,7 @@ class Translation(List):
         "admin": "*",
     }
 
-    def addSkel(self):
+    def addSkel(self) -> SkeletonInstance["TranslationSkel"]:
         """
         Returns a custom TranslationSkel where the name is editable.
         The name becomes part of the key.

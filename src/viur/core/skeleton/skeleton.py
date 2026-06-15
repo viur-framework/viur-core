@@ -173,7 +173,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     @classmethod
     def fromClient(
         cls,
-        skel: SkeletonInstance,
+        skel: "SkeletonInstance[t.Self]",
         data: dict[str, list[str] | str],
         *,
         amend: bool = False,
