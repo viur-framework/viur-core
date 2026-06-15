@@ -55,9 +55,9 @@
             </div>
         </aside>
         <h2>
-            <span class="text">774 statements &nbsp;</span>
+            <span class="text">773 statements &nbsp;</span>
             <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">0<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">774<span class="text"> missing</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">773<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">15<span class="text"> excluded</span></button>
             <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">0<span class="text"> partial</span></button>
         </h2>
@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_e295e1cac9db2f73_pagination_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.14.1">coverage.py v7.14.1</a>,
-            created at 2026-06-11 10:08 +0000
+            created at 2026-06-15 10:44 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -1981,9 +1981,9 @@
     <p class="mis show_mis"><span class="n"><a id="t1897" href="#t1897">1897</a></span><span class="t">        <span class="key">if</span> <span class="nam">self</span><span class="op">.</span><span class="nam">is_active</span><span class="op">(</span><span class="nam">skel</span><span class="op">)</span> <span class="key">is</span> <span class="key">False</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t1898" href="#t1898">1898</a></span><span class="t">            <span class="nam">session</span><span class="op">.</span><span class="nam">killSessionByUser</span><span class="op">(</span><span class="nam">skel</span><span class="op">[</span><span class="str">"key"</span><span class="op">]</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1899" href="#t1899">1899</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t1900" href="#t1900">1900</a></span><span class="t">        <span class="com"># Update user setting in all sessions</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1901" href="#t1901">1901</a></span><span class="t">        <span class="key">for</span> <span class="nam">session_obj</span> <span class="key">in</span> <span class="nam">db</span><span class="op">.</span><span class="nam">Query</span><span class="op">(</span><span class="str">"user"</span><span class="op">)</span><span class="op">.</span><span class="nam">filter</span><span class="op">(</span><span class="str">"user ="</span><span class="op">,</span> <span class="nam">skel</span><span class="op">[</span><span class="str">"key"</span><span class="op">]</span><span class="op">)</span><span class="op">.</span><span class="nam">iter</span><span class="op">(</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1902" href="#t1902">1902</a></span><span class="t">            <span class="nam">session_obj</span><span class="op">[</span><span class="str">"data"</span><span class="op">]</span><span class="op">[</span><span class="str">"user"</span><span class="op">]</span> <span class="op">=</span> <span class="nam">skel</span><span class="op">.</span><span class="nam">dbEntity</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t1900" href="#t1900">1900</a></span><span class="t">        <span class="com"># Otherwise, update the user entity cached in all the user's sessions</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t1901" href="#t1901">1901</a></span><span class="t">        <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1902" href="#t1902">1902</a></span><span class="t">            <span class="nam">session</span><span class="op">.</span><span class="nam">update_session_user</span><span class="op">(</span><span class="nam">skel</span><span class="op">[</span><span class="str">"key"</span><span class="op">]</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1903" href="#t1903">1903</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t1904" href="#t1904">1904</a></span><span class="t">    <span class="key">def</span> <span class="nam">onDeleted</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">skel</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t1905" href="#t1905">1905</a></span><span class="t">        <span class="nam">super</span><span class="op">(</span><span class="op">)</span><span class="op">.</span><span class="nam">onDeleted</span><span class="op">(</span><span class="nam">skel</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -2049,7 +2049,7 @@
             <a class="nav" href="z_e295e1cac9db2f73_pagination_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.14.1">coverage.py v7.14.1</a>,
-            created at 2026-06-11 10:08 +0000
+            created at 2026-06-15 10:44 +0000
         </p>
     </div>
 </footer>
