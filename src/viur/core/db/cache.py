@@ -1,7 +1,4 @@
 import datetime
-
-from google.appengine.ext.testbed import Testbed
-
 import logging
 import sys
 import typing as t
@@ -169,6 +166,7 @@ def check_for_memcache() -> bool:
 def init_testbed() -> None:
     global TESTBED
     if TESTBED is None and conf.instance.is_dev_server and conf.db.memcache_client:
+        from google.appengine.ext.testbed import Testbed
         TESTBED = Testbed()
         TESTBED.activate()
         TESTBED.init_memcache_stub()

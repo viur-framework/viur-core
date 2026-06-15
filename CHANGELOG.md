@@ -2,7 +2,7 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.9.0.dev2]
+## [3.9.0.dev3]
 
 - chore: Deprecate endpoint `/vi/getStructure` (#1616)
 - chore: Deprecate endpoints `/vi/getVersion` and `/vi/settings` (#1669)
@@ -14,6 +14,13 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: Code fixes due long aging and invalid merge
 - refactor: Provide and use `_can_access`-function in vi-render (#1659)
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
+
+## [3.8.26]
+
+- fix: propagate user-entity changes into active sessions on edit (#1704)
+- fix: `RelationalBone.getSearchTags` should ignore any falsy values (#1707)
+- fix: `SignatureDoesNotMatch` for filenames containing `+` (#1697)
+- fix: Import Testbed on dev-server only (#1695)
 
 ## [3.8.25]
 
