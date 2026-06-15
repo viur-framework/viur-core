@@ -2,7 +2,7 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.9.0.dev3]
+## [3.9.0.dev4]
 
 - chore: Deprecate endpoint `/vi/getStructure` (#1616)
 - doc: Docstrings for compute-related enum variants
