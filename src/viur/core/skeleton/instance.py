@@ -386,23 +386,36 @@ class SkeletonInstance(t.Generic[Skeleton_Cls]):
         self.accessedValues = {}
         self.renderAccessedValues = {}
 
-    def structure(self) -> dict:
+    def structure(self, *, exposed_only: bool = False) -> dict:
+        """
+        Return a dict describing each bone's configuration and metadata in this skeleton.
+
+        Each entry is keyed by bone name and contains the result of :meth:`BaseBone.structure`
+        extended with a ``sortindex`` reflecting the bone's position in the skeleton.
+
+        :param exposed_only: If True, only bones with ``exposed=True`` are included in the output.
+        """
         return {
             key: bone.structure() | {"sortindex": i}
             for i, (key, bone) in enumerate(self.items())
+            if not exposed_only or bone.exposed
         }
 
-    def dump(self):
+    def dump(self, *, exposed_only: bool = False):
         """
         Return a JSON-serializable version of the bone values in this skeleton.
 
         The function is not called "to_json()" because the JSON-serializable
         format can be used for different purposes and renderings, not just
         JSON.
+
+        :param exposed_only: If True, only bones with ``exposed=True`` are included in the output.
         """
 
         return {
-            bone_name: bone.dump(self, bone_name) for bone_name, bone in self.items()
+            bone_name: bone.dump(self, bone_name)
+            for bone_name, bone in self.items()
+            if not exposed_only or bone.exposed
         }
 
     def __deepcopy__(self, memodict):

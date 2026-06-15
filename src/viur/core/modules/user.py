@@ -70,16 +70,19 @@ class UserSkel(skeleton.Skeleton):
         caseSensitive=False,
         searchable=True,
         unique=UniqueValue(UniqueLockMethod.SameValue, True, "Username already taken"),
+        tags=("personal", "identifier", "contact"),
     )
 
     firstname = StringBone(
         descr="Firstname",
         searchable=True,
+        tags="personal",
     )
 
     lastname = StringBone(
         descr="Lastname",
         searchable=True,
+        tags="personal",
     )
 
     roles = SelectBone(
@@ -106,7 +109,7 @@ class UserSkel(skeleton.Skeleton):
         multiple=True,
         params={
             "readonlyIf": "'custom' not in roles"  # if "custom" is not in roles, "access" is managed by the role system
-        }
+        },
     )
 
     status = SelectBone(
@@ -120,11 +123,13 @@ class UserSkel(skeleton.Skeleton):
     lastlogin = DateBone(
         descr="Last Login",
         readOnly=True,
+        tags=("personal", "technical"),
     )
 
-    admin_config = JsonBone(  # This bone stores settings from the vi
+    admin_config = JsonBone(  # This bone stores settings from the admin
         descr="Config for the User",
-        visible=False
+        visible=False,
+        exposed=False,
     )
 
     def __new__(cls, *args, **kwargs):
@@ -278,7 +283,7 @@ class UserPassword(UserPrimaryAuthentication):
             visible=False,
             params={
                 "category": "Authentication",
-            }
+            },
         )
 
     class LoginSkel(skeleton.RelSkel):
@@ -641,7 +646,7 @@ class GoogleAccount(UserPrimaryAuthentication):
             unique=UniqueValue(UniqueLockMethod.SameValue, False, "UID already in use"),
             params={
                 "category": "Authentication",
-            }
+            },
         )
 
         skel_cls.sync = BooleanBone(
@@ -653,7 +658,7 @@ class GoogleAccount(UserPrimaryAuthentication):
                     "If set, user data like firstname and lastname is automatically kept"
                     "synchronous with the information stored at the OAuth service provider"
                     "(e.g. Google Login)."
-            }
+            },
         )
 
     @exposed
@@ -792,14 +797,14 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             searchable=True,
             params={
                 "category": "Second Factor Authentication",
-            }
+            },
         )
 
         skel_cls.otp_secret = CredentialBone(
             descr="OTP secret",
             params={
                 "category": "Second Factor Authentication",
-            }
+            },
         )
 
         skel_cls.otp_timedrift = NumericBone(
@@ -809,7 +814,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             precision=1,
             params={
                 "category": "Second Factor Authentication",
-            }
+            },
         )
 
     def get_config(self, skel: skeleton.SkeletonInstance) -> OtpConfig | None:
@@ -1095,7 +1100,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             descr="OTP Secret (App-Key)",
             params={
                 "category": "Second Factor Authentication",
-            }
+            },
         )
 
     @classmethod
