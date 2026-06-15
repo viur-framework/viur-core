@@ -1,7 +1,7 @@
 import typing as t
 
 from viur.core import conf, db, utils
-from viur.core.bones.base import BaseBone
+from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 
 DEFAULT_VALUE_T: t.TypeAlias = bool | None | list[bool] | dict[str, list[bool] | bool]
 
@@ -36,7 +36,12 @@ class BooleanBone(BaseBone):
             raise ValueError("BooleanBone cannot be multiple")
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
-        return utils.parse.bool(value, conf.bone_boolean_str2true), None
+        value = utils.parse.bool(value, conf.bone_boolean_str2true)
+
+        if err := self.isInvalid(value):
+            return value, [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
+
+        return value, None
 
     def getEmptyValue(self):
         """

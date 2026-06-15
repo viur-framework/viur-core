@@ -798,18 +798,23 @@ class BaseBone(object):
         if self.languages and isinstance(self.required, (list, tuple)):
             missing = set(self.required).difference(filled_languages)
             if missing:
-                return [
+                result_errors = [
                     ReadFromClientError(ReadFromClientErrorSeverity.Empty, fieldPath=[lang])
                     for lang in missing
                 ]
+                self.after_from_client(skel, name, result_errors)
+                return result_errors or None
 
         if isEmpty:
-            return [ReadFromClientError(ReadFromClientErrorSeverity.Empty)]
+            result_errors = [ReadFromClientError(ReadFromClientErrorSeverity.Empty)]
+            self.after_from_client(skel, name, result_errors)
+            return result_errors or None
 
         # Check multiple constraints on demand
         if self.multiple and isinstance(self.multiple, MultipleConstraints):
             errors.extend(self._validate_multiple_contraints(self.multiple, skel, name))
 
+        self.after_from_client(skel, name, errors)
         return errors or None
 
     def _get_single_destinct_hash(self, value) -> t.Any:
@@ -977,7 +982,6 @@ class BaseBone(object):
             case ComputeMethod.Once:
                 if name not in skel.dbEntity:
                     skel.accessedValues[name] = self._compute(skel, name)
-
 
     def singleValueUnserialize(self, val):
         """
@@ -1294,10 +1298,11 @@ class BaseBone(object):
                 the list may contain more than one hashed value.
         """
 
-        def hashValue(value: str | int | float | db.Key) -> str:
+        def hash_value(value: str | int | float | db.Key) -> str:
             h = hashlib.sha256()
             h.update(str(value).encode("UTF-8"))
             res = h.hexdigest()
+
             if isinstance(value, int | float):
                 return f"I-{res}"
             elif isinstance(value, str):
@@ -1308,27 +1313,32 @@ class BaseBone(object):
                 def keyHash(key):
                     if key is None:
                         return "-"
-                    return f"{hashValue(key.kind)}-{hashValue(key.id_or_name)}-<{keyHash(key.parent)}>"
+                    return f"{hash_value(key.kind)}-{hash_value(key.id_or_name)}-<{keyHash(key.parent)}>"
 
                 return f"K-{keyHash(value)}"
+
             raise NotImplementedError(f"Type {type(value)} can't be safely used in an uniquePropertyIndex")
 
+        # zero/empty string and these should not be locked
         if not value and not self.unique.lockEmpty:
-            return []  # We are zero/empty string and these should not be locked
-        if not self.multiple and not isinstance(value, list):
-            return [hashValue(value)]
-        # We have a multiple bone or multiple values here
+            return []
+
+        # Always work with list of values
         if not isinstance(value, list):
             value = [value]
-        tmpList = [hashValue(x) for x in value]
+
+        values = [hash_value(val) for val in value]
+
         if self.unique.method == UniqueLockMethod.SameValue:
-            # We should lock each entry individually; lock each value
-            return tmpList
+            # Lock each entry individually
+            return values
+
         elif self.unique.method == UniqueLockMethod.SameSet:
-            # We should ignore the sort-order; so simply sort that List
-            tmpList.sort()
-        # Lock the value for that specific list
-        return [hashValue(", ".join(tmpList))]
+            # Ignore the sort-order; so simply sort that list
+            values.sort()
+
+        # Lock the value for that specific list (equals to UniqueLockMethod.SameList)
+        return [hash_value(", ".join(values))]
 
     def getUniquePropertyIndexValues(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> list[str]:
         """
@@ -1342,10 +1352,11 @@ class BaseBone(object):
         :return: A list of strings representing the hashed values for the current bone value(s) in the skeleton.
                 If the bone has no value, an empty list is returned.
         """
-        val = skel[name]
-        if val is None:
-            return []
-        return self._hashValueForUniquePropertyIndex(val)
+        if self.compute:
+            self.serialize_compute(skel, name)
+
+        values = [value for _, _, value in self.iter_bone_value(skel, name) if value is not None]
+        return self._hashValueForUniquePropertyIndex(values) if values else []
 
     def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
@@ -1378,6 +1389,24 @@ class BaseBone(object):
             :param skel: The skeleton this bone belongs to
             :param boneName: Name of this bone
             :param key: The old Database Key of the entity we've deleted
+        """
+        pass
+
+    def after_from_client(self, skel: "SkeletonInstance", name: str, errors: list[ReadFromClientError]) -> None:
+        """
+        Called at the end of :meth:`fromClient` after ``skel[name]`` has been set and all
+        validation (including multiple-constraints) has run.
+
+        Override to post-process or normalize ``skel[name]`` in-place, or to add/remove
+        entries from ``errors``. Always called when the field was part of the submitted data
+        (i.e. ``skel[name]`` has been written), regardless of whether errors occurred.
+        The ``NotSet`` early-return (field absent from request) is the only case where this
+        hook is *not* called.
+
+        :param skel: The skeleton instance whose bone value was just read.
+        :param name: The attribute name of this bone within the skeleton.
+        :param errors: Mutable list of :class:`ReadFromClientError` collected so far.
+            Changes here affect the return value of :meth:`fromClient`.
         """
         pass
 

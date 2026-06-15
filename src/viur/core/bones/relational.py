@@ -544,7 +544,12 @@ class RelationalBone(BaseBone):
             entity["viur_delayed_update_tag"] = now
             entity["viur_relational_updateLevel"] = self.updateLevel.value
             entity["viur_relational_consistency"] = self.consistency.value
-            entity["viur_foreign_keys"] = list(self.refKeys)
+            # Store expanded bone names, not raw refKeys patterns.
+            # refKeys may contain fnmatch wildcards (e.g. "delivery_time_*" matching
+            # "delivery_time_min", "delivery_time_max", "delivery_time_range").
+            # update_relations filters viur-relations via Datastore IN-query with the
+            # literal changed bone name — wildcard patterns would never match there.
+            entity["viur_foreign_keys"] = list(self._ref_keys)
             entity["viurTags"] = skel.dbEntity.get("viurTags") if skel.dbEntity else None
 
             db.put(entity)
@@ -582,7 +587,7 @@ class RelationalBone(BaseBone):
         # Call postSavedHandler on UsingSkel (RelSkel)
         if self.using:
             for idx, lang, value in self.iter_bone_value(skel, boneName):
-                if not value["rel"]:
+                if not value or not value["rel"]:
                     continue
                 for bone_name, bone in value["rel"].items():
                     bone.postSavedHandler(value["rel"], bone_name, key)
@@ -639,6 +644,10 @@ class RelationalBone(BaseBone):
         else:
             dest_key = value
             value = {}
+
+        if not isinstance(dest_key, db.KeyType):
+            errors.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid))
+            return self.getEmptyValue(), errors
 
         if self.using:
             rel = self.using()
@@ -1066,8 +1075,12 @@ class RelationalBone(BaseBone):
                 # Reset the dbEntity for a clean rewrite
                 value["dest"].dbEntity = None
 
-                # Copy over the refKey values
-                for key in self.refKeys:
+                # Copy over the refKey values using expanded bone names (_ref_keys),
+                # not raw refKeys patterns. refKeys may contain fnmatch wildcards
+                # (e.g. "delivery_time_*" → "delivery_time_min", "delivery_time_max",
+                # "delivery_time_range"). Iterating raw patterns would attempt
+                # target_skel["delivery_time_*"] which doesn't exist → copies None.
+                for key in self._ref_keys:
                     value["dest"][key] = target_skel[key]
                     # logging.debug(f"Refreshed {key=} to {value["dest"][key]!r} ({str(value["dest"][key])!r})")
 
@@ -1094,7 +1107,7 @@ class RelationalBone(BaseBone):
 
         ref_skel_cache, using_skel_cache = self._getSkels()
         for idx, lang, value in self.iter_bone_value(skel, name):
-            if value is None:
+            if not value:
                 continue
             if value["dest"]:
                 get_values(ref_skel_cache, value["dest"])
@@ -1258,24 +1271,32 @@ class RelationalBone(BaseBone):
 
         return result
 
-    def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> list[str]:
+    def getUniquePropertyIndexValues(self, skel: "SkeletonInstance", name: str) -> list[str]:
         """
         Generates unique property index values for the RelationalBone based on the referenced keys.
         Can be overridden if different behavior is required (e.g., examining values from `prop:usingSkel`).
 
-        :param dict valuesCache: The cache containing the current values of the bone.
+        :param skel: The skeleton instance.
         :param str name: The name of the bone for which to generate unique property index values.
 
         :return: A list containing the unique property index values for the specified bone.
         :rtype: List[str]
         """
-        value = valuesCache.get(name)
-        if not value:  # We don't have a value to lock
-            return []
-        if isinstance(value, dict):
-            return self._hashValueForUniquePropertyIndex(value["dest"]["key"])
-        elif isinstance(value, list):
-            return self._hashValueForUniquePropertyIndex([entry["dest"]["key"] for entry in value if entry])
+        values = []
+
+        for _, _, v in self.iter_bone_value(skel, name):
+            if not v:
+                continue
+
+            if self.using and (rel_skel := v.get("rel")):
+                values.append(json.dumps(
+                    {"key": str(v["dest"]["key"]), "rel": rel_skel.dump()},
+                    sort_keys=True, default=str,
+                ))
+            else:
+                values.append(v["dest"]["key"])
+
+        return self._hashValueForUniquePropertyIndex(values) if values else []
 
     def structure(self) -> dict:
         return super().structure() | {
@@ -1287,7 +1308,7 @@ class RelationalBone(BaseBone):
         }
 
     def _atomic_dump(self, value: dict[str, "SkeletonInstance"]) -> dict | None:
-        if isinstance(value, dict):
+        if value and isinstance(value, dict):  # can be an empty dict due RelationalConsistency.SetNull
             return {
                 "dest": value["dest"].dump(),
                 "rel": value["rel"].dump() if value["rel"] else None,

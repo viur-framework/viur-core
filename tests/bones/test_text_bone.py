@@ -80,6 +80,44 @@ class TestTextBone_fromClient(ViURTestCase):
         self.assertIsInstance(rfce := res[1][0], ReadFromClientError)
         self.assertIs(ReadFromClientErrorSeverity.Invalid, rfce.severity)
 
+    def test_getUniquePropertyIndexValues_single(self):
+        from viur.core.bones import TextBone
+        from viur.core.bones.base import UniqueValue, UniqueLockMethod
+        bone = TextBone(unique=UniqueValue(UniqueLockMethod.SameValue, False, ""))
+        result = bone.getUniquePropertyIndexValues({self.bone_name: "Hello"}, self.bone_name)
+        self.assertEqual(1, len(result))
+        self.assertTrue(result[0].startswith("S-"))
+
+    def test_getUniquePropertyIndexValues_empty(self):
+        from viur.core.bones import TextBone
+        from viur.core.bones.base import UniqueValue, UniqueLockMethod
+        bone = TextBone(unique=UniqueValue(UniqueLockMethod.SameValue, False, ""))
+        self.assertEqual([], bone.getUniquePropertyIndexValues({self.bone_name: None}, self.bone_name))
+
+    def test_getUniquePropertyIndexValues_languages(self):
+        from viur.core.bones import TextBone
+        from viur.core.bones.base import UniqueValue, UniqueLockMethod
+        bone = TextBone(
+            unique=UniqueValue(UniqueLockMethod.SameValue, False, ""),
+            languages=["de", "en"],
+        )
+        result = bone.getUniquePropertyIndexValues(
+            {self.bone_name: {"de": "Hallo", "en": "Hello"}}, self.bone_name,
+        )
+        self.assertEqual(2, len(result))
+
+    def test_getUniquePropertyIndexValues_languages_partial_none(self):
+        from viur.core.bones import TextBone
+        from viur.core.bones.base import UniqueValue, UniqueLockMethod
+        bone = TextBone(
+            unique=UniqueValue(UniqueLockMethod.SameValue, False, ""),
+            languages=["de", "en"],
+        )
+        result = bone.getUniquePropertyIndexValues(
+            {self.bone_name: {"de": "Hallo", "en": None}}, self.bone_name,
+        )
+        self.assertEqual(1, len(result))
+
     def test_html_parsing(self):
         from viur.core.bones import TextBone
         bone = TextBone()

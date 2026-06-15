@@ -104,6 +104,26 @@ def normalizeKey(key: t.Union[None, db.Key]) -> t.Union[None, db.Key]:
     db.normalize_key(key)
 
 
+def get_base_url() -> str:
+    """
+    Retrieve current request's base URL with protocol.
+    The function enforces use of https-protocol on non-localhost hostnames.
+
+    :returns: Returns the hostname, including the currently used protocol, e.g: https://www.example.com
+    :rtype: str
+    """
+    base = urllib.parse.urlparse(current.request.get().request.url).netloc  # retrieve URL of request
+
+    # Always enforce https!
+    if any(base.startswith(i) for i in ("localhost", "127.0.0.1", "[::1]", "0.0.0.0")):
+        base = f"http://{base}"
+    else:
+        base = f"https://{base}"
+
+    # Replace non-SSL-ready-"appspot.com"-URLs with their SSL-ready counterpart
+    return base.replace(f".{conf.instance.project_id}.", f"-dot-{conf.instance.project_id}.")
+
+
 def ensure_iterable(
     obj: t.Any,
     *,
@@ -170,7 +190,10 @@ def build_content_disposition_header(
     if attachment and inline:
         raise ValueError("Only one of 'attachment' or 'inline' may be True.")
 
-    fallback = string.normalize_ascii(filename)
+    # Replace '+' with '%2B' in the ASCII fallback: when this header is embedded
+    # as a query parameter in GCS signed URLs, the signing library leaves '+' unencoded
+    # while GCS form-decodes '+' as space during verification → SignatureDoesNotMatch.
+    fallback = string.normalize_ascii(filename).replace("+", "%2B")
     quoted_utf8 = urllib.parse.quote_from_bytes(filename.encode("utf-8"))
 
     content_disposition = "; ".join(
