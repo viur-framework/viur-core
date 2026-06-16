@@ -39,7 +39,7 @@ class SortOrder(enum.Enum):
 class QueryOrder(t.NamedTuple):
     """A named tuple describing a single sort order for a datastore query."""
     name: str
-    order: SortOrder
+    order: SortOrder = SortOrder.Ascending
 
 
 class Key(Datastore_key):

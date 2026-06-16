@@ -414,7 +414,7 @@ class TextBone(RawBone):
             from viur.core.bones.file import ensureDerived
             for blob_key in blob_keys:
                 file_obj = db.Query("file").filter("dlkey =", blob_key) \
-                    .order(db.QueryOrder("creationdate", db.SortOrder.Ascending)).getEntry()
+                    .order(db.QueryOrder("creationdate")).getEntry()
                 if file_obj:
                     ensureDerived(file_obj.key, f"{skel.kindName}_{name}", derive_dict, skel["key"])
 

@@ -749,7 +749,7 @@ class File(Tree):
 
         if isinstance(file, str):
             file = db.Query("file").filter("dlkey =", file).order(
-                db.QueryOrder("creationdate", db.SortOrder.Ascending)).getEntry()
+                db.QueryOrder("creationdate")).getEntry()
 
         if not file:
             return ""

@@ -32,10 +32,14 @@ class TestDb(ViURTestCase):
 class TestQueryOrder(ViURTestCase):
     def test_queryorder_is_namedtuple(self) -> None:
         from viur.core import db
-        qo = db.QueryOrder("name", db.SortOrder.Ascending)
+        qo = db.QueryOrder("name")
         self.assertIsInstance(qo, tuple)
         self.assertEqual(qo.name, "name")
-        self.assertEqual(qo.order, db.SortOrder.Ascending)
+        self.assertEqual(qo.order, db.SortOrder.Ascending)  # default
+
+    def test_queryorder_default_is_ascending(self) -> None:
+        from viur.core import db
+        self.assertEqual(db.QueryOrder("x").order, db.SortOrder.Ascending)
 
     def test_queryorder_tuple_compat(self) -> None:
         from viur.core import db

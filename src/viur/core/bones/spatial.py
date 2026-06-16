@@ -281,7 +281,7 @@ class SpatialBone(BaseBone):
             q1 = deepcopy(origQuery)
             q1.filters[name + ".coordinates.lat >="] = lat
             q1.filters[name + ".tiles.lat ="] = tileLat
-            q1.orders = [db.QueryOrder(name + ".coordinates.lat", db.SortOrder.Ascending)]
+            q1.orders = [db.QueryOrder(name + ".coordinates.lat")]
             # Lat - Left Side
             q2 = deepcopy(origQuery)
             q2.filters[name + ".coordinates.lat <"] = lat
@@ -291,7 +291,7 @@ class SpatialBone(BaseBone):
             q3 = deepcopy(origQuery)
             q3.filters[name + ".coordinates.lng >="] = lng
             q3.filters[name + ".tiles.lng ="] = tileLng
-            q3.orders = [db.QueryOrder(name + ".coordinates.lng", db.SortOrder.Ascending)]
+            q3.orders = [db.QueryOrder(name + ".coordinates.lng")]
             # Lng - Top
             q4 = deepcopy(origQuery)
             q4.filters[name + ".coordinates.lng <"] = lng

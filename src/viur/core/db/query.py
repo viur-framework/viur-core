@@ -284,10 +284,10 @@ class Query(object):
                 if isinstance(self.queries, list):
                     for queryObj in self.queries:
                         if not queryObj.orders or queryObj.orders[0].name != field:
-                            queryObj.orders = [QueryOrder(field, SortOrder.Ascending)] + (queryObj.orders or [])
+                            queryObj.orders = [QueryOrder(field)] + (queryObj.orders or [])
                 else:
                     if not self.queries.orders or self.queries.orders[0].name != field:
-                        self.queries.orders = [QueryOrder(field, SortOrder.Ascending)] + (self.queries.orders or [])
+                        self.queries.orders = [QueryOrder(field)] + (self.queries.orders or [])
         return self
 
     def order(self, *orderings: QueryOrder | t.Tuple[str, SortOrder] | str) -> t.Self:
@@ -303,7 +303,7 @@ class Query(object):
 
             query = Query("Person")
             query.order(
-                db.QueryOrder("bday", db.SortOrder.Ascending),
+                db.QueryOrder("bday"),
                 db.QueryOrder("age", db.SortOrder.Descending),
             )
 
@@ -345,7 +345,7 @@ class Query(object):
         orders = []
         for order in orderings:
             if isinstance(order, str):
-                order = QueryOrder(order, SortOrder.Ascending)
+                order = QueryOrder(order)
             elif isinstance(order, QueryOrder):
                 pass
             elif (
@@ -357,7 +357,7 @@ class Query(object):
             else:
                 raise TypeError(
                     f"Invalid ordering {order!r}, expected a (str, SortOrder) tuple or QueryOrder."
-                    f' Try: `QueryOrder("{order}", SortOrder.Ascending)`'
+                    f' Try: `QueryOrder("{order}")`'
                 )
             orders.append(order)
 
@@ -564,7 +564,7 @@ class Query(object):
                 ineqFilter = k.split(" ")[0]
                 break
         if ineqFilter and (not orders or not orders[0].name == ineqFilter):
-            orders = [QueryOrder(ineqFilter, SortOrder.Ascending)] + (orders or [])
+            orders = [QueryOrder(ineqFilter)] + (orders or [])
 
         for orderField, direction in orders[::-1]:
             if orderField == KEY_SPECIAL_PROPERTY:
