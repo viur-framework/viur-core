@@ -3,7 +3,7 @@ import numbers
 import sys
 import typing as t
 import warnings
-from decimal import Decimal, InvalidOperation, localcontext
+import decimal
 
 from viur.core import db, i18n
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
@@ -34,7 +34,7 @@ class NumericBone(BaseBone):
         min: int | float = MIN,
         max: int | float = MAX,
         precision: int = 0,
-        decimal: bool = False,
+        decimal_mode: bool = False,
         mode=None,  # deprecated!
         **kwargs
     ):
@@ -44,7 +44,7 @@ class NumericBone(BaseBone):
         :param min: Minimum accepted value (including).
         :param max: Maximum accepted value (including).
         :param precision: How may decimal places should be saved. Zero casts the value to int instead of float.
-        :param decimal: If True, use decimal.Decimal internally for exact arithmetic.
+        :param decimal_mode: If True, use decimal.Decimal internally for exact arithmetic.
         """
         super().__init__(**kwargs)
 
@@ -64,9 +64,9 @@ class NumericBone(BaseBone):
         self.precision = precision
         self.min = min
         self.max = max
-        self.decimal = decimal
-        if decimal:
-            self._quantize_exp = Decimal(10) ** -precision
+        self.decimal = decimal_mode
+        if decimal_mode:
+            self._quantize_exp = decimal.Decimal(10) ** -precision
 
     def __setattr__(self, key, value):
         """
@@ -86,48 +86,43 @@ class NumericBone(BaseBone):
 
         return super().__setattr__(key, value)
 
-    def _convert_to_decimal(self, value) -> Decimal | None:
+    def _convert_to_decimal(self, value) -> decimal.Decimal | None:
         """Convert *value* to a quantized Decimal. Uses str() roundtrip for floats.
         Accepts comma as decimal separator in strings."""
         if value is None:
             return None
-        with localcontext() as ctx:
+        with decimal.localcontext() as ctx:
             # +20 as buffer for integer digits to avoid InvalidOperation on quantize
             ctx.prec = self.precision + 20
-            if isinstance(value, Decimal):
+            if isinstance(value, decimal.Decimal):
                 return value.quantize(self._quantize_exp)
             if isinstance(value, str):
                 value = value.replace(",", ".", 1)
-                return Decimal(value).quantize(self._quantize_exp)
+                return decimal.Decimal(value).quantize(self._quantize_exp)
             if isinstance(value, (int, float)):
-                return Decimal(str(value)).quantize(self._quantize_exp)
+                return decimal.Decimal(str(value)).quantize(self._quantize_exp)
         raise ValueError(f"Cannot convert {type(value).__name__} to Decimal")
 
     def singleValueUnserialize(self, val):
         if val is not None:
             try:
                 if self.decimal:
+                    if isinstance(val, dict) and "decimal" in val:
+                        return self._convert_to_decimal(val["decimal"])
                     return self._convert_to_decimal(val)
                 return self._convert_to_numeric(val)
-            except (ValueError, TypeError, InvalidOperation):
+            except (ValueError, TypeError, decimal.InvalidOperation):
                 return self.getDefaultValue(None)  # FIXME: callable needs the skeleton instance
 
         return val
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
-        if self.decimal:
-            if value is not None:
-                skel.dbEntity[f"{name}.decimal"] = str(self._convert_to_decimal(value))
-                return self._convert_to_numeric(value)
+        if self.decimal and value is not None:
+            return {
+                "val": self._convert_to_numeric(value),
+                "decimal": str(self._convert_to_decimal(value)),
+            }
         return self.singleValueUnserialize(value)  # same logic for unserialize here!
-
-    def unserialize(self, skel: "SkeletonInstance", name: str) -> bool:
-        if self.decimal:
-            decimal_name = f"{name}.decimal"
-            if decimal_name in skel.dbEntity:
-                # Prefer exact string representation over float
-                skel.dbEntity[name] = skel.dbEntity[decimal_name]
-        return super().unserialize(skel, name)
 
     def isInvalid(self, value):
         """
@@ -148,7 +143,7 @@ class NumericBone(BaseBone):
             precision is non-zero).
         """
         if self.decimal:
-            return Decimal(0).quantize(self._quantize_exp)
+            return decimal.Decimal(0).quantize(self._quantize_exp)
         if self.precision:
             return 0.0
         else:
@@ -172,13 +167,12 @@ class NumericBone(BaseBone):
                 value = self._convert_to_decimal(value)
             else:
                 value = self._convert_to_numeric(value)
-        except (ValueError, TypeError, InvalidOperation):
+        except (ValueError, TypeError, decimal.InvalidOperation):
             return True
         return value == self.getEmptyValue()
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
         if self.decimal:
-            """Handle client input for decimal mode."""
             if value is None or (isinstance(value, str) and not value.strip()):
                 return self.getEmptyValue(), [
                     ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value entered")
@@ -187,7 +181,7 @@ class NumericBone(BaseBone):
                 if isinstance(value, str):
                     value = value.replace(",", ".", 1)
                 value = self._convert_to_decimal(value)
-            except (InvalidOperation, ValueError, TypeError):
+            except (decimal.InvalidOperation, ValueError, TypeError):
                 return self.getEmptyValue(), [
                     ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid decimal value")
                 ]
@@ -299,11 +293,11 @@ class NumericBone(BaseBone):
         """
         super().refresh(skel, boneName)
 
-        def refresh_single_value(value: t.Any) -> float | int | Decimal:
+        def refresh_single_value(value: t.Any) -> float | int | decimal.Decimal:
             if value == "":
                 return self.getEmptyValue()
             elif self.decimal:
-                if not isinstance(value, (Decimal, type(None))):
+                if not isinstance(value, (decimal.Decimal, type(None))):
                     return self._convert_to_decimal(value)
             elif not isinstance(value, (int, float, type(None))):
                 return self._convert_to_numeric(value)
