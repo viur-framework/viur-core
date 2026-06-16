@@ -680,6 +680,27 @@ class Security(ConfigType):
             res += "; "
         current.request.get().response.headers["Content-Security-Policy"] = res
 
+    def finalize(self) -> None:
+        """Build the derived header caches and validate the security config. Called once by ``core.setup()``."""
+        self._build_csp_header_cache()
+        self._build_permissions_policy_header()
+
+        for header_name in self._csp_header_cache:
+            if not header_name.startswith("Content-Security-Policy"):
+                raise AssertionError("Got unexpected header in Security._csp_header_cache")
+        if self.strict_transport_security:
+            if not self.strict_transport_security.startswith("max-age"):
+                raise AssertionError("Got unexpected value in Security.strict_transport_security")
+        cross_domain_policies = {None, "none", "master-only", "by-content-type", "all"}
+        if self.x_permitted_cross_domain_policies not in cross_domain_policies:
+            raise AssertionError(
+                f"Security.x_permitted_cross_domain_policies must be one of {cross_domain_policies!r}")
+        if self.x_frame_options is not None and isinstance(self.x_frame_options, tuple):
+            mode, uri = self.x_frame_options
+            assert mode in ("deny", "sameorigin", "allow-from")
+            if mode == "allow-from":
+                assert uri is not None and (uri.lower().startswith("https://") or uri.lower().startswith("http://"))
+
 
 class Debug(ConfigType):
     """Several debug flags"""

@@ -125,3 +125,23 @@ class TestSecurityHeaders(ViURTestCase):
         csp = holder.response.headers["Content-Security-Policy"]
         self.assertIn("default-src 'self'; ", csp)
         self.assertIn("style-src 'nonce-abc'; ", csp)  # per-request CSP DOES quote nonce-
+
+    def test_finalize_builds_and_validates(self):
+        sec = self._fresh_security()
+        sec.content_security_policy = {"enforce": {"default-src": ["self"]}}
+        sec.permissions_policy = {"autoplay": ["self"]}
+        sec.finalize()
+        self.assertEqual(sec._csp_header_cache["Content-Security-Policy"], "default-src 'self'; ")
+        self.assertEqual(sec._permissions_policy_header, "autoplay=(self)")
+
+    def test_finalize_rejects_bad_hsts(self):
+        sec = self._fresh_security()
+        sec.strict_transport_security = "nonsense"
+        with self.assertRaises(AssertionError):
+            sec.finalize()
+
+    def test_finalize_rejects_bad_cross_domain(self):
+        sec = self._fresh_security()
+        sec.x_permitted_cross_domain_policies = "bogus"
+        with self.assertRaises(AssertionError):
+            sec.finalize()
