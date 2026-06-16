@@ -1,5 +1,4 @@
 import types
-import unittest
 
 import webob
 
