@@ -10,6 +10,15 @@ class TestSecurityHeaders(ViURTestCase):
         super().setUp()
         from viur.core.config import conf
         conf.strict_mode = False
+        # add_csp_rule asserts the app hasn't been built yet (conf.main_app is None).
+        # Other tests in the full suite may leave conf.main_app set, so snapshot and reset it.
+        self._orig_main_app = conf.main_app
+        conf.main_app = None
+
+    def tearDown(self):
+        from viur.core.config import conf
+        conf.main_app = self._orig_main_app
+        super().tearDown()
 
     def _fresh_security(self):
         """A standalone Security instance that does not mutate shared class defaults."""
