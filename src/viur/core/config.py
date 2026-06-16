@@ -578,6 +578,63 @@ class Security(ConfigType):
         self.enable_coop = coop
         self.enable_corp = corp
 
+    _csp_header_cache: dict[str, str] = {}
+    """Derived cache of built CSP header strings; populated by :meth:`finalize`. Internal."""
+
+    def add_csp_rule(self, object_type: str, src_or_directive: str, enforce_mode: str = "monitor") -> None:
+        """Add a Content-Security-Policy rule. Call before the app is built (i.e. before ``setup()``).
+
+        :param object_type: directive type, e.g. ``script-src``, ``img-src``, ``report-uri``, ...
+        :param src_or_directive: an allowed source/host or a CSP keyword like ``self``, ``unsafe-inline``.
+        :param enforce_mode: ``enforce`` or ``monitor`` (report-only).
+        """
+        assert enforce_mode in ("monitor", "enforce"), "enforce_mode must be 'monitor' or 'enforce'!"
+        assert object_type in {
+            "default-src", "script-src", "object-src", "style-src", "img-src", "media-src",
+            "frame-src", "font-src", "connect-src", "report-uri", "frame-ancestors", "child-src",
+            "form-action", "require-trusted-types-for",
+        }
+        assert conf.main_app is None, "You cannot modify CSP rules after the app has been built!"
+        assert not any(c in src_or_directive for c in (";", "'", '"', "\n", ",")), \
+            "Invalid character in src_or_directive!"
+        if self.content_security_policy is None:
+            self.content_security_policy = {}
+        if enforce_mode not in self.content_security_policy:
+            self.content_security_policy[enforce_mode] = {}
+        if object_type == "report-uri":
+            self.content_security_policy[enforce_mode]["report-uri"] = [src_or_directive]
+        else:
+            if object_type not in self.content_security_policy[enforce_mode]:
+                self.content_security_policy[enforce_mode][object_type] = []
+            if src_or_directive not in self.content_security_policy[enforce_mode][object_type]:
+                self.content_security_policy[enforce_mode][object_type].append(src_or_directive)
+
+    def _build_csp_header_cache(self) -> None:
+        """(Re)build :attr:`_csp_header_cache` from :attr:`content_security_policy`.
+
+        NOTE: project-wide CSP does NOT quote ``nonce-`` values (a nonce must not be reused across
+        requests); per-request :meth:`extend_csp` does quote them. Keep these rules distinct.
+        """
+        self._csp_header_cache = {}
+        if not self.content_security_policy:
+            return
+        for enforce_mode in ("monitor", "enforce"):
+            if enforce_mode not in self.content_security_policy:
+                continue
+            res = ""
+            for key, values in self.content_security_policy[enforce_mode].items():
+                res += key
+                for value in values:
+                    res += " "
+                    if value in {"self", "unsafe-inline", "unsafe-eval", "script", "none"} \
+                            or any(value.startswith(p) for p in ("sha256-", "sha384-", "sha512-")):
+                        res += f"'{value}'"
+                    else:
+                        res += value
+                res += "; "
+            header = "Content-Security-Policy-Report-Only" if enforce_mode == "monitor" else "Content-Security-Policy"
+            self._csp_header_cache[header] = res
+
 
 class Debug(ConfigType):
     """Several debug flags"""

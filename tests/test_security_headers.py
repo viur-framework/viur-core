@@ -79,3 +79,27 @@ class TestSecurityHeaders(ViURTestCase):
         self.assertEqual(sec.enable_corp, "same-site")
         with self.assertRaises(AssertionError):
             sec.set_cross_origin_isolation(True, "bogus", "same-site")
+
+    def test_add_csp_rule_and_build(self):
+        sec = self._fresh_security()
+        sec.add_csp_rule("default-src", "self", "enforce")
+        sec.add_csp_rule("img-src", "storage.googleapis.com", "enforce")
+        sec.add_csp_rule("script-src", "self", "monitor")
+        sec._build_csp_header_cache()
+        enforce = sec._csp_header_cache["Content-Security-Policy"]
+        self.assertIn("default-src 'self'; ", enforce)
+        self.assertIn("img-src storage.googleapis.com; ", enforce)
+        report_only = sec._csp_header_cache["Content-Security-Policy-Report-Only"]
+        self.assertIn("script-src 'self'; ", report_only)
+
+    def test_add_csp_rule_invalid(self):
+        sec = self._fresh_security()
+        with self.assertRaises(AssertionError):
+            sec.add_csp_rule("default-src", "self", "bogus-mode")
+        with self.assertRaises(AssertionError):
+            sec.add_csp_rule("default-src", "ev'il", "enforce")
+
+    def test_build_csp_header_cache_empty(self):
+        sec = self._fresh_security()  # content_security_policy is None
+        sec._build_csp_header_cache()
+        self.assertEqual(sec._csp_header_cache, {})
