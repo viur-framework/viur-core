@@ -216,3 +216,9 @@ class TestSecurityHeaders(ViURTestCase):
         from viur.core import securityheaders
         from viur.core.config import conf
         self.assertEqual(securityheaders.validReferrerPolicies, conf.security.VALID_REFERRER_POLICIES)
+
+    def test_debug_trace_headers_defaults(self):
+        from viur.core.config import conf
+        self.assertFalse(conf.debug.trace_headers)
+        self.assertIn("Cookie", conf.debug.trace_headers_redact)
+        self.assertIn("Authorization", conf.debug.trace_headers_redact)

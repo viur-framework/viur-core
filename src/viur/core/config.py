@@ -766,6 +766,14 @@ class Debug(ConfigType):
     disable_cache: bool = False
     """If set to true, the decorator @enableCache from viur.core.cache has no effect"""
 
+    trace_headers: bool = False
+    """If enabled, log the incoming request headers and the final outgoing response headers per request.
+    Sensitive headers are redacted (see :attr:`trace_headers_redact`)."""
+
+    trace_headers_redact: Multiple[str] = ("Authorization", "Proxy-Authorization", "Cookie", "Set-Cookie")
+    """Header names (matched case-insensitively) whose values are redacted in :attr:`trace_headers` output.
+    An empty collection disables redaction (full raw dump)."""
+
     _mapping = {
         "skeleton.fromClient": "skeleton_from_client",
         "traceExceptions": "trace_exceptions",
