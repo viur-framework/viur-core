@@ -557,6 +557,7 @@ class Security(ConfigType):
             raise ValueError("enable must be one of True | False")
 
     def set_x_permitted_cross_domain_policies(self, value: t.Optional[str]) -> None:
+        """Set the X-Permitted-Cross-Domain-Policies header (or disable it with None)."""
         if value not in (None, "none", "master-only", "by-content-type", "all"):
             raise ValueError('value must be one of [None, "none", "master-only", "by-content-type", "all"]')
         self.x_permitted_cross_domain_policies = value
@@ -593,7 +594,7 @@ class Security(ConfigType):
             "default-src", "script-src", "object-src", "style-src", "img-src", "media-src",
             "frame-src", "font-src", "connect-src", "report-uri", "frame-ancestors", "child-src",
             "form-action", "require-trusted-types-for",
-        }
+        }, f"object_type {object_type!r} is not a valid CSP directive"
         assert conf.main_app is None, "You cannot modify CSP rules after the app has been built!"
         assert not any(c in src_or_directive for c in (";", "'", '"', "\n", ",")), \
             "Invalid character in src_or_directive!"
@@ -645,7 +646,7 @@ class Security(ConfigType):
             for k, v in self.permissions_policy.items()
         )
 
-    def extend_csp(self, additional_rules: dict = None, override_rules: dict = None) -> None:
+    def extend_csp(self, additional_rules: t.Optional[dict] = None, override_rules: t.Optional[dict] = None) -> None:
         """Extend/override the project-wide CSP for the *current* request only (``enforce`` mode).
 
         ``additional_rules`` values are appended, ``override_rules`` values replace (None removes a key).

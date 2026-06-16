@@ -40,6 +40,10 @@ class TestSecurityHeaders(ViURTestCase):
         sec = self._fresh_security()
         sec.set_x_xss_protection(None)
         self.assertIsNone(sec.x_xss_protection)
+        sec.set_x_xss_protection(True)
+        self.assertIs(sec.x_xss_protection, True)
+        sec.set_x_xss_protection(False)
+        self.assertIs(sec.x_xss_protection, False)
         with self.assertRaises(ValueError):
             sec.set_x_xss_protection("yes")
 
@@ -97,6 +101,8 @@ class TestSecurityHeaders(ViURTestCase):
             sec.add_csp_rule("default-src", "self", "bogus-mode")
         with self.assertRaises(AssertionError):
             sec.add_csp_rule("default-src", "ev'il", "enforce")
+        with self.assertRaises(AssertionError):
+            sec.add_csp_rule("scripts-src", "self", "enforce")  # unknown directive
 
     def test_build_csp_header_cache_empty(self):
         sec = self._fresh_security()  # content_security_policy is None
@@ -157,6 +163,7 @@ class TestSecurityHeaders(ViURTestCase):
         self.assertEqual(resp.headers["X-Content-Type-Options"], "nosniff")
         self.assertEqual(resp.headers["Referrer-Policy"], sec.referrer_policy)
         self.assertEqual(resp.headers["Permissions-Policy"], "autoplay=(self)")
+        self.assertEqual(resp.headers["X-Frame-Options"], "sameorigin")
 
     def test_update_response_headers_no_hsts_without_ssl(self):
         sec = self._fresh_security()
