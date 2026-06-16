@@ -236,6 +236,31 @@ class TestSecurityHeaders(ViURTestCase):
         headers = {"Cookie": "secret"}
         self.assertEqual(_redact_headers(headers, ())["Cookie"], "secret")
 
+    def test_extend_csp_override_and_remove(self):
+        from viur.core import current
+        sec = self._fresh_security()
+        sec.content_security_policy = {"enforce": {"default-src": ["self"], "img-src": ["self"]}}
+        holder = types.SimpleNamespace(response=webob.Response())
+        token = current.request.set(holder)
+        try:
+            sec.extend_csp(override_rules={"default-src": ["none"], "img-src": None})
+        finally:
+            current.request.reset(token)
+        csp = holder.response.headers["Content-Security-Policy"]
+        self.assertIn("default-src 'none'; ", csp)
+        self.assertNotIn("img-src", csp)
+
+    def test_extend_csp_with_no_project_csp(self):
+        from viur.core import current
+        sec = self._fresh_security()  # content_security_policy is None
+        holder = types.SimpleNamespace(response=webob.Response())
+        token = current.request.set(holder)
+        try:
+            sec.extend_csp({"style-src": ["self"]})
+        finally:
+            current.request.reset(token)
+        self.assertIn("style-src 'self'; ", holder.response.headers["Content-Security-Policy"])
+
     def test_audit_headers_logs_redacted(self):
         from viur.core import request
         from viur.core.config import conf

@@ -347,7 +347,8 @@ class Security(ConfigType):
             "object-src": ["none"],
         }
     }
-    """If set, viur will emit a CSP http-header with each request. Use security.addCspRule to set this property"""
+    """If set, viur will emit a CSP http-header with each request.
+    Use :meth:`viur.core.config.Security.add_csp_rule` to set this property."""
 
     referrer_policy: str = "strict-origin"
     """Per default, we'll emit Referrer-Policy: strict-origin so no referrers leak to external services
@@ -369,7 +370,7 @@ class Security(ConfigType):
     }
     """Include a default permissions-policy.
     To use the camera or microphone, you'll have to call
-    :meth: securityheaders.setPermissionPolicyDirective to include at least "self"
+    :meth:`viur.core.config.Security.set_permission_policy_directive` to include at least "self"
     """
 
     enable_coep: bool = False
