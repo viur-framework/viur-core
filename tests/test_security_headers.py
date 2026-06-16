@@ -164,3 +164,23 @@ class TestSecurityHeaders(ViURTestCase):
         resp = webob.Response()
         sec.update_response_headers(resp, is_ssl=False)
         self.assertNotIn("Strict-Transport-Security", resp.headers)
+
+    def test_build_csp_header_cache_does_not_quote_nonce(self):
+        sec = self._fresh_security()
+        sec.content_security_policy = {"enforce": {"style-src": ["nonce-abc"]}}
+        sec._build_csp_header_cache()
+        csp = sec._csp_header_cache["Content-Security-Policy"]
+        # project-wide CSP must NOT quote nonce- (a nonce must not be reused across requests)
+        self.assertIn("style-src nonce-abc; ", csp)
+        self.assertNotIn("'nonce-abc'", csp)
+
+    def test_add_csp_rule_rejected_after_app_built(self):
+        from viur.core.config import conf
+        sec = self._fresh_security()
+        original = conf.main_app
+        conf.main_app = object()  # simulate "app already built"
+        try:
+            with self.assertRaises(AssertionError):
+                sec.add_csp_rule("default-src", "self", "enforce")
+        finally:
+            conf.main_app = original
