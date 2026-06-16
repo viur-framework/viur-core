@@ -242,15 +242,37 @@ class NumericBone(BaseBone):
                     # It's just another bone which name start's with our's
                     continue
                 try:
-                    if not self.precision:
+                    if self.decimal:
+                        paramValue = float(str(paramValue).replace(",", ".", 1))
+                    elif not self.precision:
                         paramValue = int(paramValue)
                     else:
                         paramValue = float(paramValue)
-                except ValueError:
+                except (ValueError, decimal.InvalidOperation):
                     # The value we should filter by is garbage, cancel this query
                     logging.warning(f"Invalid filtering! Unparsable int/float supplied to NumericBone {name}")
                     raise RuntimeError()
                 updatedFilter[parmKey] = paramValue
+
+        if self.decimal:
+            # Values are stored as {"val": float, "decimal": str} — filter on the .val sub-property
+            prop = (prefix or "") + name + ".val"
+            for key, value in updatedFilter.items():
+                if key == name:
+                    dbFilter.filter(prop + " =", value)
+                else:
+                    op = key[len(name) + 1:]  # the part after "$"
+                    if op == "lt":
+                        dbFilter.filter(prop + " <", value)
+                    elif op == "le":
+                        dbFilter.filter(prop + " <=", value)
+                    elif op == "gt":
+                        dbFilter.filter(prop + " >", value)
+                    elif op == "ge":
+                        dbFilter.filter(prop + " >=", value)
+                    else:
+                        dbFilter.filter(prop + " =", value)
+            return dbFilter
 
         return super().buildDBFilter(name, skel, dbFilter, updatedFilter, prefix)
 
