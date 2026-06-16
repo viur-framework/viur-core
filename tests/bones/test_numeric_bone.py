@@ -310,18 +310,24 @@ class TestNumericBone_Decimal(ViURTestCase):
     def test_singleValueSerialize_decimal(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
-        import types
         bone = NumericBone(precision=2, decimal_mode=True)
-        skel = types.SimpleNamespace(dbEntity={})
-        result = bone.singleValueSerialize(Decimal("1234.56"), skel, "amount", True)
-        self.assertIsInstance(result, float)
-        self.assertAlmostEqual(result, 1234.56)
-        self.assertEqual(skel.dbEntity.get("amount.decimal"), "1234.56")
+        result = bone.singleValueSerialize(Decimal("1234.56"), None, "amount", True)
+        self.assertIsInstance(result, dict)
+        self.assertAlmostEqual(result["val"], 1234.56)
+        self.assertEqual(result["decimal"], "1234.56")
 
     def test_singleValueSerialize_decimal_none(self):
         from viur.core.bones.numeric import NumericBone
         bone = NumericBone(precision=2, decimal_mode=True)
         self.assertIsNone(bone.singleValueSerialize(None, None, "amount", True))
+
+    def test_singleValueUnserialize_decimal_from_dict(self):
+        from viur.core.bones.numeric import NumericBone
+        from decimal import Decimal
+        bone = NumericBone(precision=2, decimal_mode=True)
+        result = bone.singleValueUnserialize({"val": 1234.5600000001, "decimal": "1234.56"})
+        self.assertIsInstance(result, Decimal)
+        self.assertEqual(result, Decimal("1234.56"))
 
     def test_singleValueUnserialize_decimal_from_str(self):
         from viur.core.bones.numeric import NumericBone
