@@ -8,8 +8,13 @@ import warnings
 from functools import partial
 
 from viur.core import db
-from .meta import Skeleton_Cls
 from .skeleton import Skeleton
+
+if t.TYPE_CHECKING:
+    from .meta import Skeleton_Cls
+else:
+    # Avoid circular import at runtime: meta.py → bones/__init__.py → image.py → relskel.py → meta.py
+    Skeleton_Cls = t.TypeVar("Skeleton_Cls")
 from ..bones.base import BaseBone
 
 
