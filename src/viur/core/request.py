@@ -92,6 +92,17 @@ class FetchMetaDataValidator(RequestValidator):
         return 403, "Forbidden", "Request rejected due to fetch metadata"
 
 
+def _redact_headers(headers: t.Iterable[tuple[str, str]] | t.Mapping[str, str],
+                    redact: t.Iterable[str]) -> dict[str, str]:
+    """Return a plain dict of ``headers`` with values of ``redact`` names replaced by ``[redacted]``.
+
+    Header-name matching is case-insensitive. An empty ``redact`` returns everything unchanged.
+    """
+    redact_lower = {name.lower() for name in redact}
+    items = headers.items() if hasattr(headers, "items") else headers
+    return {key: ("[redacted]" if key.lower() in redact_lower else value) for key, value in items}
+
+
 class Router:
     """
         This class accepts the requests, collect its parameters and routes the request

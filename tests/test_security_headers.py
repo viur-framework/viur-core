@@ -222,3 +222,16 @@ class TestSecurityHeaders(ViURTestCase):
         self.assertFalse(conf.debug.trace_headers)
         self.assertIn("Cookie", conf.debug.trace_headers_redact)
         self.assertIn("Authorization", conf.debug.trace_headers_redact)
+
+    def test_redact_headers(self):
+        from viur.core.request import _redact_headers
+        headers = {"Cookie": "secret", "X-Foo": "bar", "set-cookie": "s"}
+        redacted = _redact_headers(headers, ("Cookie", "Set-Cookie"))
+        self.assertEqual(redacted["Cookie"], "[redacted]")
+        self.assertEqual(redacted["set-cookie"], "[redacted]")  # case-insensitive
+        self.assertEqual(redacted["X-Foo"], "bar")
+
+    def test_redact_headers_empty_list_is_raw(self):
+        from viur.core.request import _redact_headers
+        headers = {"Cookie": "secret"}
+        self.assertEqual(_redact_headers(headers, ())["Cookie"], "secret")
