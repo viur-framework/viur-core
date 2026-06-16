@@ -145,3 +145,23 @@ class TestSecurityHeaders(ViURTestCase):
         sec.x_permitted_cross_domain_policies = "bogus"
         with self.assertRaises(AssertionError):
             sec.finalize()
+
+    def test_update_response_headers_full(self):
+        sec = self._fresh_security()
+        sec.content_security_policy = {"enforce": {"default-src": ["self"]}}
+        sec.permissions_policy = {"autoplay": ["self"]}
+        sec.finalize()
+        resp = webob.Response()
+        sec.update_response_headers(resp, is_ssl=True)
+        self.assertEqual(resp.headers["Content-Security-Policy"], "default-src 'self'; ")
+        self.assertEqual(resp.headers["Strict-Transport-Security"], sec.strict_transport_security)
+        self.assertEqual(resp.headers["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(resp.headers["Referrer-Policy"], sec.referrer_policy)
+        self.assertEqual(resp.headers["Permissions-Policy"], "autoplay=(self)")
+
+    def test_update_response_headers_no_hsts_without_ssl(self):
+        sec = self._fresh_security()
+        sec.finalize()
+        resp = webob.Response()
+        sec.update_response_headers(resp, is_ssl=False)
+        self.assertNotIn("Strict-Transport-Security", resp.headers)

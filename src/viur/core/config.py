@@ -701,6 +701,42 @@ class Security(ConfigType):
             if mode == "allow-from":
                 assert uri is not None and (uri.lower().startswith("https://") or uri.lower().startswith("http://"))
 
+    def update_response_headers(self, response, *, is_ssl: bool) -> None:
+        """Emit all configured security headers onto ``response`` (a webob Response).
+
+        Must be called BEFORE the request handler runs, so handlers/:meth:`extend_csp` can override CSP.
+        """
+        if self._csp_header_cache:
+            for header_name, value in self._csp_header_cache.items():
+                response.headers[header_name] = value
+        if is_ssl and self.strict_transport_security:
+            response.headers["Strict-Transport-Security"] = self.strict_transport_security
+        if self.x_content_type_options:
+            response.headers["X-Content-Type-Options"] = "nosniff"
+        if self.x_xss_protection is not None:
+            if self.x_xss_protection:
+                response.headers["X-XSS-Protection"] = "1; mode=block"
+            elif self.x_xss_protection is False:
+                response.headers["X-XSS-Protection"] = "0"
+        if self.x_frame_options is not None and isinstance(self.x_frame_options, tuple):
+            mode, uri = self.x_frame_options
+            if mode in ("deny", "sameorigin"):
+                response.headers["X-Frame-Options"] = mode
+            elif mode == "allow-from":
+                response.headers["X-Frame-Options"] = f"allow-from {uri}"
+        if self.x_permitted_cross_domain_policies is not None:
+            response.headers["X-Permitted-Cross-Domain-Policies"] = self.x_permitted_cross_domain_policies
+        if self.referrer_policy:
+            response.headers["Referrer-Policy"] = self.referrer_policy
+        if self._permissions_policy_header:
+            response.headers["Permissions-Policy"] = self._permissions_policy_header
+        if self.enable_coep:
+            response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+        if self.enable_coop:
+            response.headers["Cross-Origin-Opener-Policy"] = self.enable_coop
+        if self.enable_corp:
+            response.headers["Cross-Origin-Resource-Policy"] = self.enable_corp
+
 
 class Debug(ConfigType):
     """Several debug flags"""
