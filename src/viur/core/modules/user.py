@@ -31,7 +31,6 @@ from viur.core.bones import *
 from viur.core.bones.password import PBKDF2_DEFAULT_ITERATIONS, encode_password
 from viur.core.prototypes.list import List
 from viur.core.ratelimit import RateLimit
-from viur.core.securityheaders import extendCsp
 from viur.core.session import Session
 
 
@@ -676,7 +675,7 @@ class GoogleAccount(UserPrimaryAuthentication):
 
             # FIXME: Use Jinja2 for rendering?
             tpl_string = tpl_string.replace("{{ clientID }}", conf.user.google_client_id)
-            extendCsp({
+            conf.security.extend_csp({
                 "script-src": ["sha256-JpzaUIxV/gVOQhKoDLerccwqDDIVsdn1JclA6kRNkLw="],
                 "style-src": ["sha256-FQpGSicYMVC5jxKGS5sIEzrRjSJmkxKPaetUc7eamqc="]
             })
