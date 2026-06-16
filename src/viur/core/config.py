@@ -635,6 +635,16 @@ class Security(ConfigType):
             header = "Content-Security-Policy-Report-Only" if enforce_mode == "monitor" else "Content-Security-Policy"
             self._csp_header_cache[header] = res
 
+    _permissions_policy_header: str = ""
+    """Derived cache of the built Permissions-Policy header string; populated by :meth:`finalize`. Internal."""
+
+    def _build_permissions_policy_header(self) -> None:
+        """(Re)build :attr:`_permissions_policy_header` from :attr:`permissions_policy`."""
+        self._permissions_policy_header = ", ".join(
+            "%s=(%s)" % (k, " ".join(('"%s"' % x if x != "self" else x) for x in v))
+            for k, v in self.permissions_policy.items()
+        )
+
 
 class Debug(ConfigType):
     """Several debug flags"""

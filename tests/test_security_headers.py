@@ -103,3 +103,9 @@ class TestSecurityHeaders(ViURTestCase):
         sec = self._fresh_security()  # content_security_policy is None
         sec._build_csp_header_cache()
         self.assertEqual(sec._csp_header_cache, {})
+
+    def test_build_permissions_policy_header(self):
+        sec = self._fresh_security()
+        sec.permissions_policy = {"autoplay": ["self"], "camera": []}
+        sec._build_permissions_policy_header()
+        self.assertEqual(sec._permissions_policy_header, "autoplay=(self), camera=()")
