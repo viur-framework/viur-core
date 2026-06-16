@@ -200,3 +200,19 @@ class TestSecurityHeaders(ViURTestCase):
                 sec.add_csp_rule("default-src", "self", "enforce")
         finally:
             conf.main_app = original
+
+    def test_module_shims_warn_and_delegate(self):
+        from viur.core import securityheaders
+        from viur.core.config import conf
+        original = conf.security.referrer_policy
+        try:
+            with self.assertWarns(DeprecationWarning):
+                securityheaders.setReferrerPolicy("origin")
+            self.assertEqual(conf.security.referrer_policy, "origin")
+        finally:
+            conf.security.referrer_policy = original
+
+    def test_module_valid_referrer_policies_alias(self):
+        from viur.core import securityheaders
+        from viur.core.config import conf
+        self.assertEqual(securityheaders.validReferrerPolicies, conf.security.VALID_REFERRER_POLICIES)
