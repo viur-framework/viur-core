@@ -1107,7 +1107,7 @@ class RelationalBone(BaseBone):
 
         ref_skel_cache, using_skel_cache = self._getSkels()
         for idx, lang, value in self.iter_bone_value(skel, name):
-            if value is None:
+            if not value:
                 continue
             if value["dest"]:
                 get_values(ref_skel_cache, value["dest"])

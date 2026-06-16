@@ -35,6 +35,10 @@ class SeoKeyBone(StringBone):
     Special kind of StringBone saving its contents as `viurCurrentSeoKeys` into the entity's `viur` dict.
     """
 
+    def setSystemInitialized(self):
+        super().setSystemInitialized()
+        self.languages = conf.i18n.available_languages
+
     def unserialize(self, skel: SkeletonInstance, name: str) -> bool:
         try:
             skel.accessedValues[name] = skel.dbEntity["viur"]["viurCurrentSeoKeys"]
@@ -169,7 +173,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     @classmethod
     def fromClient(
         cls,
-        skel: SkeletonInstance,
+        skel: "SkeletonInstance[t.Self]",
         data: dict[str, list[str] | str],
         *,
         amend: bool = False,

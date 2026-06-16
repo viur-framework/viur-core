@@ -190,7 +190,10 @@ def build_content_disposition_header(
     if attachment and inline:
         raise ValueError("Only one of 'attachment' or 'inline' may be True.")
 
-    fallback = string.normalize_ascii(filename)
+    # Replace '+' with '%2B' in the ASCII fallback: when this header is embedded
+    # as a query parameter in GCS signed URLs, the signing library leaves '+' unencoded
+    # while GCS form-decodes '+' as space during verification → SignatureDoesNotMatch.
+    fallback = string.normalize_ascii(filename).replace("+", "%2B")
     quoted_utf8 = urllib.parse.quote_from_bytes(filename.encode("utf-8"))
 
     content_disposition = "; ".join(
