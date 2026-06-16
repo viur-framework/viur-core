@@ -235,3 +235,22 @@ class TestSecurityHeaders(ViURTestCase):
         from viur.core.request import _redact_headers
         headers = {"Cookie": "secret"}
         self.assertEqual(_redact_headers(headers, ())["Cookie"], "secret")
+
+    def test_audit_headers_logs_redacted(self):
+        from viur.core import request
+        from viur.core.config import conf
+        original = conf.debug.trace_headers_redact
+        conf.debug.trace_headers_redact = ("Cookie", "Set-Cookie")
+        try:
+            fake = types.SimpleNamespace(
+                request=types.SimpleNamespace(headers={"Cookie": "secret", "X-Foo": "bar"}),
+                response=types.SimpleNamespace(headers={"Set-Cookie": "s", "X-Bar": "baz"}),
+            )
+            with self.assertLogs(level="DEBUG") as cm:
+                request.Router._audit_headers(fake)
+            blob = "\n".join(cm.output)
+            self.assertIn("[redacted]", blob)
+            self.assertNotIn("secret", blob)
+            self.assertIn("bar", blob)
+        finally:
+            conf.debug.trace_headers_redact = original

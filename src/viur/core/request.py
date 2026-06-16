@@ -180,6 +180,9 @@ class Router:
 
         self._cors()
 
+        if conf.debug.trace_headers:
+            self._audit_headers()
+
         # Unset context variables
         current.language.set(None)
         current.request_data.set(None)
@@ -768,6 +771,12 @@ class Router:
 
     def saveSession(self) -> None:
         current.session.get().save()
+
+    def _audit_headers(self) -> None:
+        """Log the (redacted) request and final response headers (enabled via conf.debug.trace_headers)."""
+        redact = conf.debug.trace_headers_redact
+        logging.debug("Request headers: %r", _redact_headers(self.request.headers, redact))
+        logging.debug("Response headers: %r", _redact_headers(self.response.headers, redact))
 
 
 def before_request(fn: t.Callable[[], None]) -> t.Callable[[], None]:
