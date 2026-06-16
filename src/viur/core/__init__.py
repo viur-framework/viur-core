@@ -274,7 +274,8 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
     # Send warning email in case trace is activated in a cloud environment
     if ((conf.debug.trace
             or conf.debug.trace_external_call_routing
-            or conf.debug.trace_internal_call_routing)
+            or conf.debug.trace_internal_call_routing
+            or conf.debug.trace_headers)
             and (not conf.instance.is_dev_server or conf.debug.dev_server_cloud_logging)):
         from viur.core import email
         try:
