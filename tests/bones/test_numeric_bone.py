@@ -255,14 +255,14 @@ class TestNumericBone_Decimal(ViURTestCase):
     def test_decimal_flag(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
-        bone = NumericBone(precision=2, decimal_mode=True)
+        bone = NumericBone(precision=2, decimal=True)
         self.assertTrue(bone.decimal)
         self.assertEqual(bone._quantize_exp, Decimal("0.01"))
 
     def test_getEmptyValue_decimal(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
-        bone = NumericBone(precision=2, decimal_mode=True)
+        bone = NumericBone(precision=2, decimal=True)
         empty = bone.getEmptyValue()
         self.assertIsInstance(empty, Decimal)
         self.assertEqual(empty, Decimal("0.00"))
@@ -270,19 +270,19 @@ class TestNumericBone_Decimal(ViURTestCase):
     def test_getEmptyValue_decimal_precision0(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
-        bone = NumericBone(precision=0, decimal_mode=True)
+        bone = NumericBone(precision=0, decimal=True)
         self.assertEqual(bone.getEmptyValue(), Decimal("0"))
 
     def test_getEmptyValue_decimal_precision4(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
-        bone = NumericBone(precision=4, decimal_mode=True)
+        bone = NumericBone(precision=4, decimal=True)
         self.assertEqual(bone.getEmptyValue(), Decimal("0.0000"))
 
     def test_isEmpty_decimal(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
-        bone = NumericBone(precision=2, decimal_mode=True)
+        bone = NumericBone(precision=2, decimal=True)
         self.assertTrue(bone.isEmpty(Decimal("0")))
         self.assertTrue(bone.isEmpty(Decimal("0.00")))
         self.assertTrue(bone.isEmpty(0))
@@ -299,7 +299,7 @@ class TestNumericBone_Decimal(ViURTestCase):
     def test_convert_to_decimal_conversions(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
-        bone = NumericBone(precision=2, decimal_mode=True)
+        bone = NumericBone(precision=2, decimal=True)
         self.assertEqual(bone._convert_to_decimal("1234.56"), Decimal("1234.56"))
         self.assertEqual(bone._convert_to_decimal(1234.56), Decimal("1234.56"))
         self.assertEqual(str(bone._convert_to_decimal(1234.56)), "1234.56")
@@ -310,7 +310,7 @@ class TestNumericBone_Decimal(ViURTestCase):
     def test_singleValueSerialize_decimal(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
-        bone = NumericBone(precision=2, decimal_mode=True)
+        bone = NumericBone(precision=2, decimal=True)
         result = bone.singleValueSerialize(Decimal("1234.56"), None, "amount", True)
         self.assertIsInstance(result, dict)
         self.assertAlmostEqual(result["val"], 1234.56)
@@ -318,13 +318,13 @@ class TestNumericBone_Decimal(ViURTestCase):
 
     def test_singleValueSerialize_decimal_none(self):
         from viur.core.bones.numeric import NumericBone
-        bone = NumericBone(precision=2, decimal_mode=True)
+        bone = NumericBone(precision=2, decimal=True)
         self.assertIsNone(bone.singleValueSerialize(None, None, "amount", True))
 
     def test_singleValueUnserialize_decimal_from_dict(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
-        bone = NumericBone(precision=2, decimal_mode=True)
+        bone = NumericBone(precision=2, decimal=True)
         result = bone.singleValueUnserialize({"val": 1234.5600000001, "decimal": "1234.56"})
         self.assertIsInstance(result, Decimal)
         self.assertEqual(result, Decimal("1234.56"))
@@ -332,7 +332,7 @@ class TestNumericBone_Decimal(ViURTestCase):
     def test_singleValueUnserialize_decimal_from_str(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
-        bone = NumericBone(precision=2, decimal_mode=True)
+        bone = NumericBone(precision=2, decimal=True)
         result = bone.singleValueUnserialize("1234.56")
         self.assertIsInstance(result, Decimal)
         self.assertEqual(result, Decimal("1234.56"))
@@ -340,7 +340,7 @@ class TestNumericBone_Decimal(ViURTestCase):
     def test_singleValueUnserialize_decimal_from_float(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
-        bone = NumericBone(precision=2, decimal_mode=True)
+        bone = NumericBone(precision=2, decimal=True)
         result = bone.singleValueUnserialize(1234.56)
         self.assertIsInstance(result, Decimal)
         self.assertEqual(str(result), "1234.56")
@@ -348,18 +348,18 @@ class TestNumericBone_Decimal(ViURTestCase):
     def test_singleValueUnserialize_decimal_from_int(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
-        bone = NumericBone(precision=2, decimal_mode=True)
+        bone = NumericBone(precision=2, decimal=True)
         result = bone.singleValueUnserialize(1234)
         self.assertEqual(result, Decimal("1234.00"))
 
     def test_singleValueUnserialize_decimal_none(self):
         from viur.core.bones.numeric import NumericBone
-        bone = NumericBone(precision=2, decimal_mode=True)
+        bone = NumericBone(precision=2, decimal=True)
         self.assertIsNone(bone.singleValueUnserialize(None))
 
     def test_structure_decimal(self):
         from viur.core.bones.numeric import NumericBone
-        bone = NumericBone(precision=2, decimal_mode=True)
+        bone = NumericBone(precision=2, decimal=True)
         s = bone.structure()
         self.assertTrue(s.get("decimal"))
         self.assertEqual(s["precision"], 2)
@@ -374,7 +374,7 @@ class TestNumericBone_Decimal_fromClient(ViURTestCase):
     def test_fromClient_decimal_str(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
-        bone = NumericBone(precision=2, decimal_mode=True)
+        bone = NumericBone(precision=2, decimal=True)
         skel = {}
         data = {self.bone_name: "1234.56"}
         self.assertIsNone(bone.fromClient(skel, self.bone_name, data))
@@ -384,7 +384,7 @@ class TestNumericBone_Decimal_fromClient(ViURTestCase):
     def test_fromClient_decimal_comma(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
-        bone = NumericBone(precision=2, decimal_mode=True)
+        bone = NumericBone(precision=2, decimal=True)
         skel = {}
         data = {self.bone_name: "1234,56"}
         self.assertIsNone(bone.fromClient(skel, self.bone_name, data))
@@ -393,7 +393,7 @@ class TestNumericBone_Decimal_fromClient(ViURTestCase):
     def test_fromClient_decimal_float(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
-        bone = NumericBone(precision=2, decimal_mode=True)
+        bone = NumericBone(precision=2, decimal=True)
         skel = {}
         data = {self.bone_name: 1234.56}
         self.assertIsNone(bone.fromClient(skel, self.bone_name, data))
@@ -403,7 +403,7 @@ class TestNumericBone_Decimal_fromClient(ViURTestCase):
     def test_fromClient_decimal_int(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
-        bone = NumericBone(precision=2, decimal_mode=True)
+        bone = NumericBone(precision=2, decimal=True)
         skel = {}
         data = {self.bone_name: 1234}
         self.assertIsNone(bone.fromClient(skel, self.bone_name, data))
@@ -412,7 +412,7 @@ class TestNumericBone_Decimal_fromClient(ViURTestCase):
     def test_fromClient_decimal_rounding(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
-        bone = NumericBone(precision=2, decimal_mode=True)
+        bone = NumericBone(precision=2, decimal=True)
         skel = {}
         data = {self.bone_name: "1234.567"}
         self.assertIsNone(bone.fromClient(skel, self.bone_name, data))
@@ -421,7 +421,7 @@ class TestNumericBone_Decimal_fromClient(ViURTestCase):
     def test_fromClient_decimal_negative(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
-        bone = NumericBone(precision=2, decimal_mode=True)
+        bone = NumericBone(precision=2, decimal=True)
         skel = {}
         data = {self.bone_name: "-99.99"}
         self.assertIsNone(bone.fromClient(skel, self.bone_name, data))
@@ -430,7 +430,7 @@ class TestNumericBone_Decimal_fromClient(ViURTestCase):
     def test_fromClient_decimal_invalid(self):
         from viur.core.bones.numeric import NumericBone
         from viur.core.bones.base import ReadFromClientError
-        bone = NumericBone(precision=2, decimal_mode=True)
+        bone = NumericBone(precision=2, decimal=True)
         skel = {}
         for invalid in ("abc", "", None, 0):
             data = {self.bone_name: invalid}
@@ -441,7 +441,7 @@ class TestNumericBone_Decimal_fromClient(ViURTestCase):
     def test_fromClient_decimal_minmax(self):
         from viur.core.bones.numeric import NumericBone
         from viur.core.bones.base import ReadFromClientError
-        bone = NumericBone(precision=2, decimal_mode=True, min=0, max=10000)
+        bone = NumericBone(precision=2, decimal=True, min=0, max=10000)
         skel = {}
         data = {self.bone_name: "5000.00"}
         self.assertIsNone(bone.fromClient(skel, self.bone_name, data))
