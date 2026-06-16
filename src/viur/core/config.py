@@ -506,6 +506,78 @@ class Security(ConfigType):
         "xPermittedCrossDomainPolicies": "x_permitted_cross_domain_policies",
     }
 
+    VALID_REFERRER_POLICIES = [
+        "no-referrer",
+        "no-referrer-when-downgrade",
+        "origin",
+        "origin-when-cross-origin",
+        "same-origin",
+        "strict-origin",
+        "strict-origin-when-cross-origin",
+        "unsafe-url",
+    ]
+    """Valid values for the Referrer-Policy header (https://www.w3.org/TR/referrer-policy/)."""
+
+    def enable_strict_transport_security(
+        self,
+        max_age: int = 365 * 24 * 60 * 60,
+        include_sub_domains: bool = False,
+        preload: bool = False,
+    ) -> None:
+        """Enable HTTP Strict Transport Security (HSTS)."""
+        self.strict_transport_security = f"max-age={max_age}"
+        if include_sub_domains:
+            self.strict_transport_security += "; includeSubDomains"
+        if preload:
+            self.strict_transport_security += "; preload"
+
+    def set_x_frame_options(self, action: str, uri: t.Optional[str] = None) -> None:
+        """Set X-Frame-Options to prevent click-jacking. ``action``: off | deny | sameorigin | allow-from."""
+        if action == "off":
+            self.x_frame_options = None
+        elif action in ("deny", "sameorigin"):
+            self.x_frame_options = (action, None)
+        elif action == "allow-from":
+            if uri is None or not (uri.lower().startswith("https://") or uri.lower().startswith("http://")):
+                raise ValueError("If action is allow-from, an uri MUST be given and start with http(s)://")
+            self.x_frame_options = (action, uri)
+
+    def set_x_xss_protection(self, enable: t.Optional[bool]) -> None:
+        """Set the X-XSS-Protection header. ``enable``: True | False | None (drop the header)."""
+        if enable is True or enable is False or enable is None:
+            self.x_xss_protection = enable
+        else:
+            raise ValueError("enable must be exactly one of None | True | False")
+
+    def set_x_content_type_no_sniff(self, enable: bool) -> None:
+        """Emit ``X-Content-Type-Options: nosniff`` when ``enable`` is True."""
+        if enable is True or enable is False:
+            self.x_content_type_options = enable
+        else:
+            raise ValueError("enable must be one of True | False")
+
+    def set_x_permitted_cross_domain_policies(self, value: t.Optional[str]) -> None:
+        if value not in (None, "none", "master-only", "by-content-type", "all"):
+            raise ValueError('value must be one of [None, "none", "master-only", "by-content-type", "all"]')
+        self.x_permitted_cross_domain_policies = value
+
+    def set_referrer_policy(self, policy: str) -> None:
+        """Set the Referrer-Policy header (must be one of :attr:`VALID_REFERRER_POLICIES`)."""
+        assert policy in self.VALID_REFERRER_POLICIES, f"Policy must be one of {self.VALID_REFERRER_POLICIES}"
+        self.referrer_policy = policy
+
+    def set_permission_policy_directive(self, directive: str, allow_list: t.Optional[list[str]]) -> None:
+        """Set a single Permissions-Policy directive. Empty list disables the feature."""
+        self.permissions_policy[directive] = allow_list
+
+    def set_cross_origin_isolation(self, coep: bool, coop: str, corp: str) -> None:
+        """Configure COEP/COOP/CORP cross-origin isolation headers (see https://web.dev/coop-coep)."""
+        assert coop in ("same-origin", "same-origin-allow-popups", "unsafe-none"), "Invalid value for the COOP Header"
+        assert corp in ("same-site", "same-origin", "cross-origin"), "Invalid value for the CORP Header"
+        self.enable_coep = bool(coep)
+        self.enable_coop = coop
+        self.enable_corp = corp
+
 
 class Debug(ConfigType):
     """Several debug flags"""
