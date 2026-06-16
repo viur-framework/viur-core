@@ -645,6 +645,41 @@ class Security(ConfigType):
             for k, v in self.permissions_policy.items()
         )
 
+    def extend_csp(self, additional_rules: dict = None, override_rules: dict = None) -> None:
+        """Extend/override the project-wide CSP for the *current* request only (``enforce`` mode).
+
+        ``additional_rules`` values are appended, ``override_rules`` values replace (None removes a key).
+        Unlike the project-wide config, per-request rules MAY contain ``nonce-`` values.
+        """
+        from viur.core import current
+        assert additional_rules or override_rules, "Either additional_rules or override_rules must be given!"
+        tmp: dict = {}
+        if self.content_security_policy and self.content_security_policy.get("enforce"):
+            tmp.update({k: v[:] for k, v in self.content_security_policy["enforce"].items()})
+        if override_rules:
+            for k, v in override_rules.items():
+                if v is None and k in tmp:
+                    del tmp[k]
+                else:
+                    tmp[k] = v
+        if additional_rules:
+            for k, v in additional_rules.items():
+                if k not in tmp:
+                    tmp[k] = []
+                tmp[k].extend(v)
+        res = ""
+        for key, values in tmp.items():
+            res += key
+            for value in values:
+                res += " "
+                if value in {"self", "unsafe-inline", "unsafe-eval", "script", "none"} \
+                        or any(value.startswith(p) for p in ("nonce-", "sha256-", "sha384-", "sha512-")):
+                    res += f"'{value}'"
+                else:
+                    res += value
+            res += "; "
+        current.request.get().response.headers["Content-Security-Policy"] = res
+
 
 class Debug(ConfigType):
     """Several debug flags"""

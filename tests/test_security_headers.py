@@ -109,3 +109,19 @@ class TestSecurityHeaders(ViURTestCase):
         sec.permissions_policy = {"autoplay": ["self"], "camera": []}
         sec._build_permissions_policy_header()
         self.assertEqual(sec._permissions_policy_header, "autoplay=(self), camera=()")
+
+    def test_extend_csp_quotes_nonce(self):
+        from viur.core import current
+        sec = self._fresh_security()
+        sec.content_security_policy = {"enforce": {"default-src": ["self"]}}
+
+        holder = types.SimpleNamespace(response=webob.Response())
+        token = current.request.set(holder)
+        try:
+            sec.extend_csp({"style-src": ["nonce-abc"]})
+        finally:
+            current.request.reset(token)
+
+        csp = holder.response.headers["Content-Security-Policy"]
+        self.assertIn("default-src 'self'; ", csp)
+        self.assertIn("style-src 'nonce-abc'; ", csp)  # per-request CSP DOES quote nonce-
