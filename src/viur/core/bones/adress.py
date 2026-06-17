@@ -12,8 +12,8 @@ from .spatial import SpatialBone
 from ..skeleton.relskel import RelSkel
 from .. import db
 
-
 CACHE_KIND = "viur-adressbone-geocache"
+
 
 class AdressRelSkel(RelSkel):
     street = StringBone(descr="Street", required=True)
@@ -47,7 +47,6 @@ class AdressBone(RecordBone):
             coords = self.geocode(value)
             if coords:
                 value["coordinates"] = coords
-
 
     @staticmethod
     def _cache_key(params: str) -> db.Key:
