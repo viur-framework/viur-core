@@ -78,6 +78,17 @@ class TestAdressRelSkel(ViURTestCase):
 
 class TestAdressBoneGeocode(ViURTestCase):
 
+    def _make_skel(self, street="Baker Street", number="221B", city="London", zip_code="NW1 6XE", country="gb"):
+        from viur.core.bones.adress import AdressRelSkel
+        skel = AdressRelSkel()
+        skel["street"] = street
+        skel["number"] = number
+        skel["city"] = city
+        skel["zip"] = zip_code
+        skel["country"] = country
+        skel["coordinates"] = None
+        return skel
+
     def _make_nominatim_response(self, lat="51.5074", lon="-0.1278"):
         mock_response = MagicMock()
         mock_response.read.return_value = json.dumps([{"lat": lat, "lon": lon}]).encode()
@@ -86,51 +97,76 @@ class TestAdressBoneGeocode(ViURTestCase):
         return mock_response
 
     def test_geocode_fills_coordinates_when_missing(self):
-        from viur.core.bones.adress import AdressBone, AdressRelSkel
-
+        from viur.core.bones.adress import AdressBone
         bone = AdressBone()
-        skel = AdressRelSkel()
-        skel["street"] = "Baker Street"
-        skel["number"] = "221B"
-        skel["city"] = "London"
-        skel["zip"] = "NW1 6XE"
-        skel["country"] = "gb"
-        skel["coordinates"] = None
+        skel = self._make_skel()
 
-        with patch("urllib.request.urlopen", return_value=self._make_nominatim_response("51.5074", "-0.1278")):
-            result = bone._geocode(skel)
+        with patch("viur.core.bones.adress.db.get", return_value=None), \
+             patch("viur.core.bones.adress.db.put"), \
+             patch("viur.core.bones.adress.db.Entity", return_value={}), \
+             patch("urllib.request.urlopen", return_value=self._make_nominatim_response("51.5074", "-0.1278")):
+            result = bone.geocode(skel)
 
         self.assertIsNotNone(result)
         self.assertAlmostEqual(result[0], 51.5074)
         self.assertAlmostEqual(result[1], -0.1278)
 
     def test_geocode_returns_none_on_empty_nominatim_response(self):
-        from viur.core.bones.adress import AdressBone, AdressRelSkel
-
+        from viur.core.bones.adress import AdressBone
         bone = AdressBone()
-        skel = AdressRelSkel()
-        skel["street"] = "Unknown Street"
-        skel["city"] = "Nowhere"
+        skel = self._make_skel(street="Unknown Street", city="Nowhere")
 
         mock_response = MagicMock()
         mock_response.read.return_value = b"[]"
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
 
-        with patch("urllib.request.urlopen", return_value=mock_response):
-            result = bone._geocode(skel)
+        with patch("viur.core.bones.adress.db.get", return_value=None), \
+             patch("urllib.request.urlopen", return_value=mock_response):
+            result = bone.geocode(skel)
 
         self.assertIsNone(result)
 
     def test_geocode_returns_none_on_network_error(self):
-        from viur.core.bones.adress import AdressBone, AdressRelSkel
-
+        from viur.core.bones.adress import AdressBone
         bone = AdressBone()
-        skel = AdressRelSkel()
-        skel["street"] = "Baker Street"
-        skel["city"] = "London"
+        skel = self._make_skel()
 
-        with patch("urllib.request.urlopen", side_effect=OSError("network error")):
-            result = bone._geocode(skel)
+        with patch("viur.core.bones.adress.db.get", return_value=None), \
+             patch("urllib.request.urlopen", side_effect=OSError("network error")):
+            result = bone.geocode(skel)
 
         self.assertIsNone(result)
+
+    def test_geocode_cache_hit_skips_nominatim(self):
+        from viur.core.bones.adress import AdressBone
+        bone = AdressBone()
+        skel = self._make_skel()
+
+        cached_entity = {"lat": 51.5074, "lng": -0.1278}
+
+        with patch("viur.core.bones.adress.db.get", return_value=cached_entity), \
+             patch("urllib.request.urlopen") as mock_urlopen:
+            result = bone.geocode(skel)
+
+        mock_urlopen.assert_not_called()
+        self.assertAlmostEqual(result[0], 51.5074)
+        self.assertAlmostEqual(result[1], -0.1278)
+
+    def test_geocode_cache_miss_stores_result(self):
+        from viur.core.bones.adress import AdressBone
+        bone = AdressBone()
+        skel = self._make_skel()
+
+        mock_entity = {}
+        mock_put = MagicMock()
+
+        with patch("viur.core.bones.adress.db.get", return_value=None), \
+             patch("viur.core.bones.adress.db.put", mock_put), \
+             patch("viur.core.bones.adress.db.Entity", return_value=mock_entity), \
+             patch("urllib.request.urlopen", return_value=self._make_nominatim_response("51.5074", "-0.1278")):
+            bone.geocode(skel)
+
+        mock_put.assert_called_once()
+        self.assertAlmostEqual(mock_entity["lat"], 51.5074)
+        self.assertAlmostEqual(mock_entity["lng"], -0.1278)
