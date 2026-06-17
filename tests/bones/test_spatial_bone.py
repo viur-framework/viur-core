@@ -196,11 +196,13 @@ class TestSpatialBoneSetBoneValue(ViURTestCase):
     def test_dict_lat_lng(self):
         self.assertEqual((51.0, 10.0), self._set({"lat": 51.0, "lng": 10.0}))
 
-    def test_dict_lat_lon(self):
-        self.assertEqual((51.0, 10.0), self._set({"lat": 51.0, "lon": 10.0}))
+    def test_dict_lat_lon_raises(self):
+        with self.assertRaises(ValueError):
+            self._set({"lat": 51.0, "lon": 10.0})
 
-    def test_dict_latitude_longitude(self):
-        self.assertEqual((51.0, 10.0), self._set({"latitude": 51.0, "longitude": 10.0}))
+    def test_dict_latitude_longitude_raises(self):
+        with self.assertRaises(ValueError):
+            self._set({"latitude": 51.0, "longitude": 10.0})
 
     def test_dict_string_values_parsed(self):
         self.assertEqual((51.0, 10.0), self._set({"lat": "51.0", "lng": "10.0"}))
