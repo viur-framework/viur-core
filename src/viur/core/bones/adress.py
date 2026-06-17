@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import typing as t
@@ -9,9 +10,10 @@ from .string import StringBone
 from .selectcountry import SelectCountryBone
 from .spatial import SpatialBone
 from ..skeleton.relskel import RelSkel
+from .. import db
 
-logger = logging.getLogger(__name__)
 
+CACHE_KIND = "viur-adressbone-geocache"
 
 class AdressRelSkel(RelSkel):
     street = StringBone(descr="Street", required=True)
@@ -41,12 +43,19 @@ class AdressBone(RecordBone):
 
     def after_from_client(self, skel, name, errors):
         value = skel[name]
-        if value is not None and value["coordinates"] is None:
-            coords = self._geocode(value)
+        if value is not None:
+            coords = self.geocode(value)
             if coords:
                 value["coordinates"] = coords
 
-    def _geocode(self, skel: RelSkel) -> "tuple[float, float] | None":
+
+    @staticmethod
+    def _cache_key(params: str) -> db.Key:
+        digest = hashlib.sha256(params.encode()).hexdigest()
+        return db.Key(CACHE_KIND, digest)
+
+    @staticmethod
+    def geocode(skel: RelSkel) -> tuple[float, float] | None:
         street = f"{skel['street'] or ''} {skel['number'] or ''}".strip()
         params = urllib.parse.urlencode({
             "street": street,
@@ -56,15 +65,25 @@ class AdressBone(RecordBone):
             "format": "json",
             "limit": 1,
         })
+        cache_key = AdressBone._cache_key(params)
         try:
+            cached = db.get(cache_key)
+            if cached is not None:
+                return cached["lat"], cached["lng"]
             req = urllib.request.Request(
                 f"https://nominatim.openstreetmap.org/search?{params}",
-                headers={"User-Agent": "viur-adressbone/1.0 (viur.is)"},
+                headers={"User-Agent": "viur-adressbone/1.0 (viur.dev)"},
             )
             with urllib.request.urlopen(req, timeout=5) as response:
                 data = json.loads(response.read())
-            if data:
-                return float(data[0]["lat"]), float(data[0]["lon"])
-        except Exception:
-            logger.exception("AdressBone: Nominatim geocoding failed")
+            if not data:
+                return None
+            lat, lng = float(data[0]["lat"]), float(data[0]["lon"])
+            entity = db.Entity(cache_key)
+            entity["lat"] = lat
+            entity["lng"] = lng
+            db.put(entity)
+            return lat, lng
+        except Exception as e:
+            logging.error(f"AdressBone: Nominatim geocoding failed with {e=}")
         return None
