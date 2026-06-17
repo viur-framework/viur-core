@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 import typing as t
 
@@ -16,7 +17,7 @@ from viur.core.errors import HTTPException
 datastore.helpers.key_from_protobuf = key_from_protobuf
 datastore.helpers.entity_from_protobuf = entity_from_protobuf
 
-__client__ = datastore.Client()
+__client__ = datastore.Client(database=os.getenv("DATASTORE_DATABASE") or None)
 
 
 def allocate_ids(kind_name: str, num_ids: int = 1, retry=None, timeout=None) -> list[Key]:

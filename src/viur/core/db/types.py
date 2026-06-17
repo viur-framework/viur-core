@@ -41,6 +41,12 @@ class Key(Datastore_key):
         The python representation of one datastore key. Unlike the original implementation, we don't store a
         reference to the project the key lives in. This is always expected to be the current project as ViUR
         does not support accessing data in multiple projects.
+
+        Database handling: ViUR treats the database as a client-level concern (configured via the
+        DATASTORE_DATABASE env var), never stored on individual key objects. The ``database`` property
+        dynamically reads from the active client so that SDK internals — key proto serialization and
+        batch database-consistency checks — work correctly with named Datastore databases, while the
+        string representation (``__str__``) remains database-agnostic.
     """
 
     def __init__(self, *path_args, project: str | None = None, **kwargs):
@@ -61,10 +67,25 @@ class Key(Datastore_key):
             from .transport import __client__  # noqa: E402 # import works only here because circular imports
             project = __client__.project
 
+        kwargs.pop("database", None)  # database is never stored on the key; see `database` property
         super().__init__(*new_path_args, project=project, **kwargs)
 
-    def __str__(self):
-        return self.to_legacy_urlsafe().decode("ASCII")
+    @property
+    def database(self) -> str | None:
+        # The database is a client-level concern, not a key attribute.
+        # We read it from the active transport client so that:
+        #   • Key.to_protobuf() sets partition_id.database_id correctly for gRPC requests
+        #   • Batch.put() / Batch.delete() database-consistency checks pass
+        from .transport import __client__  # lazy import to avoid circular dependency at module load
+        return __client__.database
+
+    def __str__(self) -> str:
+        # Key strings are always database-agnostic: the database must not be encoded in
+        # the serialized key (to_legacy_urlsafe raises for named databases).
+        # We delegate to a temporary plain SDK Key that has no database set.
+        return Datastore_key(
+            *self.flat_path, project=self.project, namespace=self.namespace
+        ).to_legacy_urlsafe().decode("ASCII")
 
     '''
     def __repr__(self):
@@ -155,7 +176,7 @@ class Entity(Datastore_entity):
         key: t.Optional[Key] = None,
         exclude_from_indexes: t.Optional[list[str]] = None,
     ) -> None:
-        super().__init__(key, exclude_from_indexes or [])
+        super().__init__(key, list(exclude_from_indexes) if exclude_from_indexes else [])
         if not (key is None or isinstance(key, Key)):
             raise ValueError(f"key must be a Key-Object (or None for an embedded entity). Got {key!r} ({type(key)})")
 

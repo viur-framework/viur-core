@@ -4,17 +4,18 @@ from google.cloud.datastore_v1.types import entity as entity_pb2
 from .types import Entity, Key
 
 
-def key_from_protobuf(pb):  # !!! 100% Copy, only uses our Key Class
-    """Factory method for creating a key based on a protobuf.
+def key_from_protobuf(pb):
+    """Reconstruct a Key from a Datastore response protobuf, stripping database_id.
 
-    The protobuf should be one returned from the Cloud Datastore
-    Protobuf API.
+    Replaces the SDK default so that every Key returned from the Datastore API
+    is created via our own Key class.  The ``partition_id.database_id`` field is
+    intentionally ignored: the database is a client-level concern configured via
+    the DATASTORE_DATABASE env var.  Storing it on individual Key objects would
+    break ``to_legacy_urlsafe`` / ``Key.__str__`` and violates ViUR's design principle
+    that keys are database-agnostic.
 
-    :type pb: :class:`.entity_pb2.Key`
-    :param pb: The Protobuf representing the key.
-
-    :rtype: :class:`google.cloud.datastore.key.Key`
-    :returns: a new `Key` instance
+    The outgoing side (proto serialization) is handled by ``Key.database`` in
+    ``db/types.py``, which reads the active database from the transport client.
     """
     path_args = []
     for element in pb.path:
@@ -29,15 +30,13 @@ def key_from_protobuf(pb):  # !!! 100% Copy, only uses our Key Class
     project = None
     if pb.partition_id.project_id:  # Simple field (string)
         project = pb.partition_id.project_id
-    database = None
-
-    if pb.partition_id.database_id:  # Simple field (string)
-        database = pb.partition_id.database_id
     namespace = None
     if pb.partition_id.namespace_id:  # Simple field (string)
         namespace = pb.partition_id.namespace_id
 
-    return Key(*path_args, namespace=namespace, project=project, database=database)
+    # database_id is intentionally ignored: the database is a client-level concern
+    # configured via conf.db.database_id / DATASTORE_DATABASE, never stored on keys.
+    return Key(*path_args, namespace=namespace, project=project)
 
 
 def entity_from_protobuf(pb):
