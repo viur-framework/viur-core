@@ -29,7 +29,7 @@ from .phone import PhoneBone
 from .randomslice import RandomSliceBone
 from .raw import RawBone
 from .record import RecordBone
-from .adress import AdressBone, AdressRelSkel
+from .address import AddressBone, AddressRelSkel
 from .relational import RelationalBone, RelationalConsistency, RelationalUpdateLevel
 from .selectcountry import SelectCountryBone
 from .select import (
@@ -50,8 +50,8 @@ from .user import UserBone
 
 # Expose only specific names
 __all = [
-    "AdressBone",
-    "AdressRelSkel",
+    "AddressBone",
+    "AddressRelSkel",
     "BaseBone",
     "BooleanBone",
     "CaptchaBone",

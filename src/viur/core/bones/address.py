@@ -12,10 +12,10 @@ from .spatial import SpatialBone
 from ..skeleton.relskel import RelSkel
 from .. import db
 
-CACHE_KIND = "viur-adressbone-geocache"
+CACHE_KIND = "viur-addressbone-geocache"
 
 
-class AdressRelSkel(RelSkel):
+class AddressRelSkel(RelSkel):
     street = StringBone(descr="Street", required=True)
     number = StringBone(descr="House number")
     zip = StringBone(descr="ZIP / Postal code")
@@ -29,13 +29,13 @@ class AdressRelSkel(RelSkel):
     )
 
 
-class AdressBone(RecordBone):
-    type = RecordBone.type + ".adress"
+class AddressBone(RecordBone):
+    type = RecordBone.type + ".address"
 
     def __init__(
         self,
         *,
-        using: t.Type[RelSkel] = AdressRelSkel,
+        using: t.Type[RelSkel] = AddressRelSkel,
         format: str = "$(street) $(number), $(zip) $(city)",
         **kwargs,
     ):
@@ -64,14 +64,14 @@ class AdressBone(RecordBone):
             "format": "json",
             "limit": 1,
         })
-        cache_key = AdressBone._cache_key(params)
+        cache_key = AddressBone._cache_key(params)
         try:
             cached = db.get(cache_key)
             if cached is not None:
                 return cached["lat"], cached["lng"]
             req = urllib.request.Request(
                 f"https://nominatim.openstreetmap.org/search?{params}",
-                headers={"User-Agent": "viur-adressbone/1.0 (viur.dev)"},
+                headers={"User-Agent": "viur-addressbone/1.0 (viur.dev)"},
             )
             with urllib.request.urlopen(req, timeout=5) as response:
                 data = json.loads(response.read())
@@ -84,5 +84,5 @@ class AdressBone(RecordBone):
             db.put(entity)
             return lat, lng
         except Exception as e:
-            logging.error(f"AdressBone: Nominatim geocoding failed with {e=}")
+            logging.error(f"AddressBone: Nominatim geocoding failed with {e=}")
         return None
