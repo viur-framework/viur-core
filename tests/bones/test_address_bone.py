@@ -78,7 +78,14 @@ class TestAddressRelSkel(ViURTestCase):
 
 class TestAddressBoneGeocode(ViURTestCase):
 
-    def _make_skel(self, street_name="Baker Street", street_number="221B", city="London", zip_code="NW1 6XE", country="gb"):
+    def _make_skel(
+        self,
+        street_name="Baker Street",
+        street_number="221B",
+        city="London",
+        zip_code="NW1 6XE",
+        country="gb"
+    ):
         from viur.core.bones.address import AddressRelSkel
         skel = AddressRelSkel()
         skel["street_name"] = street_name
@@ -102,9 +109,9 @@ class TestAddressBoneGeocode(ViURTestCase):
         skel = self._make_skel()
 
         with patch("viur.core.bones.address.db.get", return_value=None), \
-             patch("viur.core.bones.address.db.put"), \
-             patch("viur.core.bones.address.db.Entity", return_value={}), \
-             patch("urllib.request.urlopen", return_value=self._make_nominatim_response("51.5074", "-0.1278")):
+            patch("viur.core.bones.address.db.put"), \
+            patch("viur.core.bones.address.db.Entity", return_value={}), \
+            patch("urllib.request.urlopen", return_value=self._make_nominatim_response("51.5074", "-0.1278")):
             result = bone.geocode(skel)
 
         self.assertIsNotNone(result)
@@ -122,7 +129,7 @@ class TestAddressBoneGeocode(ViURTestCase):
         mock_response.__exit__ = MagicMock(return_value=False)
 
         with patch("viur.core.bones.address.db.get", return_value=None), \
-             patch("urllib.request.urlopen", return_value=mock_response):
+            patch("urllib.request.urlopen", return_value=mock_response):
             result = bone.geocode(skel)
 
         self.assertIsNone(result)
@@ -133,7 +140,7 @@ class TestAddressBoneGeocode(ViURTestCase):
         skel = self._make_skel()
 
         with patch("viur.core.bones.address.db.get", return_value=None), \
-             patch("urllib.request.urlopen", side_effect=OSError("network error")):
+            patch("urllib.request.urlopen", side_effect=OSError("network error")):
             result = bone.geocode(skel)
 
         self.assertIsNone(result)
@@ -146,7 +153,7 @@ class TestAddressBoneGeocode(ViURTestCase):
         cached_entity = {"lat": 51.5074, "lng": -0.1278}
 
         with patch("viur.core.bones.address.db.get", return_value=cached_entity), \
-             patch("urllib.request.urlopen") as mock_urlopen:
+            patch("urllib.request.urlopen") as mock_urlopen:
             result = bone.geocode(skel)
 
         mock_urlopen.assert_not_called()
@@ -162,9 +169,9 @@ class TestAddressBoneGeocode(ViURTestCase):
         mock_put = MagicMock()
 
         with patch("viur.core.bones.address.db.get", return_value=None), \
-             patch("viur.core.bones.address.db.put", mock_put), \
-             patch("viur.core.bones.address.db.Entity", return_value=mock_entity), \
-             patch("urllib.request.urlopen", return_value=self._make_nominatim_response("51.5074", "-0.1278")):
+            patch("viur.core.bones.address.db.put", mock_put), \
+            patch("viur.core.bones.address.db.Entity", return_value=mock_entity), \
+            patch("urllib.request.urlopen", return_value=self._make_nominatim_response("51.5074", "-0.1278")):
             bone.geocode(skel)
 
         mock_put.assert_called_once()
