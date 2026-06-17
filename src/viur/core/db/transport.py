@@ -212,7 +212,7 @@ def run_single_filter(query: QueryDefinition, limit: int, keys_only: bool) -> t.
             )
             qry.order = [
                 order.name if order.order in (SortOrder.Ascending, SortOrder.InvertedDescending) else f"-{order.name}"
-for order in query.orders
+                for order in query.orders
             ]
 
         if query.distinct:
