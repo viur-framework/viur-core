@@ -965,7 +965,12 @@ class RelationalBone(BaseBone):
                 raise RuntimeError()
             return f"src.{param}", value
 
-    def orderHook(self, name: str, query: db.Query, orderings):  # FIXME
+    def orderHook(
+        self,
+        name: str,
+        query: db.Query,
+        orderings: list[db.QueryOrder | str] | tuple[db.QueryOrder | str, ...],
+    ) -> list[db.QueryOrder | str] | tuple[db.QueryOrder | str]:
         """
         Hook installed by buildDbFilter that rewrites orderings added to the query to match the layout of the
         viur-relations index and performs sanity checks on the query.
@@ -977,10 +982,8 @@ class RelationalBone(BaseBone):
         :param name: The name of the bone.
         :param query: The datastore query to be modified.
         :param orderings: A list or tuple of orderings to be checked and potentially modified.
-        :type orderings: List[Union[str, db.QueryOrder]] or Tuple[Union[str, db.QueryOrder]]
 
         :return: A list of modified orderings that are compatible with the viur-relations index.
-        :rtype: List[Union[str, db.QueryOrder]]
 
         :raises RuntimeError: If the ordering is invalid, e.g., using properties not in 'refKeys' or 'parentKeys'.
         """
