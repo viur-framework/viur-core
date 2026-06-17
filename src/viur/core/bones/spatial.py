@@ -378,7 +378,8 @@ class SpatialBone(BaseBone):
 
         :param skel: Dictionary with the current values from the skeleton the bone belongs to
         :param boneName: The name of the bone that should be modified
-        :param value: The value that should be assigned. Its type depends on the type of the bone
+        :param value: The value that should be assigned. Either a tuple/list of (lat, lng) or a dict
+            with keys ``lat`` and ``lng``
         :param append: If True, the given value will be appended to the existing bone values instead of
             replacing them. Only supported on bones with multiple=True
         :param language: Optional, the language of the value if the bone is language-aware
@@ -387,7 +388,12 @@ class SpatialBone(BaseBone):
         """
         if append:
             raise ValueError(f"append is not possible on {self.type} bones")
-        if not isinstance(value, (tuple, list)) and len(value) == 2:
+        if isinstance(value, dict):
+            try:
+                value = (float(value["lat"]), float(value["lng"]))
+            except (KeyError, TypeError, ValueError):
+                raise ValueError("Value dict must contain 'lat' and 'lng' keys as floats")
+        if not isinstance(value, (tuple, list)) or len(value) != 2:
             raise ValueError("Value must be a tuple or a list of (lat, lng)")
         skel[boneName] = tuple(value)
 
