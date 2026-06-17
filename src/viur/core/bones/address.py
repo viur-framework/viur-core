@@ -10,15 +10,26 @@ from .string import StringBone
 from .selectcountry import SelectCountryBone
 from .spatial import SpatialBone
 from ..skeleton.relskel import RelSkel
-from .. import db
+from .. import db, i18n
+from ..data.zip_patterns import ZIP_CODE_PATTERNS
 
 CACHE_KIND = "viur-addressbone-geocache"
 
 
 class AddressRelSkel(RelSkel):
-    street = StringBone(descr="Street", required=True)
-    number = StringBone(descr="House number")
-    zip = StringBone(descr="ZIP / Postal code")
+    street_name = StringBone(descr="Street", required=True)
+    street_number = StringBone(descr="House number")
+    address_addition = StringBone(descr="Address addition")
+    zip_code = StringBone(
+        descr="ZIP / Postal code",
+        params={
+            "pattern": ZIP_CODE_PATTERNS,
+            "pattern-error": i18n.translate(
+                "viur.core.bones.address.zip_code.invalid",
+                defaultText="Invalid ZIP code",
+            ),
+        },
+    )
     city = StringBone(descr="City", required=True)
     country = SelectCountryBone(descr="Country")
     coordinates = SpatialBone(
@@ -36,7 +47,7 @@ class AddressBone(RecordBone):
         self,
         *,
         using: t.Type[RelSkel] = AddressRelSkel,
-        format: str = "$(street) $(number), $(zip) $(city)",
+        format: str = "$(street_name) $(street_number), $(zip_code) $(city)",
         **kwargs,
     ):
         super().__init__(using=using, format=format, **kwargs)
@@ -55,10 +66,10 @@ class AddressBone(RecordBone):
 
     @staticmethod
     def geocode(skel: RelSkel) -> tuple[float, float] | None:
-        street = f"{skel['street'] or ''} {skel['number'] or ''}".strip()
+        street = f"{skel['street_name'] or ''} {skel['street_number'] or ''}".strip()
         params = urllib.parse.urlencode({
             "street": street,
-            "postalcode": skel["zip"] or "",
+            "postalcode": skel["zip_code"] or "",
             "city": skel["city"] or "",
             "country": skel["country"] or "",
             "format": "json",

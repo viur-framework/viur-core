@@ -19,7 +19,7 @@ class TestAddressBoneInit(ViURTestCase):
     def test_default_format_contains_address_fields(self):
         from viur.core.bones.address import AddressBone
         bone = AddressBone()
-        self.assertIn("street", bone.format)
+        self.assertIn("street_name", bone.format)
         self.assertIn("city", bone.format)
 
     def test_custom_using_overrides_default(self):
@@ -39,13 +39,13 @@ class TestAddressRelSkel(ViURTestCase):
     def test_has_all_fields(self):
         from viur.core.bones.address import AddressRelSkel
         bone_names = list(AddressRelSkel.__boneMap__.keys())
-        for field in ("street", "number", "zip", "city", "country", "coordinates"):
+        for field in ("street_name", "street_number", "address_addition", "zip_code", "city", "country", "coordinates"):
             self.assertIn(field, bone_names)
 
-    def test_street_is_required(self):
+    def test_street_name_is_required(self):
         from viur.core.bones.address import AddressRelSkel
         from viur.core.bones import StringBone
-        bone = AddressRelSkel.__boneMap__["street"]
+        bone = AddressRelSkel.__boneMap__["street_name"]
         self.assertIsInstance(bone, StringBone)
         self.assertTrue(bone.required)
 
@@ -69,22 +69,22 @@ class TestAddressRelSkel(ViURTestCase):
         self.assertEqual((-90, 90), bone.boundsLat)
         self.assertEqual((-180, 180), bone.boundsLng)
 
-    def test_number_zip_country_coordinates_not_required(self):
+    def test_optional_fields_not_required(self):
         from viur.core.bones.address import AddressRelSkel
-        for field in ("number", "zip", "country", "coordinates"):
+        for field in ("street_number", "address_addition", "zip_code", "country", "coordinates"):
             bone = AddressRelSkel.__boneMap__[field]
             self.assertFalse(bone.required, f"{field} should not be required")
 
 
 class TestAddressBoneGeocode(ViURTestCase):
 
-    def _make_skel(self, street="Baker Street", number="221B", city="London", zip_code="NW1 6XE", country="gb"):
+    def _make_skel(self, street_name="Baker Street", street_number="221B", city="London", zip_code="NW1 6XE", country="gb"):
         from viur.core.bones.address import AddressRelSkel
         skel = AddressRelSkel()
-        skel["street"] = street
-        skel["number"] = number
+        skel["street_name"] = street_name
+        skel["street_number"] = street_number
         skel["city"] = city
-        skel["zip"] = zip_code
+        skel["zip_code"] = zip_code
         skel["country"] = country
         skel["coordinates"] = None
         return skel
@@ -114,7 +114,7 @@ class TestAddressBoneGeocode(ViURTestCase):
     def test_geocode_returns_none_on_empty_nominatim_response(self):
         from viur.core.bones.address import AddressBone
         bone = AddressBone()
-        skel = self._make_skel(street="Unknown Street", city="Nowhere")
+        skel = self._make_skel(street_name="Unknown Street", city="Nowhere")
 
         mock_response = MagicMock()
         mock_response.read.return_value = b"[]"
