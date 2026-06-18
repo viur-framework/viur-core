@@ -347,7 +347,8 @@ class Security(ConfigType):
             "object-src": ["none"],
         }
     }
-    """If set, viur will emit a CSP http-header with each request. Use security.addCspRule to set this property"""
+    """If set, viur will emit a CSP http-header with each request.
+    Use :meth:`viur.core.config.Security.add_csp_rule` to set this property."""
 
     referrer_policy: str = "strict-origin"
     """Per default, we'll emit Referrer-Policy: strict-origin so no referrers leak to external services
@@ -369,7 +370,7 @@ class Security(ConfigType):
     }
     """Include a default permissions-policy.
     To use the camera or microphone, you'll have to call
-    :meth: securityheaders.setPermissionPolicyDirective to include at least "self"
+    :meth:`viur.core.config.Security.set_permission_policy_directive` to include at least "self"
     """
 
     enable_coep: bool = False
@@ -506,6 +507,238 @@ class Security(ConfigType):
         "xPermittedCrossDomainPolicies": "x_permitted_cross_domain_policies",
     }
 
+    VALID_REFERRER_POLICIES = [
+        "no-referrer",
+        "no-referrer-when-downgrade",
+        "origin",
+        "origin-when-cross-origin",
+        "same-origin",
+        "strict-origin",
+        "strict-origin-when-cross-origin",
+        "unsafe-url",
+    ]
+    """Valid values for the Referrer-Policy header (https://www.w3.org/TR/referrer-policy/)."""
+
+    def enable_strict_transport_security(
+        self,
+        max_age: int = 365 * 24 * 60 * 60,
+        include_sub_domains: bool = False,
+        preload: bool = False,
+    ) -> None:
+        """Enable HTTP Strict Transport Security (HSTS)."""
+        self.strict_transport_security = f"max-age={max_age}"
+        if include_sub_domains:
+            self.strict_transport_security += "; includeSubDomains"
+        if preload:
+            self.strict_transport_security += "; preload"
+
+    def set_x_frame_options(self, action: str, uri: t.Optional[str] = None) -> None:
+        """Set X-Frame-Options to prevent click-jacking. ``action``: off | deny | sameorigin | allow-from."""
+        if action == "off":
+            self.x_frame_options = None
+        elif action in ("deny", "sameorigin"):
+            self.x_frame_options = (action, None)
+        elif action == "allow-from":
+            if uri is None or not (uri.lower().startswith("https://") or uri.lower().startswith("http://")):
+                raise ValueError("If action is allow-from, an uri MUST be given and start with http(s)://")
+            self.x_frame_options = (action, uri)
+
+    def set_x_xss_protection(self, enable: t.Optional[bool]) -> None:
+        """Set the X-XSS-Protection header. ``enable``: True | False | None (drop the header)."""
+        if enable is True or enable is False or enable is None:
+            self.x_xss_protection = enable
+        else:
+            raise ValueError("enable must be exactly one of None | True | False")
+
+    def set_x_content_type_no_sniff(self, enable: bool) -> None:
+        """Emit ``X-Content-Type-Options: nosniff`` when ``enable`` is True."""
+        if enable is True or enable is False:
+            self.x_content_type_options = enable
+        else:
+            raise ValueError("enable must be one of True | False")
+
+    def set_x_permitted_cross_domain_policies(self, value: t.Optional[str]) -> None:
+        """Set the X-Permitted-Cross-Domain-Policies header (or disable it with None)."""
+        if value not in (None, "none", "master-only", "by-content-type", "all"):
+            raise ValueError('value must be one of [None, "none", "master-only", "by-content-type", "all"]')
+        self.x_permitted_cross_domain_policies = value
+
+    def set_referrer_policy(self, policy: str) -> None:
+        """Set the Referrer-Policy header (must be one of :attr:`VALID_REFERRER_POLICIES`)."""
+        assert policy in self.VALID_REFERRER_POLICIES, f"Policy must be one of {self.VALID_REFERRER_POLICIES}"
+        self.referrer_policy = policy
+
+    def set_permission_policy_directive(self, directive: str, allow_list: t.Optional[list[str]]) -> None:
+        """Set a single Permissions-Policy directive. Empty list disables the feature."""
+        self.permissions_policy[directive] = allow_list
+
+    def set_cross_origin_isolation(self, coep: bool, coop: str, corp: str) -> None:
+        """Configure COEP/COOP/CORP cross-origin isolation headers (see https://web.dev/coop-coep)."""
+        assert coop in ("same-origin", "same-origin-allow-popups", "unsafe-none"), "Invalid value for the COOP Header"
+        assert corp in ("same-site", "same-origin", "cross-origin"), "Invalid value for the CORP Header"
+        self.enable_coep = bool(coep)
+        self.enable_coop = coop
+        self.enable_corp = corp
+
+    _csp_header_cache: dict[str, str] = {}
+    """Derived cache of built CSP header strings; populated by :meth:`finalize`. Internal."""
+
+    def add_csp_rule(self, object_type: str, src_or_directive: str, enforce_mode: str = "monitor") -> None:
+        """Add a Content-Security-Policy rule. Call before the app is built (i.e. before ``setup()``).
+
+        :param object_type: directive type, e.g. ``script-src``, ``img-src``, ``report-uri``, ...
+        :param src_or_directive: an allowed source/host or a CSP keyword like ``self``, ``unsafe-inline``.
+        :param enforce_mode: ``enforce`` or ``monitor`` (report-only).
+        """
+        assert enforce_mode in ("monitor", "enforce"), "enforce_mode must be 'monitor' or 'enforce'!"
+        assert object_type in {
+            "default-src", "script-src", "object-src", "style-src", "img-src", "media-src",
+            "frame-src", "font-src", "connect-src", "report-uri", "frame-ancestors", "child-src",
+            "form-action", "require-trusted-types-for",
+        }, f"object_type {object_type!r} is not a valid CSP directive"
+        assert conf.main_app is None, "You cannot modify CSP rules after the app has been built!"
+        assert not any(c in src_or_directive for c in (";", "'", '"', "\n", ",")), \
+            "Invalid character in src_or_directive!"
+        if self.content_security_policy is None:
+            self.content_security_policy = {}
+        if enforce_mode not in self.content_security_policy:
+            self.content_security_policy[enforce_mode] = {}
+        if object_type == "report-uri":
+            self.content_security_policy[enforce_mode]["report-uri"] = [src_or_directive]
+        else:
+            if object_type not in self.content_security_policy[enforce_mode]:
+                self.content_security_policy[enforce_mode][object_type] = []
+            if src_or_directive not in self.content_security_policy[enforce_mode][object_type]:
+                self.content_security_policy[enforce_mode][object_type].append(src_or_directive)
+
+    def _build_csp_header_cache(self) -> None:
+        """(Re)build :attr:`_csp_header_cache` from :attr:`content_security_policy`.
+
+        NOTE: project-wide CSP does NOT quote ``nonce-`` values (a nonce must not be reused across
+        requests); per-request :meth:`extend_csp` does quote them. Keep these rules distinct.
+        """
+        self._csp_header_cache = {}
+        if not self.content_security_policy:
+            return
+        for enforce_mode in ("monitor", "enforce"):
+            if enforce_mode not in self.content_security_policy:
+                continue
+            res = ""
+            for key, values in self.content_security_policy[enforce_mode].items():
+                res += key
+                for value in values:
+                    res += " "
+                    if value in {"self", "unsafe-inline", "unsafe-eval", "script", "none"} \
+                            or any(value.startswith(p) for p in ("sha256-", "sha384-", "sha512-")):
+                        res += f"'{value}'"
+                    else:
+                        res += value
+                res += "; "
+            header = "Content-Security-Policy-Report-Only" if enforce_mode == "monitor" else "Content-Security-Policy"
+            self._csp_header_cache[header] = res
+
+    _permissions_policy_header: str = ""
+    """Derived cache of the built Permissions-Policy header string; populated by :meth:`finalize`. Internal."""
+
+    def _build_permissions_policy_header(self) -> None:
+        """(Re)build :attr:`_permissions_policy_header` from :attr:`permissions_policy`."""
+        self._permissions_policy_header = ", ".join(
+            "%s=(%s)" % (k, " ".join(('"%s"' % x if x != "self" else x) for x in v))
+            for k, v in self.permissions_policy.items()
+        )
+
+    def extend_csp(self, additional_rules: t.Optional[dict] = None, override_rules: t.Optional[dict] = None) -> None:
+        """Extend/override the project-wide CSP for the *current* request only (``enforce`` mode).
+
+        ``additional_rules`` values are appended, ``override_rules`` values replace (None removes a key).
+        Unlike the project-wide config, per-request rules MAY contain ``nonce-`` values.
+        """
+        from viur.core import current
+        assert additional_rules or override_rules, "Either additional_rules or override_rules must be given!"
+        tmp: dict = {}
+        if self.content_security_policy and self.content_security_policy.get("enforce"):
+            tmp.update({k: v[:] for k, v in self.content_security_policy["enforce"].items()})
+        if override_rules:
+            for k, v in override_rules.items():
+                if v is None and k in tmp:
+                    del tmp[k]
+                else:
+                    tmp[k] = v
+        if additional_rules:
+            for k, v in additional_rules.items():
+                if k not in tmp:
+                    tmp[k] = []
+                tmp[k].extend(v)
+        res = ""
+        for key, values in tmp.items():
+            res += key
+            for value in values:
+                res += " "
+                if value in {"self", "unsafe-inline", "unsafe-eval", "script", "none"} \
+                        or any(value.startswith(p) for p in ("nonce-", "sha256-", "sha384-", "sha512-")):
+                    res += f"'{value}'"
+                else:
+                    res += value
+            res += "; "
+        current.request.get().response.headers["Content-Security-Policy"] = res
+
+    def finalize(self) -> None:
+        """Build the derived header caches and validate the security config. Called once by ``core.setup()``."""
+        self._build_csp_header_cache()
+        self._build_permissions_policy_header()
+
+        for header_name in self._csp_header_cache:
+            if not header_name.startswith("Content-Security-Policy"):
+                raise AssertionError("Got unexpected header in Security._csp_header_cache")
+        if self.strict_transport_security:
+            if not self.strict_transport_security.startswith("max-age"):
+                raise AssertionError("Got unexpected value in Security.strict_transport_security")
+        cross_domain_policies = {None, "none", "master-only", "by-content-type", "all"}
+        if self.x_permitted_cross_domain_policies not in cross_domain_policies:
+            raise AssertionError(
+                f"Security.x_permitted_cross_domain_policies must be one of {cross_domain_policies!r}")
+        if self.x_frame_options is not None and isinstance(self.x_frame_options, tuple):
+            mode, uri = self.x_frame_options
+            assert mode in ("deny", "sameorigin", "allow-from")
+            if mode == "allow-from":
+                assert uri is not None and (uri.lower().startswith("https://") or uri.lower().startswith("http://"))
+
+    def update_response_headers(self, response, *, is_ssl: bool) -> None:
+        """Emit all configured security headers onto ``response`` (a webob Response).
+
+        Must be called BEFORE the request handler runs, so handlers/:meth:`extend_csp` can override CSP.
+        """
+        if self._csp_header_cache:
+            for header_name, value in self._csp_header_cache.items():
+                response.headers[header_name] = value
+        if is_ssl and self.strict_transport_security:
+            response.headers["Strict-Transport-Security"] = self.strict_transport_security
+        if self.x_content_type_options:
+            response.headers["X-Content-Type-Options"] = "nosniff"
+        if self.x_xss_protection is not None:
+            if self.x_xss_protection:
+                response.headers["X-XSS-Protection"] = "1; mode=block"
+            elif self.x_xss_protection is False:
+                response.headers["X-XSS-Protection"] = "0"
+        if self.x_frame_options is not None and isinstance(self.x_frame_options, tuple):
+            mode, uri = self.x_frame_options
+            if mode in ("deny", "sameorigin"):
+                response.headers["X-Frame-Options"] = mode
+            elif mode == "allow-from":
+                response.headers["X-Frame-Options"] = f"allow-from {uri}"
+        if self.x_permitted_cross_domain_policies is not None:
+            response.headers["X-Permitted-Cross-Domain-Policies"] = self.x_permitted_cross_domain_policies
+        if self.referrer_policy:
+            response.headers["Referrer-Policy"] = self.referrer_policy
+        if self._permissions_policy_header:
+            response.headers["Permissions-Policy"] = self._permissions_policy_header
+        if self.enable_coep:
+            response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+        if self.enable_coop:
+            response.headers["Cross-Origin-Opener-Policy"] = self.enable_coop
+        if self.enable_corp:
+            response.headers["Cross-Origin-Resource-Policy"] = self.enable_corp
+
 
 class Debug(ConfigType):
     """Several debug flags"""
@@ -533,6 +766,14 @@ class Debug(ConfigType):
 
     disable_cache: bool = False
     """If set to true, the decorator @enableCache from viur.core.cache has no effect"""
+
+    trace_headers: bool = False
+    """If enabled, log the incoming request headers and the final outgoing response headers per request.
+    Sensitive headers are redacted (see :attr:`trace_headers_redact`)."""
+
+    trace_headers_redact: Multiple[str] = ("Authorization", "Proxy-Authorization", "Cookie", "Set-Cookie")
+    """Header names (matched case-insensitively) whose values are redacted in :attr:`trace_headers` output.
+    An empty collection disables redaction (full raw dump)."""
 
     _mapping = {
         "skeleton.fromClient": "skeleton_from_client",

@@ -274,7 +274,8 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
     # Send warning email in case trace is activated in a cloud environment
     if ((conf.debug.trace
             or conf.debug.trace_external_call_routing
-            or conf.debug.trace_internal_call_routing)
+            or conf.debug.trace_internal_call_routing
+            or conf.debug.trace_headers)
             and (not conf.instance.is_dev_server or conf.debug.dev_server_cloud_logging)):
         from viur.core import email
         try:
@@ -284,29 +285,9 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
             )
         except Exception as exc:  # OverQuota, whatever
             logging.exception(exc)
-    # Ensure that our Content Security Policy Header Cache gets build
-    from viur.core import securityheaders
-    securityheaders._rebuildCspHeaderCache()
-    securityheaders._rebuildPermissionHeaderCache()
+    # Build the security-header caches and validate the security config
+    conf.security.finalize()
     setSystemInitialized()
-    # Assert that all security related headers are in a sane state
-    if conf.security.content_security_policy and conf.security.content_security_policy["_headerCache"]:
-        for k in conf.security.content_security_policy["_headerCache"]:
-            if not k.startswith("Content-Security-Policy"):
-                raise AssertionError("Got unexpected header in "
-                                     "conf.security.content_security_policy['_headerCache']")
-    if conf.security.strict_transport_security:
-        if not conf.security.strict_transport_security.startswith("max-age"):
-            raise AssertionError("Got unexpected header in conf.security.strict_transport_security")
-    crossDomainPolicies = {None, "none", "master-only", "by-content-type", "all"}
-    if conf.security.x_permitted_cross_domain_policies not in crossDomainPolicies:
-        raise AssertionError("conf.security.x_permitted_cross_domain_policies "
-                             f"must be one of {crossDomainPolicies!r}")
-    if conf.security.x_frame_options is not None and isinstance(conf.security.x_frame_options, tuple):
-        mode, uri = conf.security.x_frame_options
-        assert mode in ["deny", "sameorigin", "allow-from"]
-        if mode == "allow-from":
-            assert uri is not None and (uri.lower().startswith("https://") or uri.lower().startswith("http://"))
     runStartupTasks()  # Add a deferred call to run all queued startup tasks
     i18n.initializeTranslations()
     if conf.file_hmac_key is None:

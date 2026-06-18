@@ -4,6 +4,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 
 ## [3.9.0.dev4]
 
+- feat: Add `conf.debug.trace_headers` to log request/response headers (sensitive headers redacted) (#1013)
 - chore: Deprecate endpoint `/vi/getStructure` (#1616)
 - doc: Docstrings for compute-related enum variants
 - doc: Fix seo_language_map in docstring
@@ -32,6 +33,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: Import `pprint` as `pp` (#1579)
 - fix: Reject RFC 5321 violations in EmailBone local part (#1696)
 - refactor: Deprecate `/vi/getVersion` and `/vi/settings` (#1669)
+- refactor: Move `securityheaders` functions onto `config.Security` as methods; deprecate the module (#1013)
 - refactor: Provide and use `_can_access`-function in vi-render (#1659)
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
 - test: Add unit tests for Bones and App Login Flow (get_cookie_for_app, apply_login_cookie) (#1661)

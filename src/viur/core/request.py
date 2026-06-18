@@ -25,7 +25,6 @@ from viur.core import current, db, errors, session, utils
 from viur.core.config import conf
 from viur.core.logging import client as loggingClient, requestLogger, requestLoggingRessource
 from viur.core.module import Method
-from viur.core.securityheaders import extendCsp
 from viur.core.tasks import _appengineServiceIPs
 
 TEMPLATE_STYLE_KEY = "style"
@@ -91,6 +90,17 @@ class FetchMetaDataValidator(RequestValidator):
                     return None
 
         return 403, "Forbidden", "Request rejected due to fetch metadata"
+
+
+def _redact_headers(headers: t.Iterable[tuple[str, str]] | t.Mapping[str, str],
+                    redact: t.Iterable[str]) -> dict[str, str]:
+    """Return a plain dict of ``headers`` with values of ``redact`` names replaced by ``[redacted]``.
+
+    Header-name matching is case-insensitive. An empty ``redact`` returns everything unchanged.
+    """
+    redact_lower = {name.lower() for name in redact}
+    items = headers.items() if hasattr(headers, "items") else headers
+    return {key: ("[redacted]" if key.lower() in redact_lower else value) for key, value in items}
 
 
 class Router:
@@ -169,6 +179,9 @@ class Router:
             fn()
 
         self._cors()
+
+        if conf.debug.trace_headers:
+            self._audit_headers()
 
         # Unset context variables
         current.language.set(None)
@@ -304,39 +317,8 @@ class Router:
             self.response.status = "400 Bad Request"  # let's send the client onto a health cure in Bad Request ...
             return
 
-        # Add CSP headers early (if any)
-        if conf.security.content_security_policy and conf.security.content_security_policy["_headerCache"]:
-            for k, v in conf.security.content_security_policy["_headerCache"].items():
-                self.response.headers[k] = v
-        if self.isSSLConnection:  # Check for HTST and PKP headers only if we have a secure channel.
-            if conf.security.strict_transport_security:
-                self.response.headers["Strict-Transport-Security"] = conf.security.strict_transport_security
-        # Check for X-Security-Headers we shall emit
-        if conf.security.x_content_type_options:
-            self.response.headers["X-Content-Type-Options"] = "nosniff"
-        if conf.security.x_xss_protection is not None:
-            if conf.security.x_xss_protection:
-                self.response.headers["X-XSS-Protection"] = "1; mode=block"
-            elif conf.security.x_xss_protection is False:
-                self.response.headers["X-XSS-Protection"] = "0"
-        if conf.security.x_frame_options is not None and isinstance(conf.security.x_frame_options, tuple):
-            mode, uri = conf.security.x_frame_options
-            if mode in ["deny", "sameorigin"]:
-                self.response.headers["X-Frame-Options"] = mode
-            elif mode == "allow-from":
-                self.response.headers["X-Frame-Options"] = f"allow-from {uri}"
-        if conf.security.x_permitted_cross_domain_policies is not None:
-            self.response.headers["X-Permitted-Cross-Domain-Policies"] = conf.security.x_permitted_cross_domain_policies
-        if conf.security.referrer_policy:
-            self.response.headers["Referrer-Policy"] = conf.security.referrer_policy
-        if conf.security.permissions_policy.get("_headerCache"):
-            self.response.headers["Permissions-Policy"] = conf.security.permissions_policy["_headerCache"]
-        if conf.security.enable_coep:
-            self.response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
-        if conf.security.enable_coop:
-            self.response.headers["Cross-Origin-Opener-Policy"] = conf.security.enable_coop
-        if conf.security.enable_corp:
-            self.response.headers["Cross-Origin-Resource-Policy"] = conf.security.enable_corp
+        # Emit the security headers early, so handlers can still override (e.g. extend_csp).
+        conf.security.update_response_headers(self.response, is_ssl=self.isSSLConnection)
 
         # Ensure that TLS is used if required
         if conf.security.force_ssl and not self.isSSLConnection and not conf.instance.is_dev_server:
@@ -461,7 +443,7 @@ class Router:
                             nonce = None
                         else:
                             nonce = utils.string.random(16)
-                            extendCsp({"style-src": [f"nonce-{nonce}"]})
+                            conf.security.extend_csp({"style-src": [f"nonce-{nonce}"]})
                         res = template.render(error_info, nonce=nonce)
                     else:
                         res = (f'<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'
@@ -789,6 +771,12 @@ class Router:
 
     def saveSession(self) -> None:
         current.session.get().save()
+
+    def _audit_headers(self) -> None:
+        """Log the (redacted) request and final response headers (enabled via conf.debug.trace_headers)."""
+        redact = conf.debug.trace_headers_redact
+        logging.debug("Request headers: %r", _redact_headers(self.request.headers, redact))
+        logging.debug("Response headers: %r", _redact_headers(self.response.headers, redact))
 
 
 def before_request(fn: t.Callable[[], None]) -> t.Callable[[], None]:
