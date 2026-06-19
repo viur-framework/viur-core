@@ -214,14 +214,23 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         for boneName, boneInstance in skel.items():
             if boneInstance.unique:
                 lockValues = boneInstance.getUniquePropertyIndexValues(skel, boneName)
+
                 for lockValue in lockValues:
-                    dbObj = db.get(db.Key(f"{skel.kindName}_{boneName}_uniquePropertyIndex", lockValue))
-                    if dbObj and (not skel["key"] or dbObj["references"] != skel["key"].id_or_name):
+                    lock_key = db.Key(f"{skel.kindName}_{boneName}_uniquePropertyIndex", lockValue)
+                    lock_entity = db.get(lock_key)
+
+                    if lock_entity and (not skel["key"] or lock_entity["references"] != skel["key"].id_or_name):
+                        logging.error(f"{boneName=} {lock_key=} already taken by {lock_entity["references"]!r}")
+
                         # This value is taken (sadly, not by us)
                         complete = False
-                        errorMsg = boneInstance.unique.message
                         skel.errors.append(
-                            ReadFromClientError(ReadFromClientErrorSeverity.Invalid, errorMsg, [boneName]))
+                            ReadFromClientError(
+                                ReadFromClientErrorSeverity.Invalid,
+                                boneInstance.unique.message,
+                                [boneName]
+                            )
+                        )
 
         # Check inter-Bone dependencies
         for checkFunc in skel.interBoneValidations:
