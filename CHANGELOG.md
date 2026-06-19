@@ -2,6 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.27]
+
+- feat(security): allow all CSP level 3 directives in `addCspRule` (#1714)
+- fix: Improve reporting of locked values for devs (#1713)
+- fix: Add check for path change in script onEdited (#1702)
+
 ## [3.8.26]
 
 - fix: propagate user-entity changes into active sessions on edit (#1704)
