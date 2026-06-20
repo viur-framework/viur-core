@@ -1384,14 +1384,7 @@ class BaseBone(object):
         """Clone / Set the value for this bone depending on :attr:`clone_behavior`"""
         match self.clone_behavior.strategy:
             case CloneStrategy.COPY_VALUE:
-                try:
-                    skel.accessedValues[bone_name] = copy.deepcopy(src_skel.accessedValues[bone_name])
-                except KeyError:
-                    pass  # bone_name is not in accessedValues, cannot clone it
-                try:
-                    skel.renderAccessedValues[bone_name] = copy.deepcopy(src_skel.renderAccessedValues[bone_name])
-                except KeyError:
-                    pass  # bone_name is not in renderAccessedValues, cannot clone it
+                skel[bone_name] = copy.deepcopy(src_skel[bone_name])
             case CloneStrategy.SET_NULL:
                 skel.accessedValues[bone_name] = None
             case CloneStrategy.SET_DEFAULT:
