@@ -324,7 +324,7 @@ class HistoryAdapter(DatabaseAdapter):
             if kindname == "viur-history":
                 return None
 
-        return history_module.write(
+        return history_module.log(
             action, old_skel, new_skel,
             change_list=change_list,
             user=user,
@@ -532,7 +532,7 @@ class History(List):
 
         return ret
 
-    def write(
+    def log(
         self,
         action: str,
         old_skel: t.Optional[SkeletonInstance] = None,
@@ -565,7 +565,7 @@ class History(List):
 
         # write into datastore via history module
         if "viur" in conf.history.databases:
-            self.write_deferred(key, entry)
+            self.write_to_viur_deferred(key, entry)
 
         # write into BigQuery
         if self.bigquery and "bigquery" in conf.history.databases:
@@ -577,7 +577,7 @@ class History(List):
 
         return key
 
-    def write(self, key: str, entry: dict):
+    def write_to_viur(self, key: str, entry: dict):
         """
         Write a history entry generated from an HistoryAdapter.
         """
@@ -595,8 +595,8 @@ class History(List):
         logging.info(f"History entry {key=} written to datastore")
 
     @tasks.CallDeferred
-    def write_deferred(self, key: str, entry: dict):
-        self.write(key, entry)
+    def write_to_viur_deferred(self, key: str, entry: dict):
+        self.write_to_viur(key, entry)
 
     def write_to_bigquery(self, key: str, entry: dict):
         entry["key"] = key
