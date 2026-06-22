@@ -76,6 +76,7 @@ class HistorySkel(Skeleton):
     )
 
     diff = RawBone(
+        type_suffix="code.diff",
         descr="Human-readable diff",
         indexed=False,
     )
@@ -410,7 +411,7 @@ class History(List):
                         ret.update(expand(name + (str(key),), val))
                 else:
                     name = ".".join(name)
-                    ret[name] = json.dumps(obj, cls=CustomJsonEncoder)
+                    ret[name] = json.dumps(obj, cls=CustomJsonEncoder, ensure_ascii=False)
 
                 return ret
 
@@ -495,10 +496,10 @@ class History(List):
         that can either be written to datastore or another database.
         """
         skel = new_skel or old_skel
-        new_data = skel.dump() if skel else {}
+        new_data = skel.dump(bones=change_list) if skel else {}
 
         if change_list and old_skel != new_skel:
-            old_data = old_skel.dump()
+            old_data = old_skel.dump(bones=change_list)
             diff = self._create_diff(new_data, old_data, diff_excludes)
         else:
             old_data = {}
