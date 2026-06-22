@@ -543,6 +543,34 @@ class History(List):
         tags: t.Iterable[str] = (),
         diff_excludes: t.Set[str] = set(),
     ) -> str | None:
+        """
+        Creates and persists a history entry for a skeleton change or a standalone event.
+
+        Builds the entry via :meth:`create_history_entry`, derives a deterministic key
+        from ``action``, ``current_kind``, and the current timestamp, then writes the
+        entry to all configured backends (``"viur"`` datastore and/or ``"bigquery"``)
+        as deferred tasks.
+
+        Both ``old_skel`` and ``new_skel`` are optional. For skeleton lifecycle actions
+        one of them is typically present (``"add"`` only has ``new_skel``, ``"delete"``
+        only has ``old_skel``, ``"edit"`` has both), but for pure event logging neither
+        is required.
+
+        :param action: Short identifier for what happened, e.g. ``"add"``, ``"edit"``,
+            ``"delete"``, or a custom ``"event-*"`` string.
+        :param old_skel: Skeleton state before the change, or ``None`` for pure events
+            and ``"add"`` actions.
+        :param new_skel: Skeleton state after the change, or ``None`` for pure events
+            and ``"delete"`` actions.
+        :param change_list: Names of the bones that were modified (used for ``"edit"`` actions).
+        :param descr: Optional human-readable description. Falls back to :meth:`build_descr`
+            when omitted.
+        :param user: Skeleton instance of the user who triggered the action.
+        :param tags: Additional string tags attached to the entry for filtering.
+            Entries with an ``"event-*"`` action automatically receive the ``"is-event"`` tag.
+        :param diff_excludes: Bone names to exclude from the unified diff computation.
+        :returns: The generated history entry key, or ``None`` if no entry was written.
+        """
 
         # create entry
         entry = self.create_history_entry(
