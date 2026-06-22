@@ -324,7 +324,7 @@ class HistoryAdapter(DatabaseAdapter):
             if kindname == "viur-history":
                 return None
 
-        return history_module.write_diff(
+        return history_module.write(
             action, old_skel, new_skel,
             change_list=change_list,
             user=user,
@@ -482,8 +482,8 @@ class History(List):
     def create_history_entry(
         self,
         action: str,
-        old_skel: SkeletonInstance,
-        new_skel: SkeletonInstance,
+        old_skel: t.Optional[SkeletonInstance] = None,
+        new_skel: t.Optional[SkeletonInstance] = None,
         change_list: t.Iterable[str] = (),
         descr: t.Optional[str] = None,
         user: t.Optional[SkeletonInstance] = None,
@@ -495,7 +495,7 @@ class History(List):
         that can either be written to datastore or another database.
         """
         skel = new_skel or old_skel
-        new_data = skel.dump()
+        new_data = skel.dump() if skel else {}
 
         if change_list and old_skel != new_skel:
             old_data = old_skel.dump()
@@ -532,11 +532,11 @@ class History(List):
 
         return ret
 
-    def write_diff(
+    def write(
         self,
         action: str,
-        old_skel: SkeletonInstance = None,
-        new_skel: SkeletonInstance = None,
+        old_skel: t.Optional[SkeletonInstance] = None,
+        new_skel: t.Optional[SkeletonInstance] = None,
         change_list: t.Iterable[str] = (),
         descr: t.Optional[str] = None,
         user: t.Optional[SkeletonInstance] = None,
