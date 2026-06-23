@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.28]
+
+- fix: Loosen overly strict dependency ranges (#1716)
+- fix: Several `History` improvements (#1715)
+
 ## [3.8.27]
 
 - feat(security): allow all CSP level 3 directives in `addCspRule` (#1714)
