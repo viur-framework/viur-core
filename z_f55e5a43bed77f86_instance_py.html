@@ -55,9 +55,9 @@
             </div>
         </aside>
         <h2>
-            <span class="text">186 statements &nbsp;</span>
+            <span class="text">189 statements &nbsp;</span>
             <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">36<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">150<span class="text"> missing</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">153<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
             <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">0<span class="text"> partial</span></button>
         </h2>
@@ -66,8 +66,8 @@
             <a id="indexLink" class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a id="nextFileLink" class="nav" href="z_f55e5a43bed77f86_meta_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.14.1">coverage.py v7.14.1</a>,
-            created at 2026-06-19 15:25 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.14.3">coverage.py v7.14.3</a>,
+            created at 2026-06-23 19:44 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -91,7 +91,7 @@
     <p class="run"><span class="n"><a id="t7" href="#t7">7</a></span><span class="t"><span class="key">import</span> <span class="nam">warnings</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t8" href="#t8">8</a></span><span class="t"><span class="key">from</span> <span class="nam">functools</span> <span class="key">import</span> <span class="nam">partial</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t9" href="#t9">9</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t10" href="#t10">10</a></span><span class="t"><span class="key">from</span> <span class="nam">viur</span><span class="op">.</span><span class="nam">core</span> <span class="key">import</span> <span class="nam">db</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t10" href="#t10">10</a></span><span class="t"><span class="key">from</span> <span class="nam">viur</span><span class="op">.</span><span class="nam">core</span> <span class="key">import</span> <span class="nam">db</span><span class="op">,</span> <span class="nam">utils</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t11" href="#t11">11</a></span><span class="t"><span class="key">from</span> <span class="op">.</span><span class="nam">skeleton</span> <span class="key">import</span> <span class="nam">Skeleton</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t12" href="#t12">12</a></span><span class="t"><span class="key">from</span> <span class="op">.</span><span class="op">.</span><span class="nam">bones</span><span class="op">.</span><span class="nam">base</span> <span class="key">import</span> <span class="nam">BaseBone</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t13" href="#t13">13</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -429,23 +429,32 @@
     <p class="mis mis2 show_mis"><span class="n"><a id="t345" href="#t345">345</a></span><span class="t">            <span class="key">for</span> <span class="nam">i</span><span class="op">,</span> <span class="op">(</span><span class="nam">key</span><span class="op">,</span> <span class="nam">bone</span><span class="op">)</span> <span class="key">in</span> <span class="nam">enumerate</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">items</span><span class="op">(</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t346" href="#t346">346</a></span><span class="t">        <span class="op">}</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t347" href="#t347">347</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t348" href="#t348">348</a></span><span class="t">    <span class="key">def</span> <span class="nam">dump</span><span class="op">(</span><span class="nam">self</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t348" href="#t348">348</a></span><span class="t">    <span class="key">def</span> <span class="nam">dump</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="op">*</span><span class="op">,</span> <span class="nam">bones</span><span class="op">:</span> <span class="nam">t</span><span class="op">.</span><span class="nam">Iterable</span><span class="op">[</span><span class="nam">str</span><span class="op">]</span> <span class="op">=</span> <span class="op">(</span><span class="op">)</span><span class="op">)</span> <span class="op">-></span> <span class="nam">dict</span><span class="op">[</span><span class="nam">str</span><span class="op">,</span> <span class="nam">t</span><span class="op">.</span><span class="nam">Any</span><span class="op">]</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t349" href="#t349">349</a></span><span class="t">        <span class="str">"""</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t350" href="#t350">350</a></span><span class="t"><span class="str">        Return a JSON-serializable version of the bone values in this skeleton.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t351" href="#t351">351</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t352" href="#t352">352</a></span><span class="t"><span class="str">        The function is not called "to_json()" because the JSON-serializable</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t353" href="#t353">353</a></span><span class="t"><span class="str">        format can be used for different purposes and renderings, not just</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t354" href="#t354">354</a></span><span class="t"><span class="str">        JSON.</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t355" href="#t355">355</a></span><span class="t"><span class="str">        """</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t356" href="#t356">356</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t357" href="#t357">357</a></span><span class="t">        <span class="key">return</span> <span class="op">{</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t358" href="#t358">358</a></span><span class="t">            <span class="nam">bone_name</span><span class="op">:</span> <span class="nam">bone</span><span class="op">.</span><span class="nam">dump</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">bone_name</span><span class="op">)</span> <span class="key">for</span> <span class="nam">bone_name</span><span class="op">,</span> <span class="nam">bone</span> <span class="key">in</span> <span class="nam">self</span><span class="op">.</span><span class="nam">items</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t359" href="#t359">359</a></span><span class="t">        <span class="op">}</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t360" href="#t360">360</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t361" href="#t361">361</a></span><span class="t">    <span class="key">def</span> <span class="nam">__deepcopy__</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">memodict</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t362" href="#t362">362</a></span><span class="t">        <span class="nam">res</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">clone</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t363" href="#t363">363</a></span><span class="t">        <span class="nam">memodict</span><span class="op">[</span><span class="nam">id</span><span class="op">(</span><span class="nam">self</span><span class="op">)</span><span class="op">]</span> <span class="op">=</span> <span class="nam">res</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t364" href="#t364">364</a></span><span class="t">        <span class="key">return</span> <span class="nam">res</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t355" href="#t355">355</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t356" href="#t356">356</a></span><span class="t"><span class="str">        :param bones: Iterable of bone names to include. If None, all bones are dumped.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t357" href="#t357">357</a></span><span class="t"><span class="str">        """</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t358" href="#t358">358</a></span><span class="t">        <span class="key">if</span> <span class="nam">bones</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t359" href="#t359">359</a></span><span class="t">            <span class="nam">bones</span> <span class="op">=</span> <span class="nam">set</span><span class="op">(</span><span class="nam">utils</span><span class="op">.</span><span class="nam">ensure_iterable</span><span class="op">(</span><span class="nam">bones</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t360" href="#t360">360</a></span><span class="t">            <span class="key">return</span> <span class="op">{</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t361" href="#t361">361</a></span><span class="t">                <span class="nam">bone_name</span><span class="op">:</span> <span class="nam">bone</span><span class="op">.</span><span class="nam">dump</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">bone_name</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t362" href="#t362">362</a></span><span class="t">                <span class="key">for</span> <span class="nam">bone_name</span><span class="op">,</span> <span class="nam">bone</span> <span class="key">in</span> <span class="nam">self</span><span class="op">.</span><span class="nam">items</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t363" href="#t363">363</a></span><span class="t">                <span class="key">if</span> <span class="nam">bone_name</span> <span class="key">in</span> <span class="nam">bones</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t364" href="#t364">364</a></span><span class="t">            <span class="op">}</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t365" href="#t365">365</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t366" href="#t366">366</a></span><span class="t">        <span class="key">return</span> <span class="op">{</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t367" href="#t367">367</a></span><span class="t">            <span class="nam">bone_name</span><span class="op">:</span> <span class="nam">bone</span><span class="op">.</span><span class="nam">dump</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">bone_name</span><span class="op">)</span> <span class="key">for</span> <span class="nam">bone_name</span><span class="op">,</span> <span class="nam">bone</span> <span class="key">in</span> <span class="nam">self</span><span class="op">.</span><span class="nam">items</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t368" href="#t368">368</a></span><span class="t">        <span class="op">}</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t369" href="#t369">369</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t370" href="#t370">370</a></span><span class="t">    <span class="key">def</span> <span class="nam">__deepcopy__</span><span class="op">(</span><span class="nam">self</span><span class="op">,</span> <span class="nam">memodict</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t371" href="#t371">371</a></span><span class="t">        <span class="nam">res</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">clone</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t372" href="#t372">372</a></span><span class="t">        <span class="nam">memodict</span><span class="op">[</span><span class="nam">id</span><span class="op">(</span><span class="nam">self</span><span class="op">)</span><span class="op">]</span> <span class="op">=</span> <span class="nam">res</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t373" href="#t373">373</a></span><span class="t">        <span class="key">return</span> <span class="nam">res</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -454,8 +463,8 @@
             <a class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a class="nav" href="z_f55e5a43bed77f86_meta_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.14.1">coverage.py v7.14.1</a>,
-            created at 2026-06-19 15:25 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.14.3">coverage.py v7.14.3</a>,
+            created at 2026-06-23 19:44 +0000
         </p>
     </div>
 </footer>
