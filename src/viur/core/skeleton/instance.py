@@ -7,7 +7,7 @@ import typing as t
 import warnings
 from functools import partial
 
-from viur.core import db
+from viur.core import db, utils
 from .skeleton import Skeleton
 
 if t.TYPE_CHECKING:
@@ -397,14 +397,23 @@ class SkeletonInstance(t.Generic[Skeleton_Cls]):
             for i, (key, bone) in enumerate(self.items())
         }
 
-    def dump(self):
+    def dump(self, *, bones: t.Iterable[str] = ()) -> dict[str, t.Any]:
         """
         Return a JSON-serializable version of the bone values in this skeleton.
 
         The function is not called "to_json()" because the JSON-serializable
         format can be used for different purposes and renderings, not just
         JSON.
+
+        :param bones: Iterable of bone names to include. If None, all bones are dumped.
         """
+        if bones:
+            bones = set(utils.ensure_iterable(bones))
+            return {
+                bone_name: bone.dump(self, bone_name)
+                for bone_name, bone in self.items()
+                if bone_name in bones
+            }
 
         return {
             bone_name: bone.dump(self, bone_name) for bone_name, bone in self.items()

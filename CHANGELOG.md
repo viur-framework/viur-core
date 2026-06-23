@@ -2,7 +2,7 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.9.0.dev5]
+## [3.9.0.dev6]
 
 - chore: Deprecate endpoint `/vi/getStructure` (#1616)
 - doc: Docstrings for compute-related enum variants
@@ -40,6 +40,11 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Provide and use `_can_access`-function in vi-render (#1659)
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
 - test: Add unit tests for Bones and App Login Flow (get_cookie_for_app, apply_login_cookie) (#1661)
+
+## [3.8.28]
+
+- fix: Loosen overly strict dependency ranges (#1716)
+- fix: Several `History` improvements (#1715)
 
 ## [3.8.27]
 
