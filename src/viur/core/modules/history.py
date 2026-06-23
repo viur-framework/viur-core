@@ -499,7 +499,7 @@ class History(List):
         new_data = skel.dump(bones=change_list) if skel else {}
 
         if change_list and old_skel != new_skel:
-            old_data = old_skel.dump(bones=change_list)
+            old_data = old_skel.dump(bones=change_list) if old_skel else {}
             diff = self._create_diff(new_data, old_data, diff_excludes)
         else:
             old_data = {}
