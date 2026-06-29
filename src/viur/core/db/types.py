@@ -36,6 +36,12 @@ class SortOrder(enum.Enum):
     """Fetch A->Z, then flip the results (useful in pagination)"""
 
 
+class QueryOrder(t.NamedTuple):
+    """A named tuple describing a single sort order for a datastore query."""
+    name: str
+    order: SortOrder = SortOrder.Ascending
+
+
 class Key(Datastore_key):
     """
         The python representation of one datastore key. Unlike the original implementation, we don't store a
@@ -165,7 +171,7 @@ KeyType: t.TypeAlias = Key | str | int
 Alias that describes a key-type.
 """
 
-TOrders: t.TypeAlias = list[tuple[str, SortOrder]]
+TOrders: t.TypeAlias = list[QueryOrder]
 TFilters: t.TypeAlias = dict[str, DATASTORE_BASE_TYPES | list[DATASTORE_BASE_TYPES]]
 TOrFilters: t.TypeAlias = list[list[tuple[str, DATASTORE_BASE_TYPES | list[DATASTORE_BASE_TYPES]]]]
 

@@ -304,6 +304,34 @@ def killSessionByUser(user: t.Optional[t.Union[str, "db.Key", None]] = None):
     DeleteSessionsIter.startIterOnQuery(query)
 
 
+def update_session_user(user_key: "db.Key"):
+    """
+    Updates the cached user entity in all active sessions of the given *user*.
+
+    Whenever a user entity is modified (e.g. its access rights have changed), the copy
+    stored within the user's active sessions has to be refreshed as well; Otherwise,
+    the modification would only take effect after re-login or session expiry.
+
+    :param user_key: db.Key of the user whose sessions shall be updated.
+    """
+    logging.info(f"Updating cached user entity in all sessions for {user_key=}")
+
+    if not (user_entity := db.get(user_key)):
+        logging.warning(f"Cannot update sessions, {user_key=} not found")
+        return
+
+    def _update_txn(key):
+        if not (entity := db.get(key)):
+            return
+        entity["data"]["user"] = user_entity
+        entity["data"] = db.fix_unindexable_properties(entity["data"])
+        entity.exclude_from_indexes = {"data"}
+        db.put(entity)
+
+    for e in db.Query(Session.kindName).filter("user =", str(user_key)).iter():
+        db.run_in_transaction(_update_txn, e.key)
+
+
 @tasks.PeriodicTask(interval=datetime.timedelta(hours=4))
 def start_clear_sessions():
     """

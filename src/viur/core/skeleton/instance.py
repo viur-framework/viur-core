@@ -7,16 +7,68 @@ import typing as t
 import warnings
 from functools import partial
 
-from viur.core import db
+from viur.core import db, utils
 from .skeleton import Skeleton
+
+if t.TYPE_CHECKING:
+    from .meta import Skeleton_Cls
+else:
+    # Avoid circular import at runtime: meta.py → bones/__init__.py → image.py → relskel.py → meta.py
+    Skeleton_Cls = t.TypeVar("Skeleton_Cls")
 from ..bones.base import BaseBone
 
 
-class SkeletonInstance:
-    """
-        The actual wrapper around a Skeleton-Class. An object of this class is what's actually returned when you
-        call a Skeleton-Class. With ViUR3, you don't get an instance of a Skeleton-Class any more - it's always this
-        class. This is much faster as this is a small class.
+class SkeletonInstance(t.Generic[Skeleton_Cls]):
+    """The actual wrapper around a Skeleton-Class.
+
+    An object of this class is what's actually returned when you call a Skeleton-Class.
+    With ViUR3, you don't get an instance of a Skeleton-Class any more - it's always this
+    class. This is much faster as this is a small class.
+
+    The class is generic over :data:`Skeleton_Cls`, which lets the type checker track which
+    concrete Skeleton subclass a given instance belongs to.  Without the type parameter the
+    class still works exactly as before — the parameter is purely a static-analysis hint.
+
+    **Basic usage**
+
+    Calling a Skeleton class returns a typed ``SkeletonInstance``::
+
+        skel = ProductSkel()          # -> SkeletonInstance[ProductSkel]
+        skel.skeletonCls              # ProductSkel
+        skel["price"]                 # type-safe bone access
+
+    **Typed module method**
+
+    Override ``viewSkel`` / ``editSkel`` etc. in your module with an explicit return type
+    so that callers and IDE auto-complete know which bones are available::
+
+        class ProductModule(List):
+            def editSkel(self) -> SkeletonInstance[ProductSkel]:
+                skel = super().editSkel()
+                skel.price.readOnly = True
+                return skel
+
+    **Generic helper**
+
+    Use :data:`Skeleton_Cls` when writing utilities that must stay agnostic about the
+    concrete skeleton but still preserve the type through the call::
+
+        def set_owner(skel: SkeletonInstance[Skeleton_Cls], owner: str) -> SkeletonInstance[Skeleton_Cls]:
+            skel = skel.clone()
+            skel["owner"] = owner
+            return skel  # type checker keeps SkeletonInstance[ProductSkel] etc.
+
+    **Classmethod signatures** (``t.Self``)
+
+    Inside Skeleton classmethods, ``t.Self`` is preferred over :data:`Skeleton_Cls` because
+    the type checker automatically narrows to the class the method is called on::
+
+        class BaseSkeleton:
+            @classmethod
+            def fromClient(cls, skel: SkeletonInstance[t.Self], data: dict) -> bool: ...
+
+        # Inferred as SkeletonInstance[ProductSkel] when called on ProductSkel
+        ProductSkel.fromClient(skel, request.POST)
     """
     __slots__ = {
         "_cascade_deletion",
@@ -32,7 +84,7 @@ class SkeletonInstance:
 
     def __init__(
         self,
-        skel_cls: t.Type[Skeleton],
+        skel_cls: t.Type[Skeleton_Cls],
         entity: t.Optional[db.Entity | dict] = None,
         *,
         bones: t.Iterable[str] = (),
@@ -104,7 +156,7 @@ class SkeletonInstance:
         self.is_cloned = clone
         self.renderAccessedValues = {}
         self.renderPreparation = None
-        self.skeletonCls = skel_cls
+        self.skeletonCls: t.Type[Skeleton_Cls] = skel_cls
 
     def items(self, yieldBoneValues: bool = False) -> t.Iterable[tuple[str, BaseBone]]:
         if yieldBoneValues:
@@ -345,14 +397,23 @@ class SkeletonInstance:
             for i, (key, bone) in enumerate(self.items())
         }
 
-    def dump(self):
+    def dump(self, *, bones: t.Iterable[str] = ()) -> dict[str, t.Any]:
         """
         Return a JSON-serializable version of the bone values in this skeleton.
 
         The function is not called "to_json()" because the JSON-serializable
         format can be used for different purposes and renderings, not just
         JSON.
+
+        :param bones: Iterable of bone names to include. If None, all bones are dumped.
         """
+        if bones:
+            bones = set(utils.ensure_iterable(bones))
+            return {
+                bone_name: bone.dump(self, bone_name)
+                for bone_name, bone in self.items()
+                if bone_name in bones
+            }
 
         return {
             bone_name: bone.dump(self, bone_name) for bone_name, bone in self.items()

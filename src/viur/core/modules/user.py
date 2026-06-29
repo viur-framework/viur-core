@@ -557,7 +557,7 @@ class UserPassword(UserPrimaryAuthentication):
     def canAdd(self) -> bool:
         return self.registrationEnabled
 
-    def addSkel(self):
+    def addSkel(self) -> skeleton.SkeletonInstance["UserSkel"]:
         """
             Prepare the add-Skel for rendering.
             Currently only calls self._user_module.addSkel() and sets skel["status"] depending on
@@ -1350,7 +1350,7 @@ class User(List):
 
         return ret
 
-    def addSkel(self):
+    def addSkel(self) -> skeleton.SkeletonInstance["UserSkel"]:
         skel = super().addSkel().clone()
 
         if self.is_admin(current.user.get()):
@@ -1377,7 +1377,7 @@ class User(List):
         skel.name.readOnly = False  # Don't enforce readonly name in user/add
         return skel
 
-    def editSkel(self, *args, **kwargs):
+    def editSkel(self, *args, **kwargs) -> skeleton.SkeletonInstance["UserSkel"]:
         skel = super().editSkel().clone()
 
         if "password" in skel:
@@ -1897,9 +1897,9 @@ class User(List):
         if self.is_active(skel) is False:
             session.killSessionByUser(skel["key"])
 
-        # Update user setting in all sessions
-        for session_obj in db.Query("user").filter("user =", skel["key"]).iter():
-            session_obj["data"]["user"] = skel.dbEntity
+        # Otherwise, update the user entity cached in all the user's sessions
+        else:
+            session.update_session_user(skel["key"])
 
     def onDeleted(self, skel):
         super().onDeleted(skel)

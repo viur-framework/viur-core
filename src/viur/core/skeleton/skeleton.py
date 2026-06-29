@@ -35,6 +35,10 @@ class SeoKeyBone(StringBone):
     Special kind of StringBone saving its contents as `viurCurrentSeoKeys` into the entity's `viur` dict.
     """
 
+    def setSystemInitialized(self):
+        super().setSystemInitialized()
+        self.languages = conf.i18n.available_languages
+
     def unserialize(self, skel: SkeletonInstance, name: str) -> bool:
         try:
             skel.accessedValues[name] = skel.dbEntity["viur"]["viurCurrentSeoKeys"]
@@ -169,7 +173,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     @classmethod
     def fromClient(
         cls,
-        skel: SkeletonInstance,
+        skel: "SkeletonInstance[t.Self]",
         data: dict[str, list[str] | str],
         *,
         amend: bool = False,
@@ -210,14 +214,23 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         for boneName, boneInstance in skel.items():
             if boneInstance.unique:
                 lockValues = boneInstance.getUniquePropertyIndexValues(skel, boneName)
+
                 for lockValue in lockValues:
-                    dbObj = db.get(db.Key(f"{skel.kindName}_{boneName}_uniquePropertyIndex", lockValue))
-                    if dbObj and (not skel["key"] or dbObj["references"] != skel["key"].id_or_name):
+                    lock_key = db.Key(f"{skel.kindName}_{boneName}_uniquePropertyIndex", lockValue)
+                    lock_entity = db.get(lock_key)
+
+                    if lock_entity and (not skel["key"] or lock_entity["references"] != skel["key"].id_or_name):
+                        logging.error(f"{boneName=} {lock_key=} already taken by {lock_entity["references"]!r}")
+
                         # This value is taken (sadly, not by us)
                         complete = False
-                        errorMsg = boneInstance.unique.message
                         skel.errors.append(
-                            ReadFromClientError(ReadFromClientErrorSeverity.Invalid, errorMsg, [boneName]))
+                            ReadFromClientError(
+                                ReadFromClientErrorSeverity.Invalid,
+                                boneInstance.unique.message,
+                                [boneName]
+                            )
+                        )
 
         # Check inter-Bone dependencies
         for checkFunc in skel.interBoneValidations:

@@ -2,18 +2,62 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.9.0.dev2]
+## [3.9.0.dev6]
 
 - chore: Deprecate endpoint `/vi/getStructure` (#1616)
-- chore: Deprecate endpoints `/vi/getVersion` and `/vi/settings` (#1669)
+- doc: Docstrings for compute-related enum variants
+- doc: Fix seo_language_map in docstring
+- feat:  `SpatialBone`  extend `setBoneValue` to accept `dict` with lat/lng aliases (#1705)
+- feat: `CodeBone`, `LogicsBone`, `JinjaBone` and `PythonBone` (#1668)
+- feat: `skel.patch()` with internal-mode default (#1587)
+- feat: Add `after_from_client` (#1708)
+- feat: add `contrib` package with `RequestRateLimit` validator (#1690)
 - feat: Add `keys_only`-tooling for `Query` (#1586)
+- feat: add `LoginKey` auth provider to `contrib` (#1691)
+- feat: Add `vi/routes`-endpoint (#1689)
 - feat: Add check for compute in getUniquePropertyIndexValues (#1316)
-- feat: Combine `setting` and `config` for the admin (#1620)
+- feat: add lifecycle hooks for `Request` (#1701)
+- feat: Add QueryOrder and Tests (#1699)
+- feat: Check `conf.valid_application_ids` with `fnmatch` and generally make it optional (#1590)
+- feat: Combine setting and config for the admin (#1620)
 - feat: Implement `preprocess`-function to `Skeleton.patch` (#1625)
+- feat: Implement `TypeVar` for `Skeleton` and make `SkeletonInstance` `Generic` (#1412)
 - feat: Implement new version of `@ResponseCache` decorator (formerly `@enableCache`) (#1446)
+- feat: Provide `Email`-module (#1678)
+- feat: Re-Add trace-queries logging (#1642)
+- feat: Refactor and improve `getUniquePropertyIndexValues` (#1681)
+- feat(StringBone): make `escape_html` globally configurable via `conf` (#1706)
+- fix: `BooleanBone` doesn't respect `vfunc/isInvalid` (#1694)
+- fix: `cache.flushCache` code path improvement (#1682)
+- fix: Add `setSystemInitialized` in `SeoKeyBone` to set the languages (#1703)
+- fix: Avoid compute bones when the skel in deleted in a cascade (#1581)
 - fix: Code fixes due long aging and invalid merge
+- fix: guard Skeleton_Cls import in instance.py to break circular import (#1710)
+- fix: Import `pprint` as `pp` (#1579)
+- fix: Reject RFC 5321 violations in EmailBone local part (#1696)
+- refactor: Deprecate `/vi/getVersion` and `/vi/settings` (#1669)
+- refactor: migrate CaptchaBone to reCAPTCHA Enterprise (#1680)
 - refactor: Provide and use `_can_access`-function in vi-render (#1659)
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
+- test: Add unit tests for Bones and App Login Flow (get_cookie_for_app, apply_login_cookie) (#1661)
+
+## [3.8.28]
+
+- fix: Loosen overly strict dependency ranges (#1716)
+- fix: Several `History` improvements (#1715)
+
+## [3.8.27]
+
+- feat(security): allow all CSP level 3 directives in `addCspRule` (#1714)
+- fix: Improve reporting of locked values for devs (#1713)
+- fix: Add check for path change in script onEdited (#1702)
+
+## [3.8.26]
+
+- fix: propagate user-entity changes into active sessions on edit (#1704)
+- fix: `RelationalBone.getSearchTags` should ignore any falsy values (#1707)
+- fix: `SignatureDoesNotMatch` for filenames containing `+` (#1697)
+- fix: Import Testbed on dev-server only (#1695)
 
 ## [3.8.25]
 
