@@ -112,13 +112,13 @@ class RandomSliceBone(BaseBone):
                 q = db.QueryDefinition(origKind, {}, [])
                 property, value = applyFilterHook(dbFilter, f"{name} <=", rndVal)
                 q.filters[property] = value
-                q.orders = [(name, db.SortOrder.Descending)]
+                q.orders = [db.QueryOrder(name, db.SortOrder.Descending)]
                 queries.append(q)
                 # Left Side
                 q = db.QueryDefinition(origKind, {}, [])
                 property, value = applyFilterHook(dbFilter, f"{name} >", rndVal)
                 q.filters[property] = value
-                q.orders = [(name, db.SortOrder.Ascending)]
+                q.orders = [db.QueryOrder(name)]
                 queries.append(q)
             dbFilter.queries = queries
             # Map the original filter back in

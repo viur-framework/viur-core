@@ -748,7 +748,8 @@ class File(Tree):
             return ""
 
         if isinstance(file, str):
-            file = db.Query("file").filter("dlkey =", file).order(("creationdate", db.SortOrder.Ascending)).getEntry()
+            file = db.Query("file").filter("dlkey =", file).order(
+                db.QueryOrder("creationdate")).getEntry()
 
         if not file:
             return ""

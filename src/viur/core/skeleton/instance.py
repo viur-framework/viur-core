@@ -7,9 +7,14 @@ import typing as t
 import warnings
 from functools import partial
 
-from viur.core import db
-from .meta import Skeleton_Cls
+from viur.core import db, utils
 from .skeleton import Skeleton
+
+if t.TYPE_CHECKING:
+    from .meta import Skeleton_Cls
+else:
+    # Avoid circular import at runtime: meta.py → bones/__init__.py → image.py → relskel.py → meta.py
+    Skeleton_Cls = t.TypeVar("Skeleton_Cls")
 from ..bones.base import BaseBone
 
 
@@ -401,7 +406,7 @@ class SkeletonInstance(t.Generic[Skeleton_Cls]):
             if not exposed_only or bone.exposed
         }
 
-    def dump(self, *, exposed_only: bool = False):
+    def dump(self, *, bones: t.Iterable[str] = (), exposed_only: bool = False) -> dict[str, t.Any]:
         """
         Return a JSON-serializable version of the bone values in this skeleton.
 
@@ -409,8 +414,16 @@ class SkeletonInstance(t.Generic[Skeleton_Cls]):
         format can be used for different purposes and renderings, not just
         JSON.
 
+        :param bones: Iterable of bone names to include. If None, all bones are dumped.
         :param exposed_only: If True, only bones with ``exposed=True`` are included in the output.
         """
+        if bones:
+            bones = set(utils.ensure_iterable(bones))
+            return {
+                bone_name: bone.dump(self, bone_name)
+                for bone_name, bone in self.items()
+                if bone_name in bones and (not exposed_only or bone.exposed)
+            }
 
         return {
             bone_name: bone.dump(self, bone_name)
