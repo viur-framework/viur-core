@@ -29,7 +29,6 @@ class TestDb(ViURTestCase):
         self.assertEqual(key.parent, parent_key)
 
 
-
 class TestEntryMatchesQuery(ViURTestCase):
     def _make_entity(self, **kwargs):
         from viur.core import db
@@ -432,4 +431,3 @@ class TestQueryOrder(ViURTestCase):
         orders = q.get_orders()
         self.assertIsNotNone(orders)
         self.assertIsInstance(orders[0], db.QueryOrder)
-
