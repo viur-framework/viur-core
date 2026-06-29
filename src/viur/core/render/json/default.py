@@ -1,6 +1,8 @@
 import json
 import typing as t
 import logging
+import warnings
+from decimal import Decimal
 from enum import Enum
 from viur.core import db, current
 from viur.core.bones import BaseBone
@@ -20,7 +22,9 @@ class CustomJsonEncoder(json.JSONEncoder):
 
     def default(self, o: t.Any) -> t.Any:
 
-        if isinstance(o, translate):
+        if isinstance(o, Decimal):
+            return str(o)
+        elif isinstance(o, translate):
             return str(o)
         elif isinstance(o, datetime):
             return o.isoformat()

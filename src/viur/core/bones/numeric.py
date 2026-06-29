@@ -3,6 +3,7 @@ import numbers
 import sys
 import typing as t
 import warnings
+import decimal as deci
 
 from viur.core import db, i18n
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
@@ -33,6 +34,7 @@ class NumericBone(BaseBone):
         min: int | float = MIN,
         max: int | float = MAX,
         precision: int = 0,
+        decimal: bool = False,
         mode=None,  # deprecated!
         **kwargs
     ):
@@ -42,6 +44,7 @@ class NumericBone(BaseBone):
         :param min: Minimum accepted value (including).
         :param max: Maximum accepted value (including).
         :param precision: How may decimal places should be saved. Zero casts the value to int instead of float.
+        :param decimal: If True, use deci.Decimal internally for exact arithmetic.
         """
         super().__init__(**kwargs)
 
@@ -61,6 +64,9 @@ class NumericBone(BaseBone):
         self.precision = precision
         self.min = min
         self.max = max
+        self.decimal = decimal
+        if decimal:
+            self._quantize_exp = deci.Decimal(10) ** -precision
 
     def __setattr__(self, key, value):
         """
@@ -80,16 +86,42 @@ class NumericBone(BaseBone):
 
         return super().__setattr__(key, value)
 
+    def _convert_to_decimal(self, value) -> deci.Decimal | None:
+        """Convert *value* to a quantized Decimal. Uses str() roundtrip for floats.
+        Accepts comma as decimal separator in strings."""
+        if value is None:
+            return None
+        with deci.localcontext() as ctx:
+            # +20 as buffer for integer digits to avoid InvalidOperation on quantize
+            ctx.prec = self.precision + 20
+            if isinstance(value, deci.Decimal):
+                return value.quantize(self._quantize_exp)
+            if isinstance(value, str):
+                value = value.replace(",", ".", 1)
+                return deci.Decimal(value).quantize(self._quantize_exp)
+            if isinstance(value, (int, float)):
+                return deci.Decimal(str(value)).quantize(self._quantize_exp)
+        raise ValueError(f"Cannot convert {type(value).__name__} to Decimal")
+
     def singleValueUnserialize(self, val):
         if val is not None:
             try:
+                if self.decimal:
+                    if isinstance(val, dict) and "decimal" in val:
+                        val = val["decimal"]
+                    return self._convert_to_decimal(val)
                 return self._convert_to_numeric(val)
-            except (ValueError, TypeError):
+            except (ValueError, TypeError, deci.InvalidOperation):
                 return self.getDefaultValue(None)  # FIXME: callable needs the skeleton instance
 
         return val
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+        if self.decimal and value is not None:
+            return {
+                "val": self._convert_to_numeric(value),
+                "decimal": str(self._convert_to_decimal(value)),
+            }
         return self.singleValueUnserialize(value)  # same logic for unserialize here!
 
     def isInvalid(self, value):
@@ -110,6 +142,8 @@ class NumericBone(BaseBone):
         :return: Returns 0 for integers (when precision is 0) or 0.0 for floating-point numbers (when
             precision is non-zero).
         """
+        if self.decimal:
+            return deci.Decimal(0).quantize(self._quantize_exp)
         if self.precision:
             return 0.0
         else:
@@ -124,33 +158,53 @@ class NumericBone(BaseBone):
         :param value: The raw value to be checked for emptiness.
         :return: Returns True if the raw value is considered empty, otherwise False.
         """
+        if value is None:
+            return True
         if isinstance(value, str) and not value:
             return True
         try:
-            value = self._convert_to_numeric(value)
-        except (ValueError, TypeError):
+            if self.decimal:
+                value = self._convert_to_decimal(value)
+            else:
+                value = self._convert_to_numeric(value)
+        except (ValueError, TypeError, deci.InvalidOperation):
             return True
         return value == self.getEmptyValue()
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
-        if not isinstance(value, (int, float)):
-            # Replace , with .
+        if self.decimal:
+            if value is None or (isinstance(value, str) and not value.strip()):
+                return self.getEmptyValue(), [
+                    ReadFromClientError(ReadFromClientErrorSeverity.Empty, "No value entered")
+                ]
             try:
-                value = str(value).replace(",", ".", 1)
-            except TypeError:
-                return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid)]
+                if isinstance(value, str):
+                    value = value.replace(",", ".", 1)
+                value = self._convert_to_decimal(value)
+            except (deci.InvalidOperation, ValueError, TypeError):
+                return self.getEmptyValue(), [
+                    ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Invalid decimal value")
+                ]
 
-            # Convert to float or int -- depending on the precision
-            # Since we convert direct to int if precision=0, a float value isn't valid
-            try:
-                value = float(value) if self.precision else int(value)
-            except ValueError:
-                return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid)]
-
-        if self.precision:
-            value = round(float(value), self.precision)
         else:
-            value = int(value)
+            if not isinstance(value, (int, float)):
+                # Replace , with .
+                try:
+                    value = str(value).replace(",", ".", 1)
+                except TypeError:
+                    return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid)]
+
+                # Convert to float or int -- depending on the precision
+                # Since we convert direct to int if precision=0, a float value isn't valid
+                try:
+                    value = float(value) if self.precision else int(value)
+                except ValueError:
+                    return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid)]
+
+            if self.precision:
+                value = round(float(value), self.precision)
+            else:
+                value = int(value)
 
         # Check the limits after rounding, as the rounding may change the value.
         if not (self.min <= value <= self.max):
@@ -182,22 +236,43 @@ class NumericBone(BaseBone):
         prefix: t.Optional[str] = None
     ) -> db.Query:
         updatedFilter = {}
-
         for parmKey, paramValue in rawFilter.items():
             if parmKey.startswith(name):
                 if parmKey != name and not parmKey.startswith(name + "$"):
                     # It's just another bone which name start's with our's
                     continue
                 try:
-                    if not self.precision:
+                    if self.decimal:
+                        paramValue = float(str(paramValue).replace(",", ".", 1))
+                    elif not self.precision:
                         paramValue = int(paramValue)
                     else:
                         paramValue = float(paramValue)
-                except ValueError:
+                except (ValueError, deci.InvalidOperation):
                     # The value we should filter by is garbage, cancel this query
                     logging.warning(f"Invalid filtering! Unparsable int/float supplied to NumericBone {name}")
                     raise RuntimeError()
                 updatedFilter[parmKey] = paramValue
+
+        if self.decimal:
+            # Values are stored as {"val": float, "decimal": str} — filter on the .val sub-property
+            prop = (prefix or "") + name + ".val"
+            for key, value in updatedFilter.items():
+                if key == name:
+                    dbFilter.filter(prop + " =", value)
+                else:
+                    op = key[len(name) + 1:]  # the part after "$"
+                    if op == "lt":
+                        dbFilter.filter(prop + " <", value)
+                    elif op == "le":
+                        dbFilter.filter(prop + " <=", value)
+                    elif op == "gt":
+                        dbFilter.filter(prop + " >", value)
+                    elif op == "ge":
+                        dbFilter.filter(prop + " >=", value)
+                    else:
+                        dbFilter.filter(prop + " =", value)
+            return dbFilter
 
         return super().buildDBFilter(name, skel, dbFilter, updatedFilter, prefix)
 
@@ -240,9 +315,12 @@ class NumericBone(BaseBone):
         """
         super().refresh(skel, boneName)
 
-        def refresh_single_value(value: t.Any) -> float | int:
+        def refresh_single_value(value: t.Any) -> float | int | deci.Decimal:
             if value == "":
                 return self.getEmptyValue()
+            elif self.decimal:
+                if not isinstance(value, (deci.Decimal, type(None))):
+                    return self._convert_to_decimal(value)
             elif not isinstance(value, (int, float, type(None))):
                 return self._convert_to_numeric(value)
             return value
@@ -276,4 +354,6 @@ class NumericBone(BaseBone):
             "min": self.min,
             "max": self.max,
             "precision": self.precision,
+            "decimal": self.decimal,
+
         }
