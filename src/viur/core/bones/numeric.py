@@ -108,7 +108,7 @@ class NumericBone(BaseBone):
             try:
                 if self.decimal:
                     if isinstance(val, dict) and "decimal" in val:
-                        return self._convert_to_decimal(val["decimal"])
+                        val = val["decimal"]
                     return self._convert_to_decimal(val)
                 return self._convert_to_numeric(val)
             except (ValueError, TypeError, deci.InvalidOperation):
