@@ -1,9 +1,9 @@
 import hashlib
-import json
 import logging
 import typing as t
 import urllib.parse
-import urllib.request
+
+import requests
 
 from .record import RecordBone
 from .string import StringBone
@@ -67,25 +67,31 @@ class AddressBone(RecordBone):
     @staticmethod
     def geocode(skel: RelSkel) -> tuple[float, float] | None:
         street = f"{skel['street_name'] or ''} {skel['street_number'] or ''}".strip()
-        params = urllib.parse.urlencode({
+        params = {
             "street": street,
             "postalcode": skel["zip_code"] or "",
             "city": skel["city"] or "",
             "country": skel["country"] or "",
             "format": "json",
             "limit": 1,
-        })
-        cache_key = AddressBone._cache_key(params)
+        }
+        cache_key = AddressBone._cache_key(urllib.parse.urlencode(params))
         try:
             cached = db.get(cache_key)
             if cached is not None:
                 return cached["lat"], cached["lng"]
-            req = urllib.request.Request(
-                f"https://nominatim.openstreetmap.org/search?{params}",
+            response = requests.get(
+                "https://nominatim.openstreetmap.org/search",
+                params=params,
                 headers={"User-Agent": "viur-addressbone/1.0 (viur.dev)"},
+                timeout=5,
             )
-            with urllib.request.urlopen(req, timeout=5) as response:
-                data = json.loads(response.read())
+            if response.status_code != 200:
+                logging.error(
+                    f"AddressBone: Nominatim returned {response.status_code=}"
+                )
+                return None
+            data = response.json()
             if not data:
                 return None
             lat, lng = float(data[0]["lat"]), float(data[0]["lon"])
