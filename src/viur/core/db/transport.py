@@ -16,7 +16,16 @@ from viur.core.errors import HTTPException
 datastore.helpers.key_from_protobuf = key_from_protobuf
 datastore.helpers.entity_from_protobuf = entity_from_protobuf
 
-__client__ = datastore.Client()
+# Built once at import, kept for the process lifetime — so db/namespace have to
+# come from env (via conf.db); nothing can retarget the client afterwards.
+# Empty kwargs == datastore.Client(): no change for default deployments.
+__client_kwargs__: dict[str, str] = {}
+if conf.db.name:
+    __client_kwargs__["database"] = conf.db.name
+if conf.db.namespace:
+    __client_kwargs__["namespace"] = conf.db.namespace
+
+__client__ = datastore.Client(**__client_kwargs__)
 
 
 def allocate_ids(kind_name: str, num_ids: int = 1, retry=None, timeout=None) -> list[Key]:

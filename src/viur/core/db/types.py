@@ -63,14 +63,34 @@ class Key(Datastore_key):
                 id_or_name = int(id_or_name)
             new_path_args.extend((kind, id_or_name))
 
+        from .transport import __client__  # noqa: E402 # import works only here because circular imports
+
         if project is None:
-            from .transport import __client__  # noqa: E402 # import works only here because circular imports
             project = __client__.project
+
+        # Keys must match the client's db/namespace or Datastore rejects the
+        # request as cross-database. Default from the client; caller wins.
+        if __client__.database:
+            kwargs.setdefault("database", __client__.database)
+        if __client__.namespace:
+            kwargs.setdefault("namespace", __client__.namespace)
 
         super().__init__(*new_path_args, project=project, **kwargs)
 
     def __str__(self):
         return self.to_legacy_urlsafe().decode("ASCII")
+
+    def to_legacy_urlsafe(self, location_prefix=None):
+        # Upstream to_legacy_urlsafe() rejects keys carrying a database, but
+        # str(key)/session paths hit it constantly. Drop the db for encoding —
+        # unambiguous to restore since the process talks to a single database.
+        if self._database is None:
+            return super().to_legacy_urlsafe(location_prefix=location_prefix)
+        saved, self._database = self._database, None
+        try:
+            return super().to_legacy_urlsafe(location_prefix=location_prefix)
+        finally:
+            self._database = saved
 
     '''
     def __repr__(self):

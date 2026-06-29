@@ -1,5 +1,8 @@
 # TODO: Add more tests from https://github.com/viur-framework/viur-datastore/tree/master/tests
 
+import importlib
+from unittest import mock
+
 from abstract import ViURTestCase
 
 
@@ -79,3 +82,105 @@ class TestQueryOrder(ViURTestCase):
         orders = q.get_orders()
         self.assertIsNotNone(orders)
         self.assertIsInstance(orders[0], db.QueryOrder)
+
+
+class TestNamedDatabase(ViURTestCase):
+    """Covers the configurable named database/namespace support.
+
+    See `conf.db.name` / `conf.db.namespace`: keys and the legacy urlsafe
+    encoding must work while the process is wired to a non-default database.
+    """
+
+    @staticmethod
+    def _fake_client(*, database=None, namespace=None):
+        client = mock.Mock()
+        client.project = "test-project"
+        client.database = database
+        client.namespace = namespace
+        return client
+
+    def test_key_inherits_database_and_namespace_from_client(self) -> None:
+        from viur.core import db
+        from viur.core.db import transport
+        with mock.patch.object(
+            transport, "__client__",
+            self._fake_client(database="viur-tests", namespace="ns-ak"),
+        ):
+            key = db.Key("viur", 42)
+        self.assertEqual(key.database, "viur-tests")
+        self.assertEqual(key.namespace, "ns-ak")
+
+    def test_explicit_key_argument_wins_over_client_default(self) -> None:
+        from viur.core import db
+        from viur.core.db import transport
+        with mock.patch.object(
+            transport, "__client__",
+            self._fake_client(database="viur-tests", namespace="ns-ak"),
+        ):
+            key = db.Key("viur", 42, database="other-db", namespace="other-ns")
+        self.assertEqual(key.database, "other-db")
+        self.assertEqual(key.namespace, "other-ns")
+
+    def test_default_client_keeps_keys_on_default_database(self) -> None:
+        from viur.core import db
+        from viur.core.db import transport
+        with mock.patch.object(transport, "__client__", self._fake_client()):
+            key = db.Key("viur", 42)
+        self.assertIsNone(key.database)
+
+    def test_to_legacy_urlsafe_tolerates_named_database(self) -> None:
+        from viur.core import db
+        from viur.core.db import transport
+        with mock.patch.object(
+            transport, "__client__", self._fake_client(database="viur-tests"),
+        ):
+            key = db.Key("viur", "foo")
+            # Without the override both calls would raise ValueError.
+            self.assertIsInstance(key.to_legacy_urlsafe(), bytes)
+            self.assertIsInstance(str(key), str)
+
+    def test_transport_builds_client_from_conf(self) -> None:
+        from viur.core.config import conf
+        from viur.core.db import transport
+        try:
+            with (
+                mock.patch.object(conf.db, "name", "viur-tests"),
+                mock.patch.object(conf.db, "namespace", "ns-ak"),
+                mock.patch("google.cloud.datastore.Client") as MockClient,
+            ):
+                importlib.reload(transport)
+                MockClient.assert_called_once_with(
+                    database="viur-tests", namespace="ns-ak",
+                )
+        finally:
+            # Restore the real, default-database client for the other tests.
+            importlib.reload(transport)
+
+    def test_transport_unconfigured_builds_default_client(self) -> None:
+        from viur.core.db import transport
+        try:
+            with mock.patch("google.cloud.datastore.Client") as MockClient:
+                importlib.reload(transport)
+                MockClient.assert_called_once_with()
+        finally:
+            importlib.reload(transport)
+
+    def test_banner_omits_lines_for_default_database(self) -> None:
+        import viur.core
+        from viur.core.config import conf
+        with (
+            mock.patch.object(conf.db, "name", None),
+            mock.patch.object(conf.db, "namespace", None),
+        ):
+            self.assertEqual(viur.core._datastore_banner_lines(), [])
+
+    def test_banner_shows_named_database_and_namespace(self) -> None:
+        import viur.core
+        from viur.core.config import conf
+        with (
+            mock.patch.object(conf.db, "name", "viur-tests"),
+            mock.patch.object(conf.db, "namespace", "ns-ak"),
+        ):
+            lines = viur.core._datastore_banner_lines()
+        self.assertTrue(any("database = " in line and "viur-tests" in line for line in lines))
+        self.assertTrue(any("namespace = " in line and "ns-ak" in line for line in lines))
