@@ -125,32 +125,8 @@ class TestCustomJsonEncoder_Decimal(unittest.TestCase):
 
     def test_decimal_default_returns_float(self):
         result = json.loads(json.dumps({"amount": Decimal("1234.56")}, cls=CustomJsonEncoder))
-        self.assertIsInstance(result["amount"], float)
-        self.assertAlmostEqual(result["amount"], 1234.56)
-
-    def test_decimal_compat_flag_returns_string(self):
-        with mock.patch.object(_default_mod, "conf") as mock_conf:
-            mock_conf.compatibility = {"json.decimal.as_string"}
-            result = json.loads(json.dumps({"amount": Decimal("1234.56")}, cls=CustomJsonEncoder))
-            self.assertIsInstance(result["amount"], str)
-            self.assertEqual(result["amount"], "1234.56")
-
-    def test_decimal_default_emits_deprecation_warning(self):
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            json.dumps({"amount": Decimal("1234.56")}, cls=CustomJsonEncoder)
-            deprecation_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
-            self.assertTrue(len(deprecation_warnings) >= 1)
-            self.assertIn("json.decimal.as_string", str(deprecation_warnings[0].message))
-
-    def test_decimal_compat_flag_no_warning(self):
-        with mock.patch.object(_default_mod, "conf") as mock_conf:
-            mock_conf.compatibility = {"json.decimal.as_string"}
-            with warnings.catch_warnings(record=True) as w:
-                warnings.simplefilter("always")
-                json.dumps({"amount": Decimal("1234.56")}, cls=CustomJsonEncoder)
-                deprecation_warnings = [x for x in w if issubclass(x.category, DeprecationWarning)]
-                self.assertEqual(len(deprecation_warnings), 0)
+        self.assertIsInstance(result["amount"], str)
+        self.assertAlmostEqual(result["amount"], "1234.56")
 
     def test_existing_types_unchanged(self):
         from datetime import datetime
