@@ -2,7 +2,7 @@ import json
 import typing as t
 import logging
 from enum import Enum
-from viur.core import db, current
+from viur.core import db, current, utils
 from viur.core.bones import BaseBone
 from viur.core.render.abstract import AbstractRenderer
 from viur.core.skeleton import SkeletonInstance, SkelList
@@ -93,9 +93,11 @@ class DefaultRender(AbstractRenderer):
         structure = None
         errors = None
 
+        exposed_only = not utils.string.is_prefix(self.kind, "json.vi")
+
         if isinstance(skel, SkeletonInstance):
-            vals = skel.dump()
-            structure = DefaultRender.render_structure(skel.structure())
+            vals = skel.dump(exposed_only=exposed_only)
+            structure = DefaultRender.render_structure(skel.structure(exposed_only=exposed_only))
             errors = [{
                 "error": error.severity.name.upper(),
                 "errorMessage": error.errorMessage,
@@ -131,13 +133,17 @@ class DefaultRender(AbstractRenderer):
         if not isinstance(skellist, SkelList):
             raise ValueError("Function requires a SkelList")
 
+        exposed_only = not utils.string.is_prefix(self.kind, "json.vi")
+
         res = {
             "action": action,
             "cursor": skellist.getCursor() if skellist else None,
             "params": params,
-            "skellist": [item.dump() for item in skellist],
+            "skellist": [item.dump(exposed_only=exposed_only) for item in skellist],
             "structure":
-                DefaultRender.render_structure(skellist[0].structure())
+                DefaultRender.render_structure(
+                    skellist[0].structure(exposed_only=exposed_only)
+                )
                 if skellist and "json.bone.structure.inlists" in conf.compatibility
                 else None,
             "orders": skellist.get_orders() if skellist else None,

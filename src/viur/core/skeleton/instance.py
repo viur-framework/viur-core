@@ -391,13 +391,22 @@ class SkeletonInstance(t.Generic[Skeleton_Cls]):
         self.accessedValues = {}
         self.renderAccessedValues = {}
 
-    def structure(self) -> dict:
+    def structure(self, *, exposed_only: bool = False) -> dict:
+        """
+        Return a dict describing each bone's configuration and metadata in this skeleton.
+
+        Each entry is keyed by bone name and contains the result of :meth:`BaseBone.structure`
+        extended with a ``sortindex`` reflecting the bone's position in the skeleton.
+
+        :param exposed_only: If True, only bones with ``exposed=True`` are included in the output.
+        """
         return {
             key: bone.structure() | {"sortindex": i}
             for i, (key, bone) in enumerate(self.items())
+            if not exposed_only or bone.exposed
         }
 
-    def dump(self, *, bones: t.Iterable[str] = ()) -> dict[str, t.Any]:
+    def dump(self, *, bones: t.Iterable[str] = (), exposed_only: bool = False) -> dict[str, t.Any]:
         """
         Return a JSON-serializable version of the bone values in this skeleton.
 
@@ -406,17 +415,20 @@ class SkeletonInstance(t.Generic[Skeleton_Cls]):
         JSON.
 
         :param bones: Iterable of bone names to include. If None, all bones are dumped.
+        :param exposed_only: If True, only bones with ``exposed=True`` are included in the output.
         """
         if bones:
             bones = set(utils.ensure_iterable(bones))
             return {
                 bone_name: bone.dump(self, bone_name)
                 for bone_name, bone in self.items()
-                if bone_name in bones
+                if bone_name in bones and (not exposed_only or bone.exposed)
             }
 
         return {
-            bone_name: bone.dump(self, bone_name) for bone_name, bone in self.items()
+            bone_name: bone.dump(self, bone_name)
+            for bone_name, bone in self.items()
+            if not exposed_only or bone.exposed
         }
 
     def __deepcopy__(self, memodict):

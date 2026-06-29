@@ -28,9 +28,10 @@ class KeyBone(BaseBone):
         visible: bool = False,  # default is invisible
         allowed_kinds: t.Optional[t.Iterable[str]] = None,  # None allows for any kind
         check: bool = False,  # check for entity existence
+        tags: str | t.Iterable[str] = "technical",
         **kwargs
     ):
-        super().__init__(descr=descr, readOnly=readOnly, visible=visible, defaultValue=None, **kwargs)
+        super().__init__(descr=descr, readOnly=readOnly, visible=visible, defaultValue=None, tags=tags, **kwargs)
         self.allowed_kinds = tuple(allowed_kinds) if allowed_kinds else None
         self.check = check
 
