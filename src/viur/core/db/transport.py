@@ -164,11 +164,24 @@ def count(kind: str = None, up_to=2 ** 31 - 1, queryDefinition: QueryDefinition 
     if queryDefinition and queryDefinition.filters:
         for k, v in queryDefinition.filters.items():
             key, op = k.split(" ")
-            if not isinstance(v, list):  # multi equal filters
-                v = [v]
-            for val in v:
-                f = datastore.query.PropertyFilter(key, op, val)
+            if op in ("IN", "!="):
+                # Native operators: pass value as-is in a single PropertyFilter
+                f = datastore.query.PropertyFilter(key, op, v)
                 query.add_filter(filter=f)
+            else:
+                if not isinstance(v, list):  # multi equal filters
+                    v = [v]
+                for val in v:
+                    f = datastore.query.PropertyFilter(key, op, val)
+                    query.add_filter(filter=f)
+
+    if queryDefinition and queryDefinition.or_filters:
+        for or_group in queryDefinition.or_filters:
+            or_conditions = [
+                datastore.query.PropertyFilter(fs.split(" ", 1)[0], fs.split(" ", 1)[1], v)
+                for fs, v in or_group
+            ]
+            query.add_filter(filter=datastore.query.Or(or_conditions))
 
     aggregation_query = __client__.aggregation_query(query)
 
@@ -194,16 +207,31 @@ def run_single_filter(query: QueryDefinition, limit: int, keys_only: bool) -> t.
     startCursor = None
     endCursor = None
     hasInvertedOrderings = None
+    if conf.debug.trace_queries:
+        logging.info(f"Running query: {query}")
 
     if query:
         if query.filters:
             for k, v in query.filters.items():
                 key, op = k.split(" ")
-                if not isinstance(v, list):  # multi equal filters
-                    v = [v]
-                for val in v:
-                    f = datastore.query.PropertyFilter(key, op, val)
+                if op in ("IN", "!=", "NOT_IN"):
+                    # Native multi-value operators: pass value as-is, not split per element
+                    f = datastore.query.PropertyFilter(key, op, v)
                     qry.add_filter(filter=f)
+                else:
+                    if not isinstance(v, list):  # multi equal filters
+                        v = [v]
+                    for val in v:
+                        f = datastore.query.PropertyFilter(key, op, val)
+                        qry.add_filter(filter=f)
+
+        if query.or_filters:
+            for or_group in query.or_filters:
+                or_conditions = [
+                    datastore.query.PropertyFilter(fs.split(" ", 1)[0], fs.split(" ", 1)[1], v)
+                    for fs, v in or_group
+                ]
+                qry.add_filter(filter=datastore.query.Or(or_conditions))
 
         if query.orders:
             hasInvertedOrderings = any(

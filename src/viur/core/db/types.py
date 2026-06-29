@@ -173,6 +173,7 @@ Alias that describes a key-type.
 
 TOrders: t.TypeAlias = list[QueryOrder]
 TFilters: t.TypeAlias = dict[str, DATASTORE_BASE_TYPES | list[DATASTORE_BASE_TYPES]]
+TOrFilters: t.TypeAlias = list[list[tuple[str, DATASTORE_BASE_TYPES | list[DATASTORE_BASE_TYPES]]]]
 
 
 @dataclass
@@ -192,6 +193,10 @@ class QueryDefinition:
 
     distinct: t.Optional[list[str]] = None
     """If set, a list of fields that we should return distinct values of"""
+
+    or_filters: "TOrFilters" = field(default_factory=list)
+    """Each entry is a list of (filterStr, value) pairs that are OR-ed together.
+    Multiple entries are AND-ed with each other and with the AND filters."""
 
     limit: int = field(init=False)
     """The maximum amount of entities that should be returned"""
