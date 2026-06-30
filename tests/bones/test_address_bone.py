@@ -95,7 +95,7 @@ class TestAddressBoneGeocode(ViURTestCase):
         skel["coordinates"] = None
         return skel
 
-    def _make_nominatim_response(self, lat="51.5074", lon="-0.1278"):
+    def _make_nominatim_response(self, lat="51.5233879", lon="-0.1582367"):
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = [{"lat": lat, "lon": lon}]
@@ -110,12 +110,12 @@ class TestAddressBoneGeocode(ViURTestCase):
                 patch("viur.core.bones.address.db.put"), \
                 patch("viur.core.bones.address.db.Entity", return_value={}), \
                 patch("viur.core.bones.address.requests.get",
-                      return_value=self._make_nominatim_response())
+                      return_value=self._make_nominatim_response()):
             result = bone.geocode(skel)
 
         self.assertIsNotNone(result)
-        self.assertAlmostEqual(result[0], 51.5074)
-        self.assertAlmostEqual(result[1], -0.1278)
+        self.assertAlmostEqual(result[0], 51.5233879)
+        self.assertAlmostEqual(result[1], -0.1582367)
 
     def test_geocode_returns_none_on_empty_nominatim_response(self):
         from viur.core.bones.address import AddressBone
@@ -163,15 +163,15 @@ class TestAddressBoneGeocode(ViURTestCase):
         bone = AddressBone()
         skel = self._make_skel()
 
-        cached_entity = {"lat": 51.5074, "lng": -0.1278}
+        cached_entity = {"lat": 51.5233879, "lng": -0.1582367}
 
         with patch("viur.core.bones.address.db.get", return_value=cached_entity), \
                 patch("viur.core.bones.address.requests.get") as mock_get:
             result = bone.geocode(skel)
 
         mock_get.assert_not_called()
-        self.assertAlmostEqual(result[0], 51.5074)
-        self.assertAlmostEqual(result[1], -0.1278)
+        self.assertAlmostEqual(result[0], 51.5233879)
+        self.assertAlmostEqual(result[1], -0.1582367)
 
     def test_geocode_cache_miss_stores_result(self):
         from viur.core.bones.address import AddressBone
@@ -189,5 +189,5 @@ class TestAddressBoneGeocode(ViURTestCase):
             bone.geocode(skel)
 
         mock_put.assert_called_once()
-        self.assertAlmostEqual(mock_entity["lat"], 51.5074)
-        self.assertAlmostEqual(mock_entity["lng"], -0.1278)
+        self.assertAlmostEqual(mock_entity["lat"], 51.5233879)
+        self.assertAlmostEqual(mock_entity["lng"], -0.1582367)
