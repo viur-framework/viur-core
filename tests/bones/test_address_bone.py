@@ -110,7 +110,7 @@ class TestAddressBoneGeocode(ViURTestCase):
                 patch("viur.core.bones.address.db.put"), \
                 patch("viur.core.bones.address.db.Entity", return_value={}), \
                 patch("viur.core.bones.address.requests.get",
-                      return_value=self._make_nominatim_response("51.5074", "-0.1278")):
+                      return_value=self._make_nominatim_response())
             result = bone.geocode(skel)
 
         self.assertIsNotNone(result)
@@ -185,7 +185,7 @@ class TestAddressBoneGeocode(ViURTestCase):
                 patch("viur.core.bones.address.db.put", mock_put), \
                 patch("viur.core.bones.address.db.Entity", return_value=mock_entity), \
                 patch("viur.core.bones.address.requests.get",
-                      return_value=self._make_nominatim_response("51.5074", "-0.1278")):
+                      return_value=self._make_nominatim_response()):
             bone.geocode(skel)
 
         mock_put.assert_called_once()
