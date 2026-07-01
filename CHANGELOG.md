@@ -9,6 +9,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - doc: Fix seo_language_map in docstring
 - feat:  `SpatialBone`  extend `setBoneValue` to accept `dict` with lat/lng aliases (#1705)
 - feat: `CodeBone`, `LogicsBone`, `JinjaBone` and `PythonBone` (#1668)
+- feat: Configurable named datastore database and namespace via `conf.db.name` / `conf.db.namespace` (env: `VIUR_DB_NAME` / `VIUR_DB_NAMESPACE`), surfaced in the dev-server boot banner
 - feat: `skel.patch()` with internal-mode default (#1587)
 - feat: Add `after_from_client` (#1708)
 - feat: add `contrib` package with `RequestRateLimit` validator (#1690)
