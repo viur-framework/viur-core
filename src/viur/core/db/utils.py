@@ -54,7 +54,7 @@ def fix_unindexable_properties(entry: Entity, *, keep_exclusions: bool = True) -
 
 def normalize_key(key: t.Union[None, Key, str]) -> t.Union[None, Key]:
     """
-        Normalizes a datastore key (replacing _application with the current one)
+        Normalizes a datastore key (replacing the key's project with conf.instance.project_id)
 
         :param key: Key to be normalized.
         :return: Normalized key in string representation.
