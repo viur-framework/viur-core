@@ -84,8 +84,6 @@ class Key(Datastore_key):
         # Upstream to_legacy_urlsafe() rejects keys carrying a database, but
         # str(key)/session paths hit it constantly. Drop the db for encoding —
         # unambiguous to restore since the process talks to a single database.
-        if self._database is None:
-            return super().to_legacy_urlsafe(location_prefix=location_prefix)
         saved, self._database = self._database, None
         try:
             return super().to_legacy_urlsafe(location_prefix=location_prefix)
