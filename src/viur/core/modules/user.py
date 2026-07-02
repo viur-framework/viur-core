@@ -276,6 +276,9 @@ class UserPassword(UserPrimaryAuthentication):
         skel_cls.password = PasswordBone(
             readOnly=True,
             visible=False,
+            type_suffix="doublecheck",
+            tests=PasswordBone.STANDARD_TESTS,
+            test_threshold=4,
             params={
                 "category": "Authentication",
             }
@@ -289,8 +292,6 @@ class UserPassword(UserPrimaryAuthentication):
         )
         password = PasswordBone(
             required=True,
-            test_threshold=0,
-            tests=(),
             raw=True,
         )
 
@@ -323,6 +324,9 @@ class UserPassword(UserPrimaryAuthentication):
         password = PasswordBone(
             descr="New Password",
             required=True,
+            type_suffix="doublecheck",
+            tests=PasswordBone.STANDARD_TESTS,
+            test_threshold=4,
             params={
                 "tooltip": i18n.translate(
                     key="viur.core.modules.user.userpassword.lostpasswordstep3.password",
