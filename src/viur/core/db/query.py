@@ -267,7 +267,7 @@ class Query(object):
             field, op = prop.split(" ")
 
         # Normalize to uppercase for native Datastore operators passed as lowercase
-        op = op.upper() if op.lower() in {"in", "!=", "not_in"} else op
+        op = op.upper() if op.upper() in {"IN", "NOT_IN"} else op
 
         if op in {"IN", "!=", "NOT_IN"} and not isinstance(self.queries, list):
             if f"{field} {op}" in self.queries.filters:
@@ -328,7 +328,7 @@ class Query(object):
                 field, op = prop, "="
             else:
                 field, op = prop.split(" ", 1)
-            op = op.upper() if op.lower() in {"in", "!=", "not_in"} else op
+            op = op.upper() if op.upper() in {"IN", "NOT_IN"} else op
             parsed.append((f"{field} {op}", value))
 
         if isinstance(self.queries, list):
