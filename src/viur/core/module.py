@@ -136,7 +136,7 @@ class Method:
 
                 elif isinstance(value, str):  # Maybe we have an url encoded Key
                     try:
-                        return db.normalize_key(db.Key.from_legacy_urlsafe(value))
+                        return db.normalize_key(value)
                     except Exception:
                         pass
 
