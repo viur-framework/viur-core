@@ -2,6 +2,16 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.30]
+
+- fix(i18n): Tolerate relative filenames in `add_missing_translation` (#1721)
+- fix(request): allow same-site requests in FetchMetaDataValidator (#1720)
+
+## [3.8.29]
+
+- fix: Normalize parsed `db.Key` to current `project_id` (#1719)
+- fix: `SkelModule.add_or_edit` should use `amend=True` on edit (#1718)
+
 ## [3.8.28]
 
 - fix: Loosen overly strict dependency ranges (#1716)
