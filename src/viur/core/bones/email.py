@@ -55,14 +55,29 @@ class EmailBone(StringBone):
             for char in account:
                 if not (char in validChars or (char >= unicodeLowerBound and char <= unicodeUpperBound)):
                     is_valid = False
-            try:
-                idna.ToASCII(subDomain)
-                idna.ToASCII(tld)
-            except Exception:
+            # Validate each domain label (RFC 1035). idna.ToASCII does not reject a
+            # leading or trailing hyphen (e.g. "-online"), so the label structure is
+            # checked explicitly; otherwise addresses like "foo@-online.de" pass.
+            labels = domain.split(".")
+            if len(labels) < 2 or labels[-1].isdigit():
                 is_valid = False
-
-            if " " in subDomain or " " in tld:
-                is_valid = False
+            else:
+                for label in labels:
+                    if not label or " " in label:
+                        is_valid = False
+                        break
+                    try:
+                        asciiLabel = idna.ToASCII(label).decode("ascii")
+                    except Exception:
+                        is_valid = False
+                        break
+                    if (
+                        asciiLabel.startswith("-")
+                        or asciiLabel.endswith("-")
+                        or not all(char.isalnum() or char == "-" for char in asciiLabel)
+                    ):
+                        is_valid = False
+                        break
 
         if not is_valid:
             return i18n.translate("core.bones.error.invalidemail", "Invalid email entered")
