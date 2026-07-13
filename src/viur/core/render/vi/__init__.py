@@ -6,9 +6,8 @@ from viur.core import Module, conf, current, errors
 from viur.core.decorators import *
 from viur.core.render.json import skey as json_render_skey
 from viur.core.render.json.default import CustomJsonEncoder, DefaultRender
-# noinspection PyUnresolvedReferences
-from viur.core.render.vi.user import UserRender as user  # this import must exist!
 from viur.core.skeleton import SkeletonInstance
+from deprecated.sphinx import deprecated
 
 
 class default(DefaultRender):
@@ -26,12 +25,18 @@ def timestamp(*args, **kwargs):
 
 
 @exposed
+@deprecated(version="3.9.0", reason="Use '/vi/module/structure' as new endpoint")
 def getStructure(module):
     """
     Returns all available skeleton structures for a given module.
 
     To access the structure of a nested module, separate the path with dots (.).
     """
+    logging.warning(
+        f"DEPRECATED!!! Use '/vi/{module}/structure' or '/json/{module}/structure' for this, "
+        "or update your admin version!"
+    )
+
     path = module.split(".")
     moduleObj = conf.main_app.vi
     while path:
@@ -78,49 +83,7 @@ def setLanguage(lang):
 
 
 @exposed
-def dumpConfig():
-    res = {}
-    visited_objects = set()
-
-    def collect_modules(parent, depth: int = 0) -> None:
-        """Recursively collects all routable modules for the vi renderer"""
-        if depth > 10:
-            logging.warning(f"Reached maximum recursion limit of {depth} at {parent=}")
-            return
-
-        for key in dir(parent):
-            module = getattr(parent, key, None)
-            if not isinstance(module, Module):
-                continue
-            if module in visited_objects:
-                # Some modules reference other modules as parents, this will
-                # lead to infinite recursion. We can avoid reaching the
-                # maximum recursion limit by remembering already seen modules.
-                if conf.debug.trace:
-                    logging.debug(f"Already visited and added {module=}")
-                continue
-            visited_objects.add(module)
-
-            if admin_info := module.describe():
-                # map path --> config
-                res[module.modulePath.removeprefix("/vi/").replace("/", ".")] = admin_info
-            # Collect children
-            collect_modules(module, depth=depth + 1)
-
-    collect_modules(conf.main_app.vi)
-
-    res = {
-        "modules": res,
-        # "configuration": dict(conf.admin.items()), # TODO: this could be the short vision, if we use underscores
-        "configuration": {
-            k.replace("_", "."): v for k, v in conf.admin.items(True)
-        }
-    }
-    current.request.get().response.headers["Content-Type"] = "application/json"
-    return json.dumps(res, cls=CustomJsonEncoder)
-
-
-@exposed
+@deprecated(version="3.9.0", reason="Use '/vi/config' as new endpoint, see 'version' property.")
 def getVersion(*args, **kwargs):
     """
     Returns viur-core version number
@@ -133,20 +96,22 @@ def getVersion(*args, **kwargs):
     while len(version) < 4:
         version += (None,)
 
-    if conf.instance.is_dev_server \
-            or ((cuser := current.user.get()) and ("root" in cuser["access"] or "admin" in cuser["access"])):
-        return json.dumps(version[:4])
+    return json.dumps(version[:4])
 
-    # Hide patch level + appendix to non-authorized users
-    return json.dumps((version[0], version[1], None, None))
+
+def _can_access(user_skel: SkeletonInstance) -> bool:
+    """
+    Internal check for vi-render if a given user is allowed to use this render.
+    The function is used in several places for better integration.
+    """
+    return bool(user_skel and user_skel["access"] and any(flag in user_skel["access"] for flag in ("admin", "root")))
 
 
 def canAccess(*args, **kwargs) -> bool:
     """
     General access restrictions for the vi-render.
     """
-
-    if (cuser := current.user.get()) and any(right in cuser["access"] for right in ("root", "admin")):
+    if _can_access(current.user.get()):
         return True
 
     return any(fnmatch.fnmatch(current.request.get().path, pat) for pat in conf.security.admin_allowed_paths)
@@ -169,28 +134,113 @@ def index(*args, **kwargs):
 
 
 @exposed
-def get_settings():
+def config():
     """
     Get public admin-tool specific settings, requires no user to be logged in.
     This is used by new vi-admin.
     """
-    fields = {k.replace("_", "."): v for k, v in conf.admin.items(True)}
+    current.request.get().response.headers["Content-Type"] = "application/json"
+
+    result = {}
+    config = {k.replace("_", "."): v for k, v in conf.admin.items(True)}
 
     if conf.user.google_client_id:
-        fields["admin.user.google.clientID"] = conf.user.google_client_id
+        config["admin.user.google.clientID"] = conf.user.google_client_id
 
+    config["admin.language"] = current.language.get() or conf.i18n.default_language
+    config["admin.languages"] = conf.i18n.available_languages
+
+    if _can_access(current.user.get()):
+        # Core Version
+        version = conf.version
+
+        # always fill up to 4 parts
+        while len(version) < 4:
+            version += (None,)
+
+        result["version"] = version[:4]
+
+        # Modules
+        modules = {}
+        visited_objects = set()
+
+        def collect_modules(parent, depth: int = 0) -> None:
+            """Recursively collects all routable modules for the vi renderer"""
+            if depth > 10:
+                logging.warning(f"Reached maximum recursion limit of {depth} at {parent=}")
+                return
+
+            for key in dir(parent):
+                module = getattr(parent, key, None)
+                if not isinstance(module, Module):
+                    continue
+
+                if module in visited_objects:
+                    # Some modules reference other modules as parents, this will
+                    # lead to infinite recursion. We can avoid reaching the
+                    # maximum recursion limit by remembering already seen modules.
+                    if conf.debug.trace:
+                        logging.debug(f"Already visited and added {module=}")
+                    continue
+
+                visited_objects.add(module)
+
+                if admin_info := module.describe():
+                    # map path --> config
+                    modules[module.modulePath.removeprefix("/vi/").replace("/", ".")] = admin_info
+
+                # Collect children
+                collect_modules(module, depth=depth + 1)
+
+        collect_modules(conf.main_app.vi)
+
+        result["modules"] = modules
+
+    result["configuration"] = config
+
+    return json.dumps(result, cls=CustomJsonEncoder)
+
+
+@exposed
+@deprecated(version="3.9.0", reason="Use '/vi/config' as new endpoint, see 'configuration' property.")
+def settings():
+    return json.dumps(json.loads(config())["configuration"])
+
+
+@exposed
+def routes():
+    """
+    Endpoint to retrieve an array of all available routes on this ViUR instance.
+    """
     current.request.get().response.headers["Content-Type"] = "application/json"
-    return json.dumps(fields, cls=CustomJsonEncoder)
+
+    def resolve(o):
+        result = []
+
+        for key, value in o.items():
+            if isinstance(value, dict):
+                for subresult in resolve(value):
+                    result.append(f"{key}/{subresult}")
+            else:
+                result.append(key)
+
+        return result
+
+    return json.dumps(resolve(conf.main_resolver))
 
 
 def _postProcessAppObj(obj):
+    obj["canAccess"] = canAccess
+    obj["config"] = config
+    obj["index"] = index
+    obj["routes"] = routes
+    obj["setLanguage"] = setLanguage
     obj["skey"] = json_render_skey
     obj["timestamp"] = timestamp
-    obj["config"] = dumpConfig
-    obj["settings"] = get_settings
+
+    # DEPRECATED:
     obj["getStructure"] = getStructure
-    obj["canAccess"] = canAccess
-    obj["setLanguage"] = setLanguage
-    obj["getVersion"] = getVersion
-    obj["index"] = index
+    obj["getVersion"] = getVersion  # FIXME: Deprecated; vi-admin 4.x backward compatiblity
+    obj["settings"] = settings  # FIXME: Deprecated; vi-admin 4.x backward compatiblity
+
     return obj

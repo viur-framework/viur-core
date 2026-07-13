@@ -12,6 +12,8 @@ from .types import Entity, Key, QueryDefinition, SortOrder, current_db_access_lo
 from . import cache
 from viur.core.config import conf
 from viur.core import utils
+from viur.core.errors import HTTPException
+
 
 # patching our key and entity classes
 datastore.helpers.key_from_protobuf = key_from_protobuf
@@ -47,30 +49,20 @@ def get(keys: t.Union[Key, t.Iterable[Key]]) -> t.Union[t.List[Entity], Entity, 
     """
     _write_to_access_log(keys)
 
-    keys = utils.ensure_iterable(keys)
-    if not keys:
-        return None
 
-    cached = cache.get(keys) or ()
+    if isinstance(keys, (list, set, tuple)):
+        res_list = list(__client__.get_multi(keys))
+        res_list.sort(key=lambda k: keys.index(k.key) if k else -1)
+        if conf.debug.trace_queries:
+            found = sum(1 for r in res_list if r is not None)
+            logging.info(f"db.get: {found}/{len(keys)} entities found")
+        return res_list
 
-    if len(keys) == 1:
-        if cached:
-            return cached
+    res = __client__.get(keys)
+    if conf.debug.trace_queries:
+        logging.info(f"db.get({keys}): {'found' if res is not None else 'not found'}")
+    return res
 
-        if res := __client__.get(keys[0]):
-            cache.put(res)
-
-        return res
-
-    keys = {key: cached.get(key) for key in keys}
-
-    uncached = __client__.get_multi((k for k, v in keys.items() if v is None))
-    cache.put(uncached)
-
-    for e in uncached:
-        keys[e.key] = e
-
-    return list(keys.values())
 
 
 @deprecated(version="3.8.0", reason="Use 'db.get' instead")
@@ -87,9 +79,15 @@ def put(entities: t.Union[Entity, t.List[Entity]]):
     _write_to_access_log(entities)
     cache.put(entities)
     if isinstance(entities, Entity):
-        return __client__.put(entities)
+        res = __client__.put(entities)
+        if conf.debug.trace_queries:
+            logging.info(f"db.put: saved {entities.key}")
+        return res
 
-    return __client__.put_multi(entities=entities)
+    res = __client__.put_multi(entities=entities)
+    if conf.debug.trace_queries:
+        logging.info(f"db.put: saved {len(entities)} entities")
+    return res
 
 
 @deprecated(version="3.8.0", reason="Use 'db.put' instead")
@@ -102,21 +100,19 @@ def delete(keys: t.Union[Entity, t.Iterable[Entity], Key, t.Iterable[Key]]):
     Deletes the entities with the given key(s) from the datastore.
     :param keys: A Key (or a t.List of Keys) to delete
     """
-    if not keys:
-        return None
+
     _write_to_access_log(keys)
+    if not isinstance(keys, (set, list, tuple)):
+        res = __client__.delete(keys)
+        if conf.debug.trace_queries:
+            logging.info(f"db.delete: deleted {keys}")
+        return res
 
-    if not isinstance(keys, (tuple, list, set)):
-        keys = (keys,)
-    keys = [k.key if isinstance(k, Entity) else k for k in keys]
-    if not keys:
-        return
 
-    cache.delete(keys)
-    if len(keys) == 1:
-        return __client__.delete(keys[0])
-
-    return __client__.delete_multi(keys)
+    res = __client__.delete_multi(keys)
+    if conf.debug.trace_queries:
+        logging.info(f"db.delete: deleted {len(keys)} keys")
+    return res
 
 
 @deprecated(version="3.8.0", reason="Use 'db.delete' instead")
@@ -156,13 +152,9 @@ def run_in_transaction(func: t.Callable, *args, **kwargs) -> t.Any:
                 logging.error(f"Transaction failed with a conflict, trying again in {2 ** i} seconds")
                 time.sleep(2 ** i)
                 continue
-            except Exception as e:
-                logging.error(f"Transaction failed with exception, trying again in {2 ** i} seconds")
-                logging.exception(e)
-                time.sleep(2 ** i)
-                continue
+
         else:
-            raise RuntimeError(f"Maximum transaction retries exceeded")
+            raise RuntimeError("Maximum transaction retries exceeded")
 
     return res
 
@@ -180,11 +172,24 @@ def count(kind: str = None, up_to=2 ** 31 - 1, queryDefinition: QueryDefinition 
     if queryDefinition and queryDefinition.filters:
         for k, v in queryDefinition.filters.items():
             key, op = k.split(" ")
-            if not isinstance(v, list):  # multi equal filters
-                v = [v]
-            for val in v:
-                f = datastore.query.PropertyFilter(key, op, val)
+            if op in ("IN", "!="):
+                # Native operators: pass value as-is in a single PropertyFilter
+                f = datastore.query.PropertyFilter(key, op, v)
                 query.add_filter(filter=f)
+            else:
+                if not isinstance(v, list):  # multi equal filters
+                    v = [v]
+                for val in v:
+                    f = datastore.query.PropertyFilter(key, op, val)
+                    query.add_filter(filter=f)
+
+    if queryDefinition and queryDefinition.or_filters:
+        for or_group in queryDefinition.or_filters:
+            or_conditions = [
+                datastore.query.PropertyFilter(fs.split(" ", 1)[0], fs.split(" ", 1)[1], v)
+                for fs, v in or_group
+            ]
+            query.add_filter(filter=datastore.query.Or(or_conditions))
 
     aggregation_query = __client__.aggregation_query(query)
 
@@ -197,7 +202,7 @@ def Count(kind: str = None, up_to=2 ** 31 - 1, queryDefinition: QueryDefinition 
     return count(kind, up_to, queryDefinition)
 
 
-def run_single_filter(query: QueryDefinition, limit: int) -> t.List[Entity]:
+def run_single_filter(query: QueryDefinition, limit: int, keys_only: bool) -> t.List[Entity | Key]:
     """
         Internal helper function that runs a single query definition on the datastore and returns a list of
         entities found.
@@ -210,27 +215,40 @@ def run_single_filter(query: QueryDefinition, limit: int) -> t.List[Entity]:
     startCursor = None
     endCursor = None
     hasInvertedOrderings = None
+    if conf.debug.trace_queries:
+        logging.info(f"Running query: {query}")
 
     if query:
         if query.filters:
             for k, v in query.filters.items():
                 key, op = k.split(" ")
-                if not isinstance(v, list):  # multi equal filters
-                    v = [v]
-                for val in v:
-                    f = datastore.query.PropertyFilter(key, op, val)
+                if op in ("IN", "!=", "NOT_IN"):
+                    # Native multi-value operators: pass value as-is, not split per element
+                    f = datastore.query.PropertyFilter(key, op, v)
                     qry.add_filter(filter=f)
+                else:
+                    if not isinstance(v, list):  # multi equal filters
+                        v = [v]
+                    for val in v:
+                        f = datastore.query.PropertyFilter(key, op, val)
+                        qry.add_filter(filter=f)
+
+        if query.or_filters:
+            for or_group in query.or_filters:
+                or_conditions = [
+                    datastore.query.PropertyFilter(fs.split(" ", 1)[0], fs.split(" ", 1)[1], v)
+                    for fs, v in or_group
+                ]
+                qry.add_filter(filter=datastore.query.Or(or_conditions))
 
         if query.orders:
             hasInvertedOrderings = any(
-                [
-                    x[1] in [SortOrder.InvertedAscending, SortOrder.InvertedDescending]
-                    for x in query.orders
-                ]
+                order.order in (SortOrder.InvertedAscending, SortOrder.InvertedDescending)
+                for order in query.orders
             )
             qry.order = [
-                x[0] if x[1] in [SortOrder.Ascending, SortOrder.InvertedDescending] else f"-{x[0]}"
-                for x in query.orders
+                order.name if order.order in (SortOrder.Ascending, SortOrder.InvertedDescending) else f"-{order.name}"
+                for order in query.orders
             ]
 
         if query.distinct:
@@ -238,13 +256,21 @@ def run_single_filter(query: QueryDefinition, limit: int) -> t.List[Entity]:
 
         startCursor = query.startCursor
         endCursor = query.endCursor
-
+    if keys_only:
+        qry.keys_only()
     qryRes = qry.fetch(limit=limit, start_cursor=startCursor, end_cursor=endCursor)
     res = list(qryRes)
-
     query.currentCursor = qryRes.next_page_token
     if hasInvertedOrderings:
         res.reverse()
+
+    if conf.debug.trace_queries:
+        distinct_on = f" distinct on {query.distinct}" if query.distinct else ""
+        logging.debug(
+            f"Queried {query.kind} with filter {query.filters} and orders {query.orders}{distinct_on}."
+            f" Returned {len(res)} results"
+        )
+
     return res
 
 

@@ -83,16 +83,9 @@ Please document your changes and provide info in any form you can. We have estab
 Before opening a pull request, please ensure that your code passes all tests locally.
 This helps maintain code quality and prevents unnecessary CI failures.
 
-### Install the Test Environment
-To install all necessary dependencies for running tests, execute:
+You can install and run the test suite using:
 ```sh
-pip install .[testing]
-```
-
-### Run the Tests
-You can run the test suite using `unittest`:
-```sh
-python -m unittest discover tests
+uv run --with ".[testing]" python -m unittest discover tests
 ```
 
 Alternatively, you can check test coverage using:
@@ -135,12 +128,14 @@ In case you have appropriate permissions, a release can be done this way:
 
 ## Branches
 
-`viur-core` has currently 4 actively maintained branches.
+`viur-core` has several actively maintained branches.
 
-- **3.5** is the current stable LTS version as released on PyPI (3.5.x)
-- **3.6** is the current stable LTS version as released on PyPI (3.6.x)
-- **main** is the current version as released on PyPI (3.7.x)
-- **develop**  is the next minor version and may be released as release candidates to PyPI (3.8.x)
+- **3.5** maintenance branch for version 3.5.x with a Long Term Support (LTS)
+- **3.6** maintenance branch for version 3.6.x
+- **3.7** maintenance branch for version 3.7.x
+- **main** is the current version as released on PyPI (3.8.x)
+- **develop**  is the next minor version and may be released as release candidates to PyPI (3.9.x), relese planned for start of 2026
+- **v4** branch for the next major version viur-core 4.0 that is planned for 2026
 
 Pull request should be made against one of these branches.
 

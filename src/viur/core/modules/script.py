@@ -66,9 +66,8 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
             else "Filename is invalid or doesn't have a '.py'-suffix",
     )
 
-    script = RawBone(
+    script = PythonBone(
         descr="Code",
-        indexed=False,
     )
 
     access = SelectBone(
@@ -106,7 +105,7 @@ class Script(Tree):
         }]
 
     @exposed
-    def view(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> t.Any:
+    def view(self, skelType: SkelType, key: db.KeyType, *args, **kwargs) -> t.Any:
         try:
             return super().view(skelType, key, *args, **kwargs)
         except errors.NotFound:
@@ -121,6 +120,11 @@ class Script(Tree):
         super().onEdit(skelType, skel)
 
     def onEdited(self, skelType, skel):
+        old_path = skel["path"]
+        self.update_path(skel)
+        if skel["path"] != old_path:
+            skel.patch({"path": skel["path"]})
+
         if skelType == "node":
             self.update_path_recursive("node", skel["path"], skel["key"])
             self.update_path_recursive("leaf", skel["path"], skel["key"])
@@ -159,22 +163,13 @@ class Script(Tree):
             if not parent_skel.read(key) or parent_skel["key"] == skel["parentrepo"]:
                 break
 
-            path.insert(0, parent_skel["name"])
+            if parent_skel["name"]:
+                path.insert(0, parent_skel["name"])
             key = parent_skel["parententry"]
-
         skel["path"] = "/".join(path)
 
     @exposed
     def get_importable(self):
-
-        # get importable key
-        qry_importable = (self.viewSkel("node").all()
-                          .filter("parententry", self.rootnodeSkel(ensure=True)["key"])
-                          .filter("name =", "importable"))
-        if not (qry_importable := self.listFilter(qry_importable)):
-            raise errors.Unauthorized()
-
-        importable_key = (entity := qry_importable.getEntry()) and entity.key
 
         def get_files_recursively(_importable_key):
             res = []
@@ -189,7 +184,21 @@ class Script(Tree):
                 res.extend(get_files_recursively(folder_entry.key))
             return res
 
+        # get importable key
+        qry_importable = (self.viewSkel("node").all()
+                          .filter("parententry", self.rootnodeSkel(ensure=True)["key"])
+                          .filter("name =", "importable"))
+        if not (qry_importable := self.listFilter(qry_importable)):
+            raise errors.Unauthorized()
+
+        importable_key = (entity := qry_importable.getEntry()) and entity.key
+        if not importable_key:
+            raise errors.NotFound("No importable folder defined")
+
         importable_files = get_files_recursively(importable_key)
+        if not importable_files:
+            raise errors.NotFound("Importable folder is empty")
+
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
             for file in importable_files:

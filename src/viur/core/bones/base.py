@@ -6,7 +6,6 @@ built, such as string, numeric, and date/time bones.
 """
 
 import copy
-import dataclasses
 import enum
 import hashlib
 import inspect
@@ -47,6 +46,7 @@ def setSystemInitialized():
 
     __system_initialized = True
 
+
 def getSystemInitialized():
     """
     Retrieves the current state of the system initialization by returning the value of the
@@ -81,12 +81,25 @@ class ReadFromClientError:
     """
     severity: ReadFromClientErrorSeverity
     """A ReadFromClientErrorSeverity enumeration value representing the severity of the error."""
-    errorMessage: str
+    errorMessage: t.Optional[str] = None
     """A string containing a human-readable error message describing the issue."""
     fieldPath: list[str] = field(default_factory=list)
     """A list of strings representing the path to the field where the error occurred."""
     invalidatedFields: list[str] = None
     """A list of strings containing the names of invalidated fields, if any."""
+
+    def __post_init__(self):
+        if not self.errorMessage:
+            self.errorMessage = {
+                ReadFromClientErrorSeverity.NotSet:
+                    i18n.translate("core.bones.error.notset", "Field not submitted"),
+                ReadFromClientErrorSeverity.InvalidatesOther:
+                    i18n.translate("core.bones.error.invalidatesother", "Field invalidates another field"),
+                ReadFromClientErrorSeverity.Empty:
+                    i18n.translate("core.bones.error.empty", "Field not set"),
+                ReadFromClientErrorSeverity.Invalid:
+                    i18n.translate("core.bones.error.invalid", "Invalid value provided"),
+            }[self.severity]
 
     def __str__(self):
         return f"{'.'.join(self.fieldPath)}: {self.errorMessage} [{self.severity.name}]"
@@ -186,24 +199,34 @@ class MultipleConstraints:
     It is only applied when the `sorted`-flag is set accordingly.
     """
 
+
 class ComputeMethod(Enum):
-    Always = 0  # Always compute on deserialization
-    Lifetime = 1  # Update only when given lifetime is outrun; value is only being stored when the skeleton is written
-    Once = 2  # Compute only once
-    OnWrite = 3  # Compute before written
+    Always = 0
+    """Always compute on deserialization"""
+    Lifetime = 1
+    """Update only when given lifetime is outrun; value is only being stored when the skeleton is written"""
+    Once = 2
+    """Compute only once, when it is unset"""
+    OnWrite = 3
+    """Compute before every write of the skeleton"""
 
 
 @dataclass
 class ComputeInterval:
     method: ComputeMethod = ComputeMethod.Always
-    lifetime: timedelta = None  # defines a timedelta until which the value stays valid (`ComputeMethod.Lifetime`)
+    """The compute-method to use for this bone"""
+    lifetime: timedelta = None
+    """Defines a timedelta until which the value stays valid (only used by `ComputeMethod.Lifetime`)"""
 
 
 @dataclass
 class Compute:
-    fn: callable  # the callable computing the value
-    interval: ComputeInterval = field(default_factory=ComputeInterval)  # the value caching interval
-    raw: bool = True  # defines whether the value returned by fn is used as is, or is passed through bone.fromClient
+    fn: callable
+    """The callable computing the value"""
+    interval: ComputeInterval = field(default_factory=ComputeInterval)
+    """The value caching interval"""
+    raw: bool = True
+    """Defines whether the value returned by fn is used as is, or is passed through `bone.fromClient()`"""
 
 
 class CloneStrategy(enum.StrEnum):
@@ -331,7 +354,7 @@ class BaseBone(object):
         if type_suffix:
             self.type += f".{type_suffix}"
 
-        if isinstance(category := self.params.get("category"), str):
+        if conf.i18n.auto_translate_bones and isinstance(category := self.params.get("category"), str):
             self.params["category"] = i18n.translate(category, hint=f"category of a <{type(self).__name__}>")
 
         # Multi-language support
@@ -447,17 +470,18 @@ class BaseBone(object):
 
     def setSystemInitialized(self) -> None:
         """
-        Can be overridden to initialize properties that depend on the Skeleton system
-        being initialized.
-
-        Here, in the BaseBone, we set descr to the bone_name if no descr argument
-        was given in __init__ and make sure that it is a :class:i18n.translate` object.
+        For the BaseBone, this performs some automatisms regarding bone descr and translations.
+        It can be overwritten to initialize properties that depend on the Skeleton system being initialized.
         """
+
+        # Set descr to the bone_name if no descr argument is given
         if self.descr is None:
             # TODO: The super().__setattr__() call is kinda hackish,
             #  but unfortunately viur-core has no *during system initialisation* state
             super().__setattr__("descr", self.name or "")
-        if self.descr and isinstance(self.descr, str):
+
+        if conf.i18n.auto_translate_bones and self.descr and isinstance(self.descr, str):
+            # Make sure that it is a :class:i18n.translate` object.
             super().__setattr__(
                 "descr",
                 i18n.translate(self.descr, hint=f"descr of a <{type(self).__name__}>{self.name}")
@@ -678,7 +702,8 @@ class BaseBone(object):
         """
         # The BaseBone will not read any client_data in fromClient. Use rawValueBone if needed.
         return self.getEmptyValue(), [
-            ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Will not read a BaseBone fromClient!")]
+            ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Will not read a BaseBone from client!")
+        ]
 
     def fromClient(self, skel: 'SkeletonInstance', name: str, data: dict) -> None | list[ReadFromClientError]:
         """
@@ -696,7 +721,8 @@ class BaseBone(object):
         subFields = self.parseSubfieldsFromClient()
         parsedData, fieldSubmitted = self.collectRawClientData(name, data, self.multiple, self.languages, subFields)
         if not fieldSubmitted:
-            return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet, "Field not submitted")]
+            return [ReadFromClientError(ReadFromClientErrorSeverity.NotSet)]
+
         errors = []
         isEmpty = True
         filled_languages = set()
@@ -772,15 +798,23 @@ class BaseBone(object):
         if self.languages and isinstance(self.required, (list, tuple)):
             missing = set(self.required).difference(filled_languages)
             if missing:
-                return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "Field not set", fieldPath=[lang])
-                        for lang in missing]
+                result_errors = [
+                    ReadFromClientError(ReadFromClientErrorSeverity.Empty, fieldPath=[lang])
+                    for lang in missing
+                ]
+                self.after_from_client(skel, name, result_errors)
+                return result_errors or None
+
         if isEmpty:
-            return [ReadFromClientError(ReadFromClientErrorSeverity.Empty, "Field not set")]
+            result_errors = [ReadFromClientError(ReadFromClientErrorSeverity.Empty)]
+            self.after_from_client(skel, name, result_errors)
+            return result_errors or None
 
         # Check multiple constraints on demand
         if self.multiple and isinstance(self.multiple, MultipleConstraints):
             errors.extend(self._validate_multiple_contraints(self.multiple, skel, name))
 
+        self.after_from_client(skel, name, errors)
         return errors or None
 
     def _get_single_destinct_hash(self, value) -> t.Any:
@@ -790,15 +824,16 @@ class BaseBone(object):
         """
         return value
 
-    def _get_destinct_hash(self, value) -> t.Any:
+    def _get_destinct_hash(self, skel: 'SkeletonInstance', name: str) -> t.Any:
         """
         Returns a distinct hash value for this bone.
         The returned value must be hashable.
         """
-        if not isinstance(value, str) and isinstance(value, Iterable):
-            return tuple(self._get_single_destinct_hash(item) for item in value)
+        values = []
+        for _, _, value in self.iter_bone_value(skel, name):
+            values.append(self._get_single_destinct_hash(value))
 
-        return value
+        return tuple(values)
 
     def _validate_multiple_contraints(
         self,
@@ -816,17 +851,32 @@ class BaseBone(object):
         :return: A list of ReadFromClientError objects for each constraint violation.
         """
         res = []
-        value = self._get_destinct_hash(skel[name])
+        value = self._get_destinct_hash(skel, name)
 
         if constraints.min and len(value) < constraints.min:
-            res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Too few items"))
+            res.append(
+                ReadFromClientError(
+                    ReadFromClientErrorSeverity.Invalid,
+                    i18n.translate("core.bones.error.toofewitems", "Too few items")
+                )
+            )
 
         if constraints.max and len(value) > constraints.max:
-            res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Too many items"))
+            res.append(
+                ReadFromClientError(
+                    ReadFromClientErrorSeverity.Invalid,
+                    i18n.translate("core.bones.error.toomanyitems", "Too many items")
+                )
+            )
 
         if not constraints.duplicates:
             if len(set(value)) != len(value):
-                res.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Duplicate items"))
+                res.append(
+                    ReadFromClientError(
+                        ReadFromClientErrorSeverity.Invalid,
+                        i18n.translate("core.bones.error.duplicateitems", "Duplicate items"),
+                    )
+                )
 
         return res
 
@@ -852,7 +902,9 @@ class BaseBone(object):
         self.serialize_compute(skel, name)
 
         if name in skel.accessedValues:
+            empty_value = self.getEmptyValue()
             newVal = skel.accessedValues[name]
+
             if self.languages and self.multiple:
                 res = db.Entity()
                 res["_viurLanguageWrapper_"] = True
@@ -862,7 +914,10 @@ class BaseBone(object):
                         res.exclude_from_indexes.add(language)
                     if language in newVal:
                         for singleValue in newVal[language]:
-                            res[language].append(self.singleValueSerialize(singleValue, skel, name, parentIndexed))
+                            value = self.singleValueSerialize(singleValue, skel, name, parentIndexed)
+                            if value != empty_value:
+                                res[language].append(value)
+
             elif self.languages:
                 res = db.Entity()
                 res["_viurLanguageWrapper_"] = True
@@ -872,6 +927,7 @@ class BaseBone(object):
                         res.exclude_from_indexes.add(language)
                     if language in newVal:
                         res[language] = self.singleValueSerialize(newVal[language], skel, name, parentIndexed)
+
             elif self.multiple:
                 res = []
 
@@ -879,11 +935,15 @@ class BaseBone(object):
                     f"Cannot handle {repr(newVal)} here. Expecting list or tuple."
 
                 for singleValue in (newVal or ()):
-                    res.append(self.singleValueSerialize(singleValue, skel, name, parentIndexed))
+                    value = self.singleValueSerialize(singleValue, skel, name, parentIndexed)
+                    if value != empty_value:
+                        res.append(value)
 
             else:  # No Languages, not Multiple
                 res = self.singleValueSerialize(newVal, skel, name, parentIndexed)
+
             skel.dbEntity[name] = res
+
             # Ensure our indexed flag is up2date
             indexed = self.indexed and parentIndexed
             if indexed and name in skel.dbEntity.exclude_from_indexes:
@@ -903,6 +963,7 @@ class BaseBone(object):
         """
         if not self.compute:
             return None
+
         match self.compute.interval.method:
             case ComputeMethod.OnWrite:
                 skel.accessedValues[name] = self._compute(skel, name)
@@ -921,7 +982,6 @@ class BaseBone(object):
             case ComputeMethod.Once:
                 if name not in skel.dbEntity:
                     skel.accessedValues[name] = self._compute(skel, name)
-
 
     def singleValueUnserialize(self, val):
         """
@@ -1045,7 +1105,7 @@ class BaseBone(object):
         :param name: The name of the Bone in the Skeleton
         :return: True if the Bone was unserialized, False otherwise
         """
-        if not self.compute or self._prevent_compute:
+        if not self.compute or self._prevent_compute or skel._cascade_deletion:
             return False
 
         match self.compute.interval.method:
@@ -1054,28 +1114,34 @@ class BaseBone(object):
                 now = utils.utcNow()
                 from viur.core.skeleton import RefSkel  # noqa: E402 # import works only here because circular imports
 
-                if issubclass(skel.skeletonCls, RefSkel):  # we have a ref skel we must load the complete Entity
-                    db_obj = db.get(skel["key"])
-                    last_update = db_obj.get(f"_viur_compute_{name}_")
-                else:
-                    last_update = skel.dbEntity.get(f"_viur_compute_{name}_")
-                    skel.accessedValues[f"_viur_compute_{name}_"] = last_update or now
-
-                if not last_update or last_update + self.compute.interval.lifetime <= now:
-                    # if so, recompute and refresh updated value
-                    skel.accessedValues[name] = value = self._compute(skel, name)
-                    def transact():
+                if skel["key"] and skel.dbEntity:
+                    if issubclass(skel.skeletonCls, RefSkel):  # we have a ref skel we must load the complete Entity
                         db_obj = db.get(skel["key"])
-                        db_obj[f"_viur_compute_{name}_"] = now
-                        db_obj[name] = value
-                        db.put(db_obj)
-
-                    if db.is_in_transaction():
-                        transact()
+                        last_update = db_obj.get(f"_viur_compute_{name}_")
                     else:
-                        db.run_in_transaction(transact)
+                        last_update = skel.dbEntity.get(f"_viur_compute_{name}_")
+                        skel.accessedValues[f"_viur_compute_{name}_"] = last_update or now
 
-                    return True
+                    if not last_update or last_update + self.compute.interval.lifetime <= now:
+                        # if so, recompute and refresh updated value
+                        skel.accessedValues[name] = value = self._compute(skel, name)
+
+                        def transact():
+                            db_obj = db.get(skel["key"])
+                            db_obj[f"_viur_compute_{name}_"] = now
+                            db_obj[name] = value
+                            db.put(db_obj)
+
+                        if db.is_in_transaction():
+                            transact()
+                        else:
+                            db.run_in_transaction(transact)
+
+                else:
+                    # Run like ComputeMethod.Always on unwritten skeleton
+                    skel.accessedValues[name] = self._compute(skel, name)
+
+                return True
 
             # Compute on every deserialization
             case ComputeMethod.Always:
@@ -1232,10 +1298,11 @@ class BaseBone(object):
                 the list may contain more than one hashed value.
         """
 
-        def hashValue(value: str | int | float | db.Key) -> str:
+        def hash_value(value: str | int | float | db.Key) -> str:
             h = hashlib.sha256()
             h.update(str(value).encode("UTF-8"))
             res = h.hexdigest()
+
             if isinstance(value, int | float):
                 return f"I-{res}"
             elif isinstance(value, str):
@@ -1246,27 +1313,32 @@ class BaseBone(object):
                 def keyHash(key):
                     if key is None:
                         return "-"
-                    return f"{hashValue(key.kind)}-{hashValue(key.id_or_name)}-<{keyHash(key.parent)}>"
+                    return f"{hash_value(key.kind)}-{hash_value(key.id_or_name)}-<{keyHash(key.parent)}>"
 
                 return f"K-{keyHash(value)}"
+
             raise NotImplementedError(f"Type {type(value)} can't be safely used in an uniquePropertyIndex")
 
+        # zero/empty string and these should not be locked
         if not value and not self.unique.lockEmpty:
-            return []  # We are zero/empty string and these should not be locked
-        if not self.multiple and not isinstance(value, list):
-            return [hashValue(value)]
-        # We have a multiple bone or multiple values here
+            return []
+
+        # Always work with list of values
         if not isinstance(value, list):
             value = [value]
-        tmpList = [hashValue(x) for x in value]
+
+        values = [hash_value(val) for val in value]
+
         if self.unique.method == UniqueLockMethod.SameValue:
-            # We should lock each entry individually; lock each value
-            return tmpList
+            # Lock each entry individually
+            return values
+
         elif self.unique.method == UniqueLockMethod.SameSet:
-            # We should ignore the sort-order; so simply sort that List
-            tmpList.sort()
-        # Lock the value for that specific list
-        return [hashValue(", ".join(tmpList))]
+            # Ignore the sort-order; so simply sort that list
+            values.sort()
+
+        # Lock the value for that specific list (equals to UniqueLockMethod.SameList)
+        return [hash_value(", ".join(values))]
 
     def getUniquePropertyIndexValues(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> list[str]:
         """
@@ -1280,10 +1352,11 @@ class BaseBone(object):
         :return: A list of strings representing the hashed values for the current bone value(s) in the skeleton.
                 If the bone has no value, an empty list is returned.
         """
-        val = skel[name]
-        if val is None:
-            return []
-        return self._hashValueForUniquePropertyIndex(val)
+        if self.compute:
+            self.serialize_compute(skel, name)
+
+        values = [value for _, _, value in self.iter_bone_value(skel, name) if value is not None]
+        return self._hashValueForUniquePropertyIndex(values) if values else []
 
     def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
@@ -1316,6 +1389,24 @@ class BaseBone(object):
             :param skel: The skeleton this bone belongs to
             :param boneName: Name of this bone
             :param key: The old Database Key of the entity we've deleted
+        """
+        pass
+
+    def after_from_client(self, skel: "SkeletonInstance", name: str, errors: list[ReadFromClientError]) -> None:
+        """
+        Called at the end of :meth:`fromClient` after ``skel[name]`` has been set and all
+        validation (including multiple-constraints) has run.
+
+        Override to post-process or normalize ``skel[name]`` in-place, or to add/remove
+        entries from ``errors``. Always called when the field was part of the submitted data
+        (i.e. ``skel[name]`` has been written), regardless of whether errors occurred.
+        The ``NotSet`` early-return (field absent from request) is the only case where this
+        hook is *not* called.
+
+        :param skel: The skeleton instance whose bone value was just read.
+        :param name: The attribute name of this bone within the skeleton.
+        :param errors: Mutable list of :class:`ReadFromClientError` collected so far.
+            Changes here affect the return value of :meth:`fromClient`.
         """
         pass
 
@@ -1494,20 +1585,15 @@ class BaseBone(object):
 
     def _compute(self, skel: 'viur.core.skeleton.SkeletonInstance', bone_name: str):
         """Performs the evaluation of a bone configured as compute"""
+        from ..skeleton.utils import without_render_preparation
 
         compute_fn_parameters = inspect.signature(self.compute.fn).parameters
         compute_fn_args = {}
-        if "skel" in compute_fn_parameters:
-            from viur.core.skeleton import skeletonByKind, RefSkel  # noqa: E402 # import works only here because circular imports
+        skel = without_render_preparation(skel)
 
-            if issubclass(skel.skeletonCls, RefSkel):  # we have a ref skel we must load the complete skeleton
-                cloned_skel = skeletonByKind(skel.kindName)()
-                if not cloned_skel.read(skel["key"]):
-                    raise ValueError(f'{skel["key"]=!r} does no longer exists. Cannot compute a broken relation')
-            else:
-                cloned_skel = skel.clone()
-            cloned_skel[bone_name] = None  # remove value form accessedValues to avoid endless recursion
-            compute_fn_args["skel"] = cloned_skel
+        if "skel" in compute_fn_parameters:
+            skel.accessedValues[bone_name] = None  # remove value from accessedValues to avoid endless recursion
+            compute_fn_args["skel"] = skel
 
         if "bone" in compute_fn_parameters:
             compute_fn_args["bone"] = getattr(skel, bone_name)
@@ -1528,11 +1614,14 @@ class BaseBone(object):
                     lang: unserialize_raw_value(ret.get(lang, [] if self.multiple else None))
                     for lang in self.languages
                 }
+
             return unserialize_raw_value(ret)
+
         self._prevent_compute = True
         if errors := self.fromClient(skel, bone_name, {bone_name: ret}):
             raise ValueError(f"Computed value fromClient failed with {errors!r}")
         self._prevent_compute = False
+
         return skel[bone_name]
 
     def structure(self) -> dict:
@@ -1583,20 +1672,25 @@ class BaseBone(object):
 
     def dump(self, skel: "SkeletonInstance", bone_name: str) -> t.Any:
         """
-        Returns the value of a bone in a simplified version.
+        Returns the value of a bone in a JSON-serializable format.
+
+        The function is not called "to_json()" because the JSON-serializable
+        format can be used for different purposes and renderings, not just
+        JSON.
+
         :param skel: The SkeletonInstance that contains the bone.
         :param bone_name: The name of the bone to in the skeleton.
-        :return: The value of the bone in a simplified version.
+
+        :return: The value of the bone in a JSON-serializable version.
         """
         ret = {}
         bone_value = skel[bone_name]
         if self.languages and self.multiple:
-            res = {}
             for language in self.languages:
                 if bone_value and language in bone_value and bone_value[language]:
                     ret[language] = [self._atomic_dump(value) for value in bone_value[language]]
                 else:
-                    res[language] = []
+                    ret[language] = []
         elif self.languages:
             for language in self.languages:
                 if bone_value and language in bone_value and bone_value[language]:
@@ -1604,7 +1698,7 @@ class BaseBone(object):
                 else:
                     ret[language] = None
         elif self.multiple:
-            ret = [self._atomic_dump(value) for value in bone_value]
+            ret = [self._atomic_dump(value) for value in bone_value or ()]
 
         else:
             ret = self._atomic_dump(bone_value)

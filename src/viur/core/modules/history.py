@@ -1,5 +1,5 @@
 import difflib
-import enum
+import json
 import logging
 import typing as t
 from google.cloud import exceptions, bigquery
@@ -70,7 +70,13 @@ class HistorySkel(Skeleton):
         indexed=False,
     )
 
+    changed_fields = StringBone(
+        descr="Changed fields",
+        multiple=True
+    )
+
     diff = RawBone(
+        type_suffix="code.diff",
         descr="Human-readable diff",
         indexed=False,
     )
@@ -195,6 +201,12 @@ class BigQueryHistory:
             "mode": "NULLABLE",
             "description": "diff data",
         },
+        {
+            "type": "STRING",
+            "name": "changed_fields",
+            "mode": "REPEATED",
+            "description": "Changed fields from old to new",
+        },
     )
     """
     Schema used for the BigQuery table for its initial construction.
@@ -279,12 +291,17 @@ class HistoryAdapter(DatabaseAdapter):
         self.trigger("delete", skel, None)
 
     def trigger(
-            self,
-            action: str,
-            old_skel: SkeletonInstance,
-            new_skel: SkeletonInstance,
-            change_list: t.Iterable[str] = (),
+        self,
+        action: str,
+        old_skel: SkeletonInstance,
+        new_skel: SkeletonInstance,
+        change_list: t.Iterable[str] = (),
     ) -> str | None:
+        if not (history_module := getattr(conf.main_app, "history", None)):
+            logging.warning(
+                f"{old_skel or new_skel or self!r} uses {self.__class__.__name__}, but no 'history'-module found"
+            )
+            return None
 
         # skip excluded actions like login or logout
         if action in conf.history.excluded_actions:
@@ -295,7 +312,7 @@ class HistoryAdapter(DatabaseAdapter):
             return None
 
         # FIXME: Turn change_list into set, in entire Core...
-        if change_list and not (change_list := set(change_list).difference(self.diff_excludes)):
+        if change_list and not set(change_list).difference(self.diff_excludes):
             logging.info("change_list is empty, nothing to write")
             return None
 
@@ -308,7 +325,7 @@ class HistoryAdapter(DatabaseAdapter):
             if kindname == "viur-history":
                 return None
 
-        return conf.main_app._history.write_diff(
+        return history_module.log(
             action, old_skel, new_skel,
             change_list=change_list,
             user=user,
@@ -372,7 +389,7 @@ class History(List):
 
     # Module-specific functions
     @staticmethod
-    def _create_diff(new: dict, old: dict, diff_excludes: set[str] = set()):
+    def _create_diff(new: dict, old: dict, diff_excludes: t.Iterable[str] = set()):
         """
         Creates a textual diff format string from the contents of two dicts.
         """
@@ -382,6 +399,7 @@ class History(List):
         keys = old.keys() | new.keys()
         keys = set(keys).difference(diff_excludes)
         keys = sorted(keys)
+
         for key in keys:
             def expand(name, obj):
                 ret = {}
@@ -393,21 +411,7 @@ class History(List):
                         ret.update(expand(name + (str(key),), val))
                 else:
                     name = ".".join(name)
-
-                    if obj is None:
-                        ret[name] = ""
-                    elif isinstance(obj, str):
-                        ret[name] = obj
-                    elif isinstance(obj, bytes):
-                        ret[name] = obj.decode()
-                    elif isinstance(obj, enum.Enum):
-                        ret[name] = str(obj.value)
-                    else:
-                        ret[name] = utils.json.dumps(
-                            obj,
-                            indent=4,
-                            sort_keys=True,
-                        )
+                    ret[name] = json.dumps(obj, cls=CustomJsonEncoder, ensure_ascii=False)
 
                 return ret
 
@@ -421,8 +425,8 @@ class History(List):
                         (values[0].get(value_key) or "").splitlines(),
                         (values[1].get(value_key) or "").splitlines(),
                         value_key, value_key,
-                        (old.get("changedate") or utils.utcNow()).isoformat(),
-                        (new.get("changedate") or utils.utcNow()).isoformat(),
+                        old.get("changedate") or utils.utcNow().isoformat(),
+                        new.get("changedate") or utils.utcNow().isoformat(),
                         n=1
                     )
                 )
@@ -432,71 +436,79 @@ class History(List):
 
         return "\n".join(diffs).replace("\n\n", "\n")
 
-    def _create_history_entry(
+    def build_name(self, skel: SkeletonInstance) -> str | None:
+        """
+        Helper function to figure out a name from the skeleton
+        """
+
+        if not skel:
+            return None
+
+        if "name" in skel:
+            name = skel.dump()
+
+            if isinstance(skel["name"], str):
+                return skel["name"]
+
+            return name
+
+        return skel["key"].id_or_name
+
+    def build_descr(self, action: str, skel: SkeletonInstance, change_list: t.Iterable[str]) -> str | None:
+        """
+        Helper function to build a description about the change to the skeleton
+        """
+        if not skel:
+            return action
+
+        match action:
+            case "add":
+                return (
+                    f"""A new entry with the kind {skel.kindName!r}"""
+                    f""" and the key {skel["key"].id_or_name!r} was created."""
+                )
+            case "edit":
+                return (
+                    f"""The entry {skel["key"].id_or_name!r} of kind {skel.kindName!r} has been modified."""
+                    f""" The following fields where changed: {", ".join(change_list)}."""
+                )
+            case "delete":
+                return f"""The entry {skel["key"].id_or_name!r} of kind {skel.kindName!r} has been deleted."""
+
+        return (
+            f"""The action {action!r} resulted in a change to the entry {skel["key"].id_or_name!r}"""
+            f""" of kind {skel.kindName!r}."""
+        )
+
+    def create_history_entry(
         self,
         action: str,
-        old_skel: SkeletonInstance,
-        new_skel: SkeletonInstance,
+        old_skel: t.Optional[SkeletonInstance] = None,
+        new_skel: t.Optional[SkeletonInstance] = None,
         change_list: t.Iterable[str] = (),
         descr: t.Optional[str] = None,
         user: t.Optional[SkeletonInstance] = None,
         tags: t.Iterable[str] = (),
         diff_excludes: t.Set[str] = set(),
     ):
+        """
+        Internal helper function that constructs a JSON-serializable form of the entry
+        that can either be written to datastore or another database.
+        """
         skel = new_skel or old_skel
-        new_data = skel.dump()
+        new_data = skel.dump(bones=change_list) if skel else {}
 
         if change_list and old_skel != new_skel:
-            old_data = old_skel.dump()
+            old_data = old_skel.dump(bones=change_list) if old_skel else {}
             diff = self._create_diff(new_data, old_data, diff_excludes)
         else:
             old_data = {}
             diff = ""
 
-        # Helper function to figure out a name from the skeleton
-        def build_name(_skel):
-            if not _skel:
-                return str(_skel)
-
-            if "name" in _skel:
-                if isinstance(_skel["name"], str):
-                    return _skel["name"]
-
-                return utils.json.dumps(
-                    _skel["name"],
-                    indent=4,
-                    sort_keys=True
-                )
-
-            return _skel["key"].id_or_name
-
-        # Helper function to build a description about the change to the skeleton
-        def build_descr(action, skel, change_list):
-            if not skel:
-                return action
-
-            match action:
-                case "add":
-                    return (
-                        f"""A new entry with the kind {skel.kindName!r}"""
-                        f""" and the key {skel["key"].id_or_name!r} was created."""
-                    )
-                case "edit":
-                    return (
-                        f"""The entry {skel["key"].id_or_name!r} of kind {skel.kindName!r} has been modified."""
-                        f""" The following fields where changed: {", ".join(change_list)}."""
-                    )
-                case "delete":
-                    return f"""The entry {skel["key"].id_or_name!r} of kind {skel.kindName!r} has been deleted."""
-
-            return (
-                f"""The action {action!r} resulted in a change to the entry {skel["key"].id_or_name!r}"""
-                f""" of kind {skel.kindName!r}."""
-            )
-
         # set event tag, in case of an event-action
         tags = set(tags)
 
+        # Event tag
         if action.startswith("event-"):
             tags.add("is-event")
 
@@ -504,11 +516,12 @@ class History(List):
             "action": action,
             "current_key": skel and str(skel["key"]),
             "current_kind": skel and getattr(skel, "kindName", None),
-            "current": utils.json.dumps(new_data, indent=4, sort_keys=True) if new_data else None,
-            "descr": descr or build_descr(action, skel, change_list),
+            "current": new_data,
+            "changed_fields": change_list if change_list else [],
+            "descr": descr or self.build_descr(action, skel, change_list),
             "diff": diff,
-            "name": build_name(skel) if skel else ((user and user["name"] or "") + " " + action),
-            "previous": utils.json.dumps(old_data, indent=4, sort_keys=True) if old_data else None,
+            "name": self.build_name(skel) if skel else ((user and user["name"] or "") + " " + action),
+            "previous": old_data if old_data else None,
             "tags": tuple(sorted(tags)),
             "timestamp": utils.utcNow(),
             "user_firstname": user and user["firstname"],
@@ -520,20 +533,48 @@ class History(List):
 
         return ret
 
-    def write_diff(
+    def log(
         self,
         action: str,
-        old_skel: SkeletonInstance = None,
-        new_skel: SkeletonInstance = None,
+        old_skel: t.Optional[SkeletonInstance] = None,
+        new_skel: t.Optional[SkeletonInstance] = None,
         change_list: t.Iterable[str] = (),
         descr: t.Optional[str] = None,
         user: t.Optional[SkeletonInstance] = None,
         tags: t.Iterable[str] = (),
         diff_excludes: t.Set[str] = set(),
     ) -> str | None:
+        """
+        Creates and persists a history entry for a skeleton change or a standalone event.
+
+        Builds the entry via :meth:`create_history_entry`, derives a deterministic key
+        from ``action``, ``current_kind``, and the current timestamp, then writes the
+        entry to all configured backends (``"viur"`` datastore and/or ``"bigquery"``)
+        as deferred tasks.
+
+        Both ``old_skel`` and ``new_skel`` are optional. For skeleton lifecycle actions
+        one of them is typically present (``"add"`` only has ``new_skel``, ``"delete"``
+        only has ``old_skel``, ``"edit"`` has both), but for pure event logging neither
+        is required.
+
+        :param action: Short identifier for what happened, e.g. ``"add"``, ``"edit"``,
+            ``"delete"``, or a custom ``"event-*"`` string.
+        :param old_skel: Skeleton state before the change, or ``None`` for pure events
+            and ``"add"`` actions.
+        :param new_skel: Skeleton state after the change, or ``None`` for pure events
+            and ``"delete"`` actions.
+        :param change_list: Names of the bones that were modified (used for ``"edit"`` actions).
+        :param descr: Optional human-readable description. Falls back to :meth:`build_descr`
+            when omitted.
+        :param user: Skeleton instance of the user who triggered the action.
+        :param tags: Additional string tags attached to the entry for filtering.
+            Entries with an ``"event-*"`` action automatically receive the ``"is-event"`` tag.
+        :param diff_excludes: Bone names to exclude from the unified diff computation.
+        :returns: The generated history entry key, or ``None`` if no entry was written.
+        """
 
         # create entry
-        entry = self._create_history_entry(
+        entry = self.create_history_entry(
             action, old_skel, new_skel,
             change_list=change_list,
             descr=descr,
@@ -553,7 +594,7 @@ class History(List):
 
         # write into datastore via history module
         if "viur" in conf.history.databases:
-            self.write_deferred(key, entry)
+            self.write_to_viur_deferred(key, entry)
 
         # write into BigQuery
         if self.bigquery and "bigquery" in conf.history.databases:
@@ -561,26 +602,30 @@ class History(List):
             if conf.instance.is_dev_server:
                 entry = entry.copy()  # need to do this as biquery functions modifiy entry
 
-            conf.main_app._history.write_to_bigquery_deferred(key, entry)
+            self.write_to_bigquery_deferred(key, entry)
 
         return key
 
-    def write(self, key: str, entry: dict):
+    def write_to_viur(self, key: str, entry: dict):
         """
         Write a history entry generated from an HistoryAdapter.
         """
         skel = self.addSkel()
-        for k in skel.keys():
-            if value := entry.get(k):
-                skel.setBoneValue(k, value)
-        skel["key"] = db.Key(skel.kindName, key)
-        skel.write()
+
+        for name, bone in skel.items():
+            if value := entry.get(name):
+                if isinstance(bone, (RelationalBone, RecordBone)):
+                    skel.setBoneValue(name, value)
+                else:
+                    skel[name] = value
+
+        skel.write(key=db.Key(skel.kindName, key))
 
         logging.info(f"History entry {key=} written to datastore")
 
     @tasks.CallDeferred
-    def write_deferred(self, key: str, entry: dict):
-        self.write(key, entry)
+    def write_to_viur_deferred(self, key: str, entry: dict):
+        self.write_to_viur(key, entry)
 
     def write_to_bigquery(self, key: str, entry: dict):
         entry["key"] = key

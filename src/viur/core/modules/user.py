@@ -1,13 +1,18 @@
 import abc
 import datetime
 import enum
+import fnmatch
 import functools
 import hashlib
 import hmac
 import json
 import logging
 import secrets
+import time
+import urllib.parse
 import warnings
+from http.cookies import SimpleCookie
+
 import user_agents
 
 import pyotp
@@ -27,6 +32,7 @@ from viur.core.bones.password import PBKDF2_DEFAULT_ITERATIONS, encode_password
 from viur.core.prototypes.list import List
 from viur.core.ratelimit import RateLimit
 from viur.core.securityheaders import extendCsp
+from viur.core.session import Session
 
 
 @functools.total_ordering
@@ -191,9 +197,26 @@ class UserAuthentication(Module, abc.ABC):
         """
         ...
 
+    @property
+    @abc.abstractstaticmethod
+    def NAME() -> str:
+        """
+        Define a descriptive name for this authentication.
+        """
+        ...
+
+    @property
+    @staticmethod
+    def VISIBLE(cls) -> bool:
+        """
+        Defines if the authentication method is visible to the user.
+        """
+        return True
+
     def __init__(self, moduleName, modulePath, userModule):
         super().__init__(moduleName, modulePath)
         self._user_module = userModule
+        self.start_url = f"{self.modulePath}/login"
 
     def can_handle(self, skel: skeleton.SkeletonInstance) -> bool:
         return True
@@ -227,6 +250,7 @@ class UserPrimaryAuthentication(UserAuthentication, abc.ABC):
 
 class UserPassword(UserPrimaryAuthentication):
     METHOD_NAME = "X-VIUR-AUTH-User-Password"
+    NAME = "Username & Password"
 
     registrationEmailVerificationRequired = True
     registrationAdminVerificationRequired = True
@@ -234,12 +258,9 @@ class UserPassword(UserPrimaryAuthentication):
     verifySuccessTemplate = "user_verify_success"
     verifyEmailAddressMail = "user_verify_address"
     verifyFailedTemplate = "user_verify_failed"
-    passwordRecoveryTemplate = "user_passwordrecover"
     passwordRecoveryMail = "user_password_recovery"
     passwordRecoverySuccessTemplate = "user_passwordrecover_success"
-    passwordRecoveryStep1Template = "user_passwordrecover_step1"
-    passwordRecoveryStep2Template = "user_passwordrecover_step2"
-    passwordRecoveryStep3Template = "user_passwordrecover_step3"
+    passwordRecoveryTemplate = "user_passwordrecover"
 
     # The default rate-limit for password recovery (10 tries each 15 minutes)
     passwordRecoveryRateLimit = RateLimit("user.passwordrecovery", 10, 15, "ip")
@@ -297,7 +318,6 @@ class UserPassword(UserPrimaryAuthentication):
         recovery_key = StringBone(
             descr="Recovery Key",
             visible=False,
-            readOnly=True,
         )
 
         password = PasswordBone(
@@ -319,8 +339,8 @@ class UserPassword(UserPrimaryAuthentication):
         skel = self.LoginSkel()
 
         # Read required bones from client
-        if not skel.fromClient(kwargs):
-            return self._user_module.render.login(skel, action="login")
+        if not (kwargs and skel.fromClient(kwargs)):
+            return self._user_module.render.render("login", skel)
 
         self.loginRateLimit.assertQuotaIsAvailable()
 
@@ -356,35 +376,35 @@ class UserPassword(UserPrimaryAuthentication):
                     )
 
             self.loginRateLimit.decrementQuota()  # Only failed login attempts will count to the quota
-            return self._user_module.render.login(skel, action="login")
+            return self._user_module.render.render("login", skel)
 
         # check if iterations are below current security standards, and update if necessary.
         if iterations < PBKDF2_DEFAULT_ITERATIONS:
             logging.info(f"Update password hash for user {name}.")
             # re-hash the password with more iterations
             # FIXME: This must be done within a transaction!
-            user_skel["password"] = password  # will be hashed on serialize
+            user_skel["password"] = kwargs["password"]  # will be hashed on serialize
             user_skel.write(update_relations=False)
 
         return self.next_or_finish(user_skel)
 
     @exposed
-    def pwrecover(self, recovery_key: str | None = None, skey: str | None = None, *args, **kwargs):
+    def pwrecover(self, recovery_key: str | None = None, skey: str | None = None, **kwargs):
         """
             This implements a password recovery process which lets users set a new password for their account,
             after validating a recovery key sent by email.
 
             The process is as following:
 
-            - The user enters his email adress
-            - We'll generate a random code and store it as a security-key and call sendUserPasswordRecoveryCode
+            - The user enters the registered email adress (not validated here)
+            - A random code is generated and stored as a security-ke, then sendUserPasswordRecoveryCode is called.
             - sendUserPasswordRecoveryCode will run in the background, check if we have a user with that name
-              and send a link with the code . It runs as a deferredTask so we don't leak the information if a user
-              account exists.
-            - If the user received his email, he can click on the link and set a new password for his account.
+              and send a link with the code. It runs as a deferred task so no information if a user account exists
+              is being leaked.
+            - If the user received an email, the link can be clicked to set a new password for the account.
 
-            To prevent automated attacks, the fist step is guarded by a captcha and we limited calls to this function
-            to 10 actions per 15 minutes. (One complete recovery process consists of two calls).
+            To prevent automated attacks, the first step is guarded by limited calls to this function to 10 actions
+            per 15 minutes. (One complete recovery process consists of two calls).
         """
         self.passwordRecoveryRateLimit.assertQuotaIsAvailable()
         current_request = current.request.get()
@@ -393,8 +413,15 @@ class UserPassword(UserPrimaryAuthentication):
             # This is the first step, where we ask for the username of the account we'll going to reset the password on
             skel = self.LostPasswordStep1Skel()
 
-            if not current_request.isPostRequest or not skel.fromClient(kwargs):
-                return self._user_module.render.edit(skel, tpl=self.passwordRecoveryStep1Template)
+            if (
+                not kwargs
+                or not current_request.isPostRequest
+                or not skel.fromClient(kwargs)
+            ):
+                return self._user_module.render.render(
+                    "pwrecover", skel,
+                    tpl=self.passwordRecoveryTemplate,
+                )
 
             # validate security key
             if not securitykey.validate(skey):
@@ -416,20 +443,26 @@ class UserPassword(UserPrimaryAuthentication):
 
             # step 2 is only an action-skel, and can be ignored by a direct link in the
             # e-mail previously sent. It depends on the implementation of the specific project.
-            return self._user_module.render.edit(
-                self.LostPasswordStep2Skel(),
-                tpl=self.passwordRecoveryStep2Template,
+            return self._user_module.render.render(
+                "pwrecover", self.LostPasswordStep2Skel(),
+                tpl=self.passwordRecoveryTemplate,
             )
 
         # in step 3
         skel = self.LostPasswordStep3Skel()
-        skel["recovery_key"] = recovery_key  # resend the recovery key again, in case the fromClient() fails.
+
+        # reset the recovery key again, in case the fromClient() fails.
+        skel["recovery_key"] = str(recovery_key).strip()
 
         # check for any input; Render input-form again when incomplete.
-        if not skel.fromClient(kwargs) or not current_request.isPostRequest:
-            return self._user_module.render.edit(
-                skel=skel,
-                tpl=self.passwordRecoveryStep3Template,
+        if (
+            not kwargs
+            or not current_request.isPostRequest
+            or not skel.fromClient(kwargs, ignore=("recovery_key",))
+        ):
+            return self._user_module.render.render(
+                "pwrecover", skel,
+                tpl=self.passwordRecoveryTemplate,
             )
 
         # validate security key
@@ -473,9 +506,10 @@ class UserPassword(UserPrimaryAuthentication):
         user_skel["password"] = skel["password"]
         user_skel.write(update_relations=False)
 
-        return self._user_module.render.view(
-            None,
-            tpl=self.passwordRecoverySuccessTemplate,
+        return self._user_module.render.render(
+            "pwrecover_success",
+            next_url=self.start_url,
+            tpl=self.passwordRecoverySuccessTemplate
         )
 
     @tasks.CallDeferred
@@ -523,7 +557,7 @@ class UserPassword(UserPrimaryAuthentication):
     def canAdd(self) -> bool:
         return self.registrationEnabled
 
-    def addSkel(self):
+    def addSkel(self) -> skeleton.SkeletonInstance["UserSkel"]:
         """
             Prepare the add-Skel for rendering.
             Currently only calls self._user_module.addSkel() and sets skel["status"] depending on
@@ -550,7 +584,7 @@ class UserPassword(UserPrimaryAuthentication):
     @force_ssl
     @exposed
     @skey(allow_empty=True)
-    def add(self, *args, **kwargs):
+    def add(self, *, bounce: bool = False, **kwargs):
         """
             Allows guests to register a new account if self.registrationEnabled is set to true
 
@@ -563,17 +597,21 @@ class UserPassword(UserPrimaryAuthentication):
         """
         if not self.canAdd():
             raise errors.Unauthorized()
+
         skel = self.addSkel()
+
         if (
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # bail out if not using POST-method
             or not skel.fromClient(kwargs)  # failure on reading into the bones
-            or utils.parse.bool(kwargs.get("bounce"))  # review before adding
+            or bounce  # review before adding
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self._user_module.render.add(skel)
+
         self._user_module.onAdd(skel)
         skel.write()
+
         if self.registrationEmailVerificationRequired and skel["status"] == Status.WAITING_FOR_EMAIL_VERIFICATION:
             # The user will have to verify his email-address. Create a skey and send it to his address
             skey = securitykey.create(duration=datetime.timedelta(days=7), session_bound=False,
@@ -581,13 +619,15 @@ class UserPassword(UserPrimaryAuthentication):
                                       name=skel["name"])
             skel.skey = BaseBone(descr="Skey")
             skel["skey"] = skey
-            email.send_email(dests=[skel["name"]], tpl=self._user_module.verifyEmailAddressMail, skel=skel)
+            email.send_email(dests=[skel["name"]], tpl=self.verifyEmailAddressMail, skel=skel)
+
         self._user_module.onAdded(skel)  # Call onAdded on our parent user module
         return self._user_module.render.addSuccess(skel)
 
 
 class GoogleAccount(UserPrimaryAuthentication):
     METHOD_NAME = "X-VIUR-AUTH-Google-Account"
+    NAME = "Google Account"
 
     @classmethod
     def patch_user_skel(cls, skel_cls):
@@ -715,7 +755,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
     METHOD_NAME = "X-VIUR-2FACTOR-TimeBasedOTP"
     WINDOW_SIZE = 5
     ACTION_NAME = "otp"
-    NAME = "Time based Otp"
+    NAME = "Time-based OTP"
     second_factor_login_template = "user_login_secondfactor"
 
     @dataclasses.dataclass
@@ -766,6 +806,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             descr="OTP time drift",
             readOnly=True,
             defaultValue=0,
+            precision=1,
             params={
                 "category": "Second Factor Authentication",
             }
@@ -820,7 +861,10 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         return self._user_module.render.edit(
             self.OtpSkel(),
             params={
-                "name": i18n.translate(f"viur.core.modules.user.{self.NAME}"),
+                "name": i18n.translate(
+                    f"viur.core.modules.user.{self.ACTION_NAME}",
+                    default_variables={"name": self.NAME},
+                ),
                 "action_name": self.ACTION_NAME,
                 "action_url": f"{self.modulePath}/{self.ACTION_NAME}",
             },
@@ -864,7 +908,10 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
             return self._user_module.render.edit(
                 skel,
-                name=i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
+                name=i18n.translate(
+                    f"viur.core.modules.user.auth.{self.ACTION_NAME}",
+                    default_variables={"name": self.NAME},
+                ),
                 action_name=self.ACTION_NAME,
                 action_url=f"{self.modulePath}/{self.ACTION_NAME}",
                 tpl=self.second_factor_login_template
@@ -906,11 +953,11 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         :param otp: the OTP token to check against
         :param secret: The OTP secret
         :param algorithm: digest function to use in the HMAC (expected to be sha1 or sha256)
-        :param interval: the time interval in seconds for OTP. This defaults to 60 (old OTP c200 Generators). In
-        pyotp, default is 30!
+        :param interval: the time interval in seconds for OTP. This defaults to 60 (old OTP c200 Generators).
         :param timedrift: The known timedrift (old index) of the hardware OTP generator
         :param for_time: Time to check OTP at (defaults to now)
         :param valid_window: extends the validity to this many counter ticks before and after the current one
+
         :returns: The index where verification succeeded, None otherwise
         """
         # get the hashing digest
@@ -944,26 +991,25 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
 
         return 0 if hmac.compare_digest(otp, str(totp.at(for_time, timedrift))) else None
 
+    # FIXME: VIUR4 rename
     def updateTimeDrift(self, user_key: db.Key, idx: float) -> None:
         """
             Updates the clock-drift value.
+
             The value is only changed in 1/10 steps, so that a late submit by an user doesn't skew
             it out of bounds. Maximum change per call is 0.3 minutes.
+
             :param user_key: For which user should the update occour
             :param idx: How many steps before/behind was that token
-            :return:
         """
-
-        # FIXME: The callback in viur-core must be improved, to accept user_skel
-
-        def transaction(user_key, idx):
-            user = db.get(user_key)
-            if not isinstance(user.get("otp_timedrift"), float):
-                user["otp_timedrift"] = 0.0
-            user["otp_timedrift"] += min(max(0.1 * idx, -0.3), 0.3)
-            db.put(user)
-
-        db.run_in_transaction(transaction, user_key, idx)
+        if user_skel := self._user_module.skel().read(user_key):
+            if otp_skel := self._get_otptoken(user_skel):
+                otp_skel.patch(
+                    {
+                        "+otp_timedrift": min(max(0.1 * idx, -0.3), 0.3)
+                    },
+                    update_relations=False,
+                )
 
 
 class AuthenticatorOTP(UserSecondFactorAuthentication):
@@ -972,20 +1018,22 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
     """
     METHOD_NAME = "X-VIUR-2FACTOR-AuthenticatorOTP"
 
-    second_factor_add_template = "user_secondfactor_add"
-    """Template to configure (add) a new TOPT"""
+    # second_factor_add_template = "user_secondfactor_add"
+    # """Template to configure (add) a new TOPT"""
 
     ACTION_NAME = "authenticator_otp"
     """Action name provided for *otp_template* on login"""
 
     NAME = "Authenticator App"
 
+    # FIXME: The second factor add has to be rewritten entirely to ActionSkel paradigm.
+    '''
     @exposed
     @force_ssl
     @skey(allow_empty=True)
     def add(self, otp=None):
         """
-        We try to read the otp_app_secret form the current session. When this fails we generate a new one and store
+        We try to read the otp_app_secret from the current session. When this fails we generate a new one and store
         it in the session.
 
         If an otp and a skey are provided we are validate the skey and the otp. If both is successfully we store
@@ -1002,7 +1050,10 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             return self._user_module.render.second_factor_add(
                 tpl=self.second_factor_add_template,
                 action_name=self.ACTION_NAME,
-                name=i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
+                name=i18n.translate(
+                    f"viur.core.modules.user.auth{self.ACTION_NAME}",
+                    default_variables={"name": self.NAME},
+                ),
                 add_url=self.add_url,
                 otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))
         else:
@@ -1010,7 +1061,10 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
                 return self._user_module.render.second_factor_add(
                     tpl=self.second_factor_add_template,
                     action_name=self.ACTION_NAME,
-                    name=i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
+                    name=i18n.translate(
+                        f"viur.core.modules.user.auth.{self.ACTION_NAME}",
+                        default_variables={"name": self.NAME},
+                    ),
                     add_url=self.add_url,
                     otp_uri=AuthenticatorOTP.generate_otp_app_secret_uri(otp_app_secret))  # to add errors
 
@@ -1018,8 +1072,12 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             AuthenticatorOTP.set_otp_app_secret(otp_app_secret)
             return self._user_module.render.second_factor_add_success(
                 action_name=self.ACTION_NAME,
-                name=i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
+                name=i18n.translate(
+                    f"viur.core.modules.user.auth.{self.ACTION_NAME}",
+                    default_variables={"name": self.NAME},
+                ),
             )
+    '''
 
     def can_handle(self, skel: skeleton.SkeletonInstance) -> bool:
         """
@@ -1094,7 +1152,10 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         return self._user_module.render.edit(
             TimeBasedOTP.OtpSkel(),
             params={
-                "name": i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
+                "name": i18n.translate(
+                    f"viur.core.modules.user.auth.{self.ACTION_NAME}",
+                    default_variables={"name": self.NAME},
+                ),
                 "action_name": self.ACTION_NAME,
                 "action_url": self.action_url,
             },
@@ -1133,7 +1194,10 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
         return self._user_module.render.edit(
             skel,
-            name=i18n.translate(f"viur.core.modules.user.auth.{self.NAME}"),
+            name=i18n.translate(
+                f"viur.core.modules.user.auth.{self.ACTION_NAME}",
+                default_variables={"name": self.NAME},
+            ),
             action_name=self.ACTION_NAME,
             action_url=self.action_url,
             tpl=self.second_factor_login_template,
@@ -1150,9 +1214,6 @@ class User(List):
     kindName = "user"
     addTemplate = "user_add"
     addSuccessTemplate = "user_add_success"
-    lostPasswordTemplate = "user_lostpassword"
-    verifyEmailAddressMail = "user_verify_address"
-    passwordRecoveryMail = "user_password_recovery"
 
     authenticationProviders: t.Iterable[UserPrimaryAuthentication] = tuple(filter(
         None, (
@@ -1200,56 +1261,6 @@ class User(List):
 
     default_order = "name.idx"
 
-    adminInfo = {
-        "icon": "person-fill",
-        "actions": [
-            "trigger_kick",
-            "trigger_takeover",
-        ],
-        "customActions": {
-            "trigger_kick": {
-                "name": i18n.translate(
-                    key="viur.core.modules.user.customActions.kick",
-                    defaultText="Kick user",
-                    hint="Title of the kick user function"
-                ),
-                "icon": "trash2-fill",
-                "access": ["root"],
-                "action": "fetch",
-                "url": "/vi/{{module}}/trigger/kick/{{key}}?skey={{skey}}",
-                "confirm": i18n.translate(
-                    key="viur.core.modules.user.customActions.kick.confirm",
-                    defaultText="Do you really want to drop all sessions of the selected user from the system?",
-                ),
-                "success": i18n.translate(
-                    key="viur.core.modules.user.customActions.kick.success",
-                    defaultText="Sessions of the user are being invalidated.",
-                ),
-            },
-            "trigger_takeover": {
-                "name": i18n.translate(
-                    key="viur.core.modules.user.customActions.takeover",
-                    defaultText="Take-over user",
-                    hint="Title of the take user over function"
-                ),
-                "icon": "file-person-fill",
-                "access": ["root"],
-                "action": "fetch",
-                "url": "/vi/{{module}}/trigger/takeover/{{key}}?skey={{skey}}",
-                "confirm": i18n.translate(
-                    key="viur.core.modules.user.customActions.takeover.confirm",
-                    defaultText="Do you really want to replace your current user session by a "
-                                "user session of the selected user?",
-                ),
-                "success": i18n.translate(
-                    key="viur.core.modules.user.customActions.takeover.success",
-                    defaultText="You're now know as the selected user!",
-                ),
-                "then": "reload-vi",
-            },
-        },
-    }
-
     roles = {
         "admin": "*",
     }
@@ -1266,6 +1277,61 @@ class User(List):
             setattr(self, name, provider(name, f"{modulePath}/{name}", self))
 
         super().__init__(moduleName, modulePath)
+
+    def adminInfo(self):
+        ret = {
+            "icon": "person-fill",
+        }
+
+        if self.is_admin(current.user.get()):
+            ret |= {
+                "actions": [
+                    "trigger_kick",
+                    "trigger_takeover",
+                ],
+                "customActions": {
+                    "trigger_kick": {
+                        "name": i18n.translate(
+                            key="viur.core.modules.user.customActions.kick",
+                            defaultText="Kick user",
+                            hint="Title of the kick user function"
+                        ),
+                        "icon": "trash2-fill",
+                        "action": "fetch",
+                        "url": "/vi/{{module}}/trigger/kick/{{key}}",
+                        "confirm": i18n.translate(
+                            key="viur.core.modules.user.customActions.kick.confirm",
+                            defaultText="Do you really want to drop all sessions of the selected user from the system?",
+                        ),
+                        "success": i18n.translate(
+                            key="viur.core.modules.user.customActions.kick.success",
+                            defaultText="Sessions of the user are being invalidated.",
+                        ),
+                    },
+                    "trigger_takeover": {
+                        "name": i18n.translate(
+                            key="viur.core.modules.user.customActions.takeover",
+                            defaultText="Take-over user",
+                            hint="Title of the take user over function"
+                        ),
+                        "icon": "file-person-fill",
+                        "action": "fetch",
+                        "url": "/vi/{{module}}/trigger/takeover/{{key}}",
+                        "confirm": i18n.translate(
+                            key="viur.core.modules.user.customActions.takeover.confirm",
+                            defaultText="Do you really want to replace your current user session by a "
+                                        "user session of the selected user?",
+                        ),
+                        "success": i18n.translate(
+                            key="viur.core.modules.user.customActions.takeover.success",
+                            defaultText="You're now know as the selected user!",
+                        ),
+                        "then": "reload-vi",
+                    },
+                },
+            }
+
+        return ret
 
     def get_role_defaults(self, role: str) -> set[str]:
         """
@@ -1284,22 +1350,23 @@ class User(List):
 
         return ret
 
-    def addSkel(self):
+    def addSkel(self) -> skeleton.SkeletonInstance["UserSkel"]:
         skel = super().addSkel().clone()
-        user = current.user.get()
-        if not (user and user["access"] and (f"{self.moduleName}-add" in user["access"] or "root" in user["access"])):
+
+        if self.is_admin(current.user.get()):
+            # An admin tries to add a new user.
+            skel.status.readOnly = False
+            skel.status.visible = True
+            skel.access.readOnly = False
+            skel.access.visible = True
+
+        else:
             skel.status.readOnly = True
             skel["status"] = Status.UNSET
             skel.status.visible = False
             skel.access.readOnly = True
             skel["access"] = []
             skel.access.visible = False
-        else:
-            # An admin tries to add a new user.
-            skel.status.readOnly = False
-            skel.status.visible = True
-            skel.access.readOnly = False
-            skel.access.visible = True
 
         if "password" in skel:
             # Unlock and require a password
@@ -1310,7 +1377,7 @@ class User(List):
         skel.name.readOnly = False  # Don't enforce readonly name in user/add
         return skel
 
-    def editSkel(self, *args, **kwargs):
+    def editSkel(self, *args, **kwargs) -> skeleton.SkeletonInstance["UserSkel"]:
         skel = super().editSkel().clone()
 
         if "password" in skel:
@@ -1318,12 +1385,10 @@ class User(List):
             skel.password.visible = True
             skel.password.readOnly = False
 
-        user = current.user.get()
-
-        lockFields = not (user and "root" in user["access"])  # If we aren't root, make certain fields read-only
-        skel.name.readOnly = lockFields
-        skel.access.readOnly = lockFields
-        skel.status.readOnly = lockFields
+        lock = not self.is_admin(current.user.get())
+        skel.name.readOnly = lock
+        skel.access.readOnly = lock
+        skel.status.readOnly = lock
 
         return skel
 
@@ -1382,8 +1447,14 @@ class User(List):
             # We have only one second factor we don't need the choice template
             return second_factor_providers[0].start(user_key)
 
-        # In case there is more than one second factor, let the user select a method.
-        return self.render.second_factor_choice(second_factors=second_factor_providers)
+        # In case there is more than one second factor provider remaining, let the user decide!
+        current.session.get()["_secondfactor_providers"] = {
+            second_factor.start_url: second_factor.NAME
+            for second_factor in second_factor_providers
+            if second_factor.VISIBLE
+        }
+
+        return self.select_secondfactor_provider()
 
     def secondFactorSucceeded(self, provider: UserSecondFactorAuthentication, user_key: db.Key):
         """
@@ -1404,8 +1475,10 @@ class User(List):
         Hookable check if a user is defined as "active" and can login.
 
         :param skel: The UserSkel of the user who wants to login.
+        :returns: Returns True or False when the result is unambigous and the user is active or not. \
+            Returns None when the provided skel doesn't provide enough information for determination.
         """
-        if "status" in skel:
+        if skel and "status" in skel:
             status = skel["status"]
             if not isinstance(status, (Status, int)):
                 try:
@@ -1414,6 +1487,20 @@ class User(List):
                     status = Status.UNSET
 
             return status >= Status.ACTIVE.value
+
+        return None
+
+    def is_admin(self, skel: skeleton.SkeletonInstance) -> bool | None:
+        """
+        Hookable check if a user is defined as "admin" and can edit or log into other users.
+        Defaults to "root" users only.
+
+        :param skel: The UserSkel of the user who wants should be checked for user admin privileges.
+        :returns: Returns True or False when the result is unambigous and the user is admin or not. \
+            Returns None when the provided skel doesn't provide enough information for determination.
+        """
+        if skel and "access" in skel:
+            return "root" in skel["access"]
 
         return None
 
@@ -1450,11 +1537,68 @@ class User(List):
 
         self.onLogin(skel)
 
-        return self.render.loginSucceeded(**kwargs)
+        return self.render.render("login_success", skel, **kwargs)
+
+
+    # Action for primary authentication selection
+
+    def SelectAuthenticationProviderSkel(self):
+        providers = {}
+        first = None
+        for provider in self.authenticationProviders:
+            if not provider.VISIBLE:
+                continue
+
+            provider = getattr(self, f"auth_{provider.__name__.lower()}")
+            providers[provider.start_url] = provider.NAME
+
+            if first is None:
+                first = provider.start_url
+
+        class SelectAuthenticationProviderSkel(skeleton.RelSkel):
+            provider = SelectBone(
+                descr="Authentication method",
+                required=True,
+                values=providers,
+                defaultValue=first,
+            )
+
+        return SelectAuthenticationProviderSkel()
+
+    @exposed
+    def select_authentication_provider(self, **kwargs):
+        skel = self.SelectAuthenticationProviderSkel()
+
+        # Read required bones from client
+        if len(skel.provider.values) > 1 and (not kwargs or not skel.fromClient(kwargs)):
+            return self.render.render("select_authentication_provider", skel)
+
+        return self.render.render("select_authentication_provider_success", skel, next_url=skel["provider"])
+
+    # Action for second factor select
+
+    class SelectSecondFactorProviderSkel(skeleton.RelSkel):
+        provider = SelectBone(
+            descr="Second factor",
+            required=True,
+            values=lambda: current.session.get()["_secondfactor_providers"] or (),
+        )
+
+    @exposed
+    def select_secondfactor_provider(self, **kwargs):
+        skel = self.SelectSecondFactorProviderSkel()
+
+        # Read required bones from client
+        if not kwargs or not skel.fromClient(kwargs):
+            return self.render.render("select_secondfactor_provider", skel)
+
+        del current.session.get()["_secondfactor_providers"]
+
+        return self.render.render("select_secondfactor_provider_success", skel, next_url=skel["provider"])
 
     @exposed
     @skey
-    def logout(self, *args, **kwargs):
+    def logout(self, **kwargs):
         """
             Implements the logout action. It also terminates the current session (all keys not listed
             in viur.session_persistent_fields_on_logout will be lost).
@@ -1465,20 +1609,20 @@ class User(List):
         self.onLogout(user)
 
         session = current.session.get()
+
         if take_over := {k: v for k, v in session.items() if k in conf.user.session_persistent_fields_on_logout}:
             session.reset()
             session |= take_over
         else:
             session.clear()
+
         current.user.set(None)  # set user to none in context var
-        return self.render.logoutSuccess()
+
+        return self.render.render("logout_success")
 
     @exposed
     def login(self, *args, **kwargs):
-        return self.render.loginChoices([
-            (primary.METHOD_NAME, secondary.METHOD_NAME if secondary else None)
-            for primary, secondary in self.validAuthenticationMethods
-        ])
+        return self.select_authentication_provider()
 
     def onLogin(self, skel: skeleton.SkeletonInstance):
         """
@@ -1502,7 +1646,7 @@ class User(List):
         logging.info(f"""User {skel["name"]} logged out""")
 
     @exposed
-    def view(self, key: db.Key | int | str = "self", *args, **kwargs):
+    def view(self, key: db.KeyType = "self", *args, **kwargs):
         """
             Allow a special key "self" to reference the current user.
 
@@ -1527,14 +1671,14 @@ class User(List):
             if skel["key"] == user["key"]:
                 return True
 
-            if "root" in user["access"] or "user-view" in user["access"]:
+            if self.is_admin(user) or "user-view" in user["access"]:
                 return True
 
         return False
 
     @exposed
     @skey(allow_empty=True)
-    def edit(self, key: db.Key | int | str = "self", *args, **kwargs):
+    def edit(self, key: db.KeyType = "self", *args, **kwargs):
         """
             Allow a special key "self" to reference the current user.
 
@@ -1555,11 +1699,8 @@ class User(List):
 
     @exposed
     def getAuthMethods(self, *args, **kwargs):
-        """Inform tools like Viur-Admin which authentication to use"""
-        # FIXME: This is almost the same code as in index()...
-        # FIXME: VIUR4: The entire function should be removed!
-        # TODO: Align result with index(), so that primary and secondary login is presented.
-        # logging.warning("DEPRECATED!!! Use of 'User.getAuthMethods' is deprecated! Use 'User.login'-method instead!")
+        """Legacy method prior < viur-core 3.8: Inform tools like Admin which authentication to use"""
+        logging.warning("DEPRECATED!!! Use '/user/login'-method for this, or update your admin version!")
 
         res = [
             (primary.METHOD_NAME, secondary.METHOD_NAME if secondary else None)
@@ -1569,18 +1710,21 @@ class User(List):
         return json.dumps(res)
 
     @exposed
-    @skey
     def trigger(self, action: str, key: str):
-        current.request.get().response.headers["Content-Type"] = "application/json"
-
         # Check for provided access right definition (equivalent to client-side check), fallback to root!
-        access = self.adminInfo.get("customActions", {}).get(f"trigger_{action}", {}).get("access") or ("root", )
-        if not ((cuser := current.user.get()) and any(role in cuser["access"] for role in access)):
+        access = self.adminInfo().get("customActions", {}).get(f"trigger_{action}", {}).get("access") or ()
+        if not (
+            (cuser := current.user.get())
+            and (
+                any(role in cuser["access"] for role in access)
+                or self.is_admin(cuser)
+            )
+        ):
             raise errors.Unauthorized()
 
-        skel = self.baseSkel()
-        if not skel.read(key):
-            raise errors.NotFound()
+        skel = self.skel()
+        if not skel.read(key) and not (skel := skel.all().mergeExternalFilter({"name": key}).getSkel()):
+            raise errors.NotFound("The provided user does not exist.")
 
         match action:
             case "takeover":
@@ -1592,7 +1736,159 @@ class User(List):
             case _:
                 raise errors.NotImplemented(f"Action {action!r} not implemented")
 
-        return json.dumps("OKAY")
+        return self.render.render(f"trigger/{action}Success", skel)
+
+    @exposed
+    @access("admin", "root", offer_login=True)
+    def get_cookie_for_app(self, redirect_to: str = None):
+        """
+        Generates a session cookie for the currently logged-in user and hands it to an external
+        client (script, native app, or WebView).
+
+        This endpoint is the entry point of a *App Login Flow*.  A privileged user
+        (admin/root) authenticates normally in the browser and then opens this URL.
+        The backend creates a fresh ViUR session (see :meth:`_get_cookie_for_app`) and
+        delivers the resulting ``Set-Cookie`` string to the caller.
+
+        **Typical usage — local Python client / script:**
+
+        The caller spins up a temporary local HTTP server (e.g. on ``http://localhost:60000``)
+        and passes its address as *redirect_to*::
+
+            /vi/user/get_cookie_for_app?redirect_to=http://localhost:60000
+
+        After the user authenticates in the browser, the backend redirects to::
+
+            http://localhost:60000?cookie=<url-encoded Set-Cookie string>&app=<project_id>
+
+        The local server can then extract only the ``name=value`` part of the cookie string
+        (everything before the first ``;``) and use it for subsequent API calls::
+
+            cookie_str = qs["cookie"][0]              # full Set-Cookie value
+            key, value = cookie_str.split(";", 1)[0].split("=")
+            session.cookies.update({key: value})
+
+        The ``app`` query parameter is set by the server to ``conf.instance.project_id`` and
+        lets the client distinguish between multiple backends / cache credentials per project.
+
+        **Alternative — WebView / browser redirect:**
+
+        When the receiving side is a browser or WebView the full ``Set-Cookie`` string can be
+        forwarded to :meth:`apply_login_cookie` to let the framework activate the session.
+
+        :param redirect_to: Optional callback URL.  When provided the caller is redirected to
+            that URL with two query parameters appended automatically:
+
+            - ``cookie`` – URL-encoded ``Set-Cookie`` string (``name=value;flags…``).
+            - ``app`` – the server's GCP project ID (``conf.instance.project_id``).
+
+            A ``?`` is appended if the URL does not already contain one.
+            When omitted, the raw ``Set-Cookie`` string is returned as ``text/plain``
+            (useful for debugging or direct API calls).
+
+        .. warning:: **Open-redirect / session-hijacking risk**
+
+            Because the session cookie is appended as a plain query parameter, an
+            attacker who can convince an authenticated admin to click a crafted link
+            (e.g. via phishing) could redirect the browser to an evil server that
+            simply harvests the ``cookie`` parameter and gains full session access.
+
+            To mitigate this, all ``redirect_to`` values are validated against
+            :attr:`conf.user.redirect_whitelist` using :func:`fnmatch.fnmatch`.
+            Only explicitly whitelisted URL patterns are accepted;
+            anything else is rejected with ``403 Forbidden``.
+            Configure the whitelist in your project to include every legitimate
+            callback origin (local scripts, internal tooling, etc.).
+
+        :raises errors.Forbidden: When *redirect_to* does not match any pattern in
+            :attr:`conf.user.redirect_whitelist`.
+        :raises errors.Redirect: Always raised when *redirect_to* is supplied and allowed.
+        """
+        if redirect_to:
+            whitelist = utils.ensure_iterable(conf.user.redirect_whitelist)
+            if not any(fnmatch.fnmatch(redirect_to, pat) for pat in whitelist):
+                raise errors.Forbidden(f"Redirect target is not whitelisted")
+            if "?" not in redirect_to:
+                redirect_to = f"{redirect_to}?"
+            raise errors.Redirect(
+                f"{redirect_to}"
+                f"&cookie={urllib.parse.quote_plus(self._get_cookie_for_app())}"
+                f"&app={conf.instance.project_id}"
+            )
+        current.request.get().response.headers["Content-Type"] = "text/plain"
+        return self._get_cookie_for_app()
+
+    def _get_cookie_for_app(self) -> str:
+        """
+        Creates a new, standalone ViUR session for the current user and returns the
+        corresponding ``Set-Cookie`` header value.
+
+        Unlike the regular session created during a normal login, this session is intentionally
+        **not** attached to the current HTTP request.  Instead it is persisted directly in
+        Datastore so that a different HTTP client can pick it up via :meth:`apply_login_cookie`.
+
+        The created session entity mirrors the structure of a regular :class:`Session` entry:
+
+        - ``data["user"]``          – the full user ``dbEntity`` (needed by the session loader).
+        - ``data["is_app_session"]``– flag to distinguish app sessions from regular browser sessions.
+        - ``static_security_key``   – random value, same role as in normal sessions.
+        - ``lastseen``              – current timestamp so the session is not immediately garbage-
+          collected.
+        - ``user``                  – stringified user key for server-side user-based queries.
+
+        :returns: A ``Set-Cookie`` header value in the form
+            ``<cookie_name>=<key>;<flags>`` where ``<flags>`` is produced by
+            :meth:`Session.build_flags` (``Path=/; HttpOnly; SameSite=…; Secure; Max-Age=…``).
+        """
+        cookie_key = utils.string.random(42)
+        db_session = db.Entity(db.Key(Session.kindName, cookie_key))
+        data = db.Entity()
+        data["user"] = current.user.get().dbEntity
+        data["is_app_session"] = True
+        db_session["data"] = db.fix_unindexable_properties(data)
+        db_session["static_security_key"] = utils.string.random(42)
+        db_session["lastseen"] = time.time()
+        db_session["user"] = str(current.user.get()["key"])
+        db_session.exclude_from_indexes = {"data"}
+        db.put(db_session)
+
+        # Provide Set-Cookie header entry with configured properties
+        return f"{Session.cookie_name}={cookie_key};{Session.build_flags()}"
+
+    @exposed
+    def apply_login_cookie(self, cookie: str):
+        """
+        Redirect endpoint to load session from the given cookie.
+
+        This is the second half of the *App Login Flow*.  A native app or WebView that received a
+        ``Set-Cookie`` string from :meth:`get_cookie_for_app` (typically via a redirect URL
+        parameter) calls this endpoint to activate the embedded session for its own HTTP context.
+
+        The flow is:
+
+        1. Parse the raw ``Set-Cookie`` string with :class:`http.cookies.SimpleCookie`.
+        2. Look for the expected session cookie name (:attr:`Session.cookie_name`).
+        3. Reset the caller's current (anonymous) session.
+        4. Inject the cookie value into the current request's cookie jar so that
+           :meth:`Session.load` can find the pre-built Datastore session.
+        5. Redirect to ``/`` – from this point on the caller is fully authenticated.
+
+        :param cookie: A raw ``Set-Cookie`` header value as produced by :meth:`_get_cookie_for_app`,
+            e.g. ``viur_cookie_myproject=<key>;Path=/;HttpOnly;…``.
+        :raises errors.Redirect: On success – redirects to ``/``.
+        :raises errors.BadRequest: When the cookie string does not contain a recognisable session
+            cookie (i.e. :attr:`Session.cookie_name` is absent after parsing).
+        """
+        cookies = SimpleCookie()
+        cookies.load(cookie)
+        if Session.cookie_name in cookies:
+            session_cookie = cookies[Session.cookie_name]
+            current.session.get().reset()
+            current.request.get().request.cookies[session_cookie.key] = session_cookie.value
+            current.session.get().load()
+            raise errors.Redirect("/")
+        else:
+            raise errors.BadRequest
 
     def onEdited(self, skel):
         super().onEdited(skel)
@@ -1601,10 +1897,9 @@ class User(List):
         if self.is_active(skel) is False:
             session.killSessionByUser(skel["key"])
 
-        # Update user setting in all sessions
-        for session_obj in db.Query("user").filter("user =", skel["key"]).iter():
-            session_obj["data"]["user"] = skel.dbEntity
-
+        # Otherwise, update the user entity cached in all the user's sessions
+        else:
+            session.update_session_user(skel["key"])
 
     def onDeleted(self, skel):
         super().onDeleted(skel)

@@ -1,18 +1,21 @@
 from __future__ import annotations  # noqa: required for pre-defined annotations
 
-import typing as t
 import fnmatch
+import logging  # noqa
+import typing as t
 
-from .. import db, utils
 from .meta import BaseSkeleton
 from .utils import skeletonByKind
+from .. import db, utils
+
+if t.TYPE_CHECKING:
+    from . import Skeleton
 
 
 class RelSkel(BaseSkeleton):
     """
         This is a Skeleton-like class that acts as a container for Skeletons used as a
-        additional information data skeleton for
-        :class:`~viur.core.bones.extendedRelationalBone.extendedRelationalBone`.
+        additional information data skeleton for :class:`~viur.core.bones.relational.RelationalBone`.
 
         It needs to be sub-classed where information about the kindName and its attributes
         (bones) are specified.
@@ -51,6 +54,9 @@ class RelSkel(BaseSkeleton):
 
 
 class RefSkel(RelSkel):
+    skeletonCls: t.Optional[t.Type["Skeleton"]] = None
+    """Reference source skeleton class"""
+
     @classmethod
     def fromSkel(cls, kindName: str, *args: list[str]) -> t.Type[RefSkel]:
         """
@@ -62,6 +68,7 @@ class RefSkel(RelSkel):
         newClass = type("RefSkelFor" + kindName, (RefSkel,), {})
         fromSkel = skeletonByKind(kindName)
         newClass.kindName = kindName
+        newClass.skeletonCls = fromSkel
         bone_map = {}
         for arg in args:
             bone_map |= {k: fromSkel.__boneMap__[k] for k in fnmatch.filter(fromSkel.__boneMap__.keys(), arg)}

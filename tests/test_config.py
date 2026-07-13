@@ -67,7 +67,6 @@ OLD_MEMBERS = [
     "viur.security.x_xss_protection",
     "viur.security.x_content_type_options",
     "viur.security.x_permitted_cross_domain_policies",
-    "viur.security.captcha.defaultCredentials",
     "viur.security.password_recovery_key_length",
     "viur.session.lifeTime",
     "viur.session.persistentFieldsOnLogin",

@@ -28,10 +28,6 @@ _T = t.TypeVar("_T")
 Multiple: t.TypeAlias = list[_T] | tuple[_T] | set[_T] | frozenset[_T]  # TODO: Refactor for Python 3.12
 
 
-class CaptchaDefaultCredentialsType(t.TypedDict):
-    """Expected type of global captcha credential, see :attr:`Security.captcha_default_credentials`"""
-    sitekey: str
-    secret: str
 
 
 class ConfigType:
@@ -415,7 +411,7 @@ class Security(ConfigType):
     x_permitted_cross_domain_policies: t.Optional[t.Literal["none", "master-only", "by-content-type", "all"]] = "none"
     """Unless set to logical none; ViUR will emit a X-Permitted-Cross-Domain-Policies with each request"""
 
-    captcha_default_credentials: t.Optional[CaptchaDefaultCredentialsType] = None
+    captcha_default_public_key: t.Optional[str] = None
     """The default sitekey and secret to use for the :class:`CaptchaBone`.
     If set, must be a dictionary of "sitekey" and "secret".
     """
@@ -435,12 +431,15 @@ class Security(ConfigType):
 
     admin_allowed_paths: t.Iterable[str] = [
         "vi",
+        "vi/config",
         "vi/skey",
-        "vi/settings",
         "vi/user/auth_*",
         "vi/user/f2_*",
-        "vi/user/getAuthMethods",  # FIXME: deprecated, use `login` for this
         "vi/user/login",
+        "vi/user/select_authentication_provider",
+        # DEPRECATED:
+        "vi/settings",  # FIXME: Deprecated; vi-admin 4.x backward compatiblity
+        "vi/user/getAuthMethods",  # FIXME: Deprecated; vi-admin 4.x backward compatiblity
     ]
     """Specifies admin tool paths which are being accessible without authenticated user."""
 
@@ -454,6 +453,7 @@ class Security(ConfigType):
         "user/auth_*",
         "user/f2_*",
         "user/getAuthMethods",  # FIXME: deprecated, use `login` for this
+        "user/select_authentication_provider",
         "user/login",
     ]
     """Paths that are accessible without authentication in a closed system, see `closed_system` for details."""
@@ -504,8 +504,6 @@ class Security(ConfigType):
         "xXssProtection": "x_xss_protection",
         "xContentTypeOptions": "x_content_type_options",
         "xPermittedCrossDomainPolicies": "x_permitted_cross_domain_policies",
-        "captcha_defaultCredentials": "captcha_default_credentials",
-        "captcha.defaultCredentials": "captcha_default_credentials",
     }
 
 
@@ -626,6 +624,9 @@ class I18N(ConfigType):
     language_module_map: dict[str, dict[str, str]] = {}
     """Maps modules to their translation (if set)"""
 
+    auto_translate_bones: bool = True
+    """Defines whether bone descr and categories should be automatically translated via i18n.translate-objects."""
+
     @property
     def available_dialects(self) -> list[str]:
         """Main languages and language aliases"""
@@ -725,6 +726,27 @@ class User(ConfigType):
     If the user's email address belongs to any other domain,
     no account is created."""
 
+    redirect_whitelist: list[str] | t.Callable[[], list[str]] = (
+        lambda _: ["http://localhost:*", f"https://*{_project_id}.appspot.com*"]
+    )
+    """Allowed redirect_to patterns for get_cookie_for_app (matched via :func:`fnmatch.fnmatch`).
+
+    The default is a callable that permits only ``http://localhost:*`` and any URL
+    containing the current GCP project-ID — a safe built-in policy.
+    A zero-argument callable is supported and evaluated on every request.
+    Use ``["*"]`` to disable the restriction entirely.
+
+    Examples::
+
+        conf.user.redirect_whitelist = [
+            "http://localhost:*",
+            "https://*.myapp.appspot.com*",
+        ]
+
+        # dynamic / lazily evaluated
+        conf.user.redirect_whitelist = lambda: load_whitelist_from_db()
+    """
+
     def __setattr__(self, name: str, value: t.Any) -> None:
         if name == "session_life_time":
             if not isinstance(value, datetime.timedelta):
@@ -765,6 +787,9 @@ class Conf(ConfigType):
 
     bone_boolean_str2true: Multiple[str | int] = ("true", "yes", "1")
     """Allowed values that define a str to evaluate to true"""
+
+    bone_string_escape_html: bool = True
+    """Default escape_html setting for StringBone. Set to False to disable HTML escaping globally."""
 
     bone_html_default_allow: "HtmlBoneConfiguration" = {
         "validTags": [
@@ -974,13 +999,13 @@ class Conf(ConfigType):
     default values can be defined here for each task.
     To do this, the task path must be mapped to the queue name:
     ```
-    conf.tasks_default_queues["updateRelations.viur.core.skeleton"] = "update_relations"
+    conf.tasks_default_queues["update_relations.viur.core.skeleton"] = "update_relations"
     ```
     The queue (in the example: `"update_relations"`) must exist.
     The default queue can be changed by overwriting `"__default__"`.
     """
 
-    valid_application_ids: list[str] = []
+    valid_application_ids: list[str] = ["*"]
     """Which application-ids we're supposed to run on"""
 
     version: tuple[int, int, int] = tuple(int(part) if part.isdigit() else part for part in __version__.split(".", 3))

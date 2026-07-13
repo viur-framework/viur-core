@@ -2,6 +2,307 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.9.0.dev6]
+
+- chore: Deprecate endpoint `/vi/getStructure` (#1616)
+- doc: Docstrings for compute-related enum variants
+- doc: Fix seo_language_map in docstring
+- feat:  `SpatialBone`  extend `setBoneValue` to accept `dict` with lat/lng aliases (#1705)
+- feat: `CodeBone`, `LogicsBone`, `JinjaBone` and `PythonBone` (#1668)
+- feat: `NumericBone` with decimal-support (#1666)
+- feat: `skel.patch()` with internal-mode default (#1587)
+- feat: Add `AddressBone` (#1712)
+- feat: Add `after_from_client` (#1708)
+- feat: add `contrib` package with `RequestRateLimit` validator (#1690)
+- feat: Add `keys_only`-tooling for `Query` (#1586)
+- feat: add `LoginKey` auth provider to `contrib` (#1691)
+- feat: Add `vi/routes`-endpoint (#1689)
+- feat: Add check for compute in getUniquePropertyIndexValues (#1316)
+- feat: add lifecycle hooks for `Request` (#1701)
+- feat: Add QueryOrder and Tests (#1699)
+- feat: Check `conf.valid_application_ids` with `fnmatch` and generally make it optional (#1590)
+- feat: Combine setting and config for the admin (#1620)
+- feat: Implement `preprocess`-function to `Skeleton.patch` (#1625)
+- feat: Implement `TypeVar` for `Skeleton` and make `SkeletonInstance` `Generic` (#1412)
+- feat: Implement new version of `@ResponseCache` decorator (formerly `@enableCache`) (#1446)
+- feat: Provide `Email`-module (#1678)
+- feat: Re-Add trace-queries logging (#1642)
+- feat: Refactor and improve `getUniquePropertyIndexValues` (#1681)
+- feat: Replace client-side `MultiQuery` with native Datastore operators (#1700)
+- feat(StringBone): make `escape_html` globally configurable via `conf` (#1706)
+- fix: `BooleanBone` doesn't respect `vfunc/isInvalid` (#1694)
+- fix: `cache.flushCache` code path improvement (#1682)
+- fix: Add `setSystemInitialized` in `SeoKeyBone` to set the languages (#1703)
+- fix: Avoid compute bones when the skel in deleted in a cascade (#1581)
+- fix: Code fixes due long aging and invalid merge
+- fix: guard Skeleton_Cls import in instance.py to break circular import (#1710)
+- fix: Import `pprint` as `pp` (#1579)
+- fix: Reject RFC 5321 violations in EmailBone local part (#1696)
+- refactor: Deprecate `/vi/getVersion` and `/vi/settings` (#1669)
+- refactor: migrate CaptchaBone to reCAPTCHA Enterprise (#1680)
+- refactor: Provide and use `_can_access`-function in vi-render (#1659)
+- refactor: Use `db.KeyType` type annotation in several places (#1639)
+- test: Add unit tests for Bones and App Login Flow (get_cookie_for_app, apply_login_cookie) (#1661)
+
+## [3.8.30]
+
+- fix(i18n): Tolerate relative filenames in `add_missing_translation` (#1721)
+- fix(request): allow same-site requests in FetchMetaDataValidator (#1720)
+
+## [3.8.29]
+
+- fix: Normalize parsed `db.Key` to current `project_id` (#1719)
+- fix: `SkelModule.add_or_edit` should use `amend=True` on edit (#1718)
+
+## [3.8.28]
+
+- fix: Loosen overly strict dependency ranges (#1716)
+- fix: Several `History` improvements (#1715)
+
+## [3.8.27]
+
+- feat(security): allow all CSP level 3 directives in `addCspRule` (#1714)
+- fix: Improve reporting of locked values for devs (#1713)
+- fix: Add check for path change in script onEdited (#1702)
+
+## [3.8.26]
+
+- fix: propagate user-entity changes into active sessions on edit (#1704)
+- fix: `RelationalBone.getSearchTags` should ignore any falsy values (#1707)
+- fix: `SignatureDoesNotMatch` for filenames containing `+` (#1697)
+- fix: Import Testbed on dev-server only (#1695)
+
+## [3.8.25]
+
+- fix: `utils.get_base_url()` using urllib.parse (#1686)
+
+## [3.8.24]
+
+- fix: unescape short-form HTML numeric entities in download filename (#1679)
+- fix: `RelationalBone._atomic_dump()` raises `KeyError` (#1684)
+
+## [3.8.23]
+
+- cicd: upgrade Read the Docs build image to `ubuntu-24.04` (#1675)
+- fix: `hmac_verify` must return `False` instead of raising TypeError (#1673)
+- fix: expand refKeys wildcard patterns to actual bone names (#1670)
+- fix: Reject invalid `dest_key` types early in `RelationalBone.singleValueFromClient` (#1674)
+
+## [3.8.22]
+
+- feat: `utils.get_base_url()` refactors `getHostUrl()` (#1665)
+- feat: SkeletonMaintenanceTask with code highlighting (#1667)
+- fix: postSavedHandler should ignore `value == None` (#1664)
+- fix: Add Argument for `conf.user.redirect_whitelist` (#1663)
+
+## [3.8.21]
+
+- fix: `BaseBone._get_distinct_hash` (#1662)
+- fix: Whitelist redirect_to in `get_cookie_for_app` to prevent open-redirect attacks (#1660)
+- feat: Implement endpoints for App Login Flow via session cookie (#1657)
+- chore: update copyright year to 2026 (#1656)
+
+## [3.8.20]
+
+- fix: `postSavedHandler` should ignore `value["rel"] == None` (#1645)
+- fix: `PurePath.relative_to()` does no longer support multiple arguments (#1646)
+- fix: Convert digit-only `id_or_name` attributes to `int` (#1649)
+- fix(cicd): Add RSA package (#1650)
+- refactor: `db.fix_unindexable_properties` (#1647)
+
+## [3.8.19]
+
+- fix: Adding further cases for deprecation handling (#1644)
+- fix: Unescape file name for `serving_url` generation (#1643)
+- fix: `renderSkelValues` and `renderBoneValue` for backward compatibility (#1641)
+
+## [3.8.18]
+
+- refactor: Provide `db.KeyType` for better integration
+
+## [3.8.17]
+
+- fix: `utils` replace map (#1632)
+- fix: Call `Tree.canAdd` with `SkeletonInstance` in `Tree.clone` (#1631)
+- fix: Call postSavedHandler on UsingSkel (RelSkel) (#1637)
+- fix: switch from coverage-badge to genbadge (formerly #1629)
+- fix: viur-migrate (#1634)
+- refactor: Use `KeyType` for `isinstance` checks (#1638)
+
+## [3.8.16]
+
+- fix: Propagate `@property` from Skeleton to `SkeletonInstance` that belongs to a `RefSkel` + reset `renderPreparation` (#1623)
+- fix: `UserPassword.pwrecover` should strip the recovery_key (#1621)
+- fix: Use new vi-admin code-feature with syntax highlighting (#1615)
+
+## [3.8.15]
+
+- fix: `ComputeMethod.Always` fails when skeleton is being rendered (#1614)
+
+## [3.8.14]
+
+- fix: No exception raise on compute attempt on deleted RefSkel (#1608)
+
+## [3.8.13]
+
+- fix: `RelationalBone.refresh()` should write a clean dbEntity (#1609)
+- fix: Raise error 400 on broken UTF-8 URL request (#1610)
+
+## [3.8.12]
+
+- fix: `skel.read()` with `create`-mode totally broken (#1607)
+- fix: `KeyBone.serialize()` didn't evaluate compute-OnWrite (#1606)
+
+## [3.8.11]
+
+- feat: Provide a `shortkey` bone with each Skeleton (#1598)
+- fix: `BaseBone.dump()` uses unused variable `ret` (#1603)
+- fix: `ComputeMethod.Always/Lifetime` on unwritten Skeleton (#1605)
+- fix: `FileBone.postSavedHandler()` cannot be used outside of request (#1597)
+- fix: `RecordBone.postDeletedHandler()`: Check if the index is None (#1604)
+
+## [3.8.10]
+
+- fix: RawBone looses its value when invalid (#1595)
+
+## [3.8.9]
+
+- fix: `Tree._clone_recursive` internal call (#1593)
+- fix: `RecordBone(multiple=False)` raise exception (#1591)
+
+## [3.8.8]
+
+- doc: Fix seo_language_map in docstring
+- feat: `skel.patch()` with internal-mode default (#1587)
+- feat: Check `conf.valid_application_ids` with `fnmatch` and generally make it optional (#1590)
+- revert: Change regarding `self.onLogin()` in ViUR3 (#1584)
+
+## [3.8.7]
+
+- fix: Avoid compute bones when the skel in deleted in a cascade (#1581)
+- fix: Import `pprint` as `pp` (#1579)
+- doc: Docstrings for compute-related enum variants
+- fix: `json.default.renderSkelValues` with correct stacklevel
+
+## [3.8.6]
+
+- fix: Update `pillow>=11` (#1576)
+- fix+refactor: `File.thumbnailer` with better debug and `try...except` around resize (#1576)
+
+## [3.8.5]
+
+- fix: `FileBone` with bullet-proven default `refKeys` (#1575)
+
+## [3.8.4]
+
+- fix: `select_authentication_provider` must be reachable (#1574)
+- fix: `User.onLogin()` shall be called earlier (#1573)
+- fix: catch errors for annotated int or float arguments and reraise chained NotAcceptable (#1572)
+- fix: Invalid use of `skel.patch()` in `update_relations` (#1571)
+- fix: add bone name in assert error for better debugging in RelationalBone (#1568)
+- fix: `Skel.fromClient(amend=True)` doesn't respect required unsets (#1567)
+
+## [3.8.3]
+
+- fix: Improve ActionSkels in `UserPassword.pwrecover` for ViForms (#1563)
+
+## [3.8.2]
+
+- fix: ActionSkel paradigm for `user.UserPassword.pwrecover` (#1561)
+- fix: Handle unconfigured template in HTML-render (#1559)
+- fix: `Script.get_importable()` must fail when there are no files (#1560)
+
+## [3.8.1]
+
+- fix: Add fallback if no importables are found (#1557)
+- fix: `RelationalBone.getReferencedBlobs` fails with new `update_relations` (#1556)
+
+## [3.8.0]
+
+- chore: Disable all compatibility flags by default (#1413)
+- chore: Enforce config strict mode (#1411)
+- chore: Lift viur-core to Python >= 3.12 (#1516)
+- chore: Remove Pipfile and Pipfile.lock
+- docs: `Skeleton.patch()` docstring was outdated
+- docs(cicd): Fix .readthedocs.yaml
+- docs(cicd): Update to Python 3.13 and latest sphinx (#1530)
+- feat: `conf.db.query_default_limit` and `conf.db.query_external_limit` (#1492)
+- feat: `db` re-integration of Google Datastore API (#1431)
+- feat: `ImageBone` (and some little splitting of skeleton.py) (#1454)
+- feat: `RelSkel.read()` with (dynamic) subskel shortcuts (#1510)
+- feat: `Script.get_importable()` endpoint (#1451)
+- feat: `SkeletonMaintenanceTask` (#1502)
+- feat: Add `DeleteEntitiesIter` for `viur-transactionmarker` (#1440)
+- feat: Add `readonly` to `SkeletonInstance` (#1104)
+- feat: Add retries for `db.run_in_transaction` (#1465)
+- feat: Allow `timedelta` for `session_life_time` (#1448)
+- feat: Change user selections regarding login/secondfactor-providers to `ActionSkel`-paradigm (#1497)
+- feat: extend `File.write()` to accept a `rootnode` and `folder` (#1308)
+- feat: History module (#1441)
+- feat: Make `skeleton.KeyType` generally available (#1527)
+- feat: Move `db.conf` to `viur.core.config` (#1464)
+- feat+refactor: `skel.dump()` for simplified value serialization (replacement for JSON value rendering) (#1000)
+- fix: 'dlkey' is not availabale in possible 'rel'
+- fix: `access_log` for `db.delete` (#1463)
+- fix: `ensureDerived.update_relations()`-call
+- fix: `ensureDerived` imports (#1499)
+- fix: `getSearchTags` convert values to string (#1545)
+- fix: `History` clean-up, part 1 (#1487)
+- fix: `History`-module improvements (#1531)
+- fix: `otp_timedrift` and its updating is broken and outdated (#1526)
+- fix: `query.srcSkel is None`-test and removal of time
+- fix: `ReadFromClientError`-usages with translated error messages (#1546)
+- fix: `RelSkel.simplified()` invalid, must be `RelSkel.dump()`
+- fix: `SelectBone.dump()` cannot handle Enum values (#1523)
+- fix: `User.is_admin()` to determine User admin privileges (#1538)
+- fix: `utils.ensure_iterable()` should handle `str` (#1496)
+- fix: Add missing imports for skeleton (#1500)
+- fix: Cookie lifetime (#1547)
+- fix: db: Add a `Key` in `access_log` (#1466)
+- fix: db: Set the correct variable in `order` (#1467)
+- fix: Deprecation warning for replaced `renderSkelValues()`
+- fix: Handle empty/unset `__update_relations_bones` (#1509)
+- fix: History diff fixes
+- fix: Hotfix `BaseBone.dump()`
+- fix: Hotfix for BaseSkel.readonly()
+- fix: Improved computed `skel["name"]` default
+- fix: Provide `conf.i18n.auto_translate_bones` (#1542)
+- fix: relational bone post saved handler (#1549)
+- fix: Remove `bigquery` from the default databases (#1486)
+- fix: Remove key form values_keys (#1548)
+- fix: SEARCH_TAGS regex was too restricting (#1553)
+- fix: set transaction marker in `request_data` (#1481)
+- fix: Update skeleton write update relations (#1508)
+- fix: Use `conf.main_app.file.create_download_url` due deprecation
+- fix: Use `skel.dump()` in `History` (#1522)
+- fix: Use of `skeleton.ReadFromClientErrorSeverity` invalid
+- fix+refactor: `_tasks/list` and `SkelList` (#1525)
+- fix+refactor: `(Raw|String|Text)Bone\.getSearchTags` (#1536)
+- fix+refactor: `Tree.move()` (#1541)
+- fix+refactor: `viur-relations` management, stack `RelationalBones` in `RecordBones` (#1515)
+- refactor: `db.cache` (#1512)
+- refactor: `ensureDerived` is now a JsonBone (#1517)
+- refactor: `json.renderEntry` deprecations and improvements (#1521)
+- refactor: `RelationalBone.fromClient()` (#1417)
+- refactor: `skeleton.updateRelations`-task (#1495)
+- refactor: Add `Database` `ConfigType` (#1520)
+- refactor: Deprecate setDefaultLanguage (#1459)
+- refactor: File-module reference should use instance (#1293)
+- refactor: Improved `FetchMetaDataValidator` (#1484)
+- refactor: Remove `print` in `key_helper` (#1501)
+- refactor: Rename `IsInTransaction` to `is_in_transaction` (#1494)
+- refactor: Replace old `db` calls (#1505)
+- refactor: Replace old db calls (#1498)
+- refactor: Silence Tasks logging (#1532)
+- refactor: User-Login rendering (#1554)
+- refactor+fix: `bounce`-flag and `amend`-handling (#1544)
+- refactor+fix: `DateBone` and creationdate/changedate computes (#1551)
+
+## [3.7.21]
+
+- fix: Remove renderPreparation of nested skeletons (#1511)
+- fix: Add `try/except` for `get_language_from_header` (#1507)
+
 ## [3.7.20]
 
 - fix: Ensure redirect's location header is always utf-8 encoded/quoted (#1504)

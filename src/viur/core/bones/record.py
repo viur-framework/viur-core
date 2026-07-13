@@ -1,7 +1,9 @@
 import json
+import logging
 import typing as t
 
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
+from viur.core import db, utils, tasks, i18n
 
 if t.TYPE_CHECKING:
     from ..skeleton import SkeletonInstance
@@ -81,12 +83,12 @@ class RecordBone(BaseBone):
         :return: The serialized value.
         """
         if not value:
-            return value
+            return None
 
         return value.serialize(parentIndexed=False)
 
     def _get_single_destinct_hash(self, value):
-        return tuple(bone._get_destinct_hash(value[name]) for name, bone in self.using.__boneMap__.items())
+        return tuple(bone._get_destinct_hash(value, name) for name, bone in self.using.__boneMap__.items())
 
     def parseSubfieldsFromClient(self) -> bool:
         """
@@ -100,7 +102,10 @@ class RecordBone(BaseBone):
 
         if not usingSkel.fromClient(value):
             usingSkel.errors.append(
-                ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Incomplete data")
+                ReadFromClientError(
+                    ReadFromClientErrorSeverity.Invalid,
+                    i18n.translate("core.bones.error.incomplete", "Incomplete data"),
+                )
             )
 
         return usingSkel, usingSkel.errors
@@ -108,9 +113,38 @@ class RecordBone(BaseBone):
     def postSavedHandler(self, skel, boneName, key) -> None:
         super().postSavedHandler(skel, boneName, key)
 
-        for _, lang, value in self.iter_bone_value(skel, boneName):
-            for bone_name, bone in value.items():
-                bone.postSavedHandler(value, bone_name, None)
+        drop_relations_higher = {}
+
+        for idx, lang, value in self.iter_bone_value(skel, boneName):
+            if idx is not None and idx > 99:
+                logging.warning("postSavedHandler entry limit maximum reached")
+                drop_relations_higher.clear()
+                break
+
+            for sub_bone_name, bone in value.items():
+                path = ".".join(name for name in (boneName, lang, f"{idx or 0:02}", sub_bone_name) if name)
+                if utils.string.is_prefix(bone.type, "relational"):
+                    drop_relations_higher[sub_bone_name] = path
+
+                bone.postSavedHandler(value, path, key)
+
+        if drop_relations_higher:
+            for viur_src_property in drop_relations_higher.values():
+                query = db.Query("viur-relations") \
+                    .filter("viur_src_kind =", key.kind) \
+                    .filter("src.__key__ =", key) \
+                    .filter("viur_src_property >", viur_src_property)
+
+                logging.debug(f"Delete viur-relations with {query=}")
+                tasks.DeleteEntitiesIter.startIterOnQuery(query)
+
+    def postDeletedHandler(self, skel, boneName, key) -> None:
+        super().postDeletedHandler(skel, boneName, key)
+
+        for idx, lang, value in self.iter_bone_value(skel, boneName):
+            for sub_bone_name, bone in value.items():
+                path = ".".join(part for part in (boneName, lang, f"{idx or 0:02}", sub_bone_name) if part)
+                bone.postDeletedHandler(value, path, key)
 
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
@@ -181,13 +215,18 @@ class RecordBone(BaseBone):
 
         return result
 
-    def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> list[str]:
+    def getUniquePropertyIndexValues(self, skel: "SkeletonInstance", name: str) -> list[str]:
         """
-        This method is intentionally not implemented as it's not possible to determine how to derive
-        a key from the related skeleton being used (i.e., which fields to include and how).
+        Returns hashes over all fields of each record value, using the serialized form as canonical input.
+        """
+        values = []
 
-        """
-        raise NotImplementedError()
+        for _, _, using_skel in self.iter_bone_value(skel, name):
+            if using_skel is None:
+                continue
+            values.append(json.dumps(using_skel.dump(), sort_keys=True, default=str))
+
+        return self._hashValueForUniquePropertyIndex(values) if values else []
 
     def structure(self) -> dict:
         return super().structure() | {
@@ -200,9 +239,11 @@ class RecordBone(BaseBone):
             return value.dump()
 
     def refresh(self, skel, bone_name):
-        for _, lang, value in self.iter_bone_value(skel, bone_name):
-            if value is None:
-                continue
+        for _, _, using_skel in self.iter_bone_value(skel, bone_name):
+            for key, bone in using_skel.items():
+                bone.refresh(using_skel, key)
 
-            for key, bone in value.items():
-                bone.refresh(value, key)
+                # When the value (acting as a skel) is marked for deletion, clear it.
+                if using_skel._cascade_deletion is True:
+                    # Unset the Entity, so the skeleton becomes a False truthyness.
+                    using_skel.setEntity(db.Entity())

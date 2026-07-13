@@ -1,14 +1,20 @@
 import json
 import typing as t
+import logging
+import warnings
+from decimal import Decimal
 from enum import Enum
 from viur.core import db, current
+from viur.core.bones import BaseBone
 from viur.core.render.abstract import AbstractRenderer
-from viur.core.skeleton import SkeletonInstance, RelSkel, SkelList
+from viur.core.skeleton import SkeletonInstance, SkelList
 from viur.core.i18n import translate
 from viur.core.config import conf
 from datetime import datetime
+from deprecated.sphinx import deprecated
 
 
+# VIUR4: Remove this piece of sh..
 class CustomJsonEncoder(json.JSONEncoder):
     """
         This custom JSON-Encoder for this json-render ensures that translations are evaluated and can be dumped.
@@ -16,7 +22,9 @@ class CustomJsonEncoder(json.JSONEncoder):
 
     def default(self, o: t.Any) -> t.Any:
 
-        if isinstance(o, translate):
+        if isinstance(o, Decimal):
+            return str(o)
+        elif isinstance(o, translate):
             return str(o)
         elif isinstance(o, datetime):
             return o.isoformat()
@@ -69,7 +77,23 @@ class DefaultRender(AbstractRenderer):
 
         return structure
 
-    def renderEntry(self, skel: SkeletonInstance, actionName, params=None):
+    @deprecated(version="3.8.0", reason="Just use `skel.dump()` for this now")
+    def renderSkelValues(self, skel: SkeletonInstance, injectDownloadURL: bool = False):
+        logging.warning(
+            "DefaultRender.renderSkelValues() is obsolete, just use `skel.dump()` for it now!",
+            stacklevel=3,
+        )
+        return skel.dump()
+
+    @deprecated(version="3.8.0", reason="Just use `skel.dump()` for this now")
+    def renderBoneValue(self, bone: BaseBone, skel: SkeletonInstance, key: str) -> list | dict | None:
+        logging.warning(
+            "DefaultRender.renderBoneValue() is obsolete, just use `bone.dump()` for it now!",
+            stacklevel=3,
+        )
+        return bone.dump(skel, key)
+
+    def renderEntry(self, skel: SkeletonInstance, actionName, params=None, *, next_url: t.Optional[str] = None):
         structure = None
         errors = None
 
@@ -94,10 +118,11 @@ class DefaultRender(AbstractRenderer):
 
         res = {
             "action": actionName,
-            "errors": errors,
-            "params": params,
-            "structure": structure,
             "values": vals,
+            "structure": structure,
+            "errors": errors,
+            "next_url": next_url,
+            "params": params,
         }
 
         current.request.get().response.headers["Content-Type"] = "application/json"
@@ -144,10 +169,17 @@ class DefaultRender(AbstractRenderer):
         current.request.get().response.headers["Content-Type"] = "application/json"
         return json.dumps(rootNodes, cls=CustomJsonEncoder)
 
-    def render(self, action: str, skel: t.Optional[SkeletonInstance] = None, **kwargs):
+    def render(
+        self,
+        action: str,
+        skel: t.Optional[SkeletonInstance] = None,
+        *,
+        next_url: t.Optional[str] = None,
+        **kwargs
+    ):
         """
         Universal rendering function.
 
         Handles an action and a skeleton. It shall be used by any action, in future.
         """
-        return self.renderEntry(skel, action, params=kwargs)
+        return self.renderEntry(skel, action, next_url=next_url, params=kwargs)

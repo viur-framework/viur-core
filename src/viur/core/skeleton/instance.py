@@ -2,22 +2,76 @@ from __future__ import annotations  # noqa: required for pre-defined annotations
 
 import copy
 import fnmatch
+import logging  # noqa
 import typing as t
 import warnings
-
 from functools import partial
-from ..bones.base import BaseBone
+
+from viur.core import db, utils
 from .skeleton import Skeleton
-from viur.core import db
+
+if t.TYPE_CHECKING:
+    from .meta import Skeleton_Cls
+else:
+    # Avoid circular import at runtime: meta.py → bones/__init__.py → image.py → relskel.py → meta.py
+    Skeleton_Cls = t.TypeVar("Skeleton_Cls")
+from ..bones.base import BaseBone
 
 
-class SkeletonInstance:
-    """
-        The actual wrapper around a Skeleton-Class. An object of this class is what's actually returned when you
-        call a Skeleton-Class. With ViUR3, you don't get an instance of a Skeleton-Class any more - it's always this
-        class. This is much faster as this is a small class.
+class SkeletonInstance(t.Generic[Skeleton_Cls]):
+    """The actual wrapper around a Skeleton-Class.
+
+    An object of this class is what's actually returned when you call a Skeleton-Class.
+    With ViUR3, you don't get an instance of a Skeleton-Class any more - it's always this
+    class. This is much faster as this is a small class.
+
+    The class is generic over :data:`Skeleton_Cls`, which lets the type checker track which
+    concrete Skeleton subclass a given instance belongs to.  Without the type parameter the
+    class still works exactly as before — the parameter is purely a static-analysis hint.
+
+    **Basic usage**
+
+    Calling a Skeleton class returns a typed ``SkeletonInstance``::
+
+        skel = ProductSkel()          # -> SkeletonInstance[ProductSkel]
+        skel.skeletonCls              # ProductSkel
+        skel["price"]                 # type-safe bone access
+
+    **Typed module method**
+
+    Override ``viewSkel`` / ``editSkel`` etc. in your module with an explicit return type
+    so that callers and IDE auto-complete know which bones are available::
+
+        class ProductModule(List):
+            def editSkel(self) -> SkeletonInstance[ProductSkel]:
+                skel = super().editSkel()
+                skel.price.readOnly = True
+                return skel
+
+    **Generic helper**
+
+    Use :data:`Skeleton_Cls` when writing utilities that must stay agnostic about the
+    concrete skeleton but still preserve the type through the call::
+
+        def set_owner(skel: SkeletonInstance[Skeleton_Cls], owner: str) -> SkeletonInstance[Skeleton_Cls]:
+            skel = skel.clone()
+            skel["owner"] = owner
+            return skel  # type checker keeps SkeletonInstance[ProductSkel] etc.
+
+    **Classmethod signatures** (``t.Self``)
+
+    Inside Skeleton classmethods, ``t.Self`` is preferred over :data:`Skeleton_Cls` because
+    the type checker automatically narrows to the class the method is called on::
+
+        class BaseSkeleton:
+            @classmethod
+            def fromClient(cls, skel: SkeletonInstance[t.Self], data: dict) -> bool: ...
+
+        # Inferred as SkeletonInstance[ProductSkel] when called on ProductSkel
+        ProductSkel.fromClient(skel, request.POST)
     """
     __slots__ = {
+        "_cascade_deletion",
         "accessedValues",
         "boneMap",
         "dbEntity",
@@ -30,7 +84,7 @@ class SkeletonInstance:
 
     def __init__(
         self,
-        skel_cls: t.Type[Skeleton],
+        skel_cls: t.Type[Skeleton_Cls],
         entity: t.Optional[db.Entity | dict] = None,
         *,
         bones: t.Iterable[str] = (),
@@ -95,13 +149,14 @@ class SkeletonInstance:
             for v in self.boneMap.values():
                 v.isClonedInstance = True
 
+        self._cascade_deletion = False
         self.accessedValues = {}
         self.dbEntity = entity
         self.errors = []
         self.is_cloned = clone
         self.renderAccessedValues = {}
         self.renderPreparation = None
-        self.skeletonCls = skel_cls
+        self.skeletonCls: t.Type[Skeleton_Cls] = skel_cls
 
     def items(self, yieldBoneValues: bool = False) -> t.Iterable[tuple[str, BaseBone]]:
         if yieldBoneValues:
@@ -121,6 +176,9 @@ class SkeletonInstance:
 
     def __contains__(self, item):
         return item in self.boneMap
+
+    def __bool__(self):
+        return bool(self.accessedValues or self.dbEntity)
 
     def get(self, item, default=None):
         if item not in self:
@@ -142,15 +200,19 @@ class SkeletonInstance:
         if self.renderPreparation:
             if key in self.renderAccessedValues:
                 return self.renderAccessedValues[key]
+
         if key not in self.accessedValues:
-            boneInstance = self.boneMap.get(key, None)
-            if boneInstance:
+            if bone := self.boneMap.get(key):
                 if self.dbEntity is not None:
-                    boneInstance.unserialize(self, key)
+                    bone.unserialize(self, key)
+                elif bone.unserialize_compute(self, key):
+                    pass  # self.accessedValues[key] updated by unserialize_compute()
                 else:
-                    self.accessedValues[key] = boneInstance.getDefaultValue(self)
+                    self.accessedValues[key] = bone.getDefaultValue(self)
+
         if not self.renderPreparation:
             return self.accessedValues.get(key)
+
         value = self.renderPreparation(getattr(self, key), self, key, self.accessedValues.get(key))
         self.renderAccessedValues[key] = value
         return value
@@ -205,10 +267,18 @@ class SkeletonInstance:
         }:
             return partial(getattr(self.skeletonCls, item), self)
 
-        # Load a @property from the Skeleton class
+        # logging.info(f"Accessing {item=} from {self=}")
+        from .relskel import RefSkel
+        from .utils import without_render_preparation
+
+        if issubclass(self.skeletonCls, RefSkel) and self.skeletonCls.skeletonCls is not None:
+            skeletonCls = self.skeletonCls.skeletonCls
+        else:
+            skeletonCls = self.skeletonCls
+
         try:
             # Use try/except to save an if check
-            class_value = getattr(self.skeletonCls, item)
+            class_value = getattr(skeletonCls, item)
 
         except AttributeError:
             # Not inside the Skeleton class, okay at this point.
@@ -221,7 +291,9 @@ class SkeletonInstance:
                 #       Therefore, you can access values inside the property method
                 #       with item-access like `self["key"]`.
                 try:
-                    return class_value.fget(self)
+                    # It is not reasonable to process two types of data (raw and rendered) in one
+                    # and the same @property. Therefore, @properties always receive the raw data.
+                    return class_value.fget(without_render_preparation(self))
                 except AttributeError as exc:
                     # The AttributeError cannot be re-raised any further at this point.
                     # Since this would then be evaluated as an access error
@@ -325,11 +397,23 @@ class SkeletonInstance:
             for i, (key, bone) in enumerate(self.items())
         }
 
-    def dump(self):
+    def dump(self, *, bones: t.Iterable[str] = ()) -> dict[str, t.Any]:
         """
-        Return a simplified version of the bone values in this skeleton.
-        This can be used for example in the JSON renderer.
+        Return a JSON-serializable version of the bone values in this skeleton.
+
+        The function is not called "to_json()" because the JSON-serializable
+        format can be used for different purposes and renderings, not just
+        JSON.
+
+        :param bones: Iterable of bone names to include. If None, all bones are dumped.
         """
+        if bones:
+            bones = set(utils.ensure_iterable(bones))
+            return {
+                bone_name: bone.dump(self, bone_name)
+                for bone_name, bone in self.items()
+                if bone_name in bones
+            }
 
         return {
             bone_name: bone.dump(self, bone_name) for bone_name, bone in self.items()

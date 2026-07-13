@@ -1,29 +1,37 @@
 import datetime
-from deprecated.sphinx import deprecated
+import fnmatch
+import sys
 import typing as t
-from .transport import get, put, run_in_transaction, __client__
-from .types import Entity, Key, current_db_access_log
+
+from deprecated.sphinx import deprecated
 from google.cloud.datastore.transaction import Transaction
+
 from viur.core import current
+from viur.core.config import conf
+from .transport import __client__, get, put, run_in_transaction
+from .types import Entity, Key, current_db_access_log
 
 
-def fix_unindexable_properties(entry: Entity) -> Entity:
+def fix_unindexable_properties(entry: Entity, *, keep_exclusions: bool = True) -> Entity:
     """
-        Recursively walk the given Entity and add all properties to the list of unindexed properties if they contain
-        a string longer than 1500 bytes (which is maximum size of a string that can be indexed). The datastore would
-        return an error otherwise.
-        https://cloud.google.com/datastore/docs/concepts/limits?hl=en#limits
+    Recursively walk the given Entity and add all properties to the list of unindexed properties if they contain
+    a string longer than 1500 bytes (which is maximum size of a string that can be indexed). The datastore would
+    return an error otherwise.
+    https://cloud.google.com/datastore/docs/concepts/limits?hl=en#limits
+
     :param entry: The entity to fix (inplace)
+    :param keep_exclusions: If true, keep the properties already included in ``exclude_from_indexes``.
+        Otherwise, ignore them and exclude only non-indexable properties.
     :return: The fixed entity
     """
 
     def has_unindexable_property(prop):
         if isinstance(prop, dict):
-            return any([has_unindexable_property(x) for x in prop.values()])
+            return any(has_unindexable_property(x) for x in prop.values())
         elif isinstance(prop, list):
-            return any([has_unindexable_property(x) for x in prop])
+            return any(has_unindexable_property(x) for x in prop)
         elif isinstance(prop, (str, bytes)):
-            return len(prop) >= 1500
+            return sys.getsizeof(prop) >= 1500
         else:
             return False
 
@@ -39,25 +47,39 @@ def fix_unindexable_properties(entry: Entity) -> Entity:
                 inner_entity.key = value.key
         else:
             unindexable_properties.add(key)
-    entry.exclude_from_indexes = unindexable_properties
+    if keep_exclusions:
+        entry.exclude_from_indexes.update(unindexable_properties)  # type:ignore
+    else:
+        entry.exclude_from_indexes = unindexable_properties
     return entry
 
 
 def normalize_key(key: t.Union[None, Key, str]) -> t.Union[None, Key]:
     """
-        Normalizes a datastore key (replacing _application with the current one)
+        Normalizes a datastore key (replacing the key's project with conf.instance.project_id)
+
+        The key's project is only allowed to be normalized when it matches one of the patterns
+        configured in `conf.valid_application_ids`; otherwise a ValueError is raised.
 
         :param key: Key to be normalized.
         :return: Normalized key in string representation.
         """
     if key is None:
         return None
+
     if isinstance(key, str):
         key = Key.from_legacy_urlsafe(key)
+
+    if key.project != conf.instance.project_id and not any(
+        fnmatch.fnmatch(key.project, application_id) for application_id in conf.valid_application_ids
+    ):
+        raise ValueError(f"{key=} cannot be normalized; Only keys from conf.valid_application_ids can be provided.")
+
     if key.parent:
         parent = normalize_key(key.parent)
     else:
         parent = None
+
     return Key(key.kind, key.id_or_name, parent=parent)
 
 
@@ -83,8 +105,7 @@ def key_helper(
         # Try to parse key from str
         try:
             decoded_key = normalize_key(in_key)
-        except Exception as e:
-            print(f"Failed to decode key: {in_key!r} {e}")
+        except Exception:
             decoded_key = None
 
         # If it did decode, recall keyHelper with Key object

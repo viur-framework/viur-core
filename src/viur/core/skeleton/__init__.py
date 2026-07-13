@@ -1,24 +1,34 @@
 import logging
 import warnings
 
-from ..bones.base import getSystemInitialized
-
 from .adapter import DatabaseAdapter, ViurTagsSearchAdapter
 from .instance import SkeletonInstance
-from .meta import MetaSkel, MetaBaseSkel, BaseSkeleton
-
-from .relskel import RelSkel, RefSkel
-from .skeleton import Skeleton, SeoKeyBone, _UNDEFINED_KINDNAME
-from .utils import SkelList, skeletonByKind, listKnownSkeletons, iterAllSkelClasses
-
-
-# Forward our references to SkelInstance to the database (needed for queries)
+from .meta import ABSTRACT_SKEL_CLS_SUFFIX, BaseSkeleton, MetaBaseSkel, MetaSkel, Skeleton_Cls
+from .relskel import RefSkel, RelSkel
+from .skeleton import SeoKeyBone, Skeleton, _UNDEFINED_KINDNAME
+from .tasks import SkelIterTask, SkeletonMaintenanceTask, update_relations
+from .utils import (  # noqa
+    SkelList,
+    is_skeletoninstance_of,
+    iterAllSkelClasses,
+    listKnownSkeletons,
+    remove_render_preparation_deep,
+    skeletonByKind,
+    without_render_preparation,
+)
 
 # DEPRECATED ATTRIBUTES HANDLING
+# FIXME: REMOVE WITH VIUR4
+
+from ..bones.base import getSystemInitialized as _getSystemInitialized
+from ..db import KeyType as _KeyType
 
 __DEPRECATED_NAMES = {
     # stuff prior viur-core < 3.6
     "seoKeyBone": ("SeoKeyBone", SeoKeyBone),
+    # stuff prior viur-core < 3.8
+    "getSystemInitialized": ("bones.base.getSystemInitialized", _getSystemInitialized),
+    "KeyType": ("db.KeyType", _KeyType),
 }
 
 
@@ -34,20 +44,27 @@ def __getattr__(attr: str) -> object:
 
 
 __all__ = [
+    ABSTRACT_SKEL_CLS_SUFFIX,
     BaseSkeleton,
     DatabaseAdapter,
-    iterAllSkelClasses,
-    listKnownSkeletons,
     MetaBaseSkel,
     MetaSkel,
     RefSkel,
     RelSkel,
     SeoKeyBone,
-    Skeleton,
-    skeletonByKind,
-    SkeletonInstance,
+    SkelIterTask,
     SkelList,
+    Skeleton,
+    Skeleton_Cls,
+    SkeletonInstance,
+    SkeletonMaintenanceTask,
     ViurTagsSearchAdapter,
-    getSystemInitialized,  # FIXME: This is an import from BaseBone
-    _UNDEFINED_KINDNAME
+    _UNDEFINED_KINDNAME,
+    is_skeletoninstance_of,
+    iterAllSkelClasses,
+    listKnownSkeletons,
+    remove_render_preparation_deep,
+    skeletonByKind,
+    update_relations,
+    without_render_preparation,
 ]

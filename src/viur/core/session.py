@@ -52,7 +52,7 @@ class Session(db.Entity):
     """
     kindName = "viur-session"
     same_site = "lax"  # Either None (don't issue same_site header), "none", "lax" or "strict"
-    use_session_cookie = True  # If True, issue the cookie without a lifeTime (will disappear on browser close)
+    use_session_cookie = False  # If True, issue the cookie without a lifeTime (will disappear on browser close)
     cookie_name = f"""viur_cookie_{conf.instance.project_id}"""
     GUEST_USER = "__guest__"
 
@@ -130,17 +130,42 @@ class Session(db.Entity):
         db.put(dbSession)
 
         # Provide Set-Cookie header entry with configured properties
+        current_request.response.headerlist.append(
+            ("Set-Cookie", f"{self.cookie_name}={self.cookie_key};{self.build_flags()}")
+        )
+
+    @classmethod
+    def build_flags(cls) -> str:
+        """
+        Assembles the attribute part of a ``Set-Cookie`` header for ViUR sessions.
+
+        The method was extracted from :meth:`save` so that the same cookie flags can be reused
+        when constructing out-of-band session cookies (e.g. for the App Login Flow in
+        :meth:`~viur.core.modules.user.User._get_cookie_for_app`).
+
+        Flag behaviour:
+
+        - ``Path=/``        – cookie is valid for the whole application.
+        - ``HttpOnly``      – cookie is not accessible via JavaScript (XSS mitigation).
+        - ``SameSite=…``    – only added when :attr:`same_site` is set **and** we are not running
+          on the dev server (the dev server often operates cross-site, so the flag would break
+          local development).
+        - ``Secure``        – only added on non-dev servers (requires HTTPS).
+        - ``Max-Age=…``     – only added when :attr:`use_session_cookie` is ``False``; omitting it
+          turns the cookie into a browser-session cookie that disappears on close.
+
+        :returns: Semicolon-joined flag string ready to be appended to
+            ``<cookie_name>=<value>;`` in a ``Set-Cookie`` header, e.g.
+            ``Path=/;HttpOnly;SameSite=lax;Secure;Max-Age=86400``.
+        """
         flags = (
             "Path=/",
             "HttpOnly",
-            f"SameSite={self.same_site}" if self.same_site and not conf.instance.is_dev_server else None,
+            f"SameSite={cls.same_site}" if cls.same_site and not conf.instance.is_dev_server else None,
             "Secure" if not conf.instance.is_dev_server else None,
-            f"Max-Age={conf.user.session_life_time.total_seconds()}" if not self.use_session_cookie else None,
+            f"Max-Age={int(conf.user.session_life_time.total_seconds())}" if not cls.use_session_cookie else None,
         )
-
-        current_request.response.headerlist.append(
-            ("Set-Cookie", f"{self.cookie_name}={self.cookie_key};{';'.join([f for f in flags if f])}")
-        )
+        return ";".join(flag for flag in flags if flag)
 
     def __setitem__(self, key: str, item: t.Any):
         """
@@ -277,6 +302,34 @@ def killSessionByUser(user: t.Optional[t.Union[str, "db.Key", None]] = None):
 
     query = db.Query(Session.kindName).filter("user =", str(user))
     DeleteSessionsIter.startIterOnQuery(query)
+
+
+def update_session_user(user_key: "db.Key"):
+    """
+    Updates the cached user entity in all active sessions of the given *user*.
+
+    Whenever a user entity is modified (e.g. its access rights have changed), the copy
+    stored within the user's active sessions has to be refreshed as well; Otherwise,
+    the modification would only take effect after re-login or session expiry.
+
+    :param user_key: db.Key of the user whose sessions shall be updated.
+    """
+    logging.info(f"Updating cached user entity in all sessions for {user_key=}")
+
+    if not (user_entity := db.get(user_key)):
+        logging.warning(f"Cannot update sessions, {user_key=} not found")
+        return
+
+    def _update_txn(key):
+        if not (entity := db.get(key)):
+            return
+        entity["data"]["user"] = user_entity
+        entity["data"] = db.fix_unindexable_properties(entity["data"])
+        entity.exclude_from_indexes = {"data"}
+        db.put(entity)
+
+    for e in db.Query(Session.kindName).filter("user =", str(user_key)).iter():
+        db.run_in_transaction(_update_txn, e.key)
 
 
 @tasks.PeriodicTask(interval=datetime.timedelta(hours=4))

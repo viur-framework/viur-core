@@ -37,7 +37,8 @@ def create(
         session_bound: bool = True,
         key_length: int = 13,
         indexed: bool = True,
-        **custom_data) -> str:
+        **custom_data,
+) -> str:
     """
         Creates a new one-time CSRF-security-key.
 
@@ -47,6 +48,7 @@ def create(
         :param duration: Make this CSRF-token valid for a fixed timeframe.
         :param session_bound: Bind this CSRF-token to the current session.
         :param indexed: Indexes all values stored with the security-key (default), set False to not index.
+        :param key_length: Allows to modify the length of the generated randomized key
         :param custom_data: Any other data is stored with the CSRF-token, for later re-use.
 
         :returns: The new one-time key, which is a randomized string.
@@ -56,6 +58,7 @@ def create(
 
     if not duration:
         duration = conf.user.session_life_time if session_bound else SECURITYKEY_DURATION
+
     key = utils.string.random(key_length)
 
     entity = db.Entity(db.Key(SECURITYKEY_KINDNAME, key))

@@ -1,6 +1,7 @@
 import re
 import typing as t
 
+from viur.core import i18n
 from viur.core.bones.string import StringBone
 from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
 
@@ -68,10 +69,10 @@ class PhoneBone(StringBone):
         3. The phone number cannot exceed 15 digits, or the specified maximum length if provided (digits only).
         """
         if not value:
-            return "No value entered"
+            return i18n.translate("core.bones.error.novalueentered", "No value entered")
 
         if self.test and not self.test.match(value):
-            return "Invalid phone number entered"
+            return i18n.translate("core.bones.error.invalidphone", "Invalid phone number entered")
 
         # make sure max_length is not exceeded.
         if is_invalid := super().isInvalid(self._extract_digits(value)):

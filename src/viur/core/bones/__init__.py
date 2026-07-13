@@ -13,6 +13,7 @@ from .base import (
     UniqueValue,
 )
 from .boolean import BooleanBone
+from .code import CodeBone, JinjaBone, LogicsBone, PythonBone
 from .captcha import CaptchaBone
 from .color import ColorBone
 from .credential import CredentialBone
@@ -28,6 +29,7 @@ from .phone import PhoneBone
 from .randomslice import RandomSliceBone
 from .raw import RawBone
 from .record import RecordBone
+from .address import AddressBone, AddressRelSkel
 from .relational import RelationalBone, RelationalConsistency, RelationalUpdateLevel
 from .selectcountry import SelectCountryBone
 from .select import (
@@ -48,9 +50,15 @@ from .user import UserBone
 
 # Expose only specific names
 __all = [
+    "AddressBone",
+    "AddressRelSkel",
     "BaseBone",
     "BooleanBone",
     "CaptchaBone",
+    "CodeBone",
+    "JinjaBone",
+    "LogicsBone",
+    "PythonBone",
     "CloneBehavior",
     "CloneStrategy",
     "ColorBone",

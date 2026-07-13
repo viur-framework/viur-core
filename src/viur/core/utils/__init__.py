@@ -3,12 +3,15 @@ import logging
 import typing as t
 import urllib.parse
 import warnings
+import operator
 from collections.abc import Iterable
-
-from viur.core import current
+from viur.core import current, db
 from viur.core.config import conf
 from deprecated.sphinx import deprecated
 from . import json, parse, string  # noqa: used by external imports
+
+if t.TYPE_CHECKING:
+    from viur.core.skeleton import SkeletonInstance
 
 
 def utcNow() -> datetime.datetime:
@@ -101,6 +104,26 @@ def normalizeKey(key: t.Union[None, "db.Key"]) -> t.Union[None, "db.Key"]:
     db.normalize_key(key)
 
 
+def get_base_url() -> str:
+    """
+    Retrieve current request's base URL with protocol.
+    The function enforces use of https-protocol on non-localhost hostnames.
+
+    :returns: Returns the hostname, including the currently used protocol, e.g: https://www.example.com
+    :rtype: str
+    """
+    base = urllib.parse.urlparse(current.request.get().request.url).netloc  # retrieve URL of request
+
+    # Always enforce https!
+    if any(base.startswith(i) for i in ("localhost", "127.0.0.1", "[::1]", "0.0.0.0")):
+        base = f"http://{base}"
+    else:
+        base = f"https://{base}"
+
+    # Replace non-SSL-ready-"appspot.com"-URLs with their SSL-ready counterpart
+    return base.replace(f".{conf.instance.project_id}.", f"-dot-{conf.instance.project_id}.")
+
+
 def ensure_iterable(
     obj: t.Any,
     *,
@@ -127,6 +150,17 @@ def ensure_iterable(
         return ()  # empty tuple
 
     return obj,  # return a tuple with the obj
+
+
+def freeze_dict(value: dict[str, t.Any]) -> list:
+    """Sort a dict recursively by keys and return as list"""
+    return sorted(
+        [
+            (pair[0], freeze_dict(pair[1])) if isinstance(pair[1], dict) else pair
+            for pair in value.items()
+        ],
+        key=operator.itemgetter(0),
+    )
 
 
 def build_content_disposition_header(
@@ -156,7 +190,10 @@ def build_content_disposition_header(
     if attachment and inline:
         raise ValueError("Only one of 'attachment' or 'inline' may be True.")
 
-    fallback = string.normalize_ascii(filename)
+    # Replace '+' with '%2B' in the ASCII fallback: when this header is embedded
+    # as a query parameter in GCS signed URLs, the signing library leaves '+' unencoded
+    # while GCS form-decodes '+' as space during verification → SignatureDoesNotMatch.
+    fallback = string.normalize_ascii(filename).replace("+", "%2B")
     quoted_utf8 = urllib.parse.quote_from_bytes(filename.encode("utf-8"))
 
     content_disposition = "; ".join(
@@ -185,11 +222,11 @@ __UTILS_NAME_REPLACEMENT = {
     "currentRequestData": ("current.request_data", current.request_data),
     "currentSession": ("current.session", current.session),
     "downloadUrlFor": ("conf.main_app.file.create_download_url", lambda: conf.main_app.file.create_download_url),
-    "escapeString": ("utils.string.escape", string.escape),
-    "generateRandomString": ("utils.string.random", string.random),
-    "getCurrentUser": ("current.user.get", current.user.get),
-    "is_prefix": ("utils.string.is_prefix", string.is_prefix),
-    "parse_bool": ("utils.parse.bool", parse.bool),
+    "escapeString": ("utils.string.escape", lambda: string.escape),
+    "generateRandomString": ("utils.string.random", lambda: string.random),
+    "getCurrentUser": ("current.user.get", lambda: current.user.get),
+    "is_prefix": ("utils.string.is_prefix", lambda: string.is_prefix),
+    "parse_bool": ("utils.parse.bool", lambda: parse.bool),
     "srcSetFor": ("conf.main_app.file.create_src_set", lambda: conf.main_app.file.create_src_set),
 }
 

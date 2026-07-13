@@ -8,32 +8,36 @@ import warnings
 from deprecated.sphinx import deprecated
 
 from viur.core import conf, db, errors, utils
-
+from . import tasks
 from .meta import BaseSkeleton, MetaSkel, _UNDEFINED_KINDNAME
-from .tasks import updateRelations, processRemovedRelations
 from .utils import skeletonByKind
 from ..bones.base import (
     Compute,
     ComputeInterval,
     ComputeMethod,
-    ReadFromClientException,
     ReadFromClientError,
-    ReadFromClientErrorSeverity
+    ReadFromClientErrorSeverity,
+    ReadFromClientException,
 )
-from ..bones.relational import RelationalConsistency
-from ..bones.key import KeyBone
 from ..bones.date import DateBone
+from ..bones.key import KeyBone
+from ..bones.raw import RawBone
+from ..bones.relational import RelationalConsistency
 from ..bones.string import StringBone
 
 if t.TYPE_CHECKING:
     from .instance import SkeletonInstance
     from .adapter import DatabaseAdapter
-    from .meta import KeyType
+
 
 class SeoKeyBone(StringBone):
     """
     Special kind of StringBone saving its contents as `viurCurrentSeoKeys` into the entity's `viur` dict.
     """
+
+    def setSystemInitialized(self):
+        super().setSystemInitialized()
+        self.languages = conf.i18n.available_languages
 
     def unserialize(self, skel: SkeletonInstance, name: str) -> bool:
         try:
@@ -98,11 +102,19 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         descr="Key"
     )
 
+    shortkey = RawBone(
+        descr="Shortkey",
+        compute=Compute(lambda skel: skel["key"].id_or_name if skel["key"] else None),
+        readOnly=True,
+        visible=False,
+        searchable=True,
+    )
+
     name = StringBone(
         descr="Name",
         visible=False,
         compute=Compute(
-            fn=lambda skel: str(skel["key"]),
+            fn=lambda skel: f"{skel["key"].kind}/{skel["key"].id_or_name}" if skel["key"] else None,
             interval=ComputeInterval(ComputeMethod.OnWrite)
         )
     )
@@ -113,7 +125,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         readOnly=True,
         visible=False,
         indexed=True,
-        compute=Compute(fn=utils.utcNow, interval=ComputeInterval(ComputeMethod.Once)),
+        compute=Compute(
+            lambda: utils.utcNow().replace(microsecond=0),
+            interval=ComputeInterval(ComputeMethod.Once)
+        ),
     )
 
     # The last date (including time) when this entry has been updated
@@ -123,7 +138,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         readOnly=True,
         visible=False,
         indexed=True,
-        compute=Compute(fn=utils.utcNow, interval=ComputeInterval(ComputeMethod.OnWrite)),
+        compute=Compute(
+            lambda: utils.utcNow().replace(microsecond=0),
+            interval=ComputeInterval(ComputeMethod.OnWrite)
+        ),
     )
 
     viurCurrentSeoKeys = SeoKeyBone(
@@ -155,7 +173,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     @classmethod
     def fromClient(
         cls,
-        skel: SkeletonInstance,
+        skel: "SkeletonInstance[t.Self]",
         data: dict[str, list[str] | str],
         *,
         amend: bool = False,
@@ -196,14 +214,23 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         for boneName, boneInstance in skel.items():
             if boneInstance.unique:
                 lockValues = boneInstance.getUniquePropertyIndexValues(skel, boneName)
+
                 for lockValue in lockValues:
-                    dbObj = db.get(db.Key(f"{skel.kindName}_{boneName}_uniquePropertyIndex", lockValue))
-                    if dbObj and (not skel["key"] or dbObj["references"] != skel["key"].id_or_name):
+                    lock_key = db.Key(f"{skel.kindName}_{boneName}_uniquePropertyIndex", lockValue)
+                    lock_entity = db.get(lock_key)
+
+                    if lock_entity and (not skel["key"] or lock_entity["references"] != skel["key"].id_or_name):
+                        logging.error(f"{boneName=} {lock_key=} already taken by {lock_entity["references"]!r}")
+
                         # This value is taken (sadly, not by us)
                         complete = False
-                        errorMsg = boneInstance.unique.message
                         skel.errors.append(
-                            ReadFromClientError(ReadFromClientErrorSeverity.Invalid, errorMsg, [boneName]))
+                            ReadFromClientError(
+                                ReadFromClientErrorSeverity.Invalid,
+                                boneInstance.unique.message,
+                                [boneName]
+                            )
+                        )
 
         # Check inter-Bone dependencies
         for checkFunc in skel.interBoneValidations:
@@ -224,7 +251,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         version="3.7.0",
         reason="Use skel.read() instead of skel.fromDB()",
     )
-    def fromDB(cls, skel: SkeletonInstance, key: KeyType) -> bool:
+    def fromDB(cls, skel: SkeletonInstance, key: db.KeyType) -> bool:
         """
         Deprecated function, replaced by Skeleton.read().
         """
@@ -234,7 +261,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     def read(
         cls,
         skel: SkeletonInstance,
-        key: t.Optional[KeyType] = None,
+        key: t.Optional[db.KeyType] = None,
         *,
         create: bool | dict | t.Callable[[SkeletonInstance], None] = False,
         _check_legacy: bool = True
@@ -276,13 +303,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         elif create in (False, None):
             return None
         elif isinstance(create, dict):
-            if create and not skel.fromClient(create, amend=True):
+            if create and not skel.fromClient(create, amend=True, ignore=()):
                 raise ReadFromClientException(skel.errors)
         elif callable(create):
             create(skel)
         elif create is not True:
             raise ValueError("'create' must either be dict, a callable or True.")
 
+        skel["key"] = db_key
         return skel.write()
 
     @classmethod
@@ -309,7 +337,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     def write(
         cls,
         skel: SkeletonInstance,
-        key: t.Optional[KeyType] = None,
+        key: t.Optional[db.KeyType] = None,
         *,
         update_relations: bool = True,
         _check_legacy: bool = True,
@@ -335,6 +363,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 warnings.simplefilter("ignore", DeprecationWarning)
                 return cls.toDB(skel, update_relations=update_relations)
 
+        # FIXME: This check is incomplete as long it does nt check the entire tree!
         assert skel.renderPreparation is None, "Cannot modify values while rendering"
 
         def __txn_write(write_skel):
@@ -496,8 +525,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             skel.dbEntity["viur"].setdefault("viurActiveSeoKeys", [])
             for language, seo_key in last_set_seo_keys.items():
-                if skel.dbEntity["viur"]["viurCurrentSeoKeys"][language] not in \
-                        skel.dbEntity["viur"]["viurActiveSeoKeys"]:
+                if (
+                    skel.dbEntity["viur"]["viurCurrentSeoKeys"][language]
+                    not in skel.dbEntity["viur"]["viurActiveSeoKeys"]
+                ):
                     # Ensure the current, active seo key is in the list of all seo keys
                     skel.dbEntity["viur"]["viurActiveSeoKeys"].insert(0, seo_key)
             if str(skel.dbEntity.key.id_or_name) not in skel.dbEntity["viur"]["viurActiveSeoKeys"]:
@@ -577,6 +608,13 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         if key:
             skel["key"] = db.key_helper(key, skel.kindName)
 
+        if skel._cascade_deletion is True:
+            if skel["key"]:
+                logging.info(f"{skel._cascade_deletion=}, will delete {skel["key"]!r}")
+                skel.delete()
+
+            return skel
+
         # Run transactional function
         if db.is_in_transaction():
             key, skel, change_list, is_add = __txn_write(skel)
@@ -590,10 +628,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         if update_relations and not is_add:
             if change_list and len(change_list) < 5:  # Only a few bones have changed, process these individually
-                updateRelations(key, time.time() + 1, change_list, _countdown=10)
+                tasks.update_relations(key, changed_bones=change_list, _countdown=10)
 
             else:  # Update all inbound relations, regardless of which bones they mirror
-                updateRelations(key, time.time() + 1, None)
+                tasks.update_relations(key)
 
         # Trigger the database adapter of the changes made to the entry
         for adapter in skel.database_adapters:
@@ -602,7 +640,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         return skel
 
     @classmethod
-    def delete(cls, skel: SkeletonInstance, key: t.Optional[KeyType] = None) -> None:
+    def delete(cls, skel: SkeletonInstance, key: t.Optional[db.KeyType] = None) -> None:
         """
             Deletes the entity associated with the current Skeleton from the data store.
 
@@ -663,7 +701,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                     db.put(lockObj)
 
             db.delete(key)
-            processRemovedRelations(key)
+            tasks.update_relations(key)
 
         if key := (key or skel["key"]):
             key = db.key_helper(key, skel.kindName)
@@ -693,12 +731,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         skel: SkeletonInstance,
         values: t.Optional[dict | t.Callable[[SkeletonInstance], None]] = {},
         *,
-        key: t.Optional[db.Key | int | str] = None,
         check: t.Optional[dict | t.Callable[[SkeletonInstance], None]] = None,
         create: t.Optional[bool | dict | t.Callable[[SkeletonInstance], None]] = None,
-        update_relations: bool = True,
         ignore: t.Optional[t.Iterable[str]] = (),
+        internal: bool = True,
+        key: t.Optional[db.KeyType] = None,
+        preprocess: t.Optional[t.Callable[[SkeletonInstance], None]] = None,
         retry: int = 0,
+        update_relations: bool = True,
     ) -> SkeletonInstance:
         """
         Performs an edit operation on a Skeleton within a transaction.
@@ -721,10 +761,13 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         :param create: Allows to specify a dict or initial callable that is executed in case the Skeleton with the
             given key does not exist.
         :param update_relations: Trigger update relations task on success. Defaults to False.
-        :param trust: Use internal `fromClient` with trusted data (may change readonly-bones)
-        :param retry: On RuntimeError, retry for this amount of times.
+        :param ignore: optional list of bones to be ignored from values; Defaults to an empty list,
+            so that all bones are accepted (even read-only ones, as skel.patch() is being used internally)
+        :param internal: Internal patch does ignore any NotSet and Empty errors that may raise in skel.fromClient()
+        :param retry: On RuntimeError, retry for this amount of times. - DEPRECATED!
 
-        If the function does not raise an Exception, all went well. The function always returns the input Skeleton.
+        If the function does not raise an Exception, all went well.
+        The function always returns the input Skeleton.
 
         Raises:
             ValueError: In case parameters where given wrong or incomplete.
@@ -736,7 +779,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         def __update_txn():
             # Try to read the skeleton, create on demand
             if not skel.read(key):
-                logging.debug(f"cant update key {skel=}")
                 if create is None or create is False:
                     raise ValueError("Creation during update is forbidden - explicitly provide `create=True` to allow.")
 
@@ -765,8 +807,20 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
             # Set values
             if isinstance(values, dict):
-                if values and not skel.fromClient(values, amend=True, ignore=ignore):
+                if values and not skel.fromClient(values, amend=True, ignore=ignore) and not internal:
                     raise ReadFromClientException(skel.errors)
+
+                # In case we're in internal-mode, only raise fatal errors.
+                if skel.errors and internal:
+                    for error in skel.errors:
+                        if error.severity in (
+                                ReadFromClientErrorSeverity.Invalid,
+                                ReadFromClientErrorSeverity.InvalidatesOther,
+                        ):
+                            raise ReadFromClientException(skel.errors)
+
+                    # otherwise, ignore any reported errors
+                    skel.errors.clear()
 
                 # Special-feature: "+" and "-" prefix for simple calculations
                 # TODO: This can maybe integrated into skel.fromClient() later...
@@ -783,6 +837,11 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             else:
                 raise ValueError("'values' must either be dict or a callable.")
 
+            # Run preprocess hook
+            if preprocess:
+                preprocess(skel)
+
+            # Finally write the skeleton
             return skel.write(update_relations=update_relations)
 
         if not db.is_in_transaction():
@@ -791,7 +850,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 try:
                     return db.run_in_transaction(__update_txn)
 
-                except RuntimeError:
+                except RuntimeError as e:
                     retry -= 1
                     if retry < 0:
                         raise

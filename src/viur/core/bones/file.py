@@ -15,7 +15,13 @@ import logging
 
 
 @CallDeferred
-def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_key: db.Key = None, **kwargs):
+def ensureDerived(
+    key: db.Key,
+    src_key: str,
+    derive_map: dict[str, t.Any],
+    refresh_key: db.Key = None,
+    **kwargs
+):
     r"""
     The function is a deferred function that ensures all pending thumbnails or other derived files
     are built. It takes the following parameters:
@@ -31,7 +37,7 @@ def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_ke
     files, and updating the derivation map accordingly. It iterates through the derive_map items and
     calls the appropriate deriver function. If the deriver function returns a result, the function
     creates a new or updated resultDict and merges it into the file-object's metadata. Finally,
-    the updated results are written back to the database and the updateRelations function is called
+    the updated results are written back to the database and the update_relations function is called
     to ensure proper relations are maintained.
     """
     # TODO: Remove in VIUR4
@@ -47,17 +53,21 @@ def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_ke
             )
 
             locals()[_new] = kwargs.pop(_dep)
+
     from viur.core.skeleton.utils import skeletonByKind
-    from viur.core.skeleton.tasks import updateRelations
+    from viur.core.skeleton.tasks import update_relations
 
     skel = skeletonByKind(key.kind)()
     if not skel.read(key):
-        logging.info("File-Entry went missing in ensureDerived")
+        logging.error(f"{src_key}: File not found, is it gone?")
         return
+
     if not skel["derived"]:
-        logging.info("No Derives for this file")
+        logging.info(f"{src_key}: No derives for this file")
         skel["derived"] = {}
+
     skel["derived"] = {"deriveStatus": {}, "files": {}} | skel["derived"]
+
     res_status, res_files = {}, {}
     for call_key, params in derive_map.items():
         full_src_key = f"{src_key}_{call_key}"
@@ -85,16 +95,15 @@ def ensureDerived(key: db.Key, src_key, derive_map: dict[str, t.Any], refresh_ke
 
         skel.patch(values=_merge_derives, update_relations=False)
 
-        # Queue that updateRelations call at least 30 seconds into the future, so that other ensureDerived calls from
-        # the same FileBone have the chance to finish, otherwise that updateRelations Task will call postSavedHandler
+        # Queue that update_relations call at least 30 seconds into the future, so that other ensureDerived calls from
+        # the same FileBone have the chance to finish, otherwise that update_relations Task will call postSavedHandler
         # on that FileBone again - re-queueing any ensureDerivedCalls that have not finished yet.
 
         if refresh_key:
             skel = skeletonByKind(refresh_key.kind)()
             skel.patch(lambda _skel: _skel.refresh(), key=refresh_key, update_relations=False)
 
-        updateRelations(key, int(time.time() + 1), ["derived"], _countdown=30)
-
+        update_relations(key, min_change_time=int(time.time() + 1), changed_bones=["derived"], _countdown=30)
 
 
 class FileBone(TreeLeafBone):
@@ -133,22 +142,29 @@ class FileBone(TreeLeafBone):
     type = "relational.tree.leaf.file"
     """The type of this bone is 'relational.tree.leaf.file'."""
 
+    DEFAULT_REFKEYS = (
+        "derived",
+        "dlkey",
+        "height",
+        "mimetype",
+        "name",
+        "public",
+        "serving_url",
+        "size",
+        "width",
+    )
+    """
+    Default RefKeys for FileBone.
+    Use this as extendable reference.
+    """
+
     def __init__(
         self,
         *,
         derive: None | dict[str, t.Any] = None,
         maxFileSize: None | int = None,
         validMimeTypes: None | list[str] = None,
-        refKeys: t.Optional[t.Iterable[str]] = (
-            "name",
-            "mimetype",
-            "size",
-            "width",
-            "height",
-            "derived",
-            "public",
-            "serving_url",
-        ),
+        refKeys: t.Optional[t.Iterable[str]] = DEFAULT_REFKEYS,
         public: bool = False,
         **kwargs
     ):
@@ -180,7 +196,10 @@ class FileBone(TreeLeafBone):
         """
         super().__init__(refKeys=refKeys, **kwargs)
 
-        self.refKeys.add("dlkey")
+        for _required in ("dlkey", "name"):
+            if _required not in self.refKeys:
+                raise ValueError(f"FileBone not operable without refKey {_required!r}")
+
         self.derive = derive
         self.public = public
         self.validMimeTypes = validMimeTypes
@@ -228,7 +247,7 @@ class FileBone(TreeLeafBone):
         """
         super().postSavedHandler(skel, boneName, key)
         if (
-            current.request.get().is_deferred
+            current.request.get() and current.request.get().is_deferred
             and "derived" in (current.request_data.get().get("__update_relations_bones") or ())
         ):
             return
@@ -354,11 +373,15 @@ class FileBone(TreeLeafBone):
             "public": self.public,
         }
 
-    def _atomic_dump(self, value: dict[str, "SkeletonInstance"]) -> dict | None:
-        res = super()._atomic_dump(value)
-        if res is not None:
-            for key, value in res.items():
-                if value is not None:
-                    res[key]["downloadUrl"] = utils.downloadUrlFor(value["dlkey"], value["name"], derived=False,
-                                                                   expires=conf.render_json_download_url_expiration)
-        return res
+    def _atomic_dump(self, value) -> dict | None:
+        value = super()._atomic_dump(value)
+        if value is not None:
+            # VIUR4: Rename "downloadUrl" into "download_url"
+            value["dest"]["downloadUrl"] = conf.main_app.file.create_download_url(
+                value["dest"]["dlkey"],
+                value["dest"]["name"],
+                derived=False,
+                expires=conf.render_json_download_url_expiration
+            )
+
+        return value

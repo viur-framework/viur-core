@@ -134,7 +134,7 @@ class Singleton(SkelModule):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def edit(self, *args, **kwargs) -> t.Any:
+    def edit(self, *, bounce: bool = False, **kwargs) -> t.Any:
         """
         Modify the existing entry, and render the entry, eventually with error notes on incorrect data.
 
@@ -161,7 +161,7 @@ class Singleton(SkelModule):
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
             or not skel.fromClient(kwargs, amend=True)  # failure on reading into the bones
-            or utils.parse.bool(kwargs.get("bounce"))  # review before changing
+            or bounce  # review before changing
         ):
             return self.render.edit(skel)
 

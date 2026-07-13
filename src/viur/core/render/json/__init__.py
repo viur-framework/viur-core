@@ -1,5 +1,4 @@
 from .default import DefaultRender as default
-from .user import UserRender as user
 from viur.core import securitykey, current, errors
 from viur.core.decorators import *
 import json

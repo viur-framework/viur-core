@@ -74,15 +74,16 @@ class FetchMetaDataValidator(RequestValidator):
         headers = request.request.headers
 
         match headers.get("sec-fetch-site"):
-            case None | "same-origin" | "none":
-                # A Request from our site, or browser didn't send "sec-fetch-site"
+            case None | "same-origin" | "same-site" | "none":
+                # Browser didn't send "sec-fetch-site", or the request is
+                # same-origin, same-site (e.g. subdomain or redirect within the
+                # same registrable domain) or browser-initiated ("none").
+                # These are allowed per the reference policy on
+                # https://web.dev/fetch-metadata/
                 return None
-            case "same-site":
-                # We are accepting a request with same-site only in local dev mode
-                if conf.instance.is_dev_server:
-                    return None
             case _:
-                # Incoming navigation GET request
+                # Incoming cross-site request: allow only simple top-level
+                # navigation GET requests, except <object> and <embed>.
                 if (
                     not request.isPostRequest
                     and headers.get("sec-fetch-mode") == "navigate"
@@ -105,9 +106,11 @@ class Router:
         - Load or initialize a new session
         - Set up i18n (choosing the language etc)
         - Run the request preprocessor (if any)
+        - Run before_request hooks (if any)
         - Normalize & sanity check the parameters
         - Resolve the exposed function and call it
         - Save the session / tear down the request
+        - Run after_request hooks (if any)
         - Return the response generated
 
 
@@ -116,6 +119,9 @@ class Router:
 
     # List of requestValidators used to preflight-check an request before it's being dispatched within ViUR
     requestValidators = [FetchMetaDataValidator]
+
+    before_request_funcs: t.ClassVar[list[t.Callable[[], None]]] = []
+    after_request_funcs: t.ClassVar[list[t.Callable[[], None]]] = []
 
     def __init__(self, environ: dict):
         super().__init__()
@@ -154,8 +160,14 @@ class Router:
         current.session.set(session.Session())
         current.request_data.set({})
 
+        for fn in Router.before_request_funcs:
+            fn()
+
         # Process actual request
         self._process()
+
+        for fn in Router.after_request_funcs:
+            fn()
 
         self._cors()
 
@@ -192,9 +204,13 @@ class Router:
                     # no q => q = 1
                     locale_q_pairs.append((language.strip(), "1"))
                 else:
-                    locale = language.split(";")[0].strip()
-                    q = language.split(";")[1].split("=")[1]
-                    locale_q_pairs.append((locale, q))
+                    try:
+                        locale = language.split(";")[0].strip()
+                        q = language.split(";")[1].split("=")[1]
+                        locale_q_pairs.append((locale, q))
+                    except IndexError:
+                        continue  # skip language
+            locale_q_pairs.sort(key=lambda pair: pair[1], reverse=True)  # sort by Quality values
             for locale_q_pair in locale_q_pairs:
                 if "-" in locale_q_pair[0]:  # Check for de-DE
                     lang = locale_q_pair[0].split("-")[0]
@@ -202,6 +218,8 @@ class Router:
                     lang = locale_q_pair[0]
                 if lang in conf.i18n.available_languages + list(conf.i18n.language_alias_map.keys()):
                     return lang
+                if lang == "*":  # fallback
+                    return conf.i18n.available_languages[0]
             return None
 
         if not conf.i18n.available_languages:
@@ -281,7 +299,11 @@ class Router:
                 self.response.write(statusDescr)
                 return
 
-        path = self.request.path
+        try:
+            path = self.request.path
+        except UnicodeDecodeError:  # webob can fail with UnicodeDecodeError on broken/invalid URLs
+            self.response.status = "400 Bad Request"  # let's send the client onto a health cure in Bad Request ...
+            return
 
         # Add CSP headers early (if any)
         if conf.security.content_security_policy and conf.security.content_security_policy["_headerCache"]:
@@ -369,7 +391,7 @@ class Router:
             url = e.url
             url = unquote(url)  # decode first
             # safe = https://url.spec.whatwg.org/#url-path-segment-string
-            url = quote(url, encoding="utf-8", safe="!$&'()*+,-./:;=?@_~")  # re-encode all in utf-8
+            url = quote(url, encoding="utf-8", safe="!$&'()*+,-./:;=?@_~#")  # re-encode all in utf-8
             if url.startswith(('.', '/')):
                 url = str(urljoin(self.request.url, url))
             self.response.headers['Location'] = url
@@ -768,6 +790,50 @@ class Router:
 
     def saveSession(self) -> None:
         current.session.get().save()
+
+
+def before_request(fn: t.Callable[[], None]) -> t.Callable[[], None]:
+    """Register a function to be called before each request is processed.
+
+    The function is called after context variables are set (``current.request``,
+    ``current.session``, ``current.request_data`` are available), but a fresh
+    ``Session`` container has not been loaded yet — call ``current.session.get().load()``
+    explicitly if you need session data. ``current.user`` is not set. Exceptions
+    raised by the hook propagate and abort request processing. No arguments are passed;
+    use ``current.request.get()`` to access the request. The function must not return a value.
+
+    Usage::
+
+        from viur.core import before_request
+
+        @before_request
+        def my_hook():
+            ...
+    """
+    Router.before_request_funcs.append(fn)
+    return fn
+
+
+def after_request(fn: t.Callable[[], None]) -> t.Callable[[], None]:
+    """Register a function to be called after each request has been processed.
+
+    The function is called after :meth:`Router._process` completes — the response
+    is fully generated, the session is saved, and ``current.user.get()`` is still
+    available. The call happens before CORS headers are applied. Exceptions raised
+    by the hook propagate and abort CORS processing. No arguments are passed;
+    use ``current.request.get().response`` to inspect the response. The function
+    must not return a value.
+
+    Usage::
+
+        from viur.core import after_request
+
+        @after_request
+        def my_hook():
+            ...
+    """
+    Router.after_request_funcs.append(fn)
+    return fn
 
 
 from .i18n import translate  # noqa: E402

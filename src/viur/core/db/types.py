@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import datetime
 import enum
+import itertools
 import typing as t
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -54,6 +55,12 @@ class SortOrder(enum.Enum):
                 return SortOrder.Ascending
 
 
+class QueryOrder(t.NamedTuple):
+    """A named tuple describing a single sort order for a datastore query."""
+    name: str
+    order: SortOrder = SortOrder.Ascending
+
+
 class Key(Datastore_key):
     """
         The python representation of one datastore key. Unlike the original implementation, we don't store a
@@ -61,12 +68,25 @@ class Key(Datastore_key):
         does not support accessing data in multiple projects.
     """
 
-    def __init__(self, *args, project=None, **kwargs):
+    def __init__(self, *path_args, project: str | None = None, **kwargs):
+        # Convert digit-only id_or_name attributes to int
+        # See https://github.com/viur-framework/viur-core/issues/1636
+        new_path_args = []
+        for pair in itertools.batched(path_args, 2):
+            try:
+                kind, id_or_name = pair
+            except ValueError:  # it's a incomplete key
+                new_path_args.append(pair[0])
+                continue
+            if isinstance(id_or_name, str) and id_or_name.isdigit():
+                id_or_name = int(id_or_name)
+            new_path_args.extend((kind, id_or_name))
+
         if project is None:
             from .transport import __client__  # noqa: E402 # import works only here because circular imports
             project = __client__.project
 
-        super().__init__(*args, project=project, **kwargs)
+        super().__init__(*new_path_args, project=project, **kwargs)
 
     def __str__(self):
         return self.to_legacy_urlsafe().decode("ASCII")
@@ -165,8 +185,14 @@ class Entity(Datastore_entity):
             raise ValueError(f"key must be a Key-Object (or None for an embedded entity). Got {key!r} ({type(key)})")
 
 
-TOrders: t.TypeAlias = list[tuple[str, SortOrder]]
+KeyType: t.TypeAlias = Key | str | int
+"""
+Alias that describes a key-type.
+"""
+
+TOrders: t.TypeAlias = list[QueryOrder]
 TFilters: t.TypeAlias = dict[str, DATASTORE_BASE_TYPES | list[DATASTORE_BASE_TYPES]]
+TOrFilters: t.TypeAlias = list[list[tuple[str, DATASTORE_BASE_TYPES | list[DATASTORE_BASE_TYPES]]]]
 
 
 @dataclass
@@ -186,6 +212,10 @@ class QueryDefinition:
 
     distinct: t.Optional[list[str]] = None
     """If set, a list of fields that we should return distinct values of"""
+
+    or_filters: "TOrFilters" = field(default_factory=list)
+    """Each entry is a list of (filterStr, value) pairs that are OR-ed together.
+    Multiple entries are AND-ed with each other and with the AND filters."""
 
     limit: int = field(init=False)
     """The maximum amount of entities that should be returned"""
