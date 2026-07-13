@@ -100,7 +100,6 @@ def normalizeKey(key: t.Union[None, "db.Key"]) -> t.Union[None, "db.Key"]:
 
         :return: Normalized key in string representation.
     """
-    from viur.core import db  # let this be slow...
     db.normalize_key(key)
 
 
