@@ -42,12 +42,17 @@ def get(keys: t.Union[Key, t.Iterable[Key]], namespace: t.Optional[str] = None) 
     :param namespace: Optional namespace to use.
     :return: The entity (or None if it has not been found), or a list of entities.
     """
+    # Inside a transaction reads must go straight to the datastore, so the cache
+    # cannot serve a (potentially stale) value. Lazy import to avoid a cycle.
+    from .utils import is_in_transaction
+    if is_in_transaction():
+        return None
+
     if not check_for_memcache():
         return None
 
     namespace = namespace or MEMCACHE_NAMESPACE
-    if not isinstance(keys, (tuple, list, set)):
-        keys = (keys,)
+    keys = utils.ensure_iterable(keys)
     keys = [str(key) for key in keys]  # Enforce that all keys are strings
     cached_data_result = {}
     result = []
@@ -58,7 +63,7 @@ def get(keys: t.Union[Key, t.Iterable[Key]], namespace: t.Optional[str] = None) 
             keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
     except Exception as e:
         logging.error(f"""Failed to get keys form the memcache with {e=}""")
-    for key, value in cached_data.items():
+    for key, value in cached_data_result.items():
         entity = Entity(Key.from_legacy_urlsafe(key))
         entity |= value
         result.append(entity)
@@ -80,6 +85,12 @@ def put(
     :param timeout: Optional timeout in seconds or a timedelta object.
     :return: A boolean indicating success.
     """
+    # Inside a transaction the write is not committed yet; caching it now would
+    # serve values that may be rolled back. Lazy import to avoid a cycle.
+    from .utils import is_in_transaction
+    if is_in_transaction():
+        return False
+
     if not check_for_memcache():
         return False
     if not data:
@@ -121,8 +132,7 @@ def delete(keys: t.Union[Key, t.Iterable[Key]], namespace: t.Optional[str] = Non
     if not keys:
         return None
     namespace = namespace or MEMCACHE_NAMESPACE
-    if not isinstance(keys, (tuple, list, set)):
-        keys = (keys,)
+    keys = utils.ensure_iterable(keys)
     keys = [str(key) for key in keys]  # Enforce that all keys are strings
     try:
         while keys:
