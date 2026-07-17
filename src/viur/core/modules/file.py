@@ -572,16 +572,29 @@ class File(Tree):
         return bool(re.match(VALID_FILENAME_REGEX, filename))
 
     @staticmethod
-    def hmac_sign(data: t.Any) -> str:
+    def _hmac_digest(key: bytes | str, data: bytes) -> str:
+        if not isinstance(key, bytes):
+            key = key.encode("UTF-8")
+        return hmac.new(key, msg=data, digestmod=hashlib.sha3_384).hexdigest()
+
+    @classmethod
+    def hmac_sign(cls, data: t.Any) -> str:
         assert conf.file_hmac_key is not None, "No hmac-key set!"
         if not isinstance(data, bytes):
             data = str(data).encode("UTF-8")
-        return hmac.new(conf.file_hmac_key, msg=data, digestmod=hashlib.sha3_384).hexdigest()
+        return cls._hmac_digest(conf.file_hmac_key, data)
 
     @classmethod
     def hmac_verify(cls, data: t.Any, signature: str) -> bool:
         try:
-            return hmac.compare_digest(cls.hmac_sign(data.encode("ASCII")), signature)
+            if not isinstance(data, bytes):
+                data = data.encode("ASCII")
+            # Accept the active key plus any retired fallback keys, enabling zero-downtime rotation.
+            return any(
+                hmac.compare_digest(cls._hmac_digest(key, data), signature)
+                for key in (conf.file_hmac_key, *conf.file_hmac_key_fallbacks)
+                if key is not None
+            )
         except (TypeError, UnicodeEncodeError):
             return False
 

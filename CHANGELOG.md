@@ -4,6 +4,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 
 ## [3.9.0.dev6]
 
+- feat(file): Add `conf.file_hmac_key_fallbacks` — accept retired hmac-keys when verifying download-url signatures for zero-downtime rotation of `file_hmac_key`
 - chore: Deprecate endpoint `/vi/getStructure` (#1616)
 - doc: Docstrings for compute-related enum variants
 - doc: Fix seo_language_map in docstring
