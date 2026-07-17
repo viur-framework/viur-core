@@ -791,6 +791,12 @@ class Conf(ConfigType):
     bone_string_escape_html: bool = True
     """Default escape_html setting for StringBone. Set to False to disable HTML escaping globally."""
 
+    bone_strict_mode: bool = os.getenv("VIUR_CORE_BONE_STRICT_MODE", "").lower() != "false"
+    """If enabled (the default), setting an *unknown* attribute on a bone after its construction
+    raises an AttributeError instead of silently creating it -- this catches typos like ``readonly``
+    instead of ``readOnly``. Disable via ``conf.bone_strict_mode = False`` or the environment
+    variable ``VIUR_CORE_BONE_STRICT_MODE=false``."""
+
     bone_html_default_allow: "HtmlBoneConfiguration" = {
         "validTags": [
             "a",
