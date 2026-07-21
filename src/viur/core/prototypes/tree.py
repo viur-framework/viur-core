@@ -702,7 +702,7 @@ class Tree(SkelModule):
         # Check if parentNodeSkel is descendant of the skel
         walk_skel = parentnode_skel.clone()
 
-        while walk_skel["parententry"]:
+        while walk_skel and walk_skel["parententry"]:
             if walk_skel["parententry"] == skel["key"]:
                 raise errors.NotAcceptable(
                     f"Invalid move: Entry {key} cannot be moved below its own descendant {parentNode}."
