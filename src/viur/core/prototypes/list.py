@@ -1,6 +1,7 @@
 import logging
 import typing as t
 from viur.core import current, db, errors, utils
+from viur.core.bones import ReadFromClientException
 from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
@@ -236,14 +237,18 @@ class List(SkelModule):
         if (
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
-            or not skel.fromClient(kwargs, amend=True)  # failure on reading into the bones
-            or bounce  # review before changing
         ):
-            # render the skeleton in the version it could as far as it could be read.
             return self.render.edit(skel)
 
-        self.onEdit(skel)
-        skel.write()  # write it!
+        if bounce:  # review before changing: preview the submitted data, without writing it
+            skel.fromClient(kwargs, amend=True)
+            return self.render.edit(skel)
+
+        try:
+            skel.patch(kwargs, ignore=None, internal=False, preprocess=self.onEdit)
+        except ReadFromClientException:
+            return self.render.edit(skel)
+
         self.onEdited(skel)
 
         return self.render.editSuccess(skel)

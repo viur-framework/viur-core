@@ -1,6 +1,7 @@
 import logging
 import typing as t
 from viur.core import db, current, utils, errors
+from viur.core.bones import ReadFromClientException
 from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
@@ -160,13 +161,18 @@ class Singleton(SkelModule):
         if (
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
-            or not skel.fromClient(kwargs, amend=True)  # failure on reading into the bones
-            or bounce  # review before changing
         ):
             return self.render.edit(skel)
 
-        self.onEdit(skel)
-        skel.write()
+        if bounce:
+            skel.fromClient(kwargs, amend=True)
+            return self.render.edit(skel)
+
+        try:
+            skel.patch(kwargs, key=key, ignore=None, internal=False, create=True, preprocess=self.onEdit)
+        except ReadFromClientException:
+            return self.render.edit(skel)
+
         self.onEdited(skel)
         return self.render.editSuccess(skel)
 

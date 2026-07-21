@@ -5,7 +5,7 @@ import typing as t
 from deprecated.sphinx import deprecated
 
 from viur.core import current, db, errors
-from viur.core.bones import BooleanBone, KeyBone, SortIndexBone
+from viur.core.bones import BooleanBone, KeyBone, ReadFromClientException, SortIndexBone
 from viur.core.cache import flushCache
 from viur.core.decorators import *
 from viur.core.skeleton import Skeleton, SkeletonInstance
@@ -569,13 +569,18 @@ class Tree(SkelModule):
         if (
             not kwargs  # no data supplied
             or not current.request.get().isPostRequest  # failure if not using POST-method
-            or not skel.fromClient(kwargs, amend=True)  # failure on reading into the bones
-            or bounce  # review before adding
         ):
             return self.render.edit(skel)
 
-        self.onEdit(skelType, skel)
-        skel.write()
+        if bounce:
+            skel.fromClient(kwargs, amend=True)
+            return self.render.edit(skel)
+
+        try:
+            skel.patch(kwargs, ignore=None, internal=False, preprocess=lambda skel: self.onEdit(skelType, skel))
+        except ReadFromClientException:
+            return self.render.edit(skel)
+
         self.onEdited(skelType, skel)
 
         return self.render.editSuccess(skel)
