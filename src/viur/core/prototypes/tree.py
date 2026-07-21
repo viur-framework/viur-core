@@ -710,6 +710,9 @@ class Tree(SkelModule):
 
             walk_skel = walk_skel.read(walk_skel["parententry"])
 
+        if not walk_skel:
+            logging.warning(f"The parententry chain of {skel["key"]!r} seems to be broken")
+
         old_parentrepo = skel["parentrepo"]
 
         self.onEdit(skelType, skel)
