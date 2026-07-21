@@ -1,7 +1,12 @@
+import re
 import string
 from encodings import idna
 from viur.core.bones.string import StringBone
 from viur.core import i18n
+
+_DNS_LABEL_RE = re.compile(r"(?!-)[a-z0-9-]{1,63}(?<!-)", re.IGNORECASE)
+"""A single DNS label per RFC 1035: 1-63 alphanumerics or hyphens, no leading or trailing hyphen."""
+
 
 class EmailBone(StringBone):
     """
@@ -41,9 +46,7 @@ class EmailBone(StringBone):
         try:
             assert len(value) < 256
             account, domain = value.split(u"@")
-            subDomain, tld = domain.rsplit(".", 1)
-            assert account and subDomain and tld
-            assert subDomain[0] != "."
+            assert account and domain
             assert len(account) <= 64
         except (ValueError, AssertionError):
             is_valid = False
@@ -56,26 +59,20 @@ class EmailBone(StringBone):
                 if not (char in validChars or (char >= unicodeLowerBound and char <= unicodeUpperBound)):
                     is_valid = False
             # Validate each domain label (RFC 1035). idna.ToASCII does not reject a
-            # leading or trailing hyphen (e.g. "-online"), so the label structure is
-            # checked explicitly; otherwise addresses like "foo@-online.de" pass.
+            # leading or trailing hyphen (e.g. "-online") or an over-long label, so the
+            # label structure is checked with _DNS_LABEL_RE on the IDNA-encoded form;
+            # otherwise addresses like "foo@-online.de" pass.
             labels = domain.split(".")
             if len(labels) < 2 or labels[-1].isdigit():
                 is_valid = False
             else:
                 for label in labels:
-                    if not label or " " in label:
-                        is_valid = False
-                        break
                     try:
                         asciiLabel = idna.ToASCII(label).decode("ascii")
                     except Exception:
                         is_valid = False
                         break
-                    if (
-                        asciiLabel.startswith("-")
-                        or asciiLabel.endswith("-")
-                        or not all(char.isalnum() or char == "-" for char in asciiLabel)
-                    ):
+                    if not _DNS_LABEL_RE.fullmatch(asciiLabel):
                         is_valid = False
                         break
 
