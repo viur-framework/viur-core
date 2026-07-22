@@ -934,7 +934,35 @@ class File(Tree):
         return io.BytesIO(blob.download_as_bytes()), blob.content_type
 
     @CallDeferred
-    def deleteRecursive(self, parentKey):
+    def deleteRecursive(self, parentKey, delete_self: bool = False, call_hooks: bool = False):
+        """
+        Recursively deletes all files and directories below *parentKey*,
+        bottom-up, within a single deferred call (see
+        :meth:`Tree.deleteRecursive` for why recursing via a separate
+        deferred task per directory level -- the previous behavior here --
+        allowed a directory to be deleted before its own contents were
+        confirmed gone, permanently orphaning them if that task was ever
+        lost).
+
+        :param delete_self: If True, also delete the directory identified
+            by *parentKey* itself, after everything below it is gone.
+        :param call_hooks: If True, call :meth:`onDelete`/:meth:`onDeleted`
+            for the *parentKey* directory itself.
+        """
+        self._deleteSubtree(parentKey)
+        if delete_self:
+            skel = self.nodeSkelCls()
+            if skel.read(parentKey):
+                if call_hooks:
+                    self.onDelete("node", skel)
+                skel.delete()
+                if call_hooks:
+                    self.onDeleted("node", skel)
+
+    def _deleteSubtree(self, parentKey) -> None:
+        """Synchronously delete all files/directories below *parentKey* (not
+        *parentKey* itself), bottom-up. Internal helper for
+        :meth:`deleteRecursive`."""
         files = db.Query(self.leafSkelCls().kindName).filter("parentdir =", parentKey).iter()
         for fileEntry in files:
             self.mark_for_deletion(fileEntry["dlkey"])
@@ -944,7 +972,7 @@ class File(Tree):
                 skel.delete()
         dirs = db.Query(self.nodeSkelCls().kindName).filter("parentdir", parentKey).iter()
         for d in dirs:
-            self.deleteRecursive(d.key)
+            self._deleteSubtree(d.key)
             skel = self.nodeSkelCls()
             if skel.read(d.key):
                 skel.delete()

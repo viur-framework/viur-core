@@ -590,6 +590,12 @@ class Tree(SkelModule):
 
         The function runs several access control checks on the data before it is deleted.
 
+        For a node, the node itself and its entire subtree are deleted
+        bottom-up as a single deferred job -- see :meth:`deleteRecursive`
+        for why the node must not be deleted synchronously here.
+        ``onDelete``/``onDeleted`` for the node still fire exactly once,
+        just from within that deferred job instead of within this request.
+
         .. seealso:: :func:`canDelete`, :func:`onDelete`, :func:`onDeleted`
 
         :param skelType: Defines the type of the entry that should be deleted and may either be "node" or "leaf".
@@ -612,24 +618,76 @@ class Tree(SkelModule):
             raise errors.Unauthorized()
 
         if skelType == "node":
-            self.deleteRecursive(skel["key"])
-
-        self.onDelete(skelType, skel)
-        skel.delete()
-        self.onDeleted(skelType, skel)
+            self.deleteRecursive(skel["key"], delete_self=True, call_hooks=True)
+        else:
+            self.onDelete(skelType, skel)
+            skel.delete()
+            self.onDeleted(skelType, skel)
 
         return self.render.deleteSuccess(skel, skelType=skelType)
 
     @CallDeferred
-    def deleteRecursive(self, parentKey: str):
+    def deleteRecursive(self, parentKey: str, delete_self: bool = False, call_hooks: bool = False):
         """
         Recursively processes a delete request.
 
-        This will delete all entries which are children of *nodeKey*, except *key* nodeKey.
+        Deletes all entries which are children of *parentKey*, bottom-up:
+        leafs first, then each sub-node only after its own descendants
+        have been removed. The whole subtree is processed within this
+        single deferred call -- recursing into a sub-node does *not*
+        spawn a separate deferred task for it, so there is no window in
+        which a node could be deleted (or considered done) before its
+        own children actually are.
 
-        :param parentKey: URL-safe key of the node which children should be deleted.
+        If *delete_self* is set, *parentKey* itself is deleted last, once
+        everything below it is already gone. This is what makes deferring
+        the deletion of a node safe: if this task is lost entirely (queue
+        purge, crash, a task pinned to an App Engine version that no
+        longer exists, ...), *nothing* in the subtree has been touched
+        yet, so nothing is left behind; if it fails partway through, a
+        retry simply continues with what remains (deleting an
+        already-deleted entry is a no-op read-then-skip). The previous
+        behavior -- the node deleted synchronously by :meth:`delete`
+        while its children's removal was merely enqueued as a separate,
+        independent job -- could leave orphaned entries permanently
+        behind: children whose ``parententry`` points to an
+        already-deleted, nonexistent node, which then breaks anything
+        that relies on the tree being intact (e.g. relation updates,
+        aggregations).
+
+        :param parentKey: URL-safe key of the node whose children (and,
+            if *delete_self*, the node itself) should be deleted.
+        :param delete_self: If True, also delete the node identified by
+            *parentKey*, after all of its descendants have been removed.
+        :param call_hooks: If True, call :meth:`onDelete`/:meth:`onDeleted`
+            for the *parentKey* node itself (only meaningful together
+            with *delete_self*). Not applied recursively: cascaded
+            descendants are removed without hooks, same as before.
         """
         nodeKey = db.key_helper(parentKey, self.viewSkel("node").kindName)
+        self._deleteSubtree(nodeKey)
+        if delete_self:
+            nodeSkel = self.viewSkel("node")
+            if nodeSkel.read(nodeKey):
+                if call_hooks:
+                    self.onDelete("node", nodeSkel)
+                nodeSkel.delete()
+                if call_hooks:
+                    self.onDeleted("node", nodeSkel)
+
+    def _deleteSubtree(self, nodeKey: db.Key) -> None:
+        """
+        Synchronously delete all descendants of *nodeKey* (not *nodeKey*
+        itself), bottom-up.
+
+        Internal helper for :meth:`deleteRecursive`: recurses directly
+        instead of spawning a new deferred task per tree level, so the
+        whole subtree is processed within a single execution and strictly
+        in the correct order (a sub-node is only deleted once every one of
+        *its* descendants is confirmed gone).
+
+        :param nodeKey: Key of the node whose descendants get deleted.
+        """
         if self.leafSkelCls:
             for leaf in db.Query(self.viewSkel("leaf").kindName).filter("parententry =", nodeKey).iter():
                 leafSkel = self.viewSkel("leaf")
@@ -637,11 +695,10 @@ class Tree(SkelModule):
                     continue
                 leafSkel.delete()
         for node in db.Query(self.viewSkel("node").kindName).filter("parententry =", nodeKey).iter():
-            self.deleteRecursive(node.key)
+            self._deleteSubtree(node.key)
             nodeSkel = self.viewSkel("node")
-            if not nodeSkel.read(node.key):
-                continue
-            nodeSkel.delete()
+            if nodeSkel.read(node.key):
+                nodeSkel.delete()
 
     @exposed
     @force_ssl
