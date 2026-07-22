@@ -63,6 +63,13 @@ class SeoKeyBone(StringBone):
         return True
 
 
+class SkeletonNotFoundError(ValueError):
+    """
+    Raised by :meth:`Skeleton.patch` when the entry addressed by *key* (or skel["key"]) does not
+    exist, and *create* was not provided to allow creating it on demand.
+    """
+
+
 class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     kindName: str = _UNDEFINED_KINDNAME
     """
@@ -771,6 +778,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         Raises:
             ValueError: In case parameters where given wrong or incomplete.
+            SkeletonNotFoundError: In case the entry addressed by *key* does not exist, and *create*
+                was not provided to allow creating it on demand. A subclass of ValueError.
             AssertionError: In case an asserted check parameter did not match.
             ReadFromClientException: In case a skel.fromClient() failed with a high severity.
         """
@@ -780,7 +789,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             # Try to read the skeleton, create on demand
             if not skel.read(key):
                 if create is None or create is False:
-                    raise ValueError("Creation during update is forbidden - explicitly provide `create=True` to allow.")
+                    raise SkeletonNotFoundError(
+                        "Creation during update is forbidden - explicitly provide `create=True` to allow."
+                    )
 
                 if not (key or skel["key"]) and create in (False, None):
                     return ValueError("No valid key provided")

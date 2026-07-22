@@ -4,7 +4,7 @@ from viur.core import current, db, errors, utils
 from viur.core.bones import ReadFromClientException
 from viur.core.decorators import *
 from viur.core.cache import flushCache
-from viur.core.skeleton import SkeletonInstance
+from viur.core.skeleton import SkeletonInstance, SkeletonNotFoundError
 from .skelmodule import SkelModule
 
 
@@ -228,24 +228,34 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
         skel = self.editSkel()
-        if not skel.read(key):
-            raise errors.NotFound()
 
-        if not self.canEdit(skel):
-            raise errors.Unauthorized()
+        if not kwargs or not current.request.get().isPostRequest or bounce:
+            if not skel.read(key):
+                raise errors.NotFound()
 
-        if (
-            not kwargs  # no data supplied
-            or not current.request.get().isPostRequest  # failure if not using POST-method
-        ):
+            if not self.canEdit(skel):
+                raise errors.Unauthorized()
+
+            if kwargs:
+                skel.fromClient(kwargs, amend=True)
+
             return self.render.edit(skel)
 
-        if bounce:  # review before changing: preview the submitted data, without writing it
-            skel.fromClient(kwargs, amend=True)
-            return self.render.edit(skel)
+        def check(skel):
+            if not self.canEdit(skel):
+                raise errors.Unauthorized()
 
         try:
-            skel.patch(kwargs, ignore=None, internal=False, preprocess=self.onEdit)
+            skel.patch(
+                kwargs,
+                key=key,
+                ignore=None,
+                internal=False,
+                check=check,
+                preprocess=self.onEdit,
+            )
+        except SkeletonNotFoundError:
+            raise errors.NotFound()
         except ReadFromClientException:
             return self.render.edit(skel)
 

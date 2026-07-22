@@ -5,7 +5,7 @@ from .adapter import DatabaseAdapter, ViurTagsSearchAdapter
 from .instance import SkeletonInstance
 from .meta import ABSTRACT_SKEL_CLS_SUFFIX, BaseSkeleton, MetaBaseSkel, MetaSkel, Skeleton_Cls
 from .relskel import RefSkel, RelSkel
-from .skeleton import SeoKeyBone, Skeleton, _UNDEFINED_KINDNAME
+from .skeleton import SeoKeyBone, Skeleton, SkeletonNotFoundError, _UNDEFINED_KINDNAME
 from .tasks import SkelIterTask, SkeletonMaintenanceTask, update_relations
 from .utils import (  # noqa
     SkelList,
@@ -58,6 +58,7 @@ __all__ = [
     Skeleton_Cls,
     SkeletonInstance,
     SkeletonMaintenanceTask,
+    SkeletonNotFoundError,
     ViurTagsSearchAdapter,
     _UNDEFINED_KINDNAME,
     is_skeletoninstance_of,

@@ -150,26 +150,37 @@ class Singleton(SkelModule):
         :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
-        if not self.canEdit():
-            raise errors.Unauthorized()
-
         skel = self.editSkel()
+
+        if not kwargs or not current.request.get().isPostRequest or bounce:
+            if not self.canEdit():
+                raise errors.Unauthorized()
+
+            key = db.Key(skel.kindName, self.getKey())
+            if not skel.read(key):
+                skel["key"] = key
+
+            if kwargs:
+                skel.fromClient(kwargs, amend=True)
+
+            return self.render.edit(skel)
+
         key = db.Key(skel.kindName, self.getKey())
-        if not skel.read(key):  # Its not there yet; we need to set the key again
-            skel["key"] = key
 
-        if (
-            not kwargs  # no data supplied
-            or not current.request.get().isPostRequest  # failure if not using POST-method
-        ):
-            return self.render.edit(skel)
-
-        if bounce:
-            skel.fromClient(kwargs, amend=True)
-            return self.render.edit(skel)
+        def check(skel):
+            if not self.canEdit():
+                raise errors.Unauthorized()
 
         try:
-            skel.patch(kwargs, key=key, ignore=None, internal=False, create=True, preprocess=self.onEdit)
+            skel.patch(
+                kwargs,
+                key=key,
+                ignore=None,
+                internal=False,
+                create=True,
+                check=check,
+                preprocess=self.onEdit,
+            )
         except ReadFromClientException:
             return self.render.edit(skel)
 
