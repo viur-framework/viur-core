@@ -1,7 +1,7 @@
 import logging
 import typing as t
 from viur.core import db, current, utils, errors
-from viur.core.bones import ReadFromClientException
+from viur.core.bones import ReadFromClientError
 from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
@@ -181,7 +181,7 @@ class Singleton(SkelModule):
                 check=check,
                 preprocess=self.onEdit,
             )
-        except ReadFromClientException:
+        except ReadFromClientError:
             return self.render.edit(skel)
 
         self.onEdited(skel)

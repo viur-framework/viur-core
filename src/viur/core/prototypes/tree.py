@@ -5,7 +5,7 @@ import typing as t
 from deprecated.sphinx import deprecated
 
 from viur.core import current, db, errors
-from viur.core.bones import BooleanBone, KeyBone, ReadFromClientException, SortIndexBone
+from viur.core.bones import BooleanBone, KeyBone, ReadFromClientError, SortIndexBone
 from viur.core.cache import flushCache
 from viur.core.decorators import *
 from viur.core.skeleton import Skeleton, SkeletonInstance, SkeletonNotFoundError
@@ -588,7 +588,7 @@ class Tree(SkelModule):
             )
         except SkeletonNotFoundError:
             raise errors.NotFound()
-        except ReadFromClientException:
+        except ReadFromClientError:
             return self.render.edit(skel)
 
         self.onEdited(skelType, skel)

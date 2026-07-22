@@ -1,7 +1,7 @@
 import logging
 import typing as t
 from viur.core import current, db, errors, utils
-from viur.core.bones import ReadFromClientException
+from viur.core.bones import ReadFromClientError
 from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance, SkeletonNotFoundError
@@ -256,7 +256,7 @@ class List(SkelModule):
             )
         except SkeletonNotFoundError:
             raise errors.NotFound()
-        except ReadFromClientException:
+        except ReadFromClientError:
             return self.render.edit(skel)
 
         self.onEdited(skel)
