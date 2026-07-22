@@ -33,6 +33,21 @@ class TestEmailBoneIsInvalid(ViURTestCase):
         # Unicode characters in local part (U+0080+) are explicitly allowed
         self._valid("\u00e9user@example.com")
 
+    def test_hyphen_inside_label(self):
+        self._valid("user@t-online.de")
+
+    def test_unicode_domain(self):
+        # IDNA domain given as unicode
+        self._valid("user@m\u00fcnchen.de")
+
+    def test_idna_encoded_domain(self):
+        # IDNA domain already given in punycode
+        self._valid("user@xn--mnchen-3ya.de")
+
+    def test_label_at_length_limit(self):
+        # a label of exactly 63 characters is allowed
+        self._valid(f"user@{'a' * 63}.de")
+
     # --- invalid addresses ---
 
     def test_empty_string(self):
@@ -85,3 +100,21 @@ class TestEmailBoneIsInvalid(ViURTestCase):
 
     def test_trailing_space_is_invalid(self):
         self._invalid("user@example.com ")
+
+    def test_leading_hyphen_in_label_is_invalid(self):
+        # idna.ToASCII does not reject a leading hyphen on its own
+        self._invalid("user@-example.de")
+
+    def test_trailing_hyphen_in_label_is_invalid(self):
+        self._invalid("user@example-.de")
+
+    def test_label_exceeding_length_limit_is_invalid(self):
+        # a label of 64 characters exceeds the RFC 1035 limit
+        self._invalid(f"user@{'a' * 64}.de")
+
+    def test_underscore_in_domain_is_invalid(self):
+        self._invalid("user@ex_ample.de")
+
+    def test_numeric_tld_is_invalid(self):
+        # bare IP addresses / purely numeric TLDs are not accepted
+        self._invalid("user@127.0.0.1")
