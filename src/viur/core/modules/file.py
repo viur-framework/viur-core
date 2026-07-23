@@ -969,14 +969,14 @@ class File(Tree):
         """Synchronously delete all files/directories below *parentKey* (not
         *parentKey* itself), bottom-up. Internal helper for
         :meth:`deleteRecursive`."""
-        files = db.Query(self.leafSkelCls().kindName).filter("parentdir =", parentKey).iter()
+        files = db.Query(self.leafSkelCls().kindName).filter("parententry =", parentKey).iter()
         for fileEntry in files:
             self.mark_for_deletion(fileEntry["dlkey"])
             skel = self.leafSkelCls()
 
             if skel.read(str(fileEntry.key())):
                 skel.delete()
-        dirs = db.Query(self.nodeSkelCls().kindName).filter("parentdir", parentKey).iter()
+        dirs = db.Query(self.nodeSkelCls().kindName).filter("parententry =", parentKey).iter()
         for d in dirs:
             self._deleteSubtree(d.key)
             skel = self.nodeSkelCls()
