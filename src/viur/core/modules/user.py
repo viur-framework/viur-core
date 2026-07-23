@@ -1928,7 +1928,7 @@ def createNewUserIfNotExists():
             uname = f"""admin@{conf.instance.project_id}.appspot.com"""
             pw = utils.string.random(13)
             addSkel["name"] = uname
-            addSkel["status"] = Status.ACTIVE  # Ensure it's enabled right away
+            addSkel["status"] = Status.ACTIVE.value  # Ensure it's enabled right away
             addSkel["access"] = ["root"]
             addSkel["password"] = pw
 

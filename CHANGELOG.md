@@ -44,6 +44,11 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
 - test: Add unit tests for Bones and App Login Flow (get_cookie_for_app, apply_login_cookie) (#1661)
 
+## [3.8.31]
+
+- fix: New user status without enum (#1726)
+- fix: Tree: Handle broken `parententry`-chains on `move` (#1728)
+
 ## [3.8.30]
 
 - fix(i18n): Tolerate relative filenames in `add_missing_translation` (#1721)
