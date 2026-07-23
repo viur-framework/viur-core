@@ -715,6 +715,22 @@ class Tree(SkelModule):
                 if call_hooks:
                     self.onDeleted("node", nodeSkel)
 
+    def onDeleteRecursive(self, skelType: SkelType, skel: SkeletonInstance) -> None:
+        """
+        Hook, called for every *descendant* entry cascaded away during a
+        recursive delete, right before that entry is deleted.
+
+        In contrast to :meth:`onDelete`/:meth:`onDeleted` — which fire once,
+        for the very entry the delete was invoked on — this fires for each
+        cascaded child/grandchild/... removed by :meth:`deleteRecursive`.
+        The default implementation does nothing; override it to run
+        per-entry cleanup (e.g. releasing external resources tied to a leaf).
+
+        :param skelType: Type of the descendant being deleted ("node" or "leaf").
+        :param skel: The already-read skeleton of the descendant.
+        """
+        pass
+
     def _deleteSubtree(self, nodeKey: db.Key) -> None:
         """
         Synchronously delete all descendants of *nodeKey* (not *nodeKey*
@@ -724,7 +740,8 @@ class Tree(SkelModule):
         instead of spawning a new deferred task per tree level, so the
         whole subtree is processed within a single execution and strictly
         in the correct order (a sub-node is only deleted once every one of
-        *its* descendants is confirmed gone).
+        *its* descendants is confirmed gone). :meth:`onDeleteRecursive` is
+        called for each descendant right before it is deleted.
 
         :param nodeKey: Key of the node whose descendants get deleted.
         """
@@ -733,11 +750,13 @@ class Tree(SkelModule):
                 leafSkel = self.viewSkel("leaf")
                 if not leafSkel.read(leaf.key):
                     continue
+                self.onDeleteRecursive("leaf", leafSkel)
                 leafSkel.delete()
         for node in db.Query(self.viewSkel("node").kindName).filter("parententry =", nodeKey).iter():
             self._deleteSubtree(node.key)
             nodeSkel = self.viewSkel("node")
             if nodeSkel.read(node.key):
+                self.onDeleteRecursive("node", nodeSkel)
                 nodeSkel.delete()
 
     @exposed
