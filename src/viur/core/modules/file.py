@@ -949,6 +949,12 @@ class File(Tree):
         :param call_hooks: If True, call :meth:`onDelete`/:meth:`onDeleted`
             for the *parentKey* directory itself.
         """
+        if delete_self and self._is_locked_by_relation(parentKey):
+            # See Tree.deleteRecursive: checked before touching the subtree,
+            # so nothing is deleted at all if this directory is locked.
+            logging.warning(f"Not deleting {parentKey!r} and its subtree: "
+                            f"still referenced by a PreventDeletion relation")
+            return
         self._deleteSubtree(parentKey)
         if delete_self:
             skel = self.nodeSkelCls()

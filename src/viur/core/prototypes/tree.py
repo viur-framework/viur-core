@@ -5,7 +5,7 @@ import typing as t
 from deprecated.sphinx import deprecated
 
 from viur.core import current, db, errors
-from viur.core.bones import BooleanBone, KeyBone, SortIndexBone
+from viur.core.bones import BooleanBone, KeyBone, RelationalConsistency, SortIndexBone
 from viur.core.cache import flushCache
 from viur.core.decorators import *
 from viur.core.skeleton import Skeleton, SkeletonInstance
@@ -596,6 +596,12 @@ class Tree(SkelModule):
         ``onDelete``/``onDeleted`` for the node still fire exactly once,
         just from within that deferred job instead of within this request.
 
+        If the node is locked by a ``RelationalConsistency.PreventDeletion``
+        relation, this is checked synchronously here (matching
+        ``Skeleton.delete()``'s own check) so the caller gets an immediate
+        error and no deferred job -- and therefore no cascading deletion of
+        the subtree -- is ever started for it.
+
         .. seealso:: :func:`canDelete`, :func:`onDelete`, :func:`onDeleted`
 
         :param skelType: Defines the type of the entry that should be deleted and may either be "node" or "leaf".
@@ -606,6 +612,8 @@ class Tree(SkelModule):
         :raises: :exc:`viur.core.errors.NotFound`, when no entry with the given *key* was found.
         :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
+        :raises: :exc:`viur.core.errors.Locked`, if the entry is a node that is still
+            referenced by a ``PreventDeletion`` relation.
         """
         if not (skelType := self._checkSkelType(skelType)):
             raise errors.NotAcceptable(f"Invalid skelType provided.")
@@ -618,6 +626,8 @@ class Tree(SkelModule):
             raise errors.Unauthorized()
 
         if skelType == "node":
+            if self._is_locked_by_relation(skel["key"]):
+                raise errors.Locked("This entry is still referenced by other Skeletons, which prevents deleting!")
             self.deleteRecursive(skel["key"], delete_self=True, call_hooks=True)
         else:
             self.onDelete(skelType, skel)
@@ -625,6 +635,26 @@ class Tree(SkelModule):
             self.onDeleted(skelType, skel)
 
         return self.render.deleteSuccess(skel, skelType=skelType)
+
+    @staticmethod
+    def _is_locked_by_relation(key: db.Key) -> bool:
+        """
+        Check whether *key* is referenced by a ``RelationalConsistency.PreventDeletion`` relation.
+
+        Mirrors the check inside ``Skeleton.delete()``. Used here to fail
+        fast -- before touching any part of a node's subtree -- instead of
+        only finding out once the node's own deletion is attempted as the
+        last step of a cascading delete that may already have removed
+        everything below it.
+
+        :param key: Key of the entity to check.
+        :return: True if a ``PreventDeletion`` relation still points at *key*.
+        """
+        return (
+            db.Query("viur-relations")
+            .filter("dest.__key__ =", key)
+            .filter("viur_relational_consistency =", RelationalConsistency.PreventDeletion.value)
+        ).getEntry() is not None
 
     @CallDeferred
     def deleteRecursive(self, parentKey: str, delete_self: bool = False, call_hooks: bool = False):
@@ -665,6 +695,16 @@ class Tree(SkelModule):
             descendants are removed without hooks, same as before.
         """
         nodeKey = db.key_helper(parentKey, self.viewSkel("node").kindName)
+        if delete_self and self._is_locked_by_relation(nodeKey):
+            # :meth:`delete` already checked this synchronously before
+            # enqueuing; this is a safety net for a lock added in the
+            # meantime, or for other direct callers of this method. Checked
+            # before touching the subtree, so nothing is deleted at all --
+            # unlike checking only once we'd try to delete the node itself,
+            # which would have already wiped out everything below it.
+            logging.warning(f"Not deleting {nodeKey!r} and its subtree: "
+                            f"still referenced by a PreventDeletion relation")
+            return
         self._deleteSubtree(nodeKey)
         if delete_self:
             nodeSkel = self.viewSkel("node")
