@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.31]
+
+- fix: New user status without enum (#1726)
+- fix: Tree: Handle broken `parententry`-chains on `move` (#1728)
+
 ## [3.8.30]
 
 - fix(i18n): Tolerate relative filenames in `add_missing_translation` (#1721)
