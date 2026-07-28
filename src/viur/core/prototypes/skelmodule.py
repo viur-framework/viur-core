@@ -233,7 +233,10 @@ class SkelModule(Module):
 
         if (
             not kwargs  # no data supplied
-            or not skel.fromClient(kwargs)  # failure on reading into the bones
+            or not skel.fromClient(  # failure on reading into the bones
+                kwargs,
+                amend=not is_add,  # amend=True on edit-mode
+            )
         ):
             # render the skeleton in the version it could as far as it could be read.
             return self.render.render("add_or_edit", skel)

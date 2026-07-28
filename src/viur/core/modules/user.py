@@ -1897,9 +1897,9 @@ class User(List):
         if self.is_active(skel) is False:
             session.killSessionByUser(skel["key"])
 
-        # Update user setting in all sessions
-        for session_obj in db.Query("user").filter("user =", skel["key"]).iter():
-            session_obj["data"]["user"] = skel.dbEntity
+        # Otherwise, update the user entity cached in all the user's sessions
+        else:
+            session.update_session_user(skel["key"])
 
     def onDeleted(self, skel):
         super().onDeleted(skel)
@@ -1928,7 +1928,7 @@ def createNewUserIfNotExists():
             uname = f"""admin@{conf.instance.project_id}.appspot.com"""
             pw = utils.string.random(13)
             addSkel["name"] = uname
-            addSkel["status"] = Status.ACTIVE  # Ensure it's enabled right away
+            addSkel["status"] = Status.ACTIVE.value  # Ensure it's enabled right away
             addSkel["access"] = ["root"]
             addSkel["password"] = pw
 

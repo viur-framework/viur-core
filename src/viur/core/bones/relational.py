@@ -544,7 +544,12 @@ class RelationalBone(BaseBone):
             entity["viur_delayed_update_tag"] = now
             entity["viur_relational_updateLevel"] = self.updateLevel.value
             entity["viur_relational_consistency"] = self.consistency.value
-            entity["viur_foreign_keys"] = list(self.refKeys)
+            # Store expanded bone names, not raw refKeys patterns.
+            # refKeys may contain fnmatch wildcards (e.g. "delivery_time_*" matching
+            # "delivery_time_min", "delivery_time_max", "delivery_time_range").
+            # update_relations filters viur-relations via Datastore IN-query with the
+            # literal changed bone name — wildcard patterns would never match there.
+            entity["viur_foreign_keys"] = list(self._ref_keys)
             entity["viurTags"] = skel.dbEntity.get("viurTags") if skel.dbEntity else None
 
             db.put(entity)
@@ -639,6 +644,10 @@ class RelationalBone(BaseBone):
         else:
             dest_key = value
             value = {}
+
+        if not isinstance(dest_key, db.KeyType):
+            errors.append(ReadFromClientError(ReadFromClientErrorSeverity.Invalid))
+            return self.getEmptyValue(), errors
 
         if self.using:
             rel = self.using()
@@ -1066,8 +1075,12 @@ class RelationalBone(BaseBone):
                 # Reset the dbEntity for a clean rewrite
                 value["dest"].dbEntity = None
 
-                # Copy over the refKey values
-                for key in self.refKeys:
+                # Copy over the refKey values using expanded bone names (_ref_keys),
+                # not raw refKeys patterns. refKeys may contain fnmatch wildcards
+                # (e.g. "delivery_time_*" → "delivery_time_min", "delivery_time_max",
+                # "delivery_time_range"). Iterating raw patterns would attempt
+                # target_skel["delivery_time_*"] which doesn't exist → copies None.
+                for key in self._ref_keys:
                     value["dest"][key] = target_skel[key]
                     # logging.debug(f"Refreshed {key=} to {value["dest"][key]!r} ({str(value["dest"][key])!r})")
 
@@ -1094,7 +1107,7 @@ class RelationalBone(BaseBone):
 
         ref_skel_cache, using_skel_cache = self._getSkels()
         for idx, lang, value in self.iter_bone_value(skel, name):
-            if value is None:
+            if not value:
                 continue
             if value["dest"]:
                 get_values(ref_skel_cache, value["dest"])
@@ -1287,7 +1300,7 @@ class RelationalBone(BaseBone):
         }
 
     def _atomic_dump(self, value: dict[str, "SkeletonInstance"]) -> dict | None:
-        if isinstance(value, dict):
+        if value and isinstance(value, dict):  # can be an empty dict due RelationalConsistency.SetNull
             return {
                 "dest": value["dest"].dump(),
                 "rel": value["rel"].dump() if value["rel"] else None,

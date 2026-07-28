@@ -82,9 +82,20 @@ def addCspRule(objectType: str, srcOrDirective: str, enforceMode: str = "monitor
         :param enforceMode: Should this directive be enforced or just logged?
     """
     assert enforceMode in ["monitor", "enforce"], "enforceMode must be 'monitor' or 'enforce'!"
-    assert objectType in {"default-src", "script-src", "object-src", "style-src", "img-src", "media-src",
-                          "frame-src", "font-src", "connect-src", "report-uri", "frame-ancestors", "child-src",
-                          "form-action", "require-trusted-types-for"}
+    assert objectType in {
+        # Fetch directives
+        "default-src", "child-src", "connect-src", "fenced-frame-src", "font-src", "frame-src", "img-src",
+        "manifest-src", "media-src", "object-src", "prefetch-src", "script-src", "script-src-elem",
+        "script-src-attr", "style-src", "style-src-elem", "style-src-attr", "worker-src",
+        # Document directives
+        "base-uri", "sandbox",
+        # Navigation directives
+        "form-action", "frame-ancestors",
+        # Reporting directives
+        "report-uri", "report-to",
+        # Other directives
+        "require-trusted-types-for", "trusted-types", "upgrade-insecure-requests", "block-all-mixed-content",
+    }
     assert conf.main_app is None, "You cannot modify CSP rules after server.buildApp() has been run!"
     assert not any(
         [x in srcOrDirective for x in [";", "'", "\"", "\n", ","]]), "Invalid character in srcOrDirective!"

@@ -2,6 +2,62 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.31]
+
+- fix: New user status without enum (#1726)
+- fix: Tree: Handle broken `parententry`-chains on `move` (#1728)
+
+## [3.8.30]
+
+- fix(i18n): Tolerate relative filenames in `add_missing_translation` (#1721)
+- fix(request): allow same-site requests in FetchMetaDataValidator (#1720)
+
+## [3.8.29]
+
+- fix: Normalize parsed `db.Key` to current `project_id` (#1719)
+- fix: `SkelModule.add_or_edit` should use `amend=True` on edit (#1718)
+
+## [3.8.28]
+
+- fix: Loosen overly strict dependency ranges (#1716)
+- fix: Several `History` improvements (#1715)
+
+## [3.8.27]
+
+- feat(security): allow all CSP level 3 directives in `addCspRule` (#1714)
+- fix: Improve reporting of locked values for devs (#1713)
+- fix: Add check for path change in script onEdited (#1702)
+
+## [3.8.26]
+
+- fix: propagate user-entity changes into active sessions on edit (#1704)
+- fix: `RelationalBone.getSearchTags` should ignore any falsy values (#1707)
+- fix: `SignatureDoesNotMatch` for filenames containing `+` (#1697)
+- fix: Import Testbed on dev-server only (#1695)
+
+## [3.8.25]
+
+- fix: `utils.get_base_url()` using urllib.parse (#1686)
+
+## [3.8.24]
+
+- fix: unescape short-form HTML numeric entities in download filename (#1679)
+- fix: `RelationalBone._atomic_dump()` raises `KeyError` (#1684)
+
+## [3.8.23]
+
+- cicd: upgrade Read the Docs build image to `ubuntu-24.04` (#1675)
+- fix: `hmac_verify` must return `False` instead of raising TypeError (#1673)
+- fix: expand refKeys wildcard patterns to actual bone names (#1670)
+- fix: Reject invalid `dest_key` types early in `RelationalBone.singleValueFromClient` (#1674)
+
+## [3.8.22]
+
+- feat: `utils.get_base_url()` refactors `getHostUrl()` (#1665)
+- feat: SkeletonMaintenanceTask with code highlighting (#1667)
+- fix: postSavedHandler should ignore `value == None` (#1664)
+- fix: Add Argument for `conf.user.redirect_whitelist` (#1663)
+
 ## [3.8.21]
 
 - fix: `BaseBone._get_distinct_hash` (#1662)

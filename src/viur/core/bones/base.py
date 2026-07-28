@@ -978,7 +978,6 @@ class BaseBone(object):
                 if name not in skel.dbEntity:
                     skel.accessedValues[name] = self._compute(skel, name)
 
-
     def singleValueUnserialize(self, val):
         """
             Unserializes a single value of the bone from the stored database value.

@@ -76,6 +76,7 @@ class HistorySkel(Skeleton):
     )
 
     diff = RawBone(
+        type_suffix="code.diff",
         descr="Human-readable diff",
         indexed=False,
     )
@@ -324,7 +325,7 @@ class HistoryAdapter(DatabaseAdapter):
             if kindname == "viur-history":
                 return None
 
-        return history_module.write_diff(
+        return history_module.log(
             action, old_skel, new_skel,
             change_list=change_list,
             user=user,
@@ -410,7 +411,7 @@ class History(List):
                         ret.update(expand(name + (str(key),), val))
                 else:
                     name = ".".join(name)
-                    ret[name] = json.dumps(obj, cls=CustomJsonEncoder)
+                    ret[name] = json.dumps(obj, cls=CustomJsonEncoder, ensure_ascii=False)
 
                 return ret
 
@@ -482,8 +483,8 @@ class History(List):
     def create_history_entry(
         self,
         action: str,
-        old_skel: SkeletonInstance,
-        new_skel: SkeletonInstance,
+        old_skel: t.Optional[SkeletonInstance] = None,
+        new_skel: t.Optional[SkeletonInstance] = None,
         change_list: t.Iterable[str] = (),
         descr: t.Optional[str] = None,
         user: t.Optional[SkeletonInstance] = None,
@@ -495,10 +496,10 @@ class History(List):
         that can either be written to datastore or another database.
         """
         skel = new_skel or old_skel
-        new_data = skel.dump()
+        new_data = skel.dump(bones=change_list) if skel else {}
 
         if change_list and old_skel != new_skel:
-            old_data = old_skel.dump()
+            old_data = old_skel.dump(bones=change_list) if old_skel else {}
             diff = self._create_diff(new_data, old_data, diff_excludes)
         else:
             old_data = {}
@@ -532,17 +533,45 @@ class History(List):
 
         return ret
 
-    def write_diff(
+    def log(
         self,
         action: str,
-        old_skel: SkeletonInstance = None,
-        new_skel: SkeletonInstance = None,
+        old_skel: t.Optional[SkeletonInstance] = None,
+        new_skel: t.Optional[SkeletonInstance] = None,
         change_list: t.Iterable[str] = (),
         descr: t.Optional[str] = None,
         user: t.Optional[SkeletonInstance] = None,
         tags: t.Iterable[str] = (),
         diff_excludes: t.Set[str] = set(),
     ) -> str | None:
+        """
+        Creates and persists a history entry for a skeleton change or a standalone event.
+
+        Builds the entry via :meth:`create_history_entry`, derives a deterministic key
+        from ``action``, ``current_kind``, and the current timestamp, then writes the
+        entry to all configured backends (``"viur"`` datastore and/or ``"bigquery"``)
+        as deferred tasks.
+
+        Both ``old_skel`` and ``new_skel`` are optional. For skeleton lifecycle actions
+        one of them is typically present (``"add"`` only has ``new_skel``, ``"delete"``
+        only has ``old_skel``, ``"edit"`` has both), but for pure event logging neither
+        is required.
+
+        :param action: Short identifier for what happened, e.g. ``"add"``, ``"edit"``,
+            ``"delete"``, or a custom ``"event-*"`` string.
+        :param old_skel: Skeleton state before the change, or ``None`` for pure events
+            and ``"add"`` actions.
+        :param new_skel: Skeleton state after the change, or ``None`` for pure events
+            and ``"delete"`` actions.
+        :param change_list: Names of the bones that were modified (used for ``"edit"`` actions).
+        :param descr: Optional human-readable description. Falls back to :meth:`build_descr`
+            when omitted.
+        :param user: Skeleton instance of the user who triggered the action.
+        :param tags: Additional string tags attached to the entry for filtering.
+            Entries with an ``"event-*"`` action automatically receive the ``"is-event"`` tag.
+        :param diff_excludes: Bone names to exclude from the unified diff computation.
+        :returns: The generated history entry key, or ``None`` if no entry was written.
+        """
 
         # create entry
         entry = self.create_history_entry(
@@ -565,7 +594,7 @@ class History(List):
 
         # write into datastore via history module
         if "viur" in conf.history.databases:
-            self.write_deferred(key, entry)
+            self.write_to_viur_deferred(key, entry)
 
         # write into BigQuery
         if self.bigquery and "bigquery" in conf.history.databases:
@@ -577,7 +606,7 @@ class History(List):
 
         return key
 
-    def write(self, key: str, entry: dict):
+    def write_to_viur(self, key: str, entry: dict):
         """
         Write a history entry generated from an HistoryAdapter.
         """
@@ -595,8 +624,8 @@ class History(List):
         logging.info(f"History entry {key=} written to datastore")
 
     @tasks.CallDeferred
-    def write_deferred(self, key: str, entry: dict):
-        self.write(key, entry)
+    def write_to_viur_deferred(self, key: str, entry: dict):
+        self.write_to_viur(key, entry)
 
     def write_to_bigquery(self, key: str, entry: dict):
         entry["key"] = key

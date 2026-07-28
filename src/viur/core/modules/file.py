@@ -11,7 +11,7 @@ import string
 import typing as t
 import warnings
 from collections import namedtuple
-from urllib.parse import quote as urlquote, urlencode
+from urllib.parse import quote as urlquote, unquote as urlunquote, urlencode
 from urllib.request import urlopen
 
 import PIL
@@ -580,7 +580,10 @@ class File(Tree):
 
     @classmethod
     def hmac_verify(cls, data: t.Any, signature: str) -> bool:
-        return hmac.compare_digest(cls.hmac_sign(data.encode("ASCII")), signature)
+        try:
+            return hmac.compare_digest(cls.hmac_sign(data.encode("ASCII")), signature)
+        except (TypeError, UnicodeEncodeError):
+            return False
 
     @classmethod
     def create_internal_serving_url(
@@ -654,8 +657,7 @@ class File(Tree):
         if isinstance(expires, int):
             expires = datetime.timedelta(minutes=expires)
 
-        # Undo escaping on ()= performed on fileNames
-        filename = filename.replace("&#040;", "(").replace("&#041;", ")").replace("&#061;", "=")
+        filename = html.unescape(filename)
         filepath = f"""{dlkey}/{"derived" if derived else "source"}/{filename}"""
 
         if download_filename:
@@ -1115,7 +1117,7 @@ class File(Tree):
             raise errors.Gone("The requested blob has expired.")
 
         if not filename:
-            filename = download_filename or urlquote(blob.name.rsplit("/", 1)[-1])
+            filename = urlunquote(download_filename) if download_filename else blob.name.rsplit("/", 1)[-1]
 
         content_disposition = utils.build_content_disposition_header(filename, attachment=download)
 
