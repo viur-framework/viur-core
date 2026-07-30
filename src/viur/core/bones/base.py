@@ -11,6 +11,7 @@ import hashlib
 import inspect
 import logging
 import typing as t
+import warnings
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -73,11 +74,15 @@ class ReadFromClientErrorSeverity(Enum):
 
 
 @dataclass
-class ReadFromClientError:
+class ReadFromClientError(ValueError):
     """
     The ReadFromClientError class represents an error that occurs while reading data from the client.
     This class is used to store information about the error, including its severity, an error message,
     the field path where the error occurred, and a list of invalidated fields.
+
+    It is also an Exception, so a single error can be raised directly. Use :meth:`raise_from` to raise
+    one or several errors at once (e.g. the accumulated skel.errors of a Skeleton) - if there are
+    several, the raised ReadFromClientError carries them in its `errors` attribute.
     """
     severity: ReadFromClientErrorSeverity
     """A ReadFromClientErrorSeverity enumeration value representing the severity of the error."""
@@ -87,6 +92,8 @@ class ReadFromClientError:
     """A list of strings representing the path to the field where the error occurred."""
     invalidatedFields: list[str] = None
     """A list of strings containing the names of invalidated fields, if any."""
+    errors: tuple["ReadFromClientError", ...] = None
+    """If set, this instance represents several errors at once; see :meth:`raise_from`."""
 
     def __post_init__(self):
         if not self.errorMessage:
@@ -102,12 +109,45 @@ class ReadFromClientError:
             }[self.severity]
 
     def __str__(self):
+        if self.errors:
+            return "\n".join(str(error) for error in self.errors)
+
         return f"{'.'.join(self.fieldPath)}: {self.errorMessage} [{self.severity.name}]"
+
+    @staticmethod
+    def raise_from(errors: "ReadFromClientError | t.Iterable[ReadFromClientError]") -> t.NoReturn:
+        """
+        Raises one or several ReadFromClientErrors at once.
+
+        Raises the sole error directly if only one is given; otherwise raises a single
+        ReadFromClientError representing all of them (see its `errors` attribute).
+
+        :param errors: Either one or an iterable of errors.
+        """
+        if isinstance(errors, ReadFromClientError):
+            raise errors
+
+        error_tuple = tuple(error for error in errors if isinstance(error, ReadFromClientError))
+
+        if not error_tuple:
+            raise ValueError("raise_from() requires at least one ReadFromClientError")
+
+        if len(error_tuple) == 1:
+            raise error_tuple[0]
+
+        raise ReadFromClientError(
+            severity=max(error_tuple, key=lambda error: error.severity.value).severity,
+            errorMessage=f"{len(error_tuple)} errors occurred",
+            errors=error_tuple,
+        )
 
 
 class ReadFromClientException(Exception):
     """
-    ReadFromClientError as an Exception to raise.
+    Deprecated: ReadFromClientError as an Exception to raise.
+
+    ReadFromClientError is an Exception itself now; raise it directly, or use
+    :meth:`ReadFromClientError.raise_from` to raise several errors at once.
     """
 
     def __init__(self, errors: ReadFromClientError | t.Iterable[ReadFromClientError]):
@@ -116,11 +156,15 @@ class ReadFromClientException(Exception):
 
         :param errors: Either one or an iterable of errors.
         """
+        msg = "ReadFromClientException is deprecated; use ReadFromClientError.raise_from() instead."
+        warnings.warn(msg, DeprecationWarning, stacklevel=2)
+        logging.warning(msg, stacklevel=2)
+
         super().__init__()
 
         # Allow to specifiy a single ReadFromClientError
         if isinstance(errors, ReadFromClientError):
-            errors = (ReadFromClientError, )
+            errors = (errors, )
 
         self.errors = tuple(error for error in errors if isinstance(error, ReadFromClientError))
 

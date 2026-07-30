@@ -5,10 +5,10 @@ import typing as t
 from deprecated.sphinx import deprecated
 
 from viur.core import current, db, errors
-from viur.core.bones import BooleanBone, KeyBone, SortIndexBone
+from viur.core.bones import BooleanBone, KeyBone, ReadFromClientError, SortIndexBone
 from viur.core.cache import flushCache
 from viur.core.decorators import *
-from viur.core.skeleton import Skeleton, SkeletonInstance
+from viur.core.skeleton import Skeleton, SkeletonInstance, SkeletonNotFoundError
 from viur.core.tasks import CallDeferred
 from .skelmodule import SkelModule
 
@@ -557,25 +557,40 @@ class Tree(SkelModule):
         :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
         if not (skelType := self._checkSkelType(skelType)):
-            raise errors.NotAcceptable(f"Invalid skelType provided.")
+            raise errors.NotAcceptable("Invalid skelType provided.")
 
         skel = self.editSkel(skelType)
-        if not skel.read(key):
-            raise errors.NotFound()
 
-        if not self.canEdit(skelType, skel):
-            raise errors.Unauthorized()
+        if not kwargs or not current.request.get().isPostRequest or bounce:
+            if not skel.read(key):
+                raise errors.NotFound()
 
-        if (
-            not kwargs  # no data supplied
-            or not current.request.get().isPostRequest  # failure if not using POST-method
-            or not skel.fromClient(kwargs, amend=True)  # failure on reading into the bones
-            or bounce  # review before adding
-        ):
+            if not self.canEdit(skelType, skel):
+                raise errors.Unauthorized()
+
+            if kwargs:
+                skel.fromClient(kwargs, amend=True)
+
             return self.render.edit(skel)
 
-        self.onEdit(skelType, skel)
-        skel.write()
+        def check(skel):
+            if not self.canEdit(skelType, skel):
+                raise errors.Unauthorized()
+
+        try:
+            skel.patch(
+                kwargs,
+                key=key,
+                ignore=None,
+                internal=False,
+                check=check,
+                preprocess=lambda skel: self.onEdit(skelType, skel),
+            )
+        except SkeletonNotFoundError:
+            raise errors.NotFound()
+        except ReadFromClientError:
+            return self.render.edit(skel)
+
         self.onEdited(skelType, skel)
 
         return self.render.editSuccess(skel)
