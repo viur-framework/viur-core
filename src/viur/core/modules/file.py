@@ -1460,6 +1460,9 @@ def startCheckForUnreferencedBlobs():
 def doCheckForUnreferencedBlobs(cursor=None):
     def getOldBlobKeysTxn(dbKey):
         obj = db.get(dbKey)
+        if obj is None:
+            # The lock was already processed and removed by a concurrent run
+            return []
         res = obj["old_blob_references"] or []
         if obj["is_stale"]:
             db.delete(dbKey)
