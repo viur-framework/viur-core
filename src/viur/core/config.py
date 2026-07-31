@@ -900,6 +900,12 @@ class Conf(ConfigType):
     file_hmac_key: str = None
     """Hmac-Key used to sign download urls - set automatically"""
 
+    file_hmac_key_fallbacks: list[str] = []
+    """Retired hmac-keys that are still *accepted* when verifying download-url signatures, but
+    never used for signing. Enables zero-downtime rotation of :attr:`file_hmac_key`: set the new
+    key as ``file_hmac_key``, keep the previous one here until every link signed with it has
+    expired, then remove it. Analogous to Django's ``SECRET_KEY_FALLBACKS``."""
+
     # TODO: separate this type hints and use it in the File module as well
     file_derivations: dict[str, t.Callable[["SkeletonInstance", dict, dict], list[tuple[str, float, str, t.Any]]]] = {}
     """Call-Map for file pre-processors"""
