@@ -1,7 +1,12 @@
+import re
 import string
 from encodings import idna
 from viur.core.bones.string import StringBone
 from viur.core import i18n
+
+_DNS_LABEL_RE = re.compile(r"(?!-)[a-z0-9-]{1,63}(?<!-)", re.IGNORECASE)
+"""A single DNS label per RFC 1035: 1-63 alphanumerics or hyphens, no leading or trailing hyphen."""
+
 
 class EmailBone(StringBone):
     """
@@ -41,9 +46,7 @@ class EmailBone(StringBone):
         try:
             assert len(value) < 256
             account, domain = value.split(u"@")
-            subDomain, tld = domain.rsplit(".", 1)
-            assert account and subDomain and tld
-            assert subDomain[0] != "."
+            assert account and domain
             assert len(account) <= 64
             # RFC 5321: local part must not start/end with a dot or contain consecutive dots
             assert not account.startswith(".")
@@ -59,14 +62,23 @@ class EmailBone(StringBone):
             for char in account:
                 if not (char in validChars or (char >= unicodeLowerBound and char <= unicodeUpperBound)):
                     is_valid = False
-            try:
-                idna.ToASCII(subDomain)
-                idna.ToASCII(tld)
-            except Exception:
+            # Validate each domain label (RFC 1035). idna.ToASCII does not reject a
+            # leading or trailing hyphen (e.g. "-online") or an over-long label, so the
+            # label structure is checked with _DNS_LABEL_RE on the IDNA-encoded form;
+            # otherwise addresses like "foo@-online.de" pass.
+            labels = domain.split(".")
+            if len(labels) < 2 or labels[-1].isdigit():
                 is_valid = False
-
-            if " " in subDomain or " " in tld:
-                is_valid = False
+            else:
+                for label in labels:
+                    try:
+                        asciiLabel = idna.ToASCII(label).decode("ascii")
+                    except Exception:
+                        is_valid = False
+                        break
+                    if not _DNS_LABEL_RE.fullmatch(asciiLabel):
+                        is_valid = False
+                        break
 
         if not is_valid:
             return i18n.translate("core.bones.error.invalidemail", "Invalid email entered")
