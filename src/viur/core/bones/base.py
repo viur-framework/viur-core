@@ -467,6 +467,9 @@ class BaseBone(object):
     def __set_name__(self, owner: "Skeleton", name: str) -> None:
         self.skel_cls = owner
         self.name = name
+        # Construction is complete once the bone is bound to its Skeleton: from here on,
+        # bone_strict_mode rejects assignment of unknown attribute names (see __setattr__).
+        self._bone_sealed = True
 
     def setSystemInitialized(self) -> None:
         """
@@ -562,6 +565,13 @@ class BaseBone(object):
         :raises AttributeError: If a protected attribute is attempted to be modified after its initial
             assignment.
         """
+        if (getattr(self, "_bone_sealed", False) and conf.bone_strict_mode
+                and not key.startswith("_") and not hasattr(self, key)):
+            raise AttributeError(
+                f"{type(self).__name__} has no attribute {key!r} -- set after construction with "
+                f"bone_strict_mode enabled (typo? e.g. 'readonly' instead of 'readOnly'). "
+                f"Disable via conf.bone_strict_mode = False."
+            )
         if not self.isClonedInstance and getSystemInitialized() and key != "isClonedInstance" and not key.startswith(
                 "_"):
             raise AttributeError("You cannot modify this Skeleton. Grab a copy using .clone() first")

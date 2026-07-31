@@ -4,6 +4,8 @@ This file documents any relevant changes done to ViUR-core since version 3.
 
 ## [3.9.0.dev6]
 
+- feat(bones): Add `conf.bone_strict_mode` — reject setting an unknown attribute on a bone after construction (typo guard for `readonly` vs `readOnly`); default on, opt-out via `VIUR_CORE_BONE_STRICT_MODE=false`
+- fix(DateBone): Correct `readonly` typo to `readOnly` so magic date bones become read-only as intended
 - chore: Deprecate endpoint `/vi/getStructure` (#1616)
 - doc: Docstrings for compute-related enum variants
 - doc: Fix seo_language_map in docstring

@@ -77,7 +77,7 @@ class DateBone(BaseBone):
             if self.multiple:
                 raise ValueError("Cannot be multiple and have a creation/update-magic set!")
 
-            self.readonly = True  # todo: why???
+            self.readOnly = True  # magic date bones are auto-managed -> read-only
 
         self.creationMagic = creationMagic  # FIXME: VIUR4 remove this
         self.updateMagic = updateMagic  # FIXME: VIUR4 remove this
