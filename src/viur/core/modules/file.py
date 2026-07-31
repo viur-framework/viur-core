@@ -706,7 +706,7 @@ class File(Tree):
                 # Invalid path
                 return None
 
-        if valid_until != "0" and datetime.strptime(valid_until, "%Y%m%d%H%M") < datetime.now():
+        if valid_until != "0" and datetime.datetime.strptime(valid_until, "%Y%m%d%H%M") < datetime.datetime.now():
             # Signature expired
             return None
 
@@ -748,7 +748,8 @@ class File(Tree):
             return ""
 
         if isinstance(file, str):
-            file = db.Query("file").filter("dlkey =", file).order(("creationdate", db.SortOrder.Ascending)).getEntry()
+            file = db.Query("file").filter("dlkey =", file).order(
+                db.QueryOrder("creationdate")).getEntry()
 
         if not file:
             return ""
@@ -1302,8 +1303,11 @@ class File(Tree):
             skel.write()
             self.onAdded("leaf", skel)
 
-            # Add updated download-URL as the auto-generated isn't valid yet
-            skel["downloadUrl"] = self.create_download_url(skel["dlkey"], skel["name"])
+            # Add updated download-URL as the auto-generated isn't valid yet.
+            # Same lifetime as DownloadUrlBone, which this replaces.
+            skel["downloadUrl"] = self.create_download_url(
+                skel["dlkey"], skel["name"], expires=conf.render_json_download_url_expiration
+            )
 
             return self.render.addSuccess(skel)
 

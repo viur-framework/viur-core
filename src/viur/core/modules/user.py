@@ -2,7 +2,6 @@ import abc
 import datetime
 import enum
 import fnmatch
-import functools
 import hashlib
 import hmac
 import json
@@ -35,12 +34,27 @@ from viur.core.securityheaders import extendCsp
 from viur.core.session import Session
 
 
-@functools.total_ordering
-class Status(enum.Enum):
+class Status(enum.IntEnum):
     """Status enum for a user
 
-    Has backwards compatibility to be comparable with non-enum values.
-    Will be removed with viur-core 4.0.0
+    This is an IntEnum, so it is comparable with plain ints as well as with
+    other IntEnum classes of the same values, e.g. when a project defines its
+    own Status enum to add custom status values to a subclassed UserSkel:
+
+    class Status(enum.IntEnum):
+        UNSET = 0
+        WAITING_FOR_EMAIL_VERIFICATION = 1
+        WAITING_FOR_ADMIN_VERIFICATION = 2
+        DISABLED = 5
+        ACTIVE = 10
+        PENDING_REVIEW = 15  # custom, project-specific status
+
+    class UserSkel(user.UserSkel):
+        status = SelectBone(
+            ...,
+            values=Status,
+            defaultValue=Status.ACTIVE,
+        )
     """
 
     UNSET = 0  # Status is unset
@@ -48,16 +62,6 @@ class Status(enum.Enum):
     WAITING_FOR_ADMIN_VERIFICATION = 2  # Waiting for verification through admin
     DISABLED = 5  # Account disabled
     ACTIVE = 10  # Active
-
-    def __eq__(self, other):
-        if isinstance(other, Status):
-            return super().__eq__(other)
-        return self.value == other
-
-    def __lt__(self, other):
-        if isinstance(other, Status):
-            return super().__lt__(other)
-        return self.value < other
 
 
 class UserSkel(skeleton.Skeleton):
@@ -1491,7 +1495,7 @@ class User(List):
                 except ValueError:
                     status = Status.UNSET
 
-            return status >= Status.ACTIVE.value
+            return status >= Status.ACTIVE
 
         return None
 

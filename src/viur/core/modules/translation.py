@@ -238,7 +238,7 @@ class Translation(List):
     def _reload_translations(self):
         if (
             self._last_reload is not None
-            and self._last_reload - utils.utcNow() < datetime.timedelta(minutes=10)
+            and utils.utcNow() - self._last_reload < datetime.timedelta(minutes=10)
         ):
             # debounce: translations has been reload recently, skip this
             return None

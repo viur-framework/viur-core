@@ -510,7 +510,10 @@ def add_missing_translation(
 
     if isinstance(filename, str):
         filename = Path(filename)
-        if filename.is_relative_to(conf.instance.project_base_path):
+        if not filename.is_absolute():
+            # Already a relative path (e.g. a Jinja template name) — keep as-is
+            filename = str(filename)
+        elif filename.is_relative_to(conf.instance.project_base_path):
             filename = str(filename.relative_to(conf.instance.project_base_path, walk_up=True))
         else:
             filename = str(filename.relative_to(conf.instance.core_base_path, walk_up=True))

@@ -1,4 +1,5 @@
 import datetime
+import fnmatch
 import sys
 import typing as t
 
@@ -6,6 +7,7 @@ from deprecated.sphinx import deprecated
 from google.cloud.datastore.transaction import Transaction
 
 from viur.core import current
+from viur.core.config import conf
 from .transport import __client__, get, put, run_in_transaction
 from .types import Entity, Key, current_db_access_log
 
@@ -54,19 +56,30 @@ def fix_unindexable_properties(entry: Entity, *, keep_exclusions: bool = True) -
 
 def normalize_key(key: t.Union[None, Key, str]) -> t.Union[None, Key]:
     """
-        Normalizes a datastore key (replacing _application with the current one)
+        Normalizes a datastore key (replacing the key's project with conf.instance.project_id)
+
+        The key's project is only allowed to be normalized when it matches one of the patterns
+        configured in `conf.valid_application_ids`; otherwise a ValueError is raised.
 
         :param key: Key to be normalized.
         :return: Normalized key in string representation.
         """
     if key is None:
         return None
+
     if isinstance(key, str):
         key = Key.from_legacy_urlsafe(key)
+
+    if key.project != conf.instance.project_id and not any(
+        fnmatch.fnmatch(key.project, application_id) for application_id in conf.valid_application_ids
+    ):
+        raise ValueError(f"{key=} cannot be normalized; Only keys from conf.valid_application_ids can be provided.")
+
     if key.parent:
         parent = normalize_key(key.parent)
     else:
         parent = None
+
     return Key(key.kind, key.id_or_name, parent=parent)
 
 

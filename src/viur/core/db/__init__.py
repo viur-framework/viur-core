@@ -27,6 +27,7 @@ from .types import (
     Key,
     KeyType,
     QueryDefinition,
+    QueryOrder,
     SortOrder,
 )
 from .utils import (
@@ -51,6 +52,7 @@ __all__ = [
     "KEY_SPECIAL_PROPERTY",
     "DATASTORE_BASE_TYPES",
     "SortOrder",
+    "QueryOrder",
     "Entity",
     "QueryDefinition",
     "Key",

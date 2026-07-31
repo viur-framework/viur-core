@@ -176,6 +176,54 @@ class TestSpatialBoneSingleValueFromClient(ViURTestCase):
         self.assertIsNotNone(err)
 
 
+class TestSpatialBoneSetBoneValue(ViURTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.bone = _bone()
+
+    def _set(self, value, append=False):
+        skel = {}
+        self.bone.setBoneValue(skel, "location", value, append)
+        return skel.get("location")
+
+    def test_tuple(self):
+        self.assertEqual((51.0, 10.0), self._set((51.0, 10.0)))
+
+    def test_list(self):
+        self.assertEqual((51.0, 10.0), self._set([51.0, 10.0]))
+
+    def test_dict_lat_lng(self):
+        self.assertEqual((51.0, 10.0), self._set({"lat": 51.0, "lng": 10.0}))
+
+    def test_dict_lat_lon_raises(self):
+        with self.assertRaises(ValueError):
+            self._set({"lat": 51.0, "lon": 10.0})
+
+    def test_dict_latitude_longitude_raises(self):
+        with self.assertRaises(ValueError):
+            self._set({"latitude": 51.0, "longitude": 10.0})
+
+    def test_dict_string_values_parsed(self):
+        self.assertEqual((51.0, 10.0), self._set({"lat": "51.0", "lng": "10.0"}))
+
+    def test_dict_missing_lng_raises(self):
+        with self.assertRaises(ValueError):
+            self._set({"lat": 51.0})
+
+    def test_dict_missing_lat_raises(self):
+        with self.assertRaises(ValueError):
+            self._set({"lng": 10.0})
+
+    def test_invalid_type_raises(self):
+        with self.assertRaises(ValueError):
+            self._set("52.5,13.4")
+
+    def test_append_raises(self):
+        with self.assertRaises(ValueError):
+            self._set((51.0, 10.0), append=True)
+
+
 class TestSpatialBoneSingleValueUnserialize(ViURTestCase):
 
     def setUp(self):

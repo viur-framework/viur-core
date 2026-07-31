@@ -74,15 +74,16 @@ class FetchMetaDataValidator(RequestValidator):
         headers = request.request.headers
 
         match headers.get("sec-fetch-site"):
-            case None | "same-origin" | "none":
-                # A Request from our site, or browser didn't send "sec-fetch-site"
+            case None | "same-origin" | "same-site" | "none":
+                # Browser didn't send "sec-fetch-site", or the request is
+                # same-origin, same-site (e.g. subdomain or redirect within the
+                # same registrable domain) or browser-initiated ("none").
+                # These are allowed per the reference policy on
+                # https://web.dev/fetch-metadata/
                 return None
-            case "same-site":
-                # We are accepting a request with same-site only in local dev mode
-                if conf.instance.is_dev_server:
-                    return None
             case _:
-                # Incoming navigation GET request
+                # Incoming cross-site request: allow only simple top-level
+                # navigation GET requests, except <object> and <embed>.
                 if (
                     not request.isPostRequest
                     and headers.get("sec-fetch-mode") == "navigate"
