@@ -1,3 +1,28 @@
+"""
+Datastore transport layer: the process-wide client and the CRUD helpers.
+
+**Named database and namespace**
+
+The datastore client (:data:`__client__`) is built once at import time and
+kept for the whole process lifetime. Its target database and namespace come
+from :attr:`conf.db.name <viur.core.config.Database.name>` and
+:attr:`conf.db.namespace <viur.core.config.Database.namespace>`, which are sourced
+from the ``VIUR_DB_NAME`` / ``VIUR_DB_NAMESPACE`` environment variables. Both
+default to ``None`` — the standard ``(default)`` database and empty namespace —
+so existing deployments are unaffected.
+
+Because the client is created from the environment at import time, the target
+cannot be retargeted at runtime: a single process always talks to exactly one
+database. :class:`~viur.core.db.types.Key` objects inherit that database and
+namespace from the client, keeping every request on the configured target.
+
+The legacy urlsafe key encoding (App Engine "Reference") predates named
+databases and only supports the default one. Therefore
+:meth:`Key.to_legacy_urlsafe <viur.core.db.types.Key.to_legacy_urlsafe>`
+encodes a database-less copy of the key, and the client's database is restored
+on decoding — unambiguous precisely because the process is bound to a single
+database.
+"""
 from __future__ import annotations
 
 import logging
