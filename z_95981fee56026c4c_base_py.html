@@ -55,8 +55,8 @@
             </div>
         </aside>
         <h2>
-            <span class="text">831 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">311<span class="text"> run</span></button>
+            <span class="text">825 statements &nbsp;</span>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">305<span class="text"> run</span></button>
             <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">520<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">3<span class="text"> excluded</span></button>
             <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">45<span class="text"> partial</span></button>
@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_95981fee56026c4c_boolean_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.15.2">coverage.py v7.15.2</a>,
-            created at 2026-07-31 19:08 +0000
+            created at 2026-07-31 19:53 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -163,7 +163,7 @@
     <p class="pln"><span class="n"><a id="t79" href="#t79">79</a></span><span class="t"><span class="str">    This class is used to store information about the error, including its severity, an error message,</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t80" href="#t80">80</a></span><span class="t"><span class="str">    the field path where the error occurred, and a list of invalidated fields.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t81" href="#t81">81</a></span><span class="t"><span class="str">    """</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t82" href="#t82">82</a></span><span class="t">    <span class="nam">severity</span><span class="op">:</span> <span class="nam">ReadFromClientErrorSeverity</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t82" href="#t82">82</a></span><span class="t">    <span class="nam">severity</span><span class="op">:</span> <span class="nam">ReadFromClientErrorSeverity</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t83" href="#t83">83</a></span><span class="t">    <span class="str">"""A ReadFromClientErrorSeverity enumeration value representing the severity of the error."""</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t84" href="#t84">84</a></span><span class="t">    <span class="nam">errorMessage</span><span class="op">:</span> <span class="nam">t</span><span class="op">.</span><span class="nam">Optional</span><span class="op">[</span><span class="nam">str</span><span class="op">]</span> <span class="op">=</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t85" href="#t85">85</a></span><span class="t">    <span class="str">"""A string containing a human-readable error message describing the issue."""</span>&nbsp;</span><span class="r"></span></p>
@@ -246,17 +246,17 @@
     <p class="pln"><span class="n"><a id="t162" href="#t162">162</a></span><span class="t"><span class="str">    constraint, such as the locking method, whether to lock empty values, and an error message to</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t163" href="#t163">163</a></span><span class="t"><span class="str">    display to the user if the requested value is already taken.</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t164" href="#t164">164</a></span><span class="t"><span class="str">    """</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t165" href="#t165">165</a></span><span class="t">    <span class="nam">method</span><span class="op">:</span> <span class="nam">UniqueLockMethod</span>  <span class="com"># How to handle multiple values (for bones with multiple=True)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t165" href="#t165">165</a></span><span class="t">    <span class="nam">method</span><span class="op">:</span> <span class="nam">UniqueLockMethod</span>  <span class="com"># How to handle multiple values (for bones with multiple=True)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t166" href="#t166">166</a></span><span class="t">    <span class="str">"""</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t167" href="#t167">167</a></span><span class="t"><span class="str">    A UniqueLockMethod enumeration value specifying how to handle multiple values for bones with</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t168" href="#t168">168</a></span><span class="t"><span class="str">    multiple=True.</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t169" href="#t169">169</a></span><span class="t"><span class="str">    """</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t170" href="#t170">170</a></span><span class="t">    <span class="nam">lockEmpty</span><span class="op">:</span> <span class="nam">bool</span>  <span class="com"># If False, empty values ("", 0) are not locked - needed if unique but not required</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t170" href="#t170">170</a></span><span class="t">    <span class="nam">lockEmpty</span><span class="op">:</span> <span class="nam">bool</span>  <span class="com"># If False, empty values ("", 0) are not locked - needed if unique but not required</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t171" href="#t171">171</a></span><span class="t">    <span class="str">"""</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t172" href="#t172">172</a></span><span class="t"><span class="str">    A boolean value indicating if empty values ("", 0) should be locked. If False, empty values are not</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t173" href="#t173">173</a></span><span class="t"><span class="str">    locked, which is needed if a field is unique but not required.</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t174" href="#t174">174</a></span><span class="t"><span class="str">    """</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t175" href="#t175">175</a></span><span class="t">    <span class="nam">message</span><span class="op">:</span> <span class="nam">str</span>  <span class="com"># Error-Message displayed to the user if the requested value is already taken</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t175" href="#t175">175</a></span><span class="t">    <span class="nam">message</span><span class="op">:</span> <span class="nam">str</span>  <span class="com"># Error-Message displayed to the user if the requested value is already taken</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t176" href="#t176">176</a></span><span class="t">    <span class="str">"""</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t177" href="#t177">177</a></span><span class="t"><span class="str">    A string containing an error message displayed to the user if the requested value is already</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t178" href="#t178">178</a></span><span class="t"><span class="str">    taken.</span>&nbsp;</span><span class="r"></span></p>
@@ -305,7 +305,7 @@
     <p class="pln"><span class="n"><a id="t221" href="#t221">221</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t222" href="#t222">222</a></span><span class="t"><span class="op">@</span><span class="nam">dataclass</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t223" href="#t223">223</a></span><span class="t"><span class="key">class</span> <span class="nam">Compute</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t224" href="#t224">224</a></span><span class="t">    <span class="nam">fn</span><span class="op">:</span> <span class="nam">callable</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t224" href="#t224">224</a></span><span class="t">    <span class="nam">fn</span><span class="op">:</span> <span class="nam">callable</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t225" href="#t225">225</a></span><span class="t">    <span class="str">"""The callable computing the value"""</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t226" href="#t226">226</a></span><span class="t">    <span class="nam">interval</span><span class="op">:</span> <span class="nam">ComputeInterval</span> <span class="op">=</span> <span class="nam">field</span><span class="op">(</span><span class="nam">default_factory</span><span class="op">=</span><span class="nam">ComputeInterval</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t227" href="#t227">227</a></span><span class="t">    <span class="str">"""The value caching interval"""</span>&nbsp;</span><span class="r"></span></p>
@@ -346,7 +346,7 @@
     <p class="run"><span class="n"><a id="t262" href="#t262">262</a></span><span class="t"><span class="key">class</span> <span class="nam">CloneBehavior</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t263" href="#t263">263</a></span><span class="t">    <span class="str">"""Strategy configuration for selecting the value of a cloned skeleton"""</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t264" href="#t264">264</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t265" href="#t265">265</a></span><span class="t">    <span class="nam">strategy</span><span class="op">:</span> <span class="nam">CloneStrategy</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t265" href="#t265">265</a></span><span class="t">    <span class="nam">strategy</span><span class="op">:</span> <span class="nam">CloneStrategy</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t266" href="#t266">266</a></span><span class="t">    <span class="str">"""The strategy used to select a value from a cloned skeleton"""</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t267" href="#t267">267</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t268" href="#t268">268</a></span><span class="t">    <span class="nam">custom_func</span><span class="op">:</span> <span class="nam">CloneCustomFunc</span> <span class="op">=</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
@@ -1772,7 +1772,7 @@
             <a class="nav" href="z_95981fee56026c4c_boolean_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.15.2">coverage.py v7.15.2</a>,
-            created at 2026-07-31 19:08 +0000
+            created at 2026-07-31 19:53 +0000
         </p>
     </div>
 </footer>
