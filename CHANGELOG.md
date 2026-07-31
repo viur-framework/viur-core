@@ -44,6 +44,12 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
 - test: Add unit tests for Bones and App Login Flow (get_cookie_for_app, apply_login_cookie) (#1661)
 
+## [3.8.33]
+
+- fix: `RelationalBone.relskels_from_keys` mispairs relations on missing keys (#1746)
+- cicd: Add Python 3.14 to Test GitHub Action (#1744)
+- fix(file): guard against already-removed blob-lock in GC (#1741)
+
 ## [3.8.32]
 
 - fix(file): honor the configured download-URL expiration in `add` (#1740)
