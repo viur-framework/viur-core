@@ -3,6 +3,7 @@ The constants, global variables and container classes used in the datastore api
 """
 from __future__ import annotations
 
+import copy
 import datetime
 import enum
 import itertools
@@ -63,14 +64,32 @@ class Key(Datastore_key):
                 id_or_name = int(id_or_name)
             new_path_args.extend((kind, id_or_name))
 
+        from .transport import __client__  # noqa: E402 # import works only here because circular imports
+
         if project is None:
-            from .transport import __client__  # noqa: E402 # import works only here because circular imports
             project = __client__.project
+
+        # Keys must match the client's db/namespace or Datastore rejects the
+        # request as cross-database. Default from the client; caller wins.
+        if __client__.database:
+            kwargs.setdefault("database", __client__.database)
+        if __client__.namespace:
+            kwargs.setdefault("namespace", __client__.namespace)
 
         super().__init__(*new_path_args, project=project, **kwargs)
 
     def __str__(self):
         return self.to_legacy_urlsafe().decode("ASCII")
+
+    def to_legacy_urlsafe(self, location_prefix=None):
+        # Upstream to_legacy_urlsafe() rejects keys carrying a database, but
+        # str(key)/session paths hit it constantly. Encode a database-less copy —
+        # unambiguous to restore since the process talks to a single database.
+        # A copy keeps this thread-safe: mutating self._database in place would
+        # let concurrent encodes of the same Key clobber each other's state.
+        clone = copy.copy(self)
+        clone._database = None
+        return super(Key, clone).to_legacy_urlsafe(location_prefix=location_prefix)
 
     '''
     def __repr__(self):
