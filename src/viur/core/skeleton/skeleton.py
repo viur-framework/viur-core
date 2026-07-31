@@ -9,7 +9,8 @@ from deprecated.sphinx import deprecated
 
 from viur.core import conf, db, errors, utils
 from . import tasks
-from .meta import BaseSkeleton, MetaSkel, _UNDEFINED_KINDNAME
+from .base import BaseSkeleton
+from .meta import MetaSkel, _UNDEFINED_KINDNAME
 from .utils import skeletonByKind
 from ..bones.base import (
     Compute,
