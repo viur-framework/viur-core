@@ -3,6 +3,7 @@ The constants, global variables and container classes used in the datastore api
 """
 from __future__ import annotations
 
+import copy
 import datetime
 import enum
 import itertools
@@ -82,13 +83,13 @@ class Key(Datastore_key):
 
     def to_legacy_urlsafe(self, location_prefix=None):
         # Upstream to_legacy_urlsafe() rejects keys carrying a database, but
-        # str(key)/session paths hit it constantly. Drop the db for encoding —
+        # str(key)/session paths hit it constantly. Encode a database-less copy —
         # unambiguous to restore since the process talks to a single database.
-        saved, self._database = self._database, None
-        try:
-            return super().to_legacy_urlsafe(location_prefix=location_prefix)
-        finally:
-            self._database = saved
+        # A copy keeps this thread-safe: mutating self._database in place would
+        # let concurrent encodes of the same Key clobber each other's state.
+        clone = copy.copy(self)
+        clone._database = None
+        return super(Key, clone).to_legacy_urlsafe(location_prefix=location_prefix)
 
     '''
     def __repr__(self):

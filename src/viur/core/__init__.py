@@ -245,16 +245,6 @@ def __build_app(modules: ModuleType | object, renderers: ModuleType | object, de
     conf.main_app = index
 
 
-def _datastore_banner_lines() -> list[str]:
-    """Boot-banner lines for a non-default datastore target; empty for default."""
-    extra = []
-    if conf.db.name:
-        extra.append(f"""database = \033[1;33m{conf.db.name}\033[0m""")
-    if conf.db.namespace:
-        extra.append(f"""namespace = \033[1;33m{conf.db.namespace}\033[0m""")
-    return extra
-
-
 def setup(modules:  ModuleType | object, render:  ModuleType | object = None, default: str = "html"):
     """
         Define whats going to be served by this instance.
@@ -338,13 +328,20 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
         FILL = "#"  # define sthe fill char (must be len(1)!)
         PYTHON_VERSION = (sys.version_info.major, sys.version_info.minor, sys.version_info.micro)
 
+        # extra banner lines for a non-default datastore target
+        datastore_lines = []
+        if conf.db.name:
+            datastore_lines.append(f"""database = \033[1;33m{conf.db.name}\033[0m""")
+        if conf.db.namespace:
+            datastore_lines.append(f"""namespace = \033[1;33m{conf.db.namespace}\033[0m""")
+
         # define lines to show
         lines = (
             " LOCAL DEVELOPMENT SERVER IS UP AND RUNNING ",  # title line
             f"""project = \033[1;31m{conf.instance.project_id}\033[0m""",
             f"""python = \033[1;32m{".".join((str(i) for i in PYTHON_VERSION))}\033[0m""",
             f"""viur = \033[1;32m{".".join((str(i) for i in conf.version))}\033[0m""",
-            *_datastore_banner_lines(),  # only when a non-default db/namespace is set
+            *datastore_lines,  # only when a non-default db/namespace is set
             ""  # empty line
         )
 
