@@ -2,6 +2,13 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.32]
+
+- fix(file): honor the configured download-URL expiration in `add` (#1740)
+- fix(file): correct expiry check in `parse_download_url` (#1739)
+- fix(bones): reject invalid domain labels in `EmailBone` (#1722)
+- fix: i18n `_last_reload`-debounce (#1734)
+
 ## [3.8.31]
 
 - fix: New user status without enum (#1726)
