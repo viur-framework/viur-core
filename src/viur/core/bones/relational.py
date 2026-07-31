@@ -1123,26 +1123,28 @@ class RelationalBone(BaseBone):
 
     def relskels_from_keys(self, key_rel_list: list[tuple[db.Key, dict | None]]) -> list[RelDict]:
         """
-        Creates a list of RelSkel instances valid for this bone from the given database key.
+        Resolves a list of keys into reference skeletons valid for this bone.
 
-        This method retrieves the entity corresponding to the provided key from the database, unserializes it
-        into a reference skeleton, and returns a dictionary containing the reference skeleton and optional
-        relation data.
+        Each key is loaded from the datastore and unserialized into a reference skeleton.
+        Resolution is all-or-nothing: if any requested key cannot be resolved, an empty
+        list is returned.
 
-        :param key_rel_list: List of tuples with the first value in the tuple is the
-            key and the second is and RelSkel or None
+        :param key_rel_list: List of ``(key, rel)`` tuples, where ``rel`` is a RelSkel dict or None.
 
-        :return: A dictionary containing a reference skeleton and optional relation data.
+        :return: A list of dicts, each with the reference skeleton under ``dest`` and the
+            optional relation data under ``rel``. Empty if not all keys resolved.
         """
 
-        if not all(db_objs := db.get([db.key_helper(value[0], self.kind, adjust_kind=True) for value in key_rel_list])):
-            return []  # return emtpy data when not all data is found
+        keys = [db.key_helper(value[0], self.kind, adjust_kind=True) for value in key_rel_list]
+        db_objs = {db_obj.key: db_obj for db_obj in db.get(keys)}
+        if any(key not in db_objs for key in keys):
+            return []  # return empty data when not all data is found
 
         res_rel_skels = []
 
-        for (key, rel), db_obj in zip(key_rel_list, db_objs):
+        for key, (_, rel) in zip(keys, key_rel_list):
             dest_skel = self._refSkelCache()
-            dest_skel.unserialize(db_obj)
+            dest_skel.unserialize(db_objs[key])
             for bone_name in dest_skel:
                 # Unserialize all bones from refKeys, then drop dbEntity - otherwise all properties will be copied
                 _ = dest_skel[bone_name]
