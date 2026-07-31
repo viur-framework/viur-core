@@ -301,12 +301,6 @@ class BaseBone(object):
     :param visible: If False, the value of this bone should be hidden from the user. This does
         *not* protect the value from being exposed in a template, nor from being transferred
         to the client (ie to the admin or as hidden-value in html-form)
-    :param exposed: Controls whether the bone's value may be included in external API/JSON responses.
-        Accepts a bool or a callable returning a bool. The bool (or callable result) being
-        ``True`` (default) means the bone is exposed; ``False`` means it is internal.
-        This is independent from ``visible``: a bone can be visible in admin forms but excluded from
-        the API (``visible=True, exposed=False``), or hidden from forms but still served via API
-        (``visible=False, exposed=True``).
     :param tags: Optional classification tags for the bone's data content. Accepts a string, a list/tuple
         of strings, or any iterable of strings. Multiple tags can be combined; they are non-exclusive.
         Intended for privacy tooling, audits, anonymization workflows, and admin tooling - not for
@@ -326,20 +320,12 @@ class BaseBone(object):
     name = None
     """Name of this bone (attribute name in the skeletons containing this bone)"""
 
-    @property
-    def exposed(self) -> bool:
-        """Returns whether this bone is exposed, evaluating the callable if one was provided."""
-        if callable(self._exposed):
-            return self._exposed()
-        return self._exposed
-
     def __init__(
         self,
         *,
         compute: Compute = None,
         defaultValue: t.Any = None,
         descr: t.Optional[str | i18n.translate] = None,
-        exposed: bool | t.Callable[[], bool] = True,
         getEmptyValueFunc: callable = None,
         indexed: bool = True,
         isEmptyFunc: callable = None,  # fixme: Rename this, see below.
@@ -370,7 +356,6 @@ class BaseBone(object):
         self.searchable = searchable
         self.tags = tuple(utils.ensure_iterable(tags, allow_callable=False))
         self.visible = visible
-        self._exposed = exposed
         self.indexed = indexed
 
         if type_suffix:
@@ -1657,7 +1642,6 @@ class BaseBone(object):
             },
             "descr": self.descr,
             "emptyvalue": self.getEmptyValue(),
-            "exposed": self.exposed,
             "indexed": self.indexed,
             "languages": self.languages,
             "params": self.params,
