@@ -2,9 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.9.0.dev6]
+## [3.9.0.beta1]
 
 - chore: Deprecate endpoint `/vi/getStructure` (#1616)
+- chore: Move `BaseSkeleton` into own `base.py`-module (#1738)
 - doc: Docstrings for compute-related enum variants
 - doc: Fix seo_language_map in docstring
 - feat:  `SpatialBone`  extend `setBoneValue` to accept `dict` with lat/lng aliases (#1705)
@@ -22,6 +23,8 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - feat: Add QueryOrder and Tests (#1699)
 - feat: Check `conf.valid_application_ids` with `fnmatch` and generally make it optional (#1590)
 - feat: Combine setting and config for the admin (#1620)
+- feat: Configurable named datastore database and namespace (#1743)
+- feat: Extend bones to `tags`-feature (#1745)
 - feat: Implement `preprocess`-function to `Skeleton.patch` (#1625)
 - feat: Implement `TypeVar` for `Skeleton` and make `SkeletonInstance` `Generic` (#1412)
 - feat: Implement new version of `@ResponseCache` decorator (formerly `@enableCache`) (#1446)
@@ -32,11 +35,13 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - feat(StringBone): make `escape_html` globally configurable via `conf` (#1706)
 - fix: `BooleanBone` doesn't respect `vfunc/isInvalid` (#1694)
 - fix: `cache.flushCache` code path improvement (#1682)
+- fix: `Email`-module requires to provide cloned edit skels (#1733)
 - fix: Add `setSystemInitialized` in `SeoKeyBone` to set the languages (#1703)
 - fix: Avoid compute bones when the skel in deleted in a cascade (#1581)
 - fix: Code fixes due long aging and invalid merge
 - fix: guard Skeleton_Cls import in instance.py to break circular import (#1710)
 - fix: Import `pprint` as `pp` (#1579)
+- fix: Make user `Status` an `IntEnum` for cross-project comparability (#1737)
 - fix: Reject RFC 5321 violations in EmailBone local part (#1696)
 - refactor: Deprecate `/vi/getVersion` and `/vi/settings` (#1669)
 - refactor: migrate CaptchaBone to reCAPTCHA Enterprise (#1680)
