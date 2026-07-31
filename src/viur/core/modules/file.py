@@ -706,7 +706,7 @@ class File(Tree):
                 # Invalid path
                 return None
 
-        if valid_until != "0" and datetime.strptime(valid_until, "%Y%m%d%H%M") < datetime.now():
+        if valid_until != "0" and datetime.datetime.strptime(valid_until, "%Y%m%d%H%M") < datetime.datetime.now():
             # Signature expired
             return None
 
