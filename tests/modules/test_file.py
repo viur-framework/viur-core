@@ -1,3 +1,4 @@
+import datetime
 from unittest import mock
 
 from abstract import ViURTestCase
@@ -10,14 +11,14 @@ class TestFileDownloadUrl(ViURTestCase):
         from viur.core import conf
         conf.file_hmac_key = b"test-hmac-key-for-unit-tests"
 
-    def _roundtrip(self, filename, *, derived=False):
+    def _roundtrip(self, filename, *, derived=False, expires=None):
         """create_download_url → parse_download_url round-trip, returns parsed FilePath."""
         # Lazy import: viur.core.modules.file initializes a GCS client at module level.
         # Importing inside a test method ensures the AppEngine testbed is already active,
         # so google.auth.default() is mocked and storage.Client() won't fail.
         with mock.patch("google.cloud.storage.Client"):
             from viur.core.modules.file import File
-        url = File.create_download_url("testdlkey", filename, derived=derived, expires=None)
+        url = File.create_download_url("testdlkey", filename, derived=derived, expires=expires)
         return File.parse_download_url(url)
 
     def test_plain_filename(self):
@@ -50,3 +51,13 @@ class TestFileDownloadUrl(ViURTestCase):
         self.assertIsNotNone(result)
         self.assertTrue(result.is_derived)
         self.assertEqual(result.filename, "thumb.webp")
+
+    def test_expiring_url(self):
+        """A signature carrying a lifetime must parse while that lifetime lasts."""
+        result = self._roundtrip("document.pdf", expires=datetime.timedelta(hours=1))
+        self.assertIsNotNone(result)
+        self.assertEqual(result.filename, "document.pdf")
+
+    def test_expired_url(self):
+        """A signature whose lifetime has passed must not parse."""
+        self.assertIsNone(self._roundtrip("document.pdf", expires=datetime.timedelta(hours=-1)))
