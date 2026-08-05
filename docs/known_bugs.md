@@ -1,0 +1,423 @@
+# Known bugs
+
+Found while reading the code for the seam documentation in `docs/adr/`, at tag
+`v3.8.33`. Nothing in this list has been fixed. Line numbers refer to that tag.
+
+The first pass covered the framework seams (skeleton, module, tasks, email,
+file module, ...), the second pass every bone type under
+`src/viur/core/bones/`.
+
+Each entry: what is wrong, what it costs, what the fix would be.
+
+## Broken comparisons and type checks
+
+### `src/viur/core/email.py:409` - dev-server guard never triggers
+
+```python
+if not conf.email.send_from_local_development_server or transport_class is EmailTransportAppengine:
+```
+
+`transport_class` is an *instance* (`conf.email.transport_class`), so
+`is EmailTransportAppengine` is always False. The intent - never deliver
+through the App Engine Mail API from a local development server - is not
+enforced: with `send_from_local_development_server = True` the call goes
+through and fails inside the API instead.
+
+Fix: `isinstance(transport_class, EmailTransportAppengine)`.
+
+### `src/viur/core/email.py:585` - Brevo quota check never runs
+
+```python
+if not isinstance(conf.email.transport_class, EmailTransportSendInBlue):
+    return  # no SIB key, we cannot check
+```
+
+`EmailTransportSendInBlue` is the *deprecated subclass* of
+`EmailTransportBrevo`. A project configured correctly with
+`EmailTransportBrevo()` fails this check, so `check_sib_quota` returns
+immediately and the credit warning emails are never sent.
+
+Fix: check against `EmailTransportBrevo`.
+
+### `src/viur/core/i18n.py:557` - swapped `isinstance` arguments
+
+```python
+if not isinstance(dict, entity["translation"]):
+```
+
+Arguments are the wrong way round; this raises
+`TypeError: isinstance() arg 2 must be a type` instead of validating. Hit
+inside `migrate_translation`, which is a deferred, 20x-retried task - so it
+retries 20 times and gives up.
+
+Fix: `isinstance(entity["translation"], dict)`.
+
+### `src/viur/core/db/query.py:271` - `isinstance` with one argument
+
+```python
+if not isinstance(singeFilter.filters[filterStr]):
+```
+
+Raises `TypeError`. Reached when a second filter for the same
+property+operator is added to a multi-query (a query already split by an `IN`
+or `!=` filter).
+
+Fix: `isinstance(singeFilter.filters[filterStr], list)` - the non-multi branch
+a few lines below does exactly that.
+
+## Wrong values
+
+### `src/viur/core/modules/file.py:891` - `weak` flag inverted in `File.write()`
+
+```python
+fileskel["weak"] = bool(parentrepokey)
+```
+
+The docstring of `File.write` says a file without folder and rootnode is added
+as a *weak* file, and `File.add` uses `skel["weak"] = rootNode is None`. Here
+it is the other way round: files written into a repository are marked weak,
+files without one are not.
+
+Consequences follow `FileLeafSkel.preProcessBlobLocks`, which only locks the
+`dlkey` when the file is *not* weak: a file written into a folder gets no blob
+lock and can be collected by the blob GC, while a repository-less file is
+locked forever.
+
+Fix: `fileskel["weak"] = not parentrepokey`.
+
+### `src/viur/core/bones/base.py:123` - single error is dropped
+
+```python
+if isinstance(errors, ReadFromClientError):
+    errors = (ReadFromClientError, )
+```
+
+The tuple holds the *class*, not the instance. The `isinstance` filter on the
+next lines removes it again, `self.errors` ends up empty and the constructor
+raises `ValueError("ReadFromClientException requires for at least one
+ReadFromClientError")`. Passing a single `ReadFromClientError` - which the
+docstring explicitly allows - is therefore impossible.
+
+Fix: `errors = (errors, )`.
+
+## Control flow
+
+### `src/viur/core/db/query.py:720` - `StopIteration` inside a generator
+
+```python
+if self.queries is None:  # Noting to pull here
+    raise StopIteration()
+```
+
+`iter()` is a generator, so since PEP 479 this surfaces as `RuntimeError:
+generator raised StopIteration`. An unsatisfiable query - which every other
+method treats as "empty result" - crashes the caller here.
+
+Fix: `return`.
+
+### `src/viur/core/modules/file.py:1487` - GC run aborts instead of skipping
+
+In `doCheckForUnreferencedBlobs`, when a stale blob is already marked for
+deletion the loop does `return` instead of `continue`, so the whole run ends
+and the remaining `viur-blob-locks` entries of this batch (and every following
+cursor batch) are not processed. Cleanup then only progresses on the next
+periodic call, and only until it hits an already-marked blob again.
+
+Fix: `continue`.
+
+### `src/viur/core/tasks.py:421` - retry notification mail always fails
+
+```python
+stringTemplate=string_template if tpl is None else string_template,
+```
+
+Both branches are identical, so `stringTemplate` is always passed. When
+`retry_n_times(..., tpl="...")` is used, `send_email` receives `tpl` *and*
+`stringTemplate` and raises `ValueError` on its xor check. The surrounding
+`except Exception` swallows it, so the "task failed permanently" mail is
+silently lost - exactly in the situation it exists for.
+
+Fix: pass `stringTemplate` only when `tpl is None`.
+
+## Dead code paths
+
+### `src/viur/core/modules/file.py:937,942` - `File.deleteRecursive` cannot work
+
+Two independent defects in the same function:
+
+- line 937/944 filter on the legacy property `parentdir`, while
+  `Tree.deleteRecursive` and the rest of the module use `parententry`, so the
+  queries never match anything;
+- line 942 calls `fileEntry.key()` although `db.Entity.key` is a property -
+  `TypeError: 'Key' object is not callable` if a query ever did match.
+
+The override also shadows the working `Tree.deleteRecursive`, so deleting a
+file node deletes the node but leaves its children.
+
+Fix: filter `parententry`, use `fileEntry.key`, or drop the override entirely
+and let `Tree.deleteRecursive` handle it.
+
+### `src/viur/core/modules/file.py:758` - `create_src_set` on a multi-language bone
+
+```python
+if not language or not (file := cls.get(language)):
+```
+
+`cls` is `File`; neither `File` nor `Module` defines `get`, so this raises
+`AttributeError` for every `LanguageWrapper` value - i.e. for every FileBone
+with `languages` set.
+
+Fix: `file.get(language)`.
+
+## Minor
+
+### `src/viur/core/db/query.py:436-445` - `getCursor()` can raise `UnboundLocalError`
+
+`q` is only assigned in the `QueryDefinition` and `list` branches. On an
+unsatisfiable query (`self.queries is None`) - or an empty query list - the
+final `return` reads an unbound `q`.
+
+### `src/viur/core/securityheaders.py:159` - `extendCsp` assumes a policy exists
+
+`conf.security.content_security_policy` may legitimately be `None` (the type
+hint says `t.Optional`), which makes the `.get("enforce")` raise
+`AttributeError`. Note the error page calls `extendCsp` for its style nonce,
+so this turns an error response into a second error.
+
+## Bones: validation that does not validate
+
+### `src/viur/core/bones/spatial.py:269,273` - invalid geo filter is ignored
+
+```python
+dbFilter.datastoreQuery = None
+```
+
+Both error paths in `SpatialBone.buildDBFilter` (unparseable lat/lng, and
+coordinates outside the configured bounds) try to make the query
+unsatisfiable. `db.Query` has no `datastoreQuery` attribute - the correct one
+is `queries` - so this only creates a new, unused attribute. The query then
+runs **without the spatial constraint** and returns everything the remaining
+filters allow, instead of nothing.
+
+Fix: `dbFilter.queries = None`.
+
+### `src/viur/core/bones/uri.py:56` - a protocol string becomes a character set
+
+```python
+if not isinstance(self.accepted_protocols, Iterable) or isinstance(self.accepted_protocols, str):
+    self.accepted_protocols = set(self.accepted_protocols)
+```
+
+For a plain string, `set("https")` yields `{"h", "t", "p", "s"}`. So
+`UriBone(accepted_protocols="https")` allows the protocols `h`, `t`, `p` and
+`s` - and rejects `https`. The whole restriction is silently inverted.
+
+Fix: `self.accepted_protocols = {self.accepted_protocols}` for the str case.
+
+### `src/viur/core/bones/uri.py:145` - default ports are rejected
+
+```python
+if not any(parsed_url.port in rng for rng in self.accepted_ports):
+```
+
+`urlparse(...).port` is `None` when the URL relies on the scheme default, so
+with `accepted_ports=(443,)` the valid `https://example.com` is rejected. A
+malformed port additionally makes the property itself raise `ValueError`,
+which `isInvalid` does not catch - that becomes a 500 rather than a validation
+error.
+
+Fix: map a missing port to the scheme default before the check, and guard the
+`ValueError`.
+
+### `src/viur/core/bones/color.py:34-44` - malformed short values are accepted
+
+The rgb branch prefixes a 3-character value with `#` and then falls into the
+4-character branch, which expands the shorthand. Input `#ab` (one `#`, hex
+digits, length 3) therefore survives as `###aabb` and is stored. Only lengths
+5 and beyond are actually rejected.
+
+Fix: make the length branches exclusive (`elif`), and validate before
+prefixing.
+
+### `src/viur/core/bones/date.py:80` - creation/update magic does not lock the bone
+
+```python
+self.readonly = True  # todo: why???
+```
+
+The attribute is `readOnly`. This assignment creates an unrelated `readonly`
+attribute, so a `DateBone(creationMagic=True)` stays writable and a client can
+overwrite the automatic timestamp through add/edit. (The magic itself is
+deprecated in favour of `compute`.)
+
+Fix: `self.readOnly = True` - or drop the magic and use `compute`.
+
+## Bones: uncaught exceptions on client input
+
+### `src/viur/core/bones/date.py:124-125` - `"1.5"` raises instead of failing validation
+
+```python
+if value.replace("-", "", 1).replace(".", "", 1).isdigit():
+    if int(value) < -1 * (2 ** 30) or int(value) > (2 ** 31) - 2:
+```
+
+The digit test strips one dot, so `"1.5"` is considered a timestamp - but
+`int("1.5")` then raises `ValueError`, uncaught. Any client can turn a date
+field into a 500.
+
+Fix: convert with `float(value)` (the value is passed to `fromtimestamp` as a
+float anyway) or catch the ValueError.
+
+### `src/viur/core/bones/randomslice.py:36` - `NotImplemented` is not an exception
+
+```python
+raise NotImplemented("A RandomSliceBone must not visible and readonly!")
+```
+
+`NotImplemented` is a singleton, not an exception class, so this raises
+`TypeError: exceptions must derive from BaseException` and the intended message
+is lost.
+
+Fix: `raise NotImplementedError(...)`.
+
+### `src/viur/core/bones/record.py:124,145` - missing None guard in the write path
+
+`RecordBone.postSavedHandler` and `postDeletedHandler` iterate
+`value.items()` for every entry, while `getSearchTags` and
+`getReferencedBlobs` guard the same loop with `if value is None: continue`. A
+stored `null` inside a `multiple` record therefore raises `AttributeError`
+during save or delete.
+
+Fix: add the same guard.
+
+## Bones: contract violations
+
+### `src/viur/core/bones/numeric.py:160-162` - missing comma in the error message
+
+```python
+i18n.translate(
+    "core.bones.error.minmax"
+    "Value not between {{min}} and {{max}}",
+```
+
+Two adjacent string literals are concatenated, so the translation *key*
+becomes `core.bones.error.minmaxValue not between {{min}} and {{max}}` and
+there is no default text. The min/max error can never be translated, and
+`add_missing_translations` records the garbage key.
+
+Fix: insert the comma.
+
+### `src/viur/core/bones/password.py:115` - `isInvalid` returns a list
+
+`PasswordBone.isInvalid` returns `tests_errors`, a list of hint strings, where
+every other bone returns a single message or None. `ReadFromClientError.
+errorMessage` then holds a list, which anything formatting that message has to
+special-case.
+
+Fix: join the hints, or document the list as part of the contract.
+
+### `src/viur/core/bones/spatial.py:390` - inverted type check in `setBoneValue`
+
+```python
+if not isinstance(value, (tuple, list)) and len(value) == 2:
+    raise ValueError("Value must be a tuple or a list of (lat, lng)")
+```
+
+The `and` should reject "not a sequence **or** not of length 2". As written a
+3-element tuple passes unchecked while the 2-character string `"ab"` raises.
+The method also returns `None` instead of the documented bool, so callers see
+"failed".
+
+Fix: `if not isinstance(value, (tuple, list)) or len(value) != 2:` and
+`return True` at the end.
+
+### `src/viur/core/bones/spatial.py:214` - `getEmptyValue` contradicts its docstring
+
+The docstring explains that `(91.0, 181.0)` is used as an out-of-range marker
+for "empty", the code returns `(0.0, 0.0)`. For any region containing the
+origin, a legitimately entered `0, 0` is reported empty by `isEmpty` and
+dropped.
+
+Fix: return the documented marker, or correct the docstring and accept that
+`0, 0` cannot be stored.
+
+### `src/viur/core/bones/credential.py:59-71` - `unserialize` returns a dict
+
+`CredentialBone.unserialize` returns `{}` where the `BaseBone` contract asks
+for a bool, and never touches `skel.accessedValues`. The effective behaviour
+(value reads as None) is intended; the signature is not.
+
+### `src/viur/core/bones/key.py:139-176` - two different key parsers
+
+`singleValueFromClient` parses with `db.normalize_key`/`db.key_helper`, while
+`buildDBFilter._decodeKey` only accepts `db.Key.from_legacy_urlsafe`. A key
+notation the bone happily *stores* can therefore raise RuntimeError when used
+as a filter, which `mergeExternalFilter` turns into an empty result set.
+`buildDBFilter` additionally returns `None` instead of the query when the bone
+is not part of the filter.
+
+### `src/viur/core/bones/record.py:172` - `getSearchDocumentFields` is dead
+
+It calls `bone.getSearchDocumentFields(...)`, which no longer exists on
+`BaseBone`. Any caller gets an AttributeError. Remove it or reimplement it on
+the base class.
+
+### `src/viur/core/bones/record.py:37` - wrong exception for a missing `using`
+
+`issubclass(using, RelSkel)` runs before the None check, so `RecordBone()`
+without `using` raises `TypeError: issubclass() arg 1 must be a class` instead
+of the intended ValueError.
+
+## Deprecation shims that do nothing
+
+### `src/viur/core/bones/file.py:55` and `src/viur/core/skeleton/tasks.py:60`
+
+```python
+locals()[_new] = kwargs.pop(_dep)
+```
+
+Assigning into `locals()` has no effect inside a function. Both
+`ensureDerived` (`srcKey`, `deriveMap`, `refreshKey`) and `update_relations`
+(`changedBone`, `minChangeTime`, `destKey`) warn about the deprecated
+parameter and then silently drop the value - the function continues with the
+default. Callers still using the old names are quietly ignored.
+
+Fix: rebind the real parameter explicitly, e.g. via a dict of resolved
+arguments.
+
+## Bones: minor / inconsistencies
+
+- `src/viur/core/bones/boolean.py:109,111` - `setBoneValue` calls
+  `utils.parse.bool(value)` without `conf.bone_boolean_str2true`, unlike every
+  other path in the bone. Only differs for projects that override the config.
+- `src/viur/core/bones/boolean.py:73` - `refresh` indexes `skel[name][lang]`
+  for multi-language bones; raises TypeError while the value is still None.
+- `src/viur/core/bones/string.py:278-286` - the DIN 5007-2 transformation maps
+  `ẞ` but not `ß`, so lowercase sharp s is not folded to `ss`.
+- `src/viur/core/bones/uid.py:22-23` - `generate_number` retries a
+  `CollisionError` with `time.sleep(i + 1)` inside the transaction body.
+  Sleeping in a datastore transaction blocks the request instead of failing
+  fast.
+- `src/viur/core/bones/uid.py:56` - `fillchar` defaults to `"*"`, so padded
+  uids look like `"***********0"`. Presumably `"0"` was meant.
+- `src/viur/core/bones/select.py:74-113` - `values` is re-evaluated in
+  `__getattribute__` on *every* access, rebuilding one `translate` object per
+  option. `singleValueFromClient` iterates it per request.
+- `src/viur/core/bones/randomslice.py:57` - `buildDBSort` still has the
+  pre-`postfix` signature; it only works because all current callers pass four
+  positional arguments.
+
+## Unverified
+
+### `src/viur/core/email.py:571-572` - decorator order on `check_sib_quota`
+
+```python
+@PeriodicTask(interval=datetime.timedelta(hours=1))
+@staticmethod
+def check_sib_quota() -> None:
+```
+
+`PeriodicTask` receives the `staticmethod` object and assigns
+`fn.periodicTaskName` to it. Whether that assignment is accepted depends on the
+Python version. Not tested - listed only so someone checks it against the
+supported versions.
