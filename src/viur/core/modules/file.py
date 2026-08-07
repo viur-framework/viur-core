@@ -933,21 +933,17 @@ class File(Tree):
         blob = bucket.blob(path)
         return io.BytesIO(blob.download_as_bytes()), blob.content_type
 
-    @CallDeferred
-    def deleteRecursive(self, parentKey):
-        files = db.Query(self.leafSkelCls().kindName).filter("parentdir =", parentKey).iter()
-        for fileEntry in files:
-            self.mark_for_deletion(fileEntry["dlkey"])
-            skel = self.leafSkelCls()
+    def onDeleteRecursive(self, skelType: SkelType, skel: SkeletonInstance) -> None:
+        """
+        Mark the blob of each cascaded file for deletion.
 
-            if skel.read(str(fileEntry.key())):
-                skel.delete()
-        dirs = db.Query(self.nodeSkelCls().kindName).filter("parentdir", parentKey).iter()
-        for d in dirs:
-            self.deleteRecursive(d.key)
-            skel = self.nodeSkelCls()
-            if skel.read(d.key):
-                skel.delete()
+        The generic recursive delete of the Tree prototype is inherited as-is
+        (see :meth:`Tree.deleteRecursive`); the only File-specific step is
+        marking a leaf's blob for deletion, which is injected via this hook.
+        Directories (nodes) have no blob and are ignored.
+        """
+        if skelType == "leaf":
+            self.mark_for_deletion(skel["dlkey"])
 
     @exposed
     @skey
