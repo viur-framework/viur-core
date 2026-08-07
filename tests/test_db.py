@@ -238,6 +238,107 @@ class TestRunSingleFilter(ViURTestCase):
             self.assertIsInstance(passed_filter, Or)
 
 
+class TestQueryIterSkel(ViURTestCase):
+    """Tests for Query.iter_skel(), the SkeletonInstance-counterpart of Query.iter()."""
+
+    def _make_src_skel(self):
+        """Build a minimal SkeletonInstance usable as srcSkel, without a Skeleton class on disk."""
+        from viur.core.bones import KeyBone, StringBone
+        from viur.core.skeleton import SkeletonInstance
+
+        class FakeSkelCls:
+            kindName = "test_iter_skel"
+            __boneMap__ = {}
+
+        key_bone, name_bone = KeyBone(), StringBone()
+        key_bone.__set_name__(FakeSkelCls, "key")
+        name_bone.__set_name__(FakeSkelCls, "name")
+
+        return SkeletonInstance(FakeSkelCls, bone_map={"key": key_bone, "name": name_bone})
+
+    def _make_entity(self, num: int, name: str):
+        from viur.core import db
+        entity = db.Entity(db.Key("test_iter_skel", num))
+        entity["name"] = name
+        return entity
+
+    def test_yields_skeleton_instances_over_all_batches(self) -> None:
+        """iter_skel() must yield one SkeletonInstance per entity, following the query cursor."""
+        from unittest.mock import patch
+        from viur.core import db
+        from viur.core.skeleton import SkeletonInstance
+
+        src_skel = self._make_src_skel()
+        query = db.Query("test_iter_skel", src_skel)
+        entities = [self._make_entity(1, "a"), self._make_entity(2, "b"), self._make_entity(3, "c")]
+
+        batches = [(entities[:2], b"cursor"), (entities[2:], None)]
+
+        def fake_run(queries, limit, keys_only):
+            result, cursor = batches.pop(0)
+            queries.currentCursor = cursor
+            return result
+
+        with patch.object(db.Query, "_run_single_filter_query", side_effect=fake_run):
+            res = list(query.iter_skel())
+
+        self.assertEqual(len(res), 3)
+        for skel in res:
+            self.assertIsInstance(skel, SkeletonInstance)
+        self.assertEqual([skel["name"] for skel in res], ["a", "b", "c"])
+        self.assertEqual([skel.dbEntity for skel in res], entities)
+
+    def test_yields_distinct_instances(self) -> None:
+        """Each result must be its own instance, so collecting or writing them is safe."""
+        from unittest.mock import patch
+        from viur.core import db
+
+        src_skel = self._make_src_skel()
+        query = db.Query("test_iter_skel", src_skel)
+        entities = [self._make_entity(1, "a"), self._make_entity(2, "b")]
+
+        def fake_run(queries, limit, keys_only):
+            queries.currentCursor = None
+            return entities
+
+        with patch.object(db.Query, "_run_single_filter_query", side_effect=fake_run):
+            res = list(query.iter_skel())
+
+        self.assertEqual(len({id(skel) for skel in res}), 2)
+        # The bone-map is shared with the source skeleton, the source skeleton itself is untouched
+        self.assertTrue(all(skel.boneMap is src_skel.boneMap for skel in res))
+        self.assertTrue(all(skel.skeletonCls is src_skel.skeletonCls for skel in res))
+        self.assertIsNone(src_skel.dbEntity)
+
+    def test_without_src_skel_raises_on_call(self) -> None:
+        """A query not created by skel.all() must fail immediately, not on first iteration."""
+        from viur.core import db
+        with self.assertRaises(NotImplementedError):
+            db.Query("test_iter_skel").iter_skel()
+
+    def test_multi_query_raises_on_call(self) -> None:
+        """Multi-queries cannot be iterated; the error must be raised immediately."""
+        from viur.core import db
+        query = db.Query("test_iter_skel", self._make_src_skel())
+        query.queries = [query.queries, query.queries]
+        with self.assertRaises(ValueError):
+            query.iter_skel()
+
+    def test_unsatisfiable_query_yields_nothing(self) -> None:
+        """A query which cannot be satisfied must result in an empty iteration."""
+        from viur.core import db
+        query = db.Query("test_iter_skel", self._make_src_skel())
+        query.queries = None
+        self.assertEqual(list(query.iter_skel()), [])
+
+    def test_iter_on_unsatisfiable_query_yields_nothing(self) -> None:
+        """Query.iter() must end cleanly instead of raising RuntimeError (PEP 479)."""
+        from viur.core import db
+        query = db.Query("test_iter_skel")
+        query.queries = None
+        self.assertEqual(list(query.iter()), [])
+
+
 class TestQueryFilter(ViURTestCase):
     def test_in_filter_does_not_create_multiquery(self) -> None:
         """IN filter must not create a multi-query (list of QueryDefinitions)."""
