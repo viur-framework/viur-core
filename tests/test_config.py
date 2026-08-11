@@ -115,6 +115,24 @@ class TestConfig(ViURTestCase):
                 with self.assertWarns(DeprecationWarning):
                     _ = conf[key]
 
+    def test_db_name_and_namespace_default_to_none(self):
+        # The fields exist and select the default database/namespace unless a
+        # deployment opts into a named one.
+        from viur.core.config import conf
+        self.assertIsNone(conf.db.name)
+        self.assertIsNone(conf.db.namespace)
+
+    def test_db_name_and_namespace_are_settable(self):
+        from viur.core.config import conf
+        try:
+            conf.db.name = "viur-tests"
+            conf.db.namespace = "ns-ak"
+            self.assertEqual(conf.db.name, "viur-tests")
+            self.assertEqual(conf.db.namespace, "ns-ak")
+        finally:
+            conf.db.name = None
+            conf.db.namespace = None
+
     def test_items(self):
         from viur.core.config import conf
         self.assertIsInstance(conf.items(), types.GeneratorType)

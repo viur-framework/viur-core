@@ -322,6 +322,15 @@ class Database(ConfigType):
     create_access_log: bool = True
     """If False no access log will be created. But then the caching is disabled too."""
 
+    name: str | None = os.getenv("VIUR_DB_NAME") or None
+    """Named datastore to target instead of ``(default)``.
+
+    Env-sourced: the client is built at ``db.transport`` import time, before any
+    runtime config could set it."""
+
+    namespace: str | None = os.getenv("VIUR_DB_NAMESPACE") or None
+    """Datastore namespace to scope to. Env-sourced like `name`."""
+
 
 class Security(ConfigType):
     """Security related settings"""

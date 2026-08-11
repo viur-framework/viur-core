@@ -1,3 +1,28 @@
+"""
+Datastore transport layer: the process-wide client and the CRUD helpers.
+
+**Named database and namespace**
+
+The datastore client (:data:`__client__`) is built once at import time and
+kept for the whole process lifetime. Its target database and namespace come
+from :attr:`conf.db.name <viur.core.config.Database.name>` and
+:attr:`conf.db.namespace <viur.core.config.Database.namespace>`, which are sourced
+from the ``VIUR_DB_NAME`` / ``VIUR_DB_NAMESPACE`` environment variables. Both
+default to ``None`` — the standard ``(default)`` database and empty namespace —
+so existing deployments are unaffected.
+
+Because the client is created from the environment at import time, the target
+cannot be retargeted at runtime: a single process always talks to exactly one
+database. :class:`~viur.core.db.types.Key` objects inherit that database and
+namespace from the client, keeping every request on the configured target.
+
+The legacy urlsafe key encoding (App Engine "Reference") predates named
+databases and only supports the default one. Therefore
+:meth:`Key.to_legacy_urlsafe <viur.core.db.types.Key.to_legacy_urlsafe>`
+encodes a database-less copy of the key, and the client's database is restored
+on decoding — unambiguous precisely because the process is bound to a single
+database.
+"""
 from __future__ import annotations
 
 import logging
@@ -16,7 +41,11 @@ from viur.core.errors import HTTPException
 datastore.helpers.key_from_protobuf = key_from_protobuf
 datastore.helpers.entity_from_protobuf = entity_from_protobuf
 
-__client__ = datastore.Client()
+# Built once at import, kept for the process lifetime — so db/namespace have to
+# come from env (via conf.db); nothing can retarget the client afterwards.
+# Both default to None, which is the same as datastore.Client(): no change for
+# default deployments.
+__client__ = datastore.Client(database=conf.db.name, namespace=conf.db.namespace)
 
 
 def allocate_ids(kind_name: str, num_ids: int = 1, retry=None, timeout=None) -> list[Key]:

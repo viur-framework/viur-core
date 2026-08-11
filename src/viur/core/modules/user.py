@@ -2,7 +2,6 @@ import abc
 import datetime
 import enum
 import fnmatch
-import functools
 import hashlib
 import hmac
 import json
@@ -35,12 +34,27 @@ from viur.core.securityheaders import extendCsp
 from viur.core.session import Session
 
 
-@functools.total_ordering
-class Status(enum.Enum):
+class Status(enum.IntEnum):
     """Status enum for a user
 
-    Has backwards compatibility to be comparable with non-enum values.
-    Will be removed with viur-core 4.0.0
+    This is an IntEnum, so it is comparable with plain ints as well as with
+    other IntEnum classes of the same values, e.g. when a project defines its
+    own Status enum to add custom status values to a subclassed UserSkel:
+
+    class Status(enum.IntEnum):
+        UNSET = 0
+        WAITING_FOR_EMAIL_VERIFICATION = 1
+        WAITING_FOR_ADMIN_VERIFICATION = 2
+        DISABLED = 5
+        ACTIVE = 10
+        PENDING_REVIEW = 15  # custom, project-specific status
+
+    class UserSkel(user.UserSkel):
+        status = SelectBone(
+            ...,
+            values=Status,
+            defaultValue=Status.ACTIVE,
+        )
     """
 
     UNSET = 0  # Status is unset
@@ -48,16 +62,6 @@ class Status(enum.Enum):
     WAITING_FOR_ADMIN_VERIFICATION = 2  # Waiting for verification through admin
     DISABLED = 5  # Account disabled
     ACTIVE = 10  # Active
-
-    def __eq__(self, other):
-        if isinstance(other, Status):
-            return super().__eq__(other)
-        return self.value == other
-
-    def __lt__(self, other):
-        if isinstance(other, Status):
-            return super().__lt__(other)
-        return self.value < other
 
 
 class UserSkel(skeleton.Skeleton):
@@ -70,16 +74,19 @@ class UserSkel(skeleton.Skeleton):
         caseSensitive=False,
         searchable=True,
         unique=UniqueValue(UniqueLockMethod.SameValue, True, "Username already taken"),
+        tags=("personal", "identifier", "contact"),
     )
 
     firstname = StringBone(
         descr="Firstname",
         searchable=True,
+        tags="personal",
     )
 
     lastname = StringBone(
         descr="Lastname",
         searchable=True,
+        tags="personal",
     )
 
     roles = SelectBone(
@@ -106,7 +113,7 @@ class UserSkel(skeleton.Skeleton):
         multiple=True,
         params={
             "readonlyIf": "'custom' not in roles"  # if "custom" is not in roles, "access" is managed by the role system
-        }
+        },
     )
 
     status = SelectBone(
@@ -120,11 +127,12 @@ class UserSkel(skeleton.Skeleton):
     lastlogin = DateBone(
         descr="Last Login",
         readOnly=True,
+        tags=("personal", "technical"),
     )
 
-    admin_config = JsonBone(  # This bone stores settings from the vi
+    admin_config = JsonBone(  # This bone stores settings from the admin
         descr="Config for the User",
-        visible=False
+        visible=False,
     )
 
     def __new__(cls, *args, **kwargs):
@@ -278,7 +286,7 @@ class UserPassword(UserPrimaryAuthentication):
             visible=False,
             params={
                 "category": "Authentication",
-            }
+            },
         )
 
     class LoginSkel(skeleton.RelSkel):
@@ -641,7 +649,7 @@ class GoogleAccount(UserPrimaryAuthentication):
             unique=UniqueValue(UniqueLockMethod.SameValue, False, "UID already in use"),
             params={
                 "category": "Authentication",
-            }
+            },
         )
 
         skel_cls.sync = BooleanBone(
@@ -653,7 +661,7 @@ class GoogleAccount(UserPrimaryAuthentication):
                     "If set, user data like firstname and lastname is automatically kept"
                     "synchronous with the information stored at the OAuth service provider"
                     "(e.g. Google Login)."
-            }
+            },
         )
 
     @exposed
@@ -792,14 +800,14 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             searchable=True,
             params={
                 "category": "Second Factor Authentication",
-            }
+            },
         )
 
         skel_cls.otp_secret = CredentialBone(
             descr="OTP secret",
             params={
                 "category": "Second Factor Authentication",
-            }
+            },
         )
 
         skel_cls.otp_timedrift = NumericBone(
@@ -809,7 +817,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             precision=1,
             params={
                 "category": "Second Factor Authentication",
-            }
+            },
         )
 
     def get_config(self, skel: skeleton.SkeletonInstance) -> OtpConfig | None:
@@ -1095,7 +1103,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             descr="OTP Secret (App-Key)",
             params={
                 "category": "Second Factor Authentication",
-            }
+            },
         )
 
     @classmethod
@@ -1486,7 +1494,7 @@ class User(List):
                 except ValueError:
                     status = Status.UNSET
 
-            return status >= Status.ACTIVE.value
+            return status >= Status.ACTIVE
 
         return None
 
@@ -1928,7 +1936,7 @@ def createNewUserIfNotExists():
             uname = f"""admin@{conf.instance.project_id}.appspot.com"""
             pw = utils.string.random(13)
             addSkel["name"] = uname
-            addSkel["status"] = Status.ACTIVE.value  # Ensure it's enabled right away
+            addSkel["status"] = Status.ACTIVE  # Ensure it's enabled right away
             addSkel["access"] = ["root"]
             addSkel["password"] = pw
 
