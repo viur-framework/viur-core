@@ -331,8 +331,27 @@ class translate:
     def resolve_language(translations: dict[str, str], lang: str | None, default_text: t.Any) -> str:
         """Choose the best value for the requested language
 
-        Tries the requested language, then conf.i18n.fallback_languages, then
-        the default text. Empty values count as missing, like in merge_alias.
+        The resolution order is:
+
+        1. the requested language ``lang``; an aliased language
+           (``conf.i18n.language_alias_map``) resolves as well, because
+           :meth:`merge_alias` has copied the value of its main language into
+           the translation dict before,
+        2. each language of ``conf.i18n.fallback_languages``, in the
+           configured order,
+        3. the ``default_text``.
+
+        A value counts as missing if it's unset or contains only whitespace --
+        the same rule as in :meth:`merge_alias`. ``lang`` may be None (no
+        language set in the request), in that case only the fallback languages
+        are tried.
+
+        :param translations: The translation values per language.
+        :param lang: The requested language or None.
+        :param default_text: Used when neither the requested language nor any
+            fallback language provides a value.
+        :return: The value of the first language that has one, otherwise the
+            default text.
         """
         for candidate in (lang, *conf.i18n.fallback_languages):
             if candidate and (value := translations.get(candidate)) and str(value).strip():
