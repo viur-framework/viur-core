@@ -625,6 +625,9 @@ class I18N(ConfigType):
     fallback_languages: Multiple[str] = []
     """Languages tried in order when the requested language has no translation"""
 
+    sources: Multiple["i18n.TranslationSource"] = None
+    """Translation sources, loaded in order; None uses i18n.DEFAULT_TRANSLATION_SOURCES"""
+
     language_method: t.Literal["session", "url", "domain", "header"] = "session"
     """Defines how translations are applied:
         - session: Per Session
