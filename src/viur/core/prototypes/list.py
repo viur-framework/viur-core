@@ -1,9 +1,10 @@
 import logging
 import typing as t
 from viur.core import current, db, errors, utils
+from viur.core.bones import ReadFromClientError
 from viur.core.decorators import *
 from viur.core.cache import flushCache
-from viur.core.skeleton import SkeletonInstance
+from viur.core.skeleton import SkeletonInstance, SkeletonNotFoundError
 from .skelmodule import SkelModule
 
 
@@ -227,23 +228,37 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
         skel = self.editSkel()
-        if not skel.read(key):
-            raise errors.NotFound()
 
-        if not self.canEdit(skel):
-            raise errors.Unauthorized()
+        if not kwargs or not current.request.get().isPostRequest or bounce:
+            if not skel.read(key):
+                raise errors.NotFound()
 
-        if (
-            not kwargs  # no data supplied
-            or not current.request.get().isPostRequest  # failure if not using POST-method
-            or not skel.fromClient(kwargs, amend=True)  # failure on reading into the bones
-            or bounce  # review before changing
-        ):
-            # render the skeleton in the version it could as far as it could be read.
+            if not self.canEdit(skel):
+                raise errors.Unauthorized()
+
+            if kwargs:
+                skel.fromClient(kwargs, amend=True)
+
             return self.render.edit(skel)
 
-        self.onEdit(skel)
-        skel.write()  # write it!
+        def check(skel):
+            if not self.canEdit(skel):
+                raise errors.Unauthorized()
+
+        try:
+            skel.patch(
+                kwargs,
+                key=key,
+                ignore=None,
+                internal=False,
+                check=check,
+                preprocess=self.onEdit,
+            )
+        except SkeletonNotFoundError:
+            raise errors.NotFound()
+        except ReadFromClientError:
+            return self.render.edit(skel)
+
         self.onEdited(skel)
 
         return self.render.editSuccess(skel)

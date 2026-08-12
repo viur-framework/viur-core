@@ -18,7 +18,6 @@ from ..bones.base import (
     ComputeMethod,
     ReadFromClientError,
     ReadFromClientErrorSeverity,
-    ReadFromClientException,
 )
 from ..bones.date import DateBone
 from ..bones.key import KeyBone
@@ -62,6 +61,13 @@ class SeoKeyBone(StringBone):
                     res[language] = self.singleValueSerialize(newVal[language], skel, name, parentIndexed)
             skel.dbEntity["viur"]["viurCurrentSeoKeys"] = res
         return True
+
+
+class SkeletonNotFoundError(ValueError):
+    """
+    Raised by :meth:`Skeleton.patch` when the entry addressed by *key* (or skel["key"]) does not
+    exist, and *create* was not provided to allow creating it on demand.
+    """
 
 
 class Skeleton(BaseSkeleton, metaclass=MetaSkel):
@@ -308,7 +314,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             return None
         elif isinstance(create, dict):
             if create and not skel.fromClient(create, amend=True, ignore=()):
-                raise ReadFromClientException(skel.errors)
+                ReadFromClientError.raise_from(skel.errors)
         elif callable(create):
             create(skel)
         elif create is not True:
@@ -775,8 +781,12 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
         Raises:
             ValueError: In case parameters where given wrong or incomplete.
+            SkeletonNotFoundError: In case the entry addressed by *key* does not exist, and *create*
+                was not provided to allow creating it on demand. A subclass of ValueError.
             AssertionError: In case an asserted check parameter did not match.
-            ReadFromClientException: In case a skel.fromClient() failed with a high severity.
+            ReadFromClientError: In case a skel.fromClient() failed with a high severity. If several
+                bones failed, a single ReadFromClientError representing all of them is raised instead
+                (see its `errors` attribute).
         """
 
         # Transactional function
@@ -784,7 +794,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             # Try to read the skeleton, create on demand
             if not skel.read(key):
                 if create is None or create is False:
-                    raise ValueError("Creation during update is forbidden - explicitly provide `create=True` to allow.")
+                    raise SkeletonNotFoundError(
+                        "Creation during update is forbidden - explicitly provide `create=True` to allow."
+                    )
 
                 if not (key or skel["key"]) and create in (False, None):
                     return ValueError("No valid key provided")
@@ -794,7 +806,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
                 if isinstance(create, dict):
                     if create and not skel.fromClient(create, amend=True, ignore=ignore):
-                        raise ReadFromClientException(skel.errors)
+                        ReadFromClientError.raise_from(skel.errors)
                 elif callable(create):
                     create(skel)
                 elif create is not True:
@@ -812,7 +824,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             # Set values
             if isinstance(values, dict):
                 if values and not skel.fromClient(values, amend=True, ignore=ignore) and not internal:
-                    raise ReadFromClientException(skel.errors)
+                    ReadFromClientError.raise_from(skel.errors)
 
                 # In case we're in internal-mode, only raise fatal errors.
                 if skel.errors and internal:
@@ -821,7 +833,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                                 ReadFromClientErrorSeverity.Invalid,
                                 ReadFromClientErrorSeverity.InvalidatesOther,
                         ):
-                            raise ReadFromClientException(skel.errors)
+                            ReadFromClientError.raise_from(skel.errors)
 
                     # otherwise, ignore any reported errors
                     skel.errors.clear()
