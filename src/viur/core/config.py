@@ -28,10 +28,6 @@ _T = t.TypeVar("_T")
 Multiple: t.TypeAlias = list[_T] | tuple[_T] | set[_T] | frozenset[_T]  # TODO: Refactor for Python 3.12
 
 
-class CaptchaDefaultCredentialsType(t.TypedDict):
-    """Expected type of global captcha credential, see :attr:`Security.captcha_default_credentials`"""
-    sitekey: str
-    secret: str
 
 
 class ConfigType:
@@ -326,6 +322,15 @@ class Database(ConfigType):
     create_access_log: bool = True
     """If False no access log will be created. But then the caching is disabled too."""
 
+    name: str | None = os.getenv("VIUR_DB_NAME") or None
+    """Named datastore to target instead of ``(default)``.
+
+    Env-sourced: the client is built at ``db.transport`` import time, before any
+    runtime config could set it."""
+
+    namespace: str | None = os.getenv("VIUR_DB_NAMESPACE") or None
+    """Datastore namespace to scope to. Env-sourced like `name`."""
+
 
 class Security(ConfigType):
     """Security related settings"""
@@ -415,7 +420,7 @@ class Security(ConfigType):
     x_permitted_cross_domain_policies: t.Optional[t.Literal["none", "master-only", "by-content-type", "all"]] = "none"
     """Unless set to logical none; ViUR will emit a X-Permitted-Cross-Domain-Policies with each request"""
 
-    captcha_default_credentials: t.Optional[CaptchaDefaultCredentialsType] = None
+    captcha_default_public_key: t.Optional[str] = None
     """The default sitekey and secret to use for the :class:`CaptchaBone`.
     If set, must be a dictionary of "sitekey" and "secret".
     """
@@ -435,13 +440,15 @@ class Security(ConfigType):
 
     admin_allowed_paths: t.Iterable[str] = [
         "vi",
+        "vi/config",
         "vi/skey",
-        "vi/settings",
         "vi/user/auth_*",
         "vi/user/f2_*",
-        "vi/user/getAuthMethods",  # FIXME: deprecated, use `login` for this
-        "vi/user/select_authentication_provider",
         "vi/user/login",
+        "vi/user/select_authentication_provider",
+        # DEPRECATED:
+        "vi/settings",  # FIXME: Deprecated; vi-admin 4.x backward compatiblity
+        "vi/user/getAuthMethods",  # FIXME: Deprecated; vi-admin 4.x backward compatiblity
     ]
     """Specifies admin tool paths which are being accessible without authenticated user."""
 
@@ -506,8 +513,6 @@ class Security(ConfigType):
         "xXssProtection": "x_xss_protection",
         "xContentTypeOptions": "x_content_type_options",
         "xPermittedCrossDomainPolicies": "x_permitted_cross_domain_policies",
-        "captcha_defaultCredentials": "captcha_default_credentials",
-        "captcha.defaultCredentials": "captcha_default_credentials",
     }
 
 
@@ -616,6 +621,12 @@ class I18N(ConfigType):
 
     language_alias_map: dict[str, str] = {}
     """Allows mapping of certain languages to one translation (i.e. us->en)"""
+
+    fallback_languages: Multiple[str] = []
+    """Languages tried in order when the requested language has no translation"""
+
+    sources: Multiple["i18n.TranslationSource"] = None
+    """Translation sources, loaded in order; None uses i18n.DEFAULT_TRANSLATION_SOURCES"""
 
     language_method: t.Literal["session", "url", "domain", "header"] = "session"
     """Defines how translations are applied:
@@ -791,6 +802,9 @@ class Conf(ConfigType):
 
     bone_boolean_str2true: Multiple[str | int] = ("true", "yes", "1")
     """Allowed values that define a str to evaluate to true"""
+
+    bone_string_escape_html: bool = True
+    """Default escape_html setting for StringBone. Set to False to disable HTML escaping globally."""
 
     bone_html_default_allow: "HtmlBoneConfiguration" = {
         "validTags": [

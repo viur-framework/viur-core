@@ -73,6 +73,7 @@ and you only have to enter the translated values.
 Of course you can create skeletons / entries in the datastore in your project
 on your own. Just use the TranslateSkel).
 """  # FIXME: grammar, rst syntax
+import abc
 import datetime
 import enum
 import fnmatch
@@ -294,12 +295,13 @@ class translate:
             # The default case: use the request language
             lang = current.language.get()
 
-        if value := self.translationCache.get(lang):
-            return self.substitute_vars(value, **self.default_variables)
-
-        # Use the default text from datastore or from the caller arguments
+        # Default text comes from the datastore or from the caller arguments
         return self.substitute_vars(
-            self.translationCache.get("_default_text_") or self.defaultText,
+            self.resolve_language(
+                self.translationCache,
+                lang,
+                self.translationCache.get("_default_text_") or self.defaultText,
+            ),
             **self.default_variables
         )
 
@@ -325,6 +327,38 @@ class translate:
             # 2 braces * (escape + real brace) + 1 for variable = 5
             res = res.replace(f"{{{{{k}}}}}", str(v))
         return res
+
+    @staticmethod
+    def resolve_language(translations: dict[str, str], lang: str | None, default_text: t.Any) -> str:
+        """Choose the best value for the requested language
+
+        The resolution order is:
+
+        1. the requested language ``lang``; an aliased language
+           (``conf.i18n.language_alias_map``) resolves as well, because
+           :meth:`merge_alias` has copied the value of its main language into
+           the translation dict before,
+        2. each language of ``conf.i18n.fallback_languages``, in the
+           configured order,
+        3. the ``default_text``.
+
+        A value counts as missing if it's unset or contains only whitespace --
+        the same rule as in :meth:`merge_alias`. ``lang`` may be None (no
+        language set in the request), in that case only the fallback languages
+        are tried.
+
+        :param translations: The translation values per language.
+        :param lang: The requested language or None.
+        :param default_text: Used when neither the requested language nor any
+            fallback language provides a value.
+        :return: The value of the first language that has one, otherwise the
+            default text.
+        """
+        for candidate in (lang, *conf.i18n.fallback_languages):
+            if candidate and (value := translations.get(candidate)) and str(value).strip():
+                return str(value)
+
+        return str(default_text)
 
     @staticmethod
     def merge_alias(translations: dict[str, str]):
@@ -421,57 +455,117 @@ class TranslationExtension(jinja2.Extension):
     ) -> str:
         """Perform the actual translation during render"""
         lang = kwargs.pop("force_lang", current.language.get())
-        res = str(translations.get(lang, default_text))
+        res = translate.resolve_language(translations, lang, default_text)
         return translate.substitute_vars(res, **kwargs)
+
+
+class TranslationSource(abc.ABC):
+    """A source of translations, loaded by :meth:`initializeTranslations`
+
+    Set instances to :attr:`core.config.I18N.sources`. Sources are loaded in
+    order, a later source replaces the entries of an earlier one per key.
+    """
+
+    @abc.abstractmethod
+    def load(self) -> dict[str, dict[str, t.Any]]:
+        """Return the translations of this source as {key: {lang: value}}
+
+        Keys starting with an underscore are metadata (`_default_text_`,
+        `_public_`) and not treated as a language.
+        """
+        ...
+
+
+class StaticModuleSource(TranslationSource):
+    """Translations from the dicts of a python module, e.g. viur.core.languages"""
+
+    def __init__(self, module: t.Any = languages):
+        super().__init__()
+        self.module = module
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.module.__name__})"
+
+    def load(self) -> dict[str, dict[str, t.Any]]:
+        res = {}
+        for lang, mapping in vars(self.module).items():
+            if lang.startswith("_") or not isinstance(mapping, dict):
+                continue
+            for name, tr_value in mapping.items():
+                res.setdefault(name, {})[lang] = tr_value
+
+        return res
+
+
+class DatastoreSource(TranslationSource):
+    """Translations from the datastore, as managed by the translation module"""
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}()"
+
+    def load(self) -> dict[str, dict[str, t.Any]]:
+        res = {}
+        # TODO: iter() would be more memory efficient, but unfortunately takes much longer than run()
+        # for entity in db.Query(KINDNAME).iter():
+        for entity in db.Query(KINDNAME).run(10_000):
+            if "name" not in entity:
+                logging.warning(f"translations entity {entity.key} has no name set --> Call migration")
+                migrate_translation(entity.key)
+                # Before the migration has run do a quick modification to get it loaded as is
+                entity["name"] = entity["key"] or entity.key.name
+            if not entity.get("name"):
+                logging.error(f'translations entity {entity.key} has an empty {entity["name"]=} set. Skipping.')
+                continue
+            if entity and not isinstance(entity["translations"], dict):
+                logging.error(f'translations entity {entity.key} has invalid '
+                              f'translations set: {entity["translations"]}. Skipping.')
+                continue
+
+            res[entity["name"]] = entity["translations"] | {
+                "_default_text_": entity.get("default_text") or None,
+                "_public_": entity.get("public") or False,
+            }
+
+        return res
+
+
+DEFAULT_TRANSLATION_SOURCES: tuple[TranslationSource, ...] = (StaticModuleSource(), DatastoreSource())
+"""Used when :attr:`core.config.I18N.sources` is None"""
+
+
+def normalize_translations(translations: dict[str, t.Any]) -> dict[str, t.Any]:
+    """Drop unknown languages and empty values, but keep the metadata entries"""
+    res = {}
+    for lang, tr_value in translations.items():
+        if lang.startswith("_"):
+            # Metadata, not a language
+            res[lang] = tr_value
+        elif lang in conf.i18n.available_dialects and tr_value and str(tr_value).strip():
+            # Don't store unknown languages or empty values in the memory
+            res[lang] = tr_value
+
+    return res
 
 
 def initializeTranslations() -> None:
     """
-    Fetches all translations from the datastore and populates the *systemTranslations* dictionary of this module.
+    Loads all translations of :attr:`core.config.I18N.sources` into the *systemTranslations* of this module.
     Currently, the translate-class will resolve using that dictionary; but as we expect projects to grow and
     accumulate translations that are no longer/not yet used, we plan to made the translation-class fetch it's
     translations directly from the datastore, so we don't have to allocate memory for unused translations.
     """
-    # Load translations from static languages module into systemTranslations
-    # If they're in the datastore, they will be overwritten below.
-    for lang in dir(languages):
-        if lang.startswith("__"):
-            continue
-        for name, tr_value in getattr(languages, lang).items():
-            systemTranslations.setdefault(name, {})[lang] = tr_value
+    for source in conf.i18n.sources if conf.i18n.sources is not None else DEFAULT_TRANSLATION_SOURCES:
+        try:
+            loaded = source.load()
+        except Exception:
+            logging.error(f"Translation source {source!r} failed to load")
+            raise
 
-    # Load translations from datastore into systemTranslations
-    # TODO: iter() would be more memory efficient, but unfortunately takes much longer than run()
-    # for entity in db.Query(KINDNAME).iter():
-    for entity in db.Query(KINDNAME).run(10_000):
-        if "name" not in entity:
-            logging.warning(f"translations entity {entity.key} has no name set --> Call migration")
-            migrate_translation(entity.key)
-            # Before the migration has run do a quick modification to get it loaded as is
-            entity["name"] = entity["key"] or entity.key.name
-        if not entity.get("name"):
-            logging.error(f'translations entity {entity.key} has an empty {entity["name"]=} set. Skipping.')
-            continue
-        if entity and not isinstance(entity["translations"], dict):
-            logging.error(f'translations entity {entity.key} has invalid '
-                          f'translations set: {entity["translations"]}. Skipping.')
-            continue
+        if not isinstance(loaded, dict):
+            raise TypeError(f"Translation source {source!r} returned {type(loaded).__name__}, expected dict")
 
-        translations = {
-            "_default_text_": entity.get("default_text") or None,
-            "_public_": entity.get("public") or False,
-        }
-
-        for lang, translation in entity["translations"].items():
-            if lang not in conf.i18n.available_dialects:
-                # Don't store unknown languages in the memory
-                continue
-            if not translation or not str(translation).strip():
-                # Skip empty values
-                continue
-            translations[lang] = translation
-
-        systemTranslations[entity["name"]] = translations
+        for name, translations in loaded.items():
+            systemTranslations[name] = normalize_translations(translations)
 
 
 @tasks.CallDeferred

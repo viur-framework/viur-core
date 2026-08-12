@@ -18,6 +18,7 @@ from types import ModuleType
 from viur.core import i18n, request, utils
 from viur.core.config import conf
 from viur.core.decorators import access, exposed, force_post, force_ssl, internal_exposed, skey
+from viur.core.request import before_request, after_request
 from viur.core.i18n import translate
 from viur.core.module import Method, Module
 import inspect
@@ -60,6 +61,8 @@ __all__ = [
     "PeriodicTask",
     # Decorators
     "access",
+    "after_request",
+    "before_request",
     "exposed",
     "force_post",
     "force_ssl",
@@ -325,12 +328,20 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
         FILL = "#"  # define sthe fill char (must be len(1)!)
         PYTHON_VERSION = (sys.version_info.major, sys.version_info.minor, sys.version_info.micro)
 
+        # extra banner lines for a non-default datastore target
+        datastore_lines = []
+        if conf.db.name:
+            datastore_lines.append(f"""database = \033[1;33m{conf.db.name}\033[0m""")
+        if conf.db.namespace:
+            datastore_lines.append(f"""namespace = \033[1;33m{conf.db.namespace}\033[0m""")
+
         # define lines to show
         lines = (
             " LOCAL DEVELOPMENT SERVER IS UP AND RUNNING ",  # title line
             f"""project = \033[1;31m{conf.instance.project_id}\033[0m""",
             f"""python = \033[1;32m{".".join((str(i) for i in PYTHON_VERSION))}\033[0m""",
             f"""viur = \033[1;32m{".".join((str(i) for i in conf.version))}\033[0m""",
+            *datastore_lines,  # only when a non-default db/namespace is set
             ""  # empty line
         )
 

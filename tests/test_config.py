@@ -67,7 +67,6 @@ OLD_MEMBERS = [
     "viur.security.x_xss_protection",
     "viur.security.x_content_type_options",
     "viur.security.x_permitted_cross_domain_policies",
-    "viur.security.captcha.defaultCredentials",
     "viur.security.password_recovery_key_length",
     "viur.session.lifeTime",
     "viur.session.persistentFieldsOnLogin",
@@ -115,6 +114,24 @@ class TestConfig(ViURTestCase):
                 # print(f"Access conf[\"{key}\"]")
                 with self.assertWarns(DeprecationWarning):
                     _ = conf[key]
+
+    def test_db_name_and_namespace_default_to_none(self):
+        # The fields exist and select the default database/namespace unless a
+        # deployment opts into a named one.
+        from viur.core.config import conf
+        self.assertIsNone(conf.db.name)
+        self.assertIsNone(conf.db.namespace)
+
+    def test_db_name_and_namespace_are_settable(self):
+        from viur.core.config import conf
+        try:
+            conf.db.name = "viur-tests"
+            conf.db.namespace = "ns-ak"
+            self.assertEqual(conf.db.name, "viur-tests")
+            self.assertEqual(conf.db.namespace, "ns-ak")
+        finally:
+            conf.db.name = None
+            conf.db.namespace = None
 
     def test_items(self):
         from viur.core.config import conf

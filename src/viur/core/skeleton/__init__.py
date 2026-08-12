@@ -2,8 +2,9 @@ import logging
 import warnings
 
 from .adapter import DatabaseAdapter, ViurTagsSearchAdapter
+from .base import BaseSkeleton
 from .instance import SkeletonInstance
-from .meta import ABSTRACT_SKEL_CLS_SUFFIX, BaseSkeleton, MetaBaseSkel, MetaSkel
+from .meta import ABSTRACT_SKEL_CLS_SUFFIX, MetaBaseSkel, MetaSkel, Skeleton_Cls
 from .relskel import RefSkel, RelSkel
 from .skeleton import SeoKeyBone, Skeleton, _UNDEFINED_KINDNAME
 from .tasks import SkelIterTask, SkeletonMaintenanceTask, update_relations
@@ -55,6 +56,7 @@ __all__ = [
     SkelIterTask,
     SkelList,
     Skeleton,
+    Skeleton_Cls,
     SkeletonInstance,
     SkeletonMaintenanceTask,
     ViurTagsSearchAdapter,

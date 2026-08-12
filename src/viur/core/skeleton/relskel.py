@@ -4,7 +4,7 @@ import fnmatch
 import logging  # noqa
 import typing as t
 
-from .meta import BaseSkeleton
+from .base import BaseSkeleton
 from .utils import skeletonByKind
 from .. import db, utils
 

@@ -748,7 +748,8 @@ class File(Tree):
             return ""
 
         if isinstance(file, str):
-            file = db.Query("file").filter("dlkey =", file).order(("creationdate", db.SortOrder.Ascending)).getEntry()
+            file = db.Query("file").filter("dlkey =", file).order(
+                db.QueryOrder("creationdate")).getEntry()
 
         if not file:
             return ""
@@ -900,7 +901,7 @@ class File(Tree):
 
     def read(
             self,
-            key: db.Key | int | str | None = None,
+            key: db.KeyType | None = None,
             path: str | None = None,
     ) -> tuple[io.BytesIO, str]:
         """
@@ -1250,7 +1251,7 @@ class File(Tree):
     @force_ssl
     @force_post
     @skey(allow_empty=True)
-    def add(self, skelType: SkelType, node: db.Key | int | str | None = None, *args, **kwargs):
+    def add(self, skelType: SkelType, node: db.KeyType | None = None, *args, **kwargs):
         # We can't add files directly (they need to be uploaded
         if skelType == "leaf":  # We need to handle leafs separately here
             targetKey = kwargs.get("key")

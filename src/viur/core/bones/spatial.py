@@ -281,22 +281,22 @@ class SpatialBone(BaseBone):
             q1 = deepcopy(origQuery)
             q1.filters[name + ".coordinates.lat >="] = lat
             q1.filters[name + ".tiles.lat ="] = tileLat
-            q1.orders = [(name + ".coordinates.lat", db.SortOrder.Ascending)]
+            q1.orders = [db.QueryOrder(name + ".coordinates.lat")]
             # Lat - Left Side
             q2 = deepcopy(origQuery)
             q2.filters[name + ".coordinates.lat <"] = lat
             q2.filters[name + ".tiles.lat ="] = tileLat
-            q2.orders = [(name + ".coordinates.lat", db.SortOrder.Descending)]
+            q2.orders = [db.QueryOrder(name + ".coordinates.lat", db.SortOrder.Descending)]
             # Lng - Down
             q3 = deepcopy(origQuery)
             q3.filters[name + ".coordinates.lng >="] = lng
             q3.filters[name + ".tiles.lng ="] = tileLng
-            q3.orders = [(name + ".coordinates.lng", db.SortOrder.Ascending)]
+            q3.orders = [db.QueryOrder(name + ".coordinates.lng")]
             # Lng - Top
             q4 = deepcopy(origQuery)
             q4.filters[name + ".coordinates.lng <"] = lng
             q4.filters[name + ".tiles.lng ="] = tileLng
-            q4.orders = [(name + ".coordinates.lng", db.SortOrder.Descending)]
+            q4.orders = [db.QueryOrder(name + ".coordinates.lng", db.SortOrder.Descending)]
             dbFilter.queries = [q1, q2, q3, q4]
             dbFilter._customMultiQueryMerge = lambda *args, **kwargs: self.customMultiQueryMerge(name, lat, lng, *args,
                                                                                                  **kwargs)
@@ -378,7 +378,8 @@ class SpatialBone(BaseBone):
 
         :param skel: Dictionary with the current values from the skeleton the bone belongs to
         :param boneName: The name of the bone that should be modified
-        :param value: The value that should be assigned. Its type depends on the type of the bone
+        :param value: The value that should be assigned. Either a tuple/list of (lat, lng) or a dict
+            with keys ``lat`` and ``lng``
         :param append: If True, the given value will be appended to the existing bone values instead of
             replacing them. Only supported on bones with multiple=True
         :param language: Optional, the language of the value if the bone is language-aware
@@ -387,7 +388,12 @@ class SpatialBone(BaseBone):
         """
         if append:
             raise ValueError(f"append is not possible on {self.type} bones")
-        if not isinstance(value, (tuple, list)) and len(value) == 2:
+        if isinstance(value, dict):
+            try:
+                value = (float(value["lat"]), float(value["lng"]))
+            except (KeyError, TypeError, ValueError):
+                raise ValueError("Value dict must contain 'lat' and 'lng' keys as floats")
+        if not isinstance(value, (tuple, list)) or len(value) != 2:
             raise ValueError("Value must be a tuple or a list of (lat, lng)")
         skel[boneName] = tuple(value)
 

@@ -965,7 +965,12 @@ class RelationalBone(BaseBone):
                 raise RuntimeError()
             return f"src.{param}", value
 
-    def orderHook(self, name: str, query: db.Query, orderings):  # FIXME
+    def orderHook(
+        self,
+        name: str,
+        query: db.Query,
+        orderings: list[db.QueryOrder | str] | tuple[db.QueryOrder | str, ...],
+    ) -> list[db.QueryOrder | str] | tuple[db.QueryOrder | str]:
         """
         Hook installed by buildDbFilter that rewrites orderings added to the query to match the layout of the
         viur-relations index and performs sanity checks on the query.
@@ -977,21 +982,23 @@ class RelationalBone(BaseBone):
         :param name: The name of the bone.
         :param query: The datastore query to be modified.
         :param orderings: A list or tuple of orderings to be checked and potentially modified.
-        :type orderings: List[Union[str, Tuple[str, db.SortOrder]]] or Tuple[Union[str, Tuple[str, db.SortOrder]]]
 
         :return: A list of modified orderings that are compatible with the viur-relations index.
-        :rtype: List[Union[str, Tuple[str, db.SortOrder]]]
 
         :raises RuntimeError: If the ordering is invalid, e.g., using properties not in 'refKeys' or 'parentKeys'.
         """
         res = []
-        if not isinstance(orderings, list) and not isinstance(orderings, tuple):
+        if isinstance(orderings, (str, db.QueryOrder)):
             orderings = [orderings]
+        elif not isinstance(orderings, list):
+            orderings = list(orderings)
         for order in orderings:
-            if isinstance(order, tuple):
-                orderKey = order[0]
-            else:
+            if isinstance(order, db.QueryOrder):
+                orderKey = order.name
+            elif isinstance(order, str):
                 orderKey = order
+            else:
+                raise TypeError(f"Invalid ordering {order!r} in orderHook")
             if orderKey.startswith("dest.") or orderKey.startswith("rel.") or orderKey.startswith("src."):
                 # This is already valid for our relational index
                 res.append(order)
@@ -1005,7 +1012,7 @@ class RelationalBone(BaseBone):
                     res.append(order)
                 else:
                     if isinstance(order, tuple):
-                        res.append((f"dest.{k}", order[1]))
+                        res.append(db.QueryOrder(f"dest.{k}", order[1]))
                     else:
                         res.append(f"dest.{k}")
             else:
@@ -1019,7 +1026,7 @@ class RelationalBone(BaseBone):
                             f"Invalid ordering! {orderKey} is not in parentKeys of RelationalBone {name}!")
                         raise RuntimeError()
                     if isinstance(order, tuple):
-                        res.append((f"src.{orderKey}", order[1]))
+                        res.append(db.QueryOrder(f"src.{orderKey}", order[1]))
                     else:
                         res.append(f"src.{orderKey}")
         return res
@@ -1273,24 +1280,32 @@ class RelationalBone(BaseBone):
 
         return result
 
-    def getUniquePropertyIndexValues(self, valuesCache: dict, name: str) -> list[str]:
+    def getUniquePropertyIndexValues(self, skel: "SkeletonInstance", name: str) -> list[str]:
         """
         Generates unique property index values for the RelationalBone based on the referenced keys.
         Can be overridden if different behavior is required (e.g., examining values from `prop:usingSkel`).
 
-        :param dict valuesCache: The cache containing the current values of the bone.
+        :param skel: The skeleton instance.
         :param str name: The name of the bone for which to generate unique property index values.
 
         :return: A list containing the unique property index values for the specified bone.
         :rtype: List[str]
         """
-        value = valuesCache.get(name)
-        if not value:  # We don't have a value to lock
-            return []
-        if isinstance(value, dict):
-            return self._hashValueForUniquePropertyIndex(value["dest"]["key"])
-        elif isinstance(value, list):
-            return self._hashValueForUniquePropertyIndex([entry["dest"]["key"] for entry in value if entry])
+        values = []
+
+        for _, _, v in self.iter_bone_value(skel, name):
+            if not v:
+                continue
+
+            if self.using and (rel_skel := v.get("rel")):
+                values.append(json.dumps(
+                    {"key": str(v["dest"]["key"]), "rel": rel_skel.dump()},
+                    sort_keys=True, default=str,
+                ))
+            else:
+                values.append(v["dest"]["key"])
+
+        return self._hashValueForUniquePropertyIndex(values) if values else []
 
     def structure(self) -> dict:
         return super().structure() | {

@@ -755,7 +755,9 @@ class QueryIter(object, metaclass=MetaQueryIter):
         """
         assert not (query._customMultiQueryMerge or query._calculateInternalMultiQueryLimit), \
             "Cannot iter a query with postprocessing"
-        assert isinstance(query.queries, db.QueryDefinition), "Unsatisfiable query or query with an IN filter"
+        assert isinstance(query.queries, db.QueryDefinition), ("Unsatisfiable query or query with a custom multi-query "
+                                                               "(SpatialBone/RandomSliceBone)")
+        assert not query.queries.or_filters, "Cannot serialize a query with OR filters into a deferred task"
         qryDict = {
             "kind": query.kind,
             "srcSkel": query.srcSkel.kindName if query.srcSkel is not None else None,
@@ -808,7 +810,7 @@ class QueryIter(object, metaclass=MetaQueryIter):
         qry = db.Query(qryDict["kind"])
         qry.srcSkel = skeletonByKind(qryDict["srcSkel"])() if qryDict["srcSkel"] else None
         qry.queries.filters = qryDict["filters"]
-        qry.queries.orders = [(propName, db.SortOrder(sortOrder)) for propName, sortOrder in qryDict["orders"]]
+        qry.queries.orders = [db.QueryOrder(name, db.SortOrder(order)) for name, order in qryDict["orders"]]
         qry.setCursor(qryDict["startCursor"], qryDict["endCursor"])
         qry.origKind = qryDict["origKind"]
         qry.queries.distinct = qryDict["distinct"]

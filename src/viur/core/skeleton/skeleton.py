@@ -9,7 +9,8 @@ from deprecated.sphinx import deprecated
 
 from viur.core import conf, db, errors, utils
 from . import tasks
-from .meta import BaseSkeleton, MetaSkel, _UNDEFINED_KINDNAME
+from .base import BaseSkeleton
+from .meta import MetaSkel, _UNDEFINED_KINDNAME
 from .utils import skeletonByKind
 from ..bones.base import (
     Compute,
@@ -34,6 +35,10 @@ class SeoKeyBone(StringBone):
     """
     Special kind of StringBone saving its contents as `viurCurrentSeoKeys` into the entity's `viur` dict.
     """
+
+    def setSystemInitialized(self):
+        super().setSystemInitialized()
+        self.languages = conf.i18n.available_languages
 
     def unserialize(self, skel: SkeletonInstance, name: str) -> bool:
         try:
@@ -104,6 +109,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         readOnly=True,
         visible=False,
         searchable=True,
+        tags="technical",
     )
 
     name = StringBone(
@@ -125,6 +131,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             lambda: utils.utcNow().replace(microsecond=0),
             interval=ComputeInterval(ComputeMethod.Once)
         ),
+        tags="technical",
     )
 
     # The last date (including time) when this entry has been updated
@@ -138,13 +145,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             lambda: utils.utcNow().replace(microsecond=0),
             interval=ComputeInterval(ComputeMethod.OnWrite)
         ),
+        tags="technical",
     )
 
     viurCurrentSeoKeys = SeoKeyBone(
         descr="SEO-Keys",
         readOnly=True,
         visible=False,
-        languages=conf.i18n.available_languages
+        languages=conf.i18n.available_languages,
     )
 
     def __repr__(self):
@@ -169,7 +177,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
     @classmethod
     def fromClient(
         cls,
-        skel: SkeletonInstance,
+        skel: "SkeletonInstance[t.Self]",
         data: dict[str, list[str] | str],
         *,
         amend: bool = False,
@@ -727,13 +735,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         skel: SkeletonInstance,
         values: t.Optional[dict | t.Callable[[SkeletonInstance], None]] = {},
         *,
-        key: t.Optional[db.Key | int | str] = None,
         check: t.Optional[dict | t.Callable[[SkeletonInstance], None]] = None,
         create: t.Optional[bool | dict | t.Callable[[SkeletonInstance], None]] = None,
-        update_relations: bool = True,
         ignore: t.Optional[t.Iterable[str]] = (),
         internal: bool = True,
+        key: t.Optional[db.KeyType] = None,
+        preprocess: t.Optional[t.Callable[[SkeletonInstance], None]] = None,
         retry: int = 0,
+        update_relations: bool = True,
     ) -> SkeletonInstance:
         """
         Performs an edit operation on a Skeleton within a transaction.
@@ -832,6 +841,11 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             else:
                 raise ValueError("'values' must either be dict or a callable.")
 
+            # Run preprocess hook
+            if preprocess:
+                preprocess(skel)
+
+            # Finally write the skeleton
             return skel.write(update_relations=update_relations)
 
         if not db.is_in_transaction():

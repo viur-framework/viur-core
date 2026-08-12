@@ -48,6 +48,10 @@ class EmailBone(StringBone):
             account, domain = value.split(u"@")
             assert account and domain
             assert len(account) <= 64
+            # RFC 5321: local part must not start/end with a dot or contain consecutive dots
+            assert not account.startswith(".")
+            assert not account.endswith(".")
+            assert ".." not in account
         except (ValueError, AssertionError):
             is_valid = False
 

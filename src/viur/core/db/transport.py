@@ -1,3 +1,28 @@
+"""
+Datastore transport layer: the process-wide client and the CRUD helpers.
+
+**Named database and namespace**
+
+The datastore client (:data:`__client__`) is built once at import time and
+kept for the whole process lifetime. Its target database and namespace come
+from :attr:`conf.db.name <viur.core.config.Database.name>` and
+:attr:`conf.db.namespace <viur.core.config.Database.namespace>`, which are sourced
+from the ``VIUR_DB_NAME`` / ``VIUR_DB_NAMESPACE`` environment variables. Both
+default to ``None`` — the standard ``(default)`` database and empty namespace —
+so existing deployments are unaffected.
+
+Because the client is created from the environment at import time, the target
+cannot be retargeted at runtime: a single process always talks to exactly one
+database. :class:`~viur.core.db.types.Key` objects inherit that database and
+namespace from the client, keeping every request on the configured target.
+
+The legacy urlsafe key encoding (App Engine "Reference") predates named
+databases and only supports the default one. Therefore
+:meth:`Key.to_legacy_urlsafe <viur.core.db.types.Key.to_legacy_urlsafe>`
+encodes a database-less copy of the key, and the client's database is restored
+on decoding — unambiguous precisely because the process is bound to a single
+database.
+"""
 from __future__ import annotations
 
 import logging
@@ -16,7 +41,11 @@ from viur.core.errors import HTTPException
 datastore.helpers.key_from_protobuf = key_from_protobuf
 datastore.helpers.entity_from_protobuf = entity_from_protobuf
 
-__client__ = datastore.Client()
+# Built once at import, kept for the process lifetime — so db/namespace have to
+# come from env (via conf.db); nothing can retarget the client afterwards.
+# Both default to None, which is the same as datastore.Client(): no change for
+# default deployments.
+__client__ = datastore.Client(database=conf.db.name, namespace=conf.db.namespace)
 
 
 def allocate_ids(kind_name: str, num_ids: int = 1, retry=None, timeout=None) -> list[Key]:
@@ -49,9 +78,15 @@ def get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None
     if isinstance(keys, (list, set, tuple)):
         res_list = list(__client__.get_multi(keys))
         res_list.sort(key=lambda k: keys.index(k.key) if k else -1)
+        if conf.debug.trace_queries:
+            found = sum(1 for r in res_list if r is not None)
+            logging.info(f"db.get: {found}/{len(keys)} entities found")
         return res_list
 
-    return __client__.get(keys)
+    res = __client__.get(keys)
+    if conf.debug.trace_queries:
+        logging.info(f"db.get({keys}): {'found' if res is not None else 'not found'}")
+    return res
 
 
 @deprecated(version="3.8.0", reason="Use 'db.get' instead")
@@ -67,9 +102,15 @@ def put(entities: t.Union[Entity, t.List[Entity]]):
     """
     _write_to_access_log(entities)
     if isinstance(entities, Entity):
-        return __client__.put(entities)
+        res = __client__.put(entities)
+        if conf.debug.trace_queries:
+            logging.info(f"db.put: saved {entities.key}")
+        return res
 
-    return __client__.put_multi(entities=entities)
+    res = __client__.put_multi(entities=entities)
+    if conf.debug.trace_queries:
+        logging.info(f"db.put: saved {len(entities)} entities")
+    return res
 
 
 @deprecated(version="3.8.0", reason="Use 'db.put' instead")
@@ -82,12 +123,17 @@ def delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
     Deletes the entities with the given key(s) from the datastore.
     :param keys: A Key (or a t.List of Keys) to delete
     """
-
     _write_to_access_log(keys)
     if not isinstance(keys, (set, list, tuple)):
-        return __client__.delete(keys)
+        res = __client__.delete(keys)
+        if conf.debug.trace_queries:
+            logging.info(f"db.delete: deleted {keys}")
+        return res
 
-    return __client__.delete_multi(keys)
+    res = __client__.delete_multi(keys)
+    if conf.debug.trace_queries:
+        logging.info(f"db.delete: deleted {len(keys)} keys")
+    return res
 
 
 @deprecated(version="3.8.0", reason="Use 'db.delete' instead")
@@ -147,11 +193,24 @@ def count(kind: str = None, up_to=2 ** 31 - 1, queryDefinition: QueryDefinition 
     if queryDefinition and queryDefinition.filters:
         for k, v in queryDefinition.filters.items():
             key, op = k.split(" ")
-            if not isinstance(v, list):  # multi equal filters
-                v = [v]
-            for val in v:
-                f = datastore.query.PropertyFilter(key, op, val)
+            if op in ("IN", "!="):
+                # Native operators: pass value as-is in a single PropertyFilter
+                f = datastore.query.PropertyFilter(key, op, v)
                 query.add_filter(filter=f)
+            else:
+                if not isinstance(v, list):  # multi equal filters
+                    v = [v]
+                for val in v:
+                    f = datastore.query.PropertyFilter(key, op, val)
+                    query.add_filter(filter=f)
+
+    if queryDefinition and queryDefinition.or_filters:
+        for or_group in queryDefinition.or_filters:
+            or_conditions = [
+                datastore.query.PropertyFilter(fs.split(" ", 1)[0], fs.split(" ", 1)[1], v)
+                for fs, v in or_group
+            ]
+            query.add_filter(filter=datastore.query.Or(or_conditions))
 
     aggregation_query = __client__.aggregation_query(query)
 
@@ -164,7 +223,7 @@ def Count(kind: str = None, up_to=2 ** 31 - 1, queryDefinition: QueryDefinition 
     return count(kind, up_to, queryDefinition)
 
 
-def run_single_filter(query: QueryDefinition, limit: int) -> t.List[Entity]:
+def run_single_filter(query: QueryDefinition, limit: int, keys_only: bool) -> t.List[Entity | Key]:
     """
         Internal helper function that runs a single query definition on the datastore and returns a list of
         entities found.
@@ -177,27 +236,40 @@ def run_single_filter(query: QueryDefinition, limit: int) -> t.List[Entity]:
     startCursor = None
     endCursor = None
     hasInvertedOrderings = None
+    if conf.debug.trace_queries:
+        logging.info(f"Running query: {query}")
 
     if query:
         if query.filters:
             for k, v in query.filters.items():
                 key, op = k.split(" ")
-                if not isinstance(v, list):  # multi equal filters
-                    v = [v]
-                for val in v:
-                    f = datastore.query.PropertyFilter(key, op, val)
+                if op in ("IN", "!=", "NOT_IN"):
+                    # Native multi-value operators: pass value as-is, not split per element
+                    f = datastore.query.PropertyFilter(key, op, v)
                     qry.add_filter(filter=f)
+                else:
+                    if not isinstance(v, list):  # multi equal filters
+                        v = [v]
+                    for val in v:
+                        f = datastore.query.PropertyFilter(key, op, val)
+                        qry.add_filter(filter=f)
+
+        if query.or_filters:
+            for or_group in query.or_filters:
+                or_conditions = [
+                    datastore.query.PropertyFilter(fs.split(" ", 1)[0], fs.split(" ", 1)[1], v)
+                    for fs, v in or_group
+                ]
+                qry.add_filter(filter=datastore.query.Or(or_conditions))
 
         if query.orders:
             hasInvertedOrderings = any(
-                [
-                    x[1] in [SortOrder.InvertedAscending, SortOrder.InvertedDescending]
-                    for x in query.orders
-                ]
+                order.order in (SortOrder.InvertedAscending, SortOrder.InvertedDescending)
+                for order in query.orders
             )
             qry.order = [
-                x[0] if x[1] in [SortOrder.Ascending, SortOrder.InvertedDescending] else f"-{x[0]}"
-                for x in query.orders
+                order.name if order.order in (SortOrder.Ascending, SortOrder.InvertedDescending) else f"-{order.name}"
+                for order in query.orders
             ]
 
         if query.distinct:
@@ -205,13 +277,21 @@ def run_single_filter(query: QueryDefinition, limit: int) -> t.List[Entity]:
 
         startCursor = query.startCursor
         endCursor = query.endCursor
-
+    if keys_only:
+        qry.keys_only()
     qryRes = qry.fetch(limit=limit, start_cursor=startCursor, end_cursor=endCursor)
     res = list(qryRes)
-
     query.currentCursor = qryRes.next_page_token
     if hasInvertedOrderings:
         res.reverse()
+
+    if conf.debug.trace_queries:
+        distinct_on = f" distinct on {query.distinct}" if query.distinct else ""
+        logging.debug(
+            f"Queried {query.kind} with filter {query.filters} and orders {query.orders}{distinct_on}."
+            f" Returned {len(res)} results"
+        )
+
     return res
 
 

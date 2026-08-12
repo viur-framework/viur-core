@@ -15,7 +15,7 @@ from viur.core import (
 from .utils import skeletonByKind, listKnownSkeletons
 from .relskel import RelSkel
 
-from ..bones.raw import RawBone
+from ..bones.code import LogicsBone
 from ..bones.record import RecordBone
 from ..bones.relational import RelationalBone, RelationalConsistency, RelationalUpdateLevel
 from ..bones.select import SelectBone
@@ -221,9 +221,8 @@ class SkeletonMaintenanceTask(tasks.CallableTaskBase):
             format="$(name)$(op)=$(value)",
         )
 
-        condition = RawBone(
+        condition = LogicsBone(
             descr="Condition",
-            type_suffix="code.python",  # Logics expression
             required=True,
             defaultValue="False  # fused: by default, doesn't affect anything.\n",
             params={
@@ -232,11 +231,6 @@ class SkeletonMaintenanceTask(tasks.CallableTaskBase):
         )
 
     def execute(self, task, kinds, filters, condition):
-        try:
-            logics.Logics(condition)
-        except logics.ParseException as e:
-            raise errors.BadRequest(f"Error parsing condition {e}")
-
         notify = current.user.get()["name"]
 
         for kind in kinds:

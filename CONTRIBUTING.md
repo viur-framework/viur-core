@@ -83,16 +83,9 @@ Please document your changes and provide info in any form you can. We have estab
 Before opening a pull request, please ensure that your code passes all tests locally.
 This helps maintain code quality and prevents unnecessary CI failures.
 
-### Install the Test Environment
-To install all necessary dependencies for running tests, execute:
+You can install and run the test suite using:
 ```sh
-pip install .[testing]
-```
-
-### Run the Tests
-You can run the test suite using `unittest`:
-```sh
-python -m unittest discover tests
+uv run --with ".[testing]" python -m unittest discover tests
 ```
 
 Alternatively, you can check test coverage using:

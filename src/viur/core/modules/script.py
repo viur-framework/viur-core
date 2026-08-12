@@ -66,10 +66,8 @@ class ScriptLeafSkel(BaseScriptAbstractSkel):
             else "Filename is invalid or doesn't have a '.py'-suffix",
     )
 
-    script = RawBone(
+    script = PythonBone(
         descr="Code",
-        type_suffix="code.python",
-        indexed=False,
     )
 
     access = SelectBone(
@@ -107,7 +105,7 @@ class Script(Tree):
         }]
 
     @exposed
-    def view(self, skelType: SkelType, key: db.Key | int | str, *args, **kwargs) -> t.Any:
+    def view(self, skelType: SkelType, key: db.KeyType, *args, **kwargs) -> t.Any:
         try:
             return super().view(skelType, key, *args, **kwargs)
         except errors.NotFound:

@@ -301,6 +301,11 @@ class BaseBone(object):
     :param visible: If False, the value of this bone should be hidden from the user. This does
         *not* protect the value from being exposed in a template, nor from being transferred
         to the client (ie to the admin or as hidden-value in html-form)
+    :param tags: Optional classification tags for the bone's data content. Accepts a string, a list/tuple
+        of strings, or any iterable of strings. Multiple tags can be combined; they are non-exclusive.
+        Intended for privacy tooling, audits, anonymization workflows, and admin tooling - not for
+        access control. Suggested values include ``"personal"``, ``"contact"``, ``"identifier"``,
+        ``"location"``, ``"financial"``, and ``"technical"``.
     :param compute: If set, the bone's value will be computed in the given method.
 
         .. NOTE::
@@ -330,6 +335,7 @@ class BaseBone(object):
         readOnly: bool = None,  # fixme: Rename into readonly (all lowercase!) soon.
         required: bool | list[str] | tuple[str] = False,
         searchable: bool = False,
+        tags: str | t.Iterable[str] | None = None,
         type_suffix: str = "",
         unique: None | UniqueValue = None,
         vfunc: callable = None,  # fixme: Rename this, see below.
@@ -348,6 +354,7 @@ class BaseBone(object):
         self.required = required
         self.readOnly = bool(readOnly)
         self.searchable = searchable
+        self.tags = tuple(utils.ensure_iterable(tags, allow_callable=False))
         self.visible = visible
         self.indexed = indexed
 
@@ -798,18 +805,23 @@ class BaseBone(object):
         if self.languages and isinstance(self.required, (list, tuple)):
             missing = set(self.required).difference(filled_languages)
             if missing:
-                return [
+                result_errors = [
                     ReadFromClientError(ReadFromClientErrorSeverity.Empty, fieldPath=[lang])
                     for lang in missing
                 ]
+                self.after_from_client(skel, name, result_errors)
+                return result_errors or None
 
         if isEmpty:
-            return [ReadFromClientError(ReadFromClientErrorSeverity.Empty)]
+            result_errors = [ReadFromClientError(ReadFromClientErrorSeverity.Empty)]
+            self.after_from_client(skel, name, result_errors)
+            return result_errors or None
 
         # Check multiple constraints on demand
         if self.multiple and isinstance(self.multiple, MultipleConstraints):
             errors.extend(self._validate_multiple_contraints(self.multiple, skel, name))
 
+        self.after_from_client(skel, name, errors)
         return errors or None
 
     def _get_single_destinct_hash(self, value) -> t.Any:
@@ -1293,10 +1305,11 @@ class BaseBone(object):
                 the list may contain more than one hashed value.
         """
 
-        def hashValue(value: str | int | float | db.Key) -> str:
+        def hash_value(value: str | int | float | db.Key) -> str:
             h = hashlib.sha256()
             h.update(str(value).encode("UTF-8"))
             res = h.hexdigest()
+
             if isinstance(value, int | float):
                 return f"I-{res}"
             elif isinstance(value, str):
@@ -1307,27 +1320,32 @@ class BaseBone(object):
                 def keyHash(key):
                     if key is None:
                         return "-"
-                    return f"{hashValue(key.kind)}-{hashValue(key.id_or_name)}-<{keyHash(key.parent)}>"
+                    return f"{hash_value(key.kind)}-{hash_value(key.id_or_name)}-<{keyHash(key.parent)}>"
 
                 return f"K-{keyHash(value)}"
+
             raise NotImplementedError(f"Type {type(value)} can't be safely used in an uniquePropertyIndex")
 
+        # zero/empty string and these should not be locked
         if not value and not self.unique.lockEmpty:
-            return []  # We are zero/empty string and these should not be locked
-        if not self.multiple and not isinstance(value, list):
-            return [hashValue(value)]
-        # We have a multiple bone or multiple values here
+            return []
+
+        # Always work with list of values
         if not isinstance(value, list):
             value = [value]
-        tmpList = [hashValue(x) for x in value]
+
+        values = [hash_value(val) for val in value]
+
         if self.unique.method == UniqueLockMethod.SameValue:
-            # We should lock each entry individually; lock each value
-            return tmpList
+            # Lock each entry individually
+            return values
+
         elif self.unique.method == UniqueLockMethod.SameSet:
-            # We should ignore the sort-order; so simply sort that List
-            tmpList.sort()
-        # Lock the value for that specific list
-        return [hashValue(", ".join(tmpList))]
+            # Ignore the sort-order; so simply sort that list
+            values.sort()
+
+        # Lock the value for that specific list (equals to UniqueLockMethod.SameList)
+        return [hash_value(", ".join(values))]
 
     def getUniquePropertyIndexValues(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> list[str]:
         """
@@ -1341,10 +1359,11 @@ class BaseBone(object):
         :return: A list of strings representing the hashed values for the current bone value(s) in the skeleton.
                 If the bone has no value, an empty list is returned.
         """
-        val = skel[name]
-        if val is None:
-            return []
-        return self._hashValueForUniquePropertyIndex(val)
+        if self.compute:
+            self.serialize_compute(skel, name)
+
+        values = [value for _, _, value in self.iter_bone_value(skel, name) if value is not None]
+        return self._hashValueForUniquePropertyIndex(values) if values else []
 
     def getReferencedBlobs(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
@@ -1377,6 +1396,24 @@ class BaseBone(object):
             :param skel: The skeleton this bone belongs to
             :param boneName: Name of this bone
             :param key: The old Database Key of the entity we've deleted
+        """
+        pass
+
+    def after_from_client(self, skel: "SkeletonInstance", name: str, errors: list[ReadFromClientError]) -> None:
+        """
+        Called at the end of :meth:`fromClient` after ``skel[name]`` has been set and all
+        validation (including multiple-constraints) has run.
+
+        Override to post-process or normalize ``skel[name]`` in-place, or to add/remove
+        entries from ``errors``. Always called when the field was part of the submitted data
+        (i.e. ``skel[name]`` has been written), regardless of whether errors occurred.
+        The ``NotSet`` early-return (field absent from request) is the only case where this
+        hook is *not* called.
+
+        :param skel: The skeleton instance whose bone value was just read.
+        :param name: The attribute name of this bone within the skeleton.
+        :param errors: Mutable list of :class:`ReadFromClientError` collected so far.
+            Changes here affect the return value of :meth:`fromClient`.
         """
         pass
 
@@ -1600,19 +1637,20 @@ class BaseBone(object):
         This function has to be implemented for subsequent, specialized bone types.
         """
         ret = {
-            "descr": self.descr,
-            "type": self.type,
-            "required": self.required and not self.readOnly,
-            "params": self.params,
-            "visible": self.visible,
-            "readonly": self.readOnly,
-            "unique": self.unique.method.value if self.unique else False,
-            "languages": self.languages,
-            "emptyvalue": self.getEmptyValue(),
-            "indexed": self.indexed,
             "clone_behavior": {
                 "strategy": self.clone_behavior.strategy,
             },
+            "descr": self.descr,
+            "emptyvalue": self.getEmptyValue(),
+            "indexed": self.indexed,
+            "languages": self.languages,
+            "params": self.params,
+            "readonly": self.readOnly,
+            "required": self.required and not self.readOnly,
+            "tags": self.tags,
+            "type": self.type,
+            "unique": self.unique.method.value if self.unique else False,
+            "visible": self.visible,
         }
 
         # Provide a defaultvalue, if it's not a function.

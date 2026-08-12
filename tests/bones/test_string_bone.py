@@ -189,3 +189,224 @@ class TestStringBoneSerialize(ViURTestCase):
         self.assertEqual("Foo", res)
         res = bone.singleValueUnserialize(None)
         self.assertEqual("", res)
+
+
+class TestStringBoneIsInvalid(ViURTestCase):
+
+    def test_within_max_length(self):
+        from viur.core.bones import StringBone
+        bone = StringBone(max_length=10)
+        self.assertIsNone(bone.isInvalid("hello"))
+
+    def test_exceeds_max_length(self):
+        from viur.core.bones import StringBone
+        bone = StringBone(max_length=5)
+        self.assertIsNotNone(bone.isInvalid("toolong"))
+
+    def test_min_length_satisfied(self):
+        from viur.core.bones import StringBone
+        bone = StringBone(min_length=3)
+        self.assertIsNone(bone.isInvalid("abc"))
+
+    def test_min_length_not_reached(self):
+        from viur.core.bones import StringBone
+        bone = StringBone(min_length=5)
+        self.assertIsNotNone(bone.isInvalid("ab"))
+
+    def test_max_length_none_no_limit(self):
+        from viur.core.bones import StringBone
+        bone = StringBone(max_length=None)
+        self.assertIsNone(bone.isInvalid("x" * 10_000))
+
+
+class TestStringBoneInit(ViURTestCase):
+
+    def test_invalid_max_length_zero_raises(self):
+        from viur.core.bones import StringBone
+        with self.assertRaises(ValueError):
+            StringBone(max_length=0)
+
+    def test_invalid_min_length_zero_raises(self):
+        from viur.core.bones import StringBone
+        with self.assertRaises(ValueError):
+            StringBone(min_length=0)
+
+    def test_min_greater_than_max_raises(self):
+        from viur.core.bones import StringBone
+        with self.assertRaises(ValueError):
+            StringBone(min_length=10, max_length=5)
+
+
+class TestStringBoneTypeCoerce(ViURTestCase):
+
+    def setUp(self):
+        super().setUp()
+        from viur.core.bones import StringBone
+        self.bone = StringBone()
+
+    def test_string_passthrough(self):
+        self.assertEqual("hello", self.bone.type_coerce_single_value("hello"))
+
+    def test_int_to_string(self):
+        self.assertEqual("42", self.bone.type_coerce_single_value(42))
+
+    def test_float_to_string(self):
+        self.assertEqual("3.14", self.bone.type_coerce_single_value(3.14))
+
+    def test_none_returns_empty(self):
+        self.assertEqual("", self.bone.type_coerce_single_value(None))
+
+    def test_datetime_to_iso(self):
+        import datetime
+        dt = datetime.datetime(2024, 1, 15, 12, 0, 0)
+        result = self.bone.type_coerce_single_value(dt)
+        self.assertIn("2024-01-15", result)
+
+    def test_unsupported_type_raises(self):
+        with self.assertRaises(ValueError):
+            self.bone.type_coerce_single_value(object())
+
+
+class TestStringBoneSingleValueFromClientEscape(ViURTestCase):
+
+    def test_html_escaped_by_default(self):
+        from viur.core.bones import StringBone
+        bone = StringBone()
+        val, err = bone.singleValueFromClient("<b>bold</b>", {}, "txt", {})
+        self.assertIsNone(err)
+        self.assertIn("&lt;", val)
+
+    def test_no_escape_when_disabled(self):
+        from viur.core.bones import StringBone
+        bone = StringBone(escape_html=False)
+        val, err = bone.singleValueFromClient("<b>bold</b>", {}, "txt", {})
+        self.assertIsNone(err)
+        self.assertEqual("<b>bold</b>", val)
+
+    def test_max_length_exceeded_no_escape_returns_error(self):
+        from viur.core.bones import StringBone
+        # isInvalid() rejects over-length values before truncation happens
+        bone = StringBone(max_length=5, escape_html=False)
+        val, err = bone.singleValueFromClient("abcdefgh", {}, "txt", {})
+        self.assertIsNotNone(err)
+        self.assertEqual("", val)
+
+
+class TestStringBone_getUniquePropertyIndexValues(ViURTestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.bone_name = "myStringBone"
+
+    def _make_bone(self, **kwargs):
+        from viur.core.bones import StringBone
+        from viur.core.bones.base import UniqueValue, UniqueLockMethod
+        return StringBone(unique=UniqueValue(UniqueLockMethod.SameValue, False, ""), **kwargs)
+
+    def _make_bone_sameset(self, **kwargs):
+        from viur.core.bones import StringBone
+        from viur.core.bones.base import UniqueValue, UniqueLockMethod
+        return StringBone(unique=UniqueValue(UniqueLockMethod.SameSet, False, ""), **kwargs)
+
+    # --- empty / None ---
+
+    def test_empty_value_returns_empty_list(self):
+        bone = self._make_bone()
+        self.assertEqual([], bone.getUniquePropertyIndexValues({self.bone_name: None}, self.bone_name))
+
+    def test_empty_value_languages_returns_empty_list(self):
+        bone = self._make_bone(languages=["de", "en"])
+        self.assertEqual([], bone.getUniquePropertyIndexValues(
+            {self.bone_name: {"de": None, "en": None}}, self.bone_name,
+        ))
+
+    def test_partial_language_none_skipped(self):
+        bone = self._make_bone(languages=["de", "en"])
+        result = bone.getUniquePropertyIndexValues(
+            {self.bone_name: {"de": "Hallo", "en": None}}, self.bone_name,
+        )
+        self.assertEqual(1, len(result))
+
+    # --- single, no languages ---
+
+    def test_single_value_produces_one_hash(self):
+        bone = self._make_bone()
+        result = bone.getUniquePropertyIndexValues({self.bone_name: "Hello"}, self.bone_name)
+        self.assertEqual(1, len(result))
+        self.assertTrue(result[0].startswith("S-"))
+
+    def test_single_case_sensitive_distinct(self):
+        bone = self._make_bone(caseSensitive=True)
+        r_upper = bone.getUniquePropertyIndexValues({self.bone_name: "Hello"}, self.bone_name)
+        r_lower = bone.getUniquePropertyIndexValues({self.bone_name: "hello"}, self.bone_name)
+        self.assertNotEqual(r_upper, r_lower)
+
+    def test_single_case_insensitive_normalizes(self):
+        bone = self._make_bone(caseSensitive=False)
+        r1 = bone.getUniquePropertyIndexValues({self.bone_name: "Hello"}, self.bone_name)
+        r2 = bone.getUniquePropertyIndexValues({self.bone_name: "HELLO"}, self.bone_name)
+        r3 = bone.getUniquePropertyIndexValues({self.bone_name: "hello"}, self.bone_name)
+        self.assertEqual(r1, r2)
+        self.assertEqual(r1, r3)
+
+    # --- single, with languages ---
+
+    def test_languages_produces_one_hash_per_language(self):
+        bone = self._make_bone(languages=["de", "en"])
+        result = bone.getUniquePropertyIndexValues(
+            {self.bone_name: {"de": "Hallo", "en": "Hello"}}, self.bone_name,
+        )
+        self.assertEqual(2, len(result))
+
+    def test_languages_case_insensitive_normalizes(self):
+        bone = self._make_bone(languages=["de", "en"], caseSensitive=False)
+        r1 = bone.getUniquePropertyIndexValues(
+            {self.bone_name: {"de": "Hallo", "en": "Hello"}}, self.bone_name,
+        )
+        r2 = bone.getUniquePropertyIndexValues(
+            {self.bone_name: {"de": "HALLO", "en": "HELLO"}}, self.bone_name,
+        )
+        self.assertEqual(r1, r2)
+
+    def test_languages_case_sensitive_distinct(self):
+        bone = self._make_bone(languages=["de", "en"], caseSensitive=True)
+        r1 = bone.getUniquePropertyIndexValues(
+            {self.bone_name: {"de": "Hallo", "en": "Hello"}}, self.bone_name,
+        )
+        r2 = bone.getUniquePropertyIndexValues(
+            {self.bone_name: {"de": "HALLO", "en": "HELLO"}}, self.bone_name,
+        )
+        self.assertNotEqual(r1, r2)
+
+    # --- multiple, no languages ---
+
+    def test_multiple_samevalue_produces_one_hash_per_entry(self):
+        bone = self._make_bone(multiple=True)
+        result = bone.getUniquePropertyIndexValues({self.bone_name: ["Foo", "Bar", "Baz"]}, self.bone_name)
+        self.assertEqual(3, len(result))
+
+    def test_multiple_sameset_produces_one_combined_hash(self):
+        bone = self._make_bone_sameset(multiple=True)
+        result = bone.getUniquePropertyIndexValues({self.bone_name: ["Foo", "Bar"]}, self.bone_name)
+        self.assertEqual(1, len(result))
+
+    def test_multiple_sameset_order_independent(self):
+        bone = self._make_bone_sameset(multiple=True)
+        r1 = bone.getUniquePropertyIndexValues({self.bone_name: ["Foo", "Bar"]}, self.bone_name)
+        r2 = bone.getUniquePropertyIndexValues({self.bone_name: ["Bar", "Foo"]}, self.bone_name)
+        self.assertEqual(r1, r2)
+
+    # --- multiple, with languages ---
+
+    def test_multiple_languages_flattens_all_values(self):
+        bone = self._make_bone(multiple=True, languages=["de", "en"])
+        result = bone.getUniquePropertyIndexValues(
+            {self.bone_name: {"de": ["Foo", "Bar"], "en": ["Baz"]}}, self.bone_name,
+        )
+        self.assertEqual(3, len(result))
+
+    def test_multiple_languages_empty_lang_skipped(self):
+        bone = self._make_bone(multiple=True, languages=["de", "en"])
+        result = bone.getUniquePropertyIndexValues(
+            {self.bone_name: {"de": ["Foo"], "en": []}}, self.bone_name,
+        )
+        self.assertEqual(1, len(result))
