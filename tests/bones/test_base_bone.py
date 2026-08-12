@@ -18,6 +18,18 @@ class TestBaseBone_getDefaultValue(ViURTestCase):
         # ... and must not pollute the default of the next skeleton
         self.assertEqual({"de": [], "en": []}, bone.getDefaultValue(None))
 
+    def test_getDefaultValue_languages_default_key_no_shared_list(self):
+        from viur.core.bones import BaseBone
+        bone = BaseBone(languages=["de", "en"], multiple=True, defaultValue={"__default__": ["x"]})
+
+        value = bone.getDefaultValue(None)
+        self.assertEqual({"de": ["x"], "en": ["x"]}, value)
+        self.assertIsNot(value["de"], value["en"])
+
+        value["de"].append("y")
+        self.assertEqual(["x"], value["en"])
+        self.assertEqual({"de": ["x"], "en": ["x"]}, bone.getDefaultValue(None))
+
     def test_getDefaultValue_multiple_no_shared_list(self):
         from viur.core.bones import BaseBone
         bone = BaseBone(multiple=True)
