@@ -537,7 +537,13 @@ class BaseBone(object):
         elif isinstance(self.defaultValue, list):
             return self.defaultValue[:]
         elif isinstance(self.defaultValue, dict):
-            return self.defaultValue.copy()
+            # A shallow dict copy is not enough: the inner lists must be copied as well,
+            # otherwise all languages share one list instance living on the bone, and any
+            # mutation bleeds into the other languages and into every other skeleton.
+            return {
+                lang: value[:] if isinstance(value, list) else value
+                for lang, value in self.defaultValue.items()
+            }
         else:
             return self.defaultValue
 
