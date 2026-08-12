@@ -295,12 +295,13 @@ class translate:
             # The default case: use the request language
             lang = current.language.get()
 
-        if value := self.translationCache.get(lang):
-            return self.substitute_vars(value, **self.default_variables)
-
-        # Use the default text from datastore or from the caller arguments
+        # Default text comes from the datastore or from the caller arguments
         return self.substitute_vars(
-            self.translationCache.get("_default_text_") or self.defaultText,
+            self.resolve_language(
+                self.translationCache,
+                lang,
+                self.translationCache.get("_default_text_") or self.defaultText,
+            ),
             **self.default_variables
         )
 
@@ -326,6 +327,38 @@ class translate:
             # 2 braces * (escape + real brace) + 1 for variable = 5
             res = res.replace(f"{{{{{k}}}}}", str(v))
         return res
+
+    @staticmethod
+    def resolve_language(translations: dict[str, str], lang: str | None, default_text: t.Any) -> str:
+        """Choose the best value for the requested language
+
+        The resolution order is:
+
+        1. the requested language ``lang``; an aliased language
+           (``conf.i18n.language_alias_map``) resolves as well, because
+           :meth:`merge_alias` has copied the value of its main language into
+           the translation dict before,
+        2. each language of ``conf.i18n.fallback_languages``, in the
+           configured order,
+        3. the ``default_text``.
+
+        A value counts as missing if it's unset or contains only whitespace --
+        the same rule as in :meth:`merge_alias`. ``lang`` may be None (no
+        language set in the request), in that case only the fallback languages
+        are tried.
+
+        :param translations: The translation values per language.
+        :param lang: The requested language or None.
+        :param default_text: Used when neither the requested language nor any
+            fallback language provides a value.
+        :return: The value of the first language that has one, otherwise the
+            default text.
+        """
+        for candidate in (lang, *conf.i18n.fallback_languages):
+            if candidate and (value := translations.get(candidate)) and str(value).strip():
+                return str(value)
+
+        return str(default_text)
 
     @staticmethod
     def merge_alias(translations: dict[str, str]):
@@ -422,7 +455,7 @@ class TranslationExtension(jinja2.Extension):
     ) -> str:
         """Perform the actual translation during render"""
         lang = kwargs.pop("force_lang", current.language.get())
-        res = str(translations.get(lang, default_text))
+        res = translate.resolve_language(translations, lang, default_text)
         return translate.substitute_vars(res, **kwargs)
 
 
