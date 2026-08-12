@@ -61,3 +61,59 @@ class TestFileDownloadUrl(ViURTestCase):
     def test_expired_url(self):
         """A signature whose lifetime has passed must not parse."""
         self.assertIsNone(self._roundtrip("document.pdf", expires=datetime.timedelta(hours=-1)))
+
+    def _create_url(self, filename, *, derived=False, expires=None, download_filename=None):
+        """Create a download url without parsing it back."""
+        with mock.patch("google.cloud.storage.Client"):
+            from viur.core.modules.file import File
+        return File.create_download_url(
+            "testdlkey", filename, derived=derived, expires=expires,
+            download_filename=download_filename)
+
+    def test_absolute_url(self):
+        """Admin frontends store the url including scheme and host; it must still parse."""
+        with mock.patch("google.cloud.storage.Client"):
+            from viur.core.modules.file import File
+        url = self._create_url("document.pdf")
+        result = File.parse_download_url(f"https://example.com{url}")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.dlkey, "testdlkey")
+        self.assertEqual(result.filename, "document.pdf")
+
+    def test_trailing_slash_before_query(self):
+        """A slash between payload and query string must not break the signature check."""
+        with mock.patch("google.cloud.storage.Client"):
+            from viur.core.modules.file import File
+        data, _, query = self._create_url("document.pdf").removeprefix(
+            File.DOWNLOAD_URL_PREFIX).partition("?")
+        result = File.parse_download_url(f"{File.DOWNLOAD_URL_PREFIX}{data}/?{query}")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.filename, "document.pdf")
+
+    def test_url_with_download_filename_path_segment(self):
+        """`download` accepts the file name as a path segment, so parsing must ignore it."""
+        with mock.patch("google.cloud.storage.Client"):
+            from viur.core.modules.file import File
+        data, _, query = self._create_url(
+            "document.pdf", download_filename="nice-name.pdf").removeprefix(
+            File.DOWNLOAD_URL_PREFIX).partition("?")
+        result = File.parse_download_url(
+            f"{File.DOWNLOAD_URL_PREFIX}{data}/nice-name.pdf?{query}")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.dlkey, "testdlkey")
+        self.assertEqual(result.filename, "document.pdf")
+
+    def test_query_with_additional_parameters(self):
+        """Other query parameters next to `sig` must not confuse the parser."""
+        with mock.patch("google.cloud.storage.Client"):
+            from viur.core.modules.file import File
+        url = self._create_url("document.pdf")
+        result = File.parse_download_url(f"{url}&download=1")
+        self.assertIsNotNone(result)
+        self.assertEqual(result.filename, "document.pdf")
+
+    def test_url_without_query_is_rejected(self):
+        with mock.patch("google.cloud.storage.Client"):
+            from viur.core.modules.file import File
+        url = self._create_url("document.pdf").split("?", 1)[0]
+        self.assertIsNone(File.parse_download_url(url))
