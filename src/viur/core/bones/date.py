@@ -127,6 +127,18 @@ class DateBone(BaseBone):
             else:
                 value = datetime.datetime.fromtimestamp(float(value), tz=time_zone).replace(microsecond=0)
 
+        elif value.lower().startswith("now"):
+            # must be checked before the time-only branch below, otherwise "now" would end up
+            # in the time parser and get rejected on bones with date=False
+            now = datetime.datetime.now(time_zone)
+            if offset := value[3:]:
+                try:
+                    now += datetime.timedelta(seconds=int(offset))
+                except ValueError:
+                    now = None
+
+            value = now
+
         elif not self.date and self.time:
             try:
                 value = datetime.datetime.fromisoformat(value)
@@ -154,16 +166,6 @@ class DateBone(BaseBone):
 
                 except ValueError:
                     value = None
-
-        elif value.lower().startswith("now"):
-            now = datetime.datetime.now(time_zone)
-            if len(value) > 4:
-                try:
-                    now += datetime.timedelta(seconds=int(value[3:]))
-                except ValueError:
-                    now = None
-
-            value = now
 
         else:
             # try to parse ISO-formatted date string
