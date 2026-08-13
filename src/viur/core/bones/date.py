@@ -97,8 +97,9 @@ class DateBone(BaseBone):
                 assumes UTC timezone
                 is digit (may include one '-') and NOT valid POSIX timestamp and not date and time: interpreted as
                 seconds after epoch
-                'now': current time, only if time
-                'nowX', where X converted into String is added as seconds to current time, only if time
+                'now': current time, only if date and time
+                'nowX', where X converted into String is added as seconds to current time,
+                only if date and time
                 '%H:%M:%S' if not date and time
                 '%M:%S' if not date and time
                 '%S' if not date and time
@@ -127,18 +128,20 @@ class DateBone(BaseBone):
             else:
                 value = datetime.datetime.fromtimestamp(float(value), tz=time_zone).replace(microsecond=0)
 
-        elif self.time and value.lower().startswith("now"):
-            # must be checked before the time-only branch below, otherwise "now" would end up
-            # in the time parser and get rejected on bones with date=False.
-            # Only bones carrying a time accept it; on a date-only bone the time is cropped anyway.
-            now = datetime.datetime.now(time_zone)
-            if offset := value[3:]:
-                try:
-                    now += datetime.timedelta(seconds=int(offset))
-                except ValueError:
-                    now = None
+        elif value.lower().startswith("now"):
+            # must be checked before the time-only branch below, so that "now" is answered here
+            # instead of silently falling through into the time parser
+            if not self.time or not self.date:
+                value = None
+            else:
+                now = datetime.datetime.now(time_zone)
+                if offset := value[3:]:
+                    try:
+                        now += datetime.timedelta(seconds=int(offset))
+                    except ValueError:
+                        now = None
 
-            value = now
+                value = now
 
         elif not self.date and self.time:
             try:

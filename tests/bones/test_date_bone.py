@@ -89,7 +89,7 @@ class TestDateBone_setBoneValue(ViURTestCase):
 
 
 class TestDateBone_now(ViURTestCase):
-    """Tests for the "now" / "nowX" input format, which is accepted by any bone carrying a time."""
+    """Tests for the "now" / "nowX" input format, which requires a bone with both date and time."""
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -118,13 +118,15 @@ class TestDateBone_now(ViURTestCase):
         from viur.core.bones import DateBone
         self._assert_now(DateBone(), "now")
 
-    def test_now_time_only(self):
+    def test_now_rejected_on_time_only(self):
         from viur.core.bones import DateBone
-        self._assert_now(DateBone(date=False), "now")
+        # without a date the offset has nothing to carry the overflow into
+        self._assert_invalid(DateBone(date=False), "now")
+        self._assert_invalid(DateBone(date=False), "now5")
 
     def test_now_rejected_on_date_only(self):
         from viur.core.bones import DateBone
-        # without a time there is nothing "now" could express, the date part is cropped anyway
+        # without a time there is nothing "now" could express, the time part is cropped anyway
         self._assert_invalid(DateBone(time=False), "now")
         self._assert_invalid(DateBone(time=False), "now5")
 
@@ -142,12 +144,7 @@ class TestDateBone_now(ViURTestCase):
         self._assert_now(DateBone(), "now-5", td(seconds=-5))
         self._assert_now(DateBone(), "now-3600", td(hours=-1))
 
-    def test_now_offset_time_only(self):
-        from viur.core.bones import DateBone
-        self._assert_now(DateBone(date=False), "now5", td(seconds=5))
-
     def test_now_invalid_offset(self):
         from viur.core.bones import DateBone
         self._assert_invalid(DateBone(), "nowfoo")
         self._assert_invalid(DateBone(), "now-foo")
-        self._assert_invalid(DateBone(date=False), "nowfoo")
