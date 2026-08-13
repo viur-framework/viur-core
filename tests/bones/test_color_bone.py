@@ -107,7 +107,7 @@ class TestColorBoneSingleValueFromClient(ViURTestCase):
 
     def test_invalid_mode_raises(self):
         from viur.core.bones.color import ColorBone
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             ColorBone(mode="hsv")
 
 
