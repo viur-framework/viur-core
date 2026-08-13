@@ -21,10 +21,17 @@ Configuration is the actual seam: `kind`, `module`, `refKeys`, `parentKeys`,
 - `refKeys` always gains `key` and `shortkey`, `parentKeys` always gains `key`.
 - Never `db.delete` an entity that is referenced with `PreventDeletion`. Use
   `skel.delete()`, otherwise the `viur-relations` entities go stale.
-- `multiple=True` combined with an `IN` or `!=` filter is unsupported and
-  raises NotImplementedError in `_rewriteQuery`.
-- Leave `updateLevel` at `Always` for indexed bones; anything else means
-  filtering and sorting run against outdated copies.
+- Filtering a relation inside a query that is already a multi-query raises
+  NotImplementedError in `_rewriteQuery`. The check is `isinstance(queries,
+  list)`, so the trigger is any `IN`/`!=` filter in that query - including one
+  on a completely different bone - although the message only mentions
+  `multiple=True`.
+- Leave `updateLevel` at `Always` for indexed bones. `update_relations`
+  filters on `viur_relational_updateLevel = Always`, so copies of every other
+  level are never renewed by the task at all.
+- An unknown `kind` is only caught at startup: `setSystemInitialized` turns the
+  `RefSkel.fromSkel` AssertionError into a NotImplementedError naming the
+  skeleton, bone and kind.
 
 ## Traps
 - Copies are refreshed by the deferred `update_relations` task, so a list
@@ -44,6 +51,9 @@ Configuration is the actual seam: `kind`, `module`, `refKeys`, `parentKeys`,
   n:m relations multiply write operations on every save.
 - `update_relations` filters `viur_foreign_keys IN changed_bones`; a changed
   bone that is not mirrored anywhere produces no update at all.
+- Individual relations that cannot be updated are logged and skipped, not
+  retried: an unknown `viur_src_kind` and a source entity that no longer
+  exists both only produce a log line. Their copies stay stale forever.
 
 ## Why not
 The implementation trades write cost for read cost on purpose (module
