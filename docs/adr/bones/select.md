@@ -16,8 +16,12 @@ Labels become `i18n.translate` objects automatically. The translation key is
 ## Rules
 - Use a callable for `values` when the options come from the datastore or
   config - it is re-evaluated on every access, so no restart is needed.
-- With an Enum, the *values* are what is stored. Renaming a member is safe,
-  changing its value is a data migration.
+- With an Enum, the *values* are what is stored (and the member *names* become
+  the labels). Renaming a member is safe, changing its value is a data
+  migration.
+- `structure()` reports the options as a dict. Projects that still need the
+  old list-of-tuples format enable it through
+  `"bone.select.structure.values.keytuple"` in `conf.compatibility`.
 - `add_missing_translations=True` writes translation entries for the labels;
   keep it off in production for the same reasons as
   `conf.i18n.add_missing_translations`.
@@ -36,6 +40,12 @@ Labels become `i18n.translate` objects automatically. The translation key is
   select silently ends up unset instead of reporting a wrong option.
 - `singleValueSerialize` goes through `_atomic_dump`, so what is stored is the
   dump representation - relevant when overriding one of them.
+- `structure()` resolves the labels with `str(v)`, i.e. into the language of
+  the current request. The structure of a select bone is language dependent
+  and must not be cached across languages.
+- A stored value that is no longer a member of the Enum is handed back
+  unchanged by `singleValueUnserialize` - no error, just a raw value where the
+  application expects an Enum member.
 
 ## See also
 [base](base.md), [selectcountry](selectcountry.md), [../i18n](../i18n.md)
