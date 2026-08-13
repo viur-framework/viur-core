@@ -9,9 +9,9 @@ status: accepted
 False and `_atomic_dump` returns `""`.
 
 Strength policy is the `tests` class attribute - tuples of
-`(regex, hint, required)` - plus `test_threshold` (how many must pass).
-Override `tests` for your own policy, or set `test_threshold=0` to disable the
-suite. `raw=True` stores the given string unhashed (for importers).
+`(regex, hint, required)` - plus `test_threshold` (how many must pass,
+default 4). Override `tests` for your own policy; `tests=()` is what actually
+disables the suite.
 
 ## Rules
 - The stored dict carries its own `iterations`/`dklen`, so old hashes stay
@@ -21,7 +21,10 @@ suite. `raw=True` stores the given string unhashed (for importers).
   out lookbehind and named groups.
 - `conf.user.max_password_length` truncates before hashing; it exists to bound
   PBKDF2 cost, not as a policy knob.
-- `raw=True` disables hashing completely. Only for migrating pre-hashed data.
+- `raw=True` only stops `fromClient` from hashing; it does not reach the
+  datastore unhashed (see Traps). Only a value that is already a dict survives
+  `serialize` untouched, which is the actual path for migrating pre-hashed
+  data.
 
 ## Traps
 - An empty submitted value is reported as `Empty` and the stored password is
@@ -35,7 +38,15 @@ suite. `raw=True` stores the given string unhashed (for importers).
 - Assigning `skel["password"] = "secret"` works and is hashed in `serialize`,
   but skips the strength tests entirely.
 - `serialize` distinguishes "already hashed" from "plaintext" purely by
-  `isinstance(value, dict)`.
+  `isinstance(value, dict)`. That also defeats `raw=True`: `fromClient` puts
+  the plain string into the skeleton, and `serialize` then hashes it because it
+  is not a dict. The mode changes what `skel[name]` holds in memory, not what
+  is written.
+- `test_threshold=0` does not switch the suite off. The optional tests stop
+  mattering, but a test marked `required` - the built-in 8 character minimum -
+  still rejects the value. Meanwhile `structure()` reports an empty `tests`
+  tuple for `test_threshold=0`, so the frontend validates nothing while the
+  backend still refuses. Pass `tests=()` to really disable it.
 
 ## See also
 [string](string.md), [credential](credential.md), [../config](../config.md)
