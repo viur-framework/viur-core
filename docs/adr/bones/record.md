@@ -9,6 +9,9 @@ one bone - a sub-form, optionally `multiple=True`. Reading yields a
 (`parseSubfieldsFromClient` is True), so the wire format is
 `<bone>.<index>.<subbone>`.
 
+`structure()` embeds the whole `using().structure()`, so the client builds the
+sub-form from the parent structure alone.
+
 The bone forwards the bone protocol into the sub-skeleton:
 `postSavedHandler`, `postDeletedHandler`, `getSearchTags`,
 `getReferencedBlobs`, `refresh` all iterate the sub-bones. That is why a
@@ -24,17 +27,21 @@ The bone forwards the bone protocol into the sub-skeleton:
 - Entries beyond index 99 are not maintained: `postSavedHandler` logs
   "entry limit maximum reached" and stops cleaning up relations. Keep record
   lists shorter than 100 entries.
-- `getUniquePropertyIndexValues` raises NotImplementedError - `unique=` is not
-  available.
+- `unique=` works: `getUniquePropertyIndexValues` hashes
+  `json.dumps(using_skel.dump(), sort_keys=True, default=str)` per entry, so
+  the lock is over the whole record. `default=str` means values without a JSON
+  representation enter the hash through `str()` - changing a sub-bone's dump
+  format changes every existing lock.
 
 ## Traps
 - The index in the relation path is zero-padded to two digits, which is where
   the 99-entry limit comes from - reordering entries rewrites relations for
   every following index.
-- `postSavedHandler` and `postDeletedHandler` iterate `value.items()` without
-  the `if value is None: continue` guard that `getSearchTags` and
-  `getReferencedBlobs` have. A `None` entry in a multiple record (a stored
-  null) raises AttributeError during the write.
+- `postSavedHandler`, `postDeletedHandler` and `refresh` iterate
+  `value.items()` without the `if value is None: continue` guard that
+  `getSearchTags`, `getReferencedBlobs` and `getUniquePropertyIndexValues`
+  have. A `None` entry in a multiple record (a stored null) raises
+  AttributeError during the write.
 - `getSearchDocumentFields` calls `bone.getSearchDocumentFields`, which no
   longer exists on `BaseBone` - the method is dead and raises AttributeError
   if anything still calls it.
