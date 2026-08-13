@@ -14,8 +14,9 @@ the source's.
 ## Rules
 - Keep `precision` high enough to insert between two neighbours. With
   `precision=0` new entries collide immediately.
-- The bone is `readOnly=True` in `TreeSkel`; reordering goes through
-  `Tree.move` or an explicit `skel.patch()`, not through an edit form.
+- The bone is `readOnly=True` and `visible=False` in `TreeSkel`; reordering
+  goes through `Tree.move` or an explicit `skel.patch()` (which passes
+  `ignore=()` and therefore writes read-only bones), not through an edit form.
 - Sorting by it requires the property to be indexed (it is, by default).
 
 ## Traps
@@ -23,7 +24,13 @@ the source's.
   long as nobody assigns smaller values by hand.
 - `defaultValue` is a callable evaluated per skeleton instance; two entries
   created within the same float resolution can share an index, and the
-  datastore then falls back to key order.
+  datastore then falls back to key order. `precision=8` does not help here -
+  at timestamp magnitude the float64 step is already ~0.2 µs.
+- `Tree.move` writes `sortindex or time.time()`, so `sortindex=0` is silently
+  replaced by the current timestamp - an entry cannot be moved to index 0.
+- `default_order` is skipped for multi-queries (`IN`/`OR` filters) and when the
+  request carries a `search` kwarg, so a tree listing can come back in
+  datastore order instead.
 
 ## See also
 [numeric](numeric.md), [../prototypes](../prototypes.md)
