@@ -49,6 +49,12 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
 - test: Add unit tests for Bones and App Login Flow (get_cookie_for_app, apply_login_cookie) (#1661)
 
+## [3.8.34]
+
+- fix(bones): `getDefaultValue` shares one list across all languages of a multiple bone (#1752)
+- fix(file): parse absolute download URLs and an appended file name (#1750)
+- fix(email): remove hard retry cap to allow recovery from transient failures (#1749)
+
 ## [3.8.33]
 
 - fix: `RelationalBone.relskels_from_keys` mispairs relations on missing keys (#1746)
