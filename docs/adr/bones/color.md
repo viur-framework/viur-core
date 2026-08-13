@@ -22,6 +22,15 @@ value - use a `StringBone` with a `vfunc`, not this bone.
   characters and then expanded by the 4-character branch. A value like `#ab`
   (one `#`, hex digits, length 3) survives that chain and is stored as
   `###aabb`. Do not rely on the bone rejecting malformed short values.
+- The length checks assume the `#` rather than verify it: the 7-character
+  (`rgb`) and 9-character (`rgba`) branches take the value as already
+  prefixed, and nothing ever looks at `value[0]`. Seven hex digits without a
+  `#` (`abcdefa`) are therefore stored as-is, breaking the rule above.
+- `singleValueFromClient` starts with `value.lower()` without a type check, so
+  a client sending a number or an object raises AttributeError - a 500, not a
+  validation error.
+- There is no `structure()` override, so `mode` never reaches the frontend. A
+  client cannot tell whether this bone wants rgb or rgba.
 - `getEmptyValue()` is inherited from `BaseBone`, i.e. `None`, so an empty
   color and an unset color are the same thing.
 
