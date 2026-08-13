@@ -18,8 +18,11 @@ overriding `ensureDerived`.
 
 ## Rules
 - `refKeys` must contain `dlkey` and `name` (ValueError otherwise). If you
-  narrow `refKeys`, keep `mimetype`, `size` and `public` too - `isInvalid`
-  reads them and raises KeyError when they are missing.
+  narrow `refKeys`, keep `public` - `isInvalid` reads it for every value - plus
+  `mimetype` when `validMimeTypes` is set and `size` when `maxFileSize` is set.
+  A missing refKey does not raise KeyError: `value["dest"]` is a RefSkel whose
+  `__getitem__` returns `None` for a bone it does not have, so the checks fail
+  in less obvious ways (see Traps).
 - `public` on the bone must match the referenced file's `public` flag; a
   public file cannot be selected by a private bone and vice versa.
 - A deriver must return a list of `(filename, size, mimetype, custom_data)`
@@ -39,7 +42,20 @@ overriding `ensureDerived`.
 - `refresh` has a side effect: for public images without a `serving_url` it
   patches the *referenced file entry*, not just the mirrored copy.
 - `isInvalid` reads `value["dest"]["mimetype"]` without a None check, so a
-  file entry without mimetype raises AttributeError during validation.
+  file entry without mimetype raises AttributeError during validation. The
+  same holds for a `mimetype` dropped from `refKeys`. A missing `size` hits
+  `None > self.maxFileSize` (TypeError), and a missing `public` compares
+  `None != self.public` and rejects *every* file with "Only files marked
+  public=False are allowed" - a message that points nowhere near the cause.
+- `structure()` only exports `valid_mime_types` and `public`. Neither
+  `maxFileSize` nor `derive` reaches the client, so the frontend cannot warn
+  about a too large file before the upload is rejected server-side.
+- A `derive` key that is missing from `conf.file_derivations` only produces a
+  `logging.warning` and is skipped. A typo in the deriver name is silent in
+  every other respect.
+- `deriveStatus` is only written when a deriver returned something. A deriver
+  that legitimately returns nothing is therefore re-run after every single
+  write of the referencing entity.
 - `_atomic_dump` injects a freshly signed `downloadUrl` into the dumped value
   on every render, using `conf.render_json_download_url_expiration`. The dumped
   dict is therefore not stable and must not be cached.
