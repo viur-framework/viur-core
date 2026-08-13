@@ -8,8 +8,11 @@ status: accepted
 multi-language `alt` bone to the *relation* (not to the file).
 
 So the alternative text belongs to the usage of the image in this entry, not to
-the file entity - two entries can describe the same image differently. The
-file itself also has an `alt` bone (`FileLeafSkel.alt`) as a fallback.
+the file entity - two entries can describe the same image differently. The file
+itself also carries an `alt` bone (`FileLeafSkel.alt`), but it is *not* part of
+`FileBone.DEFAULT_REFKEYS`, so it never reaches `value["dest"]`. Using it as a
+fallback requires adding `"alt"` to `refKeys` explicitly; nothing in the bone
+falls back on its own.
 
 Pass your own `using=` RelSkel (subclassing `ImageBoneRelSkel`) to carry extra
 per-usage data such as a caption or a focus point.
@@ -27,6 +30,11 @@ per-usage data such as a caption or a focus point.
 ## Traps
 - Overriding `using` with a RelSkel that lacks `alt` silently drops the
   alternative text for that bone - nothing warns.
+- `alt` is not `required`, so an image can always be saved without any
+  alternative text. Enforce it in your own `using` skel if you need it.
+- The `validMimeTypes` default is a mutable list literal in the signature
+  (`= ["image/*"]`), shared by every `ImageBone` that does not pass its own.
+  Mutating `bone.validMimeTypes` in place changes it for all of them.
 - `public=True` means the served file is cacheable at the edge; a derived
   thumbnail of a private image is not automatically private just because the
   bone is.
