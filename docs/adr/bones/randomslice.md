@@ -28,10 +28,15 @@ the requested amount each sub-query fetches, default 0.5).
   fails with `TypeError: exceptions must derive from BaseException` instead of
   the intended message.
 - `buildDBSort` has the pre-`postfix` signature `(name, skel, dbFilter,
-  rawFilter)`. It works because callers pass four positional arguments, but it
-  breaks as soon as anything passes `postfix`.
+  rawFilter)`. It works because the only caller (`db.Query.mergeExternalFilter`)
+  passes four positional arguments, but it breaks as soon as anything passes
+  `postfix`.
+- Despite its `-> Optional[db.Query]` annotation `buildDBSort` never returns
+  anything; it rewrites `dbFilter` in place. The caller ignores the return
+  value, but do not chain on it in your own code.
 - `applyFilterHook` converts *any* exception from the query's filter hook into
-  RuntimeError to kill the query - including bugs in your own hook.
+  RuntimeError - including bugs in your own hook. `mergeExternalFilter` catches
+  it, sets `queries = None` and the query silently returns nothing.
 - The results are only sampled from `slices * 2 * ceil(amount * sliceSize)`
   fetched entries, so with a small `sliceSize` the sample is drawn from fewer
   entries than requested.
