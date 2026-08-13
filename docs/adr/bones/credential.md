@@ -18,8 +18,17 @@ in plaintext. For user passwords use [password](password.md), which hashes.
 - `max_length` defaults to `None` (unlimited) here, unlike `StringBone`.
 - An empty submitted value keeps the stored one. A secret can be replaced, but
   never cleared through the bone.
+- Only `max_length` is validated. `min_length` is accepted by the constructor
+  and reported by `structure()`, but the overridden `isInvalid` never looks at
+  it.
 
 ## Traps
+- This bone bypasses the whole `StringBone` machinery: `singleValueFromClient`
+  and `serialize` are overridden, so neither `escape_html` nor
+  `singleValueSerialize`/`type_coerce_single_value` ever runs. The client value
+  is stored verbatim - with the default `max_length=None` even a JSON object or
+  list, because `len()` is never called on it. With a `max_length` set, a
+  numeric value raises TypeError inside `len()`.
 - `skel["secret"]` is always `None` after a read, so read-modify-write cycles
   silently drop the value unless the client sends it again. `skel.patch()` on
   another bone is safe (nothing is written), but a manual
