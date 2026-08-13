@@ -23,7 +23,8 @@ class ColorBone(BaseBone):
 
     def __init__(self, *, mode="rgb", **kwargs):  # mode rgb/rgba
         super().__init__(**kwargs)
-        assert mode in self.VALID_LENGTHS
+        if mode not in self.VALID_LENGTHS:
+            raise ValueError(f"{mode=} is not in {self.VALID_LENGTHS!r}")
         self.mode = mode
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
