@@ -10,7 +10,8 @@ name it behaves like a normal bone storing a key property (that is how
 
 Configuration: `allowed_kinds` (restrict and adjust the kind via
 `db.key_helper`), `check=True` (verify the entity exists on read-from-client).
-Defaults are `readOnly=True`, `visible=False`.
+Defaults are `readOnly=True`, `visible=False`, `descr="Key"` and
+`tags="technical"`.
 
 ## Rules
 - Keep the `key` bone read-only. `Skeleton.key` carries a comment saying so:
@@ -34,9 +35,15 @@ Defaults are `readOnly=True`, `visible=False`.
   filter `key=` never hits a property named `key`.
 - `singleValueUnserialize` raises ValueError for a stored value it cannot
   parse - a corrupt key breaks reading the whole skeleton, it is not skipped.
-- The `key` bone bypasses `accessedValues` bookkeeping on read (it takes
-  `dbEntity.key` directly) but requires `accessedValues` on write, so
-  `skel["key"]` must be assigned for `serialize` to do anything.
+- On read the `key` bone takes `skel.dbEntity.key` instead of a property of
+  that name (and puts it into `accessedValues` like any other bone). A partial
+  key - an entity that was never written - does not qualify, so it falls
+  through to `BaseBone.unserialize` and `skel["key"]` ends up `None`.
+- `serialize` for the `key` bone only writes when the name is in
+  `accessedValues`, so `skel["key"]` must have been assigned.
+- `check` and `isInvalid` only run for client input. `singleValueUnserialize`
+  calls `singleValueFromClient(..., parse_only=True)`, which skips both - a
+  stored key pointing at a deleted entity is never noticed on read.
 
 ## See also
 [base](base.md), [../skeleton](../skeleton.md), [../db/query](../db/query.md),
