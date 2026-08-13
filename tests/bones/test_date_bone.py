@@ -89,7 +89,7 @@ class TestDateBone_setBoneValue(ViURTestCase):
 
 
 class TestDateBone_now(ViURTestCase):
-    """Tests for the "now" / "nowX" input format, which must work in any bone configuration."""
+    """Tests for the "now" / "nowX" input format, which is accepted by any bone carrying a time."""
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -122,9 +122,11 @@ class TestDateBone_now(ViURTestCase):
         from viur.core.bones import DateBone
         self._assert_now(DateBone(date=False), "now")
 
-    def test_now_date_only(self):
+    def test_now_rejected_on_date_only(self):
         from viur.core.bones import DateBone
-        self._assert_now(DateBone(time=False), "now")
+        # without a time there is nothing "now" could express, the date part is cropped anyway
+        self._assert_invalid(DateBone(time=False), "now")
+        self._assert_invalid(DateBone(time=False), "now5")
 
     def test_now_case_insensitive(self):
         from viur.core.bones import DateBone
