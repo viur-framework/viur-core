@@ -21,15 +21,22 @@ prefix `default_country_code` and drop a leading `0` of the local part.
 - `max_length` is checked against `_extract_digits(value)`, which keeps `+`
   as well - so the effective limit is 15 characters including the plus, not 15
   digits.
-- `self.test` is assigned *before* `super().__init__()`. That works only
-  because the attribute guard in `BaseBone.__setattr__` is inactive during
-  construction; do not copy the order into code that runs later.
+- `self.test` is assigned *before* `super().__init__()`, i.e. before
+  `isClonedInstance` is set. During module import that is harmless because the
+  guard in `BaseBone.__setattr__` also checks `getSystemInitialized()`. A
+  PhoneBone constructed *after* startup - in a factory or at request time -
+  raises "You cannot modify this Skeleton" from its own constructor.
 - Normalization happens before validation, so what is stored is not what the
   client sent - a project reading the raw request value and the bone value
   gets two different strings.
-- `structure()` exposes the regex pattern to the frontend, which is expected
-  to re-implement it. A pattern using Python-only regex features cannot be
-  evaluated there.
+- `structure()` exposes the regex pattern and `default_country_code` to the
+  frontend, which is expected to re-implement the pattern. A pattern using
+  Python-only regex features cannot be evaluated there.
+- `singleValueFromClient` starts with `value.strip()` and later indexes
+  `value[0]`, both unguarded. A non-string from a JSON client raises
+  AttributeError, and an empty string together with a `default_country_code`
+  raises IndexError. Through `fromClient` both are filtered by `isEmpty`
+  beforehand, but `setBoneValue` calls into the bone directly.
 
 ## See also
 [string](string.md), [email](email.md)
