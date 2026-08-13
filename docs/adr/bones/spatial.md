@@ -23,6 +23,8 @@ sub-queries (north/south/east/west of the point) and installs
 - Read `spatialGuaranteedCorrectness` before presenting results as complete.
 - Not usable inside a relation: `buildDBFilter` asserts `prefix is None`.
 - `indexed` and `multiple` together are rejected.
+- `setBoneValue` takes a `(lat, lng)` tuple/list or a dict with `lat`/`lng`,
+  and raises `ValueError` on anything else.
 
 ## Traps
 - `getEmptyValue()` returns `(0.0, 0.0)` although its own docstring describes
@@ -34,9 +36,15 @@ sub-queries (north/south/east/west of the point) and installs
   `db.Query` (it is `queries`), so the query is **not** made unsatisfiable -
   it runs without the spatial constraint and returns everything the other
   filters allow.
-- `setBoneValue` guards with `if not isinstance(value, (tuple, list)) and
-  len(value) == 2`. The `and` should be an `or`/`!=`: a 3-element tuple passes,
-  a 2-character string raises. It also returns `None` instead of a bool.
+- The filter is applied only when both `.lat` and `.lng` are present;
+  supplying just one of them ignores it silently.
+- `buildDBFilter` asserts that the query is not yet a multi-query. A list
+  `key` filter, a `search` filter without a fulltext adapter, or a
+  `RandomSliceBone` gets there first, and the resulting `AssertionError` is not
+  caught by `db.Query.mergeExternalFilter` (it only catches `RuntimeError`).
+- The bounds are each checked against +/-90 and +/-180, but not their order:
+  a reversed tuple makes every value invalid. A `gridDimensions` entry of `0`
+  raises `ZeroDivisionError` on the first write.
 - The tile index is written only when the bone *and* its parent are indexed.
   Switching `indexed` on later requires re-writing every entry.
 - Values are validated against the bounds, so widening the region later is
