@@ -5,7 +5,9 @@ status: accepted
 ## Seam
 `EmailBone` is a `StringBone` whose only addition is `isInvalid`: a syntactic
 check of the address (length limits, one `@`, allowed local-part characters
-including Unicode, and per-label DNS validation of the IDNA-encoded domain).
+including Unicode, the RFC 5321 dot rules for the local part - no leading or
+trailing dot, no `..` - and per-label DNS validation of the IDNA-encoded
+domain).
 
 Override `isInvalid` (or pass `vfunc`) for extra policy - deliverability,
 blocked domains, MX checks. None of that happens here.
@@ -24,10 +26,17 @@ blocked domains, MX checks. None of that happens here.
 - An empty value is reported as invalid ("No value entered") rather than
   empty, so an optional EmailBone still needs `isEmpty` to filter first - which
   `BaseBone.fromClient` does before calling into the bone.
-- `max_length` is inherited from `StringBone` (254) and the local part is
-  limited to 64; both are enforced in addition to the regex.
-- The bone escapes HTML like every `StringBone`, so an address containing
-  `&` is stored escaped.
+- `isInvalid` does not call `super().isInvalid()`, so neither `max_length` nor
+  `min_length` of the `StringBone` is validated. The only length checks are the
+  local `len(value) < 256` and the 64 characters of the local part.
+  `StringBone.singleValueFromClient` afterwards truncates the value to
+  `max_length` (254) inside `utils.string.escape(value, self.max_length)`, so a
+  255 character address passes validation and is stored cut off.
+- The bone escapes like every `StringBone`, but `&` is not part of the escape
+  table - the characters that hit a valid address are `'` (`&#39;`) and `=`
+  (`&#61;`). The escaped form contains a `;`, which is *not* in the allowed
+  local-part characters: sending the stored address back unchanged (load and
+  save in the admin) fails validation with "Invalid email entered".
 
 ## See also
 [string](string.md), [phone](phone.md), [../email](../email.md)
