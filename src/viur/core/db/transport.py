@@ -34,8 +34,9 @@ from google.cloud import datastore, exceptions
 
 from .overrides import entity_from_protobuf, key_from_protobuf
 from .types import Entity, Key, QueryDefinition, SortOrder, current_db_access_log
+from . import cache
 from viur.core.config import conf
-from viur.core.errors import HTTPException
+from viur.core import utils
 
 # patching our key and entity classes
 datastore.helpers.key_from_protobuf = key_from_protobuf
@@ -65,7 +66,7 @@ def AllocateIDs(kind_name):
     return allocate_ids(kind_name)[0]
 
 
-def get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None]:
+def get(keys: t.Union[Key, t.Iterable[Key]]) -> t.Union[list[Entity], Entity, None]:
     """
     Retrieves an entity (or a list thereof) from datastore.
     If only a single key has been given we'll return the entity or none in case the key has not been found,
@@ -75,18 +76,34 @@ def get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None
     """
     _write_to_access_log(keys)
 
-    if isinstance(keys, (list, set, tuple)):
-        res_list = list(__client__.get_multi(keys))
-        res_list.sort(key=lambda k: keys.index(k.key) if k else -1)
-        if conf.debug.trace_queries:
-            found = sum(1 for r in res_list if r is not None)
-            logging.info(f"db.get: {found}/{len(keys)} entities found")
-        return res_list
+    is_multiple = isinstance(keys, (list, set, tuple))
+    key_list = list(keys) if is_multiple else [keys]
 
-    res = __client__.get(keys)
+    # Serve whatever we can from the cache, indexed by its stringified key.
+    # cache.get() returns a bare Entity on a single hit, a list otherwise;
+    # normalize to a list (an Entity is dict-like and would iterate its fields).
+    cached_data = utils.ensure_iterable(cache.get(keys))
+    entities_by_key = {str(entity.key): entity for entity in cached_data}
+
+    # Fetch the keys that were not cached and write them back into the cache
+    missing = [key for key in key_list if str(key) not in entities_by_key]
+    if missing:
+        fetched = list(__client__.get_multi(missing))
+        if fetched:
+            cache.put(fetched)
+        for entity in fetched:
+            entities_by_key[str(entity.key)] = entity
+
+    # Reassemble in the original key order, dropping keys that were not found
+    result = [entities_by_key[str(key)] for key in key_list if str(key) in entities_by_key]
+
     if conf.debug.trace_queries:
-        logging.info(f"db.get({keys}): {'found' if res is not None else 'not found'}")
-    return res
+        logging.info(f"db.get: {len(result)}/{len(key_list)} entities found")
+
+    if is_multiple:
+        return result
+    return result[0] if result else None
+
 
 
 @deprecated(version="3.8.0", reason="Use 'db.get' instead")
@@ -101,6 +118,8 @@ def put(entities: t.Union[Entity, t.List[Entity]]):
     :param entities: The entities to be saved to the datastore.
     """
     _write_to_access_log(entities)
+
+    cache.put(entities)
     if isinstance(entities, Entity):
         res = __client__.put(entities)
         if conf.debug.trace_queries:
@@ -118,17 +137,20 @@ def Put(entities: t.Union[Entity, t.List[Entity]]) -> t.Union[Entity, None]:
     return put(entities)
 
 
-def delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
+def delete(keys: t.Union[Entity, t.Iterable[Entity], Key, t.Iterable[Key]]):
     """
     Deletes the entities with the given key(s) from the datastore.
     :param keys: A Key (or a t.List of Keys) to delete
     """
+
     _write_to_access_log(keys)
+    cache.delete(keys)
     if not isinstance(keys, (set, list, tuple)):
         res = __client__.delete(keys)
         if conf.debug.trace_queries:
             logging.info(f"db.delete: deleted {keys}")
         return res
+
 
     res = __client__.delete_multi(keys)
     if conf.debug.trace_queries:
