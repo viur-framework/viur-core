@@ -49,6 +49,11 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
 - test: Add unit tests for Bones and App Login Flow (get_cookie_for_app, apply_login_cookie) (#1661)
 
+## [3.8.35]
+
+- fix: refresh each source entity only once in `update_relations` (#1756)
+- fix: `db.keyHelper` was not flagged as deprecated
+
 ## [3.8.34]
 
 - fix(bones): `getDefaultValue` shares one list across all languages of a multiple bone (#1752)
