@@ -358,6 +358,18 @@ class Security(ConfigType):
     }
     """If set, viur will emit a CSP http-header with each request. Use security.addCspRule to set this property"""
 
+    reporting_endpoints: dict[str, str] = {}
+    """Named endpoints reports are being sent to, emitted as ``Reporting-Endpoints`` http-header.
+
+    Maps an endpoint name to the URL receiving the reports. Other headers reference these names,
+    for example the CSP-directive ``report-to``. The name ``default`` is used by the browser for
+    reports whose header cannot name an endpoint on its own (i.e. deprecation reports).
+
+    Use :func:`~viur.core.securityheaders.set_reporting_endpoint` to set this property.
+
+    See https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Reporting-Endpoints
+    """
+
     referrer_policy: str = "strict-origin"
     """Per default, we'll emit Referrer-Policy: strict-origin so no referrers leak to external services
 
