@@ -362,8 +362,9 @@ class Security(ConfigType):
     """Named endpoints reports are being sent to, emitted as ``Reporting-Endpoints`` http-header.
 
     Maps an endpoint name to the URL receiving the reports. Other headers reference these names,
-    for example the CSP-directive ``report-to``. The name ``default`` is used by the browser for
-    reports whose header cannot name an endpoint on its own (i.e. deprecation reports).
+    for example the CSP-directive ``report-to``, which supersedes the deprecated ``report-uri``.
+    The name ``default`` is used by the browser for reports whose header cannot name an endpoint
+    on its own (i.e. deprecation reports).
 
     Use :func:`~viur.core.securityheaders.set_reporting_endpoint` to set this property.
 

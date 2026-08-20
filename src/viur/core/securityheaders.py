@@ -36,6 +36,12 @@ The Permissions-Policy will only allow auto-play by default (thus access to the 
 Cross origin isolation is currently disabled by default (as it's incompatible with many popular services like
 embedding a map or sign-in with google).
 
+CSP violations used to be reported through the ``report-uri`` directive, which carries its url itself.
+That directive is deprecated since CSP Level 3 and superseded by the Reporting-API: endpoints are declared
+once in the ``Reporting-Endpoints`` header and referenced by name, by the CSP-directive ``report-to`` as
+well as by other headers. Browsers that support it ignore ``report-uri`` once both are present, so keeping
+the old directive around does not keep the reports flowing on its own.
+
 No reporting endpoints are configured by default; see :func:`set_reporting_endpoint` on how to receive reports.
 
 ViUR also protects it's cookies by default (setting httponly, secure and samesite=lax). This can be changed by
@@ -76,9 +82,11 @@ def addCspRule(objectType: str, srcOrDirective: str, enforceMode: str = "monitor
             security.set_reporting_endpoint("csp", "/cspReport")
             security.addCspRule("report-to", "csp", "enforce")
 
-        and register a function at /cspReport to handle the reports. As ``report-to`` is not supported by every
-        browser yet, the deprecated ``report-uri`` directive can be added as a fallback; browsers understanding
-        both will ignore it::
+        and register a function at /cspReport to handle the reports.
+
+        The older ``report-uri`` directive does the same without a named endpoint, but is deprecated since
+        CSP Level 3. It is still worth adding for browsers that do not support the Reporting-API; those that
+        do ignore it as soon as ``report-to`` is present::
 
             security.addCspRule("report-uri", "/cspReport", "enforce")
 
@@ -103,7 +111,7 @@ def addCspRule(objectType: str, srcOrDirective: str, enforceMode: str = "monitor
         "base-uri", "sandbox",
         # Navigation directives
         "form-action", "frame-ancestors",
-        # Reporting directives
+        # Reporting directives; "report-uri" is deprecated, prefer "report-to" with set_reporting_endpoint()
         "report-uri", "report-to",
         # Other directives
         "require-trusted-types-for", "trusted-types", "upgrade-insecure-requests", "block-all-mixed-content",
