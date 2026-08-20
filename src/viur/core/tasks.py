@@ -524,6 +524,20 @@ def CallDeferred(func: t.Callable) -> t.Callable:
         except Exception:  # This will fail for warmup requests
             req = None
 
+        # It's the deferred method which is called from the task queue, this has to be called directly
+        _call_deferred &= not (req and req.request.headers.get("X-Appengine-Taskretrycount")
+                               and "DEFERRED_TASK_CALLED" not in dir(req))
+
+        if not _call_deferred:
+            # An explicit request to run the task right here. Whether a queue can be reached is a
+            # property of the environment and must not turn this into a deferred call.
+            if self is __undefinedFlag_:
+                return func(*args, **kwargs)
+
+            if req is not None:
+                req.DEFERRED_TASK_CALLED = True
+            return func(self, *args, **kwargs)
+
         if not queueRegion:
             # Run tasks inline
             logging.debug(f"{func=} will be executed inline")
@@ -542,17 +556,6 @@ def CallDeferred(func: t.Callable) -> t.Callable:
                 task()
 
             return  # Ensure no result gets passed back
-
-        # It's the deferred method which is called from the task queue, this has to be called directly
-        _call_deferred &= not (req and req.request.headers.get("X-Appengine-Taskretrycount")
-                               and "DEFERRED_TASK_CALLED" not in dir(req))
-
-        if not _call_deferred:
-            if self is __undefinedFlag_:
-                return func(*args, **kwargs)
-
-            req.DEFERRED_TASK_CALLED = True
-            return func(self, *args, **kwargs)
 
         else:
             try:
