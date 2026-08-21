@@ -36,7 +36,6 @@ from .overrides import entity_from_protobuf, key_from_protobuf
 from .types import Entity, Key, QueryDefinition, SortOrder, current_db_access_log
 from . import cache
 from viur.core.config import conf
-from viur.core import utils
 
 # patching our key and entity classes
 datastore.helpers.key_from_protobuf = key_from_protobuf
@@ -80,10 +79,7 @@ def get(keys: t.Union[Key, t.Iterable[Key]]) -> t.Union[list[Entity], Entity, No
     key_list = list(keys) if is_multiple else [keys]
 
     # Serve whatever we can from the cache, indexed by its stringified key.
-    # cache.get() returns a bare Entity on a single hit, a list otherwise;
-    # normalize to a list (an Entity is dict-like and would iterate its fields).
-    cached_data = utils.ensure_iterable(cache.get(keys))
-    entities_by_key = {str(entity.key): entity for entity in cached_data}
+    entities_by_key = {str(entity.key): entity for entity in cache.get(key_list)}
 
     # Fetch the keys that were not cached and write them back into the cache
     missing = [key for key in key_list if str(key) not in entities_by_key]
@@ -119,16 +115,20 @@ def put(entities: t.Union[Entity, t.List[Entity]]):
     """
     _write_to_access_log(entities)
 
-    cache.put(entities)
+    # Cache only after the datastore accepted the write: a failed write must not
+    # leave a value in the cache that was never persisted. The datastore also
+    # completes partial keys during the write, so caching afterwards stores the
+    # entity under its final key.
     if isinstance(entities, Entity):
         res = __client__.put(entities)
         if conf.debug.trace_queries:
             logging.info(f"db.put: saved {entities.key}")
-        return res
+    else:
+        res = __client__.put_multi(entities=entities)
+        if conf.debug.trace_queries:
+            logging.info(f"db.put: saved {len(entities)} entities")
 
-    res = __client__.put_multi(entities=entities)
-    if conf.debug.trace_queries:
-        logging.info(f"db.put: saved {len(entities)} entities")
+    cache.put(entities)
     return res
 
 

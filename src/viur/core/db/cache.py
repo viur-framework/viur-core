@@ -35,21 +35,22 @@ __all__ = [
 ]
 
 
-def get(keys: t.Union[Key, t.Iterable[Key]], namespace: t.Optional[str] = None) -> t.Union[Entity, list[Entity], None]:
+def get(keys: t.Union[Key, t.Iterable[Key]], namespace: t.Optional[str] = None) -> list[Entity]:
     """
     Reads data form the memcache.
     :param keys: Unique identifier(s) for one or more entry(s).
     :param namespace: Optional namespace to use.
-    :return: The entity (or None if it has not been found), or a list of entities.
+    :return: The entities that were found, in arbitrary order. Always a list, even for a single key,
+        because an Entity is dict-like and callers must not have to tell a hit from an iterable.
     """
     # Inside a transaction reads must go straight to the datastore, so the cache
     # cannot serve a (potentially stale) value. Lazy import to avoid a cycle.
     from .utils import is_in_transaction
     if is_in_transaction():
-        return None
+        return []
 
     if not check_for_memcache():
-        return None
+        return []
 
     namespace = namespace or MEMCACHE_NAMESPACE
     keys = utils.ensure_iterable(keys)
@@ -58,7 +59,7 @@ def get(keys: t.Union[Key, t.Iterable[Key]], namespace: t.Optional[str] = None) 
     result = []
     try:
         while keys:
-            if cached_data := conf.db_memcache_client.get_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=namespace):
+            if cached_data := conf.db.memcache_client.get_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=namespace):
                 cached_data_result |= cached_data
             keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
     except Exception as e:
@@ -68,9 +69,7 @@ def get(keys: t.Union[Key, t.Iterable[Key]], namespace: t.Optional[str] = None) 
         entity |= value
         result.append(entity)
 
-    if len(result) == 1:
-        return result[0] if result else None
-    return result if result else None
+    return result
 
 
 def put(
