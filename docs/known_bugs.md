@@ -157,6 +157,41 @@ file node deletes the node but leaves its children.
 Fix: filter `parententry`, use `fileEntry.key`, or drop the override entirely
 and let `Tree.deleteRecursive` handle it.
 
+### `src/viur/core/bones/uid.py:22` - the `CollisionError` retry is dead code
+
+```python
+for i in range(3):
+    try:
+        ...
+        db.put(db_obj)
+        break
+    except db.CollisionError:  # recall the function
+        time.sleep(i + 1)
+else:
+    raise ValueError("Can't set the Uid")
+```
+
+`db.CollisionError` does not exist. The symbol came from `viur.datastore` and
+disappeared with the re-integration of the Google Datastore API (#1431);
+`src/viur/core/db/__init__.py` no longer exports it. Python only evaluates the
+`except` expression once something is raised inside the `try`, and then the
+original exception is replaced by `AttributeError: 'super' object has no
+attribute 'CollisionError'`.
+
+So the retry never runs, `time.sleep` is unreachable, the `else` branch of the
+loop cannot raise its `ValueError`, and every real datastore error is masked
+as an `AttributeError`.
+
+Even if the symbol existed the retry would be pointless: `serialize_compute`
+runs inside the skeleton's write transaction (`skeleton/skeleton.py:421`), so
+retrying inside the transaction body cannot resolve a conflict that only
+surfaces on commit - and sleeping there blocks the request. The commit
+conflict is already handled by `db.run_in_transaction`
+(`db/transport.py:166-178`).
+
+Fix: drop the loop and let the conflict propagate to the surrounding
+`run_in_transaction`.
+
 ### `src/viur/core/modules/file.py:758` - `create_src_set` on a multi-language bone
 
 ```python
@@ -212,7 +247,22 @@ For a plain string, `set("https")` yields `{"h", "t", "p", "s"}`. So
 `UriBone(accepted_protocols="https")` allows the protocols `h`, `t`, `p` and
 `s` - and rejects `https`. The whole restriction is silently inverted.
 
-Fix: `self.accepted_protocols = {self.accepted_protocols}` for the str case.
+Two lines later the same parameter is checked for the wildcard - on the
+original argument, not on the normalized one:
+
+```python
+if "*" in accepted_protocols:
+    self.accepted_protocols = None
+```
+
+For a list this is a membership test, for a string a substring test. Any
+string containing a `*` therefore switches the protocol check off entirely:
+`UriBone(accepted_protocols="http*")` accepts `file://x`. Since fnmatch
+patterns are a documented and tested way to write this option, that spelling
+is the obvious one to reach for.
+
+Fix: normalize the str case to `{self.accepted_protocols}` first, then test
+the wildcard against the normalized set.
 
 ### `src/viur/core/bones/uri.py:145` - default ports are rejected
 
@@ -394,10 +444,6 @@ arguments.
   for multi-language bones; raises TypeError while the value is still None.
 - `src/viur/core/bones/string.py:278-286` - the DIN 5007-2 transformation maps
   `ẞ` but not `ß`, so lowercase sharp s is not folded to `ss`.
-- `src/viur/core/bones/uid.py:22-23` - `generate_number` retries a
-  `CollisionError` with `time.sleep(i + 1)` inside the transaction body.
-  Sleeping in a datastore transaction blocks the request instead of failing
-  fast.
 - `src/viur/core/bones/uid.py:56` - `fillchar` defaults to `"*"`, so padded
   uids look like `"***********0"`. Presumably `"0"` was meant.
 - `src/viur/core/bones/select.py:74-113` - `values` is re-evaluated in
