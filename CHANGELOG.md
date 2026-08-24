@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.36]
+
+- fix: `read_all_modules` overwrites existing `ModuleConf` entries (#1762)
+
 ## [3.8.35]
 
 - fix: refresh each source entity only once in `update_relations` (#1756)
