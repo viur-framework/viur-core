@@ -1,44 +1,68 @@
 ---
-covers: [viur.core.cache.enableCache, viur.core.cache.flushCache, viur.core.cache.keyFromArgs]
+covers: [viur.core.cache.ResponseCache, viur.core.cache.flushCache, viur.core.cache.UserSensitive,
+         viur.core.cache.DEFAULT_SETTINGS]
 status: accepted
 ---
 ## Seam
-`@enableCache(urls, userSensitive, languageSensitive, evaluatedArgs,
-maxCacheTime)` wraps an `@exposed` method and serves the stored response from
-the `viur-cache` kind. Invalidation is `flushCache(prefix=..., key=...,
-kind=...)`, which the module prototypes already call from
-`onAdded`/`onEdited`/`onDeleted`/`onCloned`. A project-specific cache
-dimension can be added through `conf.cache_environment_key`.
+`@ResponseCache(urls, renderer, user_sensitive, language_sensitive,
+evaluated_args, max_cache_time, compression_level)` wraps an `@exposed` method
+and serves the stored response from the `viur-cache` kind. 200 responses and
+3xx redirects are cached; every argument omitted falls back to the global
+`DEFAULT_SETTINGS`. A project-specific cache dimension can be added through
+`conf.cache_environment_key`.
+
+Invalidation is `flushCache(prefix=..., key=..., kind=...)`: the module
+prototypes call it with `kind=` from `onAdded`/`onCloned` and with `key=` from
+`onEdited`/`onDeleted`.
 
 ## Rules
-- `evaluatedArgs` must list **every** parameter that influences the output.
+- `evaluated_args` must list **every** parameter that influences the output.
   Unlisted parameters do not enter the key, so a cached response is served for
   a different request (the docstring names `order` as the classic mistake).
-- `urls` must contain each url the function is reachable under, and only those
-  which may be cached (the docstring's example: cache `/page/view`, not
-  `/admin/page/view`).
-- Requires `conf.db.create_access_log = True`; without it caching is disabled
-  with a warning, because invalidation relies on the recorded data access.
-- Only the `Content-Type` header is stored and restored. Do not cache
-  functions that set other headers or depend on the environment.
-- `evaluatedArgs` entries must not start with `_` (assert).
+  Name `args` / `kwargs` there to include variadic parameters.
+- `urls` restricts caching to the listed routes; `None` means "cache under
+  every path". `renderer` restricts by render kind (`"html"`) or render class,
+  standalone or in addition to `urls`.
+- `user_sensitive` takes the `UserSensitive` enum
+  (`IGNORE`/`GUEST_ONLY`/`BOTH`/`INDIVIDUAL`), not a number.
+- To skip caching from project code, `conf.cache_environment_key` returns
+  `BypassCache(reason)`. Raising `RuntimeError` still works but is deprecated.
+- The response body is stored in the datastore entity, so it must be
+  datastore-storable and stay below `MAX_PROPERTY_SIZE` (1 MiB - 89 bytes).
+  `compression_level` compresses it beforehand;
+  `DEFAULT_SETTINGS.raise_too_large` decides whether an oversized response
+  raises or is returned uncached.
+- `conf.debug.disable_cache` switches the cache off globally; users with `root`
+  bypass it per request via the `X-Viur-Disable-Cache` header (evaluated in the
+  router).
 
 ## Traps
-- `keyFromArgs` returns None - meaning "no caching", silently - when
-  `userSensitive == 1` and a user is logged in, when
-  `conf.cache_environment_key` raises RuntimeError, or when not every
-  positional parameter of the function could be filled.
-- The key is built from `f.__code__`/`f.__defaults__` of the *unwrapped*
-  function; wrapping a `Method` replaces `Method._func` in place.
+- Invalidation only sees entities read with `db.get`/`put`/`delete` - the query
+  part of the access log is commented out (`db/query.py`), so no kind ever
+  reaches `accessedEntries`. `flushCache(kind=...)`, i.e. what `onAdded` and
+  `onCloned` call, never matches anything, and a page that fetches its data
+  through a query is never invalidated at all.
+- `flushCache(key=...)` only derives a kind when `key` is *not* a `db.Key`
+  (parsed with `Key.from_legacy_urlsafe`). The prototypes pass a real key, so
+  no kind flush happens there.
+- The size check uses `sys.getsizeof(body)`, which counts CPython's internal
+  representation, not the UTF-8 bytes the datastore stores: 700k umlauts pass
+  as "700 KB" and blow up in `db.Put` at 1.4 MB.
+- `get_args` sets `__user`, `__lang`, `__path`, `__cache_environment`,
+  `__app_version` and `__template_style` itself - an `evaluated_args` entry
+  with one of these names is overwritten.
+- A parameter that cannot be filled is silently dropped from the key (only a
+  debug log), it no longer bypasses the cache.
+- The key is built from `inspect.signature` of the *unwrapped* function;
+  wrapping a `Method` replaces `Method._func` in place.
 - `flushCache` is itself a `@CallDeferred` task, so invalidation is
   asynchronous. Right after a write the old response can still be served.
-- `flushCache(key=...)` also drops entries that merely queried the *kind* of
-  that key; a non-`db.Key` value is parsed with `Key.from_legacy_urlsafe`.
-- `maxCacheTime` does not delete anything, it only stops serving the entry.
-- Users with `root` bypass the cache per request via the
-  `X-Viur-Disable-Cache` header (evaluated in the router).
-- The response body is stored in the datastore entity, so it must be
-  datastore-storable and stay below the entity size limit.
+- `max_cache_time` does not delete anything, it only stops serving the entry.
+- Not only `Content-Type` is restored: every `X-` header the wrapped function
+  added, plus `Cache-Control`, is stored and replayed. The cache reports
+  itself through `X-Cache-Status` (`HIT`/`MISS`/`UPDATED`/`BYPASS`/`TOO_LARGE`).
+- `conf.db.create_access_log = False` does not disable caching - it only empties
+  `accessedEntries`, so entries are cached and never invalidated.
 
 ## Why not
 Cached responses live in the datastore instead of memcache: they survive
