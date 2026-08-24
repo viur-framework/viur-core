@@ -9,9 +9,10 @@ into a `pattern` where `*` is replaced. The counter lives in the datastore kind
 transaction (`generate_number`).
 
 The bone wires itself up as `compute=Compute(fn=generate_fn,
-interval=ComputeMethod.Once)` plus `unique=UniqueValue(SameValue, ...)`.
-Replace `generate_fn` to change the format entirely; it receives `skel` and
-`bone`.
+interval=ComputeInterval(ComputeMethod.Once))` plus
+`unique=UniqueValue(SameValue, ...)`. Replace `generate_fn` to change the
+format entirely; `_compute` injects the parameters it declares (`skel`, `bone`,
+`bone_name`).
 
 ## Rules
 - The bone must be `readOnly=True` (ValueError otherwise) and cannot be
@@ -30,10 +31,20 @@ Replace `generate_fn` to change the format entirely; it receives `skel` and
   leading zeros.
 - The first generated number is `0`: an entity is created with `count = 0` and
   that value is returned.
-- `generate_number` retries a `CollisionError` three times *inside* the
-  transaction body, with `time.sleep(i + 1)` - a sleep inside a datastore
-  transaction. Under contention this blocks the request instead of failing
-  fast.
+- Padding cannot be switched off. `fillchar` must be exactly one character, so
+  `if bone.fillchar` in `generate_uid` is always true and its unpadded branch
+  is dead code. Set `length <= len(pattern)` instead.
+- `generate_number` catches `db.CollisionError`, which no longer exists since
+  the datastore re-integration (#1431). Any exception raised in the retry body
+  is masked by an `AttributeError`; the retry never runs, the `time.sleep` is
+  never reached and `ValueError("Can't set the Uid")` is unreachable.
+- `serialize_compute` runs inside the skeleton's write transaction, so
+  `generate_number` joins that transaction instead of opening its own. The
+  counter entity is therefore read and written on every add of that kind, which
+  serialises entity creation; on conflict `run_in_transaction` retries three
+  times (sleeping 1/2/4 s) and then raises `RuntimeError`.
+- `unserialize_compute` has no branch for `ComputeMethod.Once`, so the number
+  is only ever produced on write - never on read.
 - The counter entity is not deleted with the entries. Deleting all entries
   does not reset the numbering.
 - `length` only matters when padding; a number longer than
