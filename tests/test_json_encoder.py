@@ -24,7 +24,7 @@ def _load_custom_json_encoder():
     """Load CustomJsonEncoder without executing viur.core.__init__ chain.
 
     default.py's top-level imports are:
-        from viur.core import db, current
+        from viur.core import db, current, utils
         from viur.core.bones import BaseBone
         from viur.core.render.abstract import AbstractRenderer
         from viur.core.skeleton import SkeletonInstance, SkelList
@@ -56,6 +56,9 @@ def _load_custom_json_encoder():
     class _conf_obj:
         compatibility: set = set()
 
+    def _is_prefix(name, prefix, delimiter="."):
+        return name == prefix or name.startswith(prefix + delimiter)
+
     def _noop_deprecated(**kw):
         return lambda fn: fn
 
@@ -72,15 +75,19 @@ def _load_custom_json_encoder():
     # DO stub viur.core itself to prevent __init__ from running.
     _current_stub = _pkg("viur.core.current")
     _db_stub = _pkg("viur.core.db", Key=_Key)
+    _string_stub = _pkg("viur.core.utils.string", is_prefix=_is_prefix)
+    _utils_stub = _pkg("viur.core.utils", string=_string_stub)
 
-    # viur.core package stub — must expose db and current as attributes
-    # so that `from viur.core import db, current` works without __init__
-    _core_stub = _pkg("viur.core", db=_db_stub, current=_current_stub)
+    # viur.core package stub — must expose db, current and utils as attributes
+    # so that `from viur.core import db, current, utils` works without __init__
+    _core_stub = _pkg("viur.core", db=_db_stub, current=_current_stub, utils=_utils_stub)
 
     patch = {
         "viur.core": _core_stub,
         "viur.core.db": _db_stub,
         "viur.core.current": _current_stub,
+        "viur.core.utils": _utils_stub,
+        "viur.core.utils.string": _string_stub,
         "viur.core.bones": _pkg("viur.core.bones", BaseBone=_BaseBone),
         "viur.core.render": _pkg("viur.core.render"),
         "viur.core.render.abstract": _pkg(
