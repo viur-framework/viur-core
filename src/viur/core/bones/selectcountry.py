@@ -566,7 +566,6 @@ class SelectCountryBone(SelectBone):
         "fin": "fi",
         "tkl": "tk",
         "rwa": "rw",
-        "ant": "an",  # deleted from ISO 3166-1 in 2010; kept so stored legacy values still convert
         "bih": "ba",
         "cpv": "cv",
         "tjk": "tj",
