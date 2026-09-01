@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.37]
+
+- fix(tasks): honour `_call_deferred=False` when no queue is reachable (#1758)
+- chore: update outdated ISO country codes for `SelectCountryBone` (#1765)
+
 ## [3.8.36]
 
 - fix: `read_all_modules` overwrites existing `ModuleConf` entries (#1762)
