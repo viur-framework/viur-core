@@ -609,7 +609,9 @@ class RelationalBone(BaseBone):
             .filter("viur_src_property =", boneName) \
             .filter("src.__key__ =", key)
 
-        db.delete([entity for entity in query.run()])
+        # iter() deliberately ignores the query limit, run() would stop after
+        # conf.db.query_default_limit entries and orphan every relation beyond it
+        db.delete(list(query.iter(keys_only=True)))
 
     def isInvalid(self, key) -> None:
         """
