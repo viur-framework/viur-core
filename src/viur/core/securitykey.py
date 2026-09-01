@@ -39,7 +39,7 @@ def create(
         indexed: bool = True,
         amount:int = 1,
         **custom_data,
-) -> str:
+) -> str | list[str]:
     """
         Creates a new one-time CSRF-security-key.
 
