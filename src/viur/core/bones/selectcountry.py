@@ -21,7 +21,7 @@ class SelectCountryBone(SelectBone):
          ISO-Codes (must match the Code-Length from `codes`), or a dict with matching iso-codes as keys and
          the full country-names as values.
 
-    see also:
+    .. seealso::
         https://www.iso.org/obp/ui/#search/code/
     """
 
