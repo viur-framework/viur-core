@@ -20,6 +20,9 @@ class SelectCountryBone(SelectBone):
     :param values: Optional, either a str representing a predefined group (currently "dach" and "eu"), a list of
          ISO-Codes (must match the Code-Length from `codes`), or a dict with matching iso-codes as keys and
          the full country-names as values.
+
+    see also:
+        https://www.iso.org/obp/ui/#search/code/
     """
 
     ISO3CODES = {
