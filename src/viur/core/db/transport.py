@@ -25,6 +25,7 @@ database.
 """
 from __future__ import annotations
 
+import itertools
 import logging
 import time
 import typing as t
@@ -47,6 +48,14 @@ datastore.helpers.entity_from_protobuf = entity_from_protobuf
 # Both default to None, which is the same as datastore.Client(): no change for
 # default deployments.
 __client__ = datastore.Client(database=conf.db.name, namespace=conf.db.namespace)
+
+MAX_LOOKUP_KEYS: t.Final[int] = 1000
+"""Maximum number of keys the datastore accepts for a single Lookup operation.
+
+Unlike a Lookup, a Commit has no comparable cap on the number of mutations - it is bounded by
+the 10 MiB request size instead. :func:`put` and :func:`delete` therefore stay a single commit
+of whatever they are handed, which keeps them atomic.
+"""
 
 
 def allocate_ids(kind_name: str, num_ids: int = 1, retry=None, timeout=None) -> list[Key]:
@@ -88,7 +97,10 @@ def get(keys: t.Union[Key, t.Iterable[Key]]) -> t.Union[list[Entity], Entity, No
     # Fetch the keys that were not cached and write them back into the cache
     missing = [key for key in key_list if str(key) not in entities_by_key]
     if missing:
-        fetched = list(__client__.get_multi(missing))
+        # A Lookup accepts at most MAX_LOOKUP_KEYS keys, so ask in chunks and merge the answers
+        fetched = []
+        for chunk in itertools.batched(missing, MAX_LOOKUP_KEYS):
+            fetched.extend(__client__.get_multi(list(chunk)))
         if fetched:
             cache.put(fetched)
         for entity in fetched:
@@ -115,6 +127,9 @@ def put(entities: t.Union[Entity, t.List[Entity]]):
     """
     Save an entity in the Cloud Datastore.
     Also ensures that no string-key with a digit-only name can be used.
+
+    A list of entities is written in one commit and therefore atomically, however long it is.
+
     :param entities: The entities to be saved to the datastore.
     """
     _write_to_access_log(entities)
@@ -140,6 +155,9 @@ def Put(entities: t.Union[Entity, t.List[Entity]]) -> t.Union[Entity, None]:
 def delete(keys: t.Union[Entity, t.Iterable[Entity], Key, t.Iterable[Key]]):
     """
     Deletes the entities with the given key(s) from the datastore.
+
+    A list of keys is deleted in one commit and therefore atomically, however long it is.
+
     :param keys: A Key (or a t.List of Keys) to delete
     """
 
