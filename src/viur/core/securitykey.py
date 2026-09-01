@@ -37,7 +37,7 @@ def create(
         session_bound: bool = True,
         key_length: int = 13,
         indexed: bool = True,
-        amount:int = 1,
+        amount: int = 1,
         **custom_data,
 ) -> str | list[str]:
     """
