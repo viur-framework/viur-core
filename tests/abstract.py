@@ -1,3 +1,4 @@
+import contextvars
 import os
 import unittest
 from unittest import mock
@@ -16,14 +17,20 @@ class ViURTestCase(unittest.TestCase):
         google.auth.default = mock.Mock(return_value=(mock.Mock(), os.getenv("GOOGLE_CLOUD_PROJECT")))
 
     def tearDown(self) -> None:
-        # ContextVars outlive the test case that set them. A leaked current.request
-        # in particular makes CallDeferred queue a task on the stale request instead
-        # of running it inline, which silently breaks unrelated tests later in the
-        # run. Imported here because viur.core is not importable at collection time.
-        from viur.core import current
-        for context_var in (
-            current.request, current.request_data, current.session, current.language, current.user,
-        ):
-            context_var.set(None)
-
+        self._reset_context_vars()
         self.testbed.deactivate()
+
+    @staticmethod
+    def _reset_context_vars() -> None:
+        """Clear the context variables of :mod:`viur.core.current`.
+
+        They live for as long as the process does, so a request or session left behind by one
+        test is still in place for every test running after it. That silently changes what the
+        code under test sees -- a request in the context can, for instance, turn a direct call
+        into a deferred one.
+        """
+        from viur.core import current
+
+        for value in vars(current).values():
+            if isinstance(value, contextvars.ContextVar):
+                value.set(None)
