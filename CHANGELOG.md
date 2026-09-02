@@ -62,6 +62,11 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
 - test: Add unit tests for Bones and App Login Flow (get_cookie_for_app, apply_login_cookie) (#1661)
 
+## [3.8.37]
+
+- fix(tasks): honour `_call_deferred=False` when no queue is reachable (#1758)
+- chore: update outdated ISO country codes for `SelectCountryBone` (#1765)
+
 ## [3.8.36]
 
 - fix: `read_all_modules` overwrites existing `ModuleConf` entries (#1762)
