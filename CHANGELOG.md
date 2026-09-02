@@ -62,6 +62,10 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
 - test: Add unit tests for Bones and App Login Flow (get_cookie_for_app, apply_login_cookie) (#1661)
 
+## [3.8.36]
+
+- fix: `read_all_modules` overwrites existing `ModuleConf` entries (#1762)
+
 ## [3.8.35]
 
 - fix: refresh each source entity only once in `update_relations` (#1756)
