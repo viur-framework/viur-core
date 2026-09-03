@@ -1,5 +1,10 @@
 ---
-covers: [viur.core.modules.file.File, viur.core.modules.file.FileLeafSkel, viur.core.modules.file.thumbnailer, viur.core.modules.file.cloudfunction_thumbnailer]
+covers: [viur.core.modules.file.File, viur.core.modules.file.FileLeafSkel,
+         viur.core.modules.file.FileNodeSkel, viur.core.modules.file.DownloadUrlBone,
+         viur.core.modules.file.thumbnailer, viur.core.modules.file.cloudfunction_thumbnailer,
+         viur.core.modules.file.doCheckForUnreferencedBlobs,
+         viur.core.modules.file.doCleanupDeletedFiles,
+         viur.core.modules.file.start_delete_pending_files]
 status: accepted
 ---
 ## Seam
@@ -38,22 +43,28 @@ status: accepted
   deletion. Only `file/add` with `skelType="leaf"` clears `pending`. Pending
   skeletons older than 7 days are deleted by `start_delete_pending_files`.
 - A signed upload url authorizes the later `add()` through
-  `session["pendingFileUploadKeys"]` (last 50 entries), not through module
-  permissions.
-- `download` without `sig` is a root / `file-view` path only, and is
-  deliberately excluded from caching (`validUntil = "-1"`).
-- `create_download_url(expires=None)` yields a permanently valid, publicly
+  `session["pendingFileUploadKeys"]` (last 50 entries) - but only as a
+  fallback after `canAdd` failed, and the marker is consumed on use.
+- `download` without `sig` is meant to be a root / `file-view` path, but it is
+  unreachable: the blobKey is base64-decoded and split before the branch, so a
+  raw storage path fails with BadRequest, and a signed payload without `sig`
+  looks up the base64 string as the blob name and ends in Gone.
+- `create_download_url(expires=<int>)` means *minutes*, and the expiry has
+  minute granularity. `expires=None` yields a permanently valid, publicly
   cacheable url - `render_*_download_url_expiration` in conf is what usually
   keeps it short.
 - Renaming a leaf copies and deletes the blob inside `onEdit`. A missing source
-  blob raises `Gone` after the skeleton has already been read for the edit.
-- `serving_url` is injected only for public image files, and never on the
-  development server (the API raises there).
+  blob raises `Gone` after the skeleton has already been read for the edit,
+  and the copy uses `if_generation_match=0`, so an existing blob at the target
+  name fails the request from the storage side.
+- `serving_url` is injected on `write()` and `refresh()`, only for public image
+  files, never on the development server (the API raises there) - and every
+  other failure is swallowed with a log line, so a missing `serving_url` is a
+  silent state.
 - `FileLeafSkel.preProcessBlobLocks` locks its own `dlkey` unless the file is
   `weak` - that is what keeps an uploaded file alive without a FileBone.
-- `File.deleteRecursive` still filters on the legacy `parentdir` property,
-  while `Tree.deleteRecursive` uses `parententry`. Do not copy it as a
-  template.
+- `File.deleteRecursive` no longer exists; `Tree.deleteRecursive` is inherited
+  as-is and the File-specific blob marking hangs in `onDeleteRecursive`.
 
 ## Why not
 Image width/height are not written during the request: `onAdded` defers
