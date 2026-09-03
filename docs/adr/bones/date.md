@@ -31,6 +31,8 @@ US and EU formats - the docstring lists them all.
 - Serialized values are always timezone-aware - `singleValueSerialize` asserts
   it and refuses to save a naive datetime (a `naive` bone gets UTC attached).
 - The year must be >= 1900 because `strftime` breaks below that.
+- `now` and `now<seconds>` are only accepted when both `date` and `time` are
+  set; on a date-only or time-only bone they are `Invalid`.
 - Do not compare values from a `localize` bone across requests: the same
   stored instant is handed out in different timezones depending on the caller.
 
@@ -44,12 +46,9 @@ US and EU formats - the docstring lists them all.
 - Timestamps are only accepted between `-2**30` and `2**31-2`, everything else
   becomes `Invalid`. A date beyond 2038 cannot be set as a POSIX timestamp,
   although the bone stores it happily when it arrives in any other format.
-- The parsing branches are ordered, and the time-only branch
-  (`not self.date and self.time`) sits before the `now` branch. On a
-  `DateBone(date=False)` the documented `now` therefore never matches and is
-  rejected as invalid.
-- The `now` offset requires `len(value) > 4`, so `"now5"` silently means "now",
-  while `"now10"` adds ten seconds.
+- The parsing branches are ordered and the `now` branch sits before the
+  time-only one, deliberately - otherwise `now` would fall through into the
+  time parser instead of being answered.
 - `buildDBFilter` calls `self.fromClient(resDict, key, rawFilter)` with a
   plain dict as skeleton and the *filter key* (`date$lt`) as bone name. It
   works, but any override of `fromClient` - and the `after_from_client` hook it

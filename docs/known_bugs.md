@@ -317,16 +317,6 @@ error.
 Fix: map a missing port to the scheme default before the check, and guard the
 `ValueError`.
 
-### `src/viur/core/bones/color.py:34-44` - malformed short values are accepted
-
-The rgb branch prefixes a 3-character value with `#` and then falls into the
-4-character branch, which expands the shorthand. Input `#ab` (one `#`, hex
-digits, length 3) therefore survives as `###aabb` and is stored. Only lengths
-5 and beyond are actually rejected.
-
-Fix: make the length branches exclusive (`elif`), and validate before
-prefixing.
-
 ### `src/viur/core/bones/date.py:80` - creation/update magic does not lock the bone
 
 ```python
@@ -342,7 +332,7 @@ Fix: `self.readOnly = True` - or drop the magic and use `compute`.
 
 ## Bones: uncaught exceptions on client input
 
-### `src/viur/core/bones/date.py:124-125` - `"1.5"` raises instead of failing validation
+### `src/viur/core/bones/date.py:125-126` - `"1.5"` raises instead of failing validation
 
 ```python
 if value.replace("-", "", 1).replace(".", "", 1).isdigit():

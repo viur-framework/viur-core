@@ -17,12 +17,10 @@ Extend by adding your own deriver to `conf.file_derivations` - not by
 overriding `ensureDerived`.
 
 ## Rules
-- `refKeys` must contain `dlkey` and `name` (ValueError otherwise). If you
-  narrow `refKeys`, keep `public` - `isInvalid` reads it for every value - plus
-  `mimetype` when `validMimeTypes` is set and `size` when `maxFileSize` is set.
-  A missing refKey does not raise KeyError: `value["dest"]` is a RefSkel whose
-  `__getitem__` returns `None` for a bone it does not have, so the checks fail
-  in less obvious ways (see Traps).
+- The constructor enforces the refKeys `isInvalid` reads: `dlkey`, `name` and
+  `public` are always required, `mimetype` additionally with `validMimeTypes`,
+  `size` additionally with `maxFileSize` - each a ValueError. Narrowing
+  `refKeys` therefore fails at import instead of at validation time.
 - `public` on the bone must match the referenced file's `public` flag; a
   public file cannot be selected by a private bone and vice versa.
 - A deriver must return a list of `(filename, size, mimetype, custom_data)`
@@ -41,15 +39,14 @@ overriding `ensureDerived`.
   warns and then silently loses the value.
 - `refresh` has a side effect: for public images without a `serving_url` it
   patches the *referenced file entry*, not just the mirrored copy.
-- `isInvalid` reads `value["dest"]["mimetype"]` without a None check, so a
-  file entry without mimetype raises AttributeError during validation. The
-  same holds for a `mimetype` dropped from `refKeys`. A missing `size` hits
-  `None > self.maxFileSize` (TypeError), and a missing `public` compares
-  `None != self.public` and rejects *every* file with "Only files marked
+- `isInvalid` reads the mirrored values without a None check. The refKey is
+  guaranteed by the constructor, the *value* is not: a file entry whose
+  `mimetype` is empty raises AttributeError during validation, an empty `size`
+  hits `None > self.maxFileSize` (TypeError), and an empty `public` compares
+  `None != self.public` and rejects the file with "Only files marked
   public=False are allowed" - a message that points nowhere near the cause.
-- `structure()` only exports `valid_mime_types` and `public`. Neither
-  `maxFileSize` nor `derive` reaches the client, so the frontend cannot warn
-  about a too large file before the upload is rejected server-side.
+- `structure()` exports `valid_mime_types`, `max_file_size` and `public`, but
+  not `derive` - the client cannot tell which derives exist for this bone.
 - A `derive` key that is missing from `conf.file_derivations` only produces a
   `logging.warning` and is skipped. A typo in the deriver name is silent in
   every other respect.

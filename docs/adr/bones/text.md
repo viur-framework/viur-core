@@ -19,6 +19,10 @@ embedded files locked.
 - Sanitizing happens in `singleValueFromClient` only. A value assigned in code
   (`skel["text"] = "<script>"`) is stored as-is - `singleValueSerialize`
   passes it through unchanged.
+- `escape_html=False` turns the sanitizing off entirely and requires
+  `validHtml=None` (ValueError otherwise). The bone then stores client input
+  verbatim, and stops collecting referenced blobs - only for content that is
+  validated elsewhere or comes from a trusted source.
 - Extend `validAttrs` per tag; an attribute that is not listed for *that* tag
   is dropped even when it is valid elsewhere.
 - Keep `indexed=False` (the default). With `indexed=True` you must lower
@@ -32,7 +36,8 @@ embedded files locked.
 ## Traps
 - `getReferencedBlobs` is what keeps embedded files alive. If you override it
   without collecting blob keys, the blob GC deletes files that are still
-  referenced from the HTML.
+  referenced from the HTML. With `escape_html=False` it returns an empty set
+  by design, so blobs linked from the content are unprotected.
 - With `srcSet` set, `getReferencedBlobs` also *queues derives* as a side
   effect - a read path writes.
 - `CollectBlobKeys` looks only at the `src` attribute, also for `<a>` tags -
@@ -55,9 +60,11 @@ embedded files locked.
 - `refresh` feeds the stored value back through `singleValueFromClient` and
   keeps only `[0]`. A value that fails validation - one grown past
   `max_length`, or a lowered limit - is replaced by the empty string, per
-  language.
-- `structure()` exports `valid_html` but not `max_length`, so the frontend
-  cannot enforce the limit.
+  language. With `escape_html=False` it does something else entirely: it
+  unescapes the stored value to undo a previous configuration of the bone,
+  and line breaks the former sanitizing removed do not come back.
+- `structure()` exports `valid_html` and `escape_html` but not `max_length`,
+  so the frontend cannot enforce the limit.
 - `validHtml` defaults to the *shared* `conf.bone_html_default_allow` dict.
   Editing it in place through one bone changes it for every bone.
 

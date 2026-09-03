@@ -22,7 +22,7 @@ stored code length may differ from the configured one.
   values are converted on read. But queries still filter the *stored* code.
 
 ## Traps
-- The lists are the ISO 3166-1 snapshot in this file (239 entries each) -
+- The lists are the ISO 3166-1 snapshot in this file (249 entries each) -
   country changes require editing the source, and `ISO2TOISO3` is derived from
   `ISO3TOISO2`, so a missing pair breaks both directions.
 - The read-side conversion is silent: a bone switched from ISO3 to ISO2 hands
