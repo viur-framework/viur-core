@@ -1,14 +1,20 @@
 ---
-covers: [viur.core.render.abstract.AbstractRenderer, viur.core.render.json.default.DefaultRender, viur.core.render.html.default.Render, viur.core.render.vi.getStructure]
+covers: [viur.core.render.abstract.AbstractRenderer, viur.core.render.json.default.DefaultRender,
+         viur.core.render.html.default.Render, viur.core.render.html.utils,
+         viur.core.render.vi.getStructure, viur.core.render.vi.canAccess]
 status: accepted
 ---
 ## Seam
-A renderer subclasses `AbstractRenderer` (mandatory: `kind`, `list`, `view`)
-and is attached per module by the renderer-named class flag (see
+A renderer subclasses `AbstractRenderer`; `kind`, `list` and `view` are
+abstract, `add` and `edit` are not - they return `None` unless implemented. A
+renderer is attached per module by the renderer-named class flag (see
 [module](module.md)). Whole renderer namespaces are discovered in
-`__build_app` by looking for a `DefaultRender` class inside a module of
-`viur.core.render`; a `_postProcessAppObj(obj)` in that package injects extra
-routes (that is how `/json/skey` and the whole `/vi/*` API get in).
+`__build_app`, which collects every name in a module of `viur.core.render`
+that points at an `AbstractRenderer` subclass - the name `DefaultRender`
+itself is skipped so the same class is not registered twice, and the entry
+point of a namespace is the name `default`. A `_postProcessAppObj(obj)` in
+that package injects extra routes (that is how `/json/skey` and the whole
+`/vi/*` API get in).
 
 Per-module template overrides on the html render: the class attributes
 `listTemplate`, `viewTemplate`, `addTemplate`, ... are looked up on
@@ -31,7 +37,9 @@ plus `render.html.utils.getGlobalFunctions/Filters/Tests/Extensions`.
   are cached in `renderAccessedValues`. `remove_render_preparation_deep()`
   exists precisely because clearing it on the outer skeleton is not enough.
 - `render_action_template` adds a `skey` bone and a fresh security key to the
-  skeleton - rendering a form mutates the skeleton you passed in.
+  skeleton - rendering a form mutates the skeleton you passed in. A request
+  parameter `nomissing=1` additionally clears the skeleton's error list before
+  the template sees it.
 - The Jinja environment is built once per renderer instance and cached in
   `self.env`; a module's `jinjaEnv` runs only during that first build.
 - `getTemplateFileName` tries language subdir, `?style=` postfix and the
