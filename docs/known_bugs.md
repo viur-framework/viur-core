@@ -58,7 +58,7 @@ Fix: `isinstance(entity["translation"], dict)`.
 
 ## Wrong values
 
-### `src/viur/core/modules/file.py:891` - `weak` flag inverted in `File.write()`
+### `src/viur/core/modules/file.py:900` - `weak` flag inverted in `File.write()`
 
 ```python
 fileskel["weak"] = bool(parentrepokey)
@@ -93,7 +93,7 @@ Fix: `errors = (errors, )`.
 
 ## Control flow
 
-### `src/viur/core/modules/file.py:1487` - GC run aborts instead of skipping
+### `src/viur/core/modules/file.py:1489` - GC run aborts instead of skipping
 
 In `doCheckForUnreferencedBlobs`, when a stale blob is already marked for
 deletion the loop does `return` instead of `continue`, so the whole run ends
@@ -119,21 +119,27 @@ Fix: pass `stringTemplate` only when `tpl is None`.
 
 ## Dead code paths
 
-### `src/viur/core/modules/file.py:937,942` - `File.deleteRecursive` cannot work
+### `src/viur/core/modules/file.py:1086-1109` - `download` without a signature cannot work
 
-Two independent defects in the same function:
+The unsigned branch is documented as the root / `file-view` path: "blobKey is
+then the path inside cloudstore - not a base64 encoded tuple". But the blobKey
+is base64-decoded and split on `\0` *before* the branch is reached, and the
+branch itself then looks up the wrong value:
 
-- line 937/944 filter on the legacy property `parentdir`, while
-  `Tree.deleteRecursive` and the rest of the module use `parententry`, so the
-  queries never match anything;
-- line 942 calls `fileEntry.key()` although `db.Entity.key` is a property -
-  `TypeError: 'Key' object is not callable` if a query ever did match.
+- a raw storage path (`abc123/source/foo.jpg`) is decoded by
+  `urlsafe_b64decode` into garbage (Python only validates with
+  `validate=True`), `.decode("UTF-8")` raises `UnicodeDecodeError` - a
+  `ValueError` subclass - and the caller gets `BadRequest` before any
+  permission is checked;
+- a properly signed payload passed without `sig` decodes fine, but then
+  `bucket.get_blob(blobKey)` searches for the base64 string as the blob name
+  instead of `dlPath`, finds nothing and raises `Gone`.
 
-The override also shadows the working `Tree.deleteRecursive`, so deleting a
-file node deletes the node but leaves its children.
+So a root user or a user with `file-view` cannot download a blob through this
+endpoint at all.
 
-Fix: filter `parententry`, use `fileEntry.key`, or drop the override entirely
-and let `Tree.deleteRecursive` handle it.
+Fix prompt: `docs/superpowers/plans/2026-09-03-file-download-without-signature.md`
+in the ag-dev repo.
 
 ### `src/viur/core/bones/uid.py:22` - the `CollisionError` retry is dead code
 
@@ -170,7 +176,7 @@ conflict is already handled by `db.run_in_transaction`
 Fix: drop the loop and let the conflict propagate to the surrounding
 `run_in_transaction`.
 
-### `src/viur/core/modules/file.py:758` - `create_src_set` on a multi-language bone
+### `src/viur/core/modules/file.py:767` - `create_src_set` on a multi-language bone
 
 ```python
 if not language or not (file := cls.get(language)):
