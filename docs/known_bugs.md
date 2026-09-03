@@ -11,7 +11,7 @@ Each entry: what is wrong, what it costs, what the fix would be.
 
 ## Broken comparisons and type checks
 
-### `src/viur/core/email.py:409` - dev-server guard never triggers
+### `src/viur/core/email.py:403` - dev-server guard never triggers
 
 ```python
 if not conf.email.send_from_local_development_server or transport_class is EmailTransportAppengine:
@@ -25,7 +25,7 @@ through and fails inside the API instead.
 
 Fix: `isinstance(transport_class, EmailTransportAppengine)`.
 
-### `src/viur/core/email.py:585` - Brevo quota check never runs
+### `src/viur/core/email.py:579` - Brevo quota check never runs
 
 ```python
 if not isinstance(conf.email.transport_class, EmailTransportSendInBlue):
@@ -458,7 +458,7 @@ arguments.
 
 ## Unverified
 
-### `src/viur/core/email.py:571-572` - decorator order on `check_sib_quota`
+### `src/viur/core/email.py:565-566` - decorator order on `check_sib_quota`
 
 ```python
 @PeriodicTask(interval=datetime.timedelta(hours=1))
