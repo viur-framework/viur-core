@@ -1,5 +1,12 @@
 ---
-covers: [viur.core.securityheaders.addCspRule, viur.core.securityheaders.extendCsp, viur.core.securityheaders.setPermissionPolicyDirective]
+covers: [viur.core.securityheaders.addCspRule, viur.core.securityheaders.extendCsp,
+         viur.core.securityheaders.setPermissionPolicyDirective,
+         viur.core.securityheaders.enableStrictTransportSecurity,
+         viur.core.securityheaders.setXFrameOptions, viur.core.securityheaders.setXXssProtection,
+         viur.core.securityheaders.setXContentTypeNoSniff,
+         viur.core.securityheaders.setXPermittedCrossDomainPolicies,
+         viur.core.securityheaders.setReferrerPolicy,
+         viur.core.securityheaders.setCrossOriginIsolation]
 status: accepted
 ---
 ## Seam
@@ -22,7 +29,12 @@ Headers not covered by this module have to be set in a request preprocessor
   `extendCsp` does quote them - the per-request path is the only correct one.
 - `srcOrDirective` must not contain `;`, quotes, `,` or newlines (assert): no
   header injection through configuration.
-- `extendCsp` affects only the `enforce` set, not `monitor`.
+- `objectType` is checked against a fixed list of known CSP directives
+  (assert), so a directive the module does not list cannot be configured at
+  all - it aborts startup instead.
+- `extendCsp` affects only the `enforce` set, not `monitor`. An entry in
+  `overrideRules` whose value is `None` removes that directive for this
+  request - the only way to drop a project-wide directive.
 - Review the defaults per project. They already allow
   `storage.googleapis.com` images and Google sign-in sources - this is not a
   minimal policy.
@@ -31,13 +43,18 @@ Headers not covered by this module have to be set in a request preprocessor
 - `extendCsp` rebuilds and *replaces* the whole `Content-Security-Policy`
   response header from project config plus the given rules. A header set
   manually before that call is lost.
-- `conf.security.content_security_policy` and `permissions_policy` keep their
-  rendered header under the key `_headerCache` inside the same dict. Iterating
-  them naively emits it as a directive; the `_rebuild*` functions filter it.
-- `setup()` asserts that the CSP header cache contains only
-  `Content-Security-Policy*` keys and that `strict_transport_security` starts
-  with `max-age` - a hand-written value crashes startup instead of being
-  ignored.
+- `conf.security.permissions_policy` keeps its rendered header under
+  `_headerCache` *between* the real directives, which is why
+  `_rebuildPermissionHeaderCache` filters that key out; iterating the dict
+  naively emits it as a directive. In `content_security_policy` the key sits
+  next to `monitor`/`enforce` instead, so the CSP rebuild never sees it.
+- `report-uri` is the one directive that gets replaced instead of extended -
+  every other one accumulates its values.
+- `setup()` *raises* `AssertionError` (not a bare `assert`, so `python -O`
+  does not remove it) when the CSP header cache holds anything but
+  `Content-Security-Policy*` keys, or when `strict_transport_security` does
+  not start with `max-age` - a hand-written value crashes startup instead of
+  being ignored.
 - Only the values `self`, `unsafe-inline`, `unsafe-eval`, `script`, `none` and
   hash/nonce prefixes get quoted; everything else is emitted verbatim, so a
   keyword this module does not know silently becomes a hostname.
