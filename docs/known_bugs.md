@@ -52,19 +52,6 @@ retries 20 times and gives up.
 
 Fix: `isinstance(entity["translation"], dict)`.
 
-### `src/viur/core/db/query.py:271` - `isinstance` with one argument
-
-```python
-if not isinstance(singeFilter.filters[filterStr]):
-```
-
-Raises `TypeError`. Reached when a second filter for the same
-property+operator is added to a multi-query (a query already split by an `IN`
-or `!=` filter).
-
-Fix: `isinstance(singeFilter.filters[filterStr], list)` - the non-multi branch
-a few lines below does exactly that.
-
 ## Wrong values
 
 ### `src/viur/core/modules/file.py:891` - `weak` flag inverted in `File.write()`
@@ -101,19 +88,6 @@ docstring explicitly allows - is therefore impossible.
 Fix: `errors = (errors, )`.
 
 ## Control flow
-
-### `src/viur/core/db/query.py:720` - `StopIteration` inside a generator
-
-```python
-if self.queries is None:  # Noting to pull here
-    raise StopIteration()
-```
-
-`iter()` is a generator, so since PEP 479 this surfaces as `RuntimeError:
-generator raised StopIteration`. An unsatisfiable query - which every other
-method treats as "empty result" - crashes the caller here.
-
-Fix: `return`.
 
 ### `src/viur/core/modules/file.py:1487` - GC run aborts instead of skipping
 
@@ -206,11 +180,29 @@ Fix: `file.get(language)`.
 
 ## Minor
 
-### `src/viur/core/db/query.py:436-445` - `getCursor()` can raise `UnboundLocalError`
+### `src/viur/core/db/query.py:485-526` - three methods break on an unsatisfiable query
 
-`q` is only assigned in the `QueryDefinition` and `list` branches. On an
-unsatisfiable query (`self.queries is None`) - or an empty query list - the
-final `return` reads an unbound `q`.
+`queries is None` is the documented "unsatisfiable" state, and `filter`,
+`order`, `limit`, `distinctOn` and `or_filter` treat it as a no-op. Three
+methods do not:
+
+- `getCursor()` assigns `q` only in the `QueryDefinition` and `list` branches,
+  so the final `return` reads an unbound `q` (`UnboundLocalError`). An empty
+  query list hits this too.
+- `setCursor()` (query.py:429-457) ends up on `assert isinstance(self.queries,
+  QueryDefinition)` - `AssertionError`, and an `AttributeError` under
+  `python -O`.
+- `get_orders()` raises `ValueError` for anything that is neither a
+  `QueryDefinition` nor a list.
+
+`mergeExternalFilter` reaches the first of these on its own: the fulltext
+branch sets `queries = None` without returning (query.py:192) and the cursor
+handling below it then calls `setCursor` (query.py:219), so
+`?search=…&cursor=…` against a module without a fulltext adapter is an
+HTTP 500.
+
+Fix prompt: `docs/superpowers/plans/2026-09-03-query-unsatisfiable-cursor-methods.md`
+in the ag-dev repo.
 
 ### `src/viur/core/securityheaders.py:159` - `extendCsp` assumes a policy exists
 
@@ -405,6 +397,17 @@ notation the bone happily *stores* can therefore raise RuntimeError when used
 as a filter, which `mergeExternalFilter` turns into an empty result set.
 `buildDBFilter` additionally returns `None` instead of the query when the bone
 is not part of the filter.
+
+An empty list is a third problem: `buildDBFilter` sets `dbFilter.queries = []`
+before filling it, so a filter `{"key": []}` leaves the query as a multi-query
+without a single sub-query. `Query.run()` then reads `self.queries[0].limit`
+and raises `IndexError` before touching the datastore - an HTTP 500 on client
+input, also reachable as `{"<bone>.dest.key": []}` through
+`RelationalBone.buildDBFilter`. The correct state for an empty IN-list is
+`queries = None`.
+
+Fix prompt: `docs/superpowers/plans/2026-09-03-keybone-empty-in-list.md` in the
+ag-dev repo.
 
 ### `src/viur/core/bones/record.py:172` - `getSearchDocumentFields` is dead
 
