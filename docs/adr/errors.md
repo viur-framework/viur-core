@@ -1,5 +1,8 @@
 ---
-covers: [viur.core.errors.HTTPException, viur.core.errors.Redirect, viur.core.errors.Locked]
+covers: [viur.core.errors.HTTPException, viur.core.errors.Redirect,
+         viur.core.errors.Unauthorized, viur.core.errors.Forbidden,
+         viur.core.errors.NotFound, viur.core.errors.RequestTimeout,
+         viur.core.errors.Locked, viur.core.errors.NotImplemented]
 status: accepted
 ---
 ## Seam
@@ -10,9 +13,13 @@ a body, otherwise the template `<status>.html` or `error.html` is used
 (resolved through the html render), with `conf.error_logo` passed in.
 
 ## Rules
-- `Redirect` is control flow, not a failure: only 301/302/303/307/308 are
-  accepted (ValueError otherwise), and the router writes the `Location` header
-  and nothing else.
+- `Redirect` is control flow, not a failure: it defaults to 303, only
+  301/302/303/307/308 are accepted (ValueError otherwise), and it is handled
+  in its own except branch - status and `Location` are set, nothing is
+  rendered and `conf.error_handler` is not consulted.
+- `conf.error_handler` must return a non-empty `str`. A falsy return is
+  discarded and the default rendering runs; anything that is not a `str` fails
+  in `.encode()`.
 - `descr` is translated at construction time (with `AddMissing.NEVER`) and is
   emitted as the `x-viur-error` response header. Never put internal detail,
   keys or user data into it.
@@ -24,8 +31,15 @@ a body, otherwise the template `<status>.html` or `error.html` is used
   means "retry this task".
 
 ## Traps
-- The response body is reset (`self.response.body = b""`) before the error is
-  rendered, so partially written output is lost.
+- The response body is reset (`self.response.body = b""`) before an error is
+  rendered, so partially written output is lost. A `Redirect` does *not* reset
+  it - already written output is still sent with the 303.
+- A redirect URL is normalized as `quote(unquote(url))` with `?`, `=`, `&` and
+  `/` in the safe set, so percent-encoding does not survive:
+  `?next=%2Fa%3Fb%3D1` becomes `?next=/a?b=1`. Never build a redirect URL from
+  data that has to stay encoded.
+- On the development server `error_info` carries the full traceback into the
+  JSON body and the error template.
 - JSON or HTML is chosen by the first path segment (`vi`, `json`) or an already
   set `application/json` Content-Type - the same exception renders differently
   depending on the route.
