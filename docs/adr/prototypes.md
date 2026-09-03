@@ -1,5 +1,7 @@
 ---
-covers: [viur.core.prototypes.skelmodule.SkelModule, viur.core.prototypes.list.List, viur.core.prototypes.tree.Tree, viur.core.prototypes.tree.TreeSkel]
+covers: [viur.core.prototypes.skelmodule.SkelModule, viur.core.prototypes.list.List,
+         viur.core.prototypes.tree.Tree, viur.core.prototypes.tree.TreeSkel,
+         viur.core.prototypes.singleton.Singleton]
 status: accepted
 ---
 ## Seam
@@ -16,8 +18,10 @@ and `canView` / `canAdd` / `canEdit` / `canDelete` / `canPreview` /
 `canMove`.
 
 Hooks: `onAdd`/`onAdded`, `onEdit`/`onEdited`, `onView`,
-`onDelete`/`onDeleted`, `onClone`/`onCloned`. Sorting default:
-`default_order` (value or callable).
+`onDelete`/`onDeleted`, `onClone`/`onCloned`, plus
+`checkDeletePreconditions` for state (as opposed to permission) vetoes.
+Sorting default: `default_order` (value or callable) - a dict goes through
+`mergeExternalFilter`, so it is a default *filter*, not just an order.
 
 ## Rules
 - To hide a field, remove the bone in `viewSkel`/`addSkel`/`editSkel` (or set
@@ -29,7 +33,12 @@ Hooks: `onAdd`/`onAdded`, `onEdit`/`onEdited`, `onView`,
 - Every `Tree` hook and permission function takes `skelType` as first
   parameter. Copying a `List` signature into a `Tree` breaks the call.
 - A `Tree` subclass must set `nodeSkelCls` (assert in `__init__`).
-- `add_or_edit` is importer-only: `@access("root")`, `@force_post`, `@skey`.
+- `add_or_edit` is importer-only: `@access("root")`, `@force_ssl`,
+  `@force_post`, `@skey`.
+- `canDelete` answers whether the *user* may delete,
+  `checkDeletePreconditions` whether the *entry* may be deleted in its current
+  state (default: refuse a `PreventDeletion` reference with `Locked`). Raise
+  from the latter to veto.
 
 ## Traps
 - The default `onAdded`/`onEdited`/`onDeleted`/`onCloned` call `flushCache`
@@ -39,13 +48,19 @@ Hooks: `onAdd`/`onAdded`, `onEdit`/`onEdited`, `onView`,
   the background. Override without `super()` if that is not wanted.
 - `default_order` is applied only when the query has no order yet, is not a
   multi-query, and no `search` parameter was sent.
-- `skel(allow_client_defined=True)` evaluates the `X-VIUR-BONELIST` header,
-  requires a `"*"` subskel to exist and adds a `Vary` header.
+- `skel(allow_client_defined=True)` evaluates the `X-VIUR-BONELIST` header and
+  adds a `Vary` header. Without that header the flag is silently reset and you
+  get the full skel; the `BadRequest` for a missing `"*"` subskel only fires
+  when the header *is* present.
 - `List.index()` takes its first argument as key *or* SEO key and answers with
   a 301 redirect when the request path is not the canonical SEO url.
-- `Tree.delete()` defers `deleteRecursive` for children *before* deleting the
-  entry itself; `onDeleted`'s docstring warns that writing the skeleton again
-  undoes the deletion.
+- Deleting a `Tree` node is one deferred job that removes the whole subtree
+  bottom-up and the node itself last, without spawning sub-tasks. Its
+  `onDelete`/`onDeleted` fire exactly once, but from that job - not within the
+  request. `deleteRecursive` validates the entire subtree up front, so a veto
+  aborts before anything is deleted. Leafs are still deleted synchronously.
+  `onDeleted`'s docstring warns that writing the skeleton again undoes the
+  deletion.
 - `edit`/`add`/`clone` only write on a POST request with data and without
   `bounce` - otherwise they render the skeleton, which looks like a success.
 
