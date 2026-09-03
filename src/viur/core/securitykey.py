@@ -39,7 +39,7 @@ def create(
         indexed: bool = True,
         amount: int = 1,
         **custom_data,
-) -> str | list[str]:
+) -> str | tuple[str]:
     """
         Creates a new one-time CSRF-security-key.
 
@@ -53,7 +53,8 @@ def create(
         :param custom_data: Any other data is stored with the CSRF-token, for later re-use.
         :param amount: The amount of CSRF-tokens to generate.
 
-        :returns: The new one-time key, which is a randomized string.
+        :returns: The new one-time key. This is always a randomized string. \
+            In case amount > 1 is returned, it will be a tuple of strings with the keys.
     """
     if any(k.startswith("viur_") for k in custom_data):
         raise ValueError("custom_data keys with a 'viur_'-prefix are reserved.")
@@ -62,7 +63,6 @@ def create(
     if not duration:
         duration = conf.user.session_life_time if session_bound else SECURITYKEY_DURATION
 
-    keys = []
     entities = []
     for i in range(amount):
         key = utils.string.random(key_length)
@@ -82,10 +82,11 @@ def create(
         if not indexed:
             entity.exclude_from_indexes = [k for k in entity.keys() if not k.startswith("viur_")]
         entities.append(entity)
-        keys.append(key)
+
     db.put(entities)
+
     if amount > 1:
-        return keys
+        return tuple(entity.key.id_or_name for entity in entities)
     return key
 
 
