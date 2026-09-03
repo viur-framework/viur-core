@@ -1,0 +1,71 @@
+---
+covers: [viur.core.decorators.exposed, viur.core.decorators.internal_exposed, viur.core.decorators.access, viur.core.decorators.skey, viur.core.decorators.force_ssl, viur.core.decorators.force_post, viur.core.decorators.cors]
+status: accepted
+---
+## Seam
+This is the trust boundary. Everything reachable from outside passes through a
+`Method` object configured by these decorators:
+
+- `@exposed` - routable; with a dict argument it also registers SEO aliases.
+- `@internal_exposed` - `exposed = False`, callable only for
+  `internalRequest` (templates), NotFound from outside.
+- `@force_ssl`, `@force_post` - protocol constraints checked in `_route`.
+- `@skey` - CSRF guard, `@access` - authentication plus authorization guard.
+- `@cors(allow_headers=...)` - per-method CORS headers.
+
+Own guards are appended to `Method.guards`. Every guard is called with the
+keyword arguments `args`, `kwargs`, `varargs`, `varkwargs` - `@access` just
+absorbs them via `*args, **kwargs`, `@skey` names them.
+
+## Rules
+- Every state-changing exposed method needs `@skey`. `@force_post` alone is
+  not CSRF protection.
+- `@access()` without any right still enforces authentication: no user means
+  Unauthorized, or a Redirect when `offer_login` is set. `"root"` always
+  passes before any other check.
+- `allow_empty=True` is only defensible for methods that render a form when
+  called without data - that is why `add`/`edit`/`clone` use it and `delete`
+  does not. It only works on a signature with `*args`/`**kwargs`.
+- Decorator order does not change the flags (they all mutate the same `Method`
+  object), but it changes guard order: guards run in reverse order of
+  application, so the decorator closest to `def` runs last.
+- A custom guard must raise, not return - the return value is discarded.
+
+## Traps
+- `@skey` validates at most once per request
+  (`current.request.get().skey_checked`), but the flag is only set when a key
+  was actually validated - and already before the payload check can fail. An
+  exposed method calling another `@skey`-protected method internally passes
+  the second check for free.
+- `@skey` pops its parameter out of `kwargs`; the method never sees it unless
+  `forward_payload` names a target key.
+- With `allow_empty=True` only varargs/varkwargs decide, i.e. the parameters
+  *not* declared in the signature. A method whose signature declares all its
+  parameters is never checked, no matter how much data the request carries -
+  `@skey` is then decoration without effect. Adding `**kwargs` strengthens the
+  guard, removing it disables the guard. With `allow_empty` as a list/tuple, a
+  request carrying *only* the listed keys needs no key.
+- `@access(callable)` grants on a truthy return; a falsy return only continues
+  with the next entry and never denies on its own.
+- `@access` never validates its configuration at decoration time: an entry
+  that is neither callable nor str/list/tuple/set hits an `assert` on the
+  first request (HTTP 500), and that assert is gone under `python -O`.
+- `@access` publishes its configuration through `Method.additional_descr` in
+  `describe()`; a callable ends up there as its `repr()`.
+- `@force_post` is not a flag - `_route` compares
+  `caller.methods == ("POST",)`. Setting `methods` to anything else silently
+  drops the enforcement, and the `Allow` header for OPTIONS comes from the
+  same value.
+- `force_ssl` has no effect on the development server and for internal
+  requests.
+- `Method.ensure` mutates an existing `Method`, so decorating a method
+  inherited from a base class changes it for the base class too.
+
+## Why not
+`@access` evaluates `user["access"]` only. `Module.roles` is configuration for
+the user module and admin tooling; no role resolution happens in the guard, so
+a role alone never grants access at runtime.
+
+## See also
+[module](module.md), [prototypes](prototypes.md), [errors](errors.md),
+[securityheaders](securityheaders.md)
