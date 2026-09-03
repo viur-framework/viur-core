@@ -1,5 +1,10 @@
 ---
-covers: [viur.core.tasks.CallDeferred, viur.core.tasks.PeriodicTask, viur.core.tasks.retry_n_times, viur.core.tasks.QueryIter, viur.core.tasks.CustomEnvironmentHandler, viur.core.tasks.TaskHandler]
+covers: [viur.core.tasks.CallDeferred, viur.core.tasks.PeriodicTask,
+         viur.core.tasks.retry_n_times, viur.core.tasks.noRetry,
+         viur.core.tasks.QueryIter, viur.core.tasks.DeleteEntitiesIter,
+         viur.core.tasks.CallableTask, viur.core.tasks.CallableTaskBase,
+         viur.core.tasks.StartupTask, viur.core.tasks.PermanentTaskFailure,
+         viur.core.tasks.CustomEnvironmentHandler, viur.core.tasks.TaskHandler]
 status: accepted
 ---
 ## Seam
@@ -9,8 +14,8 @@ status: accepted
 - `@PeriodicTask(interval, cronName)` - called from `/_tasks/cron`.
 - `@CallableTask` on a `CallableTaskBase` subclass - user-triggerable task with
   `canCall()`, `dataSkel()`, `execute()`.
-- `@StartupTask`, and `@retry_n_times(n, email_recipients, tpl)` to bound
-  retries.
+- `@StartupTask`, `@retry_n_times(n, email_recipients, tpl)` to bound retries,
+  and `@noRetry` to forbid them entirely.
 - `QueryIter` subclass (`handleEntry`, `handleFinish`, `handleError`) for
   result sets too large for one request.
 - `conf.tasks_custom_environment_handler` - a `CustomEnvironmentHandler`
@@ -27,12 +32,21 @@ status: accepted
 - Do not modify or subclass `TaskHandler` (its docstring says so).
 - The queue named in `_queue` / `conf.tasks_default_queues` must exist in
   `queue.yaml`.
+- The decision is made in this order: an explicit `_call_deferred=False`
+  always runs the call right here, no matter whether a queue is reachable;
+  only then does a missing queue region turn it into an inline call.
 
 ## Traps
-- Without a `queueRegion` (local dev without `TASKS_EMULATOR`) tasks run
-  inline: appended to `req.pendingTasks` and executed after the response - or
-  immediately when there is no request (warmup). Behaviour differs from
-  production.
+- Without a `queueRegion` (local dev without `TASKS_EMULATOR`) and without an
+  explicit `_call_deferred`, tasks run inline: appended to `req.pendingTasks`
+  and executed after the response - or immediately when there is no request
+  (warmup). Behaviour differs from production.
+- Inside a task request the first `@CallDeferred` call runs directly instead
+  of being queued: `_call_deferred` is cleared while
+  `X-Appengine-Taskretrycount` is set and `DEFERRED_TASK_CALLED` is not yet
+  marked on the request. That marker is how the deferred function gets
+  executed at all - and why every *further* deferred call in the same request
+  is queued again, including a `super()` call from an override.
 - A deferred call always returns `None`. Never use its return value.
 - Calling a `@CallDeferred` super method from a `@CallDeferred` override
   defers twice; pass `_call_deferred=False`.
