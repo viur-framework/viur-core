@@ -11,7 +11,7 @@ import string
 import typing as t
 import warnings
 from collections import namedtuple
-from urllib.parse import quote as urlquote, unquote as urlunquote, urlencode
+from urllib.parse import parse_qs, quote as urlquote, unquote as urlunquote, urlencode, urlsplit
 from urllib.request import urlopen
 
 import PIL
@@ -678,16 +678,24 @@ class File(Tree):
         """
         Parses a file download URL in the format `/file/download/xxxx?sig=yyyy` into its FilePath.
 
+        The URL may be absolute, because admin frontends store it including scheme and host, and
+        it may carry an additional path segment after the payload: :meth:`download` accepts the
+        download file name that way, and a bare trailing slash occurs as well.
+
         If the URL cannot be parsed, the function returns None.
 
         :param url: The file download URL to be parsed.
         :return: A FilePath on success, None otherwise.
         """
-        if not url.startswith(cls.DOWNLOAD_URL_PREFIX) or "?" not in url:
+        parsed_url = urlsplit(url)
+
+        if not parsed_url.path.startswith(cls.DOWNLOAD_URL_PREFIX) or not parsed_url.query:
             return None
 
-        data, sig = url.removeprefix(cls.DOWNLOAD_URL_PREFIX).split("?", 1)  # Strip "/file/download/" and split on "?"
-        sig = sig.removeprefix("sig=")
+        # Strip "/file/download/"; the payload is urlsafe-base64 and therefore never contains a
+        # slash, so anything after the first one is the optional download file name.
+        data = parsed_url.path.removeprefix(cls.DOWNLOAD_URL_PREFIX).split("/", 1)[0]
+        sig = parse_qs(parsed_url.query).get("sig", [""])[0]
 
         if not cls.hmac_verify(data, sig):
             # Invalid signature
@@ -933,21 +941,17 @@ class File(Tree):
         blob = bucket.blob(path)
         return io.BytesIO(blob.download_as_bytes()), blob.content_type
 
-    @CallDeferred
-    def deleteRecursive(self, parentKey):
-        files = db.Query(self.leafSkelCls().kindName).filter("parentdir =", parentKey).iter()
-        for fileEntry in files:
-            self.mark_for_deletion(fileEntry["dlkey"])
-            skel = self.leafSkelCls()
+    def onDeleteRecursive(self, skelType: SkelType, skel: SkeletonInstance) -> None:
+        """
+        Mark the blob of each cascaded file for deletion.
 
-            if skel.read(str(fileEntry.key())):
-                skel.delete()
-        dirs = db.Query(self.nodeSkelCls().kindName).filter("parentdir", parentKey).iter()
-        for d in dirs:
-            self.deleteRecursive(d.key)
-            skel = self.nodeSkelCls()
-            if skel.read(d.key):
-                skel.delete()
+        The generic recursive delete of the Tree prototype is inherited as-is
+        (see :meth:`Tree.deleteRecursive`); the only File-specific step is
+        marking a leaf's blob for deletion, which is injected via this hook.
+        Directories (nodes) have no blob and are ignored.
+        """
+        if skelType == "leaf":
+            self.mark_for_deletion(skel["dlkey"])
 
     @exposed
     @skey

@@ -100,9 +100,6 @@ class EmailTransport(ABC):
 
     Implement for a specific service and set the instance to :attr:`conf.email.transport_class`
     """
-    max_retries = 3
-    """maximum number of attempts to send a email."""
-
     @abstractmethod
     def deliver_email(
         self,
@@ -226,9 +223,6 @@ def send_email_deferred(key: db.Key):
     transport_class = conf.email.transport_class  # First, ensure we're able to send email at all
     if not isinstance(transport_class, EmailTransport):
         raise ValueError(f"No or invalid email transportclass specified! ({transport_class=})")
-
-    if queued_email["errorCount"] > transport_class.max_retries:
-        raise ChildProcessError("Error-Count exceeded")
 
     try:
         # A datastore entity has no empty lists or dicts, these values always

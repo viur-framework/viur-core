@@ -5,7 +5,7 @@ import typing as t
 from deprecated.sphinx import deprecated
 
 from viur.core import current, db, errors
-from viur.core.bones import BooleanBone, KeyBone, SortIndexBone
+from viur.core.bones import BooleanBone, KeyBone, RelationalConsistency, SortIndexBone
 from viur.core.cache import flushCache
 from viur.core.decorators import *
 from viur.core.skeleton import Skeleton, SkeletonInstance
@@ -590,6 +590,18 @@ class Tree(SkelModule):
 
         The function runs several access control checks on the data before it is deleted.
 
+        For a node, the node itself and its entire subtree are deleted
+        bottom-up as a single deferred job -- see :meth:`deleteRecursive`
+        for why the node must not be deleted synchronously here.
+        ``onDelete``/``onDeleted`` for the node still fire exactly once,
+        just from within that deferred job instead of within this request.
+
+        If the node is locked by a ``RelationalConsistency.PreventDeletion``
+        relation, this is checked synchronously here (matching
+        ``Skeleton.delete()``'s own check) so the caller gets an immediate
+        error and no deferred job -- and therefore no cascading deletion of
+        the subtree -- is ever started for it.
+
         .. seealso:: :func:`canDelete`, :func:`onDelete`, :func:`onDeleted`
 
         :param skelType: Defines the type of the entry that should be deleted and may either be "node" or "leaf".
@@ -600,6 +612,9 @@ class Tree(SkelModule):
         :raises: :exc:`viur.core.errors.NotFound`, when no entry with the given *key* was found.
         :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
+        :raises: whatever :meth:`checkDeletePreconditions` raises (by default
+            :exc:`viur.core.errors.Locked` for an entry still referenced by a
+            ``PreventDeletion`` relation).
         """
         if not (skelType := self._checkSkelType(skelType)):
             raise errors.NotAcceptable(f"Invalid skelType provided.")
@@ -611,37 +626,209 @@ class Tree(SkelModule):
         if not self.canDelete(skelType, skel):
             raise errors.Unauthorized()
 
-        if skelType == "node":
-            self.deleteRecursive(skel["key"])
+        # Fail fast for the entry the delete was invoked on, so the caller
+        # gets an immediate error and (for a node) no deferred cascade is
+        # even started. Descendants are validated in deleteRecursive.
+        self.checkDeletePreconditions(skelType, skel)
 
-        self.onDelete(skelType, skel)
-        skel.delete()
-        self.onDeleted(skelType, skel)
+        if skelType == "node":
+            self.deleteRecursive(skel["key"], delete_self=True, call_hooks=True)
+        else:
+            self.onDelete(skelType, skel)
+            skel.delete()
+            self.onDeleted(skelType, skel)
 
         return self.render.deleteSuccess(skel, skelType=skelType)
 
+    def checkDeletePreconditions(self, skelType: SkelType, skel: SkeletonInstance) -> None:
+        """
+        Verify that *skel* may be deleted in its current state, raising if not.
+
+        This is a *state* precondition, distinct from :meth:`canDelete`, which
+        answers whether the current *user* is permitted to delete. Raise an
+        :class:`~viur.core.errors.HTTPException` (e.g.
+        :class:`~viur.core.errors.Locked`, :class:`~viur.core.errors.Forbidden`)
+        to veto the deletion.
+
+        The default refuses to delete an entry that is still referenced by a
+        ``RelationalConsistency.PreventDeletion`` relation (mirroring the check
+        inside ``Skeleton.delete()``, but *before* a cascade removes anything).
+
+        It is called
+
+        * synchronously in :meth:`delete` for the entry the delete was invoked
+          on (immediate error to the caller), and
+        * for **every** entry of a node's subtree in :meth:`deleteRecursive`,
+          in a read-only pre-pass *before* anything is deleted -- so a veto
+          anywhere in the subtree aborts the whole delete without leaving a
+          partially-deleted, orphaned state behind.
+
+        Override it (calling ``super()``) to add domain-specific rules, e.g.::
+
+            def checkDeletePreconditions(self, skelType, skel):
+                super().checkDeletePreconditions(skelType, skel)
+                if skel["is_locked"]:
+                    raise errors.Forbidden("This entry is locked.")
+
+        :param skelType: Type of the entry ("node" or "leaf").
+        :param skel: The already-read skeleton of the entry.
+        """
+        if self._is_locked_by_relation(skel["key"]):
+            raise errors.Locked("This entry is still referenced by other Skeletons, which prevents deleting!")
+
+    @staticmethod
+    def _is_locked_by_relation(key: db.Key) -> bool:
+        """
+        Check whether *key* is referenced by a ``RelationalConsistency.PreventDeletion`` relation.
+
+        Mirrors the check inside ``Skeleton.delete()``.
+
+        :param key: Key of the entity to check.
+        :return: True if a ``PreventDeletion`` relation still points at *key*.
+        """
+        return (
+            db.Query("viur-relations")
+            .filter("dest.__key__ =", key)
+            .filter("viur_relational_consistency =", RelationalConsistency.PreventDeletion.value)
+        ).getEntry() is not None
+
     @CallDeferred
-    def deleteRecursive(self, parentKey: str):
+    def deleteRecursive(self, parentKey: str, delete_self: bool = False, call_hooks: bool = False):
         """
         Recursively processes a delete request.
 
-        This will delete all entries which are children of *nodeKey*, except *key* nodeKey.
+        Deletes all entries which are children of *parentKey*, bottom-up:
+        leafs first, then each sub-node only after its own descendants
+        have been removed. The whole subtree is processed within this
+        single deferred call -- recursing into a sub-node does *not*
+        spawn a separate deferred task for it, so there is no window in
+        which a node could be deleted (or considered done) before its
+        own children actually are.
 
-        :param parentKey: URL-safe key of the node which children should be deleted.
+        Before anything is deleted, a read-only pre-pass validates the
+        whole subtree (and, if *delete_self*, *parentKey* itself) via
+        :meth:`checkDeletePreconditions`. If any entry vetoes deletion, the
+        call aborts and logs without deleting a single entry -- so a veto
+        (e.g. a ``PreventDeletion`` relation, or a domain rule added by a
+        subclass) can never leave a partially-deleted, orphaned subtree
+        behind. Validate-all-then-delete-all rather than checking each entry
+        only as it is about to be deleted (which, being bottom-up, would
+        already have removed the vetoed entry's own children).
+
+        If *delete_self* is set, *parentKey* itself is deleted last, once
+        everything below it is already gone. This is what makes deferring
+        the deletion of a node safe: if this task is lost entirely (queue
+        purge, crash, a task pinned to an App Engine version that no
+        longer exists, ...), *nothing* in the subtree has been touched
+        yet, so nothing is left behind; if it fails partway through, a
+        retry simply continues with what remains (deleting an
+        already-deleted entry is a no-op read-then-skip). The previous
+        behavior -- the node deleted synchronously by :meth:`delete`
+        while its children's removal was merely enqueued as a separate,
+        independent job -- could leave orphaned entries permanently
+        behind: children whose ``parententry`` points to an
+        already-deleted, nonexistent node, which then breaks anything
+        that relies on the tree being intact (e.g. relation updates,
+        aggregations).
+
+        :param parentKey: URL-safe key of the node whose children (and,
+            if *delete_self*, the node itself) should be deleted.
+        :param delete_self: If True, also delete the node identified by
+            *parentKey*, after all of its descendants have been removed.
+        :param call_hooks: If True, call :meth:`onDelete`/:meth:`onDeleted`
+            for the *parentKey* node itself (only meaningful together
+            with *delete_self*). Not applied recursively: cascaded
+            descendants are removed without hooks, same as before.
         """
         nodeKey = db.key_helper(parentKey, self.viewSkel("node").kindName)
+        if not self._checkSubtreeDeletable(nodeKey, check_self=delete_self):
+            # A veto was found (and logged) during the read-only pre-pass;
+            # nothing has been deleted, keeping the tree consistent.
+            return
+        self._deleteSubtree(nodeKey)
+        if delete_self:
+            nodeSkel = self.viewSkel("node")
+            if nodeSkel.read(nodeKey):
+                if call_hooks:
+                    self.onDelete("node", nodeSkel)
+                nodeSkel.delete()
+                if call_hooks:
+                    self.onDeleted("node", nodeSkel)
+
+    def _checkSubtreeDeletable(self, nodeKey: db.Key, check_self: bool) -> bool:
+        """
+        Read-only pre-pass for :meth:`deleteRecursive`.
+
+        Returns True only if every entry of *nodeKey*'s subtree (and
+        *nodeKey* itself when *check_self*) passes
+        :meth:`checkDeletePreconditions`. On the first veto it logs and
+        returns False without having deleted anything.
+
+        :param nodeKey: Key of the node whose subtree is validated.
+        :param check_self: Whether to also validate *nodeKey* itself.
+        :return: True if the whole subtree may be deleted.
+        """
+        try:
+            if check_self:
+                nodeSkel = self.viewSkel("node")
+                if nodeSkel.read(nodeKey):
+                    self.checkDeletePreconditions("node", nodeSkel)
+            if self.leafSkelCls:
+                for leaf in db.Query(self.viewSkel("leaf").kindName).filter("parententry =", nodeKey).iter():
+                    leafSkel = self.viewSkel("leaf")
+                    if leafSkel.read(leaf.key):
+                        self.checkDeletePreconditions("leaf", leafSkel)
+        except errors.HTTPException as exc:
+            logging.warning(f"Refusing to delete subtree of {nodeKey!r}: {exc}")
+            return False
+        for node in db.Query(self.viewSkel("node").kindName).filter("parententry =", nodeKey).iter():
+            if not self._checkSubtreeDeletable(node.key, check_self=True):
+                return False
+        return True
+
+    def onDeleteRecursive(self, skelType: SkelType, skel: SkeletonInstance) -> None:
+        """
+        Hook, called for every *descendant* entry cascaded away during a
+        recursive delete, right before that entry is deleted.
+
+        In contrast to :meth:`onDelete`/:meth:`onDeleted` — which fire once,
+        for the very entry the delete was invoked on — this fires for each
+        cascaded child/grandchild/... removed by :meth:`deleteRecursive`.
+        The default implementation does nothing; override it to run
+        per-entry cleanup (e.g. releasing external resources tied to a leaf).
+
+        :param skelType: Type of the descendant being deleted ("node" or "leaf").
+        :param skel: The already-read skeleton of the descendant.
+        """
+        pass
+
+    def _deleteSubtree(self, nodeKey: db.Key) -> None:
+        """
+        Synchronously delete all descendants of *nodeKey* (not *nodeKey*
+        itself), bottom-up.
+
+        Internal helper for :meth:`deleteRecursive`: recurses directly
+        instead of spawning a new deferred task per tree level, so the
+        whole subtree is processed within a single execution and strictly
+        in the correct order (a sub-node is only deleted once every one of
+        *its* descendants is confirmed gone). :meth:`onDeleteRecursive` is
+        called for each descendant right before it is deleted.
+
+        :param nodeKey: Key of the node whose descendants get deleted.
+        """
         if self.leafSkelCls:
             for leaf in db.Query(self.viewSkel("leaf").kindName).filter("parententry =", nodeKey).iter():
                 leafSkel = self.viewSkel("leaf")
                 if not leafSkel.read(leaf.key):
                     continue
+                self.onDeleteRecursive("leaf", leafSkel)
                 leafSkel.delete()
         for node in db.Query(self.viewSkel("node").kindName).filter("parententry =", nodeKey).iter():
-            self.deleteRecursive(node.key)
+            self._deleteSubtree(node.key)
             nodeSkel = self.viewSkel("node")
-            if not nodeSkel.read(node.key):
-                continue
-            nodeSkel.delete()
+            if nodeSkel.read(node.key):
+                self.onDeleteRecursive("node", nodeSkel)
+                nodeSkel.delete()
 
     @exposed
     @force_ssl

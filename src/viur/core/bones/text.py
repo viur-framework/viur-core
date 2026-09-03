@@ -7,7 +7,7 @@ import string
 import typing as t
 import warnings
 from html.parser import HTMLParser
-from viur.core import db, conf, i18n
+from viur.core import db, conf, i18n, utils
 from .base import ReadFromClientError, ReadFromClientErrorSeverity
 from .raw import RawBone
 
@@ -300,7 +300,15 @@ class TextBone(RawBone):
     :param srcSet: An optional dictionary containing width and height for srcset generation.
         Must be a dict of "width": [List of Ints], "height": [List of Ints], eg {"height": [720, 1080]}
     :param indexed: Whether the content should be indexed for searching. Defaults to False.
+    :param escape_html: If set to False, the content is stored as-is, without any sanitizing.
+        Only allowed together with `validHtml=None`.
     :param kwargs: Additional keyword arguments to be passed to the base class constructor.
+
+    ..Warning: Setting `escape_html=False` disables any server-side sanitizing and therefore leads to
+        security vulnerabilities like reflected XSS unless the content is either otherwise
+        validated/stripped or comes from a trusted source. Additionally, the bone stops tracking
+        referenced files, so blobs linked from within the content are no longer protected from
+        being deleted.
     """
 
     class __undefinedC__:
@@ -315,6 +323,7 @@ class TextBone(RawBone):
         max_length: int = 200000,
         srcSet: t.Optional[dict[str, list]] = None,
         indexed: bool = False,
+        escape_html: bool = True,
         **kwargs
     ):
         """
@@ -324,6 +333,9 @@ class TextBone(RawBone):
             :param indexed: Must not be set True, unless you limit max_length accordingly
             :param srcSet: If set, inject srcset tags to embedded images. Must be a dict of
                 "width": [List of Ints], "height": [List of Ints], eg {"height": [720, 1080]}
+            :param escape_html: If set to False, the content is stored without any sanitizing;
+                neither tags are filtered nor special characters are escaped, and line breaks are
+                kept. Requires `validHtml=None`.
         """
         # fixme: Remove in viur-core >= 4
         if "maxLength" in kwargs:
@@ -334,9 +346,13 @@ class TextBone(RawBone):
         if validHtml == TextBone.__undefinedC__:
             validHtml = conf.bone_html_default_allow
 
+        if not escape_html and validHtml is not None:
+            raise ValueError("escape_html=False is only allowed with validHtml=None")
+
         self.validHtml = validHtml
         self.max_length = max_length
         self.srcSet = srcSet
+        self.escape_html = escape_html
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
         """
@@ -348,10 +364,13 @@ class TextBone(RawBone):
         return value
 
     def singleValueFromClient(self, value, skel, bone_name, client_data):
-        if not (err := self.isInvalid(value)):  # Returns None on success, error-str otherwise
-            return HtmlSerializer(self.validHtml, self.srcSet, False).sanitize(value), None
-        else:
+        if err := self.isInvalid(value):  # Returns None on success, error-str otherwise
             return self.getEmptyValue(), [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, err)]
+
+        if not self.escape_html:
+            return value, None
+
+        return HtmlSerializer(self.validHtml, self.srcSet, False).sanitize(value), None
 
     def getEmptyValue(self):
         """
@@ -392,8 +411,11 @@ class TextBone(RawBone):
         :param SkeletonInstance skel: A SkeletonInstance object containing the data of an entry.
         :param str name: The name of the TextBone for which to find referenced blobs.
         :return: A set containing the blob keys of the referenced files in the TextBone's HTML content.
+            Always empty when `escape_html` is disabled, as the content is then not treated as HTML.
         :rtype: Set[str]
         """
+        if not self.escape_html:
+            return set()
 
         collector = CollectBlobKeys()
 
@@ -428,9 +450,33 @@ class TextBone(RawBone):
         to the existing HTML content. It re-parses the content and updates the src-set attributes
         accordingly.
 
+        When `escape_html` is disabled, the content is unescaped instead, to revert values that
+        have been escaped by a previous configuration of this bone. Note that line breaks removed
+        by the former sanitizing cannot be restored.
+
         :param SkeletonInstance skel: A SkeletonInstance object containing the data of an entry.
         :param str boneName: The name of the TextBone for which to refresh the src-set.
         """
+        if not self.escape_html:
+            # TODO: duplicate code, this is the same iteration logic as in StringBone
+            new_value = {}
+            for _, lang, value in self.iter_bone_value(skel, boneName):
+                if value is not None:
+                    value = utils.string.unescape(value)
+                new_value.setdefault(lang, []).append(value)
+
+            if not self.multiple:
+                # take the first one
+                new_value = {lang: values[0] for lang, values in new_value.items() if values}
+
+            if self.languages:
+                skel[boneName] = new_value
+            else:
+                # just the value(s) with None language
+                skel[boneName] = new_value.get(None, [] if self.multiple else self.getEmptyValue())
+
+            return
+
         if self.srcSet:
             val = skel[boneName]
             if self.languages and isinstance(val, dict):
@@ -441,4 +487,5 @@ class TextBone(RawBone):
     def structure(self) -> dict:
         return super().structure() | {
             "valid_html": self.validHtml,
+            "escape_html": self.escape_html,
         }

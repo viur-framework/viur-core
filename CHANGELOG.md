@@ -2,7 +2,7 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.9.0.beta1]
+## [3.9.0.rc1]
 
 - chore: Deprecate endpoint `/vi/getStructure` (#1616)
 - chore: Move `BaseSkeleton` into own `base.py`-module (#1738)
@@ -11,15 +11,19 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - feat:  `SpatialBone`  extend `setBoneValue` to accept `dict` with lat/lng aliases (#1705)
 - feat: `CodeBone`, `LogicsBone`, `JinjaBone` and `PythonBone` (#1668)
 - feat: `NumericBone` with decimal-support (#1666)
-- feat: `skel.patch()` with internal-mode default (#1587)
 - feat: Add `AddressBone` (#1712)
 - feat: Add `after_from_client` (#1708)
-- feat: add `contrib` package with `RequestRateLimit` validator (#1690)
+- feat: Add `contrib` package with `RequestRateLimit` validator (#1690)
+- feat: Add `escape_html`-parameter to `TextBone` (#1751)
+- feat: Add `FlushCacheTask` for maintenance (#1748)
 - feat: Add `keys_only`-tooling for `Query` (#1586)
-- feat: add `LoginKey` auth provider to `contrib` (#1691)
+- feat: Add `LoginKey` auth provider to `contrib` (#1691)
 - feat: Add `vi/routes`-endpoint (#1689)
+- feat: Add cache layer for the datastore adapter (#1514)
 - feat: Add check for compute in getUniquePropertyIndexValues (#1316)
-- feat: add lifecycle hooks for `Request` (#1701)
+- feat: Add i18n fallback languages (#1735)
+- feat: Add lifecycle hooks for `Request` (#1701)
+- feat: Add Query.iter_skel() to iterate over SkeletonInstances (#1747)
 - feat: Add QueryOrder and Tests (#1699)
 - feat: Check `conf.valid_application_ids` with `fnmatch` and generally make it optional (#1590)
 - feat: Combine setting and config for the admin (#1620)
@@ -28,6 +32,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - feat: Implement `preprocess`-function to `Skeleton.patch` (#1625)
 - feat: Implement `TypeVar` for `Skeleton` and make `SkeletonInstance` `Generic` (#1412)
 - feat: Implement new version of `@ResponseCache` decorator (formerly `@enableCache`) (#1446)
+- feat: make translation sources pluggable (#1736)
 - feat: Provide `Email`-module (#1678)
 - feat: Re-Add trace-queries logging (#1642)
 - feat: Refactor and improve `getUniquePropertyIndexValues` (#1681)
@@ -35,7 +40,11 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - feat(StringBone): make `escape_html` globally configurable via `conf` (#1706)
 - fix: `BooleanBone` doesn't respect `vfunc/isInvalid` (#1694)
 - fix: `cache.flushCache` code path improvement (#1682)
+- fix: `ColorBone` rejects misplaced `#` and non-string values (#1753)
+- fix: `DateBone` `now` parsing (#1754)
+- fix: `db.keyHelper` was not flagged as deprecated
 - fix: `Email`-module requires to provide cloned edit skels (#1733)
+- fix: `getDefaultValue` shares one list across all languages of a multiple bone (#1752)
 - fix: Add `setSystemInitialized` in `SeoKeyBone` to set the languages (#1703)
 - fix: Avoid compute bones when the skel in deleted in a cascade (#1581)
 - fix: Code fixes due long aging and invalid merge
@@ -43,11 +52,35 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: Import `pprint` as `pp` (#1579)
 - fix: Make user `Status` an `IntEnum` for cross-project comparability (#1737)
 - fix: Reject RFC 5321 violations in EmailBone local part (#1696)
+- fix: validate required `FileBone` refKeys and export `max_file_size` (#1755)
+- fix(email): remove hard retry cap to allow recovery from transient failures (#1749)
+- fix(file): parse absolute download URLs and an appended file name (#1750)
+- fix(tree): delete a node only after its entire subtree is gone (#1731)
 - refactor: Deprecate `/vi/getVersion` and `/vi/settings` (#1669)
 - refactor: migrate CaptchaBone to reCAPTCHA Enterprise (#1680)
 - refactor: Provide and use `_can_access`-function in vi-render (#1659)
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
 - test: Add unit tests for Bones and App Login Flow (get_cookie_for_app, apply_login_cookie) (#1661)
+
+## [3.8.37]
+
+- fix(tasks): honour `_call_deferred=False` when no queue is reachable (#1758)
+- chore: update outdated ISO country codes for `SelectCountryBone` (#1765)
+
+## [3.8.36]
+
+- fix: `read_all_modules` overwrites existing `ModuleConf` entries (#1762)
+
+## [3.8.35]
+
+- fix: refresh each source entity only once in `update_relations` (#1756)
+- fix: `db.keyHelper` was not flagged as deprecated
+
+## [3.8.34]
+
+- fix(bones): `getDefaultValue` shares one list across all languages of a multiple bone (#1752)
+- fix(file): parse absolute download URLs and an appended file name (#1750)
+- fix(email): remove hard retry cap to allow recovery from transient failures (#1749)
 
 ## [3.8.33]
 
