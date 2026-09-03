@@ -1,5 +1,12 @@
 ---
-covers: [viur.core.skeleton.skeleton.Skeleton, viur.core.skeleton.relskel.RelSkel, viur.core.skeleton.relskel.RefSkel, viur.core.skeleton.instance.SkeletonInstance, viur.core.skeleton.meta.MetaSkel, viur.core.skeleton.meta.BaseSkeleton, viur.core.skeleton.adapter.DatabaseAdapter, viur.core.skeleton.adapter.ViurTagsSearchAdapter]
+covers: [viur.core.skeleton.skeleton.Skeleton, viur.core.skeleton.base.BaseSkeleton,
+         viur.core.skeleton.relskel.RelSkel, viur.core.skeleton.relskel.RefSkel,
+         viur.core.skeleton.instance.SkeletonInstance, viur.core.skeleton.meta.MetaSkel,
+         viur.core.skeleton.meta.MetaBaseSkel, viur.core.skeleton.skeleton.SeoKeyBone,
+         viur.core.skeleton.adapter.DatabaseAdapter,
+         viur.core.skeleton.adapter.ViurTagsSearchAdapter,
+         viur.core.skeleton.utils.skeletonByKind,
+         viur.core.skeleton.utils.without_render_preparation]
 status: accepted
 ---
 ## Seam
@@ -21,14 +28,16 @@ attached automatically.
 
 `RelSkel` is a bone container without a kind (used for `using=` and task data
 skeletons); `RefSkel.fromSkel(kind, *patterns)` builds the reduced skeleton a
-`RelationalBone` mirrors, and `RefSkel.read()` loads the full entity from it.
+`RelationalBone` mirrors, and `RefSkel.read()` loads the full entity from it -
+or a subskel of it, with `subskel=` / `bones=`.
 
 ## Rules
 - Bone names may contain only letters, digits and `_`, and must not be one of
   the reserved keywords (`read`, `write`, `patch`, `delete`, `clone`, `errors`,
   `structure`, ... - see `MetaBaseSkel.__reserved_keywords`).
 - Two skeletons for the same kind in the same `conf.skeleton_search_path`
-  entry raise ValueError; across entries the lower index wins silently.
+  entry raise ValueError; across entries the lower index wins silently. A
+  skeleton in a folder that is not listed at all raises NotImplementedError.
 - Do not modify values while rendering: `read`, `write`, `fromClient` and
   `__setitem__` assert `skel.renderPreparation is None`. Use
   `without_render_preparation()` when a template needs raw values.
