@@ -2,6 +2,12 @@ import logging
 import warnings
 
 from .adapter import DatabaseAdapter, ViurTagsSearchAdapter
+# The bones package has to be complete before the first skeleton class is built: MetaBaseSkel
+# reaches into it while the class body is executed, and bones.image in turn subclasses RelSkel.
+# Importing viur.core establishes that order anyway; this keeps it intact for anyone importing
+# viur.core.skeleton directly.
+from .. import bones as _bones  # noqa: F401
+
 from .base import BaseSkeleton
 from .instance import SkeletonInstance
 from .meta import ABSTRACT_SKEL_CLS_SUFFIX, MetaBaseSkel, MetaSkel, Skeleton_Cls
