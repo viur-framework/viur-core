@@ -39,16 +39,20 @@ immediately and the credit warning emails are never sent.
 
 Fix: check against `EmailTransportBrevo`.
 
-### `src/viur/core/i18n.py:557` - swapped `isinstance` arguments
+### `src/viur/core/i18n.py:651` - swapped `isinstance` arguments
 
 ```python
 if not isinstance(dict, entity["translation"]):
 ```
 
 Arguments are the wrong way round; this raises
-`TypeError: isinstance() arg 2 must be a type` instead of validating. Hit
-inside `migrate_translation`, which is a deferred, 20x-retried task - so it
-retries 20 times and gives up.
+`TypeError: isinstance() arg 2 must be a type` instead of validating. It sits
+in `migrate_translation`, which is *not* deferred and not retried (those
+decorators belong to `add_missing_translation`): `DatastoreSource.load` calls
+it synchronously for every translation entity without a `name`, and
+`initializeTranslations` re-raises whatever a source throws. A single
+unmigrated entity that still carries a `translation` field therefore takes the
+whole instance down at startup.
 
 Fix: `isinstance(entity["translation"], dict)`.
 
