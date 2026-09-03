@@ -190,18 +190,27 @@ Fix: `file.get(language)`.
 
 ## Minor
 
-### `src/viur/core/render/json/__init__.py:6` - `__all__` holds a class, not a name
+### `render/json/__init__.py:6` and `skeleton/__init__.py:53` - `__all__` holds objects, not names
 
 ```python
-__all__ = [default]
+__all__ = [default]                            # render/json
+__all__ = [ABSTRACT_SKEL_CLS_SUFFIX, BaseSkeleton, DatabaseAdapter, ...]  # skeleton
 ```
 
-`__all__` must contain strings. `from viur.core.render.json import *`
-therefore fails with `TypeError: Item in viur.core.render.json.__all__ must be
-str, not ABCMeta`. It goes unnoticed because the core only ever imports the
-package as a module (`from . import json`).
+`__all__` must contain strings, so `import *` fails on both:
 
-Fix: `__all__ = ["default"]`.
+    from viur.core.render.json import *
+    -> TypeError: Item in viur.core.render.json.__all__ must be str, not ABCMeta
+    from viur.core.skeleton import *
+    -> TypeError: Item in viur.core.skeleton.__all__ must be str, not MetaBaseSkel
+
+It goes unnoticed because the core only ever imports these packages as
+modules. In the skeleton list the first entry is a string by accident -
+`ABSTRACT_SKEL_CLS_SUFFIX` is `"AbstractSkel"`, the *value* rather than the
+symbol name, so even fixing the other entries would leave a name that does
+not exist.
+
+Fix: list the names as strings.
 
 ### `src/viur/core/prototypes/skelmodule.py:171` - `_apply_default_order` docstring contradicts the code
 
