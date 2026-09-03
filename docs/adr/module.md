@@ -23,6 +23,9 @@ When methods or sub-modules are created at runtime, call `_update_methods()`.
 - `accessRights` entries are registered as `<moduleName>-<right>` into
   `conf.user.access_rights`, but only when `handler` is set as well.
 - `self` and `return` are rejected as request parameters (BadRequest).
+- `adminInfo` (dict or callable) is merged over the generated description, so
+  it can also overwrite `name`, `handler` and `methods`. A callable is
+  evaluated once per instance and cached with the rest.
 
 ## Traps
 - `describe()` caches into `self._cached_description`. Assign
@@ -32,6 +35,11 @@ When methods or sub-modules are created at runtime, call `_update_methods()`.
 - `Method.__call__` parses arguments by annotation. Unannotated parameters
   arrive as raw `str` from the client; an annotation the parser does not know
   raises NotAcceptable at request time, not at startup.
+- The argument parser resolves unions in order and only catches `ValueError`:
+  a `t.Literal`, an Enum or an unknown type inside a union raises
+  `NotAcceptable` and aborts the remaining alternatives.
+  `t.Literal[...] | None` therefore rejects `None`, while
+  `None | t.Literal[...]` accepts it.
 - Parameters not in the signature are dropped silently unless the method
   accepts `**kwargs`.
 - Guards from `@access`/`@skey` run in reverse order of application, i.e. the
@@ -42,6 +50,12 @@ When methods or sub-modules are created at runtime, call `_update_methods()`.
   mutates the parent's Method for everybody.
 - A module named `index` is mapped to the root: its methods land at the top
   level of the resolver.
+- `_update_methods` skips `property` and `cached_property`, so a method
+  defined as a property is never routed. Every other public attribute is read
+  once via `getattr` while the module is built.
+- `Module.register` writes into the config: SEO names are registered for
+  `conf.i18n.available_languages` and `conf.i18n.language_module_map` gets the
+  module's `seo_language_map`.
 
 ## Why not
 Routing walks the nested dicts in `conf.main_resolver`, not the module tree.
