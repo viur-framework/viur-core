@@ -190,6 +190,19 @@ Fix: `file.get(language)`.
 
 ## Minor
 
+### `src/viur/core/render/json/__init__.py:6` - `__all__` holds a class, not a name
+
+```python
+__all__ = [default]
+```
+
+`__all__` must contain strings. `from viur.core.render.json import *`
+therefore fails with `TypeError: Item in viur.core.render.json.__all__ must be
+str, not ABCMeta`. It goes unnoticed because the core only ever imports the
+package as a module (`from . import json`).
+
+Fix: `__all__ = ["default"]`.
+
 ### `src/viur/core/prototypes/skelmodule.py:171` - `_apply_default_order` docstring contradicts the code
 
 ```python
