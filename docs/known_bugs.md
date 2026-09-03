@@ -190,6 +190,20 @@ Fix: `file.get(language)`.
 
 ## Minor
 
+### `src/viur/core/prototypes/skelmodule.py:171` - `_apply_default_order` docstring contradicts the code
+
+```python
+The `default_order` will only be applied when the query has no other order, or is on a multquery.
+```
+
+The code does the opposite of the second half: a multi-query is explicitly
+excluded (`not isinstance(query.queries, list)`), so `default_order` is
+applied only to a single query. "multquery" is a typo as well, and the third
+condition (no `search` parameter in the request) is not mentioned at all.
+
+Fix: "... only be applied when the query has no other order, is not a
+multi-query and no `search` parameter was sent."
+
 ### `src/viur/core/db/query.py:485-526` - three methods break on an unsatisfiable query
 
 `queries is None` is the documented "unsatisfiable" state, and `filter`,
