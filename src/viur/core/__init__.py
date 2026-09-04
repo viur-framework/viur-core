@@ -298,6 +298,7 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
     if conf.security.strict_transport_security:
         if not conf.security.strict_transport_security.startswith("max-age"):
             raise AssertionError("Got unexpected header in conf.security.strict_transport_security")
+    securityheaders._validate_reporting_config()
     crossDomainPolicies = {None, "none", "master-only", "by-content-type", "all"}
     if conf.security.x_permitted_cross_domain_policies not in crossDomainPolicies:
         raise AssertionError("conf.security.x_permitted_cross_domain_policies "

@@ -529,7 +529,14 @@ class RelationalBone(BaseBone):
         # Now is now, nana nananaaaaaaa...
         now = time.time()
 
-        # Helper fcuntion to
+        # All relation entities share the source entity's group (parent=key), so they are
+        # collected here and written in one commit instead of one put per relation: that is a
+        # single round-trip, and a single write against the one-write-per-second-and-entity-group
+        # rate limit rather than one per relation.
+        to_put: list[db.Entity] = []
+        to_delete: list[db.Key] = []
+
+        # Helper function to fill a relation entity from a bone value
         def __update_relation(entity: db.Entity, data: dict):
             ref_skel = data["dest"]
             rel_skel = data["rel"]
@@ -552,7 +559,7 @@ class RelationalBone(BaseBone):
             entity["viur_foreign_keys"] = list(self._ref_keys)
             entity["viurTags"] = skel.dbEntity.get("viurTags") if skel.dbEntity else None
 
-            db.put(entity)
+            to_put.append(entity)
 
         # Query and update existing entries pointing to this bone
         query = db.Query("viur-relations") \
@@ -564,11 +571,11 @@ class RelationalBone(BaseBone):
         for entity in query.iter():
             try:
                 if entity["dest"].key not in values_keys:  # Relation has been removed
-                    db.delete(entity.key)
+                    to_delete.append(entity.key)
                     continue
 
             except KeyError:  # This entry is corrupt
-                db.delete(entity.key)
+                to_delete.append(entity.key)
 
             else:  # Relation: Updated
                 # Find the newest item matching this key (this has to been done this way)...
@@ -583,6 +590,13 @@ class RelationalBone(BaseBone):
         # Add new database entries for the remaining values
         for value in values:
             __update_relation(db.Entity(db.Key("viur-relations", parent=key)), value)
+
+        # A key is either deleted or written, never both, so the order of the two is irrelevant
+        if to_delete:
+            db.delete(to_delete)
+
+        if to_put:
+            db.put(to_put)
 
         # Call postSavedHandler on UsingSkel (RelSkel)
         if self.using:
@@ -609,7 +623,9 @@ class RelationalBone(BaseBone):
             .filter("viur_src_property =", boneName) \
             .filter("src.__key__ =", key)
 
-        db.delete([entity for entity in query.run()])
+        # iter() deliberately ignores the query limit, run() would stop after
+        # conf.db.query_default_limit entries and orphan every relation beyond it
+        db.delete(list(query.iter(keys_only=True)))
 
     def isInvalid(self, key) -> None:
         """

@@ -9,6 +9,7 @@ This module provides configuration for most of the http security headers. The fe
     - Referrer-Policy (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referrer-Policy)
     - Permissions-Policy (https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Feature-Policy)
     - Cross origin isolation (https://web.dev/coop-coep)
+    - Reporting-Endpoints (https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Reporting-Endpoints)
 
 If a feature is not yet supported, you could always set the header directly (e.g. by attaching a request
 preprocessor). ViUR contains a default configuration for most of these headers where possible, however manual
@@ -35,6 +36,14 @@ The Permissions-Policy will only allow auto-play by default (thus access to the 
 Cross origin isolation is currently disabled by default (as it's incompatible with many popular services like
 embedding a map or sign-in with google).
 
+CSP violations used to be reported through the ``report-uri`` directive, which carries its url itself.
+That directive is deprecated since CSP Level 3 and superseded by the Reporting-API: endpoints are declared
+once in the ``Reporting-Endpoints`` header and referenced by name, by the CSP-directive ``report-to`` as
+well as by other headers. Browsers that support it ignore ``report-uri`` once both are present, so keeping
+the old directive around does not keep the reports flowing on its own.
+
+No reporting endpoints are configured by default; see :func:`set_reporting_endpoint` on how to receive reports.
+
 ViUR also protects it's cookies by default (setting httponly, secure and samesite=lax). This can be changed by
 setting the corresponding class-level variables on class:`Session<viur.core.session.Session>`.
 """
@@ -42,7 +51,11 @@ setting the corresponding class-level variables on class:`Session<viur.core.sess
 from viur.core.config import conf
 from viur.core import current
 import logging
+import re
 import typing as t
+
+# Endpoint names are structured-field keys, see https://www.rfc-editor.org/rfc/rfc8941#section-3.1.2
+_REPORTING_ENDPOINT_NAME_RE = re.compile(r"^[a-z*][a-z0-9_.*-]*$")
 
 
 def addCspRule(objectType: str, srcOrDirective: str, enforceMode: str = "monitor"):
@@ -64,11 +77,18 @@ def addCspRule(objectType: str, srcOrDirective: str, enforceMode: str = "monitor
             security.addCspRule("style-src","unsafe-inline","enforce")
 
         If you don't want these rules to be enforced and just getting a report of violations replace "enforce" with
-        "monitor". To add a report-url use something like::
+        "monitor". To have violations reported, name an endpoint configured via :meth:`set_reporting_endpoint`::
 
-            security.addCspRule("report-uri","/cspReport","enforce")
+            security.set_reporting_endpoint("csp", "/cspReport")
+            security.addCspRule("report-to", "csp", "enforce")
 
         and register a function at /cspReport to handle the reports.
+
+        The older ``report-uri`` directive does the same without a named endpoint, but is deprecated since
+        CSP Level 3. It is still worth adding for browsers that do not support the Reporting-API; those that
+        do ignore it as soon as ``report-to`` is present::
+
+            security.addCspRule("report-uri", "/cspReport", "enforce")
 
         ..note::
 
@@ -91,7 +111,7 @@ def addCspRule(objectType: str, srcOrDirective: str, enforceMode: str = "monitor
         "base-uri", "sandbox",
         # Navigation directives
         "form-action", "frame-ancestors",
-        # Reporting directives
+        # Reporting directives; "report-uri" is deprecated, prefer "report-to" with set_reporting_endpoint()
         "report-uri", "report-to",
         # Other directives
         "require-trusted-types-for", "trusted-types", "upgrade-insecure-requests", "block-all-mixed-content",
@@ -103,8 +123,9 @@ def addCspRule(objectType: str, srcOrDirective: str, enforceMode: str = "monitor
         conf.security.content_security_policy = {"_headerCache": {}}
     if enforceMode not in conf.security.content_security_policy:
         conf.security.content_security_policy[enforceMode] = {}
-    if objectType == "report-uri":
-        conf.security.content_security_policy[enforceMode]["report-uri"] = [srcOrDirective]
+    if objectType in ("report-uri", "report-to"):
+        # Both directives take exactly one value; a second one would be ignored by the browser anyway
+        conf.security.content_security_policy[enforceMode][objectType] = [srcOrDirective]
     else:
         if objectType not in conf.security.content_security_policy[enforceMode]:
             conf.security.content_security_policy[enforceMode][objectType] = []
@@ -181,6 +202,100 @@ def extendCsp(additionalRules: dict = None, overrideRules: dict = None) -> None:
                 resStr += value
         resStr += "; "
     current.request.get().response.headers["Content-Security-Policy"] = resStr
+
+
+def set_reporting_endpoint(name: str, url: str | None) -> None:
+    """Configure a named endpoint reports are being sent to.
+
+    All endpoints configured this way are emitted as ``Reporting-Endpoints`` http-header with each request.
+    Other headers reference an endpoint by its name, i.e. the CSP-directive ``report-to``:
+
+    ..  code-block:: python
+
+        # Example Usage
+
+        security.set_reporting_endpoint("csp", "/cspReport")
+        security.addCspRule("report-to", "csp", "enforce")
+
+    The name ``default`` is special: the browser uses it for reports whose header cannot name an endpoint
+    on its own, as well as for reports not caused by a header at all (i.e. deprecation reports).
+
+    The endpoint receives a POST with the content-type ``application/reports+json``, carrying a *list* of
+    reports rather than a single one: browsers queue them up and deliver a batch a few seconds later. The
+    deprecated ``report-uri`` directive behaves differently, it posts one ``application/csp-report`` per
+    violation right away. Reports of a violation also name the precise directive (``style-src-elem``),
+    where the legacy format falls back to the broader one (``style-src``).
+
+    .. note::
+
+        Reports are only sent from a https origin, and only to a https endpoint. A relative url inherits
+        the scheme of the document, so a development server on plain http receives nothing -- not even
+        when the endpoint is given as an absolute https url. Putting a TLS proxy in front of the
+        development server is enough to make reporting work locally.
+
+    .. note::
+
+        Browsers supporting ``report-to`` ignore ``report-uri`` once both directives are present. Keeping
+        the deprecated one around therefore only serves browsers without Reporting-API support; it is no
+        way around the https requirement.
+
+    .. note::
+
+        Our tests showed that enabling reporting on production systems has limited use. There are literally
+        thousands of browser-extensions out there that inject code into the pages displayed. This causes a
+        whole flood of violations-spam to your endpoint.
+
+    :param name: The name other headers use to reference this endpoint.
+    :param url: The url the reports are sent to. Pass None to remove a previously configured endpoint.
+    :raises ValueError: If either name or url is unsuitable.
+    """
+    if url is None:
+        conf.security.reporting_endpoints.pop(name, None)
+        return
+    _validate_reporting_endpoint(name, url)
+    conf.security.reporting_endpoints[name] = url
+
+
+def _build_reporting_endpoints_header() -> str:
+    """Build the value of the ``Reporting-Endpoints`` header.
+
+    Uses what has been passed to :func:`set_reporting_endpoint` earlier on. An empty string is returned if no
+    endpoint is configured, in which case the header must be omitted. Should not be called directly.
+    """
+    return ", ".join(f'{name}="{url}"' for name, url in conf.security.reporting_endpoints.items())
+
+
+def _validate_reporting_config() -> None:
+    """Ensure the reporting configuration as a whole is sane.
+
+    Every configured endpoint must be emittable and each CSP ``report-to`` directive must name one of them.
+    Called on startup, should not be called directly.
+
+    :raises ValueError: If a configured endpoint is unsuitable.
+    """
+    for name, url in conf.security.reporting_endpoints.items():
+        _validate_reporting_endpoint(name, url)
+    for enforce_mode in ("monitor", "enforce"):
+        for name in (conf.security.content_security_policy or {}).get(enforce_mode, {}).get("report-to", []):
+            if name not in conf.security.reporting_endpoints:
+                logging.warning(f"The CSP directive report-to names the endpoint {name!r} in {enforce_mode!r} mode, "
+                                f"but no such reporting endpoint is configured. The browser will drop the reports.")
+    if conf.security.reporting_endpoints and conf.instance.is_dev_server:
+        logging.warning("Reporting endpoints are configured, but browsers drop them unless they are served over "
+                        "https -- expect no reports on a plain http development server.")
+
+
+def _validate_reporting_endpoint(name: str, url: str) -> None:
+    """Ensure a reporting endpoint can be emitted as ``Reporting-Endpoints`` header without breaking it.
+
+    :raises ValueError: If either name or url is unsuitable.
+    """
+    if not _REPORTING_ENDPOINT_NAME_RE.match(name):
+        raise ValueError(f"Invalid endpoint name {name!r}, must match {_REPORTING_ENDPOINT_NAME_RE.pattern}")
+    if not url or any(char in url for char in "\"',;\\") or any(char.isspace() for char in url):
+        raise ValueError(f"Invalid character in url {url!r} of endpoint {name!r}")
+    if "://" in url and not url.lower().startswith("https://"):
+        raise ValueError(f"An absolute url must use the https scheme, got {url!r} for endpoint {name!r}")
 
 
 def enableStrictTransportSecurity(maxAge: int = 365 * 24 * 60 * 60,
