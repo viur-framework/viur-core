@@ -39,3 +39,28 @@ class TestBaseBone_getDefaultValue(ViURTestCase):
 
         value.append("foo")
         self.assertEqual([], bone.getDefaultValue(None))
+
+
+class TestReadFromClientException(ViURTestCase):
+    """A single ReadFromClientError has to be accepted, as documented."""
+
+    @staticmethod
+    def _error():
+        from viur.core.bones.base import ReadFromClientError, ReadFromClientErrorSeverity
+        return ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "broken")
+
+    def test_single_error(self):
+        from viur.core.bones.base import ReadFromClientException
+        error = self._error()
+        exception = ReadFromClientException(error)
+        self.assertEqual((error,), exception.errors)
+
+    def test_iterable_of_errors(self):
+        from viur.core.bones.base import ReadFromClientException
+        errors = (self._error(), self._error())
+        self.assertEqual(errors, ReadFromClientException(errors).errors)
+
+    def test_empty_iterable_raises(self):
+        from viur.core.bones.base import ReadFromClientException
+        with self.assertRaises(ValueError):
+            ReadFromClientException([])

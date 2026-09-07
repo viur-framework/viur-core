@@ -169,7 +169,8 @@ class SkelModule(Module):
         """
         Apply the setting from `default_order` to a given db.Query.
 
-        The `default_order` will only be applied when the query has no other order, or is on a multquery.
+        The `default_order` will only be applied when the query has no other order,
+        is not a multi-query and no `search` parameter was sent.
         """
 
         # Apply default_order when possible!

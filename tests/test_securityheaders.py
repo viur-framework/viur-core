@@ -160,3 +160,51 @@ class TestCspReportingDirectives(ViURTestCase):
         header = conf.security.content_security_policy["_headerCache"]["Content-Security-Policy"]
         self.assertIn("report-to csp; ", header)
         self.assertIn("report-uri /cspReport; ", header)
+
+
+class TestExtendCsp(ViURTestCase):
+    """``conf.security.content_security_policy`` is optional and may be None.
+
+    The error page calls :func:`extendCsp` for its style nonce, so a crash here turns an
+    error response into a second error.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        from viur.core import current
+        from viur.core.config import conf
+        self.csp_backup = copy.deepcopy(conf.security.content_security_policy)
+        request = mock.MagicMock()
+        request.response.headers = {}
+        self.request = request
+        token = current.request.set(request)
+        self.addCleanup(current.request.reset, token)
+
+    def tearDown(self) -> None:
+        from viur.core.config import conf
+        conf.security.content_security_policy = self.csp_backup
+        super().tearDown()
+
+    def _header(self) -> str:
+        return self.request.response.headers["Content-Security-Policy"]
+
+    def test_without_project_policy(self):
+        from viur.core import securityheaders
+        from viur.core.config import conf
+        conf.security.content_security_policy = None
+        securityheaders.extendCsp({"style-src": ["nonce-abc"]})
+        self.assertEqual("style-src 'nonce-abc'; ", self._header())
+
+    def test_project_policy_is_extended(self):
+        from viur.core import securityheaders
+        from viur.core.config import conf
+        conf.security.content_security_policy = {"enforce": {"style-src": ["self"]}}
+        securityheaders.extendCsp({"style-src": ["nonce-abc"]})
+        self.assertEqual("style-src 'self' 'nonce-abc'; ", self._header())
+
+    def test_project_policy_is_not_mutated(self):
+        from viur.core import securityheaders
+        from viur.core.config import conf
+        conf.security.content_security_policy = {"enforce": {"style-src": ["self"]}}
+        securityheaders.extendCsp({"style-src": ["nonce-abc"]})
+        self.assertEqual({"enforce": {"style-src": ["self"]}}, conf.security.content_security_policy)

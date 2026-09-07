@@ -120,7 +120,7 @@ class ReadFromClientException(Exception):
 
         # Allow to specifiy a single ReadFromClientError
         if isinstance(errors, ReadFromClientError):
-            errors = (ReadFromClientError, )
+            errors = (errors, )
 
         self.errors = tuple(error for error in errors if isinstance(error, ReadFromClientError))
 

@@ -648,7 +648,7 @@ def migrate_translation(
     if "name" not in entity:
         entity["name"] = entity["key"] or key.name
     if "translation" in entity:
-        if not isinstance(dict, entity["translation"]):
+        if not isinstance(entity["translation"], dict):
             logging.error("translation is not a dict?")
         entity["translation"]["_viurLanguageWrapper_"] = True
     skel = TranslationSkel()

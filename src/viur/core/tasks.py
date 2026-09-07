@@ -417,8 +417,8 @@ def retry_n_times(retries: int, email_recipients: None | str | list[str] = None,
                             from viur.core import email
                             email.send_email(
                                 dests=email_recipients,
-                                tpl=tpl,
-                                stringTemplate=string_template if tpl is None else string_template,
+                                # send_email accepts tpl xor stringTemplate, never both
+                                **({"tpl": tpl} if tpl is not None else {"stringTemplate": string_template}),
                                 # The following params provide information for the emails templates
                                 func_name=func.__name__,
                                 func_qualname=func.__qualname__,
