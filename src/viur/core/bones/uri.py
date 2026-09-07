@@ -52,9 +52,17 @@ class UriBone(BaseBone):
 
         self.accepted_protocols = accepted_protocols
         if self.accepted_protocols:
-            if not isinstance(self.accepted_protocols, Iterable) or isinstance(self.accepted_protocols, str):
+            if isinstance(self.accepted_protocols, str):
+                # A single protocol, not a set of its characters
+                self.accepted_protocols = {self.accepted_protocols}
+            elif isinstance(self.accepted_protocols, Iterable):
                 self.accepted_protocols = set(self.accepted_protocols)
-            if "*" in accepted_protocols:
+            else:
+                raise ValueError("accepted_protocols must be a string, an iterable of strings or None")
+
+            # Test the wildcard against the normalized set: "*" on its own switches the
+            # check off, while a pattern such as "http*" is kept and matched by fnmatch.
+            if "*" in self.accepted_protocols:
                 self.accepted_protocols = None
 
         if not isinstance(clean_get_params, bool):

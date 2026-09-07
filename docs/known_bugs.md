@@ -128,34 +128,6 @@ in the ag-dev repo.
 
 ## Bones: validation that does not validate
 
-### `src/viur/core/bones/uri.py:56` - a protocol string becomes a character set
-
-```python
-if not isinstance(self.accepted_protocols, Iterable) or isinstance(self.accepted_protocols, str):
-    self.accepted_protocols = set(self.accepted_protocols)
-```
-
-For a plain string, `set("https")` yields `{"h", "t", "p", "s"}`. So
-`UriBone(accepted_protocols="https")` allows the protocols `h`, `t`, `p` and
-`s` - and rejects `https`. The whole restriction is silently inverted.
-
-Two lines later the same parameter is checked for the wildcard - on the
-original argument, not on the normalized one:
-
-```python
-if "*" in accepted_protocols:
-    self.accepted_protocols = None
-```
-
-For a list this is a membership test, for a string a substring test. Any
-string containing a `*` therefore switches the protocol check off entirely:
-`UriBone(accepted_protocols="http*")` accepts `file://x`. Since fnmatch
-patterns are a documented and tested way to write this option, that spelling
-is the obvious one to reach for.
-
-Fix: normalize the str case to `{self.accepted_protocols}` first, then test
-the wildcard against the normalized set.
-
 ### `src/viur/core/bones/uri.py:145` - default ports are rejected
 
 ```python
