@@ -128,21 +128,6 @@ in the ag-dev repo.
 
 ## Bones: validation that does not validate
 
-### `src/viur/core/bones/uri.py:145` - default ports are rejected
-
-```python
-if not any(parsed_url.port in rng for rng in self.accepted_ports):
-```
-
-`urlparse(...).port` is `None` when the URL relies on the scheme default, so
-with `accepted_ports=(443,)` the valid `https://example.com` is rejected. A
-malformed port additionally makes the property itself raise `ValueError`,
-which `isInvalid` does not catch - that becomes a 500 rather than a validation
-error.
-
-Fix: map a missing port to the scheme default before the check, and guard the
-`ValueError`.
-
 ### `src/viur/core/bones/date.py:80` - creation/update magic does not lock the bone
 
 ```python

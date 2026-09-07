@@ -8,6 +8,18 @@ from collections import namedtuple
 PORT_MIN: t.Final[int] = 1
 PORT_MAX: t.Final[int] = 2 ** 16 - 1
 
+DEFAULT_PORTS: t.Final[dict[str, int]] = {
+    "ftp": 21,
+    "ftps": 990,
+    "http": 80,
+    "https": 443,
+    "sftp": 22,
+    "ssh": 22,
+    "ws": 80,
+    "wss": 443,
+}
+"""The port a URL uses when it does not name one, by scheme"""
+
 
 class UriBone(BaseBone):
     type = "uri"
@@ -28,6 +40,8 @@ class UriBone(BaseBone):
 
         :param accepted_protocols: The accepted protocols can be set to allow only the provide protocols.
         :param accepted_ports The accepted ports can be set to allow only the provide ports.
+            A URL that names no port is checked against the default port of its scheme,
+            see :data:`DEFAULT_PORTS`.
         ..  code-block:: python
             # Example
             UriBone(accepted_ports=1)
@@ -150,8 +164,18 @@ class UriBone(BaseBone):
             return f"""No protocol specified"""
 
         if self.accepted_ports:
-            if not any(parsed_url.port in rng for rng in self.accepted_ports):
-                return f""""{parsed_url.port}" not in the accepted ports."""
+            try:
+                port = parsed_url.port
+            except ValueError:  # the property parses the port, urlparse itself does not
+                return "Can't read the port from the URL"
+
+            if port is None:
+                # The URL relies on the default of its scheme. An unknown scheme leaves the
+                # port undecidable, and an undecidable port cannot be an accepted one.
+                port = DEFAULT_PORTS.get(parsed_url.scheme)
+
+            if port is None or not any(port in rng for rng in self.accepted_ports):
+                return f""""{port}" not in the accepted ports."""
 
         if self.accepted_protocols:
             for protocol in self.accepted_protocols:

@@ -179,3 +179,57 @@ class TestUriBoneAcceptedProtocols(ViURTestCase):
     def test_non_iterable_raises_value_error(self):
         with self.assertRaises(ValueError):
             self._bone(5)
+
+
+class TestUriBoneAcceptedPorts(ViURTestCase):
+    """A URL that names no port still has one: the default of its scheme.
+
+    ``urlparse(...).port`` is None in that case, so ``accepted_ports=(443,)`` used to
+    reject the perfectly valid ``https://example.com``. The property also parses the port
+    itself and raises ValueError for a malformed one, which isInvalid did not catch -- a
+    500 rather than a validation error.
+    """
+
+    @staticmethod
+    def _bone(accepted_ports):
+        from viur.core.bones import UriBone
+        return UriBone(accepted_ports=accepted_ports)
+
+    def _accepts(self, bone, url) -> bool:
+        return bone.isInvalid(url) is None
+
+    def test_scheme_default_port_is_accepted(self):
+        bone = self._bone(443)
+        self.assertTrue(self._accepts(bone, "https://example.com"))
+        self.assertTrue(self._accepts(bone, "https://example.com:443"))
+        self.assertFalse(self._accepts(bone, "http://example.com"))
+
+    def test_scheme_default_port_is_rejected_when_not_accepted(self):
+        bone = self._bone(8080)
+        self.assertFalse(self._accepts(bone, "https://example.com"))
+        self.assertTrue(self._accepts(bone, "https://example.com:8080"))
+
+    def test_explicit_port_still_wins(self):
+        bone = self._bone(80)
+        self.assertTrue(self._accepts(bone, "http://example.com"))
+        self.assertFalse(self._accepts(bone, "http://example.com:8080"))
+
+    def test_unknown_scheme_without_port_is_rejected(self):
+        """An undecidable port cannot be shown to be an accepted one."""
+        bone = self._bone(443)
+        self.assertFalse(self._accepts(bone, "customscheme://example.com"))
+
+    def test_malformed_port_is_a_validation_error(self):
+        bone = self._bone(443)
+        self.assertEqual("Can't read the port from the URL", bone.isInvalid("https://example.com:abc"))
+
+    def test_out_of_range_port_is_a_validation_error(self):
+        bone = self._bone(443)
+        self.assertEqual("Can't read the port from the URL", bone.isInvalid("https://example.com:99999"))
+
+    def test_no_restriction_ignores_the_port(self):
+        bone = self._bone(None)
+        self.assertTrue(self._accepts(bone, "https://example.com"))
+        self.assertTrue(self._accepts(bone, "https://example.com:8080"))
+        # A malformed port is not looked at either, as no port check runs
+        self.assertTrue(self._accepts(bone, "https://example.com:abc"))
