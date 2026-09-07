@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.38]
+
+- fix: `allow_client_defined` was not in `List.view` (#1771)
+
 ## [3.8.37]
 
 - fix(tasks): honour `_call_deferred=False` when no queue is reachable (#1758)
