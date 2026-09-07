@@ -1,8 +1,7 @@
 # Known bugs
 
-Found while reading the code for the seam documentation in `docs/adr/`, at tag
-`v3.8.33`. Line numbers refer to that tag. Everything listed here is still
-open; fixed entries are removed from this file.
+Found while reading the code for the seam documentation in `docs/adr/`.
+Everything listed here is still open; fixed entries are removed from this file.
 
 The first pass covered the framework seams (skeleton, module, tasks, email,
 file module, ...), the second pass every bone type under
