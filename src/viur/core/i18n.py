@@ -516,9 +516,9 @@ class DatastoreSource(TranslationSource):
             if not entity.get("name"):
                 logging.error(f'translations entity {entity.key} has an empty {entity["name"]=} set. Skipping.')
                 continue
-            if entity and not isinstance(entity["translations"], dict):
-                logging.error(f'translations entity {entity.key} has invalid '
-                              f'translations set: {entity["translations"]}. Skipping.')
+            if not isinstance(entity.get("translations"), dict):
+                logging.error(f"translations entity {entity.key} has invalid "
+                              f"translations set: {entity.get('translations')!r}. Skipping.")
                 continue
 
             res[entity["name"]] = entity["translations"] | {
@@ -647,10 +647,16 @@ def migrate_translation(
     entity: db.Entity = db.get(key)
     if "name" not in entity:
         entity["name"] = entity["key"] or key.name
-    if "translation" in entity:
-        if not isinstance(dict, entity["translation"]):
-            logging.error("translation is not a dict?")
-        entity["translation"]["_viurLanguageWrapper_"] = True
+
+    # Pre-3.6 stored the texts as a plain {lang: text} dict. Without the LanguageWrapper
+    # marker BaseBone.unserialize cannot tell the languages apart and puts the whole dict
+    # into the main language -- and translations_missing (compute=OnWrite) reads the bone
+    # during write(), so that is what would be persisted.
+    if not isinstance(translations := entity.get("translations"), dict):
+        logging.error(f"Skipping translation {key}: {translations!r} is not a dict")
+        return
+    translations["_viurLanguageWrapper_"] = True
+
     skel = TranslationSkel()
     skel.setEntity(entity)
     skel["key"] = key

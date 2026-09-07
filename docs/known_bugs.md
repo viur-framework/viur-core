@@ -1,60 +1,13 @@
 # Known bugs
 
-Found while reading the code for the seam documentation in `docs/adr/`, at tag
-`v3.8.33`. Nothing in this list has been fixed. Line numbers refer to that tag.
+Found while reading the code for the seam documentation in `docs/adr/`.
+Everything listed here is still open; fixed entries are removed from this file.
 
 The first pass covered the framework seams (skeleton, module, tasks, email,
 file module, ...), the second pass every bone type under
 `src/viur/core/bones/`.
 
 Each entry: what is wrong, what it costs, what the fix would be.
-
-## Broken comparisons and type checks
-
-### `src/viur/core/email.py:403` - dev-server guard never triggers
-
-```python
-if not conf.email.send_from_local_development_server or transport_class is EmailTransportAppengine:
-```
-
-`transport_class` is an *instance* (`conf.email.transport_class`), so
-`is EmailTransportAppengine` is always False. The intent - never deliver
-through the App Engine Mail API from a local development server - is not
-enforced: with `send_from_local_development_server = True` the call goes
-through and fails inside the API instead.
-
-Fix: `isinstance(transport_class, EmailTransportAppengine)`.
-
-### `src/viur/core/email.py:579` - Brevo quota check never runs
-
-```python
-if not isinstance(conf.email.transport_class, EmailTransportSendInBlue):
-    return  # no SIB key, we cannot check
-```
-
-`EmailTransportSendInBlue` is the *deprecated subclass* of
-`EmailTransportBrevo`. A project configured correctly with
-`EmailTransportBrevo()` fails this check, so `check_sib_quota` returns
-immediately and the credit warning emails are never sent.
-
-Fix: check against `EmailTransportBrevo`.
-
-### `src/viur/core/i18n.py:651` - swapped `isinstance` arguments
-
-```python
-if not isinstance(dict, entity["translation"]):
-```
-
-Arguments are the wrong way round; this raises
-`TypeError: isinstance() arg 2 must be a type` instead of validating. It sits
-in `migrate_translation`, which is *not* deferred and not retried (those
-decorators belong to `add_missing_translation`): `DatastoreSource.load` calls
-it synchronously for every translation entity without a `name`, and
-`initializeTranslations` re-raises whatever a source throws. A single
-unmigrated entity that still carries a `translation` field therefore takes the
-whole instance down at startup.
-
-Fix: `isinstance(entity["translation"], dict)`.
 
 ## Wrong values
 
@@ -76,21 +29,6 @@ locked forever.
 
 Fix: `fileskel["weak"] = not parentrepokey`.
 
-### `src/viur/core/bones/base.py:123` - single error is dropped
-
-```python
-if isinstance(errors, ReadFromClientError):
-    errors = (ReadFromClientError, )
-```
-
-The tuple holds the *class*, not the instance. The `isinstance` filter on the
-next lines removes it again, `self.errors` ends up empty and the constructor
-raises `ValueError("ReadFromClientException requires for at least one
-ReadFromClientError")`. Passing a single `ReadFromClientError` - which the
-docstring explicitly allows - is therefore impossible.
-
-Fix: `errors = (errors, )`.
-
 ## Control flow
 
 ### `src/viur/core/modules/file.py:1489` - GC run aborts instead of skipping
@@ -102,20 +40,6 @@ cursor batch) are not processed. Cleanup then only progresses on the next
 periodic call, and only until it hits an already-marked blob again.
 
 Fix: `continue`.
-
-### `src/viur/core/tasks.py:421` - retry notification mail always fails
-
-```python
-stringTemplate=string_template if tpl is None else string_template,
-```
-
-Both branches are identical, so `stringTemplate` is always passed. When
-`retry_n_times(..., tpl="...")` is used, `send_email` receives `tpl` *and*
-`stringTemplate` and raises `ValueError` on its xor check. The surrounding
-`except Exception` swallows it, so the "task failed permanently" mail is
-silently lost - exactly in the situation it exists for.
-
-Fix: pass `stringTemplate` only when `tpl is None`.
 
 ## Dead code paths
 
@@ -140,41 +64,6 @@ endpoint at all.
 
 Fix prompt: `docs/superpowers/plans/2026-09-03-file-download-without-signature.md`
 in the ag-dev repo.
-
-### `src/viur/core/bones/uid.py:22` - the `CollisionError` retry is dead code
-
-```python
-for i in range(3):
-    try:
-        ...
-        db.put(db_obj)
-        break
-    except db.CollisionError:  # recall the function
-        time.sleep(i + 1)
-else:
-    raise ValueError("Can't set the Uid")
-```
-
-`db.CollisionError` does not exist. The symbol came from `viur.datastore` and
-disappeared with the re-integration of the Google Datastore API (#1431);
-`src/viur/core/db/__init__.py` no longer exports it. Python only evaluates the
-`except` expression once something is raised inside the `try`, and then the
-original exception is replaced by `AttributeError: 'super' object has no
-attribute 'CollisionError'`.
-
-So the retry never runs, `time.sleep` is unreachable, the `else` branch of the
-loop cannot raise its `ValueError`, and every real datastore error is masked
-as an `AttributeError`.
-
-Even if the symbol existed the retry would be pointless: `serialize_compute`
-runs inside the skeleton's write transaction (`skeleton/skeleton.py:421`), so
-retrying inside the transaction body cannot resolve a conflict that only
-surfaces on commit - and sleeping there blocks the request. The commit
-conflict is already handled by `db.run_in_transaction`
-(`db/transport.py:166-178`).
-
-Fix: drop the loop and let the conflict propagate to the surrounding
-`run_in_transaction`.
 
 ### `src/viur/core/modules/file.py:767` - `create_src_set` on a multi-language bone
 
@@ -212,20 +101,6 @@ not exist.
 
 Fix: list the names as strings.
 
-### `src/viur/core/prototypes/skelmodule.py:171` - `_apply_default_order` docstring contradicts the code
-
-```python
-The `default_order` will only be applied when the query has no other order, or is on a multquery.
-```
-
-The code does the opposite of the second half: a multi-query is explicitly
-excluded (`not isinstance(query.queries, list)`), so `default_order` is
-applied only to a single query. "multquery" is a typo as well, and the third
-condition (no `search` parameter in the request) is not mentioned at all.
-
-Fix: "... only be applied when the query has no other order, is not a
-multi-query and no `search` parameter was sent."
-
 ### `src/viur/core/db/query.py:485-526` - three methods break on an unsatisfiable query
 
 `queries is None` is the documented "unsatisfiable" state, and `filter`,
@@ -250,72 +125,7 @@ HTTP 500.
 Fix prompt: `docs/superpowers/plans/2026-09-03-query-unsatisfiable-cursor-methods.md`
 in the ag-dev repo.
 
-### `src/viur/core/securityheaders.py:159` - `extendCsp` assumes a policy exists
-
-`conf.security.content_security_policy` may legitimately be `None` (the type
-hint says `t.Optional`), which makes the `.get("enforce")` raise
-`AttributeError`. Note the error page calls `extendCsp` for its style nonce,
-so this turns an error response into a second error.
-
 ## Bones: validation that does not validate
-
-### `src/viur/core/bones/spatial.py:269,273` - invalid geo filter is ignored
-
-```python
-dbFilter.datastoreQuery = None
-```
-
-Both error paths in `SpatialBone.buildDBFilter` (unparseable lat/lng, and
-coordinates outside the configured bounds) try to make the query
-unsatisfiable. `db.Query` has no `datastoreQuery` attribute - the correct one
-is `queries` - so this only creates a new, unused attribute. The query then
-runs **without the spatial constraint** and returns everything the remaining
-filters allow, instead of nothing.
-
-Fix: `dbFilter.queries = None`.
-
-### `src/viur/core/bones/uri.py:56` - a protocol string becomes a character set
-
-```python
-if not isinstance(self.accepted_protocols, Iterable) or isinstance(self.accepted_protocols, str):
-    self.accepted_protocols = set(self.accepted_protocols)
-```
-
-For a plain string, `set("https")` yields `{"h", "t", "p", "s"}`. So
-`UriBone(accepted_protocols="https")` allows the protocols `h`, `t`, `p` and
-`s` - and rejects `https`. The whole restriction is silently inverted.
-
-Two lines later the same parameter is checked for the wildcard - on the
-original argument, not on the normalized one:
-
-```python
-if "*" in accepted_protocols:
-    self.accepted_protocols = None
-```
-
-For a list this is a membership test, for a string a substring test. Any
-string containing a `*` therefore switches the protocol check off entirely:
-`UriBone(accepted_protocols="http*")` accepts `file://x`. Since fnmatch
-patterns are a documented and tested way to write this option, that spelling
-is the obvious one to reach for.
-
-Fix: normalize the str case to `{self.accepted_protocols}` first, then test
-the wildcard against the normalized set.
-
-### `src/viur/core/bones/uri.py:145` - default ports are rejected
-
-```python
-if not any(parsed_url.port in rng for rng in self.accepted_ports):
-```
-
-`urlparse(...).port` is `None` when the URL relies on the scheme default, so
-with `accepted_ports=(443,)` the valid `https://example.com` is rejected. A
-malformed port additionally makes the property itself raise `ValueError`,
-which `isInvalid` does not catch - that becomes a 500 rather than a validation
-error.
-
-Fix: map a missing port to the scheme default before the check, and guard the
-`ValueError`.
 
 ### `src/viur/core/bones/date.py:80` - creation/update magic does not lock the bone
 
@@ -346,44 +156,7 @@ field into a 500.
 Fix: convert with `float(value)` (the value is passed to `fromtimestamp` as a
 float anyway) or catch the ValueError.
 
-### `src/viur/core/bones/randomslice.py:36` - `NotImplemented` is not an exception
-
-```python
-raise NotImplemented("A RandomSliceBone must not visible and readonly!")
-```
-
-`NotImplemented` is a singleton, not an exception class, so this raises
-`TypeError: exceptions must derive from BaseException` and the intended message
-is lost.
-
-Fix: `raise NotImplementedError(...)`.
-
-### `src/viur/core/bones/record.py:124,145` - missing None guard in the write path
-
-`RecordBone.postSavedHandler` and `postDeletedHandler` iterate
-`value.items()` for every entry, while `getSearchTags` and
-`getReferencedBlobs` guard the same loop with `if value is None: continue`. A
-stored `null` inside a `multiple` record therefore raises `AttributeError`
-during save or delete.
-
-Fix: add the same guard.
-
 ## Bones: contract violations
-
-### `src/viur/core/bones/numeric.py:160-162` - missing comma in the error message
-
-```python
-i18n.translate(
-    "core.bones.error.minmax"
-    "Value not between {{min}} and {{max}}",
-```
-
-Two adjacent string literals are concatenated, so the translation *key*
-becomes `core.bones.error.minmaxValue not between {{min}} and {{max}}` and
-there is no default text. The min/max error can never be translated, and
-`add_missing_translations` records the garbage key.
-
-Fix: insert the comma.
 
 ### `src/viur/core/bones/password.py:115` - `isInvalid` returns a list
 

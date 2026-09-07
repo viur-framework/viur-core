@@ -33,7 +33,7 @@ class RandomSliceBone(BaseBone):
 
         """
         if visible or not readOnly:
-            raise NotImplemented("A RandomSliceBone must not visible and readonly!")
+            raise NotImplementedError("A RandomSliceBone must not visible and readonly!")
         super().__init__(indexed=True, visible=False, readOnly=True, **kwargs)
         self.slices = slices
         self.sliceSize = sliceSize

@@ -1,3 +1,5 @@
+from unittest import mock
+
 from abstract import ViURTestCase
 
 
@@ -64,3 +66,50 @@ class TestUidBoneStructure(ViURTestCase):
         self.assertEqual("INV-*", s["pattern"])
         self.assertEqual(10, s["length"])
         self.assertEqual("0", s["fillchar"])
+
+
+class TestGenerateNumber(ViURTestCase):
+    """The counter must not swallow datastore errors.
+
+    ``generate_number`` used to wrap the increment in a retry loop catching a
+    ``db.CollisionError`` that no longer exists. Evaluating that name replaced every real
+    error with an ``AttributeError``, so the actual cause never reached the caller. A
+    commit conflict is resolved by the surrounding ``db.run_in_transaction`` instead.
+    """
+
+    def _patched_db(self, entity=None, put_side_effect=None):
+        from viur.core import db
+        from viur.core.bones import uid
+        stack = mock.patch.multiple(
+            uid.db,
+            get=mock.DEFAULT,
+            put=mock.DEFAULT,
+            is_in_transaction=mock.DEFAULT,
+        )
+        mocks = stack.start()
+        self.addCleanup(stack.stop)
+        mocks["get"].return_value = entity
+        mocks["put"].side_effect = put_side_effect
+        mocks["is_in_transaction"].return_value = True
+        return db, mocks
+
+    def test_first_call_starts_at_zero(self):
+        from viur.core.bones.uid import generate_number
+        db, mocks = self._patched_db(entity=None)
+        with mock.patch.object(db, "Entity", lambda key: {}):
+            self.assertEqual(0, generate_number(db.Key("viur-uids", "test")))
+        mocks["put"].assert_called_once()
+
+    def test_existing_counter_is_incremented(self):
+        from viur.core.bones.uid import generate_number
+        db, mocks = self._patched_db(entity={"count": 41})
+        self.assertEqual(42, generate_number(db.Key("viur-uids", "test")))
+        mocks["put"].assert_called_once_with({"count": 42})
+
+    def test_datastore_error_propagates_unchanged(self):
+        from viur.core.bones.uid import generate_number
+        error = RuntimeError("datastore unavailable")
+        db, _ = self._patched_db(entity={"count": 0}, put_side_effect=error)
+        with self.assertRaises(RuntimeError) as ctx:
+            generate_number(db.Key("viur-uids", "test"))
+        self.assertIs(error, ctx.exception)

@@ -177,7 +177,7 @@ def extendCsp(additionalRules: dict = None, overrideRules: dict = None) -> None:
     """
     assert additionalRules or overrideRules, "Either additionalRules or overrideRules must be given!"
     tmpDict = {}  # Copy the project-wide config in
-    if conf.security.content_security_policy.get("enforce"):
+    if conf.security.content_security_policy and conf.security.content_security_policy.get("enforce"):
         tmpDict.update({k: v[:] for k, v in conf.security.content_security_policy["enforce"].items()})
     if overrideRules:  # Merge overrideRules
         for k, v in overrideRules.items():

@@ -266,11 +266,11 @@ class SpatialBone(BaseBone):
                 lng = float(rawFilter[name + ".lng"])
             except:
                 logging.debug(f"Received invalid values for lat/lng in {name}")
-                dbFilter.datastoreQuery = None
+                dbFilter.queries = None
                 return
             if self.isInvalid((lat, lng)):
                 logging.debug(f"Values out of range in {name}")
-                dbFilter.datastoreQuery = None
+                dbFilter.queries = None
                 return
             gridSizeLat, gridSizeLng = self.getGridSize()
             tileLat = int(floor((lat - self.boundsLat[0]) / gridSizeLat))

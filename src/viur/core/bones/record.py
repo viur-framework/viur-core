@@ -121,6 +121,9 @@ class RecordBone(BaseBone):
                 drop_relations_higher.clear()
                 break
 
+            if value is None:
+                continue
+
             for sub_bone_name, bone in value.items():
                 path = ".".join(name for name in (boneName, lang, f"{idx or 0:02}", sub_bone_name) if name)
                 if utils.string.is_prefix(bone.type, "relational"):
@@ -142,6 +145,9 @@ class RecordBone(BaseBone):
         super().postDeletedHandler(skel, boneName, key)
 
         for idx, lang, value in self.iter_bone_value(skel, boneName):
+            if value is None:
+                continue
+
             for sub_bone_name, bone in value.items():
                 path = ".".join(part for part in (boneName, lang, f"{idx or 0:02}", sub_bone_name) if part)
                 bone.postDeletedHandler(value, path, key)
