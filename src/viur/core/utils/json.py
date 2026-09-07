@@ -1,5 +1,6 @@
 import base64
 import datetime
+import decimal
 import json
 import pytz
 import typing as t
@@ -8,8 +9,8 @@ from viur.core import db
 
 class ViURJsonEncoder(json.JSONEncoder):
     """
-    Adds support for db.Key, db.Entity, datetime, bytes and and converts the provided obj
-    into a special dict with JSON-serializable values.
+    Adds support for db.Key, db.Entity, datetime, timedelta, bytes, set and Decimal and converts
+    the provided obj into a special dict with JSON-serializable values.
     """
     def default(self, obj: t.Any) -> t.Any:
         if isinstance(obj, bytes):
@@ -18,6 +19,9 @@ class ViURJsonEncoder(json.JSONEncoder):
             return {".__datetime__": obj.astimezone(pytz.UTC).isoformat()}
         elif isinstance(obj, datetime.timedelta):
             return {".__timedelta__": obj / datetime.timedelta(microseconds=1)}
+        elif isinstance(obj, decimal.Decimal):
+            # str() keeps the exact value (NumericBone(decimal=True)); float would round it
+            return {".__decimal__": str(obj)}
         elif isinstance(obj, set):
             return {".__set__": list(obj)}
         elif hasattr(obj, "__iter__"):
@@ -71,6 +75,8 @@ def _decode_object_hook(obj: t.Any):
             return datetime.datetime.fromisoformat(date)
         elif microseconds := obj.get(".__timedelta__"):
             return datetime.timedelta(microseconds=microseconds)
+        elif (value := obj.get(".__decimal__")) is not None:
+            return decimal.Decimal(value)
         elif key := obj.get(".__key__"):
             return db.Key.from_legacy_urlsafe(key)
         elif items := obj.get(".__set__"):
