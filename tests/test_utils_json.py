@@ -34,3 +34,15 @@ class TestViURJsonExistingTypes(unittest.TestCase):
         for value in (datetime.timedelta(seconds=5), b"x", {1, 2}):
             with self.subTest(value=value):
                 self.assertEqual(viur_json.loads(viur_json.dumps(value)), value)
+
+    def test_empty_and_zero_values_roundtrip(self):
+        """Regression: the decoder used truthiness on the marker value, so timedelta(0),
+        b"" and set() came back as the raw marker dict instead of the typed value."""
+        for value in (datetime.timedelta(0), b"", set(), Decimal("0")):
+            with self.subTest(value=value):
+                back = viur_json.loads(viur_json.dumps(value))
+                self.assertIs(type(back), type(value))
+                self.assertEqual(back, value)
+
+    def test_plain_dict_with_one_key_is_untouched(self):
+        self.assertEqual(viur_json.loads('{"total": 0}'), {"total": 0})

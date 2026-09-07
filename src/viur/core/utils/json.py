@@ -68,19 +68,21 @@ def _decode_object_hook(obj: t.Any):
         Inverse for _preprocess_json_object, which is an object-hook for json.loads.
         Check if the object matches a custom ViUR type and recreate it accordingly.
     """
+    # Membership checks, not truthiness: b"" encodes to "", timedelta(0) to 0.0 and
+    # set() to [] -- all falsy, yet they must round-trip to their type, not to the marker dict.
     if len(obj) == 1:
-        if buf := obj.get(".__bytes__"):
-            return base64.b64decode(buf)
-        elif date := obj.get(".__datetime__"):
-            return datetime.datetime.fromisoformat(date)
-        elif microseconds := obj.get(".__timedelta__"):
-            return datetime.timedelta(microseconds=microseconds)
-        elif (value := obj.get(".__decimal__")) is not None:
-            return decimal.Decimal(value)
-        elif key := obj.get(".__key__"):
-            return db.Key.from_legacy_urlsafe(key)
-        elif items := obj.get(".__set__"):
-            return set(items)
+        if ".__bytes__" in obj:
+            return base64.b64decode(obj[".__bytes__"])
+        elif ".__datetime__" in obj:
+            return datetime.datetime.fromisoformat(obj[".__datetime__"])
+        elif ".__timedelta__" in obj:
+            return datetime.timedelta(microseconds=obj[".__timedelta__"])
+        elif ".__decimal__" in obj:
+            return decimal.Decimal(obj[".__decimal__"])
+        elif ".__key__" in obj:
+            return db.Key.from_legacy_urlsafe(obj[".__key__"])
+        elif ".__set__" in obj:
+            return set(obj[".__set__"])
 
     elif len(obj) == 2 and all(k in obj for k in (".__entity__", ".__key__")):
         entity = db.Entity(db.Key.from_legacy_urlsafe(obj[".__key__"]) if obj[".__key__"] else None)
