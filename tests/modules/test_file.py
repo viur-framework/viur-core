@@ -295,6 +295,7 @@ class TestCheckForUnreferencedBlobs(ViURTestCase):
     def test_all_blobs_already_marked(self):
         self.assertEqual([], self._run(["blob-a", "blob-b"], already_marked=("blob-a", "blob-b")))
 
+
 class TestFileHmacRotation(ViURTestCase):
     """conf.file_hmac_key_fallbacks lets hmac_verify accept signatures made with a retired key,
     so file_hmac_key can be rotated without invalidating already-signed download URLs."""
@@ -347,3 +348,12 @@ class TestFileHmacRotation(ViURTestCase):
         conf.file_hmac_key = b"new-key"
         conf.file_hmac_key_fallbacks = [b"old-key"]
         self.assertFalse(File.hmac_verify("payload", "deadbeef"))
+
+    def test_explicit_key_matches_default_key(self):
+        """hmac_sign(key=None) uses conf.file_hmac_key, an explicit key (bytes or str) yields the same digest."""
+        from viur.core import conf
+        File = self._file()
+        conf.file_hmac_key = b"active-key"
+        self.assertEqual(File.hmac_sign("payload"), File.hmac_sign("payload", key=b"active-key"))
+        self.assertEqual(File.hmac_sign("payload"), File.hmac_sign("payload", key="active-key"))
+        self.assertNotEqual(File.hmac_sign("payload"), File.hmac_sign("payload", key=b"other-key"))

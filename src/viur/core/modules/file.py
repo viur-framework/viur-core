@@ -575,26 +575,43 @@ class File(Tree):
         return bool(re.match(VALID_FILENAME_REGEX, filename))
 
     @staticmethod
-    def _hmac_digest(key: bytes | str, data: bytes) -> str:
+    def hmac_sign(data: t.Any, key: bytes | str | None = None) -> str:
+        """
+        Signs `data` with an HMAC (SHA3-384) and returns the hex digest.
+
+        :param data: Payload to sign. Anything that is not `bytes` is converted via `str()` and UTF-8 encoded.
+        :param key: Key to sign with. Defaults to the active :attr:`conf.file_hmac_key`; `str` keys are UTF-8 encoded.
+            Only :meth:`hmac_verify` passes another key, to check signatures made with a retired key from
+            :attr:`conf.file_hmac_key_fallbacks`. New signatures are always created with the active key.
+        """
+        if key is None:
+            key = conf.file_hmac_key
+            assert key is not None, "No hmac-key set!"
         if not isinstance(key, bytes):
             key = key.encode("UTF-8")
+        if not isinstance(data, bytes):
+            data = str(data).encode("UTF-8")
         return hmac.new(key, msg=data, digestmod=hashlib.sha3_384).hexdigest()
 
     @classmethod
-    def hmac_sign(cls, data: t.Any) -> str:
-        assert conf.file_hmac_key is not None, "No hmac-key set!"
-        if not isinstance(data, bytes):
-            data = str(data).encode("UTF-8")
-        return cls._hmac_digest(conf.file_hmac_key, data)
-
-    @classmethod
     def hmac_verify(cls, data: t.Any, signature: str) -> bool:
+        """
+        Checks whether `signature` is a valid HMAC for `data`.
+
+        The signature is accepted if it was made with the active :attr:`conf.file_hmac_key` or with any of the
+        retired keys in :attr:`conf.file_hmac_key_fallbacks`. That allows a zero-downtime rotation of the key:
+        links signed with the previous key stay valid until they expire, while new links are signed with the
+        new key only.
+
+        :param data: The signed payload, an ASCII `str` or `bytes`.
+        :param signature: The hex digest to check.
+        :return: True if the signature matches for one of the accepted keys, False otherwise.
+        """
         try:
             if not isinstance(data, bytes):
                 data = data.encode("ASCII")
-            # Accept the active key plus any retired fallback keys, enabling zero-downtime rotation.
             return any(
-                hmac.compare_digest(cls._hmac_digest(key, data), signature)
+                hmac.compare_digest(cls.hmac_sign(data, key=key), signature)
                 for key in (conf.file_hmac_key, *conf.file_hmac_key_fallbacks)
                 if key is not None
             )

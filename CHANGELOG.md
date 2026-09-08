@@ -4,7 +4,6 @@ This file documents any relevant changes done to ViUR-core since version 3.
 
 ## [3.9.0.rc2]
 
-- feat(file): Add `conf.file_hmac_key_fallbacks` — accept retired hmac-keys when verifying download-url signatures for zero-downtime rotation of `file_hmac_key`
 - chore: Deprecate endpoint `/vi/getStructure` (#1616)
 - chore: Move `BaseSkeleton` into own `base.py`-module (#1738)
 - doc: Docstrings for compute-related enum variants
@@ -40,6 +39,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - feat: Re-Add trace-queries logging (#1642)
 - feat: Refactor and improve `getUniquePropertyIndexValues` (#1681)
 - feat: Replace client-side `MultiQuery` with native Datastore operators (#1700)
+- feat(file): Add `conf.file_hmac_key_fallbacks` — accept retired hmac-keys when verifying download-url signatures for zero-downtime rotation of `file_hmac_key`
 - feat(security): implement Reporting-Endpoints header (#1757)
 - feat(StringBone): make `escape_html` globally configurable via `conf` (#1706)
 - fix: `BooleanBone` doesn't respect `vfunc/isInvalid` (#1694)
