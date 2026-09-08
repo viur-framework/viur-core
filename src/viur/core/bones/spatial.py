@@ -396,6 +396,7 @@ class SpatialBone(BaseBone):
         if not isinstance(value, (tuple, list)) or len(value) != 2:
             raise ValueError("Value must be a tuple or a list of (lat, lng)")
         skel[boneName] = tuple(value)
+        return True
 
     def structure(self) -> dict:
         return super().structure() | {

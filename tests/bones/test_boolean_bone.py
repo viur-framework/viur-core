@@ -107,3 +107,66 @@ class TestBooleanBoneSetBoneValue(ViURTestCase):
     def test_append_raises(self):
         with self.assertRaises(ValueError):
             self.bone.setBoneValue({}, "flag", True, True)
+
+
+class TestBooleanBoneSetBoneValueRespectsConfig(ViURTestCase):
+    """setBoneValue must honour conf.bone_boolean_str2true like every other path in the bone."""
+
+    def setUp(self):
+        super().setUp()
+        from viur.core import conf
+        from viur.core.bones.boolean import BooleanBone
+        self.bone = BooleanBone()
+        self._original = conf.bone_boolean_str2true
+        conf.bone_boolean_str2true = ("ja", "true", "yes", "1")
+
+    def tearDown(self):
+        from viur.core import conf
+        conf.bone_boolean_str2true = self._original
+        super().tearDown()
+
+    def test_custom_truthy_value(self):
+        skel = {}
+        self.assertTrue(self.bone.setBoneValue(skel, "flag", "ja", False))
+        self.assertTrue(skel["flag"])
+
+    def test_custom_truthy_value_with_language(self):
+        from viur.core.bones.boolean import BooleanBone
+        bone = BooleanBone(languages=["de", "en"])
+        skel = {"flag": {}}
+        self.assertTrue(bone.setBoneValue(skel, "flag", "ja", False, "de"))
+        self.assertTrue(skel["flag"]["de"])
+
+    def test_unknown_value_stays_false(self):
+        skel = {}
+        self.assertTrue(self.bone.setBoneValue(skel, "flag", "nope", False))
+        self.assertFalse(skel["flag"])
+
+
+class TestBooleanBoneRefresh(ViURTestCase):
+    """refresh() runs on raw datastore values, which may still be None."""
+
+    def test_refresh_multilang_with_none_value(self):
+        """An entity written before the bone existed has no value at all; the defaults must apply."""
+        from viur.core.bones.boolean import BooleanBone
+        bone = BooleanBone(languages=["de", "en"])
+        bone.name = "flag"
+        skel = {"flag": None}
+        bone.refresh(skel, "flag")
+        self.assertEqual({"de": None, "en": None}, skel["flag"])
+
+    def test_refresh_multilang_normalizes_strings(self):
+        from viur.core.bones.boolean import BooleanBone
+        bone = BooleanBone(languages=["de", "en"])
+        bone.name = "flag"
+        skel = {"flag": {"de": "true", "en": "false"}}
+        bone.refresh(skel, "flag")
+        self.assertEqual({"de": True, "en": False}, skel["flag"])
+
+    def test_refresh_multilang_fills_missing_language(self):
+        from viur.core.bones.boolean import BooleanBone
+        bone = BooleanBone(languages=["de", "en"], defaultValue=True)
+        bone.name = "flag"
+        skel = {"flag": {"de": "1"}}
+        bone.refresh(skel, "flag")
+        self.assertEqual({"de": True, "en": True}, skel["flag"])

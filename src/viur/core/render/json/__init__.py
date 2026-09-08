@@ -3,7 +3,7 @@ from viur.core import securitykey, current, errors
 from viur.core.decorators import *
 import json
 
-__all__ = [default]
+__all__ = ["default"]
 
 
 @exposed

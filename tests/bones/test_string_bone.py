@@ -410,3 +410,31 @@ class TestStringBone_getUniquePropertyIndexValues(ViURTestCase):
             {self.bone_name: {"de": ["Foo"], "en": []}}, self.bone_name,
         )
         self.assertEqual(1, len(result))
+
+
+class TestStringBoneNaturalSorting(ViURTestCase):
+    """DIN 5007 Variant 2 folds the umlauts and the sharp s onto their two-letter forms."""
+
+    def _sort_key(self, value, **kwargs):
+        from viur.core.bones import StringBone
+        return StringBone(natural_sorting=True, **kwargs).natural_sorting(value)
+
+    def test_none_stays_none(self):
+        self.assertIsNone(self._sort_key(None))
+
+    def test_umlauts(self):
+        self.assertEqual("Schoene Ueberaepfel", self._sort_key("Sch\u00f6ne \u00dcber\u00e4pfel"))
+
+    def test_sharp_s_is_folded(self):
+        self.assertEqual("Strasse", self._sort_key("Stra\u00dfe"))
+
+    def test_capital_sharp_s_is_folded(self):
+        self.assertEqual("STRASSE", self._sort_key("STRA\u1e9eE"))
+
+    def test_case_insensitive_lowercases_first(self):
+        self.assertEqual("oeltank", self._sort_key("\u00d6ltank", caseSensitive=False))
+
+    def test_case_insensitive_sharp_s(self):
+        """lower() turns \u1e9e into \u00df, so the lowercase form has to be mapped as well."""
+        self.assertEqual("strasse", self._sort_key("STRA\u1e9eE", caseSensitive=False))
+        self.assertEqual("strasse", self._sort_key("Stra\u00dfe", caseSensitive=False))
