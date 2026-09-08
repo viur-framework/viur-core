@@ -29,7 +29,8 @@ def generate_uid(skel, bone):
     db_key = db.Key("viur-uids", f"{skel.kindName}-{bone.name}-uid")
     count_value = generate_number(db_key)
     if bone.fillchar:
-        length_to_fill = bone.length - len(bone.pattern)
+        # The wildcard itself is replaced, so it does not count towards the length of the prefix.
+        length_to_fill = bone.length - (len(bone.pattern) - 1)
         res = str(count_value).rjust(length_to_fill, bone.fillchar)
         return bone.pattern.replace("*", res)
     else:
@@ -46,7 +47,7 @@ class UidBone(BaseBone):
         self,
         *,
         generate_fn: t.Callable = generate_uid,
-        fillchar: str = "*",
+        fillchar: str = "0",
         length: int = 13,
         pattern: str | t.Callable | None = "*",
         **kwargs

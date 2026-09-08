@@ -62,3 +62,42 @@ class TestRecordBoneWritePathNoneValues(ViURTestCase):
         with self._iter_values(bone, [None, entry]):
             bone.postDeletedHandler(skel, "records", key)
         sub_bone.postDeletedHandler.assert_called_once_with(entry, "records.01.name", key)
+
+
+class TestRecordBoneInit(ViURTestCase):
+
+    def _relskel(self):
+        from viur.core.bones import StringBone
+        from viur.core.skeleton.relskel import RelSkel
+
+        class MyRelSkel(RelSkel):
+            name = StringBone(descr="name")
+
+        return MyRelSkel
+
+    def test_valid_init(self):
+        from viur.core.bones import RecordBone
+        using = self._relskel()
+        bone = RecordBone(using=using, format="$(dest.name)")
+        self.assertIs(using, bone.using)
+
+    def test_missing_using_raises_value_error(self):
+        """A forgotten using= is a configuration error, not a TypeError from issubclass()."""
+        from viur.core.bones import RecordBone
+        with self.assertRaises(ValueError):
+            RecordBone(format="$(dest.name)")
+
+    def test_non_class_using_raises_value_error(self):
+        from viur.core.bones import RecordBone
+        with self.assertRaises(ValueError):
+            RecordBone(using="not-a-class", format="$(dest.name)")
+
+    def test_unrelated_class_using_raises_value_error(self):
+        from viur.core.bones import RecordBone
+        with self.assertRaises(ValueError):
+            RecordBone(using=dict, format="$(dest.name)")
+
+    def test_missing_format_raises_not_implemented(self):
+        from viur.core.bones import RecordBone
+        with self.assertRaises(NotImplementedError):
+            RecordBone(using=self._relskel())

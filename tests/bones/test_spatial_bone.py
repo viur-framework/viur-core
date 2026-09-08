@@ -267,3 +267,25 @@ class TestSpatialBoneBuildDBFilter(ViURTestCase):
         before = query.queries
         _bone().buildDBFilter("location", {}, query, {"other": "1"})
         self.assertIs(before, query.queries)
+
+
+class TestSpatialBoneSetBoneValueContract(ViURTestCase):
+    """setBoneValue must report success with a bool, like every other bone."""
+
+    def test_returns_true_on_tuple(self):
+        bone = _bone()
+        skel = {}
+        self.assertTrue(bone.setBoneValue(skel, "location", (52.5, 13.4), False))
+        self.assertEqual((52.5, 13.4), skel["location"])
+
+    def test_returns_true_on_list(self):
+        bone = _bone()
+        skel = {}
+        self.assertTrue(bone.setBoneValue(skel, "location", [52.5, 13.4], False))
+        self.assertEqual((52.5, 13.4), skel["location"])
+
+    def test_returns_true_on_dict(self):
+        bone = _bone()
+        skel = {}
+        self.assertTrue(bone.setBoneValue(skel, "location", {"lat": 52.5, "lng": 13.4}, False))
+        self.assertEqual((52.5, 13.4), skel["location"])
