@@ -483,7 +483,7 @@ class Security(ConfigType):
     # CORS Settings
 
     cors_origins: t.Iterable[str | re.Pattern] | t.Literal["*"] = []
-    """Allowed origins
+    r"""Allowed origins
     Access-Control-Allow-Origin
 
     Pattern should be case-insensitive, for example:
