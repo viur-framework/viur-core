@@ -787,7 +787,7 @@ class Query(object):
         for a query for more than ~30 seconds.
         """
         if self.queries is None:  # Noting to pull here
-            raise StopIteration()
+            return
         elif isinstance(self.queries, list):
             raise ValueError("No iter on Multiqueries")
         while True:
@@ -795,6 +795,46 @@ class Query(object):
             if not self.queries.currentCursor:  # We reached the end of that query
                 break
             self.queries.startCursor = self.queries.currentCursor
+
+    def iter_skel(self) -> t.Iterator["SkeletonInstance"]:
+        """
+        Run this query and return an iterator yielding :class:`core.skeleton.SkeletonInstance`.
+
+        This function is to :meth:`iter` what :meth:`fetch` is to :meth:`run`: it allows for
+        iterating over a large result-set without pulling it from the datastore in advance,
+        but yields SkeletonInstances instead of Entities.
+
+        It's only possible to use this function if this query has been created using
+        :func:`core.skeleton.Skeleton.all`.
+
+        Every result is a separate SkeletonInstance which shares the bone-map of the
+        source-skeleton, therefore collecting the results in a list or writing them
+        within the loop behaves as expected.
+
+        This function intentionally ignores a limit set by :meth:`limit`.
+
+        :warning: If iterating over a large result set, make sure the query supports cursors. \
+        Otherwise, it might not return all results as the AppEngine doesn't maintain the view \
+        for a query for more than ~30 seconds.
+
+        :raises NotImplementedError: If this query has not been created using skel.all().
+        :raises ValueError: If this is a multi-query, which cannot be iterated.
+        """
+        if self.srcSkel is None:
+            raise NotImplementedError("This query has not been created using skel.all()")
+        elif isinstance(self.queries, list):
+            raise ValueError("No iter_skel on Multiqueries")
+
+        from viur.core.skeleton import SkeletonInstance
+
+        # Wrapped in an inner generator, so the checks above are raised on call and not on first next()
+        def _iterate() -> t.Iterator["SkeletonInstance"]:
+            for entity in self.iter():
+                skel_instance = SkeletonInstance(self.srcSkel.skeletonCls, bone_map=self.srcSkel.boneMap)
+                skel_instance.dbEntity = entity
+                yield skel_instance
+
+        return _iterate()
 
     def getEntry(self) -> t.Union[None, Entity]:
         """

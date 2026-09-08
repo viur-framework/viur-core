@@ -3,7 +3,6 @@ import logging
 import typing as t
 import urllib.parse
 import warnings
-import datetime
 import operator
 from collections.abc import Iterable
 from viur.core import current, db
@@ -93,7 +92,7 @@ def seoUrlToFunction(module: str, function: str, render: t.Optional[str] = None)
 
 
 @deprecated(version="3.8.0", reason="Use 'db.normalize_key' instead")
-def normalizeKey(key: t.Union[None, db.Key]) -> t.Union[None, db.Key]:
+def normalizeKey(key: t.Union[None, "db.Key"]) -> t.Union[None, "db.Key"]:
     """
         Normalizes a datastore key (replacing _application with the current one)
 

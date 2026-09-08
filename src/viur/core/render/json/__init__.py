@@ -3,7 +3,7 @@ from viur.core import securitykey, current, errors
 from viur.core.decorators import *
 import json
 
-__all__ = [default]
+__all__ = ["default"]
 
 
 @exposed
@@ -30,7 +30,7 @@ def skey(amount: int = 1, *args, **kwargs) -> str:
     if not current.user.get():
         raise errors.Forbidden("Batch securitykey creation is only available to authenticated users")
 
-    return json.dumps([securitykey.create() for _ in range(amount)])
+    return json.dumps(securitykey.create(amount=amount))
 
 
 def _postProcessAppObj(obj):  # Register our SKey function

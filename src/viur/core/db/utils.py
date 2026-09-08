@@ -128,6 +128,7 @@ def key_helper(
     raise NotImplementedError(f"Unsupported key type {type(in_key)}")
 
 
+@deprecated(version="3.8.0", reason="Use 'db.key_helper' instead")
 def keyHelper(
     inKey: t.Union[Key, str, int],
     targetKind: str,

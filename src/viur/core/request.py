@@ -25,7 +25,7 @@ from viur.core import current, db, errors, session, utils
 from viur.core.config import conf
 from viur.core.logging import client as loggingClient, requestLogger, requestLoggingRessource
 from viur.core.module import Method
-from viur.core.securityheaders import extendCsp
+from viur.core.securityheaders import _build_reporting_endpoints_header, extendCsp
 from viur.core.tasks import _appengineServiceIPs
 
 TEMPLATE_STYLE_KEY = "style"
@@ -309,6 +309,9 @@ class Router:
         if conf.security.content_security_policy and conf.security.content_security_policy["_headerCache"]:
             for k, v in conf.security.content_security_policy["_headerCache"].items():
                 self.response.headers[k] = v
+        # Endpoints referenced by the CSP-directive "report-to" and others
+        if reporting_endpoints := _build_reporting_endpoints_header():
+            self.response.headers["Reporting-Endpoints"] = reporting_endpoints
         if self.isSSLConnection:  # Check for HTST and PKP headers only if we have a secure channel.
             if conf.security.strict_transport_security:
                 self.response.headers["Strict-Transport-Security"] = conf.security.strict_transport_security

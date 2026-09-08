@@ -1,5 +1,31 @@
+"""
+Datastore transport layer: the process-wide client and the CRUD helpers.
+
+**Named database and namespace**
+
+The datastore client (:data:`__client__`) is built once at import time and
+kept for the whole process lifetime. Its target database and namespace come
+from :attr:`conf.db.name <viur.core.config.Database.name>` and
+:attr:`conf.db.namespace <viur.core.config.Database.namespace>`, which are sourced
+from the ``VIUR_DB_NAME`` / ``VIUR_DB_NAMESPACE`` environment variables. Both
+default to ``None`` — the standard ``(default)`` database and empty namespace —
+so existing deployments are unaffected.
+
+Because the client is created from the environment at import time, the target
+cannot be retargeted at runtime: a single process always talks to exactly one
+database. :class:`~viur.core.db.types.Key` objects inherit that database and
+namespace from the client, keeping every request on the configured target.
+
+The legacy urlsafe key encoding (App Engine "Reference") predates named
+databases and only supports the default one. Therefore
+:meth:`Key.to_legacy_urlsafe <viur.core.db.types.Key.to_legacy_urlsafe>`
+encodes a database-less copy of the key, and the client's database is restored
+on decoding — unambiguous precisely because the process is bound to a single
+database.
+"""
 from __future__ import annotations
 
+import itertools
 import logging
 import time
 import typing as t
@@ -9,14 +35,26 @@ from google.cloud import datastore, exceptions
 
 from .overrides import entity_from_protobuf, key_from_protobuf
 from .types import Entity, Key, QueryDefinition, SortOrder, current_db_access_log
+from . import cache
 from viur.core.config import conf
-from viur.core.errors import HTTPException
 
 # patching our key and entity classes
 datastore.helpers.key_from_protobuf = key_from_protobuf
 datastore.helpers.entity_from_protobuf = entity_from_protobuf
 
-__client__ = datastore.Client()
+# Built once at import, kept for the process lifetime — so db/namespace have to
+# come from env (via conf.db); nothing can retarget the client afterwards.
+# Both default to None, which is the same as datastore.Client(): no change for
+# default deployments.
+__client__ = datastore.Client(database=conf.db.name, namespace=conf.db.namespace)
+
+MAX_LOOKUP_KEYS: t.Final[int] = 1000
+"""Maximum number of keys the datastore accepts for a single Lookup operation.
+
+Unlike a Lookup, a Commit has no comparable cap on the number of mutations - it is bounded by
+the 10 MiB request size instead. :func:`put` and :func:`delete` therefore stay a single commit
+of whatever they are handed, which keeps them atomic.
+"""
 
 
 def allocate_ids(kind_name: str, num_ids: int = 1, retry=None, timeout=None) -> list[Key]:
@@ -36,7 +74,7 @@ def AllocateIDs(kind_name):
     return allocate_ids(kind_name)[0]
 
 
-def get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None]:
+def get(keys: t.Union[Key, t.Iterable[Key]]) -> t.Union[list[Entity], Entity, None]:
     """
     Retrieves an entity (or a list thereof) from datastore.
     If only a single key has been given we'll return the entity or none in case the key has not been found,
@@ -46,18 +84,34 @@ def get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None
     """
     _write_to_access_log(keys)
 
-    if isinstance(keys, (list, set, tuple)):
-        res_list = list(__client__.get_multi(keys))
-        res_list.sort(key=lambda k: keys.index(k.key) if k else -1)
-        if conf.debug.trace_queries:
-            found = sum(1 for r in res_list if r is not None)
-            logging.info(f"db.get: {found}/{len(keys)} entities found")
-        return res_list
+    is_multiple = isinstance(keys, (list, set, tuple))
+    key_list = list(keys) if is_multiple else [keys]
 
-    res = __client__.get(keys)
+    # Serve whatever we can from the cache, indexed by its stringified key.
+    entities_by_key = {str(entity.key): entity for entity in cache.get(key_list)}
+
+    # Fetch the keys that were not cached and write them back into the cache
+    missing = [key for key in key_list if str(key) not in entities_by_key]
+    if missing:
+        # A Lookup accepts at most MAX_LOOKUP_KEYS keys, so ask in chunks and merge the answers
+        fetched = []
+        for chunk in itertools.batched(missing, MAX_LOOKUP_KEYS):
+            fetched.extend(__client__.get_multi(list(chunk)))
+        if fetched:
+            cache.put(fetched)
+        for entity in fetched:
+            entities_by_key[str(entity.key)] = entity
+
+    # Reassemble in the original key order, dropping keys that were not found
+    result = [entities_by_key[str(key)] for key in key_list if str(key) in entities_by_key]
+
     if conf.debug.trace_queries:
-        logging.info(f"db.get({keys}): {'found' if res is not None else 'not found'}")
-    return res
+        logging.info(f"db.get: {len(result)}/{len(key_list)} entities found")
+
+    if is_multiple:
+        return result
+    return result[0] if result else None
+
 
 
 @deprecated(version="3.8.0", reason="Use 'db.get' instead")
@@ -69,18 +123,27 @@ def put(entities: t.Union[Entity, t.List[Entity]]):
     """
     Save an entity in the Cloud Datastore.
     Also ensures that no string-key with a digit-only name can be used.
+
+    A list of entities is written in one commit and therefore atomically, however long it is.
+
     :param entities: The entities to be saved to the datastore.
     """
     _write_to_access_log(entities)
+
+    # Cache only after the datastore accepted the write: a failed write must not
+    # leave a value in the cache that was never persisted. The datastore also
+    # completes partial keys during the write, so caching afterwards stores the
+    # entity under its final key.
     if isinstance(entities, Entity):
         res = __client__.put(entities)
         if conf.debug.trace_queries:
             logging.info(f"db.put: saved {entities.key}")
-        return res
+    else:
+        res = __client__.put_multi(entities=entities)
+        if conf.debug.trace_queries:
+            logging.info(f"db.put: saved {len(entities)} entities")
 
-    res = __client__.put_multi(entities=entities)
-    if conf.debug.trace_queries:
-        logging.info(f"db.put: saved {len(entities)} entities")
+    cache.put(entities)
     return res
 
 
@@ -89,17 +152,23 @@ def Put(entities: t.Union[Entity, t.List[Entity]]) -> t.Union[Entity, None]:
     return put(entities)
 
 
-def delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
+def delete(keys: t.Union[Entity, t.Iterable[Entity], Key, t.Iterable[Key]]):
     """
     Deletes the entities with the given key(s) from the datastore.
+
+    A list of keys is deleted in one commit and therefore atomically, however long it is.
+
     :param keys: A Key (or a t.List of Keys) to delete
     """
+
     _write_to_access_log(keys)
+    cache.delete(keys)
     if not isinstance(keys, (set, list, tuple)):
         res = __client__.delete(keys)
         if conf.debug.trace_queries:
             logging.info(f"db.delete: deleted {keys}")
         return res
+
 
     res = __client__.delete_multi(keys)
     if conf.debug.trace_queries:

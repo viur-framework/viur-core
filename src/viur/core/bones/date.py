@@ -42,9 +42,10 @@ class DateBone(BaseBone):
         """
             Initializes a new DateBone.
 
-            :param creationMagic: Use the current time as value when creating an entity; ignoring this bone if the
-                entity gets updated.
-            :param updateMagic: Use the current time whenever this entity is saved.
+            :param creationMagic: Deprecated, use `compute` instead. Use the current time as value when
+                creating an entity; ignoring this bone if the entity gets updated.
+            :param updateMagic: Deprecated, use `compute` instead. Use the current time whenever this
+                entity is saved.
             :param date: Should this bone contain a date-information?
             :param time: Should this bone contain time information?
             :param localize: Assume users timezone for in and output? Only valid if this bone
@@ -77,7 +78,6 @@ class DateBone(BaseBone):
             if self.multiple:
                 raise ValueError("Cannot be multiple and have a creation/update-magic set!")
 
-            self.readonly = True  # todo: why???
 
         self.creationMagic = creationMagic  # FIXME: VIUR4 remove this
         self.updateMagic = updateMagic  # FIXME: VIUR4 remove this
@@ -97,8 +97,9 @@ class DateBone(BaseBone):
                 assumes UTC timezone
                 is digit (may include one '-') and NOT valid POSIX timestamp and not date and time: interpreted as
                 seconds after epoch
-                'now': current time
-                'nowX', where X converted into String is added as seconds to current time
+                'now': current time, only if date and time
+                'nowX', where X converted into String is added as seconds to current time,
+                only if date and time
                 '%H:%M:%S' if not date and time
                 '%M:%S' if not date and time
                 '%S' if not date and time
@@ -122,10 +123,32 @@ class DateBone(BaseBone):
         value = str(value)  # always enforce value to be a str
 
         if value.replace("-", "", 1).replace(".", "", 1).isdigit():
-            if int(value) < -1 * (2 ** 30) or int(value) > (2 ** 31) - 2:
+            # The test above only strips one "-" and one "." from anywhere in the string, so it also
+            # passes for values float() cannot read at all ("1-2", "12-", "1.2-3").
+            try:
+                timestamp = float(value)
+            except ValueError:
+                timestamp = None
+
+            if timestamp is None or not -1 * (2 ** 30) <= timestamp <= (2 ** 31) - 2:
                 value = None
             else:
-                value = datetime.datetime.fromtimestamp(float(value), tz=time_zone).replace(microsecond=0)
+                value = datetime.datetime.fromtimestamp(timestamp, tz=time_zone).replace(microsecond=0)
+
+        elif value.lower().startswith("now"):
+            # must be checked before the time-only branch below, so that "now" is answered here
+            # instead of silently falling through into the time parser
+            if not self.time or not self.date:
+                value = None
+            else:
+                now = datetime.datetime.now(time_zone)
+                if offset := value[3:]:
+                    try:
+                        now += datetime.timedelta(seconds=int(offset))
+                    except ValueError:
+                        now = None
+
+                value = now
 
         elif not self.date and self.time:
             try:
@@ -154,16 +177,6 @@ class DateBone(BaseBone):
 
                 except ValueError:
                     value = None
-
-        elif value.lower().startswith("now"):
-            now = datetime.datetime.now(time_zone)
-            if len(value) > 4:
-                try:
-                    now += datetime.timedelta(seconds=int(value[3:]))
-                except ValueError:
-                    now = None
-
-            value = now
 
         else:
             # try to parse ISO-formatted date string

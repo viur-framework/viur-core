@@ -86,3 +86,104 @@ class TestDateBone_setBoneValue(ViURTestCase):
             self.assertTrue(bone.setBoneValue(skel, self.bone_name, value.strftime(fmt), False, None))
             self.assertIn(self.bone_name, skel)
             self.assertEqual(skel[self.bone_name], value)
+
+
+class TestDateBone_now(ViURTestCase):
+    """Tests for the "now" / "nowX" input format, which requires a bone with both date and time."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.bone_name = "myDateBone"
+
+    def _assert_now(self, bone, value: str, offset: td = td()) -> None:
+        """Assert that `value` is accepted and resolves to the current time plus `offset`."""
+        skel = {}
+        before = dt.now(tz=tz.utc)
+        self.assertTrue(bone.setBoneValue(skel, self.bone_name, value, False, None))
+        after = dt.now(tz=tz.utc)
+
+        self.assertIn(self.bone_name, skel)
+        result = skel[self.bone_name]
+        self.assertIsInstance(result, dt)
+        # microseconds are stripped, so the result may lag up to one second behind
+        self.assertGreaterEqual(result, before + offset - td(seconds=1))
+        self.assertLessEqual(result, after + offset)
+
+    def _assert_invalid(self, bone, value: str) -> None:
+        skel = {}
+        self.assertFalse(bone.setBoneValue(skel, self.bone_name, value, False, None))
+        self.assertNotIn(self.bone_name, skel)
+
+    def test_now_date_and_time(self):
+        from viur.core.bones import DateBone
+        self._assert_now(DateBone(), "now")
+
+    def test_now_rejected_on_time_only(self):
+        from viur.core.bones import DateBone
+        # without a date the offset has nothing to carry the overflow into
+        self._assert_invalid(DateBone(date=False), "now")
+        self._assert_invalid(DateBone(date=False), "now5")
+
+    def test_now_rejected_on_date_only(self):
+        from viur.core.bones import DateBone
+        # without a time there is nothing "now" could express, the time part is cropped anyway
+        self._assert_invalid(DateBone(time=False), "now")
+        self._assert_invalid(DateBone(time=False), "now5")
+
+    def test_now_case_insensitive(self):
+        from viur.core.bones import DateBone
+        self._assert_now(DateBone(), "NOW")
+        self._assert_now(DateBone(), "Now")
+        self._assert_now(DateBone(), "NOW5", td(seconds=5))
+
+    def test_now_offset(self):
+        from viur.core.bones import DateBone
+        # a single-digit offset must not be swallowed
+        self._assert_now(DateBone(), "now5", td(seconds=5))
+        self._assert_now(DateBone(), "now10", td(seconds=10))
+        self._assert_now(DateBone(), "now-5", td(seconds=-5))
+        self._assert_now(DateBone(), "now-3600", td(hours=-1))
+
+    def test_now_invalid_offset(self):
+        from viur.core.bones import DateBone
+        self._assert_invalid(DateBone(), "nowfoo")
+        self._assert_invalid(DateBone(), "now-foo")
+
+
+class TestDateBone_timestamp(ViURTestCase):
+    """Numeric input is read as a POSIX timestamp."""
+
+    bone_name = "myDateBone"
+
+    def _from_client(self, value):
+        from viur.core.bones import DateBone
+        return DateBone().singleValueFromClient(value, {}, self.bone_name, {self.bone_name: value})
+
+    def test_integer_timestamp(self):
+        value, errors = self._from_client("1000000000")
+        self.assertIsNone(errors)
+        self.assertEqual(dt.fromtimestamp(1000000000, tz=tz.utc), value)
+
+    def test_fractional_timestamp_does_not_raise(self):
+        """"1.5" passes the digit test, so it must not blow up in the conversion."""
+        value, errors = self._from_client("1.5")
+        self.assertIsNone(errors)
+        self.assertEqual(dt.fromtimestamp(1.5, tz=tz.utc).replace(microsecond=0), value)
+
+    def test_negative_fractional_timestamp_does_not_raise(self):
+        value, errors = self._from_client("-1.5")
+        self.assertIsNone(errors)
+        self.assertEqual(dt.fromtimestamp(-1.5, tz=tz.utc).replace(microsecond=0), value)
+
+    def test_out_of_range_timestamp_is_rejected(self):
+        value, errors = self._from_client(str(2 ** 31))
+        self.assertIsNone(value)
+        self.assertTrue(errors)
+
+    def test_misplaced_minus_is_rejected(self):
+        """The digit test only strips one "-" anywhere, so "1-2" reaches the conversion."""
+        for value in ("1-2", "12-", "1.2-3"):
+            with self.subTest(value=value):
+                result, errors = self._from_client(value)
+                self.assertIsNone(result)
+                self.assertTrue(errors)

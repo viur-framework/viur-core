@@ -283,6 +283,7 @@ class StringBone(RawBone):
             "Ü": "Ue",
             "ä": "ae",
             "Ä": "Ae",
+            "ß": "ss",
             "ẞ": "SS",
         }))
 

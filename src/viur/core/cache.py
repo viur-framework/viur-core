@@ -28,7 +28,7 @@ from datetime import timedelta as td
 from functools import wraps
 from hashlib import sha512
 
-from viur.core import Method, conf, current, db, errors, utils, tasks
+from viur.core import Method, conf, current, db, errors, utils, tasks, skeleton, bones
 from viur.core.config import ConfigType
 from webob.datetime_utils import serialize_date
 
@@ -583,3 +583,33 @@ def flushCache(prefix: str = None, key: db.Key | None = None, kind:  str | None 
         for item in items:
             logging.info(f"""Deleted cache entry {item["path"]!r}""")
             db.delete(item.key)
+
+
+@tasks.CallableTask
+class FlushCacheTask(tasks.CallableTaskBase):
+    key = "FlushCacheTask"
+    name = "Clear Response Cache"
+    descr = "Clears the Response-Cache (completely, or filtered, either by prefix or by kind)."
+
+    def canCall(self):
+        user = current.user.get()
+        return user and "root" in user["access"]
+
+    class dataSkel(skeleton.RelSkel):
+        prefix = bones.RawBone(
+            descr="Prefix",
+            params={
+                "tooltip": "Path-Prefix (e.g. '/' oder '/page/*'; empty = all)",
+            },
+        )
+
+        kind = bones.SelectBone(
+            descr="Kind",
+            values=skeleton.listKnownSkeletons,
+            params={
+                "tooltip": "Kind, which cache will be cleared",
+            },
+        )
+
+    def execute(self, prefix, kind):
+        flushCache(prefix=prefix or None, kind=kind or None)

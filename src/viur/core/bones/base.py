@@ -120,7 +120,7 @@ class ReadFromClientException(Exception):
 
         # Allow to specifiy a single ReadFromClientError
         if isinstance(errors, ReadFromClientError):
-            errors = (ReadFromClientError, )
+            errors = (errors, )
 
         self.errors = tuple(error for error in errors if isinstance(error, ReadFromClientError))
 
@@ -301,6 +301,11 @@ class BaseBone(object):
     :param visible: If False, the value of this bone should be hidden from the user. This does
         *not* protect the value from being exposed in a template, nor from being transferred
         to the client (ie to the admin or as hidden-value in html-form)
+    :param tags: Optional classification tags for the bone's data content. Accepts a string, a list/tuple
+        of strings, or any iterable of strings. Multiple tags can be combined; they are non-exclusive.
+        Intended for privacy tooling, audits, anonymization workflows, and admin tooling - not for
+        access control. Suggested values include ``"personal"``, ``"contact"``, ``"identifier"``,
+        ``"location"``, ``"financial"``, and ``"technical"``.
     :param compute: If set, the bone's value will be computed in the given method.
 
         .. NOTE::
@@ -330,6 +335,7 @@ class BaseBone(object):
         readOnly: bool = None,  # fixme: Rename into readonly (all lowercase!) soon.
         required: bool | list[str] | tuple[str] = False,
         searchable: bool = False,
+        tags: str | t.Iterable[str] | None = None,
         type_suffix: str = "",
         unique: None | UniqueValue = None,
         vfunc: callable = None,  # fixme: Rename this, see below.
@@ -348,6 +354,7 @@ class BaseBone(object):
         self.required = required
         self.readOnly = bool(readOnly)
         self.searchable = searchable
+        self.tags = tuple(utils.ensure_iterable(tags, allow_callable=False))
         self.visible = visible
         self.indexed = indexed
 
@@ -537,7 +544,13 @@ class BaseBone(object):
         elif isinstance(self.defaultValue, list):
             return self.defaultValue[:]
         elif isinstance(self.defaultValue, dict):
-            return self.defaultValue.copy()
+            # A shallow dict copy is not enough: the inner lists must be copied as well,
+            # otherwise all languages share one list instance living on the bone, and any
+            # mutation bleeds into the other languages and into every other skeleton.
+            return {
+                lang: value[:] if isinstance(value, list) else value
+                for lang, value in self.defaultValue.items()
+            }
         else:
             return self.defaultValue
 
@@ -1277,7 +1290,7 @@ class BaseBone(object):
                     )
                     prop = orderby_prop
 
-            query.order((prop + postfix, utils.parse.sortorder(params.get("orderdir"))))
+            query.order((prop + postfix, db.SortOrder.from_str(params.get("orderdir"))))
 
         return query
 
@@ -1630,19 +1643,20 @@ class BaseBone(object):
         This function has to be implemented for subsequent, specialized bone types.
         """
         ret = {
-            "descr": self.descr,
-            "type": self.type,
-            "required": self.required and not self.readOnly,
-            "params": self.params,
-            "visible": self.visible,
-            "readonly": self.readOnly,
-            "unique": self.unique.method.value if self.unique else False,
-            "languages": self.languages,
-            "emptyvalue": self.getEmptyValue(),
-            "indexed": self.indexed,
             "clone_behavior": {
                 "strategy": self.clone_behavior.strategy,
             },
+            "descr": self.descr,
+            "emptyvalue": self.getEmptyValue(),
+            "indexed": self.indexed,
+            "languages": self.languages,
+            "params": self.params,
+            "readonly": self.readOnly,
+            "required": self.required and not self.readOnly,
+            "tags": self.tags,
+            "type": self.type,
+            "unique": self.unique.method.value if self.unique else False,
+            "visible": self.visible,
         }
 
         # Provide a defaultvalue, if it's not a function.
