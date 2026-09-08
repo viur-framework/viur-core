@@ -11,7 +11,7 @@ class TestUidBoneInit(ViURTestCase):
 
     def test_default_init(self):
         bone = self._make()
-        self.assertEqual("*", bone.fillchar)
+        self.assertEqual("0", bone.fillchar)
         self.assertEqual(13, bone.length)
         self.assertEqual("*", bone.pattern)
 
@@ -113,3 +113,30 @@ class TestGenerateNumber(ViURTestCase):
         with self.assertRaises(RuntimeError) as ctx:
             generate_number(db.Key("viur-uids", "test"))
         self.assertIs(error, ctx.exception)
+
+
+class TestUidBoneGenerate(ViURTestCase):
+    """The generated uid is padded with fillchar up to `length`."""
+
+    def _generate(self, count_value, **kwargs):
+        from viur.core.bones import uid
+        from viur.core.bones.uid import UidBone
+        bone = UidBone(readOnly=True, **kwargs)
+        bone.name = "uid"
+        skel = mock.Mock(kindName="mykind")
+        with mock.patch.object(uid, "generate_number", return_value=count_value):
+            return uid.generate_uid(skel, bone)
+
+    def test_default_padding_uses_digits(self):
+        """A padded uid must stay readable as an identifier, not "***********0"."""
+        self.assertEqual("0000000000000", self._generate(0))
+        self.assertEqual("0000000000042", self._generate(42))
+
+    def test_pattern_shortens_the_padding(self):
+        self.assertEqual("ORD-000042", self._generate(42, pattern="ORD-*", length=10))
+
+    def test_explicit_fillchar(self):
+        self.assertEqual("ORD-XXXX42", self._generate(42, pattern="ORD-*", length=10, fillchar="X"))
+
+    def test_value_longer_than_length_is_not_truncated(self):
+        self.assertEqual("ORD-123456", self._generate(123456, pattern="ORD-*", length=8))

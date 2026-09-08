@@ -18,3 +18,22 @@ class TestRandomSliceBoneInit(ViURTestCase):
         from viur.core.bones import RandomSliceBone
         with self.assertRaises(NotImplementedError):
             RandomSliceBone(readOnly=False)
+
+
+class TestRandomSliceBoneSortSignature(ViURTestCase):
+    """buildDBSort must accept the postfix argument of the base class."""
+
+    def test_accepts_postfix_keyword(self):
+        import inspect
+        from viur.core.bones import RandomSliceBone
+        params = inspect.signature(RandomSliceBone.buildDBSort).parameters
+        self.assertIn("postfix", params)
+
+    def test_signature_matches_base_bone(self):
+        import inspect
+        from viur.core.bones import RandomSliceBone
+        from viur.core.bones.base import BaseBone
+        self.assertEqual(
+            list(inspect.signature(BaseBone.buildDBSort).parameters),
+            list(inspect.signature(RandomSliceBone.buildDBSort).parameters),
+        )

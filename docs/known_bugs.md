@@ -9,41 +9,9 @@ file module, ...), the second pass every bone type under
 
 Each entry: what is wrong, what it costs, what the fix would be.
 
-## Wrong values
-
-### `src/viur/core/modules/file.py:900` - `weak` flag inverted in `File.write()`
-
-```python
-fileskel["weak"] = bool(parentrepokey)
-```
-
-The docstring of `File.write` says a file without folder and rootnode is added
-as a *weak* file, and `File.add` uses `skel["weak"] = rootNode is None`. Here
-it is the other way round: files written into a repository are marked weak,
-files without one are not.
-
-Consequences follow `FileLeafSkel.preProcessBlobLocks`, which only locks the
-`dlkey` when the file is *not* weak: a file written into a folder gets no blob
-lock and can be collected by the blob GC, while a repository-less file is
-locked forever.
-
-Fix: `fileskel["weak"] = not parentrepokey`.
-
-## Control flow
-
-### `src/viur/core/modules/file.py:1489` - GC run aborts instead of skipping
-
-In `doCheckForUnreferencedBlobs`, when a stale blob is already marked for
-deletion the loop does `return` instead of `continue`, so the whole run ends
-and the remaining `viur-blob-locks` entries of this batch (and every following
-cursor batch) are not processed. Cleanup then only progresses on the next
-periodic call, and only until it hits an already-marked blob again.
-
-Fix: `continue`.
-
 ## Dead code paths
 
-### `src/viur/core/modules/file.py:1086-1109` - `download` without a signature cannot work
+### `src/viur/core/modules/file.py` - `download` without a signature cannot work
 
 The unsigned branch is documented as the root / `file-view` path: "blobKey is
 then the path inside cloudstore - not a base64 encoded tuple". But the blobKey
@@ -65,43 +33,25 @@ endpoint at all.
 Fix prompt: `docs/superpowers/plans/2026-09-03-file-download-without-signature.md`
 in the ag-dev repo.
 
-### `src/viur/core/modules/file.py:767` - `create_src_set` on a multi-language bone
+### `src/viur/core/modules/file.py` - `File.write(rootnode=...)` is ignored
 
-```python
-if not language or not (file := cls.get(language)):
-```
+`write()` only enters the repository branch `if folder:`. Passing a *rootnode*
+without a *folder* therefore falls into the `else` and the file is stored with
+`parentrepo = None` - although the docstring promises "If only *rootnode* is
+set, the file is added to that repository in the root folder". Combined with
+the (now correct) `weak` flag such a file is written as a weak file.
 
-`cls` is `File`; neither `File` nor `Module` defines `get`, so this raises
-`AttributeError` for every `LanguageWrapper` value - i.e. for every FileBone
-with `languages` set.
+The parameter is also annotated `t.Optional[db.Key]`, while the code reads
+`rootnode.key`. A `db.Key` has no `.key`, so the annotated type raises
+`AttributeError` in folder mode; only the `db.Entity` that
+`ensureOwnModuleRootNode()` returns actually works.
 
-Fix: `file.get(language)`.
+Fix: enter the repository branch for `folder or rootnode`, and accept a
+`db.Key` as documented.
 
 ## Minor
 
-### `render/json/__init__.py:6` and `skeleton/__init__.py:53` - `__all__` holds objects, not names
-
-```python
-__all__ = [default]                            # render/json
-__all__ = [ABSTRACT_SKEL_CLS_SUFFIX, BaseSkeleton, DatabaseAdapter, ...]  # skeleton
-```
-
-`__all__` must contain strings, so `import *` fails on both:
-
-    from viur.core.render.json import *
-    -> TypeError: Item in viur.core.render.json.__all__ must be str, not ABCMeta
-    from viur.core.skeleton import *
-    -> TypeError: Item in viur.core.skeleton.__all__ must be str, not MetaBaseSkel
-
-It goes unnoticed because the core only ever imports these packages as
-modules. In the skeleton list the first entry is a string by accident -
-`ABSTRACT_SKEL_CLS_SUFFIX` is `"AbstractSkel"`, the *value* rather than the
-symbol name, so even fixing the other entries would leave a name that does
-not exist.
-
-Fix: list the names as strings.
-
-### `src/viur/core/db/query.py:485-526` - three methods break on an unsatisfiable query
+### `src/viur/core/db/query.py` - three methods break on an unsatisfiable query
 
 `queries is None` is the documented "unsatisfiable" state, and `filter`,
 `order`, `limit`, `distinctOn` and `or_filter` treat it as a no-op. Three
@@ -110,55 +60,23 @@ methods do not:
 - `getCursor()` assigns `q` only in the `QueryDefinition` and `list` branches,
   so the final `return` reads an unbound `q` (`UnboundLocalError`). An empty
   query list hits this too.
-- `setCursor()` (query.py:429-457) ends up on `assert isinstance(self.queries,
+- `setCursor()` ends up on `assert isinstance(self.queries,
   QueryDefinition)` - `AssertionError`, and an `AttributeError` under
   `python -O`.
 - `get_orders()` raises `ValueError` for anything that is neither a
   `QueryDefinition` nor a list.
 
 `mergeExternalFilter` reaches the first of these on its own: the fulltext
-branch sets `queries = None` without returning (query.py:192) and the cursor
-handling below it then calls `setCursor` (query.py:219), so
-`?search=…&cursor=…` against a module without a fulltext adapter is an
-HTTP 500.
+branch sets `queries = None` without returning and the cursor handling below it
+then calls `setCursor`, so `?search=…&cursor=…` against a module without a
+fulltext adapter is an HTTP 500.
 
 Fix prompt: `docs/superpowers/plans/2026-09-03-query-unsatisfiable-cursor-methods.md`
 in the ag-dev repo.
 
-## Bones: validation that does not validate
-
-### `src/viur/core/bones/date.py:80` - creation/update magic does not lock the bone
-
-```python
-self.readonly = True  # todo: why???
-```
-
-The attribute is `readOnly`. This assignment creates an unrelated `readonly`
-attribute, so a `DateBone(creationMagic=True)` stays writable and a client can
-overwrite the automatic timestamp through add/edit. (The magic itself is
-deprecated in favour of `compute`.)
-
-Fix: `self.readOnly = True` - or drop the magic and use `compute`.
-
-## Bones: uncaught exceptions on client input
-
-### `src/viur/core/bones/date.py:125-126` - `"1.5"` raises instead of failing validation
-
-```python
-if value.replace("-", "", 1).replace(".", "", 1).isdigit():
-    if int(value) < -1 * (2 ** 30) or int(value) > (2 ** 31) - 2:
-```
-
-The digit test strips one dot, so `"1.5"` is considered a timestamp - but
-`int("1.5")` then raises `ValueError`, uncaught. Any client can turn a date
-field into a 500.
-
-Fix: convert with `float(value)` (the value is passed to `fromtimestamp` as a
-float anyway) or catch the ValueError.
-
 ## Bones: contract violations
 
-### `src/viur/core/bones/password.py:115` - `isInvalid` returns a list
+### `src/viur/core/bones/password.py` - `isInvalid` returns a list
 
 `PasswordBone.isInvalid` returns `tests_errors`, a list of hint strings, where
 every other bone returns a single message or None. `ReadFromClientError.
@@ -167,22 +85,7 @@ special-case.
 
 Fix: join the hints, or document the list as part of the contract.
 
-### `src/viur/core/bones/spatial.py:390` - inverted type check in `setBoneValue`
-
-```python
-if not isinstance(value, (tuple, list)) and len(value) == 2:
-    raise ValueError("Value must be a tuple or a list of (lat, lng)")
-```
-
-The `and` should reject "not a sequence **or** not of length 2". As written a
-3-element tuple passes unchecked while the 2-character string `"ab"` raises.
-The method also returns `None` instead of the documented bool, so callers see
-"failed".
-
-Fix: `if not isinstance(value, (tuple, list)) or len(value) != 2:` and
-`return True` at the end.
-
-### `src/viur/core/bones/spatial.py:214` - `getEmptyValue` contradicts its docstring
+### `src/viur/core/bones/spatial.py` - `getEmptyValue` contradicts its docstring
 
 The docstring explains that `(91.0, 181.0)` is used as an out-of-range marker
 for "empty", the code returns `(0.0, 0.0)`. For any region containing the
@@ -190,15 +93,16 @@ origin, a legitimately entered `0, 0` is reported empty by `isEmpty` and
 dropped.
 
 Fix: return the documented marker, or correct the docstring and accept that
-`0, 0` cannot be stored.
+`0, 0` cannot be stored. Changes the meaning of already stored values, so it
+needs a decision rather than a patch.
 
-### `src/viur/core/bones/credential.py:59-71` - `unserialize` returns a dict
+### `src/viur/core/bones/credential.py` - `unserialize` returns a dict
 
 `CredentialBone.unserialize` returns `{}` where the `BaseBone` contract asks
 for a bool, and never touches `skel.accessedValues`. The effective behaviour
 (value reads as None) is intended; the signature is not.
 
-### `src/viur/core/bones/key.py:139-176` - two different key parsers
+### `src/viur/core/bones/key.py` - two different key parsers
 
 `singleValueFromClient` parses with `db.normalize_key`/`db.key_helper`, while
 `buildDBFilter._decodeKey` only accepts `db.Key.from_legacy_urlsafe`. A key
@@ -218,21 +122,9 @@ input, also reachable as `{"<bone>.dest.key": []}` through
 Fix prompt: `docs/superpowers/plans/2026-09-03-keybone-empty-in-list.md` in the
 ag-dev repo.
 
-### `src/viur/core/bones/record.py:172` - `getSearchDocumentFields` is dead
-
-It calls `bone.getSearchDocumentFields(...)`, which no longer exists on
-`BaseBone`. Any caller gets an AttributeError. Remove it or reimplement it on
-the base class.
-
-### `src/viur/core/bones/record.py:37` - wrong exception for a missing `using`
-
-`issubclass(using, RelSkel)` runs before the None check, so `RecordBone()`
-without `using` raises `TypeError: issubclass() arg 1 must be a class` instead
-of the intended ValueError.
-
 ## Deprecation shims that do nothing
 
-### `src/viur/core/bones/file.py:55` and `src/viur/core/skeleton/tasks.py:60`
+### `src/viur/core/bones/file.py` and `src/viur/core/skeleton/tasks.py`
 
 ```python
 locals()[_new] = kwargs.pop(_dep)
@@ -247,27 +139,32 @@ default. Callers still using the old names are quietly ignored.
 Fix: rebind the real parameter explicitly, e.g. via a dict of resolved
 arguments.
 
+## Won't fix
+
+### `src/viur/core/bones/date.py` - creation/update magic does not lock the bone
+
+```python
+self.readonly = True  # the attribute is readOnly
+```
+
+This assignment creates an unrelated `readonly` attribute, so a
+`DateBone(creationMagic=True)` stays writable and a client can overwrite the
+automatic timestamp through add/edit.
+
+Decided against fixing: the magic is deprecated (it warns with a
+`DeprecationWarning` and is documented as such) and no longer used - repairing
+the lock now would only change behaviour for the projects that still rely on
+the broken state. Use `compute` instead. Goes away with VIUR4.
+
 ## Bones: minor / inconsistencies
 
-- `src/viur/core/bones/boolean.py:109,111` - `setBoneValue` calls
-  `utils.parse.bool(value)` without `conf.bone_boolean_str2true`, unlike every
-  other path in the bone. Only differs for projects that override the config.
-- `src/viur/core/bones/boolean.py:73` - `refresh` indexes `skel[name][lang]`
-  for multi-language bones; raises TypeError while the value is still None.
-- `src/viur/core/bones/string.py:278-286` - the DIN 5007-2 transformation maps
-  `ẞ` but not `ß`, so lowercase sharp s is not folded to `ss`.
-- `src/viur/core/bones/uid.py:56` - `fillchar` defaults to `"*"`, so padded
-  uids look like `"***********0"`. Presumably `"0"` was meant.
 - `src/viur/core/bones/select.py:74-113` - `values` is re-evaluated in
   `__getattribute__` on *every* access, rebuilding one `translate` object per
   option. `singleValueFromClient` iterates it per request.
-- `src/viur/core/bones/randomslice.py:57` - `buildDBSort` still has the
-  pre-`postfix` signature; it only works because all current callers pass four
-  positional arguments.
 
 ## Unverified
 
-### `src/viur/core/email.py:565-566` - decorator order on `check_sib_quota`
+### `src/viur/core/email.py` - decorator order on `check_sib_quota`
 
 ```python
 @PeriodicTask(interval=datetime.timedelta(hours=1))

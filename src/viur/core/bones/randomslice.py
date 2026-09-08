@@ -58,8 +58,9 @@ class RandomSliceBone(BaseBone):
         self,
         name: str,
         skel: 'viur.core.skeleton.SkeletonInstance',
-        dbFilter: db.Query,
-        rawFilter: dict
+        query: db.Query,
+        params: dict,
+        postfix: str = "",
     ) -> t.Optional[db.Query]:
         """
         Modifies the database query to return a random selection of elements by creating multiple
@@ -68,12 +69,13 @@ class RandomSliceBone(BaseBone):
 
         :param str name: The property name this bone has in its Skeleton (not the description).
         :param SkeletonInstance skel: The :class:viur.core.skeleton.Skeleton instance this bone is part of.
-        :param db.Query dbFilter: The current :class:viur.core.db.Query instance the filters should be applied to.
-        :param Dict rawFilter: The dictionary of filters the client wants to have applied.
+        :param db.Query query: The current :class:viur.core.db.Query instance the filters should be applied to.
+        :param Dict params: The dictionary of filters the client wants to have applied.
+        :param postfix: Unused; only present to match the signature of :meth:`BaseBone.buildDBSort`.
         :return: The modified :class:viur.core.db.Query instance.
         :rtype: Optional[db.Query]
 
-        .. note:: The rawFilter is controlled by the client, so you must expect and safely handle
+        .. note:: The params are controlled by the client, so you must expect and safely handle
             malformed data.
 
         The method also contains an inner function, applyFilterHook, that applies the filter hook to
@@ -87,45 +89,45 @@ class RandomSliceBone(BaseBone):
                 else return the unmodified filter.
                 Allows orderby=random also be used in relational-queries.
             """
-            if dbFilter._filterHook is None:
+            if query._filterHook is None:
                 return property, value
             try:
-                property, value = dbFilter._filterHook(dbFilter, property, value)
+                property, value = query._filterHook(query, property, value)
             except:
-                # Either, the filterHook tried to do something special to dbFilter (which won't
+                # Either, the filterHook tried to do something special to the query (which won't
                 # work as we are currently rewriting the core part of it) or it thinks that the query
                 # is unsatisfiable (fe. because of a missing ref/parent key in RelationalBone).
                 # In each case we kill the query here - making it to return no results
                 raise RuntimeError()
             return property, value
 
-        if "orderby" in rawFilter and rawFilter["orderby"] == name:
+        if "orderby" in params and params["orderby"] == name:
             # We select a random set of elements from that collection
-            assert not isinstance(dbFilter.queries,
-                                  list), "Orderby random is not possible on a query that already uses an IN-filter!"
-            origFilter: dict = dbFilter.queries.filters
-            origKind = dbFilter.getKind()
+            assert not isinstance(query.queries, list), \
+                "orderby=random is not possible on a query that already uses an IN-filter!"
+            origFilter: dict = query.queries.filters
+            origKind = query.getKind()
             queries = []
             for unused in range(0, self.slices):  # Fetch 3 Slices from the set
                 rndVal = random()  # Choose our Slice center
                 # Right Side
                 q = db.QueryDefinition(origKind, {}, [])
-                property, value = applyFilterHook(dbFilter, f"{name} <=", rndVal)
+                property, value = applyFilterHook(query, f"{name} <=", rndVal)
                 q.filters[property] = value
                 q.orders = [db.QueryOrder(name, db.SortOrder.Descending)]
                 queries.append(q)
                 # Left Side
                 q = db.QueryDefinition(origKind, {}, [])
-                property, value = applyFilterHook(dbFilter, f"{name} >", rndVal)
+                property, value = applyFilterHook(query, f"{name} >", rndVal)
                 q.filters[property] = value
                 q.orders = [db.QueryOrder(name)]
                 queries.append(q)
-            dbFilter.queries = queries
+            query.queries = queries
             # Map the original filter back in
             for k, v in origFilter.items():
-                dbFilter.filter(k, v)
-            dbFilter._customMultiQueryMerge = self.customMultiQueryMerge
-            dbFilter._calculateInternalMultiQueryLimit = self.calculateInternalMultiQueryLimit
+                query.filter(k, v)
+            query._customMultiQueryMerge = self.customMultiQueryMerge
+            query._calculateInternalMultiQueryLimit = self.calculateInternalMultiQueryLimit
 
     def calculateInternalMultiQueryLimit(self, query: db.Query, targetAmount: int) -> int:
         """
