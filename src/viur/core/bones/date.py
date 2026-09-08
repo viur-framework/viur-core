@@ -78,9 +78,6 @@ class DateBone(BaseBone):
             if self.multiple:
                 raise ValueError("Cannot be multiple and have a creation/update-magic set!")
 
-            # Deprecated and unused: the attribute name does not match BaseBone.readOnly, so this
-            # never locked the bone. Left as-is on purpose -- use "compute" instead of the magic.
-            self.readonly = True
 
         self.creationMagic = creationMagic  # FIXME: VIUR4 remove this
         self.updateMagic = updateMagic  # FIXME: VIUR4 remove this

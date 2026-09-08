@@ -103,8 +103,8 @@ class RandomSliceBone(BaseBone):
 
         if "orderby" in params and params["orderby"] == name:
             # We select a random set of elements from that collection
-            assert not isinstance(query.queries,
-                                  list), "Orderby random is not possible on a query that already uses an IN-filter!"
+            assert not isinstance(query.queries, list), \
+                "orderby=random is not possible on a query that already uses an IN-filter!"
             origFilter: dict = query.queries.filters
             origKind = query.getKind()
             queries = []
