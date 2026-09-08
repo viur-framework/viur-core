@@ -294,3 +294,66 @@ class TestCheckForUnreferencedBlobs(ViURTestCase):
 
     def test_all_blobs_already_marked(self):
         self.assertEqual([], self._run(["blob-a", "blob-b"], already_marked=("blob-a", "blob-b")))
+
+
+class TestFileHmacRotation(ViURTestCase):
+    """conf.file_hmac_key_fallbacks lets hmac_verify accept signatures made with a retired key,
+    so file_hmac_key can be rotated without invalidating already-signed download URLs."""
+
+    def _file(self):
+        # See TestFileDownloadUrl._roundtrip for why the import is mocked and lazy.
+        with mock.patch("google.cloud.storage.Client"):
+            from viur.core.modules.file import File
+        return File
+
+    def tearDown(self):
+        from viur.core import conf
+        conf.file_hmac_key = None
+        conf.file_hmac_key_fallbacks = []
+        super().tearDown()
+
+    def test_rotated_key_still_verifies_old_signature(self):
+        from viur.core import conf
+        File = self._file()
+        conf.file_hmac_key = b"old-key"
+        old_sig = File.hmac_sign("payload")
+        # Rotate: new active key, old key retired into fallbacks.
+        conf.file_hmac_key = b"new-key"
+        conf.file_hmac_key_fallbacks = [b"old-key"]
+        self.assertTrue(File.hmac_verify("payload", old_sig))  # old sig still accepted
+        self.assertTrue(File.hmac_verify("payload", File.hmac_sign("payload")))  # new sig accepted
+
+    def test_old_signature_rejected_without_fallback(self):
+        from viur.core import conf
+        File = self._file()
+        conf.file_hmac_key = b"old-key"
+        old_sig = File.hmac_sign("payload")
+        conf.file_hmac_key = b"new-key"
+        conf.file_hmac_key_fallbacks = []
+        self.assertFalse(File.hmac_verify("payload", old_sig))  # no fallback -> rejected
+
+    def test_str_fallback_key_is_accepted(self):
+        """Operators may configure a retired key as str; it is coerced like the active key."""
+        from viur.core import conf
+        File = self._file()
+        conf.file_hmac_key = b"old-key"
+        old_sig = File.hmac_sign("payload")
+        conf.file_hmac_key = b"new-key"
+        conf.file_hmac_key_fallbacks = ["old-key"]  # str, not bytes
+        self.assertTrue(File.hmac_verify("payload", old_sig))
+
+    def test_garbage_signature_rejected(self):
+        from viur.core import conf
+        File = self._file()
+        conf.file_hmac_key = b"new-key"
+        conf.file_hmac_key_fallbacks = [b"old-key"]
+        self.assertFalse(File.hmac_verify("payload", "deadbeef"))
+
+    def test_explicit_key_matches_default_key(self):
+        """hmac_sign(key=None) uses conf.file_hmac_key, an explicit key (bytes or str) yields the same digest."""
+        from viur.core import conf
+        File = self._file()
+        conf.file_hmac_key = b"active-key"
+        self.assertEqual(File.hmac_sign("payload"), File.hmac_sign("payload", key=b"active-key"))
+        self.assertEqual(File.hmac_sign("payload"), File.hmac_sign("payload", key="active-key"))
+        self.assertNotEqual(File.hmac_sign("payload"), File.hmac_sign("payload", key=b"other-key"))
