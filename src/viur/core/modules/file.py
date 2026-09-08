@@ -283,7 +283,10 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
 
     uploadUrls = {}
     for data in derivedData["values"]:
-        fileName = conf.main_app.file.sanitize_filename(data["name"])
+        if not conf.main_app.file.is_valid_filename(data["name"]):
+            raise errors.UnprocessableEntity(f"""Invalid derived filename {data["name"]!r} provided""")
+
+        fileName = urlquote(data["name"])
         blob = bucket.blob(f"""{fileSkel["dlkey"]}/derived/{fileName}""")
         uploadUrls[fileSkel["dlkey"] + fileName] = blob.create_resumable_upload_session(timeout=60,
                                                                                         content_type=data["mimeType"])
