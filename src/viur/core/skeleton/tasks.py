@@ -80,7 +80,18 @@ def update_relations(
 
     query.setCursor(cursor)
 
+    # A single entity can reference the same destination more than once (e.g. a list
+    # bone holding the same reference several times), yielding one relation per
+    # occurrence. Refreshing that entity once is enough -- doing it per relation only
+    # stacks transactions on the very same entity and can exceed the request deadline.
+    seen_src_keys: set[db.Key] = set()
+
     for src_rel in query.run():
+        src_key = src_rel["src"].key
+        if src_key in seen_src_keys:
+            continue
+        seen_src_keys.add(src_key)
+
         try:
             skel = skeletonByKind(src_rel["viur_src_kind"])()
         except AssertionError:
@@ -88,9 +99,9 @@ def update_relations(
             continue
 
         try:
-            skel.patch(lambda skel: skel.refresh(), key=src_rel["src"].key, update_relations=False)
+            skel.patch(lambda skel: skel.refresh(), key=src_key, update_relations=False)
         except ValueError:
-            logging.warning(f"Cannot update stale reference to {src_rel["src"].key!r} referenced by {src_rel.key!r}")
+            logging.warning(f"Cannot update stale reference to {src_key!r} referenced by {src_rel.key!r}")
             continue
 
         total += 1

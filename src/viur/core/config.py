@@ -322,6 +322,15 @@ class Database(ConfigType):
     create_access_log: bool = True
     """If False no access log will be created. But then the caching is disabled too."""
 
+    name: str | None = os.getenv("VIUR_DB_NAME") or None
+    """Named datastore to target instead of ``(default)``.
+
+    Env-sourced: the client is built at ``db.transport`` import time, before any
+    runtime config could set it."""
+
+    namespace: str | None = os.getenv("VIUR_DB_NAMESPACE") or None
+    """Datastore namespace to scope to. Env-sourced like `name`."""
+
 
 class Security(ConfigType):
     """Security related settings"""
@@ -349,6 +358,19 @@ class Security(ConfigType):
     }
     """If set, viur will emit a CSP http-header with each request.
     Use :meth:`viur.core.config.Security.add_csp_rule` to set this property."""
+
+    reporting_endpoints: dict[str, str] = {}
+    """Named endpoints reports are being sent to, emitted as ``Reporting-Endpoints`` http-header.
+
+    Maps an endpoint name to the URL receiving the reports. Other headers reference these names,
+    for example the CSP-directive ``report-to``, which supersedes the deprecated ``report-uri``.
+    The name ``default`` is used by the browser for reports whose header cannot name an endpoint
+    on its own (i.e. deprecation reports).
+
+    Use :meth:`viur.core.config.Security.set_reporting_endpoint` to set this property.
+
+    See https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Reporting-Endpoints
+    """
 
     referrer_policy: str = "strict-origin"
     """Per default, we'll emit Referrer-Policy: strict-origin so no referrers leak to external services
@@ -462,7 +484,7 @@ class Security(ConfigType):
     # CORS Settings
 
     cors_origins: t.Iterable[str | re.Pattern] | t.Literal["*"] = []
-    """Allowed origins
+    r"""Allowed origins
     Access-Control-Allow-Origin
 
     Pattern should be case-insensitive, for example:
@@ -592,9 +614,18 @@ class Security(ConfigType):
         """
         assert enforce_mode in ("monitor", "enforce"), "enforce_mode must be 'monitor' or 'enforce'!"
         assert object_type in {
-            "default-src", "script-src", "object-src", "style-src", "img-src", "media-src",
-            "frame-src", "font-src", "connect-src", "report-uri", "frame-ancestors", "child-src",
-            "form-action", "require-trusted-types-for",
+            # Fetch directives
+            "default-src", "child-src", "connect-src", "fenced-frame-src", "font-src", "frame-src", "img-src",
+            "manifest-src", "media-src", "object-src", "prefetch-src", "script-src", "script-src-elem",
+            "script-src-attr", "style-src", "style-src-elem", "style-src-attr", "worker-src",
+            # Document directives
+            "base-uri", "sandbox",
+            # Navigation directives
+            "form-action", "frame-ancestors",
+            # Reporting directives; "report-uri" is deprecated, prefer "report-to" with set_reporting_endpoint()
+            "report-uri", "report-to",
+            # Other directives
+            "require-trusted-types-for", "trusted-types", "upgrade-insecure-requests", "block-all-mixed-content",
         }, f"object_type {object_type!r} is not a valid CSP directive"
         assert conf.main_app is None, "You cannot modify CSP rules after the app has been built!"
         assert not any(c in src_or_directive for c in (";", "'", '"', "\n", ",")), \
@@ -603,8 +634,9 @@ class Security(ConfigType):
             self.content_security_policy = {}
         if enforce_mode not in self.content_security_policy:
             self.content_security_policy[enforce_mode] = {}
-        if object_type == "report-uri":
-            self.content_security_policy[enforce_mode]["report-uri"] = [src_or_directive]
+        if object_type in ("report-uri", "report-to"):
+            # Both directives take exactly one value; a second one would be ignored by the browser anyway
+            self.content_security_policy[enforce_mode][object_type] = [src_or_directive]
         else:
             if object_type not in self.content_security_policy[enforce_mode]:
                 self.content_security_policy[enforce_mode][object_type] = []
@@ -646,6 +678,76 @@ class Security(ConfigType):
             "%s=(%s)" % (k, " ".join(('"%s"' % x if x != "self" else x) for x in v))
             for k, v in self.permissions_policy.items()
         )
+
+    # Endpoint names are structured-field keys, see https://www.rfc-editor.org/rfc/rfc8941#section-3.1.2
+    _REPORTING_ENDPOINT_NAME_RE = re.compile(r"^[a-z*][a-z0-9_.*-]*$")
+
+    def set_reporting_endpoint(self, name: str, url: str | None) -> None:
+        """Configure a named endpoint reports are being sent to.
+
+        All endpoints configured this way are emitted as ``Reporting-Endpoints`` http-header with each request.
+        Other headers reference an endpoint by its name, i.e. the CSP-directive ``report-to``::
+
+            conf.security.set_reporting_endpoint("csp", "/cspReport")
+            conf.security.add_csp_rule("report-to", "csp", "enforce")
+
+        The name ``default`` is special: the browser uses it for reports whose header cannot name an endpoint
+        on its own, as well as for reports not caused by a header at all (i.e. deprecation reports).
+
+        The endpoint receives a POST with the content-type ``application/reports+json``, carrying a *list* of
+        reports: browsers queue them up and deliver a batch a few seconds later. The deprecated ``report-uri``
+        directive instead posts one ``application/csp-report`` per violation right away.
+
+        .. note::
+
+            Reports are only sent from a https origin, and only to a https endpoint. A relative url inherits
+            the scheme of the document, so a development server on plain http receives nothing. Browsers
+            supporting ``report-to`` ignore ``report-uri`` once both directives are present.
+
+        :param name: The name other headers use to reference this endpoint.
+        :param url: The url the reports are sent to. Pass None to remove a previously configured endpoint.
+        :raises ValueError: If either name or url is unsuitable.
+        """
+        if url is None:
+            self.reporting_endpoints.pop(name, None)
+            return
+        self._validate_reporting_endpoint(name, url)
+        self.reporting_endpoints[name] = url
+
+    def _build_reporting_endpoints_header(self) -> str:
+        """Build the value of the ``Reporting-Endpoints`` header; empty string if no endpoint is configured."""
+        return ", ".join(f'{name}="{url}"' for name, url in self.reporting_endpoints.items())
+
+    def _validate_reporting_config(self) -> None:
+        """Ensure the reporting configuration as a whole is sane; called by :meth:`finalize`.
+
+        Every configured endpoint must be emittable and each CSP ``report-to`` directive must name one of them.
+
+        :raises ValueError: If a configured endpoint is unsuitable.
+        """
+        for name, url in self.reporting_endpoints.items():
+            self._validate_reporting_endpoint(name, url)
+        for enforce_mode in ("monitor", "enforce"):
+            for name in (self.content_security_policy or {}).get(enforce_mode, {}).get("report-to", []):
+                if name not in self.reporting_endpoints:
+                    logging.warning(f"The CSP directive report-to names the endpoint {name!r} in {enforce_mode!r} "
+                                    f"mode, but no such reporting endpoint is configured. "
+                                    f"The browser will drop the reports.")
+        if self.reporting_endpoints and conf.instance.is_dev_server:
+            logging.warning("Reporting endpoints are configured, but browsers drop them unless they are served over "
+                            "https -- expect no reports on a plain http development server.")
+
+    def _validate_reporting_endpoint(self, name: str, url: str) -> None:
+        """Ensure a reporting endpoint can be emitted as ``Reporting-Endpoints`` header without breaking it.
+
+        :raises ValueError: If either name or url is unsuitable.
+        """
+        if not self._REPORTING_ENDPOINT_NAME_RE.match(name):
+            raise ValueError(f"Invalid endpoint name {name!r}, must match {self._REPORTING_ENDPOINT_NAME_RE.pattern}")
+        if not url or any(char in url for char in "\"',;\\") or any(char.isspace() for char in url):
+            raise ValueError(f"Invalid character in url {url!r} of endpoint {name!r}")
+        if "://" in url and not url.lower().startswith("https://"):
+            raise ValueError(f"An absolute url must use the https scheme, got {url!r} for endpoint {name!r}")
 
     def extend_csp(self, additional_rules: t.Optional[dict] = None, override_rules: t.Optional[dict] = None) -> None:
         """Extend/override the project-wide CSP for the *current* request only (``enforce`` mode).
@@ -702,6 +804,7 @@ class Security(ConfigType):
             assert mode in ("deny", "sameorigin", "allow-from")
             if mode == "allow-from":
                 assert uri is not None and (uri.lower().startswith("https://") or uri.lower().startswith("http://"))
+        self._validate_reporting_config()
 
     def update_response_headers(self, response, *, is_ssl: bool) -> None:
         """Emit all configured security headers onto ``response`` (a webob Response).
@@ -711,6 +814,9 @@ class Security(ConfigType):
         if self._csp_header_cache:
             for header_name, value in self._csp_header_cache.items():
                 response.headers[header_name] = value
+        # Endpoints referenced by the CSP-directive "report-to" and others
+        if reporting_endpoints := self._build_reporting_endpoints_header():
+            response.headers["Reporting-Endpoints"] = reporting_endpoints
         if is_ssl and self.strict_transport_security:
             response.headers["Strict-Transport-Security"] = self.strict_transport_security
         if self.x_content_type_options:
@@ -853,6 +959,12 @@ class I18N(ConfigType):
 
     language_alias_map: dict[str, str] = {}
     """Allows mapping of certain languages to one translation (i.e. us->en)"""
+
+    fallback_languages: Multiple[str] = []
+    """Languages tried in order when the requested language has no translation"""
+
+    sources: Multiple["i18n.TranslationSource"] = None
+    """Translation sources, loaded in order; None uses i18n.DEFAULT_TRANSLATION_SOURCES"""
 
     language_method: t.Literal["session", "url", "domain", "header"] = "session"
     """Defines how translations are applied:

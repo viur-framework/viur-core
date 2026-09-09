@@ -3,6 +3,7 @@ The constants, global variables and container classes used in the datastore api
 """
 from __future__ import annotations
 
+import copy
 import datetime
 import enum
 import itertools
@@ -26,6 +27,10 @@ current_db_access_log: ContextVar[t.Optional[set[t.Union[Key, str]]]] = ContextV
 
 
 class SortOrder(enum.Enum):
+    """
+    Defines possible types of sort orders for queries.
+    """
+
     Ascending = 1
     """Sort A->Z"""
     Descending = 2
@@ -34,6 +39,27 @@ class SortOrder(enum.Enum):
     """Fetch Z->A, then flip the results (useful in pagination to go from a start cursor backwards)"""
     InvertedDescending = 4
     """Fetch A->Z, then flip the results (useful in pagination)"""
+
+    @classmethod
+    def from_str(cls, ident: str | int) -> SortOrder:
+        """
+        Parses a string defining a sort order into a db.SortOrder.
+        """
+        match str(ident or "").lower():
+            case "desc" | "descending" | "1":
+                return SortOrder.Descending
+            case "inverted_asc" | "inverted_ascending" | "2":
+                return SortOrder.InvertedAscending
+            case "inverted_desc" | "inverted_descending" | "3":
+                return SortOrder.InvertedDescending
+            case _:  # everything else
+                return SortOrder.Ascending
+
+
+class QueryOrder(t.NamedTuple):
+    """A named tuple describing a single sort order for a datastore query."""
+    name: str
+    order: SortOrder = SortOrder.Ascending
 
 
 class Key(Datastore_key):
@@ -57,14 +83,32 @@ class Key(Datastore_key):
                 id_or_name = int(id_or_name)
             new_path_args.extend((kind, id_or_name))
 
+        from .transport import __client__  # noqa: E402 # import works only here because circular imports
+
         if project is None:
-            from .transport import __client__  # noqa: E402 # import works only here because circular imports
             project = __client__.project
+
+        # Keys must match the client's db/namespace or Datastore rejects the
+        # request as cross-database. Default from the client; caller wins.
+        if __client__.database:
+            kwargs.setdefault("database", __client__.database)
+        if __client__.namespace:
+            kwargs.setdefault("namespace", __client__.namespace)
 
         super().__init__(*new_path_args, project=project, **kwargs)
 
     def __str__(self):
         return self.to_legacy_urlsafe().decode("ASCII")
+
+    def to_legacy_urlsafe(self, location_prefix=None):
+        # Upstream to_legacy_urlsafe() rejects keys carrying a database, but
+        # str(key)/session paths hit it constantly. Encode a database-less copy —
+        # unambiguous to restore since the process talks to a single database.
+        # A copy keeps this thread-safe: mutating self._database in place would
+        # let concurrent encodes of the same Key clobber each other's state.
+        clone = copy.copy(self)
+        clone._database = None
+        return super(Key, clone).to_legacy_urlsafe(location_prefix=location_prefix)
 
     '''
     def __repr__(self):
@@ -165,8 +209,9 @@ KeyType: t.TypeAlias = Key | str | int
 Alias that describes a key-type.
 """
 
-TOrders: t.TypeAlias = list[tuple[str, SortOrder]]
+TOrders: t.TypeAlias = list[QueryOrder]
 TFilters: t.TypeAlias = dict[str, DATASTORE_BASE_TYPES | list[DATASTORE_BASE_TYPES]]
+TOrFilters: t.TypeAlias = list[list[tuple[str, DATASTORE_BASE_TYPES | list[DATASTORE_BASE_TYPES]]]]
 
 
 @dataclass
@@ -186,6 +231,10 @@ class QueryDefinition:
 
     distinct: t.Optional[list[str]] = None
     """If set, a list of fields that we should return distinct values of"""
+
+    or_filters: "TOrFilters" = field(default_factory=list)
+    """Each entry is a list of (filterStr, value) pairs that are OR-ed together.
+    Multiple entries are AND-ed with each other and with the AND filters."""
 
     limit: int = field(init=False)
     """The maximum amount of entities that should be returned"""

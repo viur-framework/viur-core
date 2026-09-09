@@ -176,6 +176,54 @@ class TestSpatialBoneSingleValueFromClient(ViURTestCase):
         self.assertIsNotNone(err)
 
 
+class TestSpatialBoneSetBoneValue(ViURTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.bone = _bone()
+
+    def _set(self, value, append=False):
+        skel = {}
+        self.bone.setBoneValue(skel, "location", value, append)
+        return skel.get("location")
+
+    def test_tuple(self):
+        self.assertEqual((51.0, 10.0), self._set((51.0, 10.0)))
+
+    def test_list(self):
+        self.assertEqual((51.0, 10.0), self._set([51.0, 10.0]))
+
+    def test_dict_lat_lng(self):
+        self.assertEqual((51.0, 10.0), self._set({"lat": 51.0, "lng": 10.0}))
+
+    def test_dict_lat_lon_raises(self):
+        with self.assertRaises(ValueError):
+            self._set({"lat": 51.0, "lon": 10.0})
+
+    def test_dict_latitude_longitude_raises(self):
+        with self.assertRaises(ValueError):
+            self._set({"latitude": 51.0, "longitude": 10.0})
+
+    def test_dict_string_values_parsed(self):
+        self.assertEqual((51.0, 10.0), self._set({"lat": "51.0", "lng": "10.0"}))
+
+    def test_dict_missing_lng_raises(self):
+        with self.assertRaises(ValueError):
+            self._set({"lat": 51.0})
+
+    def test_dict_missing_lat_raises(self):
+        with self.assertRaises(ValueError):
+            self._set({"lng": 10.0})
+
+    def test_invalid_type_raises(self):
+        with self.assertRaises(ValueError):
+            self._set("52.5,13.4")
+
+    def test_append_raises(self):
+        with self.assertRaises(ValueError):
+            self._set((51.0, 10.0), append=True)
+
+
 class TestSpatialBoneSingleValueUnserialize(ViURTestCase):
 
     def setUp(self):
@@ -189,3 +237,55 @@ class TestSpatialBoneSingleValueUnserialize(ViURTestCase):
     def test_falsy_returns_none(self):
         self.assertIsNone(self.bone.singleValueUnserialize(None))
         self.assertIsNone(self.bone.singleValueUnserialize({}))
+
+
+class TestSpatialBoneBuildDBFilter(ViURTestCase):
+    """An invalid geo filter has to make the query unsatisfiable, not drop the constraint."""
+
+    def _query(self):
+        from viur.core import db
+        return db.Query("test")
+
+    def test_unparsable_coordinates_clear_the_query(self):
+        query = self._query()
+        _bone().buildDBFilter("location", {}, query, {"location.lat": "abc", "location.lng": "13.4"})
+        self.assertIsNone(query.queries)
+
+    def test_coordinates_out_of_bounds_clear_the_query(self):
+        query = self._query()
+        # Outside of BOUNDS_LAT/BOUNDS_LNG (Germany)
+        _bone().buildDBFilter("location", {}, query, {"location.lat": "10.0", "location.lng": "10.0"})
+        self.assertIsNone(query.queries)
+
+    def test_valid_coordinates_keep_the_query(self):
+        query = self._query()
+        _bone().buildDBFilter("location", {}, query, {"location.lat": "52.5", "location.lng": "13.4"})
+        self.assertIsNotNone(query.queries)
+
+    def test_bone_not_in_filter_is_a_noop(self):
+        query = self._query()
+        before = query.queries
+        _bone().buildDBFilter("location", {}, query, {"other": "1"})
+        self.assertIs(before, query.queries)
+
+
+class TestSpatialBoneSetBoneValueContract(ViURTestCase):
+    """setBoneValue must report success with a bool, like every other bone."""
+
+    def test_returns_true_on_tuple(self):
+        bone = _bone()
+        skel = {}
+        self.assertTrue(bone.setBoneValue(skel, "location", (52.5, 13.4), False))
+        self.assertEqual((52.5, 13.4), skel["location"])
+
+    def test_returns_true_on_list(self):
+        bone = _bone()
+        skel = {}
+        self.assertTrue(bone.setBoneValue(skel, "location", [52.5, 13.4], False))
+        self.assertEqual((52.5, 13.4), skel["location"])
+
+    def test_returns_true_on_dict(self):
+        bone = _bone()
+        skel = {}
+        self.assertTrue(bone.setBoneValue(skel, "location", {"lat": 52.5, "lng": 13.4}, False))
+        self.assertEqual((52.5, 13.4), skel["location"])

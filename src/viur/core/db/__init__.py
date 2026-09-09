@@ -14,6 +14,7 @@ from .transport import (
     Delete,
     get,
     Get,
+    MAX_LOOKUP_KEYS,
     put,
     Put,
     run_in_transaction,
@@ -27,6 +28,7 @@ from .types import (
     Key,
     KeyType,
     QueryDefinition,
+    QueryOrder,
     SortOrder,
 )
 from .utils import (
@@ -51,6 +53,7 @@ __all__ = [
     "KEY_SPECIAL_PROPERTY",
     "DATASTORE_BASE_TYPES",
     "SortOrder",
+    "QueryOrder",
     "Entity",
     "QueryDefinition",
     "Key",
@@ -78,6 +81,8 @@ __all__ = [
     "allocate_ids",
     "get",
     "put",
+    "delete",
+    "MAX_LOOKUP_KEYS",
     "is_in_transaction",
     "run_in_transaction",
     "count",

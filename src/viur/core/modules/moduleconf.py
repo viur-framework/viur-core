@@ -151,7 +151,9 @@ class ModuleConf(List):
     @tasks.StartupTask
     @staticmethod
     def read_all_modules():
-        db_module_names = (m["name"] for m in db.Query(MODULECONF_KINDNAME).run(999))
+        # Must be a set, not a generator: the membership test below runs once per module
+        # and a generator would be consumed by it (see #1762).
+        db_module_names = {m["name"] for m in db.Query(MODULECONF_KINDNAME).run(999)}
         visited_modules = set()
 
         def collect_modules(parent, depth: int = 0, prefix: str = "") -> None:

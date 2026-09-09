@@ -27,6 +27,11 @@ def extendCsp(additionalRules: dict = None, overrideRules: dict = None) -> None:
     return conf.security.extend_csp(additionalRules, overrideRules)
 
 
+def set_reporting_endpoint(name: str, url: str | None) -> None:
+    _deprecated("set_reporting_endpoint", "set_reporting_endpoint")
+    return conf.security.set_reporting_endpoint(name, url)
+
+
 def enableStrictTransportSecurity(maxAge: int = 365 * 24 * 60 * 60,
                                   includeSubDomains: bool = False,
                                   preload: bool = False) -> None:
