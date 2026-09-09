@@ -567,10 +567,11 @@ class BaseBone(object):
         """
         if (getattr(self, "_bone_sealed", False) and conf.bone_strict_mode
                 and not key.startswith("_") and not hasattr(self, key)):
+            # name/obj let Python's traceback machinery append "Did you mean: 'readOnly'?"
             raise AttributeError(
                 f"{type(self).__name__} has no attribute {key!r} -- set after construction with "
-                f"bone_strict_mode enabled (typo? e.g. 'readonly' instead of 'readOnly'). "
-                f"Disable via conf.bone_strict_mode = False."
+                f"bone_strict_mode enabled. Disable via conf.bone_strict_mode = False.",
+                name=key, obj=self,
             )
         if not self.isClonedInstance and getSystemInitialized() and key != "isClonedInstance" and not key.startswith(
                 "_"):

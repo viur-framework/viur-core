@@ -1,3 +1,5 @@
+import traceback
+
 from abstract import ViURTestCase
 
 
@@ -26,8 +28,10 @@ class TestBoneStrictMode(ViURTestCase):
         from viur.core import conf
         conf.bone_strict_mode = True
         bone = self._sealed_bone()
-        with self.assertRaises(AttributeError):
+        with self.assertRaises(AttributeError) as cm:
             bone.readonly = True  # typo of readOnly -> must be rejected
+        # Python's traceback machinery derives the suggestion from AttributeError.name/.obj
+        self.assertIn("Did you mean: 'readOnly'", "".join(traceback.format_exception_only(cm.exception)))
 
     def test_known_attr_allowed_when_strict(self):
         from viur.core import conf
