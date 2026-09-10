@@ -283,7 +283,10 @@ def cloudfunction_thumbnailer(fileSkel, existingFiles, params):
 
     uploadUrls = {}
     for data in derivedData["values"]:
-        fileName = conf.main_app.file.sanitize_filename(data["name"])
+        if not conf.main_app.file.is_valid_filename(data["name"]):
+            raise errors.UnprocessableEntity(f"""Invalid derived filename {data["name"]!r} provided""")
+
+        fileName = urlquote(data["name"])
         blob = bucket.blob(f"""{fileSkel["dlkey"]}/derived/{fileName}""")
         uploadUrls[fileSkel["dlkey"] + fileName] = blob.create_resumable_upload_session(timeout=60,
                                                                                         content_type=data["mimeType"])
@@ -764,7 +767,7 @@ class File(Tree):
 
         if isinstance(file, i18n.LanguageWrapper):
             language = language or current.language.get()
-            if not language or not (file := cls.get(language)):
+            if not language or not (file := file.get(language)):
                 return ""
 
         if "dlkey" not in file and "dest" in file:
@@ -897,7 +900,7 @@ class File(Tree):
         fileskel["size"] = blob.size
         fileskel["mimetype"] = mimetype
         fileskel["dlkey"] = dl_key
-        fileskel["weak"] = bool(parentrepokey)
+        fileskel["weak"] = not parentrepokey
         fileskel["public"] = public
         fileskel["width"] = width
         fileskel["height"] = height
@@ -1489,7 +1492,7 @@ def doCheckForUnreferencedBlobs(cursor=None):
             fileObj = db.Query("viur-deleted-files").filter("dlkey", blobKey).getEntry()
             if fileObj:  # Its already marked
                 logging.info(f"Stale blob already marked for deletion, {blobKey}")
-                return
+                continue
             fileObj = db.Entity(db.Key("viur-deleted-files"))
             fileObj["itercount"] = 0
             fileObj["dlkey"] = str(blobKey)

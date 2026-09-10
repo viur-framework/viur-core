@@ -148,3 +148,42 @@ class TestDateBone_now(ViURTestCase):
         from viur.core.bones import DateBone
         self._assert_invalid(DateBone(), "nowfoo")
         self._assert_invalid(DateBone(), "now-foo")
+
+
+class TestDateBone_timestamp(ViURTestCase):
+    """Numeric input is read as a POSIX timestamp."""
+
+    bone_name = "myDateBone"
+
+    def _from_client(self, value):
+        from viur.core.bones import DateBone
+        return DateBone().singleValueFromClient(value, {}, self.bone_name, {self.bone_name: value})
+
+    def test_integer_timestamp(self):
+        value, errors = self._from_client("1000000000")
+        self.assertIsNone(errors)
+        self.assertEqual(dt.fromtimestamp(1000000000, tz=tz.utc), value)
+
+    def test_fractional_timestamp_does_not_raise(self):
+        """"1.5" passes the digit test, so it must not blow up in the conversion."""
+        value, errors = self._from_client("1.5")
+        self.assertIsNone(errors)
+        self.assertEqual(dt.fromtimestamp(1.5, tz=tz.utc).replace(microsecond=0), value)
+
+    def test_negative_fractional_timestamp_does_not_raise(self):
+        value, errors = self._from_client("-1.5")
+        self.assertIsNone(errors)
+        self.assertEqual(dt.fromtimestamp(-1.5, tz=tz.utc).replace(microsecond=0), value)
+
+    def test_out_of_range_timestamp_is_rejected(self):
+        value, errors = self._from_client(str(2 ** 31))
+        self.assertIsNone(value)
+        self.assertTrue(errors)
+
+    def test_misplaced_minus_is_rejected(self):
+        """The digit test only strips one "-" anywhere, so "1-2" reaches the conversion."""
+        for value in ("1-2", "12-", "1.2-3"):
+            with self.subTest(value=value):
+                result, errors = self._from_client(value)
+                self.assertIsNone(result)
+                self.assertTrue(errors)

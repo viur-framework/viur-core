@@ -138,7 +138,7 @@ class SkelModule(Module):
         if allow_client_defined:
             # if bonelist := current.request.get().kwargs.get(X_VIUR_BONELIST.lower()):  # DEBUG
             if bonelist := current.request.get().request.headers.get(X_VIUR_BONELIST):
-                if "*" not in skel_cls.subSkels:  # a named star-subskel "*"" must exist!
+                if "*" not in skel_cls.subSkels:  # a named star-subskel "*" must exist!
                     raise errors.BadRequest(f"Use of {X_VIUR_BONELIST!r} requires a defined star-subskel")
 
                 bones |= {bone.strip() for bone in bonelist.split(",")}
