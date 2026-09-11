@@ -406,6 +406,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 if bone_name == "key":  # Explicitly skip key on top-level - this had been set above
                     continue
 
+                if bone_name not in write_skel.boneMap:
+                    # The bone is not part of write_skel: it was either removed from it with
+                    # `skel.bone = None`, or it never was part of it (a subskel). Don't serialize
+                    # it, so that whatever is stored for it stays untouched. Its blobs are still
+                    # collected, otherwise the blob-lock below would release them for deletion.
+                    blob_list.update(bone.getReferencedBlobs(skel, bone_name))
+                    continue
+
                 # Allow bones to perform outstanding "magic" operations before saving to db
                 bone.performMagic(skel, bone_name, isAdd=is_add)  # FIXME VIUR4: ANY MAGIC IN OUR CODE IS DEPRECATED!!!
 
