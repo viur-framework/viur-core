@@ -2,6 +2,10 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.39]
+
+- fix: SEO key collision resolution was reverted on every write (#1778)
+
 ## [3.8.38]
 
 - fix: `allow_client_defined` was not in `List.view` (#1771)
