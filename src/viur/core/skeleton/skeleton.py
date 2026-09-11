@@ -491,7 +491,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             skel.dbEntity.pop("viur_incomming_relational_locks", None)
 
             # Ensure the SEO-Keys are up-to-date
-            last_requested_seo_keys = skel.dbEntity["viur"].get("viurLastRequestedSeoKeys") or {}
             last_set_seo_keys = skel.dbEntity["viur"].get("viurCurrentSeoKeys") or {}
             # Filter garbage serialized into this field by the SeoKeyBone
             last_set_seo_keys = {k: v for k, v in last_set_seo_keys.items() if not k.startswith("_") and v}
@@ -508,24 +507,27 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 if current_seo_keys and language in current_seo_keys:
                     current_seo_key = current_seo_keys[language]
 
-                    if current_seo_key != last_requested_seo_keys.get(language):  # This one is new or has changed
-                        new_seo_key = current_seo_keys[language]
-
-                        for _ in range(0, 3):
-                            entry_using_key = db.Query(skel.kindName).filter(
-                                "viur.viurActiveSeoKeys =", new_seo_key).getEntry()
-
-                            if entry_using_key and entry_using_key.key != skel.dbEntity.key:
-                                # It's not unique; append a random string and try again
-                                new_seo_key = f"{current_seo_keys[language]}-{utils.string.random(5).lower()}"
-
-                            else:
-                                # We found a new SeoKey
-                                break
-                        else:
-                            raise ValueError("Could not generate an unique seo key in 3 attempts")
-                    else:
+                    # Start from the key this entry currently holds: it may carry a suffix
+                    # from an earlier collision, and that suffix has to survive this write.
+                    new_seo_key = last_set_seo_keys.get(language) or current_seo_key
+                    if not (new_seo_key == current_seo_key or new_seo_key.startswith(f"{current_seo_key}-")):
+                        # The held key no longer derives from the requested one
                         new_seo_key = current_seo_key
+
+                    for _ in range(0, 3):
+                        entry_using_key = db.Query(skel.kindName).filter(
+                            "viur.viurActiveSeoKeys =", new_seo_key).getEntry()
+
+                        if entry_using_key and entry_using_key.key != skel.dbEntity.key:
+                            # It's not unique; append a random string and try again
+                            new_seo_key = f"{current_seo_key}-{utils.string.random(5).lower()}"
+
+                        else:
+                            # We found a new SeoKey
+                            break
+                    else:
+                        raise ValueError("Could not generate an unique seo key in 3 attempts")
+
                     last_set_seo_keys[language] = new_seo_key
 
                 else:
@@ -548,7 +550,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 skel.dbEntity["viur"]["viurActiveSeoKeys"].insert(0, str(skel.dbEntity.key.id_or_name))
             # Trim to the last 200 used entries
             skel.dbEntity["viur"]["viurActiveSeoKeys"] = skel.dbEntity["viur"]["viurActiveSeoKeys"][:200]
-            # Store lastRequestedKeys so further updates can run more efficient
+            # Store the requested keys; kept for applications reading this property
             skel.dbEntity["viur"]["viurLastRequestedSeoKeys"] = current_seo_keys
 
             # mark entity as "dirty" when update_relations is set, to zero otherwise.

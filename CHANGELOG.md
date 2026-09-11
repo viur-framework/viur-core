@@ -70,6 +70,10 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
 - test: Add unit tests for Bones and App Login Flow (get_cookie_for_app, apply_login_cookie) (#1661)
 
+## [3.8.39]
+
+- fix: SEO key collision resolution was reverted on every write (#1778)
+
 ## [3.8.38]
 
 - fix: `allow_client_defined` was not in `List.view` (#1771)
