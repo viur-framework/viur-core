@@ -2,7 +2,7 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.9.0.rc2]
+## [3.9.0]
 
 - chore: Deprecate endpoint `/vi/getStructure` (#1616)
 - chore: Move `BaseSkeleton` into own `base.py`-module (#1738)
@@ -43,12 +43,14 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - feat(StringBone): make `escape_html` globally configurable via `conf` (#1706)
 - fix: `BooleanBone` doesn't respect `vfunc/isInvalid` (#1694)
 - fix: `cache.flushCache` code path improvement (#1682)
+- fix: `cloudfunction_thumbnailer` filename verification (#1773)
 - fix: `ColorBone` rejects misplaced `#` and non-string values (#1753)
 - fix: `DateBone` `now` parsing (#1754)
 - fix: `db.keyHelper` was not flagged as deprecated
 - fix: `Email`-module requires to provide cloned edit skels (#1733)
 - fix: `getDefaultValue` shares one list across all languages of a multiple bone (#1752)
 - fix: `RelationalBone.postDeletedHandler` limit (#1767)
+- fix: `Skeleton.write()` must not resurrect removed bones (#1777)
 - fix: Add `setSystemInitialized` in `SeoKeyBone` to set the languages (#1703)
 - fix: Avoid compute bones when the skel in deleted in a cascade (#1581)
 - fix: Code fixes due long aging and invalid merge
@@ -58,16 +60,20 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: known bugs quick fixes (#1770)
 - fix: Make user `Status` an `IntEnum` for cross-project comparability (#1737)
 - fix: Reject RFC 5321 violations in EmailBone local part (#1696)
+- fix: resolve further known bugs (#1772)
+- fix: Use `history` as default kindname (#1775)
 - fix: validate required `FileBone` refKeys and export `max_file_size` (#1755)
 - fix(db): repair the datastore cache read path (#1760)
 - fix(email): remove hard retry cap to allow recovery from transient failures (#1749)
 - fix(file): parse absolute download URLs and an appended file name (#1750)
 - fix(tree): delete a node only after its entire subtree is gone (#1731)
+- fix(utils): `Decimal` support in `viur.core.utils.json` (#1774)
 - perf: `RelationalBone.postSavedHandler` batched writes (#1768)
 - refactor: Deprecate `/vi/getVersion` and `/vi/settings` (#1669)
 - refactor: migrate CaptchaBone to reCAPTCHA Enterprise (#1680)
 - refactor: Provide and use `_can_access`-function in vi-render (#1659)
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
+- refactor(bones): restructure `EmailBone.isInvalid` validation (#1730)
 - test: Add unit tests for Bones and App Login Flow (get_cookie_for_app, apply_login_cookie) (#1661)
 
 ## [3.8.39]
