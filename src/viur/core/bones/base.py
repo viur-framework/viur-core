@@ -474,9 +474,6 @@ class BaseBone(object):
     def __set_name__(self, owner: "Skeleton", name: str) -> None:
         self.skel_cls = owner
         self.name = name
-        # Construction is complete once the bone is bound to its Skeleton: from here on,
-        # bone_strict_mode rejects assignment of unknown attribute names (see __setattr__).
-        self._bone_sealed = True
 
     def setSystemInitialized(self) -> None:
         """
@@ -578,7 +575,9 @@ class BaseBone(object):
         :raises AttributeError: If a protected attribute is attempted to be modified after its initial
             assignment.
         """
-        if (getattr(self, "_bone_sealed", False) and conf.bone_strict_mode
+        # Bound to a Skeleton (skel_cls is set in __set_name__) means construction is complete:
+        # from here on bone_strict_mode rejects assignment of unknown attribute names.
+        if (self.skel_cls is not None and conf.bone_strict_mode
                 and not key.startswith("_") and not hasattr(self, key)):
             # name/obj let Python's traceback machinery append "Did you mean: 'readOnly'?"
             raise AttributeError(

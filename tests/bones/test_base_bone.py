@@ -80,19 +80,19 @@ class TestBoneStrictMode(ViURTestCase):
         conf.bone_strict_mode = True  # restore default so the flag does not leak into other tests
         super().tearDown()
 
-    def _sealed_bone(self):
-        """A bone that is 'construction complete' (sealed via __set_name__) and marked cloned, so
-        only the strict-mode guard is in play (not the unrelated 'clone first' guard)."""
+    def _bound_bone(self):
+        """A bone that is 'construction complete' (bound to a skel via __set_name__) and marked cloned,
+        so only the strict-mode guard is in play (not the unrelated 'clone first' guard)."""
         from viur.core.bones import StringBone
         bone = StringBone()
-        bone.__set_name__(TestBoneStrictMode, "test")  # binds to a skel -> seals the bone
+        bone.__set_name__(TestBoneStrictMode, "test")  # binds to a skel -> construction complete
         bone.isClonedInstance = True
         return bone
 
     def test_unknown_attr_raises_when_strict(self):
         from viur.core import conf
         conf.bone_strict_mode = True
-        bone = self._sealed_bone()
+        bone = self._bound_bone()
         with self.assertRaises(AttributeError) as cm:
             bone.readonly = True  # typo of readOnly -> must be rejected
         # Python's traceback machinery derives the suggestion from AttributeError.name/.obj
@@ -101,14 +101,14 @@ class TestBoneStrictMode(ViURTestCase):
     def test_known_attr_allowed_when_strict(self):
         from viur.core import conf
         conf.bone_strict_mode = True
-        bone = self._sealed_bone()
+        bone = self._bound_bone()
         bone.readOnly = True  # existing attribute -> allowed
         self.assertTrue(bone.readOnly)
 
     def test_unknown_attr_allowed_when_disabled(self):
         from viur.core import conf
         conf.bone_strict_mode = False
-        bone = self._sealed_bone()
+        bone = self._bound_bone()
         bone.readonly = True  # guard off -> legacy silent-set behaviour
         self.assertTrue(bone.readonly)
 
