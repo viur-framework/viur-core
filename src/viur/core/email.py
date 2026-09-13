@@ -100,9 +100,6 @@ class EmailTransport(ABC):
 
     Implement for a specific service and set the instance to :attr:`conf.email.transport_class`
     """
-    max_retries = 3
-    """maximum number of attempts to send a email."""
-
     @abstractmethod
     def deliver_email(
         self,
@@ -226,9 +223,6 @@ def send_email_deferred(key: db.Key):
     transport_class = conf.email.transport_class  # First, ensure we're able to send email at all
     if not isinstance(transport_class, EmailTransport):
         raise ValueError(f"No or invalid email transportclass specified! ({transport_class=})")
-
-    if queued_email["errorCount"] > transport_class.max_retries:
-        raise ChildProcessError("Error-Count exceeded")
 
     try:
         # A datastore entity has no empty lists or dicts, these values always
@@ -406,7 +400,8 @@ def send_email(
     transport_class.validate_queue_entity(queued_email)  # Will raise an exception if the entity is not valid
 
     if conf.instance.is_dev_server:
-        if not conf.email.send_from_local_development_server or transport_class is EmailTransportAppengine:
+        if (not conf.email.send_from_local_development_server
+                or isinstance(transport_class, EmailTransportAppengine)):
             logging.info("Not sending email from local development server")
             logging.info(f"""Subject: {queued_email["subject"]}""")
             logging.info(f"""Body: {queued_email["body"]}""")
@@ -582,7 +577,7 @@ class EmailTransportBrevo(EmailTransport):
 
         .. seealso:: https://developers.brevo.com/reference/getaccount
         """
-        if not isinstance(conf.email.transport_class, EmailTransportSendInBlue):
+        if not isinstance(conf.email.transport_class, EmailTransportBrevo):
             return  # no SIB key, we cannot check
 
         req = requests.get(

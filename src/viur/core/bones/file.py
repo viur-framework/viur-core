@@ -196,14 +196,22 @@ class FileBone(TreeLeafBone):
         """
         super().__init__(refKeys=refKeys, **kwargs)
 
-        for _required in ("dlkey", "name"):
-            if _required not in self.refKeys:
-                raise ValueError(f"FileBone not operable without refKey {_required!r}")
-
         self.derive = derive
         self.public = public
         self.validMimeTypes = validMimeTypes
         self.maxFileSize = maxFileSize
+
+        # isInvalid() reads these bones from the RefSkel; a missing one silently
+        # becomes None there, so require them up-front instead.
+        for _required in ("dlkey", "name", "public"):
+            if _required not in self.refKeys:
+                raise ValueError(f"FileBone not operable without refKey {_required!r}")
+
+        if self.validMimeTypes and "mimetype" not in self.refKeys:
+            raise ValueError("FileBone with validMimeTypes not operable without refKey 'mimetype'")
+
+        if self.maxFileSize and "size" not in self.refKeys:
+            raise ValueError("FileBone with maxFileSize not operable without refKey 'size'")
 
     def isInvalid(self, value):
         """
@@ -370,6 +378,7 @@ class FileBone(TreeLeafBone):
     def structure(self) -> dict:
         return super().structure() | {
             "valid_mime_types": self.validMimeTypes,
+            "max_file_size": self.maxFileSize,
             "public": self.public,
         }
 

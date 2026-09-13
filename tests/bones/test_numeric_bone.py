@@ -575,3 +575,20 @@ class TestNumericBoneInit(ViURTestCase):
         from viur.core.bones import NumericBone
         bone = NumericBone(precision=2)
         self.assertIsInstance(bone.getEmptyValue(), float)
+
+
+class TestNumericBoneMinMaxError(ViURTestCase):
+    """The min/max error must carry a usable translation key and a default text."""
+
+    def _error(self, value):
+        from viur.core.bones import NumericBone
+        bone = NumericBone(min=1, max=10)
+        _, errors = bone.singleValueFromClient(value, {}, "amount", {})
+        self.assertEqual(1, len(errors))
+        return errors[0]
+
+    def test_key_is_not_merged_with_the_default_text(self):
+        self.assertEqual("core.bones.error.minmax", self._error(20).errorMessage.key)
+
+    def test_default_text_is_rendered(self):
+        self.assertEqual("Value not between 1 and 10", str(self._error(20).errorMessage))

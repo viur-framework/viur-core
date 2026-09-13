@@ -88,6 +88,9 @@ class Email(List):
     def canAdd(self):
         return False
 
+    def editSkel(self):
+        return super().editSkel().ensure_is_cloned()  # might be modified by canEdit!
+
     def canEdit(self, skel):
         if super().canEdit(skel):
             if skel["isSend"]:

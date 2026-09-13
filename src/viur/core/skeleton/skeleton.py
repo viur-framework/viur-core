@@ -9,7 +9,8 @@ from deprecated.sphinx import deprecated
 
 from viur.core import conf, db, errors, utils
 from . import tasks
-from .meta import BaseSkeleton, MetaSkel, _UNDEFINED_KINDNAME
+from .base import BaseSkeleton
+from .meta import MetaSkel, _UNDEFINED_KINDNAME
 from .utils import skeletonByKind
 from ..bones.base import (
     Compute,
@@ -108,6 +109,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         readOnly=True,
         visible=False,
         searchable=True,
+        tags="technical",
     )
 
     name = StringBone(
@@ -129,6 +131,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             lambda: utils.utcNow().replace(microsecond=0),
             interval=ComputeInterval(ComputeMethod.Once)
         ),
+        tags="technical",
     )
 
     # The last date (including time) when this entry has been updated
@@ -142,13 +145,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             lambda: utils.utcNow().replace(microsecond=0),
             interval=ComputeInterval(ComputeMethod.OnWrite)
         ),
+        tags="technical",
     )
 
     viurCurrentSeoKeys = SeoKeyBone(
         descr="SEO-Keys",
         readOnly=True,
         visible=False,
-        languages=conf.i18n.available_languages
+        languages=conf.i18n.available_languages,
     )
 
     def __repr__(self):
@@ -402,6 +406,14 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 if bone_name == "key":  # Explicitly skip key on top-level - this had been set above
                     continue
 
+                if bone_name not in write_skel.boneMap:
+                    # The bone is not part of write_skel: it was either removed from it with
+                    # `skel.bone = None`, or it never was part of it (a subskel). Don't serialize
+                    # it, so that whatever is stored for it stays untouched. Its blobs are still
+                    # collected, otherwise the blob-lock below would release them for deletion.
+                    blob_list.update(bone.getReferencedBlobs(skel, bone_name))
+                    continue
+
                 # Allow bones to perform outstanding "magic" operations before saving to db
                 bone.performMagic(skel, bone_name, isAdd=is_add)  # FIXME VIUR4: ANY MAGIC IN OUR CODE IS DEPRECATED!!!
 
@@ -479,7 +491,6 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             skel.dbEntity.pop("viur_incomming_relational_locks", None)
 
             # Ensure the SEO-Keys are up-to-date
-            last_requested_seo_keys = skel.dbEntity["viur"].get("viurLastRequestedSeoKeys") or {}
             last_set_seo_keys = skel.dbEntity["viur"].get("viurCurrentSeoKeys") or {}
             # Filter garbage serialized into this field by the SeoKeyBone
             last_set_seo_keys = {k: v for k, v in last_set_seo_keys.items() if not k.startswith("_") and v}
@@ -496,24 +507,27 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 if current_seo_keys and language in current_seo_keys:
                     current_seo_key = current_seo_keys[language]
 
-                    if current_seo_key != last_requested_seo_keys.get(language):  # This one is new or has changed
-                        new_seo_key = current_seo_keys[language]
-
-                        for _ in range(0, 3):
-                            entry_using_key = db.Query(skel.kindName).filter(
-                                "viur.viurActiveSeoKeys =", new_seo_key).getEntry()
-
-                            if entry_using_key and entry_using_key.key != skel.dbEntity.key:
-                                # It's not unique; append a random string and try again
-                                new_seo_key = f"{current_seo_keys[language]}-{utils.string.random(5).lower()}"
-
-                            else:
-                                # We found a new SeoKey
-                                break
-                        else:
-                            raise ValueError("Could not generate an unique seo key in 3 attempts")
-                    else:
+                    # Start from the key this entry currently holds: it may carry a suffix
+                    # from an earlier collision, and that suffix has to survive this write.
+                    new_seo_key = last_set_seo_keys.get(language) or current_seo_key
+                    if not (new_seo_key == current_seo_key or new_seo_key.startswith(f"{current_seo_key}-")):
+                        # The held key no longer derives from the requested one
                         new_seo_key = current_seo_key
+
+                    for _ in range(0, 3):
+                        entry_using_key = db.Query(skel.kindName).filter(
+                            "viur.viurActiveSeoKeys =", new_seo_key).getEntry()
+
+                        if entry_using_key and entry_using_key.key != skel.dbEntity.key:
+                            # It's not unique; append a random string and try again
+                            new_seo_key = f"{current_seo_key}-{utils.string.random(5).lower()}"
+
+                        else:
+                            # We found a new SeoKey
+                            break
+                    else:
+                        raise ValueError("Could not generate an unique seo key in 3 attempts")
+
                     last_set_seo_keys[language] = new_seo_key
 
                 else:
@@ -536,7 +550,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 skel.dbEntity["viur"]["viurActiveSeoKeys"].insert(0, str(skel.dbEntity.key.id_or_name))
             # Trim to the last 200 used entries
             skel.dbEntity["viur"]["viurActiveSeoKeys"] = skel.dbEntity["viur"]["viurActiveSeoKeys"][:200]
-            # Store lastRequestedKeys so further updates can run more efficient
+            # Store the requested keys; kept for applications reading this property
             skel.dbEntity["viur"]["viurLastRequestedSeoKeys"] = current_seo_keys
 
             # mark entity as "dirty" when update_relations is set, to zero otherwise.

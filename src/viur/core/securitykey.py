@@ -37,8 +37,9 @@ def create(
         session_bound: bool = True,
         key_length: int = 13,
         indexed: bool = True,
+        amount: int = 1,
         **custom_data,
-) -> str:
+) -> str | tuple[str]:
     """
         Creates a new one-time CSRF-security-key.
 
@@ -50,36 +51,42 @@ def create(
         :param indexed: Indexes all values stored with the security-key (default), set False to not index.
         :param key_length: Allows to modify the length of the generated randomized key
         :param custom_data: Any other data is stored with the CSRF-token, for later re-use.
+        :param amount: The amount of CSRF-tokens to generate.
 
-        :returns: The new one-time key, which is a randomized string.
+        :returns: The new one-time key. This is always a randomized string. \
+            In case amount > 1 is returned, it will be a tuple of strings with the keys.
     """
     if any(k.startswith("viur_") for k in custom_data):
         raise ValueError("custom_data keys with a 'viur_'-prefix are reserved.")
-
+    if amount < 1 or amount > 500:
+        raise ValueError("amount must be between 1 and 500.")
     if not duration:
         duration = conf.user.session_life_time if session_bound else SECURITYKEY_DURATION
 
-    key = utils.string.random(key_length)
+    entities = []
+    for i in range(amount):
+        key = utils.string.random(key_length)
+        entity = db.Entity(db.Key(SECURITYKEY_KINDNAME, key))
+        entity |= custom_data
+        if session_bound:
+            session = current.session.get()
+            if not session.loaded:
+                session.reset()
+            entity["viur_session"] = session.cookie_key
 
-    entity = db.Entity(db.Key(SECURITYKEY_KINDNAME, key))
-    entity |= custom_data
-    if session_bound:
-        session = current.session.get()
-        if not session.loaded:
-            session.reset()
-        entity["viur_session"] = session.cookie_key
+        else:
+            entity["viur_session"] = None
 
-    else:
-        entity["viur_session"] = None
+        entity["viur_until"] = utils.utcNow() + utils.parse.timedelta(duration)
 
-    entity["viur_until"] = utils.utcNow() + utils.parse.timedelta(duration)
+        if not indexed:
+            entity.exclude_from_indexes = [k for k in entity.keys() if not k.startswith("viur_")]
+        entities.append(entity)
 
+    db.put(entities)
 
-    if not indexed:
-        entity.exclude_from_indexes = [k for k in entity.keys() if not k.startswith("viur_")]
-
-    db.put(entity)
-
+    if amount > 1:
+        return tuple(entity.key.id_or_name for entity in entities)
     return key
 
 

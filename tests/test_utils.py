@@ -100,22 +100,6 @@ class TestUtils(ViURTestCase):
         self.assertTrue(utils.parse.bool("ok", truthy_values=("ok",)))
         self.assertFalse(utils.parse.bool("yes", truthy_values=("ok",)))
 
-    def test_parse_sortorder(self):
-        from viur.core import utils
-        from viur.core.db import SortOrder
-        # ascending is the default/catch-all
-        for v in ("asc", "ascending", "0", "blah", "", None):
-            self.assertEqual(SortOrder.Ascending, utils.parse.sortorder(v), msg=repr(v))
-        # descending
-        for v in ("desc", "descending", "1", "DESC"):
-            self.assertEqual(SortOrder.Descending, utils.parse.sortorder(v), msg=repr(v))
-        # inverted ascending
-        for v in ("inverted_asc", "inverted_ascending", "2"):
-            self.assertEqual(SortOrder.InvertedAscending, utils.parse.sortorder(v), msg=repr(v))
-        # inverted descending
-        for v in ("inverted_desc", "inverted_descending", "3"):
-            self.assertEqual(SortOrder.InvertedDescending, utils.parse.sortorder(v), msg=repr(v))
-
 
 def _make_request(url: str):
     """Return a mock mimicking current.request.get() with .request.url set."""

@@ -118,6 +118,79 @@ class TestTextBone_fromClient(ViURTestCase):
         )
         self.assertEqual(1, len(result))
 
+    def test_escape_html_requires_valid_html_none(self):
+        from viur.core.bones import TextBone
+        # The default validHtml (conf.bone_html_default_allow) conflicts with a disabled escaping
+        with self.assertRaises(ValueError):
+            TextBone(escape_html=False)
+        # ... an explicitly given validHtml as well
+        with self.assertRaises(ValueError):
+            TextBone(validHtml={"validTags": ["b"]}, escape_html=False)
+        # Only the plain-text mode may skip the sanitizer
+        TextBone(validHtml=None, escape_html=False)
+
+    def test_escape_html_false_keeps_value_raw(self):
+        from viur.core.bones import TextBone
+        bone = TextBone(validHtml=None, escape_html=False)
+        skel = {}
+        client_value = 'line 1 with <b>bold</b> and a < b\nline 2 with "quotes" and \'apostrophes\'\nline 3'
+        res = bone.singleValueFromClient(client_value, skel, self.bone_name, None)
+        self.assertEqual((client_value, None), res)
+
+    def test_escape_html_false_still_validates(self):
+        from viur.core.bones import TextBone
+        from viur.core.bones import ReadFromClientError, ReadFromClientErrorSeverity
+        bone = TextBone(validHtml=None, escape_html=False, max_length=5)
+        skel = {}
+        # None is still rejected
+        value, errors = bone.singleValueFromClient(None, skel, self.bone_name, None)
+        self.assertEqual("", value)
+        self.assertIsInstance(rfce := errors[0], ReadFromClientError)
+        self.assertIs(ReadFromClientErrorSeverity.Invalid, rfce.severity)
+        # max_length is still enforced
+        value, errors = bone.singleValueFromClient("too long", skel, self.bone_name, None)
+        self.assertEqual("", value)
+        self.assertIsInstance(errors[0], ReadFromClientError)
+
+    def test_escape_html_false_tracks_no_blobs(self):
+        from viur.core.bones import TextBone
+        bone = TextBone(validHtml=None, escape_html=False)
+        skel = {self.bone_name: '<img src="/file/download/some-dlkey">'}
+        self.assertEqual(set(), bone.getReferencedBlobs(skel, self.bone_name))
+
+    def test_refresh_unescapes(self):
+        from viur.core.bones import TextBone
+        bone = TextBone(validHtml=None, escape_html=False)
+        skel = {self.bone_name: "a &lt; b and &quot;quoted&quot;"}
+        bone.refresh(skel, self.bone_name)
+        self.assertEqual('a < b and "quoted"', skel[self.bone_name])
+
+    def test_refresh_unescapes_multiple(self):
+        from viur.core.bones import TextBone
+        bone = TextBone(validHtml=None, escape_html=False, multiple=True)
+        skel = {self.bone_name: ["a &lt; b", "c &gt; d"]}
+        bone.refresh(skel, self.bone_name)
+        self.assertEqual(["a < b", "c > d"], skel[self.bone_name])
+
+    def test_refresh_unescapes_languages(self):
+        from viur.core.bones import TextBone
+        bone = TextBone(validHtml=None, escape_html=False, languages=["de", "en"])
+        skel = {self.bone_name: {"de": "a &lt; b", "en": "c &gt; d"}}
+        bone.refresh(skel, self.bone_name)
+        self.assertEqual({"de": "a < b", "en": "c > d"}, skel[self.bone_name])
+
+    def test_refresh_keeps_value_when_escaping(self):
+        from viur.core.bones import TextBone
+        bone = TextBone()
+        skel = {self.bone_name: "a &lt; b"}
+        bone.refresh(skel, self.bone_name)
+        self.assertEqual("a &lt; b", skel[self.bone_name])
+
+    def test_structure_contains_escape_html(self):
+        from viur.core.bones import TextBone
+        self.assertTrue(TextBone().structure()["escape_html"])
+        self.assertFalse(TextBone(validHtml=None, escape_html=False).structure()["escape_html"])
+
     def test_html_parsing(self):
         from viur.core.bones import TextBone
         bone = TextBone()

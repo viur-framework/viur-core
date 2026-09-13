@@ -529,7 +529,14 @@ class RelationalBone(BaseBone):
         # Now is now, nana nananaaaaaaa...
         now = time.time()
 
-        # Helper fcuntion to
+        # All relation entities share the source entity's group (parent=key), so they are
+        # collected here and written in one commit instead of one put per relation: that is a
+        # single round-trip, and a single write against the one-write-per-second-and-entity-group
+        # rate limit rather than one per relation.
+        to_put: list[db.Entity] = []
+        to_delete: list[db.Key] = []
+
+        # Helper function to fill a relation entity from a bone value
         def __update_relation(entity: db.Entity, data: dict):
             ref_skel = data["dest"]
             rel_skel = data["rel"]
@@ -552,7 +559,7 @@ class RelationalBone(BaseBone):
             entity["viur_foreign_keys"] = list(self._ref_keys)
             entity["viurTags"] = skel.dbEntity.get("viurTags") if skel.dbEntity else None
 
-            db.put(entity)
+            to_put.append(entity)
 
         # Query and update existing entries pointing to this bone
         query = db.Query("viur-relations") \
@@ -564,11 +571,11 @@ class RelationalBone(BaseBone):
         for entity in query.iter():
             try:
                 if entity["dest"].key not in values_keys:  # Relation has been removed
-                    db.delete(entity.key)
+                    to_delete.append(entity.key)
                     continue
 
             except KeyError:  # This entry is corrupt
-                db.delete(entity.key)
+                to_delete.append(entity.key)
 
             else:  # Relation: Updated
                 # Find the newest item matching this key (this has to been done this way)...
@@ -583,6 +590,13 @@ class RelationalBone(BaseBone):
         # Add new database entries for the remaining values
         for value in values:
             __update_relation(db.Entity(db.Key("viur-relations", parent=key)), value)
+
+        # A key is either deleted or written, never both, so the order of the two is irrelevant
+        if to_delete:
+            db.delete(to_delete)
+
+        if to_put:
+            db.put(to_put)
 
         # Call postSavedHandler on UsingSkel (RelSkel)
         if self.using:
@@ -609,7 +623,9 @@ class RelationalBone(BaseBone):
             .filter("viur_src_property =", boneName) \
             .filter("src.__key__ =", key)
 
-        db.delete([entity for entity in query.run()])
+        # iter() deliberately ignores the query limit, run() would stop after
+        # conf.db.query_default_limit entries and orphan every relation beyond it
+        db.delete(list(query.iter(keys_only=True)))
 
     def isInvalid(self, key) -> None:
         """
@@ -898,7 +914,7 @@ class RelationalBone(BaseBone):
             else:
                 path = f"{name}.{_type}.{param}"
 
-            order = utils.parse.sortorder(params.get("orderdir"))
+            order = db.SortOrder.from_str(params.get("orderdir"))
             query = query.order((path, order))
 
             if self.multiple:
@@ -1130,26 +1146,28 @@ class RelationalBone(BaseBone):
 
     def relskels_from_keys(self, key_rel_list: list[tuple[db.Key, dict | None]]) -> list[RelDict]:
         """
-        Creates a list of RelSkel instances valid for this bone from the given database key.
+        Resolves a list of keys into reference skeletons valid for this bone.
 
-        This method retrieves the entity corresponding to the provided key from the database, unserializes it
-        into a reference skeleton, and returns a dictionary containing the reference skeleton and optional
-        relation data.
+        Each key is loaded from the datastore and unserialized into a reference skeleton.
+        Resolution is all-or-nothing: if any requested key cannot be resolved, an empty
+        list is returned.
 
-        :param key_rel_list: List of tuples with the first value in the tuple is the
-            key and the second is and RelSkel or None
+        :param key_rel_list: List of ``(key, rel)`` tuples, where ``rel`` is a RelSkel dict or None.
 
-        :return: A dictionary containing a reference skeleton and optional relation data.
+        :return: A list of dicts, each with the reference skeleton under ``dest`` and the
+            optional relation data under ``rel``. Empty if not all keys resolved.
         """
 
-        if not all(db_objs := db.get([db.key_helper(value[0], self.kind, adjust_kind=True) for value in key_rel_list])):
-            return []  # return emtpy data when not all data is found
+        keys = [db.key_helper(value[0], self.kind, adjust_kind=True) for value in key_rel_list]
+        db_objs = {db_obj.key: db_obj for db_obj in db.get(keys)}
+        if any(key not in db_objs for key in keys):
+            return []  # return empty data when not all data is found
 
         res_rel_skels = []
 
-        for (key, rel), db_obj in zip(key_rel_list, db_objs):
+        for key, (_, rel) in zip(keys, key_rel_list):
             dest_skel = self._refSkelCache()
-            dest_skel.unserialize(db_obj)
+            dest_skel.unserialize(db_objs[key])
             for bone_name in dest_skel:
                 # Unserialize all bones from refKeys, then drop dbEntity - otherwise all properties will be copied
                 _ = dest_skel[bone_name]

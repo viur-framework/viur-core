@@ -322,6 +322,15 @@ class Database(ConfigType):
     create_access_log: bool = True
     """If False no access log will be created. But then the caching is disabled too."""
 
+    name: str | None = os.getenv("VIUR_DB_NAME") or None
+    """Named datastore to target instead of ``(default)``.
+
+    Env-sourced: the client is built at ``db.transport`` import time, before any
+    runtime config could set it."""
+
+    namespace: str | None = os.getenv("VIUR_DB_NAMESPACE") or None
+    """Datastore namespace to scope to. Env-sourced like `name`."""
+
 
 class Security(ConfigType):
     """Security related settings"""
@@ -348,6 +357,19 @@ class Security(ConfigType):
         }
     }
     """If set, viur will emit a CSP http-header with each request. Use security.addCspRule to set this property"""
+
+    reporting_endpoints: dict[str, str] = {}
+    """Named endpoints reports are being sent to, emitted as ``Reporting-Endpoints`` http-header.
+
+    Maps an endpoint name to the URL receiving the reports. Other headers reference these names,
+    for example the CSP-directive ``report-to``, which supersedes the deprecated ``report-uri``.
+    The name ``default`` is used by the browser for reports whose header cannot name an endpoint
+    on its own (i.e. deprecation reports).
+
+    Use :func:`~viur.core.securityheaders.set_reporting_endpoint` to set this property.
+
+    See https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Reporting-Endpoints
+    """
 
     referrer_policy: str = "strict-origin"
     """Per default, we'll emit Referrer-Policy: strict-origin so no referrers leak to external services
@@ -461,7 +483,7 @@ class Security(ConfigType):
     # CORS Settings
 
     cors_origins: t.Iterable[str | re.Pattern] | t.Literal["*"] = []
-    """Allowed origins
+    r"""Allowed origins
     Access-Control-Allow-Origin
 
     Pattern should be case-insensitive, for example:
@@ -612,6 +634,12 @@ class I18N(ConfigType):
 
     language_alias_map: dict[str, str] = {}
     """Allows mapping of certain languages to one translation (i.e. us->en)"""
+
+    fallback_languages: Multiple[str] = []
+    """Languages tried in order when the requested language has no translation"""
+
+    sources: Multiple["i18n.TranslationSource"] = None
+    """Translation sources, loaded in order; None uses i18n.DEFAULT_TRANSLATION_SOURCES"""
 
     language_method: t.Literal["session", "url", "domain", "header"] = "session"
     """Defines how translations are applied:

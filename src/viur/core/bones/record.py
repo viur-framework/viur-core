@@ -34,7 +34,7 @@ class RecordBone(BaseBone):
         **kwargs
     ):
         from viur.core.skeleton.relskel import RelSkel
-        if not issubclass(using, RelSkel):
+        if not isinstance(using, type) or not issubclass(using, RelSkel):
             raise ValueError("RecordBone requires for valid using-parameter (subclass of viur.core.skeleton.RelSkel)")
 
         super().__init__(indexed=indexed, **kwargs)
@@ -121,6 +121,9 @@ class RecordBone(BaseBone):
                 drop_relations_higher.clear()
                 break
 
+            if value is None:
+                continue
+
             for sub_bone_name, bone in value.items():
                 path = ".".join(name for name in (boneName, lang, f"{idx or 0:02}", sub_bone_name) if name)
                 if utils.string.is_prefix(bone.type, "relational"):
@@ -142,6 +145,9 @@ class RecordBone(BaseBone):
         super().postDeletedHandler(skel, boneName, key)
 
         for idx, lang, value in self.iter_bone_value(skel, boneName):
+            if value is None:
+                continue
+
             for sub_bone_name, bone in value.items():
                 path = ".".join(part for part in (boneName, lang, f"{idx or 0:02}", sub_bone_name) if part)
                 bone.postDeletedHandler(value, path, key)
@@ -168,33 +174,6 @@ class RecordBone(BaseBone):
                     result.add(tag)
 
         return result
-
-    def getSearchDocumentFields(self, valuesCache, name, prefix=""):
-        """
-        Generates a list of search document fields for the given values cache, name, and optional prefix.
-
-        :param dict valuesCache: A dictionary containing the cached values.
-        :param str name: The name of the bone to process.
-        :param str prefix: An optional prefix to use for the search document fields, defaults to an empty string.
-        :return: A list of search document fields.
-        :rtype: list
-        """
-
-        def getValues(res, skel, valuesCache, searchPrefix):
-            for key, bone in skel.items():
-                if bone.searchable:
-                    res.extend(bone.getSearchDocumentFields(valuesCache, key, prefix=searchPrefix))
-
-        value = valuesCache.get(name)
-        res = []
-
-        if not value:
-            return res
-        uskel = self.using()
-        for idx, val in enumerate(value):
-            getValues(res, uskel, val, f"{prefix}{name}_{idx}")
-
-        return res
 
     def getReferencedBlobs(self, skel: "SkeletonInstance", name: str) -> set[str]:
         """

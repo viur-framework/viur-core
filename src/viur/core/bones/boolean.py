@@ -74,9 +74,19 @@ class BooleanBone(BaseBone):
             :param name: The property-name this bone has in its Skeleton (not the description!)
         """
         if self.languages:
-            for lang in self.languages:
-                skel[name][lang] = utils.parse.bool(skel[name][lang], conf.bone_boolean_str2true) \
-                    if lang in skel[name] else self.getDefaultValue(skel)
+            # The raw datastore value can be None (entity written before this bone existed) and
+            # getDefaultValue() answers with a dict for a language-aware bone, so neither may be
+            # indexed blindly.
+            values = skel[name] or {}
+            defaults = self.getDefaultValue(skel)
+            if not isinstance(defaults, dict):
+                defaults = {lang: defaults for lang in self.languages}
+
+            skel[name] = {
+                lang: utils.parse.bool(values[lang], conf.bone_boolean_str2true)
+                if lang in values else defaults.get(lang)
+                for lang in self.languages
+            }
         elif skel[name] != self.getEmptyValue():
             # Enforce a boolean if the bone is not empty (Maybe the empty value is explicit set to None).
             # So in this case we keep the empty value (e.g. the None) as is.
@@ -111,9 +121,9 @@ class BooleanBone(BaseBone):
             if not self.languages or language not in self.languages:
                 return False
 
-            skel[boneName][language] = utils.parse.bool(value)
+            skel[boneName][language] = utils.parse.bool(value, conf.bone_boolean_str2true)
         else:
-            skel[boneName] = utils.parse.bool(value)
+            skel[boneName] = utils.parse.bool(value, conf.bone_boolean_str2true)
 
         return True
 

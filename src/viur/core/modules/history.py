@@ -19,7 +19,7 @@ class HistorySkel(Skeleton):
     see below.
     """
 
-    kindName = "viur-history"
+    kindName = "history"
     creationdate = changedate = None
 
     version = NumericBone(
@@ -229,7 +229,7 @@ class BigQueryHistory:
 
         except exceptions.NotFound:
             app, dataset, table = self.PATH.split(".")
-            logging.error(f"{app}:{dataset}:{table}")
+
             # create dataset if needed
             try:
                 self.client.get_dataset(dataset)
@@ -322,7 +322,7 @@ class HistoryAdapter(DatabaseAdapter):
             if kindname in conf.history.excluded_kinds:
                 return None
 
-            if kindname == "viur-history":
+            if kindname == history_module.kindName:
                 return None
 
         return history_module.log(
@@ -337,8 +337,6 @@ class History(List):
     """
     ViUR history module
     """
-    kindName = "viur-history"
-
     adminInfo = {
         "name": "History",
         "icon": "clock-history",

@@ -169,7 +169,7 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.NotFound`, when no entry with the given *key* was found.
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
-        skel = self.viewSkel()
+        skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
         if not skel.read(key):
             raise errors.NotFound()
 

@@ -416,7 +416,8 @@ class SkeletonInstance(t.Generic[Skeleton_Cls]):
             }
 
         return {
-            bone_name: bone.dump(self, bone_name) for bone_name, bone in self.items()
+            bone_name: bone.dump(self, bone_name)
+            for bone_name, bone in self.items()
         }
 
     def __deepcopy__(self, memodict):

@@ -1,4 +1,3 @@
-import time
 import typing as t
 from viur.core import db
 from viur.core.bones.base import BaseBone, Compute, ComputeInterval, ComputeMethod, UniqueValue, UniqueLockMethod
@@ -10,19 +9,14 @@ def generate_number(db_key: db.Key) -> int:
     """
 
     def transact(_key: db.Key):
-        for i in range(3):
-            try:
-                if db_obj := db.get(_key):
-                    db_obj["count"] += 1
-                else:
-                    db_obj = db.Entity(_key)
-                    db_obj["count"] = 0
-                db.put(db_obj)
-                break
-            except db.CollisionError:  # recall the function
-                time.sleep(i + 1)
+        # A commit conflict only surfaces when the surrounding transaction commits and is
+        # retried by db.run_in_transaction, so it must propagate out of this function.
+        if db_obj := db.get(_key):
+            db_obj["count"] += 1
         else:
-            raise ValueError("Can't set the Uid")
+            db_obj = db.Entity(_key)
+            db_obj["count"] = 0
+        db.put(db_obj)
         return db_obj["count"]
 
     if db.is_in_transaction():
@@ -35,7 +29,8 @@ def generate_uid(skel, bone):
     db_key = db.Key("viur-uids", f"{skel.kindName}-{bone.name}-uid")
     count_value = generate_number(db_key)
     if bone.fillchar:
-        length_to_fill = bone.length - len(bone.pattern)
+        # The wildcard itself is replaced, so it does not count towards the length of the prefix.
+        length_to_fill = bone.length - (len(bone.pattern) - 1)
         res = str(count_value).rjust(length_to_fill, bone.fillchar)
         return bone.pattern.replace("*", res)
     else:
@@ -52,7 +47,7 @@ class UidBone(BaseBone):
         self,
         *,
         generate_fn: t.Callable = generate_uid,
-        fillchar: str = "*",
+        fillchar: str = "0",
         length: int = 13,
         pattern: str | t.Callable | None = "*",
         **kwargs

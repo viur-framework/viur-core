@@ -212,7 +212,7 @@ class NumericBone(BaseBone):
                 ReadFromClientError(
                     ReadFromClientErrorSeverity.Invalid,
                     i18n.translate(
-                        "core.bones.error.minmax"
+                        "core.bones.error.minmax",
                         "Value not between {{min}} and {{max}}",
                         default_variables={
                             "min": self.min,

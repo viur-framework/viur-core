@@ -2,8 +2,15 @@ import logging
 import warnings
 
 from .adapter import DatabaseAdapter, ViurTagsSearchAdapter
+# The bones package has to be complete before the first skeleton class is built: MetaBaseSkel
+# reaches into it while the class body is executed, and bones.image in turn subclasses RelSkel.
+# Importing viur.core establishes that order anyway; this keeps it intact for anyone importing
+# viur.core.skeleton directly.
+from .. import bones as _bones  # noqa: F401
+
+from .base import BaseSkeleton
 from .instance import SkeletonInstance
-from .meta import ABSTRACT_SKEL_CLS_SUFFIX, BaseSkeleton, MetaBaseSkel, MetaSkel, Skeleton_Cls
+from .meta import ABSTRACT_SKEL_CLS_SUFFIX, MetaBaseSkel, MetaSkel, Skeleton_Cls
 from .relskel import RefSkel, RelSkel
 from .skeleton import SeoKeyBone, Skeleton, _UNDEFINED_KINDNAME
 from .tasks import SkelIterTask, SkeletonMaintenanceTask, update_relations
@@ -44,27 +51,27 @@ def __getattr__(attr: str) -> object:
 
 
 __all__ = [
-    ABSTRACT_SKEL_CLS_SUFFIX,
-    BaseSkeleton,
-    DatabaseAdapter,
-    MetaBaseSkel,
-    MetaSkel,
-    RefSkel,
-    RelSkel,
-    SeoKeyBone,
-    SkelIterTask,
-    SkelList,
-    Skeleton,
-    Skeleton_Cls,
-    SkeletonInstance,
-    SkeletonMaintenanceTask,
-    ViurTagsSearchAdapter,
-    _UNDEFINED_KINDNAME,
-    is_skeletoninstance_of,
-    iterAllSkelClasses,
-    listKnownSkeletons,
-    remove_render_preparation_deep,
-    skeletonByKind,
-    update_relations,
-    without_render_preparation,
+    "ABSTRACT_SKEL_CLS_SUFFIX",
+    "BaseSkeleton",
+    "DatabaseAdapter",
+    "MetaBaseSkel",
+    "MetaSkel",
+    "RefSkel",
+    "RelSkel",
+    "SeoKeyBone",
+    "SkelIterTask",
+    "SkelList",
+    "Skeleton",
+    "Skeleton_Cls",
+    "SkeletonInstance",
+    "SkeletonMaintenanceTask",
+    "ViurTagsSearchAdapter",
+    "_UNDEFINED_KINDNAME",
+    "is_skeletoninstance_of",
+    "iterAllSkelClasses",
+    "listKnownSkeletons",
+    "remove_render_preparation_deep",
+    "skeletonByKind",
+    "update_relations",
+    "without_render_preparation",
 ]
