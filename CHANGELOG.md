@@ -39,7 +39,6 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - feat: Re-Add trace-queries logging (#1642)
 - feat: Refactor and improve `getUniquePropertyIndexValues` (#1681)
 - feat: Replace client-side `MultiQuery` with native Datastore operators (#1700)
-- feat(bones): Add `conf.bone_strict_mode` — reject setting an unknown attribute on a bone after construction (typo guard for `readonly` vs `readOnly`); default on, opt-out via `VIUR_CORE_BONE_STRICT_MODE=false`
 - feat(security): implement Reporting-Endpoints header (#1757)
 - feat(StringBone): make `escape_html` globally configurable via `conf` (#1706)
 - fix: `BooleanBone` doesn't respect `vfunc/isInvalid` (#1694)
