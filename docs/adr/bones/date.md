@@ -38,6 +38,10 @@ US and EU formats - the docstring lists them all.
   set; on a date-only or time-only bone they are `Invalid`.
 - Do not compare values from a `localize` bone across requests: the same
   stored instant is handed out in different timezones depending on the caller.
+- A `localize` bone rendered into a `@ResponseCache`d response needs either
+  `timezone_sensitive=True` on the cache or a request-independent
+  `guessTimeZone`. Otherwise the first requester after expiry fixes the displayed
+  times for everyone (see [../cache](../cache.md)).
 
 ## Traps
 - `creationMagic`/`updateMagic` assign `self.readonly = True` - lowercase.
@@ -58,6 +62,13 @@ US and EU formats - the docstring lists them all.
   calls - has to survive being called that way.
 - `guessTimeZone` returns `None` for `naive` bones, so anything calling it and
   expecting a tzinfo must handle None.
+- `utils.guess_timezone` falls back to UTC silently and often: no
+  `X-Appengine-Country` header (task queue, cron, tests), an unknown country
+  code, or a country with several timezones and no hand-picked fallback (CA, BR,
+  RU, ...). Nothing is logged.
+- `compute` functions run inside the request and see the localized value.
+  `skel["date"].year` of an instant near midnight differs between a request
+  from Germany and a deferred task (UTC) - a computed `year` bone can drift.
 - Microseconds are always dropped, on read from client and on serialize.
 - `structure()` does not export `localize`, so the frontend cannot tell a
   localized bone from a UTC one.

@@ -39,6 +39,10 @@ prototypes call it with `kind=` from `onAdded`/`onCloned` and with `key=` from
 - `conf.debug.disable_cache` switches the cache off globally; users with `root`
   bypass it per request via the `X-Viur-Disable-Cache` header (evaluated in the
   router).
+- Everything the response depends on is either part of the key or constant
+  across requests. Dates that belong to a place (events, opening hours) want the
+  second: pin the timezone by overriding `guessTimeZone` (see
+  [bones/date](bones/date.md)) instead of caching one page per visitor timezone.
 
 ## Traps
 - Invalidation only sees entities read with `db.get`/`put`/`delete` - the query
@@ -67,6 +71,13 @@ prototypes call it with `kind=` from `onAdded`/`onCloned` and with `key=` from
   itself through `X-Cache-Status` (`HIT`/`MISS`/`UPDATED`/`BYPASS`/`TOO_LARGE`).
 - `conf.db.create_access_log = False` does not disable caching - it only empties
   `accessedEntries`, so entries are cached and never invalidated.
+- Whoever requests first after expiry decides what everyone sees until
+  `max_cache_time` runs out. Without `timezone_sensitive` and with `localize`
+  `DateBone`s that is the requester's timezone: a crawler from another continent,
+  or a health check without the country header (-> UTC), bakes its clock into the
+  page for all visitors. The uncached detail view of the same entry still renders
+  per request, so the symptom reads "list wrong, detail right" and looks like a
+  template bug.
 
 ## Why not
 Cached responses live in the datastore instead of memcache: they survive
