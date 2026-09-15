@@ -14,12 +14,15 @@ status: accepted
 - `naive` - store and hand out naive datetimes; mutually exclusive with
   `localize`.
 
-The timezone is guessed per request in `guessTimeZone` from the
+`guessTimeZone` applies the flags (`naive` -> `None`, no `localize` -> UTC) and
+delegates to `viur.core.utils.guess_timezone`, which reads the
 `X-Appengine-Country` header (with hand-picked fallbacks for US, DE, AU) and
-cached in `current.request_data`. On a development server the header is never
-looked at - the local system timezone (`tzlocal`) wins instead, so localized
-values differ between a local run and production. Override that method to plug
-in a real user timezone.
+caches the result in `current.request_data`. On a development server the header
+is never looked at - the local system timezone (`tzlocal`) wins instead, so
+localized values differ between a local run and production. Override the method
+to plug in a real user timezone, or to pin one when the stored instants belong
+to a place rather than to the viewer (event dates, opening hours). Return a
+`pytz` zone: `singleValueFromClient` calls `.localize()` on it.
 
 `singleValueFromClient` accepts POSIX timestamps, `now`/`now<seconds>`, ISO,
 US and EU formats - the docstring lists them all.

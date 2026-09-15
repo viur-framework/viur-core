@@ -281,3 +281,61 @@ class TestStringUtils(ViURTestCase):
             r = string.random(length)
             self.assertEqual(length, len(r))
             self.assertTrue(r.isalnum())
+
+
+class TestGuessTimezone(ViURTestCase):
+    """``utils.guess_timezone`` reads the country header once per request and falls back to UTC."""
+
+    @staticmethod
+    def _fake_request(headers: dict[str, str]) -> None:
+        from viur.core import current
+
+        request = mock.Mock()
+        request.request.headers = headers
+        current.request.set(request)
+        current.request_data.set({})
+
+    def test_without_request_falls_back_to_utc(self):
+        import pytz
+        from viur.core import utils
+
+        self.assertEqual(utils.guess_timezone(), pytz.utc)
+
+    def test_missing_header_falls_back_to_utc(self):
+        import pytz
+        from viur.core import utils
+
+        self._fake_request({})
+        self.assertEqual(utils.guess_timezone(), pytz.utc)
+
+    def test_country_with_one_timezone(self):
+        from viur.core import utils
+
+        self._fake_request({"X-Appengine-Country": "NL"})
+        self.assertEqual(utils.guess_timezone().zone, "Europe/Amsterdam")
+
+    def test_hand_picked_fallbacks(self):
+        from viur.core import utils
+
+        for country, zone in (("DE", "Europe/Berlin"), ("US", "EST"), ("AU", "Australia/Canberra")):
+            with self.subTest(country=country):
+                self._fake_request({"X-Appengine-Country": country})
+                self.assertEqual(utils.guess_timezone().zone, zone)
+
+    def test_unknown_or_ambiguous_country_falls_back_to_utc(self):
+        import pytz
+        from viur.core import utils
+
+        for country in ("ZZ", "CA"):
+            with self.subTest(country=country):
+                self._fake_request({"X-Appengine-Country": country})
+                self.assertEqual(utils.guess_timezone(), pytz.utc)
+
+    def test_result_is_cached_in_request_data(self):
+        from viur.core import current, utils
+
+        self._fake_request({"X-Appengine-Country": "DE"})
+        first = utils.guess_timezone()
+        current.request.get().request.headers["X-Appengine-Country"] = "US"
+        self.assertIs(utils.guess_timezone(), first)
+        self.assertIs(current.request_data.get()["timeZone"], first)

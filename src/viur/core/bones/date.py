@@ -2,10 +2,9 @@ import datetime
 import logging
 import pytz
 import typing as t
-import tzlocal
 import warnings
 
-from viur.core import conf, current, db, i18n
+from viur.core import db, i18n, utils
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.utils import utcNow
 
@@ -251,48 +250,22 @@ class DateBone(BaseBone):
 
     def guessTimeZone(self):
         """
-        Tries to guess the user's time zone based on request headers. If the time zone cannot be guessed, it
-        falls back to using the UTC time zone. The guessed time zone is then cached for future use during the
-        current request.
+        Returns the timezone for this bone's values.
 
-        :returns: The guessed time zone for the user or a default time zone (UTC) if the time zone cannot be guessed.
-        :rtype: pytz timezone object
+        ``None`` for a ``naive`` bone, UTC unless ``date``, ``time`` and ``localize`` are all set, otherwise the
+        timezone of the current request as guessed by :func:`viur.core.utils.guess_timezone`.
+
+        Override this method to plug in a real user timezone, or to pin a fixed one when the stored instants
+        belong to a place rather than to the viewer (event dates, opening hours).
+
+        :returns: The timezone for this bone, or None for a naive bone.
+        :rtype: pytz timezone object | None
         """
         if self.naive:
             return None
         if not (self.date and self.time and self.localize):
             return pytz.utc
-
-        if conf.instance.is_dev_server:
-            return pytz.timezone(tzlocal.get_localzone_name())
-
-        timeZone = pytz.utc  # Default fallback
-        currReqData = current.request_data.get()
-
-        try:
-            # Check the local cache first
-            if "timeZone" in currReqData:
-                return currReqData["timeZone"]
-            headers = current.request.get().request.headers
-            if "X-Appengine-Country" in headers:
-                country = headers["X-Appengine-Country"]
-            else:  # Maybe local development Server - no way to guess it here
-                return timeZone
-            tzList = pytz.country_timezones[country]
-        except:  # Non-User generated request (deferred call; task queue etc), or no pytz
-            return timeZone
-        if len(tzList) == 1:  # Fine - the country has exactly one timezone
-            timeZone = pytz.timezone(tzList[0])
-        elif country.lower() == "us":  # Fallback for the US
-            timeZone = pytz.timezone("EST")
-        elif country.lower() == "de":  # For some freaking reason Germany is listed with two timezones
-            timeZone = pytz.timezone("Europe/Berlin")
-        elif country.lower() == "au":
-            timeZone = pytz.timezone("Australia/Canberra")  # Equivalent to NSW/Sydney :)
-        else:  # The user is in a Country which has more than one timezone
-            pass
-        currReqData["timeZone"] = timeZone  # Cache the result
-        return timeZone
+        return utils.guess_timezone()
 
     def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
         """
