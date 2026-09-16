@@ -818,3 +818,108 @@ class TestDbCache(ViURTestCase):
             transport.delete(entity.key)
 
         self.assertFalse(cache.get(entity.key))
+
+
+class TestDbCacheTransactions(ViURTestCase):
+    """The cache must not keep serving what a committed transaction has replaced.
+
+    ``cache.put()`` deliberately does nothing while a transaction is open -- the write
+    is not committed yet and may still roll back. Something therefore has to drop the
+    now-outdated entries once the transaction is over, or every later ``db.get()``
+    outside a transaction keeps answering from the pre-transaction state.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        from google.appengine.api.memcache import Client
+        from viur.core.config import conf
+        self.conf = conf
+        conf.db.memcache_client = Client()
+
+    def tearDown(self) -> None:
+        self.conf.db.memcache_client = None
+        super().tearDown()
+
+    @staticmethod
+    def _entity(key_name: str, **values):
+        from viur.core import db
+        entity = db.Entity(db.Key("Auftrag", key_name))
+        entity |= values
+        return entity
+
+    def test_put_inside_a_transaction_evicts_the_stale_cache_entry(self) -> None:
+        from viur.core.db import cache, transport
+        cached = self._entity("A1", name="before")
+        cache.put(cached)
+
+        written = self._entity("A1", name="after")
+
+        with (
+            mock.patch("viur.core.db.utils.is_in_transaction", return_value=True),
+            mock.patch.object(transport.__client__, "transaction"),
+            mock.patch.object(transport.__client__, "put"),
+        ):
+            transport.run_in_transaction(transport.put, written)
+
+        self.assertFalse(cache.get(cached.key), "the pre-transaction value is still cached")
+
+    def test_delete_inside_a_transaction_evicts_again_afterwards(self) -> None:
+        """A concurrent read can re-populate the cache between the delete and the commit."""
+        from viur.core.db import cache, transport
+        entity = self._entity("A1", name="before")
+        cache.put(entity)
+
+        def _txn() -> None:
+            transport.delete(entity.key)
+            cache.put(entity)  # stand-in for a concurrent read warming the cache again
+
+        with (
+            mock.patch("viur.core.db.utils.is_in_transaction", return_value=False),
+            mock.patch.object(transport.__client__, "transaction"),
+            mock.patch.object(transport.__client__, "delete"),
+        ):
+            transport.run_in_transaction(_txn)
+
+        self.assertFalse(cache.get(entity.key), "the deleted entity is still cached")
+
+    def test_a_failing_transaction_evicts_what_it_touched(self) -> None:
+        """A retry may already have written before the error, so the cache cannot be trusted."""
+        from viur.core.db import cache, transport
+        cached = self._entity("A1", name="before")
+        cache.put(cached)
+
+        def _txn() -> None:
+            transport.put(self._entity("A1", name="after"))
+            raise RuntimeError("boom")
+
+        with (
+            mock.patch("viur.core.db.utils.is_in_transaction", return_value=True),
+            mock.patch.object(transport.__client__, "transaction"),
+            mock.patch.object(transport.__client__, "put"),
+        ):
+            with self.assertRaises(RuntimeError):
+                transport.run_in_transaction(_txn)
+
+        self.assertFalse(cache.get(cached.key))
+
+    def test_put_outside_a_transaction_keeps_warming_the_cache(self) -> None:
+        """The eviction must not swallow the ordinary, non-transactional cache update."""
+        from viur.core.db import cache, transport
+        entity = self._entity("A1", name="after")
+
+        with mock.patch.object(transport.__client__, "put"):
+            transport.put(entity)
+
+        (result,) = cache.get(entity.key)
+        self.assertEqual(result["name"], "after")
+
+    def test_transaction_bookkeeping_does_not_leak(self) -> None:
+        from viur.core.db import transport
+
+        with (
+            mock.patch.object(transport.__client__, "transaction"),
+            mock.patch.object(transport.__client__, "put"),
+        ):
+            transport.run_in_transaction(lambda: None)
+
+        self.assertIsNone(transport._transaction_dirty.get())

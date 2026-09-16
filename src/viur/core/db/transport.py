@@ -25,6 +25,7 @@ database.
 """
 from __future__ import annotations
 
+import contextvars
 import itertools
 import logging
 import time
@@ -47,6 +48,37 @@ datastore.helpers.entity_from_protobuf = entity_from_protobuf
 # Both default to None, which is the same as datastore.Client(): no change for
 # default deployments.
 __client__ = datastore.Client(database=conf.db.name, namespace=conf.db.namespace)
+
+_transaction_dirty: contextvars.ContextVar[list[t.Union[Entity, Key]] | None] = contextvars.ContextVar(
+    "Transaction-dirty-entities", default=None
+)
+"""Entities and keys touched by the transaction currently running in this context.
+
+The cache cannot be updated while a transaction is open -- the write is not
+committed yet and may still roll back -- so :func:`put` and :func:`delete`
+record what they touched here and :func:`run_in_transaction` evicts those keys
+once the transaction is over.
+"""
+
+
+def _remember_for_eviction(data: t.Union[Entity, Key, t.Iterable[t.Union[Entity, Key]]]) -> None:
+    """Record entities/keys for cache eviction, if a transaction is currently open."""
+    if (dirty := _transaction_dirty.get()) is None:
+        return  # no transaction in this context, the caller updates the cache itself
+
+    dirty.extend(data if isinstance(data, (list, set, tuple)) else [data])
+
+
+def _evict_dirty(dirty: list[t.Union[Entity, Key]]) -> None:
+    """Drop everything a finished transaction touched from the cache.
+
+    The keys are read *after* the transaction, so entities written with a
+    partial key carry their final, datastore-assigned key by now.
+    """
+    keys = [entry.key if isinstance(entry, Entity) else entry for entry in dirty]
+    if keys := [key for key in keys if key is not None and not key.is_partial]:
+        cache.delete(keys)
+
 
 MAX_LOOKUP_KEYS: t.Final[int] = 1000
 """Maximum number of keys the datastore accepts for a single Lookup operation.
@@ -143,6 +175,9 @@ def put(entities: t.Union[Entity, t.List[Entity]]):
         if conf.debug.trace_queries:
             logging.info(f"db.put: saved {len(entities)} entities")
 
+    # Inside a transaction cache.put() is a no-op (nothing is committed yet), so
+    # remember the entities and let run_in_transaction() evict them afterwards.
+    _remember_for_eviction(entities)
     cache.put(entities)
     return res
 
@@ -162,6 +197,9 @@ def delete(keys: t.Union[Entity, t.Iterable[Entity], Key, t.Iterable[Key]]):
     """
 
     _write_to_access_log(keys)
+    # Evict right away, and again once a surrounding transaction has finished:
+    # until then a concurrent read could pull the still-current value back in.
+    _remember_for_eviction(keys)
     cache.delete(keys)
     if not isinstance(keys, (set, list, tuple)):
         res = __client__.delete(keys)
@@ -201,8 +239,11 @@ def run_in_transaction(func: t.Callable, *args, **kwargs) -> t.Any:
     :raises RuntimeError: If the maximum transaction retries exceeded
     """
     if __client__.current_transaction:
-        res = func(*args, **kwargs)
-    else:
+        # Nested call: the outermost one owns the cache eviction.
+        return func(*args, **kwargs)
+
+    token = _transaction_dirty.set([])
+    try:
         for i in range(3):
             try:
                 with __client__.transaction():
@@ -216,6 +257,14 @@ def run_in_transaction(func: t.Callable, *args, **kwargs) -> t.Any:
 
         else:
             raise RuntimeError("Maximum transaction retries exceeded")
+
+    finally:
+        # Also evict when the transaction failed: a retry may have written
+        # before the conflict, and an eviction too many only costs one lookup.
+        dirty = _transaction_dirty.get()
+        _transaction_dirty.reset(token)
+        if dirty:
+            _evict_dirty(dirty)
 
     return res
 
