@@ -922,4 +922,4 @@ class TestDbCacheTransactions(ViURTestCase):
         ):
             transport.run_in_transaction(lambda: None)
 
-        self.assertIsNone(transport._transaction_dirty.get())
+        self.assertIsNone(transport._transaction_outdated.get())
