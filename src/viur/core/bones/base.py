@@ -1150,6 +1150,9 @@ class BaseBone(object):
                         else:
                             db.run_in_transaction(transact)
 
+                    else:
+                        return False
+
                 else:
                     # Run like ComputeMethod.Always on unwritten skeleton
                     skel.accessedValues[name] = self._compute(skel, name)
@@ -1605,7 +1608,6 @@ class BaseBone(object):
         skel = without_render_preparation(skel)
 
         if "skel" in compute_fn_parameters:
-            skel.accessedValues[bone_name] = None  # remove value from accessedValues to avoid endless recursion
             compute_fn_args["skel"] = skel
 
         if "bone" in compute_fn_parameters:
@@ -1614,14 +1616,17 @@ class BaseBone(object):
         if "bone_name" in compute_fn_parameters:
             compute_fn_args["bone_name"] = bone_name
 
+        self._prevent_compute = True  # avoid endless recursions
         ret = self.compute.fn(**compute_fn_args)
 
-        def unserialize_raw_value(raw_value: list[dict] | dict | None):
-            if self.multiple:
-                return [self.singleValueUnserialize(inner_value) for inner_value in raw_value]
-            return self.singleValueUnserialize(raw_value)
-
         if self.compute.raw:
+            self._prevent_compute = False
+
+            def unserialize_raw_value(raw_value: list[dict] | dict | None):
+                if self.multiple:
+                    return [self.singleValueUnserialize(inner_value) for inner_value in raw_value]
+                return self.singleValueUnserialize(raw_value)
+
             if self.languages:
                 return {
                     lang: unserialize_raw_value(ret.get(lang, [] if self.multiple else None))
@@ -1630,10 +1635,11 @@ class BaseBone(object):
 
             return unserialize_raw_value(ret)
 
-        self._prevent_compute = True
-        if errors := self.fromClient(skel, bone_name, {bone_name: ret}):
-            raise ValueError(f"Computed value fromClient failed with {errors!r}")
+        errors = self.fromClient(skel, bone_name, {bone_name: ret})
         self._prevent_compute = False
+
+        if errors:
+            raise ValueError(f"Computed value fromClient failed with {errors!r}")
 
         return skel[bone_name]
 
