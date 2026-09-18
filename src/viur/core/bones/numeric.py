@@ -20,6 +20,18 @@ Also limited by the datastore (8 bytes). Halved for positive and negative values
 Which are around 2 ** (8 * 8 - 1) negative and 2 ** (8 * 8 - 1) positive values.
 """
 
+ROUNDING_MODES = frozenset({
+    deci.ROUND_CEILING,
+    deci.ROUND_DOWN,
+    deci.ROUND_FLOOR,
+    deci.ROUND_HALF_DOWN,
+    deci.ROUND_HALF_EVEN,
+    deci.ROUND_HALF_UP,
+    deci.ROUND_UP,
+    deci.ROUND_05UP,
+})
+"""The rounding modes accepted by NumericBone(rounding=...), as defined by the decimal module."""
+
 
 class NumericBone(BaseBone):
     """
@@ -35,6 +47,7 @@ class NumericBone(BaseBone):
         max: int | float = MAX,
         precision: int = 0,
         decimal: bool = False,
+        rounding: str | None = None,
         mode=None,  # deprecated!
         **kwargs
     ):
@@ -45,6 +58,11 @@ class NumericBone(BaseBone):
         :param max: Maximum accepted value (including).
         :param precision: How may decimal places should be saved. Zero casts the value to int instead of float.
         :param decimal: If True, use deci.Decimal internally for exact arithmetic.
+        :param rounding: Rounding mode applied when quantizing to `precision`, one of
+            :data:`ROUNDING_MODES`. Only valid together with `decimal=True`. Defaults to None,
+            which leaves the choice to the active decimal context (`ROUND_HALF_EVEN` unless the
+            application changed it). Commercial rounding - the norm for invoices in many
+            jurisdictions - is `decimal.ROUND_HALF_UP`.
         """
         super().__init__(**kwargs)
 
@@ -65,8 +83,13 @@ class NumericBone(BaseBone):
         self.min = min
         self.max = max
         self.decimal = decimal
+        self.rounding = rounding
         if decimal:
             self._quantize_exp = deci.Decimal(10) ** -precision
+        elif rounding is not None:
+            # Silently ignoring it would be worse: the caller asked for a specific rounding and
+            # would get the float mode's round(), which is neither configurable nor exact.
+            raise ValueError("rounding is only supported in combination with decimal=True")
 
     def __setattr__(self, key, value):
         """
@@ -84,6 +107,9 @@ class NumericBone(BaseBone):
             if value < MIN or value > MAX:
                 raise ValueError(f"{key} can only be set to something between {MIN} and {MAX}")
 
+        elif key == "rounding" and value is not None and value not in ROUNDING_MODES:
+            raise ValueError(f"rounding must be one of {sorted(ROUNDING_MODES)}, not {value!r}")
+
         return super().__setattr__(key, value)
 
     def _convert_to_decimal(self, value) -> deci.Decimal | None:
@@ -94,13 +120,15 @@ class NumericBone(BaseBone):
         with deci.localcontext() as ctx:
             # +20 as buffer for integer digits to avoid InvalidOperation on quantize
             ctx.prec = self.precision + 20
+            # rounding=None is the decimal module's own "use the context" - passing it through
+            # unconditionally keeps the previous behaviour for every bone that does not set it.
             if isinstance(value, deci.Decimal):
-                return value.quantize(self._quantize_exp)
+                return value.quantize(self._quantize_exp, rounding=self.rounding)
             if isinstance(value, str):
                 value = value.replace(",", ".", 1)
-                return deci.Decimal(value).quantize(self._quantize_exp)
+                return deci.Decimal(value).quantize(self._quantize_exp, rounding=self.rounding)
             if isinstance(value, (int, float)):
-                return deci.Decimal(str(value)).quantize(self._quantize_exp)
+                return deci.Decimal(str(value)).quantize(self._quantize_exp, rounding=self.rounding)
         raise ValueError(f"Cannot convert {type(value).__name__} to Decimal")
 
     def singleValueUnserialize(self, val):
@@ -143,7 +171,7 @@ class NumericBone(BaseBone):
             precision is non-zero).
         """
         if self.decimal:
-            return deci.Decimal(0).quantize(self._quantize_exp)
+            return deci.Decimal(0).quantize(self._quantize_exp, rounding=self.rounding)
         if self.precision:
             return 0.0
         else:
