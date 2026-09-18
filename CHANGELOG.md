@@ -2,6 +2,14 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.9.1]
+
+- doc: Adding `whatsnew` guides for v3.8 + v3.9
+- feat(bones): strict mode rejects unknown bone attributes (typo guard) (#1724)
+- fix(bones): Improve `compute`-feature in several ways (#1781)
+- fix(bones): make `FileBone.DEFAULT_REFKEYS` actually extendable (#1783)
+- fix(db): invalidate cache entries outdated by a transaction (#1782)
+
 ## [3.9.0]
 
 - chore: Deprecate endpoint `/vi/getStructure` (#1616)
