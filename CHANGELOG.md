@@ -12,6 +12,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 
 ## [3.9.0]
 
+- feat: Add `conf.debug.trace_headers` to log request/response headers (sensitive headers redacted) (#1013)
 - chore: Deprecate endpoint `/vi/getStructure` (#1616)
 - chore: Move `BaseSkeleton` into own `base.py`-module (#1738)
 - doc: Docstrings for compute-related enum variants
@@ -78,6 +79,7 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix(utils): `Decimal` support in `viur.core.utils.json` (#1774)
 - perf: `RelationalBone.postSavedHandler` batched writes (#1768)
 - refactor: Deprecate `/vi/getVersion` and `/vi/settings` (#1669)
+- refactor: Move `securityheaders` functions onto `config.Security` as methods; deprecate the module (#1013)
 - refactor: migrate CaptchaBone to reCAPTCHA Enterprise (#1680)
 - refactor: Provide and use `_can_access`-function in vi-render (#1659)
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
