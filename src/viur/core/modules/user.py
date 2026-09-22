@@ -133,6 +133,7 @@ class UserSkel(skeleton.Skeleton):
     admin_config = JsonBone(  # This bone stores settings from the admin
         descr="Config for the User",
         visible=False,
+        exposed=False,
     )
 
     def __new__(cls, *args, **kwargs):
