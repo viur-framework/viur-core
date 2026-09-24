@@ -46,6 +46,12 @@ _current_session: contextvars.ContextVar[ClientSession | None] = contextvars.Con
 """The running transaction, separate per thread and per async task — a ``ClientSession``, unlike the
 ``MongoClient``, must not be shared."""
 
+_transaction_outdated: contextvars.ContextVar[list[tuple[str, str]] | None] = contextvars.ContextVar(
+    "viur_db_transaction_outdated", default=None
+)
+"""The ``(kind, _id)`` pairs the transaction running in this context has written or deleted; their cache entries
+are dropped once the transaction is over, as the cache cannot be updated while it may still roll back."""
+
 _elision_disabled: set[tuple[str, str]] = set()
 _elision_lock = threading.Lock()
 """Guards ``_elision_disabled``, the ``(kind, index name)`` pairs whose sort elision is off for the rest of the
@@ -192,6 +198,8 @@ def put(kind: str, docs: Document | list[Document]) -> Document | list[Document]
     else:
         _put_many(col, doc_list, session)
 
+    # Inside a transaction cache.put() does nothing, run_in_transaction() drops the old entries afterwards.
+    _mark_as_outdated(kind, [doc["_id"] for doc in doc_list])
     cache.put(kind, docs)
     return docs
 
@@ -229,6 +237,12 @@ def _put_many(col: Collection, doc_list: list[Document], session: ClientSession 
                        ordered=False, session=session)
 
 
+def _mark_as_outdated(kind: str, ids: list[str]) -> None:
+    """Record documents whose cache entry the transaction running in this context outdates."""
+    if (outdated := _transaction_outdated.get()) is not None:
+        outdated.extend((kind, _id) for _id in ids)
+
+
 def delete(kind: str, ids: str | list[str] | set[str] | tuple[str, ...]) -> None:
     """Delete documents from *kind*; unknown ids are not an error.
 
@@ -238,6 +252,9 @@ def delete(kind: str, ids: str | list[str] | set[str] | tuple[str, ...]) -> None
     id_list = list(ids) if isinstance(ids, (list, set, tuple)) else [ids]
     if not id_list:
         return
+    # Dropped again once a surrounding transaction is over: until then a concurrent read could bring the
+    # still committed value back into the cache.
+    _mark_as_outdated(kind, id_list)
     cache.delete(kind, id_list)
     get_collection(kind).delete_many({"_id": {"$in": id_list}}, session=_current_session.get())
 
@@ -262,31 +279,45 @@ def run_in_transaction(func: t.Callable, *args, **kwargs) -> t.Any:
     :raises RuntimeError: When the retries are exhausted.
     """
     if _current_session.get() is not None:
+        # Nested call: the outermost one drops the outdated cache entries.
         return func(*args, **kwargs)
 
-    for i in range(3):
-        try:
-            with _mongo().start_session() as session:
-                token = _current_session.set(session)
-                try:
-                    with session.start_transaction():
-                        res = func(*args, **kwargs)
-                    break
-                finally:
-                    _current_session.reset(token)
+    outdated_token = _transaction_outdated.set([])
+    try:
+        for i in range(3):
+            try:
+                with _mongo().start_session() as session:
+                    token = _current_session.set(session)
+                    try:
+                        with session.start_transaction():
+                            res = func(*args, **kwargs)
+                        break
+                    finally:
+                        _current_session.reset(token)
 
-        except pymongo.errors.PyMongoError as exc:
-            # A retryable conflict: MongoDB sets the label, Firestore reports code 112 ("Aborted").
-            if not (
-                exc.has_error_label("TransientTransactionError")
-                or (isinstance(exc, pymongo.errors.OperationFailure) and exc.code == 112)
-            ):
-                raise
-            logger.error(f"Transaction failed with a conflict, trying again in {2 ** i} seconds")
-            time.sleep(2 ** i)
-            continue
-    else:
-        raise RuntimeError("Maximum transaction retries exceeded")
+            except pymongo.errors.PyMongoError as exc:
+                # A retryable conflict: MongoDB sets the label, Firestore reports code 112 ("Aborted").
+                if not (
+                    exc.has_error_label("TransientTransactionError")
+                    or (isinstance(exc, pymongo.errors.OperationFailure) and exc.code == 112)
+                ):
+                    raise
+                logger.error(f"Transaction failed with a conflict, trying again in {2 ** i} seconds")
+                time.sleep(2 ** i)
+                continue
+        else:
+            raise RuntimeError("Maximum transaction retries exceeded")
+
+    finally:
+        # Also after a failed transaction: an attempt may have written before the conflict, and one
+        # invalidation too many only costs a lookup.
+        outdated = _transaction_outdated.get()
+        _transaction_outdated.reset(outdated_token)
+        by_kind: dict[str, list[str]] = {}
+        for kind, _id in outdated:
+            by_kind.setdefault(kind, []).append(_id)
+        for kind, ids in by_kind.items():
+            cache.delete(kind, ids)
 
     return res
 

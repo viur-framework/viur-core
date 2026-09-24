@@ -818,3 +818,99 @@ class TestDbCache(ViURTestCase):
             transport.delete(entity.key)
 
         self.assertFalse(cache.get(entity.key))
+
+
+class TestDbCacheTransactions(ViURTestCase):
+    """The cache must not keep serving what a committed transaction has replaced.
+
+    ``cache.put()`` deliberately does nothing while a transaction is open -- the write
+    is not committed yet and may still roll back. Something therefore has to invalidate
+    the now-outdated entries once the transaction is over, or every later ``db.get()``
+    outside a transaction keeps answering from the pre-transaction state.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        from google.appengine.api.memcache import Client
+        from viur.core.config import conf
+        from viur.core.db import transport
+        self.conf = conf
+        conf.db.memcache_client = Client()
+        # A MagicMock client hands out sessions whose start_transaction() works as a context manager.
+        patches = (
+            mock.patch.object(transport, "_mongo"),
+            mock.patch.object(transport, "get_collection"),
+        )
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def tearDown(self) -> None:
+        self.conf.db.memcache_client = None
+        super().tearDown()
+
+    def test_put_inside_a_transaction_invalidates_the_stale_cache_entry(self) -> None:
+        from viur.core.db import cache, transport
+        cache.put("Auftrag", {"_id": "A1", "name": "before"})
+
+        transport.run_in_transaction(transport.put, "Auftrag", {"_id": "A1", "name": "after"})
+
+        self.assertFalse(cache.get("Auftrag", "A1"), "the pre-transaction value is still cached")
+
+    def test_delete_inside_a_transaction_invalidates_again_afterwards(self) -> None:
+        """A concurrent read can re-populate the cache between the delete and the commit."""
+        from viur.core.db import cache, transport
+        doc = {"_id": "A1", "name": "before"}
+        cache.put("Auftrag", doc)
+
+        def _txn() -> None:
+            transport.delete("Auftrag", "A1")
+            # stand-in for a concurrent read, outside this transaction, warming the cache again
+            with mock.patch("viur.core.db.utils.is_in_transaction", return_value=False):
+                cache.put("Auftrag", doc)
+
+        transport.run_in_transaction(_txn)
+
+        self.assertFalse(cache.get("Auftrag", "A1"), "the deleted document is still cached")
+
+    def test_a_failing_transaction_invalidates_what_it_touched(self) -> None:
+        """An attempt may already have written before the error, so the cache cannot be trusted."""
+        from viur.core.db import cache, transport
+        cache.put("Auftrag", {"_id": "A1", "name": "before"})
+
+        def _txn() -> None:
+            transport.put("Auftrag", {"_id": "A1", "name": "after"})
+            raise RuntimeError("boom")
+
+        with self.assertRaises(RuntimeError):
+            transport.run_in_transaction(_txn)
+
+        self.assertFalse(cache.get("Auftrag", "A1"))
+
+    def test_a_nested_transaction_is_invalidated_by_the_outermost_one(self) -> None:
+        from viur.core.db import cache, transport
+        cache.put("Auftrag", {"_id": "A1", "name": "before"})
+
+        def _outer() -> None:
+            transport.run_in_transaction(transport.put, "Auftrag", {"_id": "A1", "name": "after"})
+            self.assertIsNotNone(transport._transaction_outdated.get(), "the inner call reset the bookkeeping")
+
+        transport.run_in_transaction(_outer)
+
+        self.assertFalse(cache.get("Auftrag", "A1"))
+
+    def test_put_outside_a_transaction_keeps_warming_the_cache(self) -> None:
+        """The invalidation must not swallow the ordinary, non-transactional cache update."""
+        from viur.core.db import cache, transport
+
+        transport.put("Auftrag", {"_id": "A1", "name": "after"})
+
+        (result,) = cache.get("Auftrag", "A1")
+        self.assertEqual(result["name"], "after")
+
+    def test_transaction_bookkeeping_does_not_leak(self) -> None:
+        from viur.core.db import transport
+
+        transport.run_in_transaction(lambda: None)
+
+        self.assertIsNone(transport._transaction_outdated.get())
