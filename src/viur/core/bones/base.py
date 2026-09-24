@@ -202,11 +202,11 @@ class MultipleConstraints:
 
 class ComputeMethod(Enum):
     Always = 0
-    """Always compute on deserialization"""
+    """Always compute on deserialization; Property is never written to DB and can't be used in filters"""
     Lifetime = 1
     """Update only when given lifetime is outrun; value is only being stored when the skeleton is written"""
     Once = 2
-    """Compute only once, when it is unset"""
+    """Compute only once, when it was previously unset and computes to a value other than `None`"""
     OnWrite = 3
     """Compute before every write of the skeleton"""
 
@@ -982,7 +982,9 @@ class BaseBone(object):
 
             case ComputeMethod.Once:
                 if name not in skel.dbEntity:
-                    skel.accessedValues[name] = self._compute(skel, name)
+                    val = self._compute(skel, name)
+                    if val is not None:
+                        skel.accessedValues[name] = val
 
     def singleValueUnserialize(self, val):
         """
@@ -1582,8 +1584,11 @@ class BaseBone(object):
         self._prevent_compute = True  # avoid endless recursions
         ret = self.compute.fn(**compute_fn_args)
 
-        if self.compute.raw:
+        if self.compute.raw or ret is None:
             self._prevent_compute = False
+
+            if ret is None:  # exit on None
+                return ret
 
             def unserialize_raw_value(raw_value: list[dict] | dict | None):
                 if self.multiple:
