@@ -51,7 +51,8 @@ lookup = {
     "sendEMailToAdmins": "send_email_to_admins",
     "sendEMail": "send_email",
     # "db.AllocateIDs", "db.normalizeKey" and "db.keyHelper" have no replacement to migrate
-    # to: a key is a plain _id string, which is neither allocated nor normalized.
+    # to: a key is a plain _id string, which is neither allocated nor normalized. The same goes for
+    # "db.encodeKey" (the key already is a string) and "db.config" (see conf.db and conf.debug).
     "db.GetOrInsert": "db.get_or_insert",
     "db.Get": "db.get",
     "db.Put": "db.put",
@@ -59,9 +60,10 @@ lookup = {
     "db.IsInTransaction": "db.is_in_transaction",
     "db.RunInTransaction": "db.run_in_transaction",
     "db.Count": "db.count",
-    "db.runSingleFilter": "db.run_single_filter",
+    "db.runSingleFilter": "db.transport.run_single_filter",
     "db.startDataAccessLog": "db.start_data_access_log",
     "db.endDataAccessLog": "db.end_data_access_log",
+    "db.currentDbAccessLog": "db.current_db_access_log",
 
     # WARNING: THESE MUST BE KEPT AT THE END, THE ORDER MATTERS!!!!
     "projectID": "conf.instance.project_id",

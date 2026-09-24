@@ -12,7 +12,6 @@ from viur.core.config import conf
 from viur.core.utils import json as vjson
 from .transport import count, get, run_single_filter
 from .types import (
-    KEY_SPECIAL_PROPERTY,
     VALUE_TYPES,
     QueryDefinition,
     QueryOrder,
@@ -87,119 +86,26 @@ def _entryMatchesQuery(
     return True
 
 
-_OPS = {"<": "$lt", "<=": "$lte", ">": "$gt", ">=": "$gte", "IN": "$in", "NOT_IN": "$nin", "!=": "$ne"}
-"""viur comparison operator -> Mongo operator."""
-
-
-def _reject_legacy_key(name: str) -> None:
-    """Refuse the Datastore pseudo name ``__key__`` in a filter or an order.
-
-    A document has no ``__key__`` field, so a query naming it would silently match nothing instead of
-    failing. Raising keeps that from passing unnoticed.
-
-    :raises ValueError: if *name* is ``__key__`` or ends in ``.__key__``.
-    """
-    if name == "__key__" or name.endswith(".__key__"):
-        replacement = name.replace("__key__", KEY_SPECIAL_PROPERTY)
-        raise ValueError(f"{name!r}: __key__ is gone — use {replacement!r} "
-                         f"(db.KEY_SPECIAL_PROPERTY) instead")
-
-
-def _split(key: str) -> tuple[str, str]:
-    """Split a viur filter key (``"field op"``) into field and operator."""
-    # ``Query.filter`` always stores the key as f"{field} {op}" and a field itself holds no space, so
-    # ``rpartition`` splits at the actual operator.
-    name, _, op = key.rpartition(" ")
-    _reject_legacy_key(name)
-    return name, (op or "=")
-
-
-def _to_mongo_filter(filters: dict, or_filters: list) -> dict:
-    """Translate viur filters (``{"field op": value}``) into a Mongo filter.
-
-    Several ``=`` on the same field arrive as a list (``Query.filter`` appends them) and mean AND, which is
-    ``$all`` in Mongo. *or_filters* is a list of groups: OR inside a group, AND between the groups.
-
-    :param filters: The viur AND filters.
-    :param or_filters: The viur OR groups.
-    :return: The Mongo filter.
-    """
-    out: dict = {}
-    for key, value in filters.items():
-        field, op = _split(key)
-        if op == "=":
-            if isinstance(value, list):
-                out.setdefault(field, {})["$all"] = value
-            else:
-                out[field] = value
-        else:
-            out.setdefault(field, {})[_OPS[op]] = value
-    groups = []
-    for group in or_filters:
-        groups.append({"$or": [_to_mongo_filter({k: v}, []) for k, v in group]})
-    if groups:
-        out = {"$and": [out, *groups]} if out else ({"$and": groups} if len(groups) > 1 else groups[0])
-        if isinstance(out, dict) and "$and" in out and len(out["$and"]) == 1:
-            out = out["$and"][0]
-    return out
-
-
-_INEQUALITY_OPS = frozenset({"<", "<=", ">", ">="})
-
-
-def _implicit_orders(filters: dict) -> list[tuple[str, SortOrder]]:
-    """The order the Datastore gave a query without ``order`` silently: ascending by its inequality field."""
-    # Exactly one field with </<=/>/>= yields [(field, Ascending)], anything else []: several operators on the
-    # same field count as one, two different inequality fields the Datastore never allowed, and IN/!= are no
-    # range filters. Only ``filters`` count, never ``or_filters``. Without this order an index (…, field, _id)
-    # could not carry the sort elision and the range filter would stay residual.
-    fields = {field for field, op in (_split(k) for k in filters) if op in _INEQUALITY_OPS}
-    return [(fields.pop(), SortOrder.Ascending)] if len(fields) == 1 else []
-
-
-def _to_mongo_sort(orders) -> list[tuple[str, int]]:
-    """The Mongo order, with ``_id`` appended as the last criterion.
-
-    Without an explicit criterion the order is not deterministic, and keyset pagination needs a unique
-    tiebreaker. ``Inverted*`` flips the fetch direction; ``run_single_filter`` flips the result back, so it
-    appears in display order.
-    """
-    out = []
-    for name, order in orders:
-        _reject_legacy_key(name)
-        desc = order in (SortOrder.Descending, SortOrder.InvertedAscending)
-        out.append((name, -1 if desc else 1))
-    if not any(f == "_id" for f, _ in out):
-        last_dir = out[-1][1] if out else 1
-        out.append(("_id", last_dir))
-    return out
-
-
-_ORDER_FAMILY = {
+_ORDER_FAMILY: t.Final[dict[SortOrder, int]] = {
     SortOrder.Ascending: 1, SortOrder.InvertedAscending: 1,
     SortOrder.Descending: -1, SortOrder.InvertedDescending: -1,
 }
-"""Only the *display* direction counts for the cursor hash, not the concrete ``SortOrder``: an
-``InvertedAscending`` query reads exactly the same ascending order backwards from a cursor, so a cursor issued
-by an ``Ascending`` query has to be accepted by an ``InvertedAscending`` one on the same field (and the other
-way round for ``Descending``/``InvertedDescending``). Hashing the raw enum value instead would tell all four
-directions apart, and every backwards continuation would already fail ``setCursor``'s hash check."""
+"""The display direction per ``SortOrder``, as hashed into a cursor: an ``Inverted*`` query reads the same order
+backwards, so it has to accept a cursor issued by its non-inverted counterpart."""
 
 
 def _cursor_hash(qd: QueryDefinition) -> str:
     """Binds a cursor to its query.
 
-    A keyset cursor is readable and changeable, unlike an opaque Datastore token. The hash upholds the old
-    promise that a foreign or manipulated cursor cannot reach documents outside the current filters:
-    ``setCursor`` rejects a cursor whose hash differs, and even a matching hash with a forged ``after`` value
-    stays without effect outside the filter, because that filter runs along via ``$and`` on continuation.
+    A keyset cursor is readable and changeable, so a foreign or manipulated cursor must not reach documents
+    outside the current filters: ``setCursor`` rejects a cursor whose hash differs, and a forged ``after`` value
+    with a matching hash stays without effect, because the filter runs along via ``$and`` on continuation.
 
     :return: The first 16 hex characters of the material's SHA256.
     """
-    # Hashed are the *effective* orders, the shape in which orders reach ``_to_mongo_sort``. A cursor issued
-    # for a differently ordered version of the same query would otherwise be accepted and then run into an
-    # unhandled KeyError over a sort field its value package does not hold; this way it fails with a ValueError.
-    orders = qd.orders or _implicit_orders(qd.filters or {})
+    # Hash the effective orders, so a cursor of a differently ordered version of this query fails with a
+    # ValueError instead of a KeyError over a sort field its value package does not hold.
+    orders = qd.orders or utils.implicit_orders(qd.filters or {})
     material = json.dumps(
         [
             qd.kind,
@@ -213,93 +119,10 @@ def _cursor_hash(qd: QueryDefinition) -> str:
     return hashlib.sha256(material.encode()).hexdigest()[:16]
 
 
-def _range_condition(field: str, op: str, value: t.Any) -> dict:
-    """One comparison of the keyset chain, corrected for MongoDB's type bracketing.
-
-    ``$lt``/``$gt`` and their friends only compare within the same BSON type bracket, and ``null`` (like a
-    missing field) forms its own, lowest bracket: ``$gt null`` matches nothing at all, not even real values,
-    while ``$lt``/``$lte`` against a real value never match a missing field although it sorts below every
-    real value. Both cases are rewritten here, every other combination is already correct as it stands.
-
-    :return: The condition; ``{}`` when the comparison constrains nothing.
-    """
-    if value is None:
-        # "greater than the minimum of every order" is "present and not null"; ">= the minimum" is everything.
-        if op == "$gt":
-            return {field: {"$ne": None}}
-        # Defensive: today's chains always end at _id, which is never None, so this branch is unreachable.
-        if op == "$gte":
-            return {}
-        return {field: {op: value}}
-    if op in ("$lt", "$lte"):
-        # A missing or null field lies below every real value and has to be caught in addition.
-        return {"$or": [{field: {op: value}}, {field: None}]}
-    return {field: {op: value}}
-
-
-def _after_condition(sort: list[tuple[str, int]], after: dict, *, inclusive: bool = False) -> dict:
-    """The keyset continuation ``(a, b, ..., _id) > (va, vb, ..., vid)``, as an ``$or`` chain per sort field.
-
-    *sort* is already the Mongo order from ``_to_mongo_sort``, for an ``Inverted*`` order therefore the
-    direction actually queried. The equality prefixes match a missing field just like ``None``, and the
-    comparison per chain link comes from :func:`_range_condition`.
-
-    :param inclusive: Make the last link (always ``_id``) inclusive — an ``Inverted*`` query reads the row that
-        issued the cursor again, a plain continuation must not, or consecutive pages would overlap.
-    """
-    clauses = []
-    last = len(sort) - 1
-    for i, (field, direction) in enumerate(sort):
-        prefix = {sort[j][0]: after[sort[j][0]] for j in range(i)}
-        is_last = inclusive and i == last
-        if direction == 1:
-            op = "$gte" if is_last else "$gt"
-        else:
-            op = "$lte" if is_last else "$lt"
-        clauses.append({**prefix, **_range_condition(field, op, after[field])})
-    return {"$or": clauses}
-
-
-def _before_condition(sort: list[tuple[str, int]], before: dict) -> dict:
-    """The upper keyset bound for ``endCursor``: :func:`_after_condition` with every direction flipped.
-
-    The bound is always inclusive at the last, unique link (``_id``): a cursor is a position *between* two
-    rows, and the row that issued it still belongs "before" it. Only so does ``setCursor(c1, c2)``, with the
-    cursors taken after page 1 and after page 2, return page 2 in full instead of losing its last element.
-    """
-    clauses = []
-    last = len(sort) - 1
-    for i, (field, direction) in enumerate(sort):
-        prefix = {sort[j][0]: before[sort[j][0]] for j in range(i)}
-        is_last = i == last
-        if direction == 1:
-            op = "$lte" if is_last else "$lt"
-        else:
-            op = "$gte" if is_last else "$gt"
-        clauses.append({**prefix, **_range_condition(field, op, before[field])})
-    return {"$or": clauses}
-
-
-def _dotted_get(doc: dict, path: str) -> t.Any:
-    """Read a possibly dotted field (``"dest.name"``, as relational and spatial sorts produce it).
-
-    A plain ``doc.get(path)`` would only find a literal top level key holding a dot, never the nested value
-    Mongo itself addresses through exactly this dot notation.
-    """
-    value: t.Any = doc
-    for part in path.split("."):
-        if not isinstance(value, dict):
-            return None
-        value = value.get(part)
-    return value
-
-
 class Query(object):
     """
-    Base Class for querying the database. Its API still resembles the historical
-    google.cloud.datastore.query API this module replaced, because callers across the
-    codebase depend on that shape, and it provides the necessary hooks for relational
-    or random queries, the fulltext search as well as support for IN filters.
+    Base Class for querying the database. It provides the necessary hooks for relational or random queries,
+    the fulltext search as well as support for IN filters.
     """
 
     def __init__(self, kind: str, srcSkelClass: t.Union["SkeletonInstance", None] = None, *args, **kwargs):
@@ -428,11 +251,8 @@ class Query(object):
             try:
                 self.setCursor(startCursor, endCursor)
             except (ValueError, KeyError, TypeError) as e:
-                # setCursor() rejects a cursor carrying a foreign query hash with a ValueError, and broken
-                # base64/JSON does the same (ValueError/KeyError/TypeError, depending on how far the parsing
-                # gets). A cursor arrives here from an external request (see the docstring above: "safe to pass
-                # filters received from an external source"), so the same rule as for any other broken filter
-                # value in this function applies: ignore and log it instead of turning it into a 500.
+                # A foreign or broken cursor from an external request is ignored like any other invalid filter
+                # value here, instead of turning it into a 500.
                 logging.warning(f"Ignoring invalid cursor for query on {self.kind!r}: {e!r}")
 
         if limit := filters.get("limit"):
@@ -483,7 +303,7 @@ class Query(object):
         else:
             field, op = prop.split(" ")
 
-        # Normalize to uppercase for native Datastore operators passed as lowercase
+        # Normalize IN/NOT_IN passed as lowercase
         op = op.upper() if op.upper() in {"IN", "NOT_IN"} else op
 
         if op in {"IN", "!=", "NOT_IN"} and not isinstance(self.queries, list):
@@ -507,10 +327,6 @@ class Query(object):
                     self.queries.filters[filterStr] = [self.queries.filters[filterStr]]
                 self.queries.filters[filterStr].append(value)
 
-        # The Datastore demanded that an inequality filter (</<=/>/>=) appear as the first sort criterion, and
-        # that used to be added here automatically. MongoDB knows no such restriction — sorting by any field is
-        # always possible, filtered or not — so the automatism is gone; whoever needs a certain order still
-        # calls order() explicitly.
         return self
 
     def or_filter(self, *conditions: tuple[str, VALUE_TYPES]) -> t.Self:
@@ -529,14 +345,29 @@ class Query(object):
             q.or_filter(("continent =", "Africa"), ("continent =", "Asia"))
             q.or_filter(("sortindex >", 200), ("sortindex <", 50))
 
+        Each condition passes the filter hook like a :meth:`filter` call does, so a ``RelationalBone`` with
+        ``multiple=True`` rewrites its fields onto the viur-relations layout here as well.
+
         :param conditions: One or more ``("field op", value)`` pairs to OR together.
         :returns: Returns the query itself for chaining.
+        :raises ValueError: If the filter hook applies a condition to the query itself instead of returning it,
+            as such a condition cannot become part of an OR group.
         """
         if self.queries is None:
             return self
 
         parsed = []
         for prop, value in conditions:
+            if self._filterHook is not None:
+                try:
+                    r = self._filterHook(self, prop, value)
+                except RuntimeError:
+                    # An invalid condition makes the whole query unsatisfiable, exactly like in filter()
+                    self.queries = None
+                    return self
+                if r is None:
+                    raise ValueError(f"The filter hook applied {prop!r} directly; it cannot be part of an OR group")
+                prop, value = r
             if " " not in prop:
                 field, op = prop, "="
             else:
@@ -656,7 +487,7 @@ class Query(object):
 
         For multi queries (SpatialBone/RandomSliceBone) that check deliberately stays off: a single sub query,
         whose filters differ from the others (one value of an IN filter each, say), would never carry the same
-        hash as the one ``getCursor`` took it from. That is a documented limit, not an accidental gap.
+        hash as the one ``getCursor`` took it from.
 
         :param startCursor: The start cursor for this query.
         :param endCursor: The end cursor for this query.
@@ -812,7 +643,7 @@ class Query(object):
         """
         Internal helper that takes a (deduplicated) list of entities that has been fetched from different internal
         queries (e.g. from SpatialBone or RandomSliceBone custom multi-queries) and resorts the list so it matches
-        the query again. Regular IN/!= filters no longer use this path — they are handled natively by the Datastore.
+        the query again. Regular IN/!= filters do not use this path, MongoDB handles them natively.
 
         :param entities: t.List of entities to resort
         :param filters: The filter used in the query (used to determine implicit sort order by an inequality filter)
@@ -855,7 +686,7 @@ class Query(object):
         if ineqFilter and (not orders or not orders[0].name == ineqFilter):
             orders = [QueryOrder(ineqFilter)] + (orders or [])
 
-        # ``_to_mongo_sort`` always appends ``_id`` as the last, unique sort criterion. This client side merge
+        # ``utils.to_mongo_sort`` always appends ``_id`` as the last, unique sort criterion. This client side merge
         # (the SpatialBone/RandomSliceBone multi query) has to do the same, or equal sort values would be left
         # to the input order and the stability of Python's sort, inconsistent with the cursor the same query
         # issues.
@@ -880,13 +711,8 @@ class Query(object):
         """
         resultList = list(resultList)
 
-        # A relational query runs against "viur-relations" but has to return the source records. The source
-        # used to be the ancestor of the key; MongoDB has no hierarchy, so it is read from the "src" subdocument
-        # carried along instead.
-        #
-        # With keys_only the result list holds bare _id strings (run_single_filter converts them already) and
-        # there is no "src" field that could carry the resolution — the isinstance check keeps that case out
-        # before .get() would fail on a str.
+        # A relational query runs against "viur-relations" but has to return the source records, whose ids
+        # the "src" subdocument carries. With keys_only the result holds bare _id strings without "src".
         if (self.origKind and resultList
                 and isinstance(resultList[0], dict)
                 and resultList[0].get("viur_src_kind") == self.origKind):
@@ -965,8 +791,6 @@ class Query(object):
             ))
 
         if res:
-            # run_single_filter already returns bare _id strings for keys_only, so nothing has to be
-            # converted here (the old Datastore path passed entities/keys through).
             self._lastEntry = res[-1]
 
         return res
@@ -987,7 +811,7 @@ class Query(object):
             raise ValueError("No count on Multiqueries")
         else:
             qd = self.queries
-            return count(qd.kind, _to_mongo_filter(qd.filters, qd.or_filters), up_to)
+            return count(qd.kind, utils.to_mongo_filter(qd.filters, qd.or_filters), up_to)
 
     def fetch(self, limit: int = -1) -> "SkelList":
         """

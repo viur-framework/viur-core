@@ -337,7 +337,7 @@ class ResponseCache(t.Generic[Args, Value]):
             redirect = None
 
             # If we made it this far, the request wasn't cached or too old; we need to rebuild it
-            old_access_log = db.startDataAccessLog()
+            old_access_log = db.start_data_access_log()
             try:
                 uncompressed_body = body = func(self, *args, **kwargs)
             except errors.Redirect as redirect_exc:
@@ -377,7 +377,7 @@ class ResponseCache(t.Generic[Args, Value]):
                         raise errors.InternalServerError("Response too large for caching")
                     return uncompressed_body
             finally:
-                accessed_entries = db.endDataAccessLog(old_access_log)
+                accessed_entries = db.end_data_access_log(old_access_log)
 
             entity = {"_id": cache_key}
             entity["data"] = body

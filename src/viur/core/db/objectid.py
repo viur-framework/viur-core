@@ -12,7 +12,7 @@ import typing as t
 
 from bson import ObjectId
 
-_HEX = frozenset(string.hexdigits.lower())
+_HEX: t.Final[frozenset[str]] = frozenset(string.hexdigits.lower())
 
 
 def new_id() -> str:

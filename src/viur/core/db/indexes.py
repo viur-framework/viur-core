@@ -3,15 +3,15 @@
 The declaration comes from the project's ``index.yaml`` — the same file the Datastore already required and that
 ``SkelModule`` hands through to the admin. One entry is a Mongo key in declaration order (equality fields, then
 sort fields); ``_id`` is appended as the last field, in the direction of the field before it, exactly like
-``query._to_mongo_sort`` appends its tiebreaker. An entry whose only property is ``__key__``/``_id`` therefore
+``utils.to_mongo_sort`` appends its tiebreaker. An entry whose only property is ``__key__``/``_id`` therefore
 declares the plain ``_id`` index ``(("_id", 1),)`` — the one a query without an explicit order needs. MongoDB
 brings that index along as ``_id_``; Firestore Enterprise creates none by itself, so there it has to be
 declared like any other. Nothing is created on its own: ``createIndex`` blocks for a measured 75-120 s per
 index, so ``apply()`` belongs in a task or a script while the instance start only runs ``check_on_startup()``,
 which warns.
 
-``eligible()`` is the basis of the sort elision in ``transport._find``: an index yields the viur order when its
-leading keys are, as a set, the equality fields of the filter and the rest is exactly that order.
+``eligible()`` is the basis of the sort elision in ``transport.run_single_filter``: an index yields the viur
+order when its leading keys are, as a set, the equality fields of the filter and the rest is exactly that order.
 """
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ _DIRECTIONS: t.Final[dict[str | None, int]] = {None: 1, "asc": 1, "ascending": 1
 
 #: Indexes of the core kinds, in the same format as an ``index.yaml`` entry;
 #: ``declared()`` merges them with the project's file.
-CORE_INDEXES: list[dict] = [
+CORE_INDEXES: t.Final[list[dict]] = [
     # viur-relations — touched by every save/delete involving a RelationalBone
     {"kind": "viur-relations", "properties": [
         {"name": "viur_src_kind"}, {"name": "viur_dest_kind"}, {"name": "viur_src_property"}, {"name": "src.__key__"},
@@ -84,14 +84,9 @@ CORE_INDEXES: list[dict] = [
     {"kind": "viur-script-node", "properties": [{"name": "parententry"}, {"name": "name"}]},
     {"kind": "viur-script-node", "properties": [{"name": "path"}]},
     {"kind": "viur-script-leaf", "properties": [{"name": "path"}]},
-    # Plain ``_id`` index for the kinds viur-core walks page by page with a cursor. A pass that carries no
-    # filter of its own is sorted by ``_id`` alone, and without this index every page of such a pass is a
-    # collection scan (measured on Firestore Enterprise, 20 000 documents: 4 322 read units and 20 000
-    # documents examined per page of 99, against 102 read units and 99 documents examined with the index;
-    # a full run drops from quadratic to linear). MongoDB ships this index as ``_id_``, Firestore Enterprise
-    # creates none by itself — hence the declaration, which Firestore accepts and names ``_id_1``.
-    # Caveat: ``_id`` is a ``bson.ObjectId`` whose first four bytes are a timestamp, so its values rise over
-    # time; on a kind with a very high write rate this index can become a write hotspot (not measured).
+    # Plain ``_id`` index for the kinds viur-core walks page by page with a cursor and without a filter of its
+    # own: without it every page is a collection scan, as Firestore Enterprise creates no ``_id`` index itself.
+    # ``_id`` values rise over time, so on a kind with a very high write rate this index can become a hotspot.
     {"kind": "viur-relations", "properties": [{"name": "__key__"}]},
     {"kind": "file", "properties": [{"name": "__key__"}]},
     {"kind": "viur-blob-locks", "properties": [{"name": "__key__"}]},
@@ -115,29 +110,16 @@ def name(spec: IndexSpec) -> str:
     return "_".join(f"{field}_{direction}" for field, direction in spec)
 
 
-def _reset_for_tests() -> None:
-    global _declared
-    with _lock:
-        _declared = None
-        _existing.clear()
-        _suggested.clear()
-
-
-def _declared_field(name: str) -> str:
-    """The field a declaration means, as the documents spell it: ``__key__`` becomes ``_id``.
-
-    ``index.yaml`` keeps the Datastore spelling so that existing project files stay valid — this is a file
-    format, not query syntax. A query itself has to name ``_id``; ``query._reject_legacy_key`` refuses
-    ``__key__`` there.
-    """
-    return "_id" if name == "__key__" else name.replace(".__key__", "._id")
-
-
-def _spec_from_yaml(kind: str, properties: list[dict]) -> IndexSpec:
+def parse_spec(kind: str, properties: list[dict]) -> IndexSpec:
     """The Mongo key of one ``index.yaml`` entry; ``_id`` closes it as the tiebreaker.
 
     ``__key__``/``_id`` as the only property yields the plain ``_id`` index ``(("_id", 1),)``, or
     ``(("_id", -1),)`` with ``direction: desc`` — for a pass that iterates a whole kind descending.
+
+    :param kind: The kind of the entry, for the error message.
+    :param properties: The ``properties`` of the entry.
+    :return: The index spec.
+    :raises ValueError: On an unknown ``direction``.
     """
     keys: list[tuple[str, int]] = []
     for prop in properties:
@@ -145,7 +127,10 @@ def _spec_from_yaml(kind: str, properties: list[dict]) -> IndexSpec:
         if direction not in _DIRECTIONS:
             raise ValueError(f"index.yaml: kind {kind!r}, property {prop.get('name')!r}: "
                              f"unknown direction {direction!r} (allowed: asc, desc)")
-        keys.append((_declared_field(prop["name"]), _DIRECTIONS[direction]))
+        # index.yaml keeps the Datastore spelling so existing project files stay valid; the documents name the
+        # field ``_id``. A query itself has to name ``_id``, ``utils.reject_legacy_key`` refuses ``__key__`` there.
+        field = "_id" if prop["name"] == "__key__" else prop["name"].replace(".__key__", "._id")
+        keys.append((field, _DIRECTIONS[direction]))
     if not keys or keys[-1][0] != "_id":
         keys.append(("_id", keys[-1][1] if keys else 1))
     return tuple(keys)
@@ -173,7 +158,7 @@ def declared() -> dict[str, list[IndexSpec]]:
     seen: dict[str, set[str]] = {}
     for entry in [*CORE_INDEXES, *entries]:
         kind = entry["kind"]
-        spec = _spec_from_yaml(kind, entry.get("properties") or [])
+        spec = parse_spec(kind, entry.get("properties") or [])
         if name(spec) in seen.setdefault(kind, set()):
             continue
         seen[kind].add(name(spec))
@@ -199,14 +184,14 @@ def existing(kind: str) -> list[IndexSpec]:
     :param kind: The kind whose collection is inspected.
     :return: The usable index specs of that collection.
     """
-    from .transport import _collection
+    from .transport import get_collection
 
     now = time.monotonic()
     with _lock:
         cached = _existing.get(kind)
         if cached and now - cached[0] < conf.db.index_cache_ttl:
             return list(cached[1])
-    info = _collection(kind).index_information()
+    info = get_collection(kind).index_information()
     specs = []
     for entry in info.values():
         if entry.get("sparse") or entry.get("partialFilterExpression") or entry.get("hidden") or entry.get("collation"):
@@ -252,7 +237,7 @@ def apply(
         the next call; checked before each ``create_index``.
     :return: ``(kind, name, seconds)`` per created index.
     """
-    from .transport import _collection
+    from .transport import get_collection
 
     if specs is not None:
         if kind is None:
@@ -273,7 +258,7 @@ def apply(
                 return done
             started = time.monotonic()
             try:
-                created = _collection(k).create_index(list(spec))
+                created = get_collection(k).create_index(list(spec))
             except Exception as exc:  # noqa: BLE001 — one index must not block the others
                 logger.error(f"Index {name(spec)!r} on {k!r} not created: {type(exc).__name__}: {exc}")
                 continue
@@ -282,6 +267,15 @@ def apply(
             done.append((k, created, seconds))
         invalidate(k)
     return done
+
+
+def equality_fields(flt: dict) -> frozenset[str]:
+    """The top-level fields of the Mongo filter *flt* holding a plain equality value — the index prefix."""
+    # Neither an operator dict nor ``$and``/``$or`` counts; everything else is filtered residually.
+    return frozenset(
+        field for field, value in flt.items()
+        if not field.startswith("$") and not (isinstance(value, dict) and any(k.startswith("$") for k in value))
+    )
 
 
 def eligible(kind: str, eq_fields: frozenset[str], sort: list[tuple[str, int]]) -> IndexSpec | None:

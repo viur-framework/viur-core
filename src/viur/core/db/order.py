@@ -1,15 +1,13 @@
 """The BSON comparison order, used to verify the order of an elided sort client-side.
 
 Firestore returns the order of the hinted index when no ``sort()`` is sent — observed, not promised.
-``transport._find`` therefore checks every result against the requested order, and that comparison has to mirror
-Mongo's type ordering, or a document holding ``None`` next to one holding an ``int`` would raise a ``TypeError``
-instead of comparing.
+``transport.run_single_filter`` therefore checks every result against the requested order, and that comparison
+has to mirror Mongo's type ordering, or a document holding ``None`` next to one holding an ``int`` would raise a
+``TypeError`` instead of comparing.
 
 The order (the official BSON comparison order, as far as viur documents use it): null/missing < numbers <
 strings < objects < arrays < binary < ObjectId < boolean < date. An array as a sort value counts with its
-smallest (ascending) or largest (descending) element, like Mongo itself and like ``Query._resort_result.getVal``.
-The test overlay in ``viur.light_mock`` carries its own copy of this ordering (``_bson_type_key``) for its own
-sorting; the core must not depend on the overlay.
+smallest (ascending) or largest (descending) element, like Mongo itself.
 """
 from __future__ import annotations
 
@@ -18,7 +16,7 @@ import typing as t
 
 from bson import ObjectId
 
-from .query import _dotted_get
+from .utils import dotted_get
 
 
 def _rank(value: t.Any) -> tuple:
@@ -81,7 +79,7 @@ def is_sorted(docs: list[dict], sort: list[tuple[str, int]]) -> bool:
     # FIXME: objects and nested arrays only compare by their type rank, so a sort on such a field passes this
     #        check without really matching Mongo's own order. Sorting on a scalar or a multikey field is exact.
     def key(doc: dict) -> tuple:
-        return tuple(bson_sort_key(_dotted_get(doc, field), direction) for field, direction in sort)
+        return tuple(bson_sort_key(dotted_get(doc, field), direction) for field, direction in sort)
 
     previous = None
     for doc in docs:

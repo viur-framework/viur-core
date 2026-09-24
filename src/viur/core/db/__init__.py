@@ -1,10 +1,7 @@
-import logging
-import warnings
+import typing as t
 
 from . import cache, indexes, objectid, order
-from .config import conf as config
 from .query import Query
-# new exports for 3.8
 from .transport import (
     count,
     delete,
@@ -23,14 +20,10 @@ from .types import (
 )
 from .utils import (
     acquire_transaction_success_marker,
-    encodeKey,
     end_data_access_log,
-    endDataAccessLog,
     get_or_insert,
     is_in_transaction,
-    IsInTransaction,
     start_data_access_log,
-    startDataAccessLog,
 )
 
 __all__ = [
@@ -40,13 +33,8 @@ __all__ = [
     "QueryOrder",
     "QueryDefinition",
     "Query",
-    "IsInTransaction",
     "current_db_access_log",
-    "encodeKey",
     "acquire_transaction_success_marker",
-    "config",
-    "startDataAccessLog",
-    "endDataAccessLog",
     "cache",
     # new exports
     "get",
@@ -67,36 +55,13 @@ __all__ = [
 
 
 def __getattr__(attr):
-    __DEPRECATED_NAMES = {
-        # stuff prior viur-core < 3.8
-        "currentDbAccessLog": ("current_db_access_log", current_db_access_log),
-    }
-
-    if replace := __DEPRECATED_NAMES.get(attr):
-        msg = f"Use of `utils.{attr}` is deprecated; Use `{replace[0]}` instead!"
-        warnings.warn(msg, DeprecationWarning, stacklevel=3)
-        logging.warning(msg, stacklevel=3)
-
-        ret = replace[1]
-
-        # When this is a string, try to resolve by dynamic import
-        if isinstance(ret, str):
-            mod, item, attr = ret.rsplit(".", 2)
-            mod = __import__(mod, fromlist=(item,))
-            item = getattr(mod, item)
-            ret = getattr(item, attr)
-
-        return ret
-
     if hint := _REMOVED_NAMES.get(attr):
         raise AttributeError(f"module 'viur.core.db' has no attribute {attr!r}: {hint}")
     raise AttributeError(f"module 'viur.core.db' has no attribute {attr!r}")
 
 
-_REMOVED_NAMES = {
-    # Removed when the driver changed from the Datastore to MongoDB (CHANGELOG: "Breaking: MongoDB
-    # instead of Datastore"). A clear hint here saves every migrating project the search — the old
-    # fallback raised a misleading "'super' object has no attribute ...".
+_REMOVED_NAMES: t.Final[dict[str, str]] = {
+    # Datastore names without a counterpart on MongoDB
     "Key": "a key is now the _id string itself: db.Key(kind, name) -> name; "
            "the kind belongs at the call site (db.get(kind, _id), skel.read(_id))",
     "Entity": "a record is now a dict carrying '_id'; db.Entity(key) -> {'_id': _id}",
@@ -112,4 +77,12 @@ _REMOVED_NAMES = {
     "DATASTORE_BASE_TYPES": "is now called db.VALUE_TYPES",
     "Get": "db.get(kind, _id)", "Put": "db.put(kind, doc)", "Delete": "db.delete(kind, _id)",
     "Count": "db.count(kind, filter)", "RunInTransaction": "db.run_in_transaction(func, ...)",
+    # Aliases removed in 4.0
+    "config": "conf.db.memcache_client and conf.debug.trace_queries",
+    "IsInTransaction": "db.is_in_transaction()",
+    "encodeKey": "a key is already a string; use it as it is",
+    "runSingleFilter": "db.transport.run_single_filter(query, limit, keys_only)",
+    "startDataAccessLog": "db.start_data_access_log()",
+    "endDataAccessLog": "db.end_data_access_log(outer_access_log)",
+    "currentDbAccessLog": "db.current_db_access_log",
 }

@@ -11,14 +11,10 @@ from dataclasses import dataclass, field
 from ..config import conf
 
 KEY_SPECIAL_PROPERTY = "_id"
-"""The property name pointing to an entities key in a query.
-
-On MongoDB ``_id`` is the field the id really lives in — a plain key like any other, no pseudo property."""
+"""The property name pointing to an entities key in a query."""
 
 VALUE_TYPES = None | str | int | float | bool | datetime.datetime | datetime.date | datetime.time
-"""Types that can be used as a property value in a query.
-
-A key is a plain ``str`` (the ``_id``), which the union already covers — it needs no type of its own."""
+"""Types that can be used as a property value in a query; a key is a plain ``str``."""
 
 current_db_access_log: ContextVar[set[str] | None] = ContextVar("Database-Accesslog", default=None)
 """If set to a set for the current thread/request, we'll log all entities / kinds accessed"""
@@ -104,7 +100,7 @@ class QueryDefinition:
 
     endCursor: dict | None = None
     """The upper keyset bound, in the same shape as ``startCursor``: only rows that lie *before* this row in the
-    current order (``_before_condition``). Whether a cursor acts as the lower or the upper bound is decided
+    current order (``utils.before_condition``). Whether a cursor acts as the lower or the upper bound is decided
     solely by the parameter it is passed to."""
 
     currentCursor: dict | None = None
