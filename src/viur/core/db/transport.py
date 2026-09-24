@@ -244,13 +244,17 @@ def run_in_transaction(func: t.Callable, *args, **kwargs) -> t.Any:
 
     token = _transaction_outdated.set([])
     try:
-        for i in range(3):
+        for i in range(conf.db.transaction_attempts):
             try:
                 with __client__.transaction():
                     res = func(*args, **kwargs)
                     break
 
             except exceptions.Conflict:
+                if i + 1 >= conf.db.transaction_attempts:
+                    # Last attempt failed: raise right away instead of sleeping first.
+                    raise RuntimeError("Maximum transaction retries exceeded")
+
                 logging.error(f"Transaction failed with a conflict, trying again in {2 ** i} seconds")
                 time.sleep(2 ** i)
                 continue
