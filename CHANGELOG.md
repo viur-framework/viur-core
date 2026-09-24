@@ -2,10 +2,6 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.9.2]
-
-- fix(db): accept tuples and sets as `IN`/`NOT_IN` filter values, and don't split `NOT_IN` in `count()`
-
 ## [3.9.1]
 
 - doc: Adding `whatsnew` guides for v3.8 + v3.9
