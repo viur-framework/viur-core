@@ -25,7 +25,6 @@ import yaml
 
 from viur.core.config import conf
 
-from .query import _mongo_field
 
 IndexSpec: t.TypeAlias = tuple[tuple[str, int], ...]
 
@@ -124,6 +123,16 @@ def _reset_for_tests() -> None:
         _suggested.clear()
 
 
+def _declared_field(name: str) -> str:
+    """The field a declaration means, as the documents spell it: ``__key__`` becomes ``_id``.
+
+    ``index.yaml`` keeps the Datastore spelling so that existing project files stay valid — this is a file
+    format, not query syntax. A query itself has to name ``_id``; ``query._reject_legacy_key`` refuses
+    ``__key__`` there.
+    """
+    return "_id" if name == "__key__" else name.replace(".__key__", "._id")
+
+
 def _spec_from_yaml(kind: str, properties: list[dict]) -> IndexSpec:
     """The Mongo key of one ``index.yaml`` entry; ``_id`` closes it as the tiebreaker.
 
@@ -136,7 +145,7 @@ def _spec_from_yaml(kind: str, properties: list[dict]) -> IndexSpec:
         if direction not in _DIRECTIONS:
             raise ValueError(f"index.yaml: kind {kind!r}, property {prop.get('name')!r}: "
                              f"unknown direction {direction!r} (allowed: asc, desc)")
-        keys.append((_mongo_field(prop["name"]), _DIRECTIONS[direction]))
+        keys.append((_declared_field(prop["name"]), _DIRECTIONS[direction]))
     if not keys or keys[-1][0] != "_id":
         keys.append(("_id", keys[-1][1] if keys else 1))
     return tuple(keys)

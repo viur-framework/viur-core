@@ -49,10 +49,9 @@ def get_or_insert(kind: str, _id: str, **defaults) -> dict:
 
 
 @deprecated(version="3.8.0", reason="Use 'str(key)' instead")
+@deprecated(version="3.9.0", reason="A key is already a string; there is nothing left to encode")
 def encodeKey(key: str) -> str:
-    """
-        Return the given key encoded as string (mimicking the old str() behaviour of keys)
-    """
+    """Return the key as a string — a no-op since keys became plain ``_id`` strings."""
     return str(key)
 
 

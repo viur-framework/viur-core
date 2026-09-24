@@ -12,6 +12,7 @@ from viur.core.config import conf
 from viur.core.utils import json as vjson
 from .transport import count, get, run_single_filter
 from .types import (
+    KEY_SPECIAL_PROPERTY,
     VALUE_TYPES,
     QueryDefinition,
     QueryOrder,
@@ -90,15 +91,18 @@ _OPS = {"<": "$lt", "<=": "$lte", ">": "$gt", ">=": "$gte", "IN": "$in", "NOT_IN
 """viur comparison operator -> Mongo operator."""
 
 
-_LEGACY_KEY = "__key__"
-"""The old Datastore pseudo name. A literal on purpose and not ``KEY_SPECIAL_PROPERTY``: that constant reads
-``"_id"`` today, while ``__key__`` filters coming from consumers that have not been ported yet still have to be
-translated onto ``_id``."""
+def _reject_legacy_key(name: str) -> None:
+    """Refuse the Datastore pseudo name ``__key__`` in a filter or an order.
 
+    A document has no ``__key__`` field, so a query naming it would silently match nothing instead of
+    failing. Raising keeps that from passing unnoticed.
 
-def _mongo_field(name: str) -> str:
-    """``__key__`` becomes ``_id`` — at the top level as well as inside a dotted path."""
-    return "_id" if name == _LEGACY_KEY else name.replace(f".{_LEGACY_KEY}", "._id")
+    :raises ValueError: if *name* is ``__key__`` or ends in ``.__key__``.
+    """
+    if name == "__key__" or name.endswith(".__key__"):
+        replacement = name.replace("__key__", KEY_SPECIAL_PROPERTY)
+        raise ValueError(f"{name!r}: __key__ is gone — use {replacement!r} "
+                         f"(db.KEY_SPECIAL_PROPERTY) instead")
 
 
 def _split(key: str) -> tuple[str, str]:
@@ -106,7 +110,8 @@ def _split(key: str) -> tuple[str, str]:
     # ``Query.filter`` always stores the key as f"{field} {op}" and a field itself holds no space, so
     # ``rpartition`` splits at the actual operator.
     name, _, op = key.rpartition(" ")
-    return _mongo_field(name), (op or "=")
+    _reject_legacy_key(name)
+    return name, (op or "=")
 
 
 def _to_mongo_filter(filters: dict, or_filters: list) -> dict:
@@ -161,8 +166,9 @@ def _to_mongo_sort(orders) -> list[tuple[str, int]]:
     """
     out = []
     for name, order in orders:
+        _reject_legacy_key(name)
         desc = order in (SortOrder.Descending, SortOrder.InvertedAscending)
-        out.append((_mongo_field(name), -1 if desc else 1))
+        out.append((name, -1 if desc else 1))
     if not any(f == "_id" for f, _ in out):
         last_dir = out[-1][1] if out else 1
         out.append(("_id", last_dir))

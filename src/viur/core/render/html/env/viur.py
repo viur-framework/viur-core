@@ -155,7 +155,7 @@ def getSkel(
     (e.g. an editSkel).
 
     :param module: Name of the module, from which the data should be fetched.
-    :param key: Requested entity-key in an urlsafe-format. If the module is a Singleton
+    :param key: Requested entity ``_id``. If the module is a Singleton
     application, the parameter can be omitted.
     :param skel: Specifies and optionally different data-model
     :param skel_arg: Optional skeleton arguments to be passed to the skel-function (e.g. for Tree-Modules)

@@ -108,9 +108,6 @@ def ensureDerived(
             skel = skeletonByKind(refresh_kind)()
             skel.patch(lambda _skel: _skel.refresh(), key=refresh_id, update_relations=False)
 
-        # NOTE: update_relations (skeleton/tasks.py) still takes a single db.Key and is not
-        # part of this cutover - passing the bare _id here is the best available fit until
-        # that signature grows a `kind` parameter of its own.
         update_relations(_id, min_change_time=int(time.time() + 1), changed_bones=["derived"], _countdown=30)
 
 
