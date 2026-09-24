@@ -7,13 +7,22 @@ from viur.core import db, utils
 class Pagination:
     """
     This module provides efficient pagination for a small specified set of queries.
-    The datastore does not provide an efficient method for skipping N number of entities. This prevents
-    the usual navigation over multiple pages (in most cases - like a google search - the user expects a list
-    of pages (e.g. 1-10) on the bottom of each page with direct access to these pages). With the datastore and it's
-    cursors, the most we can provide is a next-page & previous-page link using cursors. This module provides an
+    Query cursors are keyset tokens (the sort values of a specific row, plus a hash binding
+    them to the query that issued them) - a value, not an index, so there is still no
+    way to jump straight to "page 7" by computing an offset. This prevents the usual navigation
+    over multiple pages (in most cases - like a google search - the user expects a list of pages
+    (e.g. 1-10) on the bottom of each page with direct access to these pages). With cursors, the
+    most we can provide directly is a next-page & previous-page link. This module provides an
     efficient method to provide these direct-access page links under the condition that only a few, known-in-advance
     queries will be run. This is typically the case for forums, where there is only one query per thread (it's posts
     ordered by creation date) and one for the threadlist (it's threads, ordered by changedate).
+
+    Being keyset values rather than opaque server-side tokens, the cursors this module stores stay
+    valid far longer than a datastore cursor would have - they survive index rebuilds and driver
+    changes, since they are just values. One thing they do not survive unchanged is the underlying
+    data shifting: if a row's sort value changes after an index was built, an old cursor keeps
+    continuing from where that value used to sit, not from the row's new position. That
+    was true of opaque cursors as well, just invisibly so.
 
     To use this module, create an instance of this index-manager on class-level (setting page_size & max_pages).
     Then call :meth:get_pages with the query you want to retrieve the cursors for the individual pages for. This
@@ -77,7 +86,7 @@ class Pagination:
         key = self.key_from_query(orig_query)
 
         # We don't have it cached - try to load it from DB
-        index = db.get(db.Key(self._db_type, key))
+        index = db.get(self._db_type, key)
         if index is not None:
             return index["data"]
 
@@ -96,10 +105,10 @@ class Pagination:
             cursors.append(query.getCursor())
             query.setCursor(query.getCursor())
 
-        entry = db.Entity(db.Key(self._db_type, key))
+        entry = {"_id": key}
         entry["data"] = cursors
         entry["creationdate"] = utils.utcNow()
-        db.put(entry)
+        db.put(self._db_type, entry)
         return cursors
 
     def cursor_for_query(self, query: db.Query, page: int) -> t.Optional[str]:
@@ -139,4 +148,4 @@ class Pagination:
         :param query: Query for which the index should be refreshed
         """
         key = self.key_from_query(query)
-        db.delete(db.Key(self._db_type, key))
+        db.delete(self._db_type, key)

@@ -3,7 +3,7 @@ import typing as t
 from viur.core.bones import *
 from viur.core.prototypes.tree import Tree, TreeSkel, SkelType
 from viur.core.modules.file import File
-from viur.core import db, conf, current, skeleton, tasks, errors
+from viur.core import conf, current, skeleton, tasks, errors
 from viur.core.decorators import exposed
 from viur.core.i18n import translate
 import zipfile
@@ -105,7 +105,7 @@ class Script(Tree):
         }]
 
     @exposed
-    def view(self, skelType: SkelType, key: db.KeyType, *args, **kwargs) -> t.Any:
+    def view(self, skelType: SkelType, key: str, *args, **kwargs) -> t.Any:
         try:
             return super().view(skelType, key, *args, **kwargs)
         except errors.NotFound:
@@ -181,7 +181,7 @@ class Script(Tree):
                     res.append(script_entry)
             importable_files_query = self.viewSkel("node").all().filter("parententry", _importable_key)
             for folder_entry in importable_files_query.iter():
-                res.extend(get_files_recursively(folder_entry.key))
+                res.extend(get_files_recursively(folder_entry["_id"]))
             return res
 
         # get importable key
@@ -191,7 +191,7 @@ class Script(Tree):
         if not (qry_importable := self.listFilter(qry_importable)):
             raise errors.Unauthorized()
 
-        importable_key = (entity := qry_importable.getEntry()) and entity.key
+        importable_key = (entity := qry_importable.getEntry()) and entity["_id"]
         if not importable_key:
             raise errors.NotFound("No importable folder defined")
 

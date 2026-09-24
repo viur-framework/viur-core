@@ -51,7 +51,6 @@ class RandomSliceBone(BaseBone):
         :rtype: bool
         """
         skel.dbEntity[name] = random()
-        skel.dbEntity.exclude_from_indexes.discard(name)  # Random bones can never be not indexed
         return True
 
     def buildDBSort(
@@ -140,24 +139,24 @@ class RandomSliceBone(BaseBone):
         """
         return ceil(targetAmount * self.sliceSize)
 
-    def customMultiQueryMerge(self, dbFilter: db.Query, result: list[db.Entity], targetAmount: int) \
-            -> list[db.Entity]:
+    def customMultiQueryMerge(self, dbFilter: db.Query, result: list[dict], targetAmount: int) \
+            -> list[dict]:
         """
         Merges the results of multiple subqueries by randomly selecting 'targetAmount' elements
         from the combined 'result' list.
 
         :param db.Query dbFilter: The db.Query instance calling this function.
-        :param List[db.Entity] result: The list of results for each subquery that has been run.
+        :param List[dict] result: The list of results for each subquery that has been run.
         :param int targetAmount: The number of results to be returned from the db.Query.
         :return: A list of elements to be returned from the db.Query.
-        :rtype: List[db.Entity]
+        :rtype: List[dict]
         """
         # res is a list of iterators at this point, chain them together
         res = chain(*[list(x) for x in result])
         # Remove duplicates
         tmpDict = {}
         for item in res:
-            tmpDict[str(item.key)] = item
+            tmpDict[item["_id"]] = item
         res = list(tmpDict.values())
         # Slice the requested amount of results our 3times lager set
         res = sample(res, min(len(res), targetAmount))

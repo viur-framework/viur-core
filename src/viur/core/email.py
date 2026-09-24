@@ -70,11 +70,11 @@ AttachmentInline = t.TypedDict("AttachmentInline", {
 })
 AttachmentViurFile = t.TypedDict("AttachmentViurFile", {
     "filename": str,
-    "file_key": db.Key | str,
+    "file_key": str,
 })
 AttachmentGscFile = t.TypedDict("AttachmentGscFile", {
     "filename": str,
-    "gcsfile": db.Key | str,
+    "gcsfile": str,
 })
 Attachment: t.TypeAlias = AttachmentInline | AttachmentViurFile | AttachmentGscFile
 
@@ -134,7 +134,7 @@ class EmailTransport(ABC):
         """
         ...
 
-    def validate_queue_entity(self, entity: db.Entity) -> None:
+    def validate_queue_entity(self, entity: dict) -> None:
         """
         This function can be implemented to pre-validate the queue entity before it's deferred into the queue.
         Must raise an exception if the email cannot be send (f.e. if it contains an invalid attachment)
@@ -142,7 +142,7 @@ class EmailTransport(ABC):
         """
         ...
 
-    def transport_successful_callback(self, entity: db.Entity):
+    def transport_successful_callback(self, entity: dict):
         """
         This callback can be implemented to execute additional tasks after an email
         has been successfully send.
@@ -184,7 +184,7 @@ class EmailTransport(ABC):
         This allows sending emails with large attachments,
         and prevents the queue entry from exceeding the maximum datastore Entity size.
         """
-        # We need a copy of the attachments to keep the content apart from the db.Entity,
+        # We need a copy of the attachments to keep the content apart from the queue entity,
         # which will be re-written later with the response.
         attachment = attachment.copy()
         if file_key := attachment.get("file_key"):
@@ -203,7 +203,7 @@ class EmailTransport(ABC):
 
 
 @CallDeferred
-def send_email_deferred(key: db.Key):
+def send_email_deferred(key: str):
     """
     Task that send an email.
 
@@ -211,10 +211,10 @@ def send_email_deferred(key: db.Key):
     Send the email by calling the implemented :meth:`EmailTransport.deliver_email`
     of the configures :attr:`conf.email.transport_class`.
 
-    :param key: Datastore key of the email to send
+    :param key: _id of the queue entity to send
     """
     logging.debug(f"Sending deferred email {key!r}")
-    if not (queued_email := db.get(key)):
+    if not (queued_email := db.get(EMAIL_KINDNAME, key)):
         raise ValueError(f"Email queue entity with {key=!r} went missing!")
 
     if queued_email["isSend"]:
@@ -240,16 +240,16 @@ def send_email_deferred(key: db.Key):
     except Exception:
         # Increase the errorCount and bail out
         queued_email["errorCount"] += 1
-        db.put(queued_email)
+        db.put(EMAIL_KINDNAME, queued_email)
         raise
 
     # If that transportFunction did not raise an error that email has been successfully send
     queued_email["isSend"] = True
     queued_email["sendDate"] = utils.utcNow()
     queued_email["transportFuncResult"] = result_data
-    queued_email.exclude_from_indexes.add("transportFuncResult")
+    # MongoDB has no per-field index exclusion; every field is queryable.
 
-    db.put(queued_email)
+    db.put(EMAIL_KINDNAME, queued_email)
 
     try:
         transport_class.transport_successful_callback(queued_email)
@@ -283,7 +283,7 @@ def send_email(
     bcc: str | list[str] = None,
     headers: dict[str, str] = None,
     attachments: list[Attachment] = None,
-    context: db.DATASTORE_BASE_TYPES | list[db.DATASTORE_BASE_TYPES] | db.Entity = None,
+    context: t.Any = None,
     **kwargs,
 ) -> bool:
     """
@@ -339,8 +339,7 @@ def send_email(
         raise ValueError("You have to set the params 'tpl' xor a 'stringTemplate'.")
 
     if attachments := normalize_to_list(attachments):
-        # Ensure each attachment has the filename key and rewrite each dict to db.Entity so we can exclude
-        # it from being indexed
+        # Ensure each attachment has the filename key
         for _ in range(0, len(attachments)):
             attachment = attachments.pop(0)
             transport_class.validate_attachment(attachment)
@@ -348,12 +347,7 @@ def send_email(
             if "mimetype" not in attachment:
                 attachment["mimetype"] = "application/octet-stream"
 
-            entity = db.Entity()
-            for k, v in attachment.items():
-                entity[k] = v
-                entity.exclude_from_indexes.add(k)
-
-            attachments.append(entity)
+            attachments.append(dict(attachment))
 
     # If conf.email.recipient_override is set we'll redirect any email to these address(es)
     if conf.email.recipient_override:
@@ -381,7 +375,7 @@ def send_email(
     subject, body = conf.emailRenderer(dests, tpl, stringTemplate, skel, **kwargs)
 
     # Push that email to the outgoing queue
-    queued_email = db.Entity(db.Key(EMAIL_KINDNAME))
+    queued_email = {}
 
     queued_email["isSend"] = False
     queued_email["errorCount"] = 0
@@ -395,7 +389,7 @@ def send_email(
     queued_email["headers"] = headers
     queued_email["attachments"] = attachments
     queued_email["context"] = context
-    queued_email.exclude_from_indexes = {"body", "attachments", "context"}
+    # MongoDB has no per-field index exclusion; every field is queryable.
 
     transport_class.validate_queue_entity(queued_email)  # Will raise an exception if the entity is not valid
 
@@ -408,8 +402,8 @@ def send_email(
             logging.info(f"""Recipients: {queued_email["dests"]}""")
             return False
 
-    db.put(queued_email)
-    send_email_deferred(queued_email.key, _queue=EMAIL_QUEUE)
+    db.put(EMAIL_KINDNAME, queued_email)
+    send_email_deferred(queued_email["_id"], _queue=EMAIL_QUEUE)
     return True
 
 
@@ -550,7 +544,7 @@ class EmailTransportBrevo(EmailTransport):
         assert str(response.code)[0] == "2", "Received a non 2XX Status Code!"
         return response.read().decode("UTF-8")
 
-    def validate_queue_entity(self, entity: db.Entity) -> None:
+    def validate_queue_entity(self, entity: dict) -> None:
         """
         Validate the attachments (if any) against the list of supported file extensions by Brevo.
 
@@ -600,10 +594,10 @@ class EmailTransportBrevo(EmailTransport):
         # Keep track of the last credits and the limit for which a email has
         # already been sent. This way, emails for the same limit will not be
         # sent more than once and the remaining email credits will not be wasted.
-        key = db.Key("viur-email-conf", "sib-credits")
-        if not (entity := db.get(key)):
+        key = "sib-credits"
+        if not (entity := db.get("viur-email-conf", key)):
             logging.debug(f"{entity = }")
-            entity = db.Entity(key)
+            entity = {"_id": key}
             logging.debug(f"{entity = }")
         logging.debug(f"{entity = }")
         entity.setdefault("latest_warning_for", None)
@@ -628,7 +622,7 @@ class EmailTransportBrevo(EmailTransport):
             # Credits are above all limits
             entity["latest_warning_for"] = None
 
-        db.put(entity)
+        db.put("viur-email-conf", entity)
 
 
 @deprecated(version="3.7.0", reason="Sendinblue is now Brevo; Use EmailTransportBrevo instead")

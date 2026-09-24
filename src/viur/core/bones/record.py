@@ -113,6 +113,14 @@ class RecordBone(BaseBone):
     def postSavedHandler(self, skel, boneName, key) -> None:
         super().postSavedHandler(skel, boneName, key)
 
+        # `value` below is a `using=`-RelSkel instance (one record entry) - it has no
+        # kindName of its own and a plain _id string carries no kind, so a nested
+        # RelationalBone is handed the real kind explicitly. Falls
+        # back to the container's own class name only if `skel` is itself already such a
+        # container (RecordBone nested inside another `using=`), matching
+        # RelationalBone._resolve_src_kind's fallback for the same situation.
+        src_kind = getattr(skel, "kindName", None) or skel.skeletonCls.__name__
+
         drop_relations_higher = {}
 
         for idx, lang, value in self.iter_bone_value(skel, boneName):
@@ -128,14 +136,15 @@ class RecordBone(BaseBone):
                 path = ".".join(name for name in (boneName, lang, f"{idx or 0:02}", sub_bone_name) if name)
                 if utils.string.is_prefix(bone.type, "relational"):
                     drop_relations_higher[sub_bone_name] = path
-
-                bone.postSavedHandler(value, path, key)
+                    bone.postSavedHandler(value, path, key, src_kind=src_kind)
+                else:
+                    bone.postSavedHandler(value, path, key)
 
         if drop_relations_higher:
             for viur_src_property in drop_relations_higher.values():
                 query = db.Query("viur-relations") \
-                    .filter("viur_src_kind =", key.kind) \
-                    .filter("src.__key__ =", key) \
+                    .filter("viur_src_kind =", src_kind) \
+                    .filter("src._id =", key) \
                     .filter("viur_src_property >", viur_src_property)
 
                 logging.debug(f"Delete viur-relations with {query=}")
@@ -144,13 +153,18 @@ class RecordBone(BaseBone):
     def postDeletedHandler(self, skel, boneName, key) -> None:
         super().postDeletedHandler(skel, boneName, key)
 
+        src_kind = getattr(skel, "kindName", None) or skel.skeletonCls.__name__
+
         for idx, lang, value in self.iter_bone_value(skel, boneName):
             if value is None:
                 continue
 
             for sub_bone_name, bone in value.items():
                 path = ".".join(part for part in (boneName, lang, f"{idx or 0:02}", sub_bone_name) if part)
-                bone.postDeletedHandler(value, path, key)
+                if utils.string.is_prefix(bone.type, "relational"):
+                    bone.postDeletedHandler(value, path, key, src_kind=src_kind)
+                else:
+                    bone.postDeletedHandler(value, path, key)
 
     def getSearchTags(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> set[str]:
         """
@@ -225,4 +239,4 @@ class RecordBone(BaseBone):
                 # When the value (acting as a skel) is marked for deletion, clear it.
                 if using_skel._cascade_deletion is True:
                     # Unset the Entity, so the skeleton becomes a False truthyness.
-                    using_skel.setEntity(db.Entity())
+                    using_skel.setEntity({})

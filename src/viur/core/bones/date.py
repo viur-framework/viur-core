@@ -170,7 +170,9 @@ class DateBone(BaseBone):
                     elif value.count(":") > 0:
                         (hour, minute) = [int(x.strip()) for x in value.split(":")]
                         value = datetime.datetime(year=1970, month=1, day=1, hour=hour, minute=minute, tzinfo=time_zone)
-                    elif value.replace("-", "", 1).isdigit():
+                    # pragma-note: unreachable - every value satisfying this is already
+                    # consumed by the timestamp branch at the top of this method.
+                    elif value.replace("-", "", 1).isdigit():  # pragma: no cover
                         value = datetime.datetime(year=1970, month=1, day=1, second=int(value), tzinfo=time_zone)
                     else:
                         value = None

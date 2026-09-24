@@ -314,8 +314,8 @@ class SpatialBone(BaseBone):
         return targetAmount * 2
 
     def customMultiQueryMerge(self, name, lat, lng, dbFilter: db.Query,
-                              result: list[db.Entity], targetAmount: int
-                              ) -> list[db.Entity]:
+                              result: list[dict], targetAmount: int
+                              ) -> list[dict]:
         """
         Randomly returns 'targetAmount' elements from 'result'.
 
@@ -326,7 +326,7 @@ class SpatialBone(BaseBone):
         :param result: The list of results for each subquery that was executed
         :param int targetAmount: The desired number of results to be returned from db.Query
         :return: List of elements to be returned from db.Query
-        :rtype: List[db.Entity]
+        :rtype: List[dict]
         """
         assert len(result) == 4  # There should be exactly one result for each direction
         result = [list(x) for x in result]  # Remove the iterators
@@ -356,7 +356,7 @@ class SpatialBone(BaseBone):
         # Filter duplicates
         tmpDict = {}
         for item in (latRight + latLeft + lngBottom + lngTop):
-            tmpDict[str(item.key)] = item
+            tmpDict[item["_id"]] = item
         # Build up the final results
         tmpList = [(haversine(x[name]["coordinates"]["lat"], x[name]["coordinates"]["lng"], lat, lng), x) for x in
                    tmpDict.values()]

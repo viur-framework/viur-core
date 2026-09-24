@@ -60,9 +60,13 @@ class AddressBone(RecordBone):
                 value["coordinates"] = coords
 
     @staticmethod
-    def _cache_key(params: str) -> db.Key:
-        digest = hashlib.sha256(params.encode()).hexdigest()
-        return db.Key(CACHE_KIND, digest)
+    def _cache_key(params: str) -> str:
+        """Build a stable cache key for the geocoding cache from the search parameters.
+
+        The digest is used as the ``_id`` of the cache entry, which may be any non-empty
+        string.
+        """
+        return hashlib.sha256(params.encode()).hexdigest()
 
     @staticmethod
     def geocode(skel: RelSkel) -> tuple[float, float] | None:
@@ -77,7 +81,7 @@ class AddressBone(RecordBone):
         }
         cache_key = AddressBone._cache_key(urllib.parse.urlencode(params))
         try:
-            cached = db.get(cache_key)
+            cached = db.get(CACHE_KIND, cache_key)
             if cached is not None:
                 return cached["lat"], cached["lng"]
             response = requests.get(
@@ -95,10 +99,7 @@ class AddressBone(RecordBone):
             if not data:
                 return None
             lat, lng = float(data[0]["lat"]), float(data[0]["lon"])
-            entity = db.Entity(cache_key)
-            entity["lat"] = lat
-            entity["lng"] = lng
-            db.put(entity)
+            db.put(CACHE_KIND, {"_id": cache_key, "lat": lat, "lng": lng})
             return lat, lng
         except Exception as e:
             logging.error(f"AddressBone: Nominatim geocoding failed with {e=}")

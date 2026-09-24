@@ -623,7 +623,7 @@ class UserPassword(UserPrimaryAuthentication):
         if self.registrationEmailVerificationRequired and skel["status"] == Status.WAITING_FOR_EMAIL_VERIFICATION:
             # The user will have to verify his email-address. Create a skey and send it to his address
             skey = securitykey.create(duration=datetime.timedelta(days=7), session_bound=False,
-                                      user_key=db.normalize_key(skel["key"]),
+                                      user_key=skel["key"],  # already the _id
                                       name=skel["name"])
             skel.skey = BaseBone(descr="Skey")
             skel["skey"] = skey
@@ -926,7 +926,10 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             )
 
         # Remove otp user config from session
-        user_key = db.key_helper(otp_user_conf["key"], self._user_module._resolveSkelCls().kindName)
+        # An _id carries no kind that could be adjusted, so a plain type check is left.
+        user_key = otp_user_conf["key"]
+        if not (isinstance(user_key, str) and user_key):
+            raise ValueError(f"{user_key!r} is not a valid key")
         del session["_otp_user"]
         session.markChanged()
 
@@ -1000,7 +1003,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         return 0 if hmac.compare_digest(otp, str(totp.at(for_time, timedrift))) else None
 
     # FIXME: VIUR4 rename
-    def updateTimeDrift(self, user_key: db.Key, idx: float) -> None:
+    def updateTimeDrift(self, user_key: str, idx: float) -> None:
         """
             Updates the clock-drift value.
 
@@ -1117,11 +1120,13 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         if not (cuser := current.user.get()):
             raise errors.Unauthorized()
 
+        user_kind = cuser.kindName
+
         def transaction(user_key):
-            if not (user := db.get(user_key)):
+            if not (user := db.get(user_kind, user_key)):
                 raise errors.NotFound()
             user["otp_app_secret"] = otp_app_secret
-            db.put(user)
+            db.put(user_kind, user)
 
         db.run_in_transaction(transaction, cuser["key"])
 
@@ -1178,7 +1183,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         We verify the otp here with the secret we stored before.
         """
         session = current.session.get()
-        user_key = db.Key(self._user_module.kindName, session["possible_user_key"])
+        user_key = session["possible_user_key"]  # already the _id
 
         if not (otp_user_conf := session.get("_otp_user")):
             raise errors.PreconditionFailed("No OTP process started in this session")
@@ -1187,7 +1192,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         if (attempts := otp_user_conf.get("attempts") or 0) > self.MAX_RETRY:
             raise errors.Forbidden("Maximum amount of authentication retries exceeded")
 
-        if not (user := db.get(user_key)):
+        if not (user := db.get(self._user_module.kindName, user_key)):
             raise errors.NotFound()
 
         skel = TimeBasedOTP.OtpSkel()
@@ -1414,7 +1419,7 @@ class User(List):
 
         return None
 
-    def continueAuthenticationFlow(self, provider: UserPrimaryAuthentication, user_key: db.Key):
+    def continueAuthenticationFlow(self, provider: UserPrimaryAuthentication, user_key: str):
         """
         Continue authentication flow when primary authentication succeeded.
         """
@@ -1427,7 +1432,7 @@ class User(List):
             raise errors.Forbidden("User is not allowed to use this primary login method.")
 
         session = current.session.get()
-        session["possible_user_key"] = user_key.id_or_name
+        session["possible_user_key"] = user_key  # user_key already is the _id
         session["_secondFactorStart"] = utils.utcNow()
         session.markChanged()
 
@@ -1464,12 +1469,12 @@ class User(List):
 
         return self.select_secondfactor_provider()
 
-    def secondFactorSucceeded(self, provider: UserSecondFactorAuthentication, user_key: db.Key):
+    def secondFactorSucceeded(self, provider: UserSecondFactorAuthentication, user_key: str):
         """
         Continue authentication flow when secondary authentication succeeded.
         """
         session = current.session.get()
-        if session["possible_user_key"] != user_key.id_or_name:
+        if session["possible_user_key"] != user_key:
             raise errors.Forbidden()
 
         # Assert that the second factor verification finished in time
@@ -1512,7 +1517,7 @@ class User(List):
 
         return None
 
-    def authenticateUser(self, key: db.Key, **kwargs):
+    def authenticateUser(self, key: str, **kwargs):
         """
             Performs Log-In for the current session and the given user key.
 
@@ -1654,7 +1659,7 @@ class User(List):
         logging.info(f"""User {skel["name"]} logged out""")
 
     @exposed
-    def view(self, key: db.KeyType = "self", *args, **kwargs):
+    def view(self, key: str = "self", *args, **kwargs):
         """
             Allow a special key "self" to reference the current user.
 
@@ -1686,7 +1691,7 @@ class User(List):
 
     @exposed
     @skey(allow_empty=True)
-    def edit(self, key: db.KeyType = "self", *args, **kwargs):
+    def edit(self, key: str = "self", *args, **kwargs):
         """
             Allow a special key "self" to reference the current user.
 
@@ -1849,16 +1854,15 @@ class User(List):
             :meth:`Session.build_flags` (``Path=/; HttpOnly; SameSite=…; Secure; Max-Age=…``).
         """
         cookie_key = utils.string.random(42)
-        db_session = db.Entity(db.Key(Session.kindName, cookie_key))
-        data = db.Entity()
+        db_session = {"_id": cookie_key}  # The cookie key is the business key, used as _id.
+        data = {}
         data["user"] = current.user.get().dbEntity
         data["is_app_session"] = True
-        db_session["data"] = db.fix_unindexable_properties(data)
+        db_session["data"] = data
         db_session["static_security_key"] = utils.string.random(42)
         db_session["lastseen"] = time.time()
         db_session["user"] = str(current.user.get()["key"])
-        db_session.exclude_from_indexes = {"data"}
-        db.put(db_session)
+        db.put(Session.kindName, db_session)
 
         # Provide Set-Cookie header entry with configured properties
         return f"{Session.cookie_name}={cookie_key};{Session.build_flags()}"
@@ -1907,7 +1911,7 @@ class User(List):
 
         # Otherwise, update the user entity cached in all the user's sessions
         else:
-            session.update_session_user(skel["key"])
+            session.update_session_user(skel["key"], skel.kindName)
 
     def onDeleted(self, skel):
         super().onDeleted(skel)

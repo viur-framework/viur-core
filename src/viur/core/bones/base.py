@@ -320,6 +320,15 @@ class BaseBone(object):
     name = None
     """Name of this bone (attribute name in the skeletons containing this bone)"""
 
+    indexed: bool = True
+    """Whether this field is meant to be queried.
+
+    It does not affect storage: MongoDB keeps every field queryable, and creating the
+    actual indexes is out of scope for the core. Two bones still derive their
+    serialization from this flag: ``SpatialBone`` only computes tiles for indexed fields,
+    and ``StringBone`` only normalizes below an indexed parent.
+    """
+
     def __init__(
         self,
         *,
@@ -919,12 +928,10 @@ class BaseBone(object):
             newVal = skel.accessedValues[name]
 
             if self.languages and self.multiple:
-                res = db.Entity()
+                res = {}
                 res["_viurLanguageWrapper_"] = True
                 for language in self.languages:
                     res[language] = []
-                    if not self.indexed:
-                        res.exclude_from_indexes.add(language)
                     if language in newVal:
                         for singleValue in newVal[language]:
                             value = self.singleValueSerialize(singleValue, skel, name, parentIndexed)
@@ -932,12 +939,10 @@ class BaseBone(object):
                                 res[language].append(value)
 
             elif self.languages:
-                res = db.Entity()
+                res = {}
                 res["_viurLanguageWrapper_"] = True
                 for language in self.languages:
                     res[language] = None
-                    if not self.indexed:
-                        res.exclude_from_indexes.add(language)
                     if language in newVal:
                         res[language] = self.singleValueSerialize(newVal[language], skel, name, parentIndexed)
 
@@ -956,13 +961,6 @@ class BaseBone(object):
                 res = self.singleValueSerialize(newVal, skel, name, parentIndexed)
 
             skel.dbEntity[name] = res
-
-            # Ensure our indexed flag is up2date
-            indexed = self.indexed and parentIndexed
-            if indexed and name in skel.dbEntity.exclude_from_indexes:
-                skel.dbEntity.exclude_from_indexes.discard(name)
-            elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
-                skel.dbEntity.exclude_from_indexes.add(name)
             return True
         return False
 
@@ -1129,7 +1127,7 @@ class BaseBone(object):
 
                 if skel["key"] and skel.dbEntity:
                     if issubclass(skel.skeletonCls, RefSkel):  # we have a ref skel we must load the complete Entity
-                        db_obj = db.get(skel["key"])
+                        db_obj = db.get(skel.kindName, skel["key"])
                         last_update = db_obj.get(f"_viur_compute_{name}_")
                     else:
                         last_update = skel.dbEntity.get(f"_viur_compute_{name}_")
@@ -1140,10 +1138,10 @@ class BaseBone(object):
                         skel.accessedValues[name] = value = self._compute(skel, name)
 
                         def transact():
-                            db_obj = db.get(skel["key"])
+                            db_obj = db.get(skel.kindName, skel["key"])
                             db_obj[f"_viur_compute_{name}_"] = now
                             db_obj[name] = value
-                            db.put(db_obj)
+                            db.put(skel.kindName, db_obj)
 
                         if db.is_in_transaction():
                             transact()
@@ -1296,7 +1294,7 @@ class BaseBone(object):
 
     def _hashValueForUniquePropertyIndex(
         self,
-        value: str | int | float | db.Key | list[str | int | float | db.Key],
+        value: str | int | float | list[str | int | float],
     ) -> list[str]:
         """
         Generates a hash of the given value for creating unique property indexes.
@@ -1311,7 +1309,7 @@ class BaseBone(object):
                 the list may contain more than one hashed value.
         """
 
-        def hash_value(value: str | int | float | db.Key) -> str:
+        def hash_value(value: str | int | float) -> str:
             h = hashlib.sha256()
             h.update(str(value).encode("UTF-8"))
             res = h.hexdigest()
@@ -1319,16 +1317,9 @@ class BaseBone(object):
             if isinstance(value, int | float):
                 return f"I-{res}"
             elif isinstance(value, str):
+                # A KeyBone's value is a plain _id string as well, with no hierarchy that
+                # would need special hashing, so it takes the same branch as any other string.
                 return f"S-{res}"
-            elif isinstance(value, db.Key):
-                # We Hash the keys here by our self instead of relying on str() or to_legacy_urlsafe()
-                # as these may change in the future, which would invalidate all existing locks
-                def keyHash(key):
-                    if key is None:
-                        return "-"
-                    return f"{hash_value(key.kind)}-{hash_value(key.id_or_name)}-<{keyHash(key.parent)}>"
-
-                return f"K-{keyHash(value)}"
 
             raise NotImplementedError(f"Type {type(value)} can't be safely used in an uniquePropertyIndex")
 
@@ -1385,7 +1376,7 @@ class BaseBone(object):
         """
         pass  # We do nothing by default
 
-    def postSavedHandler(self, skel: "SkeletonInstance", boneName: str, key: db.Key | None) -> None:
+    def postSavedHandler(self, skel: "SkeletonInstance", boneName: str, key: str | None) -> None:
         """
             Can be overridden to perform further actions after the main entity has been written.
 

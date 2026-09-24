@@ -5,7 +5,7 @@ import inspect
 import types
 import typing as t
 import logging
-from viur.core import db, errors, current, utils
+from viur.core import errors, current, utils
 from viur.core.config import conf
 
 
@@ -129,18 +129,6 @@ class Method:
                     except ValueError:
                         if i == len(annotation.__args__) - 1:
                             raise
-
-            elif annotation is db.Key:
-                if isinstance(value, db.Key):
-                    return value
-
-                elif isinstance(value, str):  # Maybe we have an url encoded Key
-                    try:
-                        return db.normalize_key(value)
-                    except Exception:
-                        pass
-
-                return parse_value_by_annotation(int | str, name, value)
 
             elif isinstance(annotation, enum.EnumMeta):
                 try:

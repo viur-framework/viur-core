@@ -817,7 +817,7 @@ class SelectCountryBone(SelectBone):
             if isinstance(values, list):
                 if codes == self.ISO2:
                     values = {k: self.ISO2CODES[k] for k in values}
-                elif codes == self.ISO3:
+                elif codes == self.ISO3:  # pragma: no branch - assert above admits only ISO2/ISO3
                     values = {k: self.ISO3CODES[k] for k in values}
             if isinstance(values, dict):
                 values = dict(sorted(values.items(), key=lambda i: i[1]))

@@ -58,7 +58,7 @@ def importBlobFromViur2(dlKey, fileName):
 
     if not conf.viur2import_blobsource:
         return False
-    existingImport = db.get(db.Key("viur-viur2-blobimport", dlKey))
+    existingImport = db.get("viur-viur2-blobimport", dlKey)
     if existingImport:
         if existingImport["success"]:
             return existingImport["dlurl"]
@@ -67,16 +67,16 @@ def importBlobFromViur2(dlKey, fileName):
         try:
             importDataReq = urlopen(conf.viur2import_blobsource["infoURL"] + dlKey)
         except Exception as e:
-            marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
+            marker = {"_id": dlKey}  # The download key is the business key, used as _id.
             marker["success"] = False
             marker["error"] = "Failed URL-FETCH 1"
-            db.put(marker)
+            db.put("viur-viur2-blobimport", marker)
             return False
         if importDataReq.status != 200:
-            marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
+            marker = {"_id": dlKey}  # The download key is the business key, used as _id.
             marker["success"] = False
             marker["error"] = "Failed URL-FETCH 2"
-            db.put(marker)
+            db.put("viur-viur2-blobimport", marker)
             return False
         importData = json.loads(importDataReq.read())
         oldBlobName = conf.viur2import_blobsource["gsdir"] + "/" + importData["key"]
@@ -86,19 +86,19 @@ def importBlobFromViur2(dlKey, fileName):
         oldBlobName = conf.viur2import_blobsource["gsdir"] + "/" + dlKey
         srcBlob = storage.Blob(bucket=bucket, name=conf.viur2import_blobsource["gsdir"] + "/" + dlKey)
     if not srcBlob.exists():
-        marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
+        marker = {"_id": dlKey}  # The download key is the business key, used as _id.
         marker["success"] = False
         marker["error"] = "Local SRC-Blob missing"
         marker["oldBlobName"] = oldBlobName
-        db.put(marker)
+        db.put("viur-viur2-blobimport", marker)
         return False
     bucket.rename_blob(srcBlob, f"{dlKey}/source/{fileName}")
-    marker = db.Entity(db.Key("viur-viur2-blobimport", dlKey))
+    marker = {"_id": dlKey}  # The download key is the business key, used as _id.
     marker["success"] = True
     marker["old_src_key"] = dlKey
     marker["old_src_name"] = fileName
     marker["dlurl"] = conf.main_app.file.create_download_url(dlKey, fileName, False, None)
-    db.put(marker)
+    db.put("viur-viur2-blobimport", marker)
     return marker["dlurl"]
 
 
@@ -401,10 +401,12 @@ class FileLeafSkel(TreeSkel):
         visible=False,
     )
 
+    # Points at a foreign kind: the target node (FileNodeSkel.kindName), not at "file" itself.
     pendingparententry = KeyBone(
         descr="Pending key Reference",
         readOnly=True,
         visible=False,
+        kind="file_rootNode",
     )
 
     crc32c_checksum = StringBone(
@@ -812,9 +814,9 @@ class File(Tree):
         width: int = None,
         height: int = None,
         public: bool = False,
-        rootnode: t.Optional[db.Key] = None,
+        rootnode: str | None = None,
         folder: t.Iterable[str] | str = (),
-    ) -> db.Key:
+    ) -> str:
         """
         Write a file from any bytes-like object into the file module.
 
@@ -852,10 +854,10 @@ class File(Tree):
 
             # When in folder-mode, a rootnode must exist!
             if rootnode is None:
-                rootnode = self.ensureOwnModuleRootNode()
+                rootnode = self.ensureOwnModuleRootNode()["_id"]
 
-            parentrepokey = rootnode.key
-            parentfolderkey = rootnode.key
+            parentrepokey = rootnode
+            parentfolderkey = rootnode
 
             for foldername in folder:
                 query = self.addSkel("node").all()
@@ -912,7 +914,7 @@ class File(Tree):
 
     def read(
             self,
-            key: db.KeyType | None = None,
+            key: str | None = None,
             path: str | None = None,
     ) -> tuple[io.BytesIO, str]:
         """
@@ -931,7 +933,7 @@ class File(Tree):
 
         if key:
             skel = self.viewSkel("leaf")
-            if not skel.read(db.key_helper(key, skel.kindName)):
+            if not skel.read(key):
                 if not path:
                     raise ValueError("This skeleton is not in the database!")
             else:
@@ -963,7 +965,7 @@ class File(Tree):
             fileName: str,
             mimeType: str,
             size: t.Optional[int] = None,
-            node: t.Optional[str | db.Key] = None,
+            node: str | None = None,
             authData: t.Optional[str] = None,
             authSig: t.Optional[str] = None,
             public: bool = False,
@@ -1043,7 +1045,7 @@ class File(Tree):
         file_skel["mimetype"] = "application/octetstream"
         file_skel["dlkey"] = dlkey
         file_skel["parentdir"] = None
-        file_skel["pendingparententry"] = db.key_helper(node, self.addSkel("node").kindName) if node else None
+        file_skel["pendingparententry"] = node or None
         file_skel["pending"] = True
         file_skel["weak"] = True
         file_skel["public"] = public
@@ -1258,7 +1260,7 @@ class File(Tree):
     @force_ssl
     @force_post
     @skey(allow_empty=True)
-    def add(self, skelType: SkelType, node: db.KeyType | None = None, *args, **kwargs):
+    def add(self, skelType: SkelType, node: str | None = None, *args, **kwargs):
         # We can't add files directly (they need to be uploaded
         if skelType == "leaf":  # We need to handle leafs separately here
             targetKey = kwargs.get("key")
@@ -1323,8 +1325,8 @@ class File(Tree):
     @exposed
     def get_download_url(
         self,
-        key: t.Optional[db.Key] = None,
-        dlkey: t.Optional[str] = None,
+        key: str | None = None,
+        dlkey: str | None = None,
         filename: t.Optional[str] = None,
         derived: bool = False,
     ):
@@ -1402,7 +1404,7 @@ class File(Tree):
         super().onAdded(skelType, skel)
 
     @CallDeferred
-    def set_image_meta(self, key: db.Key) -> None:
+    def set_image_meta(self, key: str) -> None:
         """Write image metadata (height and width) to FileSkel"""
         skel = self.editSkel("leaf", key)
         if not skel.read(key):
@@ -1449,11 +1451,11 @@ class File(Tree):
         if fileObj:  # Its allready marked
             return
 
-        fileObj = db.Entity(db.Key("viur-deleted-files"))
+        fileObj = {}  # put() creates the missing _id
         fileObj["itercount"] = 0
         fileObj["dlkey"] = str(dlkey)
 
-        db.put(fileObj)
+        db.put("viur-deleted-files", fileObj)
 
 
 @PeriodicTask(interval=datetime.timedelta(hours=4))
@@ -1467,22 +1469,22 @@ def startCheckForUnreferencedBlobs():
 @CallDeferred
 def doCheckForUnreferencedBlobs(cursor=None):
     def getOldBlobKeysTxn(dbKey):
-        obj = db.get(dbKey)
+        obj = db.get("viur-blob-locks", dbKey)
         if obj is None:
             # The lock was already processed and removed by a concurrent run
             return []
         res = obj["old_blob_references"] or []
         if obj["is_stale"]:
-            db.delete(dbKey)
+            db.delete("viur-blob-locks", dbKey)
         else:
             obj["has_old_blob_references"] = False
             obj["old_blob_references"] = []
-            db.put(obj)
+            db.put("viur-blob-locks", obj)
         return res
 
     query = db.Query("viur-blob-locks").filter("has_old_blob_references", True).setCursor(cursor)
     for lockObj in query.run(100):
-        oldBlobKeys = db.run_in_transaction(getOldBlobKeysTxn, lockObj.key)
+        oldBlobKeys = db.run_in_transaction(getOldBlobKeysTxn, lockObj["_id"])
         for blobKey in oldBlobKeys:
             if db.Query("viur-blob-locks").filter("active_blob_references =", blobKey).getEntry():
                 # This blob is referenced elsewhere
@@ -1493,11 +1495,11 @@ def doCheckForUnreferencedBlobs(cursor=None):
             if fileObj:  # Its already marked
                 logging.info(f"Stale blob already marked for deletion, {blobKey}")
                 continue
-            fileObj = db.Entity(db.Key("viur-deleted-files"))
+            fileObj = {}  # put() creates the missing _id
             fileObj["itercount"] = 0
             fileObj["dlkey"] = str(blobKey)
             logging.info(f"Stale blob marked dirty, {blobKey}")
-            db.put(fileObj)
+            db.put("viur-deleted-files", fileObj)
     newCursor = query.getCursor()
     if newCursor:
         doCheckForUnreferencedBlobs(newCursor)
@@ -1520,10 +1522,10 @@ def doCleanupDeletedFiles(cursor=None):
         query.setCursor(cursor)
     for file in query.run(100):
         if "dlkey" not in file:
-            db.delete(file.key)
+            db.delete("viur-deleted-files", file["_id"])
         elif db.Query("viur-blob-locks").filter("active_blob_references =", file["dlkey"]).getEntry():
             logging.info(f"""is referenced, {file["dlkey"]}""")
-            db.delete(file.key)
+            db.delete("viur-deleted-files", file["_id"])
         else:
             if file["itercount"] > maxIterCount:
                 logging.info(f"""Finally deleting, {file["dlkey"]}""")
@@ -1531,7 +1533,7 @@ def doCleanupDeletedFiles(cursor=None):
                 blobs = bucket.list_blobs(prefix=f"""{file["dlkey"]}/""")
                 for blob in blobs:
                     blob.delete()
-                db.delete(file.key)
+                db.delete("viur-deleted-files", file["_id"])
                 # There should be exactly 1 or 0 of these
                 for f in skeletonByKind("file")().all().filter("dlkey =", file["dlkey"]).fetch(99):
                     f.delete()
@@ -1545,7 +1547,7 @@ def doCleanupDeletedFiles(cursor=None):
             else:
                 logging.debug(f"""Increasing count, {file["dlkey"]}""")
                 file["itercount"] += 1
-                db.put(file)
+                db.put("viur-deleted-files", file)
     newCursor = query.getCursor()
     if newCursor:
         doCleanupDeletedFiles(newCursor)

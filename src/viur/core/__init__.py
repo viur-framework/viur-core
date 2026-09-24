@@ -309,18 +309,20 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
         if mode == "allow-from":
             assert uri is not None and (uri.lower().startswith("https://") or uri.lower().startswith("http://"))
     runStartupTasks()  # Add a deferred call to run all queued startup tasks
+    if conf.db.check_indexes_on_startup:
+        from viur.core import db
+        db.indexes.check_on_startup()
     i18n.initializeTranslations()
     if conf.file_hmac_key is None:
         from viur.core import db
-        key = db.Key("viur-conf", "viur-conf")
-        if not (obj := db.get(key)):  # create a new "viur-conf"?
+        if not (obj := db.get("viur-conf", "viur-conf")):  # create a new "viur-conf"?
             logging.info("Creating new viur-conf")
-            obj = db.Entity(key)
+            obj = {"_id": "viur-conf"}
 
         if "hmacKey" not in obj:  # create a new hmacKey
             logging.info("Creating new hmacKey")
             obj["hmacKey"] = utils.string.random(length=20)
-            db.put(obj)
+            db.put("viur-conf", obj)
 
         conf.file_hmac_key = bytes(obj["hmacKey"], "utf-8")
 
@@ -333,8 +335,6 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
         datastore_lines = []
         if conf.db.name:
             datastore_lines.append(f"""database = \033[1;33m{conf.db.name}\033[0m""")
-        if conf.db.namespace:
-            datastore_lines.append(f"""namespace = \033[1;33m{conf.db.namespace}\033[0m""")
 
         # define lines to show
         lines = (

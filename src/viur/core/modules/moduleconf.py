@@ -140,7 +140,7 @@ class ModuleConf(List):
 
     @classmethod
     def get_by_module_name(cls, module_name: str) -> None | skeleton.SkeletonInstance:
-        db_key = db.Key(MODULECONF_KINDNAME, module_name)
+        db_key = module_name  # The module config entry's business key is its _id.
         skel = conf.main_app.vi._moduleconf.viewSkel()
         if not skel.read(db_key):
             logging.error(f"module({module_name}) not found")
@@ -178,7 +178,7 @@ class ModuleConf(List):
                 ModuleConf.MODULES.add(module_name)
                 if module_name not in db_module_names:
                     skel = conf.main_app.vi._moduleconf.addSkel()
-                    skel["key"] = db.Key(MODULECONF_KINDNAME, module_name)
+                    skel["key"] = module_name  # The module name is the business key, used as _id.
                     skel["name"] = module_name
                     skel.write()
 

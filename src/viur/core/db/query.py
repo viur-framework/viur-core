@@ -3,22 +3,22 @@ from __future__ import annotations
 import base64
 import copy
 import functools
+import hashlib
+import json
 import logging
 import typing as t
 
 from viur.core.config import conf
+from viur.core.utils import json as vjson
 from .transport import count, get, run_single_filter
 from .types import (
-    DATASTORE_BASE_TYPES,
-    Entity,
-    KEY_SPECIAL_PROPERTY,
+    VALUE_TYPES,
     QueryDefinition,
     QueryOrder,
     SortOrder,
     TFilters,
     TOrders,
     TOrFilters,
-    Key
 )
 from . import utils
 
@@ -27,12 +27,12 @@ if t.TYPE_CHECKING:
 
 TOrderHook = t.TypeVar("TOrderHook", bound=t.Callable[["Query", TOrders], TOrders])
 TFilterHook = t.TypeVar("TFilterHook", bound=t.Callable[
-    ["Query", str, DATASTORE_BASE_TYPES | list[DATASTORE_BASE_TYPES]], TFilters
+    ["Query", str, VALUE_TYPES | list[VALUE_TYPES]], TFilters
 ])
 
 
 def _entryMatchesQuery(
-    entry: Entity,
+    entry: dict,
     singleFilter: dict,
     or_filters: TOrFilters | None = None,
 ) -> bool:
@@ -86,11 +86,214 @@ def _entryMatchesQuery(
     return True
 
 
+_OPS = {"<": "$lt", "<=": "$lte", ">": "$gt", ">=": "$gte", "IN": "$in", "NOT_IN": "$nin", "!=": "$ne"}
+"""viur comparison operator -> Mongo operator."""
+
+
+_LEGACY_KEY = "__key__"
+"""The old Datastore pseudo name. A literal on purpose and not ``KEY_SPECIAL_PROPERTY``: that constant reads
+``"_id"`` today, while ``__key__`` filters coming from consumers that have not been ported yet still have to be
+translated onto ``_id``."""
+
+
+def _mongo_field(name: str) -> str:
+    """``__key__`` becomes ``_id`` — at the top level as well as inside a dotted path."""
+    return "_id" if name == _LEGACY_KEY else name.replace(f".{_LEGACY_KEY}", "._id")
+
+
+def _split(key: str) -> tuple[str, str]:
+    """Split a viur filter key (``"field op"``) into field and operator."""
+    # ``Query.filter`` always stores the key as f"{field} {op}" and a field itself holds no space, so
+    # ``rpartition`` splits at the actual operator.
+    name, _, op = key.rpartition(" ")
+    return _mongo_field(name), (op or "=")
+
+
+def _to_mongo_filter(filters: dict, or_filters: list) -> dict:
+    """Translate viur filters (``{"field op": value}``) into a Mongo filter.
+
+    Several ``=`` on the same field arrive as a list (``Query.filter`` appends them) and mean AND, which is
+    ``$all`` in Mongo. *or_filters* is a list of groups: OR inside a group, AND between the groups.
+
+    :param filters: The viur AND filters.
+    :param or_filters: The viur OR groups.
+    :return: The Mongo filter.
+    """
+    out: dict = {}
+    for key, value in filters.items():
+        field, op = _split(key)
+        if op == "=":
+            if isinstance(value, list):
+                out.setdefault(field, {})["$all"] = value
+            else:
+                out[field] = value
+        else:
+            out.setdefault(field, {})[_OPS[op]] = value
+    groups = []
+    for group in or_filters:
+        groups.append({"$or": [_to_mongo_filter({k: v}, []) for k, v in group]})
+    if groups:
+        out = {"$and": [out, *groups]} if out else ({"$and": groups} if len(groups) > 1 else groups[0])
+        if isinstance(out, dict) and "$and" in out and len(out["$and"]) == 1:
+            out = out["$and"][0]
+    return out
+
+
+_INEQUALITY_OPS = frozenset({"<", "<=", ">", ">="})
+
+
+def _implicit_orders(filters: dict) -> list[tuple[str, SortOrder]]:
+    """The order the Datastore gave a query without ``order`` silently: ascending by its inequality field."""
+    # Exactly one field with </<=/>/>= yields [(field, Ascending)], anything else []: several operators on the
+    # same field count as one, two different inequality fields the Datastore never allowed, and IN/!= are no
+    # range filters. Only ``filters`` count, never ``or_filters``. Without this order an index (…, field, _id)
+    # could not carry the sort elision and the range filter would stay residual.
+    fields = {field for field, op in (_split(k) for k in filters) if op in _INEQUALITY_OPS}
+    return [(fields.pop(), SortOrder.Ascending)] if len(fields) == 1 else []
+
+
+def _to_mongo_sort(orders) -> list[tuple[str, int]]:
+    """The Mongo order, with ``_id`` appended as the last criterion.
+
+    Without an explicit criterion the order is not deterministic, and keyset pagination needs a unique
+    tiebreaker. ``Inverted*`` flips the fetch direction; ``run_single_filter`` flips the result back, so it
+    appears in display order.
+    """
+    out = []
+    for name, order in orders:
+        desc = order in (SortOrder.Descending, SortOrder.InvertedAscending)
+        out.append((_mongo_field(name), -1 if desc else 1))
+    if not any(f == "_id" for f, _ in out):
+        last_dir = out[-1][1] if out else 1
+        out.append(("_id", last_dir))
+    return out
+
+
+_ORDER_FAMILY = {
+    SortOrder.Ascending: 1, SortOrder.InvertedAscending: 1,
+    SortOrder.Descending: -1, SortOrder.InvertedDescending: -1,
+}
+"""Only the *display* direction counts for the cursor hash, not the concrete ``SortOrder``: an
+``InvertedAscending`` query reads exactly the same ascending order backwards from a cursor, so a cursor issued
+by an ``Ascending`` query has to be accepted by an ``InvertedAscending`` one on the same field (and the other
+way round for ``Descending``/``InvertedDescending``). Hashing the raw enum value instead would tell all four
+directions apart, and every backwards continuation would already fail ``setCursor``'s hash check."""
+
+
+def _cursor_hash(qd: QueryDefinition) -> str:
+    """Binds a cursor to its query.
+
+    A keyset cursor is readable and changeable, unlike an opaque Datastore token. The hash upholds the old
+    promise that a foreign or manipulated cursor cannot reach documents outside the current filters:
+    ``setCursor`` rejects a cursor whose hash differs, and even a matching hash with a forged ``after`` value
+    stays without effect outside the filter, because that filter runs along via ``$and`` on continuation.
+
+    :return: The first 16 hex characters of the material's SHA256.
+    """
+    # Hashed are the *effective* orders, the shape in which orders reach ``_to_mongo_sort``. A cursor issued
+    # for a differently ordered version of the same query would otherwise be accepted and then run into an
+    # unhandled KeyError over a sort field its value package does not hold; this way it fails with a ValueError.
+    orders = qd.orders or _implicit_orders(qd.filters or {})
+    material = json.dumps(
+        [
+            qd.kind,
+            sorted(qd.filters.items(), key=str),
+            qd.or_filters,
+            [(name, _ORDER_FAMILY[order]) for name, order in orders],
+            qd.distinct,
+        ],
+        default=str, sort_keys=True,
+    )
+    return hashlib.sha256(material.encode()).hexdigest()[:16]
+
+
+def _range_condition(field: str, op: str, value: t.Any) -> dict:
+    """One comparison of the keyset chain, corrected for MongoDB's type bracketing.
+
+    ``$lt``/``$gt`` and their friends only compare within the same BSON type bracket, and ``null`` (like a
+    missing field) forms its own, lowest bracket: ``$gt null`` matches nothing at all, not even real values,
+    while ``$lt``/``$lte`` against a real value never match a missing field although it sorts below every
+    real value. Both cases are rewritten here, every other combination is already correct as it stands.
+
+    :return: The condition; ``{}`` when the comparison constrains nothing.
+    """
+    if value is None:
+        # "greater than the minimum of every order" is "present and not null"; ">= the minimum" is everything.
+        if op == "$gt":
+            return {field: {"$ne": None}}
+        # Defensive: today's chains always end at _id, which is never None, so this branch is unreachable.
+        if op == "$gte":
+            return {}
+        return {field: {op: value}}
+    if op in ("$lt", "$lte"):
+        # A missing or null field lies below every real value and has to be caught in addition.
+        return {"$or": [{field: {op: value}}, {field: None}]}
+    return {field: {op: value}}
+
+
+def _after_condition(sort: list[tuple[str, int]], after: dict, *, inclusive: bool = False) -> dict:
+    """The keyset continuation ``(a, b, ..., _id) > (va, vb, ..., vid)``, as an ``$or`` chain per sort field.
+
+    *sort* is already the Mongo order from ``_to_mongo_sort``, for an ``Inverted*`` order therefore the
+    direction actually queried. The equality prefixes match a missing field just like ``None``, and the
+    comparison per chain link comes from :func:`_range_condition`.
+
+    :param inclusive: Make the last link (always ``_id``) inclusive — an ``Inverted*`` query reads the row that
+        issued the cursor again, a plain continuation must not, or consecutive pages would overlap.
+    """
+    clauses = []
+    last = len(sort) - 1
+    for i, (field, direction) in enumerate(sort):
+        prefix = {sort[j][0]: after[sort[j][0]] for j in range(i)}
+        is_last = inclusive and i == last
+        if direction == 1:
+            op = "$gte" if is_last else "$gt"
+        else:
+            op = "$lte" if is_last else "$lt"
+        clauses.append({**prefix, **_range_condition(field, op, after[field])})
+    return {"$or": clauses}
+
+
+def _before_condition(sort: list[tuple[str, int]], before: dict) -> dict:
+    """The upper keyset bound for ``endCursor``: :func:`_after_condition` with every direction flipped.
+
+    The bound is always inclusive at the last, unique link (``_id``): a cursor is a position *between* two
+    rows, and the row that issued it still belongs "before" it. Only so does ``setCursor(c1, c2)``, with the
+    cursors taken after page 1 and after page 2, return page 2 in full instead of losing its last element.
+    """
+    clauses = []
+    last = len(sort) - 1
+    for i, (field, direction) in enumerate(sort):
+        prefix = {sort[j][0]: before[sort[j][0]] for j in range(i)}
+        is_last = i == last
+        if direction == 1:
+            op = "$lte" if is_last else "$lt"
+        else:
+            op = "$gte" if is_last else "$gt"
+        clauses.append({**prefix, **_range_condition(field, op, before[field])})
+    return {"$or": clauses}
+
+
+def _dotted_get(doc: dict, path: str) -> t.Any:
+    """Read a possibly dotted field (``"dest.name"``, as relational and spatial sorts produce it).
+
+    A plain ``doc.get(path)`` would only find a literal top level key holding a dot, never the nested value
+    Mongo itself addresses through exactly this dot notation.
+    """
+    value: t.Any = doc
+    for part in path.split("."):
+        if not isinstance(value, dict):
+            return None
+        value = value.get(part)
+    return value
+
+
 class Query(object):
     """
-    Base Class for querying the datastore. Its API is similar to the google.cloud.datastore.query API,
-    but it provides the necessary hooks for relational or random queries, the fulltext search as well as support
-    for IN filters.
+    Base Class for querying the database. Its API still resembles the historical
+    google.cloud.datastore.query API this module replaced, because callers across the
+    codebase depend on that shape, and it provides the necessary hooks for relational
+    or random queries, the fulltext search as well as support for IN filters.
     """
 
     def __init__(self, kind: str, srcSkelClass: t.Union["SkeletonInstance", None] = None, *args, **kwargs):
@@ -108,7 +311,7 @@ class Query(object):
         self._filterHook: TFilterHook | None = None
         self._orderHook: TOrderHook | None = None
         # Sometimes, the default merge functionality from MultiQuery is not sufficient
-        self._customMultiQueryMerge: t.Union[None, t.Callable[[Query, t.List[t.List[Entity]], int], t.List[Entity]]] \
+        self._customMultiQueryMerge: t.Callable[[Query, list[list[dict]], int], list[dict]] | None \
             = None
         # Some (Multi-)Queries need a different amount of results per subQuery than actually returned
         self._calculateInternalMultiQueryLimit: t.Union[None, t.Callable[[Query, int], int]] = None
@@ -216,7 +419,15 @@ class Query(object):
             endCursor = filters["endcursor"]
 
         if startCursor or endCursor:
-            self.setCursor(startCursor, endCursor)
+            try:
+                self.setCursor(startCursor, endCursor)
+            except (ValueError, KeyError, TypeError) as e:
+                # setCursor() rejects a cursor carrying a foreign query hash with a ValueError, and broken
+                # base64/JSON does the same (ValueError/KeyError/TypeError, depending on how far the parsing
+                # gets). A cursor arrives here from an external request (see the docstring above: "safe to pass
+                # filters received from an external source"), so the same rule as for any other broken filter
+                # value in this function applies: ignore and log it instead of turning it into a 500.
+                logging.warning(f"Ignoring invalid cursor for query on {self.kind!r}: {e!r}")
 
         if limit := filters.get("limit"):
             try:
@@ -236,7 +447,7 @@ class Query(object):
 
         return self
 
-    def filter(self, prop: str, value: DATASTORE_BASE_TYPES | list[DATASTORE_BASE_TYPES]) -> t.Self:
+    def filter(self, prop: str, value: VALUE_TYPES | list[VALUE_TYPES]) -> t.Self:
         """
         Adds a new constraint to this query.
 
@@ -290,17 +501,13 @@ class Query(object):
                     self.queries.filters[filterStr] = [self.queries.filters[filterStr]]
                 self.queries.filters[filterStr].append(value)
 
-        if op in {"<", "<=", ">", ">="}:
-            if isinstance(self.queries, list):
-                for queryObj in self.queries:
-                    if not queryObj.orders or queryObj.orders[0][0] != field:
-                        queryObj.orders = [QueryOrder(field)] + (queryObj.orders or [])
-            else:
-                if not self.queries.orders or self.queries.orders[0][0] != field:
-                    self.queries.orders = [QueryOrder(field)] + (self.queries.orders or [])
+        # The Datastore demanded that an inequality filter (</<=/>/>=) appear as the first sort criterion, and
+        # that used to be added here automatically. MongoDB knows no such restriction — sorting by any field is
+        # always possible, filtered or not — so the automatism is gone; whoever needs a certain order still
+        # calls order() explicitly.
         return self
 
-    def or_filter(self, *conditions: tuple[str, DATASTORE_BASE_TYPES]) -> t.Self:
+    def or_filter(self, *conditions: tuple[str, VALUE_TYPES]) -> t.Self:
         """
         Add an OR composite filter group.
 
@@ -436,23 +643,46 @@ class Query(object):
         It's safe to use client-supplied cursors, a cursor can't be abused to access entities
         which don't match the current filters.
 
+        *startCursor* and *endCursor* are interchangeably the same format — a value package issued by
+        ``getCursor()`` together with the query hash (``_cursor_hash``); whether it acts as the lower or the
+        upper bound is decided solely by the parameter it is passed to. A cursor whose hash does not match the
+        current query is rejected with a ``ValueError``.
+
+        For multi queries (SpatialBone/RandomSliceBone) that check deliberately stays off: a single sub query,
+        whose filters differ from the others (one value of an IN filter each, say), would never carry the same
+        hash as the one ``getCursor`` took it from. That is a documented limit, not an accidental gap.
+
         :param startCursor: The start cursor for this query.
         :param endCursor: The end cursor for this query.
         :returns: Returns the query itself for chaining.
         """
+        def _decode(token: str) -> tuple[dict, str]:
+            payload = vjson.loads(base64.urlsafe_b64decode(token.encode("ASCII")).decode("ASCII"))
+            return payload["after"], payload["q"]
+
+        after = after_hash = before = before_hash = None
+        if startCursor:
+            after, after_hash = _decode(startCursor)
+        if endCursor:
+            before, before_hash = _decode(endCursor)
+
         if isinstance(self.queries, list):
             for query in self.queries:
                 assert isinstance(query, QueryDefinition)
                 if startCursor:
-                    query.startCursor = base64.urlsafe_b64decode(startCursor.encode("ASCII")).decode("ASCII")
+                    query.startCursor = after
                 if endCursor:
-                    query.endCursor = base64.urlsafe_b64decode(endCursor.encode("ASCII")).decode("ASCII")
+                    query.endCursor = before
         else:
             assert isinstance(self.queries, QueryDefinition)
             if startCursor:
-                self.queries.startCursor = base64.urlsafe_b64decode(startCursor.encode("ASCII")).decode("ASCII")
+                if after_hash != _cursor_hash(self.queries):
+                    raise ValueError("This cursor was issued for a different query")
+                self.queries.startCursor = after
             if endCursor:
-                self.queries.endCursor = base64.urlsafe_b64decode(endCursor.encode("ASCII")).decode("ASCII")
+                if before_hash != _cursor_hash(self.queries):
+                    raise ValueError("This cursor was issued for a different query")
+                self.queries.endCursor = before
         return self
 
     def limit(self, limit: int) -> t.Self:
@@ -504,7 +734,12 @@ class Query(object):
                     break
             else:
                 q = self.queries[0]
-        return base64.urlsafe_b64encode(q.currentCursor).decode("ASCII") if q.currentCursor else None
+        # currentCursor is the value package of the last row seen (a dict), not an offset string — the pair
+        # of value package and query hash forms the public cursor that setCursor() takes apart again.
+        if not q.currentCursor:
+            return None
+        payload = {"after": q.currentCursor, "q": _cursor_hash(q)}
+        return base64.urlsafe_b64encode(vjson.dumps(payload).encode("ASCII")).decode("ASCII")
 
     def get_orders(self) -> t.List[QueryOrder] | None:
         """
@@ -533,17 +768,17 @@ class Query(object):
         """
         return self.kind
 
-    def _run_single_filter_query(self, query: QueryDefinition, limit: int, keys_only: bool) -> t.List[Entity]:
+    def _run_single_filter_query(self, query: QueryDefinition, limit: int, keys_only: bool) -> list[dict] | list[str]:
         """
         Internal helper function that runs a single query definition on the datastore and returns a list of
         entities found.
         :param query: The querydefinition (filters, orders, distinct etc.) to run against the datastore
         :param limit: How many results should at most be returned
-        :return: The first *limit* entities that matches this query
+        :return: The first *limit* entities (or, if *keys_only*, their ``_id`` strings) that match this query
         """
         return run_single_filter(query, limit, keys_only)
 
-    def _merge_multi_query_results(self, input_result: t.List[t.List[Entity]]) -> t.List[Entity]:
+    def _merge_multi_query_results(self, input_result: list[list[dict]]) -> list[dict]:
         """
         Merge the lists of entries into a single list; removing duplicates and restoring sort-order
         :param input_result: Nested Lists of Entries returned by each individual query run
@@ -553,7 +788,7 @@ class Query(object):
         res = []
         for subList in input_result:
             for entry in subList:
-                key = entry.key
+                key = entry["_id"]
                 if key in seen_keys:
                     continue
                 seen_keys.add(key)
@@ -564,10 +799,10 @@ class Query(object):
 
     def _resort_result(
         self,
-        entities: t.List[Entity],
-        filters: t.Dict[str, DATASTORE_BASE_TYPES],
+        entities: list[dict],
+        filters: dict[str, VALUE_TYPES],
         orders: t.List[QueryOrder],
-    ) -> t.List[Entity]:
+    ) -> list[dict]:
         """
         Internal helper that takes a (deduplicated) list of entities that has been fetched from different internal
         queries (e.g. from SpatialBone or RandomSliceBone custom multi-queries) and resorts the list so it matches
@@ -579,7 +814,7 @@ class Query(object):
         :return: The sorted list
         """
 
-        def getVal(src: Entity, fieldVars: t.Union[str, t.Tuple[str]], direction: SortOrder) -> t.Any:
+        def getVal(src: dict, fieldVars: str | tuple[str], direction: SortOrder) -> t.Any:
             # Descent into the target until we reach the property we're looking for
             if isinstance(fieldVars, tuple):
                 for fv in fieldVars:
@@ -614,35 +849,49 @@ class Query(object):
         if ineqFilter and (not orders or not orders[0].name == ineqFilter):
             orders = [QueryOrder(ineqFilter)] + (orders or [])
 
+        # ``_to_mongo_sort`` always appends ``_id`` as the last, unique sort criterion. This client side merge
+        # (the SpatialBone/RandomSliceBone multi query) has to do the same, or equal sort values would be left
+        # to the input order and the stability of Python's sort, inconsistent with the cursor the same query
+        # issues.
+        if not any(o.name == "_id" for o in orders):
+            last_dir = orders[-1].order if orders else SortOrder.Ascending
+            orders = list(orders) + [QueryOrder("_id", last_dir)]
+
         for orderField, direction in orders[::-1]:
-            if orderField == KEY_SPECIAL_PROPERTY:
-                pass  # FIXME !!
-            # entities.sort(key=lambda x: x.key, reverse=direction == SortOrder.Descending)
-            else:
-                try:
-                    entities.sort(key=functools.partial(getVal, fieldVars=orderField, direction=direction),
-                                  reverse=direction == SortOrder.Descending)
-                except TypeError:
-                    # We hit some incomparable types
-                    pass
+            # ``_id`` (KEY_SPECIAL_PROPERTY) needs no special case here: it is an ordinary field of the
+            # document, which ``getVal`` reads through the same ``src[fieldVars]`` access as any other field.
+            try:
+                entities.sort(key=functools.partial(getVal, fieldVars=orderField, direction=direction),
+                              reverse=direction == SortOrder.Descending)
+            except TypeError:
+                # We hit some incomparable types
+                pass
         return entities
 
-    def _fixKind(self, resultList: t.List[Entity]) -> t.List[Entity]:
+    def _fixKind(self, resultList: list[dict]) -> list[dict]:
         """
         Jump to parentKind if necessary (used in relations)
         """
         resultList = list(resultList)
-        if (
-            resultList
-            and resultList[0].key.kind != self.origKind
-            and resultList[0].key.parent
-            and resultList[0].key.parent.kind == self.origKind
-        ):
-            return list(get(list(dict.fromkeys([x.key.parent for x in resultList]))))
+
+        # A relational query runs against "viur-relations" but has to return the source records. The source
+        # used to be the ancestor of the key; MongoDB has no hierarchy, so it is read from the "src" subdocument
+        # carried along instead.
+        #
+        # With keys_only the result list holds bare _id strings (run_single_filter converts them already) and
+        # there is no "src" field that could carry the resolution — the isinstance check keeps that case out
+        # before .get() would fail on a str.
+        if (self.origKind and resultList
+                and isinstance(resultList[0], dict)
+                and resultList[0].get("viur_src_kind") == self.origKind):
+            source_ids = list(dict.fromkeys(
+                entry["src"]["_id"] for entry in resultList if entry.get("src")
+            ))
+            return get(self.origKind, source_ids)
 
         return resultList
 
-    def run(self, limit: int = -1, keys_only: bool = False) -> t.List[Entity | Key]:
+    def run(self, limit: int = -1, keys_only: bool = False) -> list[dict] | list[str]:
         """
         Run this query.
 
@@ -652,9 +901,9 @@ class Query(object):
         should be used.
 
         :param limit: Limits the query to the defined maximum entities.
-        :param keys_only: If True, only return entities keys.
+        :param keys_only: If True, only return the ``_id`` of each entity, as a string.
 
-        :returns: The list of found entities
+        :returns: The list of found entities (or, if *keys_only*, their ``_id`` strings)
 
         :raises: :exc:`BadFilterError` if a filter string is invalid
         :raises: :exc:`BadValueError` if a filter value is invalid.
@@ -710,12 +959,8 @@ class Query(object):
             ))
 
         if res:
-            if keys_only:
-                res = [
-                    obj if isinstance(obj, Key) else obj.key
-                    for obj in res
-                    if isinstance(obj, (Entity, Key))
-                ]
+            # run_single_filter already returns bare _id strings for keys_only, so nothing has to be
+            # converted here (the old Datastore path passed entities/keys through).
             self._lastEntry = res[-1]
 
         return res
@@ -735,18 +980,19 @@ class Query(object):
         elif isinstance(self.queries, list):
             raise ValueError("No count on Multiqueries")
         else:
-            return count(queryDefinition=self.queries, up_to=up_to)
+            qd = self.queries
+            return count(qd.kind, _to_mongo_filter(qd.filters, qd.or_filters), up_to)
 
     def fetch(self, limit: int = -1) -> "SkelList":
         """
         Run this query and fetch results as :class:`core.skeleton.SkelList`.
 
         This function is similar to :meth:`run`, but returns a
-        :class:`core.skeleton.SkelList` instance instead of Entities.
+        :class:`core.skeleton.SkelList` instance instead of plain documents.
 
         :warning: The query must be limited!
 
-        If queried data is wanted as instances of Entity, :meth:`run`
+        If queried data is wanted as plain documents (``dict``), :meth:`run`
         should be used.
 
         :param limit: Limits the query to the defined maximum entities.
@@ -772,7 +1018,7 @@ class Query(object):
 
         return res
 
-    def iter(self, keys_only=False) -> t.Iterator[Entity]:
+    def iter(self, keys_only=False) -> t.Iterator[dict] | t.Iterator[str]:
         """
         Run this query and return an iterator for the results.
 
@@ -791,7 +1037,9 @@ class Query(object):
         elif isinstance(self.queries, list):
             raise ValueError("No iter on Multiqueries")
         while True:
-            yield from self._run_single_filter_query(self.queries, 100, keys_only)
+            # run_single_filter already yields bare _id strings when keys_only is set.
+            batch = self._run_single_filter_query(self.queries, 100, keys_only)
+            yield from batch
             if not self.queries.currentCursor:  # We reached the end of that query
                 break
             self.queries.startCursor = self.queries.currentCursor
@@ -836,7 +1084,7 @@ class Query(object):
 
         return _iterate()
 
-    def getEntry(self) -> t.Union[None, Entity]:
+    def getEntry(self) -> dict | None:
         """
         Returns only the first entity of the current query.
 
@@ -891,7 +1139,7 @@ class Query(object):
         # res._distinct = self._distinct
         return res
 
-    def keys_only(self, limit: int = -1) -> t.List["Key"]:
+    def keys_only(self, limit: int = -1) -> list[str]:
         return self.run(limit, True)
 
     def __repr__(self) -> str:

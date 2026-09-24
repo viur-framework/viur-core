@@ -3,7 +3,7 @@ import json
 import logging
 import typing as t
 from google.cloud import exceptions, bigquery
-from viur.core import db, conf, utils, current, tasks
+from viur.core import conf, utils, current, tasks
 from viur.core.bones import *
 from viur.core.prototypes.list import List
 from viur.core.render.json.default import CustomJsonEncoder
@@ -61,8 +61,11 @@ class HistorySkel(Skeleton):
         searchable=True,
     )
 
+    # current_key points at a foreign kind: it logs changes of arbitrary kinds, so there is
+    # no single fixed kind to reference here.
     current_key = KeyBone(
         descr="Entity key",
+        kind="",  # Polymorphic: the target kind depends on the logged entry, so check=True would fail at startup
     )
 
     current = JsonBone(
@@ -450,7 +453,7 @@ class History(List):
 
             return name
 
-        return skel["key"].id_or_name
+        return skel["key"]
 
     def build_descr(self, action: str, skel: SkeletonInstance, change_list: t.Iterable[str]) -> str | None:
         """
@@ -463,18 +466,18 @@ class History(List):
             case "add":
                 return (
                     f"""A new entry with the kind {skel.kindName!r}"""
-                    f""" and the key {skel["key"].id_or_name!r} was created."""
+                    f""" and the key {skel["key"]!r} was created."""
                 )
             case "edit":
                 return (
-                    f"""The entry {skel["key"].id_or_name!r} of kind {skel.kindName!r} has been modified."""
+                    f"""The entry {skel["key"]!r} of kind {skel.kindName!r} has been modified."""
                     f""" The following fields where changed: {", ".join(change_list)}."""
                 )
             case "delete":
-                return f"""The entry {skel["key"].id_or_name!r} of kind {skel.kindName!r} has been deleted."""
+                return f"""The entry {skel["key"]!r} of kind {skel.kindName!r} has been deleted."""
 
         return (
-            f"""The action {action!r} resulted in a change to the entry {skel["key"].id_or_name!r}"""
+            f"""The action {action!r} resulted in a change to the entry {skel["key"]!r}"""
             f""" of kind {skel.kindName!r}."""
         )
 
@@ -617,7 +620,7 @@ class History(List):
                 else:
                     skel[name] = value
 
-        skel.write(key=db.Key(skel.kindName, key))
+        skel.write(key=key)
 
         logging.info(f"History entry {key=} written to datastore")
 

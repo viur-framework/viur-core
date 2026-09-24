@@ -3,27 +3,25 @@ The constants, global variables and container classes used in the datastore api
 """
 from __future__ import annotations
 
-import copy
 import datetime
 import enum
-import itertools
 import typing as t
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from ..config import conf
 
-from google.cloud.datastore import Entity as Datastore_entity, Key as Datastore_key
+KEY_SPECIAL_PROPERTY = "_id"
+"""The property name pointing to an entities key in a query.
 
-KEY_SPECIAL_PROPERTY = "__key__"
-"""The property name pointing to an entities key in a query"""
+On MongoDB ``_id`` is the field the id really lives in — a plain key like any other, no pseudo property."""
 
-DATASTORE_BASE_TYPES = t.Union[None, str, int, float, bool, datetime.datetime, datetime.date, datetime.time, "Key"]
-"""Types that can be used in a datastore query"""
+VALUE_TYPES = None | str | int | float | bool | datetime.datetime | datetime.date | datetime.time
+"""Types that can be used as a property value in a query.
 
-current_db_access_log: ContextVar[t.Optional[set[t.Union[Key, str]]]] = ContextVar("Database-Accesslog", default=None)
+A key is a plain ``str`` (the ``_id``), which the union already covers — it needs no type of its own."""
+
+current_db_access_log: ContextVar[set[str] | None] = ContextVar("Database-Accesslog", default=None)
 """If set to a set for the current thread/request, we'll log all entities / kinds accessed"""
-
-"""The current projectID, which can't be imported from transport.py"""
 
 
 class SortOrder(enum.Enum):
@@ -36,9 +34,16 @@ class SortOrder(enum.Enum):
     Descending = 2
     """Sort Z->A"""
     InvertedAscending = 3
-    """Fetch Z->A, then flip the results (useful in pagination to go from a start cursor backwards)"""
+    """Fetch Z->A, then flip the results (useful in pagination to go from a start cursor backwards).
+
+    A cursor is a position *between* two rows, not at a row itself, so reading backwards from it includes the
+    row right before that position again — the one that issued the cursor. Handing the cursor of an
+    ``Ascending`` query to an otherwise identical ``InvertedAscending`` query therefore returns exactly the last
+    row(s) of the forward page once more, in display order; to really step back one needs the cursor of the
+    page BEFORE that."""
     InvertedDescending = 4
-    """Fetch A->Z, then flip the results (useful in pagination)"""
+    """Fetch A->Z, then flip the results (useful in pagination) — the counterpart of ``InvertedAscending`` for a
+    ``Descending`` base order, with the same property (see there)."""
 
     @classmethod
     def from_str(cls, ident: str | int) -> SortOrder:
@@ -62,156 +67,9 @@ class QueryOrder(t.NamedTuple):
     order: SortOrder = SortOrder.Ascending
 
 
-class Key(Datastore_key):
-    """
-        The python representation of one datastore key. Unlike the original implementation, we don't store a
-        reference to the project the key lives in. This is always expected to be the current project as ViUR
-        does not support accessing data in multiple projects.
-    """
-
-    def __init__(self, *path_args, project: str | None = None, **kwargs):
-        # Convert digit-only id_or_name attributes to int
-        # See https://github.com/viur-framework/viur-core/issues/1636
-        new_path_args = []
-        for pair in itertools.batched(path_args, 2):
-            try:
-                kind, id_or_name = pair
-            except ValueError:  # it's a incomplete key
-                new_path_args.append(pair[0])
-                continue
-            if isinstance(id_or_name, str) and id_or_name.isdigit():
-                id_or_name = int(id_or_name)
-            new_path_args.extend((kind, id_or_name))
-
-        from .transport import __client__  # noqa: E402 # import works only here because circular imports
-
-        if project is None:
-            project = __client__.project
-
-        # Keys must match the client's db/namespace or Datastore rejects the
-        # request as cross-database. Default from the client; caller wins.
-        if __client__.database:
-            kwargs.setdefault("database", __client__.database)
-        if __client__.namespace:
-            kwargs.setdefault("namespace", __client__.namespace)
-
-        super().__init__(*new_path_args, project=project, **kwargs)
-
-    def __str__(self):
-        return self.to_legacy_urlsafe().decode("ASCII")
-
-    def to_legacy_urlsafe(self, location_prefix=None):
-        # Upstream to_legacy_urlsafe() rejects keys carrying a database, but
-        # str(key)/session paths hit it constantly. Encode a database-less copy —
-        # unambiguous to restore since the process talks to a single database.
-        # A copy keeps this thread-safe: mutating self._database in place would
-        # let concurrent encodes of the same Key clobber each other's state.
-        clone = copy.copy(self)
-        clone._database = None
-        return super(Key, clone).to_legacy_urlsafe(location_prefix=location_prefix)
-
-    '''
-    def __repr__(self):
-        return "<viur.datastore.Key %s/%s, parent=%s>" % (self.kind, self.id_or_name, self.parent)
-
-    def __hash__(self):
-        return hash("%s.%s.%s" % (self.kind, self.id, self.name))
-
-    def __eq__(self, other):
-        return isinstance(other, Key) and self.kind == other.kind and self.id == other.id and self.name == other.name \
-            and self.parent == other.parent
-
-    @staticmethod
-    def _parse_path(path_args):
-        """Parses positional arguments into key path with kinds and IDs.
-
-        :type path_args: tuple
-        :param path_args: A tuple from positional arguments. Should be
-                          alternating list of kinds (string) and ID/name
-                          parts (int or string).
-
-        :rtype: :class:`list` of :class:`dict`
-        :returns: A list of key parts with kind and ID or name set.
-        :raises: :class:`ValueError` if there are no ``path_args``, if one of
-                 the kinds is not a string or if one of the IDs/names is not
-                 a string or an integer.
-        """
-        if len(path_args) == 0:
-            raise ValueError("Key path must not be empty.")
-
-        kind_list = path_args[::2]
-        id_or_name_list = path_args[1::2]
-        # Dummy sentinel value to pad incomplete key to even length path.
-        partial_ending = object()
-        if len(path_args) % 2 == 1:
-            id_or_name_list += (partial_ending,)
-
-        result = []
-        for kind, id_or_name in zip(kind_list, id_or_name_list):
-            curr_key_part = {}
-            if isinstance(kind, str):
-                curr_key_part["kind"] = kind
-            else:
-                raise ValueError(kind, "Kind was not a string.")
-
-            if isinstance(id_or_name, str):
-                if (id_or_name.isdigit()): # !!! VIUR
-                    curr_key_part["id"] = int(id_or_name)
-                else:
-                    curr_key_part["name"] = id_or_name
-
-            elif isinstance(id_or_name, int):
-                curr_key_part["id"] = id_or_name
-            elif id_or_name is not partial_ending:
-                raise ValueError(id_or_name, "ID/name was not a string or integer.")
-
-            result.append(curr_key_part)
-        return result
-
-    @classmethod
-    def from_legacy_urlsafe(cls, strKey: str) -> Key:
-        """
-            Parses the string representation generated by :meth:to_legacy_urlsafe into a new Key object
-            :param strKey: The string key to parse
-            :return: The new Key object constructed from the string key
-        """
-        urlsafe = strKey.encode("ASCII")
-        padding = b"=" * (-len(urlsafe) % 4)
-        urlsafe += padding
-        raw_bytes = base64.urlsafe_b64decode(urlsafe)
-        reference = _app_engine_key_pb2.Reference()
-        reference.ParseFromString(raw_bytes)
-        resultKey = None
-        for elem in reference.path.element:
-            resultKey = Key(elem.type, elem.id or elem.name, parent=resultKey)
-        return resultKey
-    '''
-
-
-class Entity(Datastore_entity):
-    """
-    The python representation of one datastore entity. The values of this entity are stored inside this dictionary,
-    while the meta-data (it's key, the list of properties excluded from indexing and our version) as property values.
-    """
-
-    def __init__(
-        self,
-        key: t.Optional[Key] = None,
-        exclude_from_indexes: t.Optional[list[str]] = None,
-    ) -> None:
-        super().__init__(key, exclude_from_indexes or [])
-        if not (key is None or isinstance(key, Key)):
-            raise ValueError(f"key must be a Key-Object (or None for an embedded entity). Got {key!r} ({type(key)})")
-
-
-KeyType: t.TypeAlias = Key | str | int
-"""
-Alias that describes a key-type.
-"""
-
 TOrders: t.TypeAlias = list[QueryOrder]
-TFilters: t.TypeAlias = dict[str, DATASTORE_BASE_TYPES | list[DATASTORE_BASE_TYPES]]
-TOrFilters: t.TypeAlias = list[list[tuple[str, DATASTORE_BASE_TYPES | list[DATASTORE_BASE_TYPES]]]]
+TFilters: t.TypeAlias = dict[str, VALUE_TYPES | list[VALUE_TYPES]]
+TOrFilters: t.TypeAlias = list[list[tuple[str, VALUE_TYPES | list[VALUE_TYPES]]]]
 
 
 @dataclass
@@ -220,16 +78,16 @@ class QueryDefinition:
     A single Query that will be run against the datastore.
     """
 
-    kind: t.Optional[str]
+    kind: str | None
     """The datastore kind to run the query on. Can be None for kindles queries."""
 
     filters: TFilters
     """A dictionary of constrains to apply to the query."""
 
-    orders: t.Optional[TOrders]
+    orders: TOrders | None
     """The list of fields to sort the results by."""
 
-    distinct: t.Optional[list[str]] = None
+    distinct: list[str] | None = None
     """If set, a list of fields that we should return distinct values of"""
 
     or_filters: "TOrFilters" = field(default_factory=list)
@@ -239,14 +97,19 @@ class QueryDefinition:
     limit: int = field(init=False)
     """The maximum amount of entities that should be returned"""
 
-    startCursor: t.Optional[str] = None
-    """If set, we'll only return entities that appear after this cursor in the index."""
+    startCursor: dict | None = None
+    """The keyset continuation: the sort values of the last row seen, ``{"<sort field>": value, ..., "_id": id}``.
+    ``Query.setCursor`` fills this field from the public, base64 encoded cursor — a plain value, not an opaque
+    token."""
 
-    endCursor: t.Optional[str] = None
-    """If set, we'll only return entities up to this cursor in the index."""
+    endCursor: dict | None = None
+    """The upper keyset bound, in the same shape as ``startCursor``: only rows that lie *before* this row in the
+    current order (``_before_condition``). Whether a cursor acts as the lower or the upper bound is decided
+    solely by the parameter it is passed to."""
 
-    currentCursor: t.Optional[str] = None
-    """Will be set after this query has been run, pointing after the last entity returned"""
+    currentCursor: dict | None = None
+    """Set after this query ran: the same shape as ``startCursor``, taken from the last row returned in query
+    order."""
 
     def __post_init__(self):
         self.limit = conf.db.query_default_limit

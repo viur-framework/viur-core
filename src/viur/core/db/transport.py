@@ -1,364 +1,487 @@
 """
-Datastore transport layer: the process-wide client and the CRUD helpers.
+MongoDB transport layer: the process-wide client, the session context and the document-based CRUD functions.
 
-**Named database and namespace**
+A kind is a collection of the same name and a key is the ``_id`` of a document — any non-empty ``str``.
+:func:`put` generates an ObjectId hex when the caller supplies none, but viur also writes deterministic business
+keys (the ``viur-conf`` singleton, the locks of unique constraints, ratelimit counters); there the uniqueness of
+``_id`` carries the atomicity, which a separate field plus a query could not.
 
-The datastore client (:data:`__client__`) is built once at import time and
-kept for the whole process lifetime. Its target database and namespace come
-from :attr:`conf.db.name <viur.core.config.Database.name>` and
-:attr:`conf.db.namespace <viur.core.config.Database.namespace>`, which are sourced
-from the ``VIUR_DB_NAME`` / ``VIUR_DB_NAMESPACE`` environment variables. Both
-default to ``None`` — the standard ``(default)`` database and empty namespace —
-so existing deployments are unaffected.
+:func:`get` serves whatever the memcache already holds and asks MongoDB only for the remaining ids, in a single
+``$in`` batch, warming the cache with the answer. Inside a transaction ``cache.get`` returns nothing, so reads
+are always fresh there. :func:`put` warms the cache only after the write succeeded — a value that was never
+persisted must never be cached — while :func:`delete` drops the cache entry before deleting, because a stale
+entry that survived a failed delete would be served until it expires.
 
-Because the client is created from the environment at import time, the target
-cannot be retargeted at runtime: a single process always talks to exactly one
-database. :class:`~viur.core.db.types.Key` objects inherit that database and
-namespace from the client, keeping every request on the configured target.
+Writing several documents splits them by existence instead of upserting all of them: measured against Firestore
+Enterprise with 100 documents, ``ReplaceOne(upsert=True)`` on new documents takes 1014 ms, plain inserts 49 ms
+and ``ReplaceOne`` on existing documents 287 ms. The upsert that *creates* is the expensive path, so one lookup
+for the existing ``_id``s (~30 ms) pays for itself; see :func:`_put_many`.
 
-The legacy urlsafe key encoding (App Engine "Reference") predates named
-databases and only supports the default one. Therefore
-:meth:`Key.to_legacy_urlsafe <viur.core.db.types.Key.to_legacy_urlsafe>`
-encodes a database-less copy of the key, and the client's database is restored
-on decoding — unambiguous precisely because the process is bound to a single
-database.
+:func:`run_in_transaction` retries three times with an exponential backoff, and only for the conflicts
+:func:`_is_transient` accepts; every other error propagates. Whether a read inside the transaction sees a value
+written earlier in the same transaction is not guaranteed — keep such a value in a local variable instead of
+reading it back.
+
+Without an explicit order and with exactly one inequality filter, ``query._implicit_orders`` sorts ascending by
+that field, the way the Datastore did silently; only that makes an index ``(equality fields…, field, _id)``
+usable for the sort elision below. Cursors are keyset pagination: ``QueryDefinition.startCursor``/``endCursor``
+carry the sort values of a row already seen, which ``query._after_condition``/``_before_condition`` turn into a
+lower or upper bound that is ``$and``-ed onto the filter. ``query._to_mongo_sort`` always appends ``_id`` as the
+last sort criterion, so that bound is unambiguous. An ``Inverted*`` query reads the same cursor with an
+inclusive instead of an exclusive bound and flips the result into display order afterwards.
+
+Firestore Enterprise fetches every index hit before applying the limit when an explicit sort is present; without
+a sort the scan stops after ``limit`` documents. :func:`_find` therefore drops ``sort()`` whenever an existing
+index already yields the requested order (``indexes.eligible``), hints that index instead and verifies the order
+client-side (``order.is_sorted``). An unsorted result or a rejected hint falls back to the explicit sort and
+turns the elision off for that ``(kind, index)`` pair for the rest of the process, warning once while doing so,
+so a broken order or a vanished index does not make every further query try the hint path again. The elision
+never changes the result, only the way to it.
 """
 from __future__ import annotations
 
-import itertools
+import contextvars
+import datetime
 import logging
+import threading
 import time
 import typing as t
 
+import pymongo
 from deprecated.sphinx import deprecated
-from google.cloud import datastore, exceptions
+from pymongo import InsertOne, MongoClient, ReplaceOne
+from pymongo.auth_oidc import OIDCCallback, OIDCCallbackContext, OIDCCallbackResult
+from pymongo.client_session import ClientSession
+from pymongo.collection import Collection
+from pymongo.errors import BulkWriteError
 
-from .overrides import entity_from_protobuf, key_from_protobuf
-from .types import Entity, Key, QueryDefinition, SortOrder, current_db_access_log
-from . import cache
 from viur.core.config import conf
+from . import cache, objectid
+from .types import QueryDefinition, SortOrder
 
-# patching our key and entity classes
-datastore.helpers.key_from_protobuf = key_from_protobuf
-datastore.helpers.entity_from_protobuf = entity_from_protobuf
+logger = logging.getLogger(__name__)
 
-# Built once at import, kept for the process lifetime — so db/namespace have to
-# come from env (via conf.db); nothing can retarget the client afterwards.
-# Both default to None, which is the same as datastore.Client(): no change for
-# default deployments.
-__client__ = datastore.Client(database=conf.db.name, namespace=conf.db.namespace)
+_DEFAULT_SERVER_SELECTION_TIMEOUT_MS: t.Final[int] = 5000
+_DEFAULT_CONNECT_TIMEOUT_MS: t.Final[int] = 5000
+"""pymongo itself waits 30 s for server selection and 20 s per connection attempt. Without an explicit bound
+every request against an unreachable database blocks that long, again for the next request — with
+``gunicorn --threads 2`` that is enough to block the whole instance instead of failing fast. A development
+machine whose DNS answers with an unroutable IPv6 address waits the full connect timeout before trying IPv4
+(measured 21 s for the first access, per new pool connection). 5 s is generous for a short network hiccup and
+far below the request timeouts of App Engine/Cloud Run."""
 
-MAX_LOOKUP_KEYS: t.Final[int] = 1000
-"""Maximum number of keys the datastore accepts for a single Lookup operation.
+_mongo_client: MongoClient | None = None
+_mongo_lock = threading.Lock()
+"""Guards the one-time construction of ``_mongo_client``. A ``MongoClient`` is built to be shared across
+threads afterwards; only its creation needs the lock, otherwise two concurrent first accesses build two
+connection pools."""
 
-Unlike a Lookup, a Commit has no comparable cap on the number of mutations - it is bounded by
-the 10 MiB request size instead. :func:`put` and :func:`delete` therefore stay a single commit
-of whatever they are handed, which keeps them atomic.
-"""
+_current_session: contextvars.ContextVar[ClientSession | None] = contextvars.ContextVar(
+    "viur_db_session", default=None
+)
+"""The running transaction, separate per thread and per async task.
+
+A ``MongoClient`` is built to be shared, a ``ClientSession`` explicitly is not, so the session cannot be kept on
+the client the way the Datastore client kept its transaction in a thread-local stack — it is kept here."""
+
+_elision_disabled: set[tuple[str, str]] = set()
+_elision_lock = threading.Lock()
+"""Guards ``_elision_disabled``, a set of ``(kind, index name)`` pairs whose sort elision is off for the rest
+of the process; held only around the set operation, never around I/O — see the module docstring."""
+
+Document: t.TypeAlias = dict[str, t.Any]
+"""A record as the driver returns it: a dict carrying an ``_id``."""
 
 
-def allocate_ids(kind_name: str, num_ids: int = 1, retry=None, timeout=None) -> list[Key]:
-    if type(kind_name) is not str:
-        raise TypeError("kind_name must be a string")
-    return __client__.allocate_ids(Key(kind_name), num_ids, retry, timeout)
+def _mongo() -> MongoClient:
+    """The shared client, built on first access.
 
-
-@deprecated(version="3.8.0", reason="Use 'db.allocate_ids' instead")
-def AllocateIDs(kind_name):
+    Lazily instead of at import time: a ``datastore.Client()`` built at import used to force every test to
+    provide credentials before the first ``import viur.core``.
     """
-    Allocates a new, free unique id for a given kind_name.
+    global _mongo_client
+    if _mongo_client is None:
+        with _mongo_lock:
+            if _mongo_client is None:  # a second thread was faster
+                # Only set what the URI does not carry itself — ``conf.db.uri`` wins, it is the explicit wish of
+                # an operator. ``parse_uri`` normalizes the case of the option names, so testing the canonical
+                # name with ``in`` is enough.
+                options = pymongo.uri_parser.parse_uri(conf.db.uri).get("options", {})
+                kwargs = {}
+                if "serverSelectionTimeoutMS" not in options:
+                    kwargs["serverSelectionTimeoutMS"] = _DEFAULT_SERVER_SELECTION_TIMEOUT_MS
+                if "connectTimeoutMS" not in options:
+                    kwargs["connectTimeoutMS"] = _DEFAULT_CONNECT_TIMEOUT_MS
+                if "tz_aware" not in options:
+                    # BSON stores dates as UTC milliseconds and pymongo returns them NAIVE by default. The
+                    # Datastore returned aware UTC and the whole core compares against utils.utcNow() (aware),
+                    # where a naive date from the database raises TypeError. Parity: aware UTC.
+                    kwargs["tz_aware"] = True
+                if (options.get("authMechanism") == "MONGODB-OIDC"
+                        and "ENVIRONMENT" not in (options.get("authMechanismProperties") or {})):
+                    # Firestore Enterprise: a token from the application default credentials, locally as well as
+                    # in production (see _GoogleAdcOidc). If the URI names an ENVIRONMENT itself, the driver
+                    # mechanism stays untouched.
+                    kwargs["authMechanismProperties"] = {"OIDC_CALLBACK": _GoogleAdcOidc()}
+                client = MongoClient(conf.db.uri, **kwargs)
+                if client.options.retry_writes:
+                    raise RuntimeError(
+                        "conf.db.uri must set retryWrites=false: "
+                        "Firestore Enterprise does not support retryable writes"
+                    )
+                _mongo_client = client
+    return _mongo_client
+
+
+class _GoogleAdcOidc(OIDCCallback):
+    """Hands the driver a Google access token taken from the application default credentials.
+
+    Firestore Enterprise authenticates via ``MONGODB-OIDC``. The variant named in its documentation,
+    ``authMechanismProperties=ENVIRONMENT:gcp``, asks the GCE metadata server, which exists on App Engine but
+    not on a development machine. Application default credentials cover both: ``gcloud auth
+    application-default login`` locally, the service identity in production. ``_mongo()`` therefore attaches
+    this callback as soon as the URI asks for ``MONGODB-OIDC`` without naming an ``ENVIRONMENT`` itself.
+
+    No module state: ``google.auth.default()`` is read per call, and the driver only calls back when it needs a
+    new token.
     """
-    if isinstance(kind_name, Key):  # so ein Murks...
-        kind_name = kind_name.kind
 
-    return allocate_ids(kind_name)[0]
+    def fetch(self, context: OIDCCallbackContext) -> OIDCCallbackResult:
+        import google.auth
+        import google.auth.transport.requests
+
+        credentials, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+        credentials.refresh(google.auth.transport.requests.Request())
+        expires_in = None
+        if credentials.expiry is not None:
+            # google-auth reports the expiry as a naive UTC time
+            remaining = credentials.expiry - datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+            expires_in = max(remaining.total_seconds(), 0)
+        return OIDCCallbackResult(access_token=credentials.token, expires_in_seconds=expires_in)
 
 
-def get(keys: t.Union[Key, t.Iterable[Key]]) -> t.Union[list[Entity], Entity, None]:
+def _collection(kind: str) -> Collection:
+    """The collection belonging to a kind — one to one, under the same name."""
+    return _mongo()[conf.db.name][kind]
+
+
+def _check_id(_id: t.Any) -> None:
+    """Reject anything but a non-empty ``str`` — on deterministic keys see the module docstring."""
+    if not isinstance(_id, str) or not _id:
+        raise ValueError(f"_id must be a non-empty str, got {_id!r}")
+
+
+def get(kind: str, ids: str | list[str] | set[str] | tuple[str, ...]) -> Document | list[Document] | None:
+    """Load one document (or several) from *kind*.
+
+    A single id yields the document or ``None``, a collection of ids yields the documents found in request
+    order, leaving missing ones out. Several ids are recognized by the collection type, not by iterability — a
+    ``str`` is iterable itself. On caching and batching see the module docstring.
+
+    :param kind: The kind to read from.
+    :param ids: A single ``_id``, or a list/set/tuple of them.
+    :return: The document, ``None``, or the list of documents found.
     """
-    Retrieves an entity (or a list thereof) from datastore.
-    If only a single key has been given we'll return the entity or none in case the key has not been found,
-    otherwise a list of all entities that have been looked up (which may be empty)
-    :param keys: A datastore key (or a list thereof) to lookup
-    :return: The entity (or None if it has not been found), or a list of entities.
-    """
-    _write_to_access_log(keys)
+    is_multiple = isinstance(ids, (list, set, tuple))
+    id_list = list(ids) if is_multiple else [ids]
+    for _id in id_list:
+        _check_id(_id)
 
-    is_multiple = isinstance(keys, (list, set, tuple))
-    key_list = list(keys) if is_multiple else [keys]
+    if not id_list:  # like delete(): an empty request needs no roundtrip
+        return []
 
-    # Serve whatever we can from the cache, indexed by its stringified key.
-    entities_by_key = {str(entity.key): entity for entity in cache.get(key_list)}
+    found = {doc["_id"]: doc for doc in cache.get(kind, id_list)}
 
-    # Fetch the keys that were not cached and write them back into the cache
-    missing = [key for key in key_list if str(key) not in entities_by_key]
+    # Only the ids the cache did not hold go to MongoDB, and their answer warms the cache.
+    missing = [_id for _id in id_list if _id not in found]
     if missing:
-        # A Lookup accepts at most MAX_LOOKUP_KEYS keys, so ask in chunks and merge the answers
-        fetched = []
-        for chunk in itertools.batched(missing, MAX_LOOKUP_KEYS):
-            fetched.extend(__client__.get_multi(list(chunk)))
+        fetched = list(_collection(kind).find({"_id": {"$in": missing}}, session=_current_session.get()))
         if fetched:
-            cache.put(fetched)
-        for entity in fetched:
-            entities_by_key[str(entity.key)] = entity
+            cache.put(kind, fetched)
+        for doc in fetched:
+            found[doc["_id"]] = doc
 
-    # Reassemble in the original key order, dropping keys that were not found
-    result = [entities_by_key[str(key)] for key in key_list if str(key) in entities_by_key]
-
-    if conf.debug.trace_queries:
-        logging.info(f"db.get: {len(result)}/{len(key_list)} entities found")
-
-    if is_multiple:
-        return result
-    return result[0] if result else None
+    if not is_multiple:
+        return found.get(id_list[0])
+    return [found[_id] for _id in id_list if _id in found]
 
 
+def put(kind: str, docs: Document | list[Document]) -> Document | list[Document]:
+    """Write one document (or several) to *kind*.
 
-@deprecated(version="3.8.0", reason="Use 'db.get' instead")
-def Get(keys: t.Union[Key, t.List[Key]]) -> t.Union[t.List[Entity], Entity, None]:
-    return get(keys)
+    A missing ``_id`` is generated and written into the given dict, so the caller knows the id of the record
+    just written. On the cost of writing several documents and on caching see the module docstring.
 
-
-def put(entities: t.Union[Entity, t.List[Entity]]):
+    :param kind: The kind to write to.
+    :param docs: A single document, or a list of them.
+    :return: The very same document (or list of documents), ``_id`` filled in.
     """
-    Save an entity in the Cloud Datastore.
-    Also ensures that no string-key with a digit-only name can be used.
+    is_multiple = isinstance(docs, list)
+    doc_list = docs if is_multiple else [docs]
+    for doc in doc_list:
+        if not (_id := doc.get("_id")):
+            doc["_id"] = objectid.new_id()
+        else:
+            _check_id(_id)
 
-    A list of entities is written in one commit and therefore atomically, however long it is.
-
-    :param entities: The entities to be saved to the datastore.
-    """
-    _write_to_access_log(entities)
-
-    # Cache only after the datastore accepted the write: a failed write must not
-    # leave a value in the cache that was never persisted. The datastore also
-    # completes partial keys during the write, so caching afterwards stores the
-    # entity under its final key.
-    if isinstance(entities, Entity):
-        res = __client__.put(entities)
-        if conf.debug.trace_queries:
-            logging.info(f"db.put: saved {entities.key}")
+    col = _collection(kind)
+    session = _current_session.get()
+    if len(doc_list) == 1:
+        # For a single document the lookup of _put_many does not pay off.
+        col.replace_one({"_id": doc_list[0]["_id"]}, doc_list[0], upsert=True, session=session)
     else:
-        res = __client__.put_multi(entities=entities)
-        if conf.debug.trace_queries:
-            logging.info(f"db.put: saved {len(entities)} entities")
+        _put_many(col, doc_list, session)
 
-    cache.put(entities)
-    return res
+    cache.put(kind, docs)
+    return docs
 
 
-@deprecated(version="3.8.0", reason="Use 'db.put' instead")
-def Put(entities: t.Union[Entity, t.List[Entity]]) -> t.Union[Entity, None]:
-    return put(entities)
+def _put_many(col: Collection, doc_list: list[Document], session: ClientSession | None) -> None:
+    """Insert what is new and replace what exists, instead of upserting everything (costs: module docstring).
 
+    Both bulks run ``ordered=False`` so the server may work in parallel. A race between the lookup and the
+    insert — another thread creating the same ``_id`` — shows up as ``E11000`` in the unordered bulk, which
+    writes the rest anyway; the affected documents are replaced instead. Any other error stays an error.
 
-def delete(keys: t.Union[Entity, t.Iterable[Entity], Key, t.Iterable[Key]]):
+    :param col: The collection to write to.
+    :param doc_list: The documents to write, each one carrying an ``_id``.
+    :param session: The session of a running transaction, or ``None``.
     """
-    Deletes the entities with the given key(s) from the datastore.
+    ids = [d["_id"] for d in doc_list]
+    existing = {d["_id"] for d in col.find({"_id": {"$in": ids}}, {"_id": 1}, session=session)}
+    inserts = [d for d in doc_list if d["_id"] not in existing]
+    replaces = [d for d in doc_list if d["_id"] in existing]
 
-    A list of keys is deleted in one commit and therefore atomically, however long it is.
+    if inserts:
+        try:
+            col.bulk_write([InsertOne(d) for d in inserts], ordered=False, session=session)
+        except BulkWriteError as exc:
+            errors = exc.details.get("writeErrors", [])
+            if not errors or any(e.get("code") != 11000 for e in errors):
+                raise
+            replaces += [inserts[e["index"]] for e in errors]
 
-    :param keys: A Key (or a t.List of Keys) to delete
+    if replaces:
+        col.bulk_write([ReplaceOne({"_id": d["_id"]}, d, upsert=True) for d in replaces],
+                       ordered=False, session=session)
+
+
+def delete(kind: str, ids: str | list[str] | set[str] | tuple[str, ...]) -> None:
+    """Delete documents from *kind*; unknown ids are not an error.
+
+    The cache is dropped before the deletion itself, see the module docstring.
     """
-
-    _write_to_access_log(keys)
-    cache.delete(keys)
-    if not isinstance(keys, (set, list, tuple)):
-        res = __client__.delete(keys)
-        if conf.debug.trace_queries:
-            logging.info(f"db.delete: deleted {keys}")
-        return res
+    id_list = list(ids) if isinstance(ids, (list, set, tuple)) else [ids]
+    if not id_list:
+        return
+    cache.delete(kind, id_list)
+    _collection(kind).delete_many({"_id": {"$in": id_list}}, session=_current_session.get())
 
 
-    res = __client__.delete_multi(keys)
-    if conf.debug.trace_queries:
-        logging.info(f"db.delete: deleted {len(keys)} keys")
-    return res
-
-
-@deprecated(version="3.8.0", reason="Use 'db.delete' instead")
-def Delete(keys: t.Union[Entity, t.List[Entity], Key, t.List[Key]]):
-    return delete(keys)
+def count(kind: str, flt: dict | None = None, up_to: int | None = None) -> int:
+    """Count the documents in *kind*, optionally narrowed by a Mongo filter and cut short by *up_to*."""
+    # ``limit`` makes MongoDB stop counting once *up_to* hits are found, instead of counting through the whole
+    # (possibly much larger) result set — the cost bound ``Query.count(up_to=...)`` has always promised.
+    kwargs = {"limit": up_to} if up_to else {}
+    return _collection(kind).count_documents(flt or {}, session=_current_session.get(), **kwargs)
 
 
 def run_in_transaction(func: t.Callable, *args, **kwargs) -> t.Any:
-    """
-    Runs the function given in :param:callee inside a transaction.
-    Inside a transaction it's guaranteed that
-    - either all or no changes are written to the datastore
-    - no other transaction is currently reading/writing the entities accessed
+    """Run *func* in a transaction — either all of its writes are applied or none of them.
 
-    See (transactions)[https://cloud.google.com/datastore/docs/concepts/cloud-datastore-transactions] for more
-    information.
+    If a transaction is already running, *func* runs inside it without a second one being opened. On the retry
+    and read-your-own-writes semantics see the module docstring.
 
-    ..Warning: The datastore may produce unexpected results if an entity that have been written inside a transaction
-        is read (or returned in a query) again. In this case you will the the *old* state of that entity. Keep that
-        in mind if wrapping functions to run in a transaction that may have not been designed to handle this case.
-    :param func: The function that will be run inside a transaction
-    :param args: All args will be passed into the callee
-    :param kwargs: All kwargs will be passed into the callee
-    :return: Whatever the callee function returned
-    :raises RuntimeError: If the maximum transaction retries exceeded
+    :param func: The callable to run; further arguments are passed on to it.
+    :return: Whatever *func* returned.
+    :raises RuntimeError: When the retries are exhausted.
     """
-    if __client__.current_transaction:
-        res = func(*args, **kwargs)
-    else:
-        for i in range(3):
-            try:
-                with __client__.transaction():
-                    res = func(*args, **kwargs)
+    if _current_session.get() is not None:
+        return func(*args, **kwargs)
+
+    for i in range(3):
+        try:
+            with _mongo().start_session() as session:
+                token = _current_session.set(session)
+                try:
+                    with session.start_transaction():
+                        res = func(*args, **kwargs)
                     break
+                finally:
+                    _current_session.reset(token)
 
-            except exceptions.Conflict:
-                logging.error(f"Transaction failed with a conflict, trying again in {2 ** i} seconds")
-                time.sleep(2 ** i)
-                continue
-
-        else:
-            raise RuntimeError("Maximum transaction retries exceeded")
+        except pymongo.errors.PyMongoError as exc:
+            if not _is_transient(exc):
+                raise
+            logger.error(f"Transaction failed with a conflict, trying again in {2 ** i} seconds")
+            time.sleep(2 ** i)
+            continue
+    else:
+        raise RuntimeError("Maximum transaction retries exceeded")
 
     return res
 
 
-@deprecated(version="3.8.0", reason="Use 'db.run_in_transaction' instead")
-def RunInTransaction(callee: t.Callable, *args, **kwargs) -> t.Any:
-    return run_in_transaction(callee, *args, **kwargs)
+def _is_transient(exc: pymongo.errors.PyMongoError) -> bool:
+    """A retryable transaction conflict? MongoDB sets the label, Firestore reports code 112 ("Aborted")."""
+    if exc.has_error_label("TransientTransactionError"):
+        return True
+    return isinstance(exc, pymongo.errors.OperationFailure) and exc.code == 112
 
 
-def count(kind: str = None, up_to=2 ** 31 - 1, queryDefinition: QueryDefinition = None) -> int:
-    if not kind:
-        kind = queryDefinition.kind
+def run_single_filter(query: QueryDefinition, limit: int, keys_only: bool) -> list[dict | str]:
+    """Run a single ``QueryDefinition`` against MongoDB and return the hits.
 
-    query = __client__.query(kind=kind)
-    if queryDefinition and queryDefinition.filters:
-        for k, v in queryDefinition.filters.items():
-            key, op = k.split(" ")
-            if op in ("IN", "!="):
-                # Native operators: pass value as-is in a single PropertyFilter
-                f = datastore.query.PropertyFilter(key, op, v)
-                query.add_filter(filter=f)
-            else:
-                if not isinstance(v, list):  # multi equal filters
-                    v = [v]
-                for val in v:
-                    f = datastore.query.PropertyFilter(key, op, val)
-                    query.add_filter(filter=f)
+    *query* is the ``QueryDefinition`` itself, not the ``Query`` — that is how ``Query._run_single_filter_query``
+    calls, and for a multi-query (``SpatialBone``, ``RandomSliceBone``) exactly one of the definitions in
+    ``Query.queries`` arrives here at a time. On implicit ordering and cursors see the module docstring.
 
-    if queryDefinition and queryDefinition.or_filters:
-        for or_group in queryDefinition.or_filters:
-            or_conditions = [
-                datastore.query.PropertyFilter(fs.split(" ", 1)[0], fs.split(" ", 1)[1], v)
-                for fs, v in or_group
-            ]
-            query.add_filter(filter=datastore.query.Or(or_conditions))
-
-    aggregation_query = __client__.aggregation_query(query)
-
-    result = aggregation_query.count(alias="total").fetch(limit=up_to)
-    return list(result)[0][0].value
-
-
-@deprecated(version="3.8.0", reason="Use 'db.count' instead")
-def Count(kind: str = None, up_to=2 ** 31 - 1, queryDefinition: QueryDefinition = None) -> int:
-    return count(kind, up_to, queryDefinition)
-
-
-def run_single_filter(query: QueryDefinition, limit: int, keys_only: bool) -> t.List[Entity | Key]:
+    :param query: The single query definition to run.
+    :param limit: The maximum number of documents to return.
+    :param keys_only: Return only the ``_id`` of each hit instead of the whole document.
+    :return: The documents found, or their ``_id``s when *keys_only* is set.
     """
-        Internal helper function that runs a single query definition on the datastore and returns a list of
-        entities found.
-        :param query: The querydefinition (filters, orders, distinct etc.) to run against the datastore
-        :param limit: How many results should at most be returned
-        :return: The first *limit* entities that matches this query
-    """
+    from .query import (
+        _after_condition, _before_condition, _dotted_get, _implicit_orders, _to_mongo_filter, _to_mongo_sort,
+    )
 
-    qry = __client__.query(kind=query.kind)
-    startCursor = None
-    endCursor = None
-    hasInvertedOrderings = None
-    if conf.debug.trace_queries:
-        logging.info(f"Running query: {query}")
+    flt = _to_mongo_filter(query.filters, query.or_filters)
+    eq_fields = _equality_fields(flt)
+    orders = query.orders or _implicit_orders(query.filters or {})
+    # A limit-1 lookup without any order (neither explicit nor implicit), without a cursor and without distinct
+    # sends no sort(): the scan stops at the first hit instead of loading and sorting every hit.
+    lookup = limit == 1 and not orders and not query.startCursor and not query.endCursor and not query.distinct
+    sort = [] if lookup else _to_mongo_sort(orders)
+    inverted = any(
+        order in (SortOrder.InvertedAscending, SortOrder.InvertedDescending)
+        for _, order in (query.orders or [])
+    )
 
-    if query:
-        if query.filters:
-            for k, v in query.filters.items():
-                key, op = k.split(" ")
-                if op in ("IN", "!=", "NOT_IN"):
-                    # Native multi-value operators: pass value as-is, not split per element
-                    f = datastore.query.PropertyFilter(key, op, v)
-                    qry.add_filter(filter=f)
-                else:
-                    if not isinstance(v, list):  # multi equal filters
-                        v = [v]
-                    for val in v:
-                        f = datastore.query.PropertyFilter(key, op, val)
-                        qry.add_filter(filter=f)
+    # Keyset continuation: an Inverted* query reads its start cursor inclusively, a plain one exclusively.
+    extra = []
+    if query.startCursor:
+        extra.append(_after_condition(sort, query.startCursor, inclusive=inverted))
+    if query.endCursor:
+        extra.append(_before_condition(sort, query.endCursor))
+    if extra:
+        flt = {"$and": [flt, *extra]} if flt else ({"$and": extra} if len(extra) > 1 else extra[0])
 
-        if query.or_filters:
-            for or_group in query.or_filters:
-                or_conditions = [
-                    datastore.query.PropertyFilter(fs.split(" ", 1)[0], fs.split(" ", 1)[1], v)
-                    for fs, v in or_group
-                ]
-                qry.add_filter(filter=datastore.query.Or(or_conditions))
+    docs = _find(query.kind, flt, sort, query.distinct, limit, eq_fields=eq_fields)
 
-        if query.orders:
-            hasInvertedOrderings = any(
-                order.order in (SortOrder.InvertedAscending, SortOrder.InvertedDescending)
-                for order in query.orders
-            )
-            qry.order = [
-                order.name if order.order in (SortOrder.Ascending, SortOrder.InvertedDescending) else f"-{order.name}"
-                for order in query.orders
-            ]
+    # The cursor of this run, and the flip back into display order.
+    query.currentCursor = {field: _dotted_get(docs[-1], field) for field, _ in sort} if docs and sort else None
+    if inverted:
+        docs.reverse()
 
-        if query.distinct:
-            qry.distinct_on = query.distinct
-
-        startCursor = query.startCursor
-        endCursor = query.endCursor
     if keys_only:
-        qry.keys_only()
-    qryRes = qry.fetch(limit=limit, start_cursor=startCursor, end_cursor=endCursor)
-    res = list(qryRes)
-    query.currentCursor = qryRes.next_page_token
-    if hasInvertedOrderings:
-        res.reverse()
+        return [d["_id"] for d in docs]
+    return docs
 
-    if conf.debug.trace_queries:
-        distinct_on = f" distinct on {query.distinct}" if query.distinct else ""
-        logging.debug(
-            f"Queried {query.kind} with filter {query.filters} and orders {query.orders}{distinct_on}."
-            f" Returned {len(res)} results"
-        )
 
-    return res
+def _equality_fields(flt: dict) -> frozenset[str]:
+    """The top-level fields of *flt* holding a plain equality value — the index prefix for ``indexes.eligible``."""
+    # Neither an operator dict nor ``$and``/``$or`` counts; everything else is filtered residually.
+    return frozenset(
+        field for field, value in flt.items()
+        if not field.startswith("$") and not (isinstance(value, dict) and any(k.startswith("$") for k in value))
+    )
+
+
+def _find(kind: str, flt: dict, sort: list[tuple[str, int]], distinct: list[str] | None, limit: int,
+          *, eq_fields: frozenset[str] = frozenset()) -> list[dict]:
+    """The read behind :func:`run_single_filter`: a plain ``find``, an elided sort, or an aggregation.
+
+    *distinct* takes a completely different route through the driver (an aggregation instead of ``find``),
+    while cursor, inversion and ``keys_only`` are the same for both — hence the split from
+    :func:`run_single_filter`. On the sort elision see the module docstring.
+
+    :param kind: The kind to read from.
+    :param flt: The Mongo filter.
+    :param sort: The Mongo sort; empty for a lookup without any order.
+    :param distinct: The fields to return one document per value combination of.
+    :param limit: The maximum number of documents; ``0`` for no limit.
+    :param eq_fields: The equality fields of *flt*, the prefix an index has to carry.
+    :return: The documents found, in the order asked for.
+    """
+    from . import indexes, order
+
+    collection = _collection(kind)
+    session = _current_session.get()
+    if not distinct:
+        if not sort:
+            # Lookup without any order: the scan stops after `limit`, so neither sort() nor hint() is needed.
+            # is_dev_server is checked first because `indexes.covers()` needs `listIndexes` — that must never
+            # run on the production read path, only as a development aid.
+            if conf.db.sort_elision and conf.instance.is_dev_server and not indexes.covers(kind, eq_fields):
+                indexes.suggest(kind, eq_fields, [])
+            cursor = collection.find(flt, session=session)
+            if limit:
+                cursor = cursor.limit(limit)
+            return list(cursor)
+        # An existing index that yields the order: hint it and leave sort() out.
+        spec = indexes.eligible(kind, eq_fields, sort) if conf.db.sort_elision else None
+        disabled = False
+        if spec is not None:
+            with _elision_lock:
+                disabled = (kind, indexes.name(spec)) in _elision_disabled
+        if spec is None or disabled:
+            if conf.db.sort_elision and spec is None:
+                indexes.suggest(kind, eq_fields, sort)
+            return _find_sorted(collection, flt, sort, limit, session)
+        try:
+            cursor = collection.find(flt, session=session).hint(list(spec))
+            if limit:
+                cursor = cursor.limit(limit)
+            docs = list(cursor)
+        except pymongo.errors.OperationFailure as exc:
+            # FIXME: a rejected hint arrives as a generic OperationFailure; narrowing it down would take a
+            #        documented server error code, which neither MongoDB nor Firestore Enterprise promises.
+            with _elision_lock:
+                first = (kind, indexes.name(spec)) not in _elision_disabled
+                _elision_disabled.add((kind, indexes.name(spec)))
+            if first:
+                logger.warning(
+                    f"Sort elision: hint {indexes.name(spec)!r} on {kind!r} rejected ({exc}); explicit sort")
+                indexes.invalidate(kind)
+            return _find_sorted(collection, flt, sort, limit, session)
+        # The hinted order is observed, not promised — verify it and fall back once if it does not hold.
+        if order.is_sorted(docs, sort):
+            return docs
+        with _elision_lock:
+            first = (kind, indexes.name(spec)) not in _elision_disabled
+            _elision_disabled.add((kind, indexes.name(spec)))
+        if first:
+            logger.warning(f"Sort elision: index {indexes.name(spec)!r} on {kind!r} did not return a sorted "
+                           f"order — explicit sort")
+        return _find_sorted(collection, flt, sort, limit, session)
+
+    # distinct: the first whole document per distinct value combination, in sort order. Mongo's own
+    # collection.distinct() returns values of a single field only, so this takes an aggregation, sorted again
+    # afterwards because the output of a $group no longer carries the original order.
+    pipeline = [
+        {"$match": flt},
+        {"$sort": dict(sort)},
+        {"$group": {"_id": {f: f"${f}" for f in distinct}, "__first__": {"$first": "$$ROOT"}}},
+        {"$replaceRoot": {"newRoot": "$__first__"}},
+        {"$sort": dict(sort)},
+    ]
+    if limit:
+        pipeline.append({"$limit": limit})
+    return list(collection.aggregate(pipeline, session=session))
+
+
+def _find_sorted(collection: Collection, flt: dict, sort: list[tuple[str, int]], limit: int,
+                 session: ClientSession | None) -> list[dict]:
+    """The plain path with an explicit ``sort()`` — the fallback of every sort elision."""
+    cursor = collection.find(flt, session=session).sort(sort)
+    if limit:
+        cursor = cursor.limit(limit)
+    return list(cursor)
 
 
 @deprecated(version="3.8.0", reason="Use 'run_single_filter' instead")
-def runSingleFilter(query: QueryDefinition, limit: int) -> t.List[Entity]:
+def runSingleFilter(query: QueryDefinition, limit: int) -> list[dict]:
     run_single_filter(query, limit)
 
 
-# helper function for access log
-def _write_to_access_log(data: t.Union[Key, list[Key], Entity, list[Entity]]) -> None:
-    if not conf.db.create_access_log:
-        return
-    access_log = current_db_access_log.get()
-    if not isinstance(access_log, set):
-        return  # access log not exist
-    if not data:
-        return
-    if isinstance(data, Entity):
-        access_log.add(data.key)
-    elif isinstance(data, Key):
-        access_log.add(data)
-    else:
-        for entry in data:
-            if isinstance(entry, Entity):
-                access_log.add(entry.key)
-            elif isinstance(entry, Key):
-                access_log.add(entry)
-
-
-__all__ = [allocate_ids, delete, get, put, run_in_transaction, count]
+__all__ = ["delete", "get", "put", "run_in_transaction", "count"]

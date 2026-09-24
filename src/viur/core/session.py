@@ -26,11 +26,11 @@ from viur.core.tasks import DeleteEntitiesIter
 
 _SENTINEL: t.Final[object] = object()
 
-TObserver = t.TypeVar("TObserver", bound=t.Callable[[db.Entity], None])
+TObserver = t.TypeVar("TObserver", bound=t.Callable[[dict], None])
 """Type of the observer for :meth:`Session.on_delete`"""
 
 
-class Session(db.Entity):
+class Session(dict):
     """
         Store Sessions inside the datastore.
         The behaviour of this module can be customized in the following ways:
@@ -75,7 +75,7 @@ class Session(db.Entity):
 
         if cookie_key := current.request.get().request.cookies.get(self.cookie_name):
             cookie_key = str(cookie_key)
-            if data := db.get(db.Key(self.kindName, cookie_key)):  # Loaded successfully
+            if data := db.get(self.kindName, cookie_key):  # Loaded successfully
                 if data["lastseen"] < time.time() - conf.user.session_life_time.total_seconds():
                     # This session is too old
                     self.reset()
@@ -119,15 +119,17 @@ class Session(db.Entity):
             self.cookie_key = utils.string.random(42)
             self.static_security_key = utils.string.random(13)
 
-        dbSession = db.Entity(db.Key(self.kindName, self.cookie_key))
+        dbSession = {"_id": self.cookie_key}
 
-        dbSession["data"] = db.fix_unindexable_properties(self)
+        # A plain dict() snapshot is enough: `self` is already a dict, and MongoDB imposes no
+        # size limit on indexed strings that the values would have to be clamped to.
+        dbSession["data"] = dict(self)
         dbSession["static_security_key"] = self.static_security_key
         dbSession["lastseen"] = time.time()
         dbSession["user"] = str(user_key)  # allow filtering for users
-        dbSession.exclude_from_indexes = {"data"}
+        # MongoDB has no per-field index exclusion; every field is queryable.
 
-        db.put(dbSession)
+        db.put(self.kindName, dbSession)
 
         # Provide Set-Cookie header entry with configured properties
         current_request.response.headerlist.append(
@@ -240,7 +242,7 @@ class Session(db.Entity):
 
     def clear(self) -> None:
         if self.cookie_key:
-            db.delete(db.Key(self.kindName, self.cookie_key))
+            db.delete(self.kindName, self.cookie_key)
             from viur.core import securitykey
             securitykey.clear_session_skeys(self.cookie_key)
 
@@ -266,7 +268,7 @@ class Session(db.Entity):
         return func
 
     @classmethod
-    def dispatch_on_delete(cls, entry: db.Entity) -> None:
+    def dispatch_on_delete(cls, entry: dict) -> None:
         """Call the observers for the _session delete event_."""
         for observer in cls._ON_DELETE_OBSERVER:
             observer(entry)
@@ -281,13 +283,13 @@ class DeleteSessionsIter(DeleteEntitiesIter):
     """
 
     @classmethod
-    def handleEntry(cls, entry: db.Entity, customData: t.Any) -> None:
-        db.delete(entry.key)
+    def handleEntry(cls, entry: dict, customData: t.Any, kind: str) -> None:
+        db.delete(kind, entry["_id"])
         Session.dispatch_on_delete(entry)
 
 
 @tasks.CallDeferred
-def killSessionByUser(user: t.Optional[t.Union[str, "db.Key", None]] = None):
+def killSessionByUser(user: str | None = None):
     """
         Invalidates all active sessions for the given *user*.
 
@@ -304,7 +306,7 @@ def killSessionByUser(user: t.Optional[t.Union[str, "db.Key", None]] = None):
     DeleteSessionsIter.startIterOnQuery(query)
 
 
-def update_session_user(user_key: "db.Key"):
+def update_session_user(user_key: str, kind: str):
     """
     Updates the cached user entity in all active sessions of the given *user*.
 
@@ -312,24 +314,25 @@ def update_session_user(user_key: "db.Key"):
     stored within the user's active sessions has to be refreshed as well; Otherwise,
     the modification would only take effect after re-login or session expiry.
 
-    :param user_key: db.Key of the user whose sessions shall be updated.
+    :param user_key: _id of the user whose sessions shall be updated.
+    :param kind: kindName of the user's Skeleton (``_id`` alone no longer carries it).
     """
     logging.info(f"Updating cached user entity in all sessions for {user_key=}")
 
-    if not (user_entity := db.get(user_key)):
+    if not (user_entity := db.get(kind, user_key)):
         logging.warning(f"Cannot update sessions, {user_key=} not found")
         return
 
-    def _update_txn(key):
-        if not (entity := db.get(key)):
+    def _update_txn(session_key):
+        if not (entity := db.get(Session.kindName, session_key)):
             return
         entity["data"]["user"] = user_entity
-        entity["data"] = db.fix_unindexable_properties(entity["data"])
-        entity.exclude_from_indexes = {"data"}
-        db.put(entity)
+        # MongoDB has no per-field index exclusion and no indexed-string size limit,
+        # so the entity is written as it is (see save()).
+        db.put(Session.kindName, entity)
 
     for e in db.Query(Session.kindName).filter("user =", str(user_key)).iter():
-        db.run_in_transaction(_update_txn, e.key)
+        db.run_in_transaction(_update_txn, e["_id"])
 
 
 @tasks.PeriodicTask(interval=datetime.timedelta(hours=4))

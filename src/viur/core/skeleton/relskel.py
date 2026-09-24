@@ -6,7 +6,7 @@ import typing as t
 
 from .base import BaseSkeleton
 from .utils import skeletonByKind
-from .. import db, utils
+from .. import utils
 
 if t.TYPE_CHECKING:
     from . import Skeleton
@@ -26,7 +26,7 @@ class RelSkel(BaseSkeleton):
 
     def serialize(self, parentIndexed):
         if self.dbEntity is None:
-            self.dbEntity = db.Entity()
+            self.dbEntity = {}
         for key, _bone in self.items():
             # if key in self.accessedValues:
             _bone.serialize(self, key, parentIndexed)
@@ -35,20 +35,16 @@ class RelSkel(BaseSkeleton):
         # FIXME: is this a good idea? Any other way to ensure only bones present in refKeys are serialized?
         return self.dbEntity
 
-    def unserialize(self, values: db.Entity | dict):
+    def unserialize(self, values: dict | None):
         """
             Loads 'values' into this skeleton.
 
             :param values: dict with values we'll assign to our bones
+
+            A document is a plain ``dict``, so this always builds a fresh, independent
+            dict instead of keeping a reference to an existing entity.
         """
-        if not isinstance(values, db.Entity):
-            self.dbEntity = db.Entity()
-
-            if values:
-                self.dbEntity.update(values)
-        else:
-            self.dbEntity = values
-
+        self.dbEntity = dict(values) if values else {}
         self.accessedValues = {}
         self.renderAccessedValues = {}
 
@@ -77,7 +73,7 @@ class RefSkel(RelSkel):
 
     def read(
         self,
-        key: t.Optional[db.Key | str | int] = None,
+        key: str | None = None,
         *,
         subskel: t.Iterable[str] = (),
         bones: t.Iterable[str] = (),

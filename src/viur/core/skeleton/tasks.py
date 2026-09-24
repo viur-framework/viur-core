@@ -24,7 +24,7 @@ from ..bones.string import StringBone
 
 @tasks.CallDeferred
 def update_relations(
-    key: db.Key,
+    key: str,
     *,
     min_change_time: t.Optional[float] = None,
     changed_bones: t.Optional[t.Iterable[str] | str] = (),
@@ -71,7 +71,7 @@ def update_relations(
         request_data["__update_relations_bones"] = changed_bones
 
     query = db.Query("viur-relations") \
-        .filter("dest.__key__ =", key) \
+        .filter("dest._id =", key) \
         .filter("viur_delayed_update_tag <", min_change_time) \
         .filter("viur_relational_updateLevel =", RelationalUpdateLevel.Always.value)
 
@@ -84,10 +84,10 @@ def update_relations(
     # bone holding the same reference several times), yielding one relation per
     # occurrence. Refreshing that entity once is enough -- doing it per relation only
     # stacks transactions on the very same entity and can exceed the request deadline.
-    seen_src_keys: set[db.Key] = set()
+    seen_src_keys: set[str] = set()
 
     for src_rel in query.run():
-        src_key = src_rel["src"].key
+        src_key = src_rel["src"]["_id"]
         if src_key in seen_src_keys:
             continue
         seen_src_keys.add(src_key)
@@ -95,13 +95,14 @@ def update_relations(
         try:
             skel = skeletonByKind(src_rel["viur_src_kind"])()
         except AssertionError:
-            logging.info(f"""Ignoring {src_rel.key!r} which refers to unknown kind {src_rel["viur_src_kind"]!r}""")
+            logging.info(f"""Ignoring {src_rel["_id"]!r} which refers to unknown kind """
+                         f"""{src_rel["viur_src_kind"]!r}""")
             continue
 
         try:
             skel.patch(lambda skel: skel.refresh(), key=src_key, update_relations=False)
         except ValueError:
-            logging.warning(f"Cannot update stale reference to {src_key!r} referenced by {src_rel.key!r}")
+            logging.warning(f"Cannot update stale reference to {src_key!r} referenced by {src_rel["_id"]!r}")
             continue
 
         total += 1
@@ -125,7 +126,7 @@ class SkelIterTask(tasks.QueryIter):
     """
 
     @classmethod
-    def handleEntry(cls, skel, data):
+    def handleEntry(cls, skel, data, kind: str):
         data["total"] += 1
 
         if logics.Logics(data["condition"]).run(skel):

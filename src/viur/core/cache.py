@@ -309,7 +309,7 @@ class ResponseCache(t.Generic[Args, Value]):
             cache_key = this.get_string_from_args(cache_args)
             logger.debug(f"{cache_key=}")
 
-            entity = db.get(db.Key(CACHE_KINDNAME, cache_key))
+            entity = db.get(CACHE_KINDNAME, cache_key)
             cache_status = "MISS"
             if entity:
                 if not this.max_cache_time or utils.utcNow() <= entity["creationdate"] + this.max_cache_time:
@@ -324,7 +324,7 @@ class ResponseCache(t.Generic[Args, Value]):
                     current_request.response.headers["Content-Type"] = entity["content-type"]
                     current_request.response.headers["Last-Modified"] = serialize_date(entity["creationdate"])
                     current_request.response.headers["X-Cache-Served"] = serialize_date(utils.utcNow())
-                    current_request.response.headers["X-Cache-Key"] = str(entity.key.id_or_name)  # TODO: tmp
+                    current_request.response.headers["X-Cache-Key"] = str(entity["_id"])  # TODO: tmp
                     if entity["compression_level"] is not None:
                         return zlib.decompress(entity["data"]).decode("utf-8")
                     return entity["data"]
@@ -379,7 +379,7 @@ class ResponseCache(t.Generic[Args, Value]):
             finally:
                 accessed_entries = db.endDataAccessLog(old_access_log)
 
-            entity = db.Entity(db.Key(CACHE_KINDNAME, cache_key))
+            entity = {"_id": cache_key}
             entity["data"] = body
             entity["creationdate"] = utils.utcNow()
             entity["path"] = path
@@ -387,7 +387,7 @@ class ResponseCache(t.Generic[Args, Value]):
             entity["content-type"] = content_type
             entity["accessedEntries"] = list(accessed_entries)
             entity["compression_level"] = this.compression_level
-            headers = db.Entity()
+            headers = {}
 
             for key, value in current_request.response.headers.items():
                 if (key.lower().startswith("x-") and key not in old_headers or key.lower() in {"cache-control"}):
@@ -395,17 +395,16 @@ class ResponseCache(t.Generic[Args, Value]):
                     headers[key] = value
                 else:
                     logger.debug(f"Ignore header {key} = {value}")
-            entity.exclude_from_indexes.add("data")
-            entity.exclude_from_indexes.add("header")
+            # MongoDB has no per-field index exclusion and no indexed-string size limit;
+            # every field is queryable and stored as it is.
             entity["header"] = headers
-            entity = db.fix_unindexable_properties(entity)
-            db.Put(entity)
+            db.put(CACHE_KINDNAME, entity)
 
             logger.debug("This request was a cache-miss. Cache has been updated.")
             current_request.response.headers["X-Cache-Status"] = cache_status
             current_request.response.headers["Last-Modified"] = serialize_date(entity["creationdate"])
             current_request.response.headers["X-Cache-Served"] = serialize_date(utils.utcNow())
-            current_request.response.headers["X-Cache-Key"] = str(entity.key.id_or_name)  # TODO: tmp
+            current_request.response.headers["X-Cache-Key"] = str(entity["_id"])  # TODO: tmp
 
             if content_type == this.REDIRECT_FLAG:
                 raise redirect
@@ -535,7 +534,7 @@ class ResponseCache(t.Generic[Args, Value]):
 
 
 @tasks.CallDeferred
-def flushCache(prefix: str = None, key: db.Key | None = None, kind:  str | None = None):
+def flushCache(prefix: str = None, key: str | None = None, kind:  str | None = None):
     """
         Flushes the cache. Its possible the flush only a part of the cache by specifying
         the path-prefix. The path is equal to the url that caused it to be cached (eg /page/view) and must be one
@@ -557,14 +556,14 @@ def flushCache(prefix: str = None, key: db.Key | None = None, kind:  str | None 
     if prefix is not None:
         items = db.Query(CACHE_KINDNAME).filter("path =", prefix.rstrip("*")).iter()
         for item in items:
-            db.delete(item)
+            db.delete(CACHE_KINDNAME, item["_id"])
         if prefix.endswith("*"):
             items = db.Query(CACHE_KINDNAME) \
                 .filter("path >", prefix.rstrip("*")) \
                 .filter("path <", prefix.rstrip("*") + u"\ufffd") \
                 .iter()
             for item in items:
-                db.delete(item)
+                db.delete(CACHE_KINDNAME, item["_id"])
         logging.debug(f"Flushing cache succeeded. Everything matching {prefix=} is gone.")
 
     if key is not None:
@@ -572,17 +571,17 @@ def flushCache(prefix: str = None, key: db.Key | None = None, kind:  str | None 
 
         for item in items:
             logging.info(f"""Deleted cache entry {item["path"]!r}""")
-            db.delete(item.key)
+            db.delete(CACHE_KINDNAME, item["_id"])
 
-        if kind is None and not isinstance(key, db.Key):
-            key = db.Key.from_legacy_urlsafe(key)  # hopefully is a string
-            kind = key.kind
+        # Flushing by key does not flush the queries that ran over its kind: an `_id` string
+        # carries no kind, and `Query.__init__` does not record the kind in the access log
+        # either. Callers that need a kind-wide flush have to pass `kind=` explicitly.
 
     if kind is not None:
         items = db.Query(CACHE_KINDNAME).filter("accessedEntries =", kind).iter()
         for item in items:
             logging.info(f"""Deleted cache entry {item["path"]!r}""")
-            db.delete(item.key)
+            db.delete(CACHE_KINDNAME, item["_id"])
 
 
 @tasks.CallableTask
@@ -599,7 +598,7 @@ class FlushCacheTask(tasks.CallableTaskBase):
         prefix = bones.RawBone(
             descr="Prefix",
             params={
-                "tooltip": "Path-Prefix (e.g. '/' oder '/page/*'; empty = all)",
+                "tooltip": "Path-Prefix (e.g. '/' or '/page/*'; empty = all)",
             },
         )
 

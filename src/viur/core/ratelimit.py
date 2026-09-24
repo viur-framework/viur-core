@@ -35,7 +35,7 @@ class RateLimit(object):
         assert method in ["ip", "user"], "method must be 'ip' or 'user'"
         self.useUser = method == "user"
 
-    def _getEndpointKey(self) -> db.Key | str:
+    def _getEndpointKey(self) -> str:
         """
         :warning:
             It's invalid to call _getEndpointKey if method is set to user and there's no user logged in!
@@ -76,14 +76,12 @@ class RateLimit(object):
         """
 
         def updateTxn(cacheKey: str) -> None:
-            key = db.Key(self.rateLimitKind, cacheKey)
-            obj = db.get(key)
+            obj = db.get(self.rateLimitKind, cacheKey)
             if obj is None:
-                obj = db.Entity(key)
-                obj["value"] = 0
+                obj = {"_id": cacheKey, "value": 0}
             obj["value"] += 1
             obj["expires"] = utils.utcNow() + timedelta(minutes=2 * self.minutes)
-            db.put(obj)
+            db.put(self.rateLimitKind, obj)
 
         lockKey = f"{self.resource}-{self._getEndpointKey()}-{self._getCurrentTimeKey()}"
         db.run_in_transaction(updateTxn, lockKey)
@@ -101,9 +99,8 @@ class RateLimit(object):
         keyBase = currentDateTime.strftime("%Y-%m-%d-%%s")
         cacheKeys = []
         for x in range(0, self.steps):
-            cacheKeys.append(
-                db.Key(self.rateLimitKind, f"{self.resource}-{endPoint}-{keyBase % (currentStep - x)}"))
-        tmpRes = db.get(cacheKeys)
+            cacheKeys.append(f"{self.resource}-{endPoint}-{keyBase % (currentStep - x)}")
+        tmpRes = db.get(self.rateLimitKind, cacheKeys)
         return sum([x["value"] for x in tmpRes if x and currentDateTime < x["expires"]]) <= self.maxRate
 
     def assertQuotaIsAvailable(self, setRetryAfterHeader: bool = True) -> bool:

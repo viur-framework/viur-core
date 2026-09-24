@@ -5,9 +5,8 @@ import urllib.parse
 import warnings
 import operator
 from collections.abc import Iterable
-from viur.core import current, db
+from viur.core import current
 from viur.core.config import conf
-from deprecated.sphinx import deprecated
 from . import json, parse, string  # noqa: used by external imports
 
 if t.TYPE_CHECKING:
@@ -54,13 +53,7 @@ def seoUrlToEntry(module: str,
         if language in (currentSeoKeys or {}):
             pathComponents.append(str(currentSeoKeys[language]))
         elif "key" in entry:
-            key = entry["key"]
-            if isinstance(key, str):
-                try:
-                    key = db.Key.from_legacy_urlsafe(key)
-                except:
-                    pass
-            pathComponents.append(str(key.id_or_name) if isinstance(key, db.Key) else str(key))
+            pathComponents.append(str(entry["key"]))
         elif "name" in dir(entry):
             pathComponents.append(str(entry.name))
         return "/".join(pathComponents)
@@ -89,18 +82,6 @@ def seoUrlToFunction(module: str, function: str, render: t.Optional[str] = None)
         else:
             pathComponents.append(function)
     return "/".join(pathComponents)
-
-
-@deprecated(version="3.8.0", reason="Use 'db.normalize_key' instead")
-def normalizeKey(key: t.Union[None, "db.Key"]) -> t.Union[None, "db.Key"]:
-    """
-        Normalizes a datastore key (replacing _application with the current one)
-
-        :param key: Key to be normalized.
-
-        :return: Normalized key in string representation.
-    """
-    db.normalize_key(key)
 
 
 def get_base_url() -> str:

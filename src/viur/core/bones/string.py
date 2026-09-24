@@ -86,8 +86,6 @@ class StringBone(RawBone):
             return str(value)
         elif isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
             return value.isoformat()
-        elif isinstance(value, db.Key):
-            return value.to_legacy_urlsafe().decode("ASCII")
         elif not value:  # None or any other falsy value
             return self.getEmptyValue()
         else:
@@ -325,7 +323,7 @@ class StringBone(RawBone):
 
         if self.languages:
             skel[bone_name] = new_value
-        elif not self.languages:
+        elif not self.languages:  # pragma: no branch - complement of the if above
             # just the value(s) with None language
             skel[bone_name] = new_value.get(None, [] if self.multiple else self.getEmptyValue())
 

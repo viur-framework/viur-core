@@ -12,7 +12,7 @@ from qrcode import make as qrcode_make
 from qrcode.image import svg as qrcode_svg
 
 import string
-from viur.core import Method, current, db, errors, prototypes, securitykey, utils
+from viur.core import Method, current, errors, prototypes, securitykey, utils
 from viur.core.config import conf
 from viur.core.i18n import LanguageWrapper
 from viur.core.i18n import translate as translate_class
@@ -177,7 +177,7 @@ def getSkel(
 
     if isinstance(obj, prototypes.singleton.Singleton) and not key:
         # We fetching the entry from a singleton - No key needed
-        key = db.Key(skel.kindName, obj.getKey())
+        key = obj.getKey()
 
     elif not key:
         raise ValueError(f"getSkel has to be called with a valid key! Got {key!r}")
@@ -191,7 +191,7 @@ def getSkel(
             is_allowed = obj.canView()
 
         elif isinstance(obj, prototypes.tree.Tree):
-            if skel["key"].kind == obj.nodeSkelCls.kindName:
+            if skel.kindName == obj.nodeSkelCls.kindName:
                 is_allowed = obj.canView("node", skel)
             else:
                 is_allowed = obj.canView("leaf", skel)
@@ -489,21 +489,8 @@ def className(render: Render, s: str) -> str:
 '''
 
 
-@jinjaGlobalFilter
-def shortKey(render: Render, val: str) -> t.Optional[str]:
-    """
-    Jinja2 filter: Make a shortkey from an entity-key.
-
-    :param render: The html-renderer instance.
-    :param val: Entity-key as string.
-
-    :returns: Shortkey on success, None on error.
-    """
-    try:
-        k = db.Key.from_legacy_urlsafe(str(val))
-        return k.id_or_name
-    except:
-        return None
+# There is no "shortKey" filter: an `_id` is already a short reference that is unique on
+# its own, so there is no prefix left for such a filter to strip.
 
 
 @jinjaGlobalFunction

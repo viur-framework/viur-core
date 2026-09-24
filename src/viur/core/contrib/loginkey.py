@@ -36,25 +36,21 @@ logger = logging.getLogger(__name__)
 
 
 class IndexedCredentialBone(CredentialBone):
-    """A :class:`~viur.core.bones.CredentialBone` that is always Datastore-indexed.
+    """A :class:`~viur.core.bones.CredentialBone` that stays queryable.
 
-    Regular ``CredentialBone`` values are excluded from indexes for security.
-    This subclass forces indexing so that the value can be used as a filter
-    criterion (e.g. ``filter("login_key =", token)``).
+    Regular ``CredentialBone`` values used to be excluded from the Datastore
+    index for security; Mongo has no such per-field exclusion, every field is
+    always queryable (see ``db/transport.py``). This subclass therefore
+    behaves exactly like its base class today -- it is kept as an explicit
+    marker for code that relies on ``login_key`` being filterable (e.g.
+    ``filter("login_key =", token)``).
 
     .. note::
-        Accepting an indexed credential is a deliberate trade-off: it enables
+        Storing a queryable credential is a deliberate trade-off: it enables
         server-side token lookup at the cost of exposing the value to anyone
-        with Datastore read access.  Only use this when that trade-off is
+        with database read access.  Only use this when that trade-off is
         explicitly acceptable.
     """
-
-    def serialize(self, skel: "SkeletonInstance", name: str, parentIndexed: bool) -> bool:
-        skel.dbEntity.exclude_from_indexes.discard(name)  # force index even though it's a credential
-        if name in skel.accessedValues and skel.accessedValues[name]:
-            skel.dbEntity[name] = skel.accessedValues[name]
-            return True
-        return False
 
 
 class LoginKey(UserPrimaryAuthentication):

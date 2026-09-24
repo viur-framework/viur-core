@@ -11,7 +11,7 @@ loginkey
     :class:`~viur.core.contrib.loginkey.IndexedCredentialBone` and
     :class:`~viur.core.contrib.loginkey.LoginKey` — a
     :class:`~viur.core.modules.user.UserPrimaryAuthentication` that
-    authenticates users via a secret token stored in a Datastore-indexed
+    authenticates users via a secret token stored in an indexed
     :class:`~viur.core.bones.CredentialBone`.  Suitable for "magic link"
     style logins or machine-to-machine auth.
 

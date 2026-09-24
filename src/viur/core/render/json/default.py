@@ -4,7 +4,7 @@ import logging
 import warnings
 from decimal import Decimal
 from enum import Enum
-from viur.core import db, current
+from viur.core import current
 from viur.core.bones import BaseBone
 from viur.core.render.abstract import AbstractRenderer
 from viur.core.skeleton import SkeletonInstance, SkelList
@@ -28,8 +28,6 @@ class CustomJsonEncoder(json.JSONEncoder):
             return str(o)
         elif isinstance(o, datetime):
             return o.isoformat()
-        elif isinstance(o, db.Key):
-            return str(o)
         elif isinstance(o, Enum):
             return o.value
         elif isinstance(o, set):

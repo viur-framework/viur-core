@@ -82,7 +82,7 @@ class PasswordBone(StringBone):
         super().__init__(descr=descr, **kwargs)
         self.test_threshold = test_threshold
         self.raw = raw
-        if tests is not None:
+        if tests is not None:  # pragma: no branch - the default is a tuple, never None
             self.tests = tests
 
     def isInvalid(self, value):
@@ -174,14 +174,6 @@ class PasswordBone(StringBone):
             skel.dbEntity[name] = value
         else:  # This has been set by skel["password"] = "secret", we'll still have to hash it
             skel.dbEntity[name] = encode_password(value, utils.string.random(self.saltLength))
-
-        # Ensure our indexed flag is up2date
-        indexed = self.indexed and parentIndexed
-
-        if indexed and name in skel.dbEntity.exclude_from_indexes:
-            skel.dbEntity.exclude_from_indexes.discard(name)
-        elif not indexed and name not in skel.dbEntity.exclude_from_indexes:
-            skel.dbEntity.exclude_from_indexes.add(name)
 
         return True
 

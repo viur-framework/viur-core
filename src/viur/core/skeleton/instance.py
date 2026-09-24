@@ -7,7 +7,7 @@ import typing as t
 import warnings
 from functools import partial
 
-from viur.core import db, utils
+from viur.core import utils
 from .skeleton import Skeleton
 
 if t.TYPE_CHECKING:
@@ -85,7 +85,7 @@ class SkeletonInstance(t.Generic[Skeleton_Cls]):
     def __init__(
         self,
         skel_cls: t.Type[Skeleton_Cls],
-        entity: t.Optional[db.Entity | dict] = None,
+        entity: dict | None = None,
         *,
         bones: t.Iterable[str] = (),
         bone_map: t.Optional[t.Dict[str, BaseBone]] = None,
@@ -338,16 +338,10 @@ class SkeletonInstance(t.Generic[Skeleton_Cls]):
     def __len__(self) -> int:
         return len(self.boneMap)
 
-    def __ior__(self, other: dict | SkeletonInstance | db.Entity) -> SkeletonInstance:
+    def __ior__(self, other: dict | SkeletonInstance) -> SkeletonInstance:
         if isinstance(other, dict):
             for key, value in other.items():
                 self.setBoneValue(key, value)
-        elif isinstance(other, db.Entity):
-            new_entity = self.dbEntity or db.Entity()
-            # We're not overriding the key
-            for key, value in other.items():
-                new_entity[key] = value
-            self.setEntity(new_entity)
         elif isinstance(other, SkeletonInstance):
             for key, value in other.accessedValues.items():
                 self.accessedValues[key] = value
@@ -386,7 +380,7 @@ class SkeletonInstance(t.Generic[Skeleton_Cls]):
 
         return self
 
-    def setEntity(self, entity: db.Entity):
+    def setEntity(self, entity: dict):
         self.dbEntity = entity
         self.accessedValues = {}
         self.renderAccessedValues = {}

@@ -49,7 +49,7 @@ class DatabaseAdapter:
         """
         pass
 
-    def fulltextSearch(self, queryString: str, databaseQuery: db.Query) -> list[db.Entity]:
+    def fulltextSearch(self, queryString: str, databaseQuery: db.Query) -> list[dict]:
         """
         If this database supports fulltext searches, this method has to implement them.
         If it's a plain fulltext search engine, leave 'prop:fulltextSearchGuaranteesQueryConstrains' set to False,
@@ -120,7 +120,7 @@ class ViurTagsSearchAdapter(DatabaseAdapter):
             chain(*[self._tags_from_str(tag) for tag in tags if len(tag) <= self.max_length])
         )
 
-    def fulltextSearch(self, queryString: str, databaseQuery: db.Query) -> list[db.Entity]:
+    def fulltextSearch(self, queryString: str, databaseQuery: db.Query) -> list[dict]:
         """
         Run a fulltext search
         """
@@ -131,12 +131,12 @@ class ViurTagsSearchAdapter(DatabaseAdapter):
         for keyword in keywords:
             qryBase = databaseQuery.clone()
             for entry in qryBase.filter("viurTags >=", keyword).filter("viurTags <", keyword + "\ufffd").run():
-                if entry.key not in resultScoreMap:
-                    resultScoreMap[entry.key] = 1
+                if entry["_id"] not in resultScoreMap:
+                    resultScoreMap[entry["_id"]] = 1
                 else:
-                    resultScoreMap[entry.key] += 1
-                if entry.key not in resultEntryMap:
-                    resultEntryMap[entry.key] = entry
+                    resultScoreMap[entry["_id"]] += 1
+                if entry["_id"] not in resultEntryMap:
+                    resultEntryMap[entry["_id"]] = entry
 
         resultList = [(k, v) for k, v in resultScoreMap.items()]
         resultList.sort(key=lambda x: x[1], reverse=True)

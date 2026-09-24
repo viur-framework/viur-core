@@ -16,16 +16,22 @@ SkelType = t.Literal["node", "leaf"]
 
 
 class TreeSkel(Skeleton):
+    # parententry/parentrepo point at a foreign kind: they always reference a node whose
+    # concrete kind is only known to the respective subclass (e.g. FileNodeSkel="file_rootNode"),
+    # as TreeSkel is the common base of several tree structures with different node kinds.
+    # Without an explicit kind, setSystemInitialized() would fill in this skeleton's own kind.
     parententry = KeyBone(  # TODO VIUR4: Why is this not a RelationalBone?
         descr="Parent",
         visible=False,
         readOnly=True,
+        kind="",  # Polymorphic: the target kind depends on the subclass, so check=True would fail at startup
     )
 
     parentrepo = KeyBone(  # TODO VIUR4: Why is this not a RelationalBone?
         descr="BaseRepo",
         visible=False,
         readOnly=True,
+        kind="",  # Polymorphic: the target kind depends on the subclass, so check=True would fail at startup
     )
 
     sortindex = SortIndexBone(
@@ -43,7 +49,8 @@ class TreeSkel(Skeleton):
     def refresh(cls, skelValues):  # ViUR2 Compatibility
         super().refresh(skelValues)
         if not skelValues["parententry"] and skelValues.dbEntity.get("parentdir"):  # parentdir for viur2 compatibility
-            skelValues["parententry"] = db.normalize_key(skelValues.dbEntity["parentdir"])
+            # No normalization needed, an _id is already the final string.
+            skelValues["parententry"] = skelValues.dbEntity["parentdir"]
 
 
 class Tree(SkelModule):
@@ -167,7 +174,7 @@ class Tree(SkelModule):
         """
         skel = self.baseSkel("node")
 
-        skel["key"] = db.Key(skel.kindName, identifier)
+        skel["key"] = identifier  # The root node's business key is its _id.
         skel["is_root_node"] = True
 
         if ensure not in (False, None):
@@ -180,7 +187,7 @@ class Tree(SkelModule):
         reason="Use rootnodeSkel(ensure=True) instead.",
         action="always"
     )
-    def ensureOwnModuleRootNode(self) -> db.Entity:
+    def ensureOwnModuleRootNode(self) -> dict:
         """
         Ensures, that general root-node for the current module exists.
         If no root-node exists yet, it will be created.
@@ -202,8 +209,8 @@ class Tree(SkelModule):
             # Example
             def getAvailableRootNodes(self, *args, **kwargs):
                 q = db.Query(self.rootKindName)
-                ret = [{"key": str(e.key()),
-                    "name": e.get("name", str(e.key().id_or_name()))} #FIXME
+                ret = [{"key": e["_id"],
+                    "name": e.get("name", e["_id"])}
                     for e in q.run(limit=25)]
                 return ret
 
@@ -214,7 +221,7 @@ class Tree(SkelModule):
         """
         return []
 
-    def getRootNode(self, key: db.Key | str) -> SkeletonInstance | None:
+    def getRootNode(self, key: str) -> SkeletonInstance | None:
         """
         Returns the root-node for a given child.
 
@@ -249,27 +256,29 @@ class Tree(SkelModule):
             logging.debug(f"{parentNode=}, {newRepoKey=}")
             return
 
+        node_kind = self.viewSkel("node").kindName
+
         def fixTxn(nodeKey, newRepoKey):
-            node = db.get(nodeKey)
+            node = db.get(node_kind, nodeKey)
             node["parentrepo"] = newRepoKey
-            db.put(node)
+            db.put(node_kind, node)
 
         # Fix all nodes
-        q = db.Query(self.viewSkel("node").kindName).filter("parententry =", parentNode)
+        q = db.Query(node_kind).filter("parententry =", parentNode)
         for repo in q.iter():
-            self.updateParentRepo(repo.key, newRepoKey, depth=depth + 1)
-            db.run_in_transaction(fixTxn, repo.key, newRepoKey)
+            self.updateParentRepo(repo["_id"], newRepoKey, depth=depth + 1)
+            db.run_in_transaction(fixTxn, repo["_id"], newRepoKey)
 
         # Fix the leafs on this level
         if self.leafSkelCls:
             q = db.Query(self.viewSkel("leaf").kindName).filter("parententry =", parentNode)
             for repo in q.iter():
-                db.run_in_transaction(fixTxn, repo.key, newRepoKey)
+                db.run_in_transaction(fixTxn, repo["_id"], newRepoKey)
 
     ## Internal exposed functions
 
     @internal_exposed
-    def pathToKey(self, key: db.Key):
+    def pathToKey(self, key: str):
         """
         Returns the recursively expanded path through the Tree from the root-node to a
         requested node.
@@ -296,7 +305,7 @@ class Tree(SkelModule):
     ## External exposed functions
 
     @exposed
-    def index(self, skelType: SkelType = "node", parententry: t.Optional[db.KeyType] = None, **kwargs):
+    def index(self, skelType: SkelType = "node", parententry: str | None = None, **kwargs):
         if not parententry:
             repos = self.getAvailableRootNodes(**kwargs)
             match len(repos):
@@ -383,7 +392,7 @@ class Tree(SkelModule):
         return self.render.render(f"structure.{skelType}.{action}", skel)
 
     @exposed
-    def view(self, skelType: SkelType, key: db.KeyType, *args, **kwargs) -> t.Any:
+    def view(self, skelType: SkelType, key: str, *args, **kwargs) -> t.Any:
         """
         Prepares and renders a single entry for viewing.
 
@@ -417,7 +426,7 @@ class Tree(SkelModule):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def add(self, skelType: SkelType, node: db.KeyType, *, bounce: bool = False, **kwargs) -> t.Any:
+    def add(self, skelType: SkelType, node: str, *, bounce: bool = False, **kwargs) -> t.Any:
         # FIXME: VIUR4 rename node into key...
         """
         Add a new entry with the given parent *node*, and render the entry, eventually with error notes
@@ -472,7 +481,7 @@ class Tree(SkelModule):
     @exposed
     @skey
     @access("root")
-    def add_or_edit(self, skelType: SkelType, key: db.KeyType, **kwargs) -> t.Any:
+    def add_or_edit(self, skelType: SkelType, key: str, **kwargs) -> t.Any:
         """
         This function is intended to be used by importers.
         Only "root"-users are allowed to use it.
@@ -482,11 +491,13 @@ class Tree(SkelModule):
 
         kind_name = self.nodeSkelCls.kindName if skelType == "node" else self.leafSkelCls.kindName
 
-        # Adjust key
-        db_key = db.key_helper(key, target_kind=kind_name, adjust_kind=True)
+        # An _id carries no kind that could be adjusted, so a plain type check is left.
+        if not (isinstance(key, str) and key):
+            raise ValueError(f"{key!r} is not a valid key")
+        db_key = key
 
         # Retrieve and verify existing entry
-        db_entity = db.get(db_key)
+        db_entity = db.get(kind_name, db_key)
         is_add = not bool(db_entity)
 
         # Instanciate relevant skeleton
@@ -537,7 +548,7 @@ class Tree(SkelModule):
     @exposed
     @force_ssl
     @skey(allow_empty=True)
-    def edit(self, skelType: SkelType, key: db.KeyType, *, bounce: bool = False, **kwargs) -> t.Any:
+    def edit(self, skelType: SkelType, key: str, *, bounce: bool = False, **kwargs) -> t.Any:
         """
         Modify an existing entry, and render the entry, eventually with error notes on incorrect data.
         Data is taken by any other arguments in *kwargs*.
@@ -677,7 +688,7 @@ class Tree(SkelModule):
             raise errors.Locked("This entry is still referenced by other Skeletons, which prevents deleting!")
 
     @staticmethod
-    def _is_locked_by_relation(key: db.Key) -> bool:
+    def _is_locked_by_relation(key: str) -> bool:
         """
         Check whether *key* is referenced by a ``RelationalConsistency.PreventDeletion`` relation.
 
@@ -688,7 +699,7 @@ class Tree(SkelModule):
         """
         return (
             db.Query("viur-relations")
-            .filter("dest.__key__ =", key)
+            .filter("dest._id =", key)
             .filter("viur_relational_consistency =", RelationalConsistency.PreventDeletion.value)
         ).getEntry() is not None
 
@@ -740,7 +751,10 @@ class Tree(SkelModule):
             with *delete_self*). Not applied recursively: cascaded
             descendants are removed without hooks, same as before.
         """
-        nodeKey = db.key_helper(parentKey, self.viewSkel("node").kindName)
+        # An _id carries no kind that could be adjusted, so a plain type check is left.
+        if not (isinstance(parentKey, str) and parentKey):
+            raise ValueError(f"{parentKey!r} is not a valid key")
+        nodeKey = parentKey
         if not self._checkSubtreeDeletable(nodeKey, check_self=delete_self):
             # A veto was found (and logged) during the read-only pre-pass;
             # nothing has been deleted, keeping the tree consistent.
@@ -755,7 +769,7 @@ class Tree(SkelModule):
                 if call_hooks:
                     self.onDeleted("node", nodeSkel)
 
-    def _checkSubtreeDeletable(self, nodeKey: db.Key, check_self: bool) -> bool:
+    def _checkSubtreeDeletable(self, nodeKey: str, check_self: bool) -> bool:
         """
         Read-only pre-pass for :meth:`deleteRecursive`.
 
@@ -776,13 +790,13 @@ class Tree(SkelModule):
             if self.leafSkelCls:
                 for leaf in db.Query(self.viewSkel("leaf").kindName).filter("parententry =", nodeKey).iter():
                     leafSkel = self.viewSkel("leaf")
-                    if leafSkel.read(leaf.key):
+                    if leafSkel.read(leaf["_id"]):
                         self.checkDeletePreconditions("leaf", leafSkel)
         except errors.HTTPException as exc:
             logging.warning(f"Refusing to delete subtree of {nodeKey!r}: {exc}")
             return False
         for node in db.Query(self.viewSkel("node").kindName).filter("parententry =", nodeKey).iter():
-            if not self._checkSubtreeDeletable(node.key, check_self=True):
+            if not self._checkSubtreeDeletable(node["_id"], check_self=True):
                 return False
         return True
 
@@ -802,7 +816,7 @@ class Tree(SkelModule):
         """
         pass
 
-    def _deleteSubtree(self, nodeKey: db.Key) -> None:
+    def _deleteSubtree(self, nodeKey: str) -> None:
         """
         Synchronously delete all descendants of *nodeKey* (not *nodeKey*
         itself), bottom-up.
@@ -819,14 +833,14 @@ class Tree(SkelModule):
         if self.leafSkelCls:
             for leaf in db.Query(self.viewSkel("leaf").kindName).filter("parententry =", nodeKey).iter():
                 leafSkel = self.viewSkel("leaf")
-                if not leafSkel.read(leaf.key):
+                if not leafSkel.read(leaf["_id"]):
                     continue
                 self.onDeleteRecursive("leaf", leafSkel)
                 leafSkel.delete()
         for node in db.Query(self.viewSkel("node").kindName).filter("parententry =", nodeKey).iter():
-            self._deleteSubtree(node.key)
+            self._deleteSubtree(node["_id"])
             nodeSkel = self.viewSkel("node")
-            if nodeSkel.read(node.key):
+            if nodeSkel.read(node["_id"]):
                 self.onDeleteRecursive("node", nodeSkel)
                 nodeSkel.delete()
 
@@ -837,8 +851,8 @@ class Tree(SkelModule):
     def move(
         self,
         skelType: SkelType,
-        key: db.KeyType,
-        parentNode: db.KeyType,
+        key: str,
+        parentNode: str,
         sortindex: t.Optional[float] = None
     ) -> str:
         """
@@ -867,13 +881,6 @@ class Tree(SkelModule):
             raise errors.NotFound("Cannot find entity to move")
 
         if not parentnode_skel.read(parentNode):
-            parentNode = db.normalize_key(parentNode)
-
-            if parentNode.kind != parentnode_skel.kindName:
-                raise errors.NotFound(
-                    f"You provided a key of kind {parentNode.kind}, but require a {parentnode_skel.kindName}."
-                )
-
             raise errors.NotFound("Cannot find parentNode entity")
 
         if skel["key"] == parentnode_skel["key"]:
@@ -922,10 +929,10 @@ class Tree(SkelModule):
     def clone(
         self,
         skelType: SkelType,
-        key: db.Key | str | int,
+        key: str,
         *,
         bounce: bool = False,
-        parententry: t.Optional[db.Key | str | int] = None,
+        parententry: str | None = None,
         **kwargs,
     ):
         """
@@ -1285,9 +1292,9 @@ class Tree(SkelModule):
     def _clone_recursive(
         self,
         skel_type: SkelType,
-        src_key: db.Key,
-        target_key: db.Key,
-        target_repo: db.Key,
+        src_key: str,
+        target_key: str,
+        target_repo: str,
         cursor=None
     ):
         """

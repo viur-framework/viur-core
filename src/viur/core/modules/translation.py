@@ -5,7 +5,7 @@ import logging
 import os
 import datetime
 from deprecated.sphinx import deprecated
-from viur.core import conf, db, utils, current, errors
+from viur.core import conf, utils, current, errors
 from viur.core.decorators import exposed
 from viur.core.bones import *
 from viur.core.i18n import KINDNAME, initializeTranslations, systemTranslations, translate
@@ -157,7 +157,7 @@ class TranslationSkel(Skeleton):
     def write(cls, skel, **kwargs):
         # Create the key from the name on initial write!
         if not skel["key"]:
-            skel["key"] = db.Key(KINDNAME, skel["name"])
+            skel["key"] = skel["name"]  # The translation name is the business key, used as _id.
 
         return super().write(skel, **kwargs)
 

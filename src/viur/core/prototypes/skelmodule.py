@@ -1,9 +1,6 @@
-import os
-import yaml
 import logging
 from viur.core import Module, db, current, errors
 from viur.core.decorators import *
-from viur.core.config import conf
 from viur.core.skeleton import skeletonByKind, Skeleton, SkeletonInstance
 import typing as t
 
@@ -24,28 +21,12 @@ Type for default sort order definitions.
 """
 
 
-def __load_indexes_from_file() -> dict[str, list]:
-    """
-        Loads all indexes from the index.yaml and stores it in a dictionary  sorted by the module(kind)
-        :return A dictionary of indexes per module
-    """
-    indexes_dict = {}
-    try:
-        with open(os.path.join(conf.instance.project_base_path, "index.yaml"), "r") as file:
-            indexes = yaml.safe_load(file)
-            indexes = indexes.get("indexes", [])
-            for index in indexes or ():
-                index["properties"] = [_property["name"] for _property in index["properties"]]
-                indexes_dict.setdefault(index["kind"], []).append(index)
+def indexes_for_admin(kind: str) -> list[dict]:
+    """The declared indexes of *kind* as the admin expects them: ``properties`` a plain list of names,
+    without ``_id`` and without a direction."""
+    return [{"kind": kind, "properties": [field for field, _ in spec if field != "_id"]}
+            for spec in db.indexes.declared().get(kind, [])]
 
-    except FileNotFoundError:
-        logging.warning("index.yaml not found")
-        return {}
-
-    return indexes_dict
-
-
-DATASTORE_INDEXES = __load_indexes_from_file()
 
 X_VIUR_BONELIST: t.Final[str] = "X-VIUR-BONELIST"
 """Defines the header parameter that might contain a client-defined bone list."""
@@ -84,7 +65,7 @@ class SkelModule(Module):
             self.kindName = str(type(self).__name__).lower()
 
         # assign index descriptions from index.yaml
-        self.indexes = DATASTORE_INDEXES.get(self.kindName, [])
+        self.indexes = indexes_for_admin(self.kindName)
 
     def _resolveSkelCls(self, *args, **kwargs) -> t.Type[Skeleton]:
         """
@@ -208,17 +189,19 @@ class SkelModule(Module):
     @exposed
     @skey
     @access("root")
-    def add_or_edit(self, key: db.KeyType, **kwargs) -> t.Any:
+    def add_or_edit(self, key: str, **kwargs) -> t.Any:
         """
         This function is intended to be used by importers.
         Only "root"-users are allowed to use it.
         """
 
-        # Adjust key
-        db_key = db.key_helper(key, target_kind=self.kindName, adjust_kind=True)
+        # An _id carries no kind that could be adjusted any more — a plain type check is all there is.
+        if not (isinstance(key, str) and key):
+            raise ValueError(f"{key!r} is not a valid key")
+        db_key = key
 
         # Retrieve and verify existing entry
-        db_entity = db.get(db_key)
+        db_entity = db.get(self.kindName, db_key)
         is_add = not bool(db_entity)
 
         # Instanciate relevant skeleton

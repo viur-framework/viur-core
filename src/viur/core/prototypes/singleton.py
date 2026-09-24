@@ -1,6 +1,6 @@
 import logging
 import typing as t
-from viur.core import db, current, utils, errors
+from viur.core import current, utils, errors
 from viur.core.decorators import *
 from viur.core.cache import flushCache
 from viur.core.skeleton import SkeletonInstance
@@ -123,7 +123,7 @@ class Singleton(SkelModule):
             raise errors.Unauthorized()
 
         skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
-        key = db.Key(skel.kindName, self.getKey())
+        key = self.getKey()  # The singleton's business key is its _id.
 
         if not skel.read(key):
             raise errors.NotFound()
@@ -153,7 +153,7 @@ class Singleton(SkelModule):
             raise errors.Unauthorized()
 
         skel = self.editSkel()
-        key = db.Key(skel.kindName, self.getKey())
+        key = self.getKey()  # The singleton's business key is its _id.
         if not skel.read(key):  # Its not there yet; we need to set the key again
             skel["key"] = key
 
@@ -183,7 +183,7 @@ class Singleton(SkelModule):
         :returns: The read skeleton or `None`.
         """
         skel = self.viewSkel()
-        key = db.Key(self.viewSkel().kindName, self.getKey())
+        key = self.getKey()  # The singleton's business key is its _id.
 
         if not skel.read(key, create=create):
             return None

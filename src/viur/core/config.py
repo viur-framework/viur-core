@@ -110,7 +110,7 @@ class ConfigType:
               ) -> t.Iterator[tuple[str, t.Any]]:
         """Get all setting of this config as key-value mapping.
 
-        :param full_path: Show prefix oder only the key.
+        :param full_path: Show prefix or only the key.
         :param recursive: Call .items() on ConfigType members (children)?
         :return:
         """
@@ -322,14 +322,34 @@ class Database(ConfigType):
     create_access_log: bool = True
     """If False no access log will be created. But then the caching is disabled too."""
 
-    name: str | None = os.getenv("VIUR_DB_NAME") or None
-    """Named datastore to target instead of ``(default)``.
+    uri: str = os.environ.get("VIUR_DB_URI", "mongodb://localhost:27017/?retryWrites=false")
+    """The connection string of the MongoDB driver.
 
-    Env-sourced: the client is built at ``db.transport`` import time, before any
-    runtime config could set it."""
+    It carries the credentials and is therefore the only secret of the database connection.
+    ``retryWrites=false`` is mandatory: Firestore Enterprise does not support retryable writes, while pymongo
+    has them on by default."""
 
-    namespace: str | None = os.getenv("VIUR_DB_NAMESPACE") or None
-    """Datastore namespace to scope to. Env-sourced like `name`."""
+    name: str = os.environ.get("VIUR_DB_NAME", "viur")
+    """The name of the MongoDB database the driver talks to.
+
+    Not a project identifier — that would be a Datastore-ism (one database per project there). ``"viur"`` is a
+    fixed, conventional default name, overridable through ``VIUR_DB_NAME``."""
+
+    index_cache_ttl: int = 300
+    """Seconds for which ``db.indexes.existing`` caches the indexes a kind has. ``0`` = always ask again."""
+
+    check_indexes_on_startup: bool = True
+    """``setup()`` reports indexes declared in ``index.yaml`` but missing as a warning — it never creates one,
+    because a ``createIndex`` blocks for minutes."""
+
+    create_indexes_on_startup: bool = True
+    """Create missing indexes when an instance starts — concurrently, never blocking: on App Engine in the
+    task queue (a startup task that works under a time budget and requeues itself while indexes are missing),
+    on the development server in a background thread."""
+
+    sort_elision: bool = True
+    """Leave ``sort()`` out when an existing index already yields the order, and verify the result client-side.
+    Off = always an explicit sort."""
 
 
 class Security(ConfigType):

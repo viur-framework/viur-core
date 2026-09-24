@@ -36,7 +36,6 @@ def create(
         duration: None | int | datetime.timedelta = None,
         session_bound: bool = True,
         key_length: int = 13,
-        indexed: bool = True,
         amount: int = 1,
         **custom_data,
 ) -> str | tuple[str]:
@@ -48,7 +47,6 @@ def create(
 
         :param duration: Make this CSRF-token valid for a fixed timeframe.
         :param session_bound: Bind this CSRF-token to the current session.
-        :param indexed: Indexes all values stored with the security-key (default), set False to not index.
         :param key_length: Allows to modify the length of the generated randomized key
         :param custom_data: Any other data is stored with the CSRF-token, for later re-use.
         :param amount: The amount of CSRF-tokens to generate.
@@ -66,7 +64,7 @@ def create(
     entities = []
     for i in range(amount):
         key = utils.string.random(key_length)
-        entity = db.Entity(db.Key(SECURITYKEY_KINDNAME, key))
+        entity = {"_id": key}
         entity |= custom_data
         if session_bound:
             session = current.session.get()
@@ -79,18 +77,16 @@ def create(
 
         entity["viur_until"] = utils.utcNow() + utils.parse.timedelta(duration)
 
-        if not indexed:
-            entity.exclude_from_indexes = [k for k in entity.keys() if not k.startswith("viur_")]
         entities.append(entity)
 
-    db.put(entities)
+    db.put(SECURITYKEY_KINDNAME, entities)
 
     if amount > 1:
-        return tuple(entity.key.id_or_name for entity in entities)
+        return tuple(entity["_id"] for entity in entities)
     return key
 
 
-def validate(key: str, session_bound: bool = True) -> bool | db.Entity:
+def validate(key: str, session_bound: bool = True) -> bool | dict:
     """
         Validates a CSRF-security-key.
 
@@ -105,16 +101,18 @@ def validate(key: str, session_bound: bool = True) -> bool | db.Entity:
 
         return False
 
-    if not key or not (entity := db.get(db.Key(SECURITYKEY_KINDNAME, key))):
+    if not key or not (entity := db.get(SECURITYKEY_KINDNAME, key)):
         return False
 
     # First of all, delete the entity, validation is done afterward.
-    db.delete(entity)
+    db.delete(SECURITYKEY_KINDNAME, key)
 
     # Key has expired?
     if entity["viur_until"] < utils.utcNow():
         return False
 
+    # `_id` is the storage detail, not part of the custom_data the caller gets back.
+    del entity["_id"]
     del entity["viur_until"]
 
     # Key is session bound?

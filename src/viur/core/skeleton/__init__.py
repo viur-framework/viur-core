@@ -28,14 +28,14 @@ from .utils import (  # noqa
 # FIXME: REMOVE WITH VIUR4
 
 from ..bones.base import getSystemInitialized as _getSystemInitialized
-from ..db import KeyType as _KeyType
 
 __DEPRECATED_NAMES = {
     # stuff prior viur-core < 3.6
     "seoKeyBone": ("SeoKeyBone", SeoKeyBone),
     # stuff prior viur-core < 3.8
     "getSystemInitialized": ("bones.base.getSystemInitialized", _getSystemInitialized),
-    "KeyType": ("db.KeyType", _KeyType),
+    # A key used to be a Key | str | int union and is a plain `_id` string now.
+    "KeyType": ("str", str),
 }
 
 

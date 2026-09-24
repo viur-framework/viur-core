@@ -1,150 +1,21 @@
 import datetime
-import fnmatch
-import sys
 import typing as t
 
 from deprecated.sphinx import deprecated
-from google.cloud.datastore.transaction import Transaction
+from pymongo.client_session import ClientSession
 
 from viur.core import current
-from viur.core.config import conf
-from .transport import __client__, get, put, run_in_transaction
-from .types import Entity, Key, current_db_access_log
-
-
-def fix_unindexable_properties(entry: Entity, *, keep_exclusions: bool = True) -> Entity:
-    """
-    Recursively walk the given Entity and add all properties to the list of unindexed properties if they contain
-    a string longer than 1500 bytes (which is maximum size of a string that can be indexed). The datastore would
-    return an error otherwise.
-    https://cloud.google.com/datastore/docs/concepts/limits?hl=en#limits
-
-    :param entry: The entity to fix (inplace)
-    :param keep_exclusions: If true, keep the properties already included in ``exclude_from_indexes``.
-        Otherwise, ignore them and exclude only non-indexable properties.
-    :return: The fixed entity
-    """
-
-    def has_unindexable_property(prop):
-        if isinstance(prop, dict):
-            return any(has_unindexable_property(x) for x in prop.values())
-        elif isinstance(prop, list):
-            return any(has_unindexable_property(x) for x in prop)
-        elif isinstance(prop, (str, bytes)):
-            return sys.getsizeof(prop) >= 1500
-        else:
-            return False
-
-    unindexable_properties = set()
-    for key, value in entry.items():
-        if not has_unindexable_property(value):
-            continue
-        if isinstance(value, dict):
-            inner_entity = Entity()
-            inner_entity.update(value)
-            entry[key] = fix_unindexable_properties(inner_entity)
-            if isinstance(value, Entity):
-                inner_entity.key = value.key
-        else:
-            unindexable_properties.add(key)
-    if keep_exclusions:
-        entry.exclude_from_indexes.update(unindexable_properties)  # type:ignore
-    else:
-        entry.exclude_from_indexes = unindexable_properties
-    return entry
-
-
-def normalize_key(key: t.Union[None, Key, str]) -> t.Union[None, Key]:
-    """
-        Normalizes a datastore key (replacing the key's project with conf.instance.project_id)
-
-        The key's project is only allowed to be normalized when it matches one of the patterns
-        configured in `conf.valid_application_ids`; otherwise a ValueError is raised.
-
-        :param key: Key to be normalized.
-        :return: Normalized key in string representation.
-        """
-    if key is None:
-        return None
-
-    if isinstance(key, str):
-        key = Key.from_legacy_urlsafe(key)
-
-    if key.project != conf.instance.project_id and not any(
-        fnmatch.fnmatch(key.project, application_id) for application_id in conf.valid_application_ids
-    ):
-        raise ValueError(f"{key=} cannot be normalized; Only keys from conf.valid_application_ids can be provided.")
-
-    if key.parent:
-        parent = normalize_key(key.parent)
-    else:
-        parent = None
-
-    return Key(key.kind, key.id_or_name, parent=parent)
-
-
-@deprecated(version="3.8.0", reason="Use 'db.normalize_key' instead")
-def normalizeKey(key: t.Union[None, Key]) -> t.Union[None, Key]:
-    return normalize_key(key)
-
-
-def key_helper(
-    in_key: t.Union[Key, str, int],
-    target_kind: str,
-    additional_allowed_kinds: t.Union[t.List[str], t.Tuple[str]] = (),
-    adjust_kind: bool = False,
-) -> Key:
-    if isinstance(in_key, Key):
-        if in_key.kind != target_kind and in_key.kind not in additional_allowed_kinds:
-            if not adjust_kind:
-                raise ValueError(
-                    f"Kind mismatch: {in_key.kind!r} != {target_kind!r} (or in {additional_allowed_kinds!r})")
-            in_key = Key(target_kind, in_key.id_or_name, parent=in_key.parent)
-        return in_key
-    elif isinstance(in_key, str):
-        # Try to parse key from str
-        try:
-            decoded_key = normalize_key(in_key)
-        except Exception:
-            decoded_key = None
-
-        # If it did decode, recall keyHelper with Key object
-        if decoded_key:
-            return key_helper(
-                decoded_key,
-                target_kind=target_kind,
-                additional_allowed_kinds=additional_allowed_kinds,
-                adjust_kind=adjust_kind
-            )
-
-        # otherwise, construct key from str or int
-        if in_key.isdigit():
-            in_key = int(in_key)
-
-        return Key(target_kind, in_key)
-    elif isinstance(in_key, int):
-        return Key(target_kind, in_key)
-
-    raise NotImplementedError(f"Unsupported key type {type(in_key)}")
-
-
-@deprecated(version="3.8.0", reason="Use 'db.key_helper' instead")
-def keyHelper(
-    inKey: t.Union[Key, str, int],
-    targetKind: str,
-    additionalAllowedKinds: t.Union[t.List[str], t.Tuple[str]] = (),
-    adjust_kind: bool = False,
-) -> Key:
-    return key_helper(
-        in_key=inKey,
-        target_kind=targetKind,
-        additional_allowed_kinds=additionalAllowedKinds,
-        adjust_kind=adjust_kind
-    )
+from . import objectid
+from .transport import get, put, run_in_transaction
+from .types import current_db_access_log
 
 
 def is_in_transaction() -> bool:
-    return __client__.current_transaction is not None
+    """Is a transaction running right now (a nested one included)?"""
+    # The import sits inside on purpose: the tests reload ``transport`` via ``importlib.reload``, which builds
+    # a new ContextVar object, and a module level ``from`` import would keep the old one forever.
+    from .transport import _current_session
+    return _current_session.get() is not None
 
 
 @deprecated(version="3.8.0", reason="Use 'db.utils.is_in_transaction' instead")
@@ -152,39 +23,33 @@ def IsInTransaction() -> bool:
     return is_in_transaction()
 
 
-def get_or_insert(key: Key, **kwargs) -> Entity:
+def get_or_insert(kind: str, _id: str, **defaults) -> dict:
     """
-    Either creates a new entity with the given key, or returns the existing one.
+    Either creates a new document with the given ``kind``/``_id``, or returns the existing one.
 
     Its guaranteed that there is no race-condition here; it will never overwrite a
-    previously created entity. Extra keyword arguments passed to this function will be
-    used to populate the entity if it has to be created; otherwise they are ignored.
+    previously created document. Extra keyword arguments passed to this function will be
+    used to populate the document if it has to be created; otherwise they are ignored.
 
-    :param key: The key which will be fetched or created.
-    :returns: Returns the fetched or newly created Entity.
+    :param kind: The kind the document lives in.
+    :param _id: The ``_id`` which will be fetched or created.
+    :returns: Returns the fetched or newly created document.
     """
 
-    def txn(key, kwargs):
-        obj = get(key)
+    def txn(kind, _id, defaults):
+        obj = get(kind, _id)
         if not obj:
-            obj = Entity(key)
-            for k, v in kwargs.items():
-                obj[k] = v
-            put(obj)
+            obj = {"_id": _id, **defaults}
+            put(kind, obj)
         return obj
 
     if is_in_transaction():
-        return txn(key, kwargs)
-    return run_in_transaction(txn, key, kwargs)
-
-
-@deprecated(version="3.8.0", reason="Use 'db.get_or_insert' instead")
-def GetOrInsert(key: Key, **kwargs: t.Any) -> Entity:
-    return get_or_insert(key, **kwargs)
+        return txn(kind, _id, defaults)
+    return run_in_transaction(txn, kind, _id, defaults)
 
 
 @deprecated(version="3.8.0", reason="Use 'str(key)' instead")
-def encodeKey(key: Key) -> str:
+def encodeKey(key: str) -> str:
     """
         Return the given key encoded as string (mimicking the old str() behaviour of keys)
     """
@@ -196,21 +61,28 @@ def acquire_transaction_success_marker() -> str:
         Generates a token that will be written to the datastore (under "viur-transactionmarker") if the transaction
         completes successfully. Currently only used by deferredTasks to check if the task should actually execute
         or if the transaction it was created in failed.
+
+        The marker id comes from ``objectid.new_id()`` rather than from the session: a ``ClientSession``
+        carries no ``.id`` and its ``session_id`` is an undocumented driver internal this caller must not bind
+        to, while all that is needed is an identifier unique to this transaction.
+
         :return: Name of the entry in viur-transactionmarker
     """
-    txn: Transaction | None = __client__.current_transaction
-    assert txn, "acquire_transaction_success_marker cannot be called outside an transaction"
-    marker = str(txn.id)
+    from .transport import _current_session  # looked up per call, see is_in_transaction
+    session: ClientSession | None = _current_session.get()
+    assert session, "acquire_transaction_success_marker cannot be called outside an transaction"
+    marker = objectid.new_id()
     request_data = current.request_data.get()
     if not request_data.get("__viur-transactionmarker__"):
-        db_obj = Entity(Key("viur-transactionmarker", marker))
-        db_obj["creationdate"] = datetime.datetime.now(datetime.timezone.utc)
-        put(db_obj)
+        put("viur-transactionmarker", {
+            "_id": marker,
+            "creationdate": datetime.datetime.now(datetime.timezone.utc),
+        })
         request_data["__viur-transactionmarker__"] = True
     return marker
 
 
-def start_data_access_log() -> t.Set[t.Union[Key, str]]:
+def start_data_access_log() -> set[str]:
     """
         Clears our internal access log (which keeps track of which entries have been accessed in the current
         request). The old set of accessed entries is returned so that it can be restored with
@@ -223,13 +95,13 @@ def start_data_access_log() -> t.Set[t.Union[Key, str]]:
     return old
 
 
-def startDataAccessLog() -> t.Set[t.Union[Key, str]]:
+def startDataAccessLog() -> set[str]:
     return start_data_access_log()
 
 
 def end_data_access_log(
-    outer_access_log: t.Optional[t.Set[t.Union[Key, str]]] = None,
-) -> t.Optional[t.Set[t.Union[Key, str]]]:
+    outer_access_log: set[str] | None = None,
+) -> set[str] | None:
     """
        Retrieves the set of entries accessed so far.
 
@@ -250,6 +122,6 @@ def end_data_access_log(
 
 
 def endDataAccessLog(
-    outerAccessLog: t.Optional[t.Set[t.Union[Key, str]]] = None,
-) -> t.Optional[t.Set[t.Union[Key, str]]]:
+    outerAccessLog: set[str] | None = None,
+) -> set[str] | None:
     return end_data_access_log(outer_access_log=outerAccessLog)

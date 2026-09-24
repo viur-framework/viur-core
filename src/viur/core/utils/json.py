@@ -4,12 +4,11 @@ import decimal
 import json
 import pytz
 import typing as t
-from viur.core import db
 
 
 class ViURJsonEncoder(json.JSONEncoder):
     """
-    Adds support for db.Key, db.Entity, datetime, timedelta, bytes, set and Decimal and converts
+    Adds support for datetime, timedelta, bytes, set and Decimal and converts
     the provided obj into a special dict with JSON-serializable values.
     """
     def default(self, obj: t.Any) -> t.Any:
@@ -26,24 +25,16 @@ class ViURJsonEncoder(json.JSONEncoder):
             return {".__set__": list(obj)}
         elif hasattr(obj, "__iter__"):
             return tuple(obj)
-        # cannot be tested in tests...
-        elif isinstance(obj, db.Key):
-            return {".__key__": str(obj)}
 
         return super().default(obj)
 
     @staticmethod
     def preprocess(obj: t.Any) -> t.Any:
         """
-        Needed to preprocess db.Entity as it subclasses dict.
-        There is currently no other way to integrate with JSONEncoder.
+        Recursively walks dicts, lists/tuples and SkeletonInstance values so their
+        contents reach :meth:`default` too.
         """
-        if isinstance(obj, db.Entity):
-            return {
-                ".__entity__": ViURJsonEncoder.preprocess(dict(obj)),
-                ".__key__": str(obj.key) if obj.key else None
-            }
-        elif isinstance(obj, dict):
+        if isinstance(obj, dict):
             return {
                 ViURJsonEncoder.preprocess(key): ViURJsonEncoder.preprocess(value) for key, value in obj.items()
             }
@@ -79,15 +70,8 @@ def _decode_object_hook(obj: t.Any):
             return datetime.timedelta(microseconds=obj[".__timedelta__"])
         elif ".__decimal__" in obj:
             return decimal.Decimal(obj[".__decimal__"])
-        elif ".__key__" in obj:
-            return db.Key.from_legacy_urlsafe(obj[".__key__"])
         elif ".__set__" in obj:
             return set(obj[".__set__"])
-
-    elif len(obj) == 2 and all(k in obj for k in (".__entity__", ".__key__")):
-        entity = db.Entity(db.Key.from_legacy_urlsafe(obj[".__key__"]) if obj[".__key__"] else None)
-        entity.update(obj[".__entity__"])
-        return entity
 
     return obj
 

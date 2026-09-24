@@ -3,20 +3,28 @@ from viur.core import db
 from viur.core.bones.base import BaseBone, Compute, ComputeInterval, ComputeMethod, UniqueValue, UniqueLockMethod
 
 
-def generate_number(db_key: db.Key) -> int:
+_KIND = "viur-uids"
+"""The kind holding the counter documents of :func:`generate_number`."""
+
+
+def generate_number(db_key: str) -> int:
     """
         The generate_number method generates a leading number that is always unique per entry.
     """
 
-    def transact(_key: db.Key):
+    def transact(_id: str):
         # A commit conflict only surfaces when the surrounding transaction commits and is
         # retried by db.run_in_transaction, so it must propagate out of this function.
-        if db_obj := db.get(_key):
+        #
+        # `_id` is a deterministic business identifier (e.g. "<kind>-<bone>-uid"), not an
+        # ObjectId - that's fine, any non-empty str is a valid _id, and here it's exactly
+        # what carries the atomicity of the counter (a field-plus-query detour would lose it:
+        # two concurrent inserts could both pass the "not found" check).
+        if db_obj := db.get(_KIND, _id):
             db_obj["count"] += 1
         else:
-            db_obj = db.Entity(_key)
-            db_obj["count"] = 0
-        db.put(db_obj)
+            db_obj = {"_id": _id, "count": 0}
+        db.put(_KIND, db_obj)
         return db_obj["count"]
 
     if db.is_in_transaction():
@@ -26,7 +34,7 @@ def generate_number(db_key: db.Key) -> int:
 
 
 def generate_uid(skel, bone):
-    db_key = db.Key("viur-uids", f"{skel.kindName}-{bone.name}-uid")
+    db_key = f"{skel.kindName}-{bone.name}-uid"
     count_value = generate_number(db_key)
     if bone.fillchar:
         # The wildcard itself is replaced, so it does not count towards the length of the prefix.
@@ -70,7 +78,9 @@ class UidBone(BaseBone):
         if self.multiple or self.languages:
             raise ValueError("UidBone cannot be multiple or translated")
 
-        if not self.readOnly:
+        # pragma-note: unreachable - BaseBone raises first, because `compute`
+        # may only be combined with readOnly=True.
+        if not self.readOnly:  # pragma: no cover
             raise ValueError("UidBone must be read-only")
 
         self.fillchar = str(fillchar)

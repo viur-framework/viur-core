@@ -4,6 +4,7 @@ import functools
 import logging
 import os
 import sys
+import threading
 import traceback
 import typing as t
 
@@ -211,7 +212,7 @@ class TaskHandler(Module):
             if "lang" in env and env["lang"]:
                 current.language.set(env["lang"])
             if "transactionMarker" in env:
-                marker = db.get(db.Key("viur-transactionmarker", env["transactionMarker"]))
+                marker = db.get("viur-transactionmarker", env["transactionMarker"])
                 if not marker:
                     logging.info(f"""Dropping task, transaction {env["transactionMarker"]} did not apply""")
                     return
@@ -263,7 +264,7 @@ class TaskHandler(Module):
         for task, interval in _periodicTasks[cronName].items():  # Call all periodic tasks bound to that queue
             periodicTaskName = task.periodicTaskName.lower()
             if interval:  # Ensure this task doesn't get called to often
-                lastCall = db.get(db.Key("viur-task-interval", periodicTaskName))
+                lastCall = db.get("viur-task-interval", periodicTaskName)
                 if lastCall and utils.utcNow() - lastCall["date"] < interval:
                     logging.debug(f"Task {periodicTaskName!r} has already run recently - skipping.")
                     continue
@@ -280,9 +281,8 @@ class TaskHandler(Module):
                 logging.debug(f"Successfully called task {periodicTaskName}")
             if interval:
                 # Update its last-call timestamp
-                entry = db.Entity(db.Key("viur-task-interval", periodicTaskName))
-                entry["date"] = utils.utcNow()
-                db.put(entry)
+                entry = {"_id": periodicTaskName, "date": utils.utcNow()}
+                db.put("viur-task-interval", entry)
         logging.debug("Periodic tasks complete")
 
     def _validate_request(
@@ -825,11 +825,11 @@ class QueryIter(object, metaclass=MetaQueryIter):
 
         for item in qryIter:
             try:
-                cls.handleEntry(item, qryDict["customData"])
+                cls.handleEntry(item, qryDict["customData"], qryDict["kind"])
             except Exception as exception:
                 logging.error(f"{exception=}")
                 try:
-                    cls.handleEntry(item, qryDict["customData"])
+                    cls.handleEntry(item, qryDict["customData"], qryDict["kind"])
                 except Exception as e:  # Second exception - call error_handler
                     try:
                         doCont = cls.handleError(item, qryDict["customData"], e)
@@ -853,12 +853,17 @@ class QueryIter(object, metaclass=MetaQueryIter):
             cls.handleFinish(qryDict["totalCount"], qryDict["customData"])
 
     @classmethod
-    def handleEntry(cls, entry, customData):
+    def handleEntry(cls, entry, customData, kind: str):
         """
-            Overridable hook to process one entry. "entry" will be either an db.Entity or an
-            SkeletonInstance (if that query has been created by skel.all())
+            Overridable hook to process one entry. "entry" will be either a plain dict (a
+            document straight from the query) or a SkeletonInstance (if that query has been
+            created by skel.all()).
 
-            Warning: If your query has an sortOrder other than __key__ and you modify that property here
+            A document does not carry its own kind - that is why *kind* is handed down
+            separately here, taken from the query this iterator runs on (see :meth:`_qryStep`).
+            Overrides that don't need it can simply ignore the parameter.
+
+            Warning: If your query has an sortOrder other than _id and you modify that property here
             it is possible to encounter that object later one *again* (as it may jump behind the current cursor).
         """
         logging.debug(f"handleEntry called on {cls} with {entry}.")
@@ -892,12 +897,12 @@ class DeleteEntitiesIter(QueryIter):
     """
 
     @classmethod
-    def handleEntry(cls, entry, customData):
+    def handleEntry(cls, entry, customData, kind: str):
         from viur.core.skeleton import SkeletonInstance
         if isinstance(entry, SkeletonInstance):
             entry.delete()
         else:
-            db.delete(entry.key)
+            db.delete(kind, entry["_id"])
 
 
 @PeriodicTask(interval=datetime.timedelta(hours=4))
@@ -910,3 +915,75 @@ def start_clear_transaction_marker():
     query = db.Query("viur-transactionmarker").filter("creationdate <",
                                                       datetime.datetime.now() - datetime.timedelta(days=31))
     DeleteEntitiesIter.startIterOnQuery(query)
+
+
+@CallDeferred
+def apply_indexes_deferred(kind: str | None = None) -> None:
+    """Create the indexes declared in ``index.yaml`` but missing; deferred, as ``createIndex`` takes minutes.
+
+    :param kind: Restrict the run to one kind; ``None`` (or empty) covers every declared kind.
+    """
+    from viur.core.db import indexes
+    for done_kind, name, seconds in indexes.apply(kind):
+        logging.info(f"ApplyIndexesTask: {name!r} on {done_kind!r} in {seconds:.1f}s")
+
+
+@CallableTask
+class ApplyIndexesTask(CallableTaskBase):
+    key = "viur-db-apply-indexes"
+    name = "Apply database indexes"
+    descr = "Creates every index declared in index.yaml that the database does not have yet (runs deferred)."
+
+    def canCall(self) -> bool:
+        user = current.user.get()
+        return bool(user and "root" in user["access"])
+
+    def dataSkel(self):
+        # Lazy import: viur.core.tasks is imported very early by viur/core/__init__.py (before
+        # viur.core.skeleton), and viur.core.skeleton.tasks imports back from viur.core.tasks — importing
+        # skeleton/bones at module level here would be a cycle.
+        from viur.core import bones, skeleton
+
+        class dataSkel(skeleton.RelSkel):
+            kind = bones.StringBone(descr="Kind (empty = all)")
+
+        return dataSkel()
+
+    def execute(self, kind=None):
+        apply_indexes_deferred(kind or None)
+
+
+@StartupTask
+def create_missing_indexes() -> None:
+    """Create the indexes an instance start finds missing — never blocking.
+
+    On App Engine ``runStartupTasks`` runs deferred in the task queue, where ``apply(time_budget=300)`` stays
+    below the time limit of a single task and requeues itself via ``apply_indexes_deferred`` while anything is
+    missing. On the development server startup tasks run inline, hence the daemon thread.
+
+    The whole body runs under a catch-all (``indexes.missing()`` alone makes ~20 ``listIndexes`` calls): an
+    unreachable database or a missing permission must keep neither this startup task nor the following ones
+    from running, as ``runStartupTasks`` stops at an unhandled exception.
+    """
+    from viur.core.db import indexes
+    if not conf.db.create_indexes_on_startup:
+        return
+    try:
+        if not indexes.missing():
+            return
+        if conf.instance.is_dev_server:
+            def _apply_in_dev_thread() -> None:
+                # Runs in a daemon thread without a caller that could see an exception — without this catch
+                # the thread would die silently and nobody would learn of the failed index build.
+                try:
+                    indexes.apply()
+                except Exception as exc:
+                    logging.error(f"Index creation in the dev thread failed: {type(exc).__name__}: {exc}")
+
+            threading.Thread(target=_apply_in_dev_thread, name="viur-apply-indexes", daemon=True).start()
+            return
+        indexes.apply(time_budget=300)
+        if indexes.missing():
+            apply_indexes_deferred()
+    except Exception as exc:
+        logging.warning(f"Index creation on startup skipped: {type(exc).__name__}: {exc}")

@@ -297,7 +297,7 @@ class NumericBone(BaseBone):
         """Convert a value to an int or float considering the precision.
 
         If the value is not convertable an exception will be raised."""
-        if isinstance(value, db.Entity | dict) and "val" in value:
+        if isinstance(value, dict) and "val" in value:
             value = value["val"]  # was a StringBone before
         if isinstance(value, str):
             value = value.replace(",", ".", 1)
@@ -336,7 +336,7 @@ class NumericBone(BaseBone):
 
         if self.languages:
             skel[boneName] = new_value
-        elif not self.languages:
+        elif not self.languages:  # pragma: no branch - complement of the if above
             # just the value(s) with None language
             skel[boneName] = new_value.get(None, [] if self.multiple else self.getEmptyValue())
 

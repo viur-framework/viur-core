@@ -194,7 +194,9 @@ class HtmlSerializer(HTMLParser):
                     if any([c in style for c in filterChars]) or any(
                            [c in value for c in filterChars]):
                         # Either the key or the value contains a character that's not supposed to be there
-                        continue
+                        # pragma-note: unreachable - the attribute filter above rejects the
+                        # whole style attribute for the same characters.
+                        continue  # pragma: no cover
                     if value.lower().startswith("expression") or value.lower().startswith("import"):
                         # IE evaluates JS inside styles if the keyword expression is present
                         continue
@@ -258,7 +260,8 @@ class HtmlSerializer(HTMLParser):
             if tag in self.openTagsList:
                 # Close all currently open Tags until we reach the current one. If no one is found,
                 # we just close everything and ignore the tag that should have been closed
-                for endTag in self.openTagsList[:]:
+                # pragma: no branch - entered only when tag is in openTagsList, so it always breaks
+                for endTag in self.openTagsList[:]:  # pragma: no branch
                     self.result += f"</{endTag}>"
                     self.openTagsList.remove(endTag)
                     if endTag == tag:
@@ -438,7 +441,10 @@ class TextBone(RawBone):
                 file_obj = db.Query("file").filter("dlkey =", blob_key) \
                     .order(db.QueryOrder("creationdate")).getEntry()
                 if file_obj:
-                    ensureDerived(file_obj.key, f"{skel.kindName}_{name}", derive_dict, skel["key"])
+                    ensureDerived(
+                        "file", file_obj["_id"], f"{skel.kindName}_{name}", derive_dict,
+                        skel.kindName, skel["key"],
+                    )
 
         return blob_keys
 

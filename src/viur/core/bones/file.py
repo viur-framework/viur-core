@@ -8,7 +8,7 @@ import hashlib
 import warnings
 import time
 import typing as t
-from viur.core import conf, db, current, utils
+from viur.core import conf, current, utils
 from viur.core.bones.treeleaf import TreeLeafBone
 from viur.core.tasks import CallDeferred
 import logging
@@ -16,22 +16,26 @@ import logging
 
 @CallDeferred
 def ensureDerived(
-    key: db.Key,
+    kind: str,
+    _id: str,
     src_key: str,
     derive_map: dict[str, t.Any],
-    refresh_key: db.Key = None,
+    refresh_kind: str | None = None,
+    refresh_id: str | None = None,
     **kwargs
 ):
     r"""
     The function is a deferred function that ensures all pending thumbnails or other derived files
     are built. It takes the following parameters:
 
-    :param db.key key: The database key of the file-object that needs to have its derivation map
-        updated.
+    :param str kind: The kind of the file-object that needs to have its derivation map updated.
+    :param str _id: The ``_id`` of the file-object that needs to have its derivation map updated.
     :param str src_key: A prefix for a stable key to prevent rebuilding derived files repeatedly.
     :param dict[str,Any] derive_map: A list of DeriveDicts that need to be built or updated.
-    :param db.Key refresh_key: If set, the function fetches and refreshes the skeleton after
-        building new derived files.
+    :param str refresh_kind: If set together with *refresh_id*, the function fetches and refreshes
+        that skeleton after building new derived files. Two plain strings instead of a single key,
+        because an ``_id`` carries no kind.
+    :param str refresh_id: See *refresh_kind*.
 
     The function works by fetching the skeleton of the file-object, checking if it has any derived
     files, and updating the derivation map accordingly. It iterates through the derive_map items and
@@ -41,10 +45,11 @@ def ensureDerived(
     to ensure proper relations are maintained.
     """
     # TODO: Remove in VIUR4
+    # "refreshKey" is gone without a mapping: it named a single key carrying both kind and
+    # id; its replacement, refresh_kind/refresh_id, is two plain strings.
     for _dep, _new in {
         "srcKey": "src_key",
         "deriveMap": "derive_map",
-        "refreshKey": "refresh_key",
     }.items():
         if _dep in kwargs:
             warnings.warn(
@@ -57,8 +62,8 @@ def ensureDerived(
     from viur.core.skeleton.utils import skeletonByKind
     from viur.core.skeleton.tasks import update_relations
 
-    skel = skeletonByKind(key.kind)()
-    if not skel.read(key):
+    skel = skeletonByKind(kind)()
+    if not skel.read(_id):
         logging.error(f"{src_key}: File not found, is it gone?")
         return
 
@@ -99,11 +104,14 @@ def ensureDerived(
         # the same FileBone have the chance to finish, otherwise that update_relations Task will call postSavedHandler
         # on that FileBone again - re-queueing any ensureDerivedCalls that have not finished yet.
 
-        if refresh_key:
-            skel = skeletonByKind(refresh_key.kind)()
-            skel.patch(lambda _skel: _skel.refresh(), key=refresh_key, update_relations=False)
+        if refresh_kind and refresh_id:
+            skel = skeletonByKind(refresh_kind)()
+            skel.patch(lambda _skel: _skel.refresh(), key=refresh_id, update_relations=False)
 
-        update_relations(key, min_change_time=int(time.time() + 1), changed_bones=["derived"], _countdown=30)
+        # NOTE: update_relations (skeleton/tasks.py) still takes a single db.Key and is not
+        # part of this cutover - passing the bare _id here is the best available fit until
+        # that signature grows a `kind` parameter of its own.
+        update_relations(_id, min_change_time=int(time.time() + 1), changed_bones=["derived"], _countdown=30)
 
 
 class FileBone(TreeLeafBone):
@@ -237,13 +245,16 @@ class FileBone(TreeLeafBone):
 
         return None
 
-    def postSavedHandler(self, skel, boneName, key):
+    def postSavedHandler(self, skel, boneName, key, *, src_kind: str | None = None):
         """
         Handles post-save processing for the FileBone, including ensuring derived files are built.
 
         :param SkeletonInstance skel: The skeleton instance this bone belongs to.
         :param str boneName: The name of the bone.
-        :param db.Key key: The datastore key of the skeleton.
+        :param str key: The ``_id`` of the skeleton.
+        :param src_kind: The kind of the real, owning Skeleton, when *skel* is a
+            ``using=``-container without a ``kindName`` of its own (passed by e.g.
+            `RecordBone.postSavedHandler`). See `RelationalBone._resolve_src_kind`.
 
         This method first calls the postSavedHandler of its superclass. Then, it checks if the
         derive attribute is set and if there are any values in the skeleton for the given bone. If
@@ -253,7 +264,7 @@ class FileBone(TreeLeafBone):
         setup and iterates over each language to handle the derived files. Otherwise, it handles
         the derived files directly.
         """
-        super().postSavedHandler(skel, boneName, key)
+        super().postSavedHandler(skel, boneName, key, src_kind=src_kind)
         if (
             current.request.get() and current.request.get().is_deferred
             and "derived" in (current.request_data.get().get("__update_relations_bones") or ())
@@ -262,18 +273,29 @@ class FileBone(TreeLeafBone):
 
         from viur.core.skeleton import RelSkel, Skeleton
 
-        if issubclass(skel.skeletonCls, Skeleton):
-            prefix = f"{skel.kindName}_{boneName}"
-        elif issubclass(skel.skeletonCls, RelSkel):  # RelSkel is just a container and has no kindname
-            prefix = f"{skel.skeletonCls.__name__}_{boneName}"
-        else:
+        if not issubclass(skel.skeletonCls, (Skeleton, RelSkel)):
             raise NotImplementedError(f"Cannot handle {skel.skeletonCls=}")
+
+        prefix = f"{self._resolve_src_kind(skel, src_kind)}_{boneName}"
+        # Refreshing only makes sense when there is a real, storable entity behind the
+        # resolved kind - either `skel` is one itself, or the caller (a RecordBone/
+        # RelationalBone delegating into a `using=` container) told us so via src_kind.
+        # A bare RelSkel with neither isn't itself storable - refresh_kind/refresh_id stay unset.
+        if src_kind is not None:
+            refresh_kind = src_kind
+        elif issubclass(skel.skeletonCls, Skeleton):
+            refresh_kind = skel.kindName
+        else:
+            refresh_kind = None
 
         def handleDerives(values):
             if isinstance(values, dict):
                 values = [values]
             for val in (values or ()):  # Ensure derives getting build for each file referenced in this relation
-                ensureDerived(val["dest"]["key"], prefix, self.derive, key)
+                ensureDerived(
+                    "file", val["dest"]["key"], prefix, self.derive,
+                    refresh_kind, key if refresh_kind else None,
+                )
 
         values = skel[boneName]
         if self.derive and values:

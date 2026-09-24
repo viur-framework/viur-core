@@ -50,7 +50,8 @@ lookup = {
     re.compile(r"\bsubSkel\b"): "subskel",
     "sendEMailToAdmins": "send_email_to_admins",
     "sendEMail": "send_email",
-    "db.AllocateIDs": "db.allocate_ids",
+    # "db.AllocateIDs", "db.normalizeKey" and "db.keyHelper" have no replacement to migrate
+    # to: a key is a plain _id string, which is neither allocated nor normalized.
     "db.GetOrInsert": "db.get_or_insert",
     "db.Get": "db.get",
     "db.Put": "db.put",
@@ -59,8 +60,6 @@ lookup = {
     "db.RunInTransaction": "db.run_in_transaction",
     "db.Count": "db.count",
     "db.runSingleFilter": "db.run_single_filter",
-    "db.normalizeKey": "db.normalize_key",
-    "db.keyHelper": "db.key_helper",
     "db.startDataAccessLog": "db.start_data_access_log",
     "db.endDataAccessLog": "db.end_data_access_log",
 

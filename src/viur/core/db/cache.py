@@ -4,15 +4,18 @@ import sys
 import typing as t
 
 from viur.core.config import conf
-from viur.core import utils
-from .types import Entity, Key
 
 MEMCACHE_MAX_BATCH_SIZE = 30
 MEMCACHE_NAMESPACE = "viur-datastore"
 MEMCACHE_TIMEOUT: int | datetime.timedelta = datetime.timedelta(days=1)
 MEMCACHE_MAX_SIZE: t.Final[int] = 1_000_000
 TESTBED = None
-"""
+"""Mutable module state without a lock: ``init_testbed()`` assigns it via ``global``
+without any synchronization. That is deliberate — ``check_for_memcache()`` (and with
+it ``init_testbed()``) only runs when ``conf.instance.is_dev_server`` **and** a
+``memcache_client`` are set, so never in multi-threaded production. The worst race
+two development server threads can have is a doubly activated ``Testbed``: no data
+loss, no wrong results.
 
     This Module controls the Interaction with the Memcache from Google
     To activate the cache copy this code in your main.py
@@ -28,20 +31,30 @@ __all__ = [
     "MEMCACHE_NAMESPACE",
     "MEMCACHE_TIMEOUT",
     "MEMCACHE_MAX_SIZE",
+    "cache_key",
     "get",
     "put",
     "delete",
     "flush",
 ]
 
+Document: t.TypeAlias = dict[str, t.Any]
+"""A record as the driver returns it: a dict carrying an ``_id``."""
 
-def get(keys: t.Union[Key, t.Iterable[Key]], namespace: t.Optional[str] = None) -> list[Entity]:
+
+def cache_key(kind: str, _id: str) -> str:
+    """The memcache key of a record: kind and id together, as an id is only addressable within its kind."""
+    return f"{kind}/{_id}"
+
+
+def get(kind: str, ids: str | t.Iterable[str]) -> list[Document]:
     """
-    Reads data form the memcache.
-    :param keys: Unique identifier(s) for one or more entry(s).
-    :param namespace: Optional namespace to use.
-    :return: The entities that were found, in arbitrary order. Always a list, even for a single key,
-        because an Entity is dict-like and callers must not have to tell a hit from an iterable.
+    Read documents from the memcache.
+
+    :param kind: The kind the documents were stored under.
+    :param ids: A single ``_id`` or several of them.
+    :return: The documents found, in arbitrary order. Always a list, even for a single id — a document is a
+        dict itself, so callers never have to tell a single hit from a collection.
     """
     # Inside a transaction reads must go straight to the datastore, so the cache
     # cannot serve a (potentially stale) value. Lazy import to avoid a cycle.
@@ -52,37 +65,36 @@ def get(keys: t.Union[Key, t.Iterable[Key]], namespace: t.Optional[str] = None) 
     if not check_for_memcache():
         return []
 
-    namespace = namespace or MEMCACHE_NAMESPACE
-    keys = utils.ensure_iterable(keys)
-    keys = [str(key) for key in keys]  # Enforce that all keys are strings
+    id_list = list(ids) if isinstance(ids, (list, set, tuple)) else [ids]
+    if not id_list:
+        return []
+
+    keys = [cache_key(kind, _id) for _id in id_list]
     cached_data_result = {}
-    result = []
     try:
         while keys:
-            if cached_data := conf.db.memcache_client.get_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=namespace):
+            if cached_data := conf.db.memcache_client.get_multi(keys[:MEMCACHE_MAX_BATCH_SIZE],
+                                                                namespace=MEMCACHE_NAMESPACE):
                 cached_data_result |= cached_data
             keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
     except Exception as e:
         logging.error(f"""Failed to get keys form the memcache with {e=}""")
-    for key, value in cached_data_result.items():
-        entity = Entity(Key.from_legacy_urlsafe(key))
-        entity |= value
-        result.append(entity)
 
-    return result
+    return list(cached_data_result.values())
 
 
 def put(
-    data: t.Union[Entity, t.Dict[Key, Entity], t.Iterable[Entity]],
-    namespace: t.Optional[str] = None,
-    timeout: t.Optional[t.Union[int, datetime.timedelta]] = None
+    kind: str,
+    docs: Document | list[Document],
+    timeout: int | datetime.timedelta | None = None,
 ) -> bool:
     """
-    Writes Data to the memcache.
-    :param data: Data to write
-    :param namespace: Optional namespace to use.
-    :param timeout: Optional timeout in seconds or a timedelta object.
-    :return: A boolean indicating success.
+    Write documents into the memcache.
+
+    :param kind: The kind the documents are stored under.
+    :param docs: A single document or several of them.
+    :param timeout: An optional timeout in seconds or as a ``timedelta``.
+    :return: Whether the write succeeded.
     """
     # Inside a transaction the write is not committed yet; caching it now would
     # serve values that may be rolled back. Lazy import to avoid a cycle.
@@ -92,27 +104,22 @@ def put(
 
     if not check_for_memcache():
         return False
-    if not data:
+    if not docs:
         return False
-    namespace = namespace or MEMCACHE_NAMESPACE
     timeout = timeout or MEMCACHE_TIMEOUT
     if isinstance(timeout, datetime.timedelta):
         timeout = timeout.total_seconds()
-    if isinstance(data, (list, tuple, set)):
-        data = {item.key: item for item in data}
-    elif isinstance(data, Entity):
-        data = {data.key: data}
-    elif not isinstance(data, dict):
-        raise TypeError(f"Invalid type {type(data)}. Expected a db.Entity, list or dict.")
+
+    doc_list = docs if isinstance(docs, list) else [docs]
 
     # Add only values to cache <= MEMMAX_SIZE (1.000.000)
-    data = {str(key): value for key, value in data.items() if get_size(value) <= MEMCACHE_MAX_SIZE}
+    data = {cache_key(kind, doc["_id"]): doc for doc in doc_list if get_size(doc) <= MEMCACHE_MAX_SIZE}
 
     keys = list(data.keys())
     try:
         while keys:
             data_batch = {key: data[key] for key in keys[:MEMCACHE_MAX_BATCH_SIZE]}
-            conf.db.memcache_client.set_multi(data_batch, namespace=namespace, time=timeout)
+            conf.db.memcache_client.set_multi(data_batch, namespace=MEMCACHE_NAMESPACE, time=timeout)
             keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
         return True
     except Exception as e:
@@ -120,22 +127,25 @@ def put(
         return False
 
 
-def delete(keys: t.Union[Key, t.Iterable[Key]], namespace: t.Optional[str] = None) -> None:
+def delete(kind: str, ids: str | t.Iterable[str]) -> None:
     """
-    Deletes an Entry form memcache.
-    :param keys: Unique identifier(s) for one or more entry(s).
-    :param namespace: Optional namespace to use.
+    Delete documents from the memcache.
+
+    :param kind: The kind the documents were stored under.
+    :param ids: A single ``_id`` or several of them.
     """
+    # Unlike get()/put(), delete() deliberately does NOT check is_in_transaction(): dropping a cache entry is
+    # always safe, even when the surrounding transaction aborts later on — at worst it costs one additional,
+    # but correct, refetch (a cache miss).
     if not check_for_memcache():
         return None
-    if not keys:
+    id_list = list(ids) if isinstance(ids, (list, set, tuple)) else [ids]
+    if not id_list:
         return None
-    namespace = namespace or MEMCACHE_NAMESPACE
-    keys = utils.ensure_iterable(keys)
-    keys = [str(key) for key in keys]  # Enforce that all keys are strings
+    keys = [cache_key(kind, _id) for _id in id_list]
     try:
         while keys:
-            conf.db.memcache_client.delete_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=namespace)
+            conf.db.memcache_client.delete_multi(keys[:MEMCACHE_MAX_BATCH_SIZE], namespace=MEMCACHE_NAMESPACE)
             keys = keys[MEMCACHE_MAX_BATCH_SIZE:]
     except Exception as e:
         logging.error(f"""Failed to delete keys form the memcache with {e=}""")

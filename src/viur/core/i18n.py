@@ -509,15 +509,15 @@ class DatastoreSource(TranslationSource):
         # for entity in db.Query(KINDNAME).iter():
         for entity in db.Query(KINDNAME).run(10_000):
             if "name" not in entity:
-                logging.warning(f"translations entity {entity.key} has no name set --> Call migration")
-                migrate_translation(entity.key)
+                logging.warning(f"translations entity {entity['_id']} has no name set --> Call migration")
+                migrate_translation(entity["_id"])
                 # Before the migration has run do a quick modification to get it loaded as is
-                entity["name"] = entity["key"] or entity.key.name
+                entity["name"] = entity["key"] or entity["_id"]
             if not entity.get("name"):
-                logging.error(f'translations entity {entity.key} has an empty {entity["name"]=} set. Skipping.')
+                logging.error(f'translations entity {entity["_id"]} has an empty {entity["name"]=} set. Skipping.')
                 continue
             if not isinstance(entity.get("translations"), dict):
-                logging.error(f"translations entity {entity.key} has invalid "
+                logging.error(f"translations entity {entity['_id']} has invalid "
                               f"translations set: {entity.get('translations')!r}. Skipping.")
                 continue
 
@@ -595,7 +595,6 @@ def add_missing_translation(
     key = key.lower()
 
     # Check if key already exists
-    # if db.get(db.Key(KINDNAME, key)):  # FIXME ViUR4 should only use named keys
     entity = db.Query(KINDNAME).filter("name =", key).getEntry()
     if entity is not None:
         # Ensure it doesn't exist to avoid datastore conflicts
@@ -634,7 +633,7 @@ def add_missing_translation(
 @tasks.CallDeferred
 @tasks.retry_n_times(20)
 def migrate_translation(
-    key: db.Key,
+    key: str,
 ) -> None:
     """Migrate entities, if required.
 
@@ -644,9 +643,9 @@ def migrate_translation(
     from viur.core.modules.translation import TranslationSkel
     logging.info(f"Migrate translation {key}")
 
-    entity: db.Entity = db.get(key)
+    entity: dict = db.get(KINDNAME, key)
     if "name" not in entity:
-        entity["name"] = entity["key"] or key.name
+        entity["name"] = entity["key"] or key
 
     # Pre-3.6 stored the texts as a plain {lang: text} dict. Without the LanguageWrapper
     # marker BaseBone.unserialize cannot tell the languages apart and puts the whole dict
@@ -666,7 +665,7 @@ def migrate_translation(
         logging.exception(exc)
         if "unique value" in exc.args[0] and "recently claimed" in exc.args[0]:
             logging.info(f"Delete duplicate entry {key}: {entity}")
-            db.delete(key)
+            db.delete(KINDNAME, key)
         else:
             raise exc
 
