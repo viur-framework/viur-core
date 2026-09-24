@@ -238,7 +238,6 @@ class TestRunSingleFilter(ViURTestCase):
             self.assertIsInstance(passed_filter, Or)
 
 
-
 class TestFilterValueCollections(ViURTestCase):
     """IN/NOT_IN values given as tuple or set must reach the protobuf as array value (list)."""
 
