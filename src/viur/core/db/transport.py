@@ -278,6 +278,50 @@ def RunInTransaction(callee: t.Callable, *args, **kwargs) -> t.Any:
     return run_in_transaction(callee, *args, **kwargs)
 
 
+NATIVE_FILTER_OPERATORS = frozenset({"IN", "!=", "NOT_IN"})
+"""Operators the Datastore evaluates natively; their value goes into a single PropertyFilter, unsplit."""
+
+
+def _normalize_filter_value(op: str, value: t.Any) -> t.Any:
+    """
+        google-cloud-datastore only encodes a ``list`` as array value, any other collection raises
+        ``ValueError: Unknown protobuf attr type``. Convert tuples and sets for the array operators.
+        The order of a set is kept as it is; IN and NOT_IN don't depend on it.
+    """
+    if op in ("IN", "NOT_IN") and isinstance(value, (tuple, set, frozenset)):
+        return list(value)
+
+    return value
+
+
+def _build_property_filters(key: str, op: str, value: t.Any) -> list[datastore.query.PropertyFilter]:
+    """
+        Build the PropertyFilters for one entry of :attr:`QueryDefinition.filters`.
+
+        Native operators result in exactly one filter; any other operator with a list value
+        results in one filter per element (multi equal filters).
+    """
+    if op in NATIVE_FILTER_OPERATORS:
+        return [datastore.query.PropertyFilter(key, op, _normalize_filter_value(op, value))]
+
+    if not isinstance(value, list):
+        value = [value]
+
+    return [datastore.query.PropertyFilter(key, op, val) for val in value]
+
+
+def _build_or_filter(or_group: list[tuple[str, t.Any]]) -> datastore.query.Or:
+    """
+        Build the Or composite filter for one entry of :attr:`QueryDefinition.or_filters`.
+    """
+    or_conditions = []
+    for filter_str, value in or_group:
+        key, op = filter_str.split(" ", 1)
+        or_conditions.append(datastore.query.PropertyFilter(key, op, _normalize_filter_value(op, value)))
+
+    return datastore.query.Or(or_conditions)
+
+
 def count(kind: str = None, up_to=2 ** 31 - 1, queryDefinition: QueryDefinition = None) -> int:
     if not kind:
         kind = queryDefinition.kind
@@ -286,24 +330,12 @@ def count(kind: str = None, up_to=2 ** 31 - 1, queryDefinition: QueryDefinition 
     if queryDefinition and queryDefinition.filters:
         for k, v in queryDefinition.filters.items():
             key, op = k.split(" ")
-            if op in ("IN", "!="):
-                # Native operators: pass value as-is in a single PropertyFilter
-                f = datastore.query.PropertyFilter(key, op, v)
+            for f in _build_property_filters(key, op, v):
                 query.add_filter(filter=f)
-            else:
-                if not isinstance(v, list):  # multi equal filters
-                    v = [v]
-                for val in v:
-                    f = datastore.query.PropertyFilter(key, op, val)
-                    query.add_filter(filter=f)
 
     if queryDefinition and queryDefinition.or_filters:
         for or_group in queryDefinition.or_filters:
-            or_conditions = [
-                datastore.query.PropertyFilter(fs.split(" ", 1)[0], fs.split(" ", 1)[1], v)
-                for fs, v in or_group
-            ]
-            query.add_filter(filter=datastore.query.Or(or_conditions))
+            query.add_filter(filter=_build_or_filter(or_group))
 
     aggregation_query = __client__.aggregation_query(query)
 
@@ -336,24 +368,12 @@ def run_single_filter(query: QueryDefinition, limit: int, keys_only: bool) -> t.
         if query.filters:
             for k, v in query.filters.items():
                 key, op = k.split(" ")
-                if op in ("IN", "!=", "NOT_IN"):
-                    # Native multi-value operators: pass value as-is, not split per element
-                    f = datastore.query.PropertyFilter(key, op, v)
+                for f in _build_property_filters(key, op, v):
                     qry.add_filter(filter=f)
-                else:
-                    if not isinstance(v, list):  # multi equal filters
-                        v = [v]
-                    for val in v:
-                        f = datastore.query.PropertyFilter(key, op, val)
-                        qry.add_filter(filter=f)
 
         if query.or_filters:
             for or_group in query.or_filters:
-                or_conditions = [
-                    datastore.query.PropertyFilter(fs.split(" ", 1)[0], fs.split(" ", 1)[1], v)
-                    for fs, v in or_group
-                ]
-                qry.add_filter(filter=datastore.query.Or(or_conditions))
+                qry.add_filter(filter=_build_or_filter(or_group))
 
         if query.orders:
             hasInvertedOrderings = any(
