@@ -193,48 +193,37 @@ def put(kind: str, docs: Document | list[Document]) -> Document | list[Document]
     col = get_collection(kind)
     session = _current_session.get()
     if len(doc_list) == 1:
-        # For a single document the lookup of _put_many does not pay off.
+        # For a single document the lookup of the existing ids below does not pay off.
         col.replace_one({"_id": doc_list[0]["_id"]}, doc_list[0], upsert=True, session=session)
     else:
-        _put_many(col, doc_list, session)
+        # Insert what is new and replace what exists, instead of upserting everything: an upsert that *creates*
+        # is the expensive path on Firestore Enterprise (100 new documents: 1014 ms, against 49 ms for plain
+        # inserts), so one lookup of the existing ids pays for itself.
+        ids = [d["_id"] for d in doc_list]
+        existing = {d["_id"] for d in col.find({"_id": {"$in": ids}}, {"_id": 1}, session=session)}
+        inserts = [d for d in doc_list if d["_id"] not in existing]
+        replaces = [d for d in doc_list if d["_id"] in existing]
 
-    # Inside a transaction cache.put() does nothing, run_in_transaction() drops the old entries afterwards.
+        # Both bulks run unordered so the server may work in parallel. Another thread creating the same _id
+        # between the lookup and the insert shows up as E11000, while the rest is written anyway; those
+        # documents are replaced instead. Any other error stays an error.
+        if inserts:
+            try:
+                col.bulk_write([InsertOne(d) for d in inserts], ordered=False, session=session)
+            except BulkWriteError as exc:
+                errors = exc.details.get("writeErrors", [])
+                if not errors or any(e.get("code") != 11000 for e in errors):
+                    raise
+                replaces += [inserts[e["index"]] for e in errors]
+
+        if replaces:
+            col.bulk_write([ReplaceOne({"_id": d["_id"]}, d, upsert=True) for d in replaces],
+                           ordered=False, session=session)
+
+    # Inside a transaction cache.put() does nothing, run_in_transaction() drops the outdated entries afterwards.
     _mark_as_outdated(kind, [doc["_id"] for doc in doc_list])
     cache.put(kind, docs)
     return docs
-
-
-def _put_many(col: Collection, doc_list: list[Document], session: ClientSession | None) -> None:
-    """Insert what is new and replace what exists, instead of upserting everything.
-
-    An upsert that *creates* is the expensive path on Firestore Enterprise (100 new documents: 1014 ms, against
-    49 ms for plain inserts), so one lookup of the existing ids pays for itself.
-
-    Both bulks run ``ordered=False`` so the server may work in parallel. A race between the lookup and the
-    insert — another thread creating the same ``_id`` — shows up as ``E11000`` in the unordered bulk, which
-    writes the rest anyway; the affected documents are replaced instead. Any other error stays an error.
-
-    :param col: The collection to write to.
-    :param doc_list: The documents to write, each one carrying an ``_id``.
-    :param session: The session of a running transaction, or ``None``.
-    """
-    ids = [d["_id"] for d in doc_list]
-    existing = {d["_id"] for d in col.find({"_id": {"$in": ids}}, {"_id": 1}, session=session)}
-    inserts = [d for d in doc_list if d["_id"] not in existing]
-    replaces = [d for d in doc_list if d["_id"] in existing]
-
-    if inserts:
-        try:
-            col.bulk_write([InsertOne(d) for d in inserts], ordered=False, session=session)
-        except BulkWriteError as exc:
-            errors = exc.details.get("writeErrors", [])
-            if not errors or any(e.get("code") != 11000 for e in errors):
-                raise
-            replaces += [inserts[e["index"]] for e in errors]
-
-    if replaces:
-        col.bulk_write([ReplaceOne({"_id": d["_id"]}, d, upsert=True) for d in replaces],
-                       ordered=False, session=session)
 
 
 def _mark_as_outdated(kind: str, ids: list[str]) -> None:
