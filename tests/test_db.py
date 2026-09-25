@@ -238,6 +238,127 @@ class TestRunSingleFilter(ViURTestCase):
             self.assertIsInstance(passed_filter, Or)
 
 
+class TestFilterValueCollections(ViURTestCase):
+    """IN/NOT_IN values given as tuple or set must reach the protobuf as array value (list)."""
+
+    @staticmethod
+    def _mock_client():
+        from unittest.mock import MagicMock
+        mock_fetch_result = MagicMock()
+        mock_fetch_result.__iter__ = MagicMock(return_value=iter([]))
+        mock_fetch_result.next_page_token = None
+        mock_query = MagicMock()
+        mock_query.fetch.return_value = mock_fetch_result
+        mock_client = MagicMock()
+        mock_client.query.return_value = mock_query
+        mock_client.aggregation_query.return_value.count.return_value.fetch.return_value = [
+            [MagicMock(value=42)],
+        ]
+        return mock_client, mock_query
+
+    @staticmethod
+    def _passed_filters(mock_query):
+        return [kwargs.get("filter") or args[0] for args, kwargs in mock_query.add_filter.call_args_list]
+
+    @staticmethod
+    def _build_pb(property_filter):
+        """Encode the filter like the client does before sending it; raises on unsupported value types."""
+        from google.cloud.datastore_v1.types import query as query_pb2
+        return property_filter.build_pb(query_pb2.PropertyFilter()._pb)
+
+    def _run(self, qdef):
+        from unittest.mock import patch
+        from viur.core.db.transport import run_single_filter
+        mock_client, mock_query = self._mock_client()
+        with patch("viur.core.db.transport.__client__", mock_client):
+            run_single_filter(qdef, limit=10, keys_only=False)
+        return self._passed_filters(mock_query)
+
+    def _count(self, qdef):
+        from unittest.mock import patch
+        from viur.core.db.transport import count
+        mock_client, mock_query = self._mock_client()
+        with patch("viur.core.db.transport.__client__", mock_client):
+            self.assertEqual(count(queryDefinition=qdef), 42)
+        return self._passed_filters(mock_query)
+
+    def _assert_array_filter(self, passed_filter, op, expected):
+        pb = self._build_pb(passed_filter)
+        self.assertEqual(passed_filter.operator, op)
+        self.assertIsInstance(passed_filter.value, list)
+        self.assertEqual(pb.value.WhichOneof("value_type"), "array_value")
+        self.assertCountEqual([v.string_value for v in pb.value.array_value.values], expected)
+
+    def test_client_rejects_tuple(self) -> None:
+        """Guard: the library still rejects tuples; if this fails, the normalization may be obsolete."""
+        from google.cloud.datastore.query import PropertyFilter
+        with self.assertRaises(ValueError):
+            self._build_pb(PropertyFilter("name", "IN", ("a", "b")))
+
+    def test_in_filter_with_tuple(self) -> None:
+        from viur.core.db.types import QueryDefinition
+        qdef = QueryDefinition(kind="Country", filters={"name IN": ("a", "b")}, orders=[])
+        (passed_filter,) = self._run(qdef)
+        self._assert_array_filter(passed_filter, "IN", ["a", "b"])
+
+    def test_in_filter_with_set(self) -> None:
+        from viur.core.db.types import QueryDefinition
+        qdef = QueryDefinition(kind="Country", filters={"name IN": {"a", "b"}}, orders=[])
+        (passed_filter,) = self._run(qdef)
+        self._assert_array_filter(passed_filter, "IN", ["a", "b"])
+
+    def test_not_in_filter_with_frozenset(self) -> None:
+        from viur.core.db.types import QueryDefinition
+        qdef = QueryDefinition(kind="Country", filters={"name NOT_IN": frozenset({"a", "b"})}, orders=[])
+        (passed_filter,) = self._run(qdef)
+        self._assert_array_filter(passed_filter, "NOT_IN", ["a", "b"])
+
+    def test_neq_filter_value_unchanged(self) -> None:
+        """!= takes a scalar; a tuple must not be turned into a list there."""
+        from viur.core.db.transport import _normalize_filter_value
+        self.assertEqual(_normalize_filter_value("!=", ("a", "b")), ("a", "b"))
+        self.assertEqual(_normalize_filter_value("=", {"a"}), {"a"})
+
+    def test_or_filter_in_with_tuple(self) -> None:
+        from google.cloud.datastore.query import Or
+        from viur.core.db.types import QueryDefinition
+        qdef = QueryDefinition(
+            kind="Country",
+            filters={},
+            orders=[],
+            or_filters=[[("name IN", ("a", "b")), ("continent =", "Asia")]],
+        )
+        (passed_filter,) = self._run(qdef)
+        self.assertIsInstance(passed_filter, Or)
+        self._assert_array_filter(passed_filter.filters[0], "IN", ["a", "b"])
+        self.assertEqual(self._build_pb(passed_filter.filters[1]).value.string_value, "Asia")
+
+    def test_count_in_filter_with_tuple(self) -> None:
+        from viur.core.db.types import QueryDefinition
+        qdef = QueryDefinition(kind="Country", filters={"name IN": ("a", "b")}, orders=[])
+        (passed_filter,) = self._count(qdef)
+        self._assert_array_filter(passed_filter, "IN", ["a", "b"])
+
+    def test_count_not_in_filter_is_not_split(self) -> None:
+        """count() must pass NOT_IN as one filter with the whole list, like run_single_filter()."""
+        from viur.core.db.types import QueryDefinition
+        qdef = QueryDefinition(kind="Country", filters={"name NOT_IN": ["a", "b"]}, orders=[])
+        (passed_filter,) = self._count(qdef)
+        self._assert_array_filter(passed_filter, "NOT_IN", ["a", "b"])
+
+    def test_count_or_filter_in_with_set(self) -> None:
+        from google.cloud.datastore.query import Or
+        from viur.core.db.types import QueryDefinition
+        qdef = QueryDefinition(
+            kind="Country",
+            filters={},
+            orders=[],
+            or_filters=[[("name IN", {"a", "b"}), ("continent =", "Asia")]],
+        )
+        (passed_filter,) = self._count(qdef)
+        self.assertIsInstance(passed_filter, Or)
+        self._assert_array_filter(passed_filter.filters[0], "IN", ["a", "b"])
+
 class TestQueryIterSkel(ViURTestCase):
     """Tests for Query.iter_skel(), the SkeletonInstance-counterpart of Query.iter()."""
 
