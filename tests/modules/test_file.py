@@ -294,3 +294,120 @@ class TestCheckForUnreferencedBlobs(ViURTestCase):
 
     def test_all_blobs_already_marked(self):
         self.assertEqual([], self._run(["blob-a", "blob-b"], already_marked=("blob-a", "blob-b")))
+
+
+class FakeLeafSkel(dict):
+    """Minimal leaf skeleton: dict access plus a read()/write() like SkeletonInstance."""
+
+    def read(self, key):
+        self["_read_key"] = key
+        return True
+
+    def write(self, **kwargs):
+        self["_written"] = True
+        return self
+
+
+class TestFileOverwriteUpload(ViURTestCase):
+    """getUploadURL(edit_key=...) + add() overwrite an existing file's blob in place."""
+
+    def _file(self):
+        # Lazy import: the module creates a GCS client at import time.
+        with mock.patch("google.cloud.storage.Client"):
+            from viur.core.modules.file import File
+        return File
+
+    def test_edit_key_targets_existing_blob_and_keeps_key(self):
+        """A resumable session is opened on the EXISTING dlkey/name; the existing key is returned."""
+        File = self._file()
+        blob = mock.Mock()
+        blob.create_resumable_upload_session.return_value = "https://upload/session"
+        bucket = mock.Mock()
+        bucket.blob.return_value = blob
+
+        skel = FakeLeafSkel(key="file-123", dlkey="abc_pub", name="image.jpg")
+        module = mock.Mock()
+        module.editSkel.return_value = skel
+        module.canEdit.return_value = True
+        module.get_bucket.return_value = bucket
+        module.render.view.side_effect = lambda payload: payload
+
+        result = File.getUploadURL._func(
+            module, "ignored.jpg", "image/jpeg", edit_key="file-123")
+
+        # Same blob, no new dlkey minted:
+        bucket.blob.assert_called_once_with("abc_pub/source/image.jpg")
+        blob.create_resumable_upload_session.assert_called_once()
+        self.assertEqual(result["uploadKey"], "file-123")
+        self.assertEqual(result["uploadUrl"], "https://upload/session")
+        module.canEdit.assert_called_once_with("leaf", skel)
+
+    def test_edit_key_unescapes_name_for_blob_path(self):
+        """The stored (escaped) name must be unescaped to hit the real object path."""
+        File = self._file()
+        blob = mock.Mock()
+        blob.create_resumable_upload_session.return_value = "u"
+        bucket = mock.Mock()
+        bucket.blob.return_value = blob
+        skel = FakeLeafSkel(key="k", dlkey="d", name="file&#40;1&#41;.jpg")
+        module = mock.Mock()
+        module.editSkel.return_value = skel
+        module.canEdit.return_value = True
+        module.get_bucket.return_value = bucket
+        module.render.view.side_effect = lambda payload: payload
+
+        File.getUploadURL._func(module, "x", "image/jpeg", edit_key="k")
+        bucket.blob.assert_called_once_with("d/source/file(1).jpg")
+
+    def test_edit_key_forbidden_without_edit_rights(self):
+        File = self._file()
+        from viur.core import errors
+        skel = FakeLeafSkel(key="k", dlkey="d", name="x.jpg")
+        module = mock.Mock()
+        module.editSkel.return_value = skel
+        module.canEdit.return_value = False
+        with self.assertRaises(errors.Forbidden):
+            File.getUploadURL._func(module, "x.jpg", "image/jpeg", edit_key="k")
+
+    def test_add_overwrite_refreshes_metadata_and_keeps_tree_position(self):
+        """add() on a non-pending leaf refreshes size/mimetype/checksums; parent/weak stay."""
+        File = self._file()
+        blob = mock.Mock(
+            size=4242, content_type="image/jpeg",
+            crc32c=base64.b64encode(b"1234").decode(),
+            md5_hash=base64.b64encode(b"5678").decode())
+        bucket = mock.Mock()
+        bucket.list_blobs.return_value = [blob]
+
+        skel = FakeLeafSkel(
+            key="file-123", dlkey="abc_pub", name="x.jpg",
+            pending=False, size=0, mimetype="application/octetstream",
+            parententry="folder-1", weak=False)
+        module = mock.Mock()
+        module.addSkel.return_value = skel
+        module.canEdit.return_value = True
+        module.get_bucket.return_value = bucket
+        module.create_download_url.return_value = "/dl"
+        module.render.editSuccess.side_effect = lambda s: s
+
+        File.add._func(module, "leaf", key="file-123")
+
+        self.assertEqual(skel["size"], 4242)
+        self.assertEqual(skel["mimetype"], "image/jpeg")
+        self.assertEqual(skel["crc32c_checksum"], b"1234".hex())
+        self.assertTrue(skel.get("_written"))
+        # Tree position must NOT change on an overwrite:
+        self.assertEqual(skel["parententry"], "folder-1")
+        self.assertFalse(skel["weak"])
+        module.onEdit.assert_called_once_with("leaf", skel)
+        module.onEdited.assert_called_once_with("leaf", skel)
+
+    def test_add_overwrite_forbidden_without_edit_rights(self):
+        File = self._file()
+        from viur.core import errors
+        skel = FakeLeafSkel(key="k", dlkey="d", name="x.jpg", pending=False)
+        module = mock.Mock()
+        module.addSkel.return_value = skel
+        module.canEdit.return_value = False
+        with self.assertRaises(errors.Forbidden):
+            File.add._func(module, "leaf", key="k")
