@@ -202,11 +202,11 @@ class MultipleConstraints:
 
 class ComputeMethod(Enum):
     Always = 0
-    """Always compute on deserialization"""
+    """Always compute on deserialization; Property is never written to DB and can't be used in filters"""
     Lifetime = 1
     """Update only when given lifetime is outrun; value is only being stored when the skeleton is written"""
     Once = 2
-    """Compute only once, when it is unset"""
+    """Compute only once, when it was previously unset and computes to a value other than `None`"""
     OnWrite = 3
     """Compute before every write of the skeleton"""
 
@@ -982,7 +982,9 @@ class BaseBone(object):
 
             case ComputeMethod.Once:
                 if name not in skel.dbEntity:
-                    skel.accessedValues[name] = self._compute(skel, name)
+                    val = self._compute(skel, name)
+                    if val is not None:
+                        skel.accessedValues[name] = val
 
     def singleValueUnserialize(self, val):
         """
@@ -1137,6 +1139,9 @@ class BaseBone(object):
                             transact()
                         else:
                             db.run_in_transaction(transact)
+
+                    else:
+                        return False
 
                 else:
                     # Run like ComputeMethod.Always on unwritten skeleton
@@ -1568,7 +1573,6 @@ class BaseBone(object):
         skel = without_render_preparation(skel)
 
         if "skel" in compute_fn_parameters:
-            skel.accessedValues[bone_name] = None  # remove value from accessedValues to avoid endless recursion
             compute_fn_args["skel"] = skel
 
         if "bone" in compute_fn_parameters:
@@ -1577,14 +1581,20 @@ class BaseBone(object):
         if "bone_name" in compute_fn_parameters:
             compute_fn_args["bone_name"] = bone_name
 
+        self._prevent_compute = True  # avoid endless recursions
         ret = self.compute.fn(**compute_fn_args)
 
-        def unserialize_raw_value(raw_value: list[dict] | dict | None):
-            if self.multiple:
-                return [self.singleValueUnserialize(inner_value) for inner_value in raw_value]
-            return self.singleValueUnserialize(raw_value)
+        if self.compute.raw or ret is None:
+            self._prevent_compute = False
 
-        if self.compute.raw:
+            if ret is None:  # exit on None
+                return ret
+
+            def unserialize_raw_value(raw_value: list[dict] | dict | None):
+                if self.multiple:
+                    return [self.singleValueUnserialize(inner_value) for inner_value in raw_value]
+                return self.singleValueUnserialize(raw_value)
+
             if self.languages:
                 return {
                     lang: unserialize_raw_value(ret.get(lang, [] if self.multiple else None))
@@ -1593,10 +1603,11 @@ class BaseBone(object):
 
             return unserialize_raw_value(ret)
 
-        self._prevent_compute = True
-        if errors := self.fromClient(skel, bone_name, {bone_name: ret}):
-            raise ValueError(f"Computed value fromClient failed with {errors!r}")
+        errors = self.fromClient(skel, bone_name, {bone_name: ret})
         self._prevent_compute = False
+
+        if errors:
+            raise ValueError(f"Computed value fromClient failed with {errors!r}")
 
         return skel[bone_name]
 
