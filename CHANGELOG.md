@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.9.2]
+
+- feat: `conf.db.transaction_attempts` (#1787)
+- fix: `tuple` in `in_filter` (#1786)
+
 ## [3.9.1]
 
 - doc: Adding `whatsnew` guides for v3.8 + v3.9
@@ -83,6 +88,11 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
 - refactor(bones): restructure `EmailBone.isInvalid` validation (#1730)
 - test: Add unit tests for Bones and App Login Flow (get_cookie_for_app, apply_login_cookie) (#1661)
+
+## [3.8.40]
+
+- feat: Set `FileSkel.serving_url` via `compute`-function (#1789)
+- fix: Backport `compute`-feature improvements and `None`-value handling (#1788)
 
 ## [3.8.39]
 
