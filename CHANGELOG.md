@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.40]
+
+- feat: Set `FileSkel.serving_url` via `compute`-function (#1789)
+- fix: Backport `compute`-feature improvements and `None`-value handling (#1788)
+
 ## [3.8.39]
 
 - fix: SEO key collision resolution was reverted on every write (#1778)
