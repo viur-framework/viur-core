@@ -1,32 +1,41 @@
 import base64
 import datetime
+import google.auth
 import hashlib
 import hmac
 import html
 import io
 import json
 import logging
+import PIL
+import PIL.Image
+import PIL.ImageCms
 import re
+import requests
 import string
 import typing as t
 import warnings
-from collections import namedtuple
-from urllib.parse import parse_qs, quote as urlquote, unquote as urlunquote, urlencode, urlsplit
-from urllib.request import urlopen
 
-import PIL
-import PIL.ImageCms
-import google.auth
-import requests
-from PIL import Image
+from collections import namedtuple
+from urllib.parse import parse_qs, quote as urlquote, unquote as urlunquote, urlsplit
+from urllib.request import urlopen
 from google.appengine.api import blobstore, images
 from google.cloud import storage
 from google.oauth2.service_account import Credentials as ServiceAccountCredentials
 
 from viur.core import conf, current, db, errors, utils, i18n
-from viur.core.bones import BaseBone, BooleanBone, JsonBone, KeyBone, NumericBone, StringBone
-
-from viur.core.decorators import *
+from viur.core.bones import (
+    BaseBone,
+    BooleanBone,
+    Compute,
+    ComputeInterval,
+    ComputeMethod,
+    JsonBone,
+    KeyBone,
+    NumericBone,
+    StringBone,
+)
+from viur.core.decorators import exposed, force_post, force_ssl, skey
 from viur.core.prototypes.tree import SkelType, Tree, TreeSkel
 from viur.core.skeleton import SkeletonInstance, skeletonByKind
 from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
@@ -420,22 +429,15 @@ class FileLeafSkel(TreeSkel):
         defaultValue=False,
     )
 
-    serving_url = StringBone(
-        descr="Serving-URL",
-        readOnly=True,
-        params={
-            "tooltip": "The 'serving_url' is only available in public file repositories.",
-        }
-    )
-
-    @classmethod
-    def _inject_serving_url(cls, skel: SkeletonInstance) -> None:
-        """Inject the serving url for public image files into a FileSkel"""
+    def _compute_serving_url(skel: SkeletonInstance):
+        """
+        Standard compute function for generating a Google Image Manipulation API serving URL for public files.
+        """
+        logging.info("_compute_serving_url")
         if (
             skel["public"]
             and skel["mimetype"]
             and skel["mimetype"].startswith("image/")
-            and not skel["serving_url"]
         ):
             bucket = File.get_bucket(skel["dlkey"])
             filename = f"/gs/{bucket.name}/{skel['dlkey']}/source/{utils.string.unescape(skel['name'])}"
@@ -443,15 +445,26 @@ class FileLeafSkel(TreeSkel):
             # Trying this on local development server will raise a
             # `google.appengine.runtime.apiproxy_errors.RPCFailedError`
             if conf.instance.is_dev_server:
-                logging.warning(f"Can't inject serving_url for {filename!r} on local development server")
+                logging.warning(f"Can't create serving_url for {filename!r} on local development server")
                 return
 
             try:
-                skel["serving_url"] = images.get_serving_url(None, secure_url=True, filename=filename)
+                # Generate Google Image Manipulation API Serving-URL
+                return images.get_serving_url(None, secure_url=True, filename=filename)
 
             except Exception as e:
                 logging.warning(f"Failed to create serving_url for {filename!r} with exception {e!r}")
                 logging.exception(e)
+
+        return None
+
+    serving_url = StringBone(
+        descr="Serving-URL",
+        params={
+            "tooltip": "The 'serving_url' is only available in public file repositories.",
+        },
+        compute=Compute(_compute_serving_url, ComputeInterval(ComputeMethod.Once)),
+    )
 
     def preProcessBlobLocks(self, locks):
         """
@@ -459,24 +472,8 @@ class FileLeafSkel(TreeSkel):
         """
         if not self["weak"] and self["dlkey"]:
             locks.add(self["dlkey"])
+
         return locks
-
-    @classmethod
-    def refresh(cls, skel):
-        super().refresh(skel)
-        if conf.viur2import_blobsource:
-            importData = importBlobFromViur2(skel["dlkey"], skel["name"])
-            if importData:
-                if not skel["downloadUrl"]:
-                    skel["downloadUrl"] = importData
-                skel["pendingparententry"] = None
-
-        cls._inject_serving_url(skel)
-
-    @classmethod
-    def write(cls, skel, **kwargs):
-        cls._inject_serving_url(skel)
-        return super().write(skel, **kwargs)
 
 
 class FileNodeSkel(TreeSkel):
@@ -584,53 +581,6 @@ class File(Tree):
             return hmac.compare_digest(cls.hmac_sign(data.encode("ASCII")), signature)
         except (TypeError, UnicodeEncodeError):
             return False
-
-    @classmethod
-    def create_internal_serving_url(
-        cls,
-        serving_url: str,
-        size: int = 0,
-        filename: str = "",
-        options: str = "",
-        download: bool = False
-    ) -> str:
-        """
-        Helper function to generate an internal serving url (endpoint: /file/serve) from a Google serving url.
-
-        This is needed to hide requests to Google as they are internally be routed, and can be the result of a
-        legal requirement like GDPR.
-
-        :param serving_url: Is the original serving URL as generated from FileLeafSkel._inject_serving_url()
-        :param size: Optional size setting
-        :param filename: Optonal filename setting
-        :param options: Additional options parameter-pass through to /file/serve
-        :param download: Download parameter-pass through to /file/serve
-        """
-
-        # Split a serving URL into its components, used by serve function.
-        res = re.match(
-            r"^https:\/\/(.*?)\.googleusercontent\.com\/(.*?)$",
-            serving_url
-        )
-
-        if not res:
-            raise ValueError(f"Invalid {serving_url=!r} provided")
-
-        # Create internal serving URL
-        serving_url = cls.INTERNAL_SERVING_URL_PREFIX + "/".join(res.groups())
-
-        # Append additional parameters
-        if params := {
-            k: v for k, v in {
-                "download": download,
-                "filename": filename,
-                "options": options,
-                "size": size,
-            }.items() if v
-        }:
-            serving_url += f"?{urlencode(params)}"
-
-        return serving_url
 
     @classmethod
     def create_download_url(
@@ -1162,98 +1112,6 @@ class File(Tree):
 
         raise errors.Redirect(signedUrl)
 
-    SERVE_VALID_OPTIONS = {
-        "c",
-        "p",
-        "fv",
-        "fh",
-        "r90",
-        "r180",
-        "r270",
-        "nu",
-    }
-    """
-    Valid modification option shorts for the serve-function.
-    This is passed-through to the Google UserContent API, and hast to be supported there.
-    """
-
-    SERVE_VALID_FORMATS = {
-        "jpg": "rj",
-        "jpeg": "rj",
-        "png": "rp",
-        "webp": "rw",
-    }
-    """
-    Valid file-formats to the serve-function.
-    This is passed-through to the Google UserContent API, and hast to be supported there.
-    """
-
-    @exposed
-    def serve(
-            self,
-            host: str,
-            key: str,
-            size: t.Optional[int] = None,
-            filename: t.Optional[str] = None,
-            options: str = "",
-            download: bool = False,
-    ):
-        """
-        Requests an image using the serving url to bypass direct Google requests.
-
-        :param host: the google host prefix i.e. lh3
-        :param key: the serving url key
-        :param size: the target image size
-        :param filename: a random string with an extention, valid extentions are (defined in File.SERVE_VALID_FORMATS).
-        :param options: - seperated options (defined in File.SERVE_VALID_OPTIONS).
-            c - crop
-            p - face crop
-            fv - vertrical flip
-            fh - horizontal flip
-            rXXX - rotate 90, 180, 270
-            nu - no upscale
-        :param download: Serves the content as download (Content-Disposition) or not.
-
-        :return: Returns the requested content on success, raises a proper HTTP exception otherwise.
-        """
-
-        if any(c not in conf.search_valid_chars for c in host):
-            raise errors.BadRequest("key contains invalid characters")
-
-        # extract format from filename
-        file_fmt = "webp"
-
-        if filename:
-            fmt = filename.rsplit(".", 1)[-1].lower()
-            if fmt in self.SERVE_VALID_FORMATS:
-                file_fmt = fmt
-            else:
-                raise errors.UnprocessableEntity(f"Unsupported filetype {fmt}")
-
-        url = f"https://{host}.googleusercontent.com/{key}"
-
-        if options and not all(param in self.SERVE_VALID_OPTIONS for param in options.split("-")):
-            raise errors.BadRequest("Invalid options provided")
-
-        options += f"-{self.SERVE_VALID_FORMATS[file_fmt]}"
-
-        if size:
-            options = f"s{size}-" + options
-
-        url += "=" + options
-
-        response = current.request.get().response
-        response.headers["Content-Type"] = f"image/{file_fmt}"
-        response.headers["Cache-Control"] = "public, max-age=604800"  # 7 Days
-        response.headers["Content-Disposition"] = utils.build_content_disposition_header(filename, attachment=download)
-
-        answ = requests.get(url, timeout=20)
-        if not answ.ok:
-            logging.error(f"{answ.status_code} {answ.text}")
-            raise errors.BadRequest("Unable to fetch a file with these parameters")
-
-        return answ.content
-
     @exposed
     @force_ssl
     @force_post
@@ -1405,12 +1263,15 @@ class File(Tree):
     def set_image_meta(self, key: db.Key) -> None:
         """Write image metadata (height and width) to FileSkel"""
         skel = self.editSkel("leaf", key)
+
         if not skel.read(key):
             logging.error(f"File {key} does not exist")
             return
+
         if skel["width"] and skel["height"]:
             logging.info(f'File {skel["key"]} has already {skel["width"]=} and {skel["height"]=}')
             return
+
         file_name = html.unescape(skel["name"])
         blob = self.get_bucket(skel["dlkey"]).get_blob(f"""{skel["dlkey"]}/source/{file_name}""")
         if not blob:
@@ -1420,9 +1281,10 @@ class File(Tree):
         file_obj = io.BytesIO()
         blob.download_to_file(file_obj)
         file_obj.seek(0)
+
         try:
-            img = Image.open(file_obj)
-        except Image.UnidentifiedImageError as e:  # Can't load this image
+            img = PIL.Image.open(file_obj)
+        except PIL.Image.UnidentifiedImageError as e:  # Can't load this image
             logging.exception(f'Cannot open {skel["key"]} | {skel["name"]} to set image meta data: {e}')
             return
 
