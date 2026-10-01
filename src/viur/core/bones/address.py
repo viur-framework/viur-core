@@ -54,7 +54,8 @@ class AddressBone(RecordBone):
 
     def after_from_client(self, skel, name, errors):
         value = skel[name]
-        if value is not None:
+        # Coordinates sent by the client (e.g. a pin set on a map) are more precise than geocoding
+        if value is not None and self.using.coordinates.isEmpty(value["coordinates"]):
             coords = self.geocode(value)
             if coords:
                 value["coordinates"] = coords

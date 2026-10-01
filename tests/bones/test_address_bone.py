@@ -191,3 +191,34 @@ class TestAddressBoneGeocode(ViURTestCase):
         mock_put.assert_called_once()
         self.assertAlmostEqual(mock_entity["lat"], 50.671720)
         self.assertAlmostEqual(mock_entity["lng"], 5.912884)
+
+
+class TestAddressBoneAfterFromClient(ViURTestCase):
+
+    def _make_skel(self, coordinates):
+        from viur.core.bones.address import AddressRelSkel
+        rel = AddressRelSkel()
+        rel["street_name"] = "Chaussée de Liège"
+        rel["city"] = "Welkenraedt"
+        rel["coordinates"] = coordinates
+        return {"address": rel}
+
+    def test_geocodes_when_coordinates_are_missing(self):
+        from viur.core.bones.address import AddressBone
+        skel = self._make_skel(None)
+
+        with patch.object(AddressBone, "geocode", return_value=(50.67, 5.91)) as geocode:
+            AddressBone().after_from_client(skel, "address", [])
+
+        geocode.assert_called_once()
+        self.assertEqual((50.67, 5.91), skel["address"]["coordinates"])
+
+    def test_keeps_coordinates_sent_by_the_client(self):
+        from viur.core.bones.address import AddressBone
+        skel = self._make_skel((50.6701, 5.9102))
+
+        with patch.object(AddressBone, "geocode", return_value=(50.67, 5.91)) as geocode:
+            AddressBone().after_from_client(skel, "address", [])
+
+        geocode.assert_not_called()
+        self.assertEqual((50.6701, 5.9102), skel["address"]["coordinates"])
