@@ -260,8 +260,9 @@ def run_in_transaction(func: t.Callable, *args, **kwargs) -> t.Any:
     """Run *func* in a transaction — either all of its writes are applied or none of them.
 
     If a transaction is already running, *func* runs inside it without a second one being opened. A transaction
-    conflict is retried three times with an exponential backoff, every other error propagates. A read inside the
-    transaction is not guaranteed to see a value written earlier in it — keep such a value in a local variable.
+    conflict is retried up to ``conf.db.transaction_attempts`` times in all, with an exponential backoff; every
+    other error propagates. A read inside the transaction is not guaranteed to see a value written earlier in it —
+    keep such a value in a local variable.
 
     :param func: The callable to run; further arguments are passed on to it.
     :return: Whatever *func* returned.
@@ -273,7 +274,7 @@ def run_in_transaction(func: t.Callable, *args, **kwargs) -> t.Any:
 
     outdated_token = _transaction_outdated.set([])
     try:
-        for i in range(3):
+        for i in range(conf.db.transaction_attempts):
             try:
                 with _mongo().start_session() as session:
                     token = _current_session.set(session)
@@ -291,6 +292,11 @@ def run_in_transaction(func: t.Callable, *args, **kwargs) -> t.Any:
                     or (isinstance(exc, pymongo.errors.OperationFailure) and exc.code == 112)
                 ):
                     raise
+
+                if i + 1 >= conf.db.transaction_attempts:
+                    # Last attempt failed: raise right away instead of sleeping first.
+                    raise RuntimeError("Maximum transaction retries exceeded")
+
                 logger.error(f"Transaction failed with a conflict, trying again in {2 ** i} seconds")
                 time.sleep(2 ** i)
                 continue

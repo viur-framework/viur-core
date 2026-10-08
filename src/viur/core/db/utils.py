@@ -130,6 +130,8 @@ def to_mongo_filter(filters: dict, or_filters: list) -> dict:
             else:
                 out[field] = value
         else:
+            if op in ("IN", "NOT_IN") and isinstance(value, (tuple, set, frozenset)):
+                value = list(value)  # BSON encodes no set; a tuple becomes a list just as well
             out.setdefault(field, {})[_OPS[op]] = value
     groups = []
     for group in or_filters:

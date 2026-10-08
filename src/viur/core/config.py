@@ -322,6 +322,11 @@ class Database(ConfigType):
     create_access_log: bool = True
     """If False no access log will be created. But then the caching is disabled too."""
 
+    transaction_attempts: int = 3
+    """How often :func:`db.run_in_transaction <viur.core.db.transport.run_in_transaction>` runs
+    a transaction before giving up on conflicts; must be at least 1. Retries back off exponentially
+    (1s, 2s, 4s, ...)."""
+
     uri: str = os.environ.get("VIUR_DB_URI", "mongodb://localhost:27017/?retryWrites=false")
     """The connection string of the MongoDB driver.
 

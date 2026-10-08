@@ -134,7 +134,7 @@ class ModuleConf(List):
                 user_modules = set(right.split("-", 1)[0] for right in cuser["access"] if "-" in right)
 
                 query = original_query
-                query.filter("name IN", tuple(user_modules))
+                query.filter("name IN", list(user_modules))
 
         return query
 
