@@ -4,7 +4,7 @@ from viur.core.bones import *
 from viur.core.prototypes.tree import Tree, TreeSkel, SkelType
 from viur.core.modules.file import File
 from viur.core import conf, current, skeleton, tasks, errors
-from viur.core.decorators import exposed
+from viur.core.decorators import action, exposed
 from viur.core.i18n import translate
 import zipfile
 
@@ -104,7 +104,7 @@ class Script(Tree):
             "key": self.rootnodeSkel(ensure=True)["key"],
         }]
 
-    @exposed
+    @action
     def view(self, skelType: SkelType, key: str, *args, **kwargs) -> t.Any:
         try:
             return super().view(skelType, key, *args, **kwargs)
@@ -115,21 +115,21 @@ class Script(Tree):
 
             raise
 
-    def onEdit(self, skelType, skel):
+    def onEdit(self, skel):
         self.update_path(skel)
-        super().onEdit(skelType, skel)
+        super().onEdit(skel)
 
-    def onEdited(self, skelType, skel):
+    def thenEdit(self, skel):
         old_path = skel["path"]
         self.update_path(skel)
         if skel["path"] != old_path:
             skel.patch({"path": skel["path"]})
 
-        if skelType == "node":
+        if self.skel_type_of(skel) == "node":
             self.update_path_recursive("node", skel["path"], skel["key"])
             self.update_path_recursive("leaf", skel["path"], skel["key"])
 
-        super().onEdited(skelType, skel)
+        super().thenEdit(skel)
 
     @tasks.CallDeferred
     def update_path_recursive(self, skel_type, path, parent_key, cursor=None):
@@ -146,7 +146,7 @@ class Script(Tree):
             if new_path != skel["path"]:
                 skel["path"] = new_path  # self.onEdit() is NOT required, as it resolves the path again.
                 skel.write()
-                self.onEdited(skel_type, skel)  # triggers this recursion for nodes, again.
+                self.thenEdit(skel)  # triggers this recursion for nodes, again.
 
         if cursor := query.getCursor():
             self.update_path_recursive(skel_type, path, parent_key, cursor)
@@ -170,6 +170,8 @@ class Script(Tree):
 
     @exposed
     def get_importable(self):
+        if not self.canGetImportable(None):
+            raise errors.Unauthorized()
 
         def get_files_recursively(_importable_key):
             res = []
@@ -207,3 +209,11 @@ class Script(Tree):
         current.request.get().response.headers["Content-Disposition"] = "attachment; filename=importable.zip"
         current.request.get().response.headers["Content-Type"] = "application/zip"
         return zip_buffer.getvalue()
+
+    def canGetImportable(self, skel: None) -> bool:
+        """
+        Access control function for :func:`get_importable`.
+
+        Allowed by default: every query of the importable folder is filtered by :func:`listFilter`.
+        """
+        return True

@@ -190,13 +190,13 @@ class EmailTransport(ABC):
         if file_key := attachment.get("file_key"):
             if attachment.get("content"):
                 raise ValueError(f'Got {file_key=} but also content in attachment {attachment.get("filename")=}')
-            blob, content_type = conf.main_app.vi.file.read(key=file_key)
+            blob, content_type = conf.main_app.json.file.read(key=file_key)
             attachment["content"] = blob.getvalue()
             attachment["mimetype"] = content_type
         elif gcsfile := attachment.get("gcsfile"):
             if attachment.get("content"):
                 raise ValueError(f'Got {gcsfile=} but also content in attachment {attachment.get("filename")=}')
-            blob, content_type = conf.main_app.vi.file.read(path=gcsfile)
+            blob, content_type = conf.main_app.json.file.read(path=gcsfile)
             attachment["content"] = blob.getvalue()
             attachment["mimetype"] = content_type
         return attachment
@@ -427,8 +427,8 @@ def send_email_to_admins(subject: str, body: str, *args, **kwargs) -> bool:
         users = []
         if conf.email.admin_recipients is not None:
             users = normalize_to_list(conf.email.admin_recipients)
-        elif "user" in dir(conf.main_app.vi):
-            for user_skel in conf.main_app.vi.user.viewSkel().all().filter("access =", "root").fetch():
+        elif "user" in dir(conf.main_app.json):
+            for user_skel in conf.main_app.json.user.viewSkel().all().filter("access =", "root").fetch():
                 users.append(user_skel["name"])
 
         # Prefix the instance's project_id to subject

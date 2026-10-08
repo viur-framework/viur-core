@@ -11,3 +11,5 @@ request_data: ContextVar[t.Optional[dict]] = ContextVar("Request-Data", default=
 session: ContextVar[t.Optional["Session"]] = ContextVar("Session", default=None)
 language: ContextVar[t.Optional[str]] = ContextVar("Language", default=None)
 user: ContextVar[t.Optional["SkeletonInstance"]] = ContextVar("User", default=None)
+action: ContextVar[str | None] = ContextVar("Action", default=None)
+"""The ``@action("name")`` label of the action running in this context, read by the JSON envelope."""

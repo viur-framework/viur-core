@@ -86,6 +86,15 @@ class Tree(SkelModule):
 
         return None
 
+    def skel_type_of(self, skel: SkeletonInstance) -> SkelType:
+        """
+        The skelType of a skeleton of this tree.
+
+        :param skel: A node or leaf skeleton of this module.
+        :returns: "leaf" for a leaf skeleton, "node" otherwise.
+        """
+        return "leaf" if self.leafSkelCls and issubclass(skel.skeletonCls, self.leafSkelCls) else "node"
+
     def _resolveSkelCls(self, skelType: SkelType, *args, **kwargs) -> t.Type[Skeleton]:
         if not (skelType := self._checkSkelType(skelType)):
             raise ValueError("Unsupported skelType")
@@ -277,6 +286,7 @@ class Tree(SkelModule):
 
     ## Internal exposed functions
 
+    @action
     @internal_exposed
     def pathToKey(self, key: str):
         """
@@ -285,6 +295,9 @@ class Tree(SkelModule):
         :param key: Key of the destination *node*.
         :returns: An nested dictionary with information about all nodes in the path from root to the requested node.
         """
+        if not self.canPathToKey(None):
+            raise errors.Unauthorized()
+
         lastLevel = []
         for x in range(0, 99):
             currentNodeSkel = self.viewSkel("node")
@@ -304,8 +317,11 @@ class Tree(SkelModule):
 
     ## External exposed functions
 
-    @exposed
+    @action
     def index(self, skelType: SkelType = "node", parententry: str | None = None, **kwargs):
+        if not self.canIndex(None):
+            raise errors.Unauthorized()
+
         if not parententry:
             repos = self.getAvailableRootNodes(**kwargs)
             match len(repos):
@@ -318,7 +334,7 @@ class Tree(SkelModule):
 
         return self.list(skelType=skelType, parententry=parententry, **kwargs)
 
-    @exposed
+    @action
     def listRootNodes(self, *args, **kwargs) -> t.Any:
         """
         Renders a list of all available repositories for the current user using the
@@ -326,9 +342,12 @@ class Tree(SkelModule):
 
         :returns: The rendered representation of the available root-nodes.
         """
+        if not self.canListRootNodes(None):
+            raise errors.Unauthorized()
+
         return self.render.listRootNodes(self.getAvailableRootNodes(*args, **kwargs))
 
-    @exposed
+    @action
     def list(self, skelType: SkelType, *args, **kwargs) -> t.Any:
         """
         Prepares and renders a list of entries.
@@ -348,14 +367,18 @@ class Tree(SkelModule):
         if not (skelType := self._checkSkelType(skelType)):
             raise errors.NotAcceptable("Invalid skelType provided.")
 
-        # The general access control is made via self.listFilter()
-        if not (query := self.listFilter(self.viewSkel(skelType).all().mergeExternalFilter(kwargs))):
+        skel = self.viewSkel(skelType)
+        if not self.canList(skel):
+            raise errors.Unauthorized()
+
+        # Which entries are visible is decided by self.listFilter()
+        if not (query := self.listFilter(skel.all().mergeExternalFilter(kwargs))):
             raise errors.Unauthorized()
 
         self._apply_default_order(query)
         return self.render.list(query.fetch())
 
-    @exposed
+    @action
     def structure(self, skelType: SkelType, action: t.Optional[str] = "view") -> t.Any:
         """
             :returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
@@ -367,31 +390,33 @@ class Tree(SkelModule):
         match action:
             case "view":
                 skel = self.viewSkel(skelType)
-                if not self.canView(skelType, skel):
+                if not self.canView(skel):
                     raise errors.Unauthorized()
 
             case "edit":
                 skel = self.editSkel(skelType)
-                if not self.canEdit(skelType, skel):
+                if not self.canEdit(skel):
                     raise errors.Unauthorized()
 
             case "add":
-                if not self.canAdd(skelType):
-                    raise errors.Unauthorized()
-
                 skel = self.addSkel(skelType)
+                if not self.canAdd(skel):
+                    raise errors.Unauthorized()
 
             case "clone":
                 skel = self.cloneSkel(skelType)
-                if not (self.canAdd(skelType) and self.canEdit(skelType, skel)):
+                if not self.canClone(skel):
                     raise errors.Unauthorized()
 
             case _:
                 raise errors.NotImplemented(f"The action {action!r} is not implemented.")
 
+        if not self.canStructure(skel):
+            raise errors.Unauthorized()
+
         return self.render.render(f"structure.{skelType}.{action}", skel)
 
-    @exposed
+    @action
     def view(self, skelType: SkelType, key: str, *args, **kwargs) -> t.Any:
         """
         Prepares and renders a single entry for viewing.
@@ -417,13 +442,13 @@ class Tree(SkelModule):
         if not skel.read(key):
             raise errors.NotFound()
 
-        if not self.canView(skelType, skel):
+        if not self.canView(skel):
             raise errors.Unauthorized()
 
-        self.onView(skelType, skel)
+        self.onView(skel)
         return self.render.view(skel)
 
-    @exposed
+    @action
     @force_ssl
     @skey(allow_empty=True)
     def add(self, skelType: SkelType, node: str, *, bounce: bool = False, **kwargs) -> t.Any:
@@ -434,7 +459,7 @@ class Tree(SkelModule):
 
         The function performs several access control checks on the requested entity before it is added.
 
-        .. seealso:: :func:`canAdd`, :func:`onAdd`, , :func:`onAdded`
+        .. seealso:: :func:`canAdd`, :func:`onAdd`, :func:`thenAdd`
 
         :param skelType: Defines the type of the new entry and may either be "node" or "leaf".
         :param node: URL-safe key of the parent.
@@ -455,12 +480,13 @@ class Tree(SkelModule):
         # TODO VIUR4: Why is this parameter called "node"?
         if not parentNodeSkel.read(node):
             raise errors.NotFound("The provided parent node could not be found.")
-        if not self.canAdd(skelType, parentNodeSkel):
-            raise errors.Unauthorized()
 
         skel["parententry"] = parentNodeSkel["key"]
         # parentrepo may not exist in parentNodeSkel as it may be an rootNode
         skel["parentrepo"] = parentNodeSkel["parentrepo"] or parentNodeSkel["key"]
+
+        if not self.canAdd(skel):
+            raise errors.Unauthorized()
 
         if (
             not kwargs  # no data supplied
@@ -470,21 +496,21 @@ class Tree(SkelModule):
         ):
             return self.render.add(skel)
 
-        self.onAdd(skelType, skel)
+        self.onAdd(skel)
         skel.write()
-        self.onAdded(skelType, skel)
+        self.thenAdd(skel)
 
         return self.render.addSuccess(skel)
 
     @force_ssl
     @force_post
-    @exposed
+    @action
     @skey
-    @access("root")
     def add_or_edit(self, skelType: SkelType, key: str, **kwargs) -> t.Any:
         """
         This function is intended to be used by importers.
-        Only "root"-users are allowed to use it.
+
+        .. seealso:: :func:`canAddOrEdit`
         """
         if not (skelType := self._checkSkelType(skelType)):
             raise errors.NotAcceptable("Invalid skelType provided.")
@@ -513,6 +539,9 @@ class Tree(SkelModule):
 
         skel["key"] = db_key
 
+        if not self.canAddOrEdit(skel):
+            raise errors.Unauthorized()
+
         if (
             not kwargs  # no data supplied
             or not skel.fromClient(kwargs)  # failure on reading into the bones
@@ -524,28 +553,29 @@ class Tree(SkelModule):
         parentNodeSkel = self.editSkel("node")
         if not parentNodeSkel.read(skel["parententry"]):
             raise errors.NotFound("The provided parent node could not be found.")
-        if not self.canAdd(skelType, parentNodeSkel):
-            raise errors.Unauthorized()
 
         skel["parententry"] = parentNodeSkel["key"]
         # parentrepo may not exist in parentNodeSkel as it may be an rootNode
         skel["parentrepo"] = parentNodeSkel["parentrepo"] or parentNodeSkel["key"]
 
+        if not self.canAdd(skel):
+            raise errors.Unauthorized()
+
         if is_add:
-            self.onAdd(skelType, skel)
+            self.onAdd(skel)
         else:
-            self.onEdit(skelType, skel)
+            self.onEdit(skel)
 
         skel.write()
 
         if is_add:
-            self.onAdded(skelType, skel)
+            self.thenAdd(skel)
             return self.render.addSuccess(skel)
 
-        self.onEdited(skelType, skel)
+        self.thenEdit(skel)
         return self.render.editSuccess(skel)
 
-    @exposed
+    @action
     @force_ssl
     @skey(allow_empty=True)
     def edit(self, skelType: SkelType, key: str, *, bounce: bool = False, **kwargs) -> t.Any:
@@ -555,7 +585,7 @@ class Tree(SkelModule):
 
         The function performs several access control checks on the requested entity before it is added.
 
-        .. seealso:: :func:`canEdit`, :func:`onEdit`, :func:`onEdited`
+        .. seealso:: :func:`canEdit`, :func:`onEdit`, :func:`thenEdit`
 
         :param skelType: Defines the type of the entry that should be modified and may either be "node" or "leaf".
         :param key: URL-safe key of the item to be edited.
@@ -574,7 +604,7 @@ class Tree(SkelModule):
         if not skel.read(key):
             raise errors.NotFound()
 
-        if not self.canEdit(skelType, skel):
+        if not self.canEdit(skel):
             raise errors.Unauthorized()
 
         if (
@@ -585,13 +615,13 @@ class Tree(SkelModule):
         ):
             return self.render.edit(skel)
 
-        self.onEdit(skelType, skel)
+        self.onEdit(skel)
         skel.write()
-        self.onEdited(skelType, skel)
+        self.thenEdit(skel)
 
         return self.render.editSuccess(skel)
 
-    @exposed
+    @action
     @force_ssl
     @force_post
     @skey
@@ -604,7 +634,7 @@ class Tree(SkelModule):
         For a node, the node itself and its entire subtree are deleted
         bottom-up as a single deferred job -- see :meth:`deleteRecursive`
         for why the node must not be deleted synchronously here.
-        ``onDelete``/``onDeleted`` for the node still fire exactly once,
+        ``onDelete``/``thenDelete`` for the node still fire exactly once,
         just from within that deferred job instead of within this request.
 
         If the node is locked by a ``RelationalConsistency.PreventDeletion``
@@ -613,7 +643,7 @@ class Tree(SkelModule):
         error and no deferred job -- and therefore no cascading deletion of
         the subtree -- is ever started for it.
 
-        .. seealso:: :func:`canDelete`, :func:`onDelete`, :func:`onDeleted`
+        .. seealso:: :func:`canDelete`, :func:`onDelete`, :func:`thenDelete`
 
         :param skelType: Defines the type of the entry that should be deleted and may either be "node" or "leaf".
         :param key: URL-safe key of the item to be deleted.
@@ -634,24 +664,24 @@ class Tree(SkelModule):
         if not skel.read(key):
             raise errors.NotFound()
 
-        if not self.canDelete(skelType, skel):
+        if not self.canDelete(skel):
             raise errors.Unauthorized()
 
         # Fail fast for the entry the delete was invoked on, so the caller
         # gets an immediate error and (for a node) no deferred cascade is
         # even started. Descendants are validated in deleteRecursive.
-        self.checkDeletePreconditions(skelType, skel)
+        self.checkDeletePreconditions(skel)
 
         if skelType == "node":
             self.deleteRecursive(skel["key"], delete_self=True, call_hooks=True)
         else:
-            self.onDelete(skelType, skel)
+            self.onDelete(skel)
             skel.delete()
-            self.onDeleted(skelType, skel)
+            self.thenDelete(skel)
 
         return self.render.deleteSuccess(skel, skelType=skelType)
 
-    def checkDeletePreconditions(self, skelType: SkelType, skel: SkeletonInstance) -> None:
+    def checkDeletePreconditions(self, skel: SkeletonInstance) -> None:
         """
         Verify that *skel* may be deleted in its current state, raising if not.
 
@@ -676,12 +706,11 @@ class Tree(SkelModule):
 
         Override it (calling ``super()``) to add domain-specific rules, e.g.::
 
-            def checkDeletePreconditions(self, skelType, skel):
-                super().checkDeletePreconditions(skelType, skel)
+            def checkDeletePreconditions(self, skel):
+                super().checkDeletePreconditions(skel)
                 if skel["is_locked"]:
                     raise errors.Forbidden("This entry is locked.")
 
-        :param skelType: Type of the entry ("node" or "leaf").
         :param skel: The already-read skeleton of the entry.
         """
         if self._is_locked_by_relation(skel["key"]):
@@ -746,7 +775,7 @@ class Tree(SkelModule):
             if *delete_self*, the node itself) should be deleted.
         :param delete_self: If True, also delete the node identified by
             *parentKey*, after all of its descendants have been removed.
-        :param call_hooks: If True, call :meth:`onDelete`/:meth:`onDeleted`
+        :param call_hooks: If True, call :meth:`onDelete`/:meth:`thenDelete`
             for the *parentKey* node itself (only meaningful together
             with *delete_self*). Not applied recursively: cascaded
             descendants are removed without hooks, same as before.
@@ -764,10 +793,10 @@ class Tree(SkelModule):
             nodeSkel = self.viewSkel("node")
             if nodeSkel.read(nodeKey):
                 if call_hooks:
-                    self.onDelete("node", nodeSkel)
+                    self.onDelete(nodeSkel)
                 nodeSkel.delete()
                 if call_hooks:
-                    self.onDeleted("node", nodeSkel)
+                    self.thenDelete(nodeSkel)
 
     def _checkSubtreeDeletable(self, nodeKey: str, check_self: bool) -> bool:
         """
@@ -786,12 +815,12 @@ class Tree(SkelModule):
             if check_self:
                 nodeSkel = self.viewSkel("node")
                 if nodeSkel.read(nodeKey):
-                    self.checkDeletePreconditions("node", nodeSkel)
+                    self.checkDeletePreconditions(nodeSkel)
             if self.leafSkelCls:
                 for leaf in db.Query(self.viewSkel("leaf").kindName).filter("parententry =", nodeKey).iter():
                     leafSkel = self.viewSkel("leaf")
                     if leafSkel.read(leaf["_id"]):
-                        self.checkDeletePreconditions("leaf", leafSkel)
+                        self.checkDeletePreconditions(leafSkel)
         except errors.HTTPException as exc:
             logging.warning(f"Refusing to delete subtree of {nodeKey!r}: {exc}")
             return False
@@ -800,18 +829,17 @@ class Tree(SkelModule):
                 return False
         return True
 
-    def onDeleteRecursive(self, skelType: SkelType, skel: SkeletonInstance) -> None:
+    def onDeleteRecursive(self, skel: SkeletonInstance) -> None:
         """
         Hook, called for every *descendant* entry cascaded away during a
         recursive delete, right before that entry is deleted.
 
-        In contrast to :meth:`onDelete`/:meth:`onDeleted` — which fire once,
+        In contrast to :meth:`onDelete`/:meth:`thenDelete` — which fire once,
         for the very entry the delete was invoked on — this fires for each
         cascaded child/grandchild/... removed by :meth:`deleteRecursive`.
         The default implementation does nothing; override it to run
         per-entry cleanup (e.g. releasing external resources tied to a leaf).
 
-        :param skelType: Type of the descendant being deleted ("node" or "leaf").
         :param skel: The already-read skeleton of the descendant.
         """
         pass
@@ -835,16 +863,16 @@ class Tree(SkelModule):
                 leafSkel = self.viewSkel("leaf")
                 if not leafSkel.read(leaf["_id"]):
                     continue
-                self.onDeleteRecursive("leaf", leafSkel)
+                self.onDeleteRecursive(leafSkel)
                 leafSkel.delete()
         for node in db.Query(self.viewSkel("node").kindName).filter("parententry =", nodeKey).iter():
             self._deleteSubtree(node["_id"])
             nodeSkel = self.viewSkel("node")
             if nodeSkel.read(node["_id"]):
-                self.onDeleteRecursive("node", nodeSkel)
+                self.onDeleteRecursive(nodeSkel)
                 nodeSkel.delete()
 
-    @exposed
+    @action
     @force_ssl
     @force_post
     @skey
@@ -858,7 +886,7 @@ class Tree(SkelModule):
         """
         Move a node (including its contents) or a leaf to another node.
 
-        .. seealso:: :func:`canMove`
+        .. seealso:: :func:`canMove`, :func:`onMove`, :func:`thenMove`
 
         :param skelType: Defines the type of the entry that should be moved and may either be "node" or "leaf".
         :param key: URL-safe key of the item to be moved.
@@ -890,7 +918,7 @@ class Tree(SkelModule):
         if not skel["parententry"]:
             raise errors.NotAcceptable("Can't move a rootNode to somewhere else")
 
-        if not self.canMove(skelType, skel, parentnode_skel):
+        if not self.canMove(skel, dest_skel=parentnode_skel):
             raise errors.Unauthorized()
 
         # Check if parentNodeSkel is descendant of the skel
@@ -909,13 +937,13 @@ class Tree(SkelModule):
 
         old_parentrepo = skel["parentrepo"]
 
-        self.onEdit(skelType, skel)
+        self.onMove(skel, dest_skel=parentnode_skel)
         skel.patch({
             "parententry": parentnode_skel["key"],
             "parentrepo": parentnode_skel["parentrepo"],
             "sortindex": sortindex or time.time()
         })
-        self.onEdited(skelType, skel)
+        self.thenMove(skel, dest_skel=parentnode_skel)
 
         # Ensure a changed parentRepo get's propagated
         if old_parentrepo != parentnode_skel["parentrepo"]:
@@ -923,7 +951,7 @@ class Tree(SkelModule):
 
         return self.render.render("moveSuccess", skel)
 
-    @exposed
+    @action
     @force_ssl
     @skey(allow_empty=True)
     def clone(
@@ -941,7 +969,7 @@ class Tree(SkelModule):
 
         The function performs several access control checks on the requested entity before it is added.
 
-        .. seealso:: :func:`canEdit`, :func:`canAdd`, :func:`onClone`, :func:`onCloned`
+        .. seealso:: :func:`canClone`, :func:`onClone`, :func:`thenClone`
 
         :param skelType: Defines the type of the entry that should be cloned and may either be "node" or "leaf".
         :param key: URL-safe key of the item to be edited.
@@ -968,8 +996,7 @@ class Tree(SkelModule):
         else:
             parent_node_skel = None
 
-        # a clone-operation is some kind of edit and add...
-        if not (self.canEdit(skelType, skel) and self.canAdd(skelType, parent_node_skel)):
+        if not self.canClone(skel, parent_skel=parent_node_skel):
             raise errors.Unauthorized()
 
         # Remember source skel and unset the key for clone operation!
@@ -1000,9 +1027,9 @@ class Tree(SkelModule):
         ):
             return self.render.edit(skel, action="clone")
 
-        self.onClone(skelType, skel, src_skel=src_skel)
+        self.onClone(skel, src_skel=src_skel)
         assert skel.write()
-        self.onCloned(skelType, skel, src_skel=src_skel)
+        self.thenClone(skel, src_skel=src_skel)
 
         return self.render.editSuccess(skel, action="cloneSuccess")
 
@@ -1026,7 +1053,67 @@ class Tree(SkelModule):
 
         return None
 
-    def canView(self, skelType: SkelType, skel: SkeletonInstance) -> bool:
+    def canList(self, skel: SkeletonInstance) -> bool:
+        """
+        Access control function for listing entries.
+
+        Allowed by default: which entries a user may see is decided by :func:`listFilter`.
+
+        :param skel: The Skeleton the list is made of.
+
+        :returns: True, if listing is allowed, False otherwise.
+        """
+        return True
+
+    def canIndex(self, skel: None) -> bool:
+        """
+        Access control function for :func:`index`.
+
+        Allowed by default: index delegates to :func:`list`, whose own checks apply.
+
+        :param skel: Always None; index has no skeleton of its own.
+
+        :returns: True, if the index may be used, False otherwise.
+        """
+        return True
+
+    def canListRootNodes(self, skel: None) -> bool:
+        """
+        Access control function for :func:`listRootNodes`.
+
+        Allowed by default: :func:`getAvailableRootNodes` only returns the root nodes a user may see.
+
+        :param skel: Always None; the root nodes are not known yet.
+
+        :returns: True, if the root nodes may be listed, False otherwise.
+        """
+        return True
+
+    def canPathToKey(self, skel: None) -> bool:
+        """
+        Access control function for :func:`pathToKey`.
+
+        Allowed by default: every level of the path is filtered by :func:`listFilter`.
+
+        :param skel: Always None; the path is not known yet.
+
+        :returns: True, if the path may be resolved, False otherwise.
+        """
+        return True
+
+    def canStructure(self, skel: SkeletonInstance) -> bool:
+        """
+        Access control function for :func:`structure`.
+
+        Allowed by default: the structure of an action is checked by that action's own can-hook first.
+
+        :param skel: The Skeleton whose structure is requested.
+
+        :returns: True, if the structure may be retrieved, False otherwise.
+        """
+        return True
+
+    def canView(self, skel: SkeletonInstance) -> bool:
         """
         Checks if the current user can view the given entry.
         Should be identical to what's allowed by listFilter.
@@ -1035,7 +1122,7 @@ class Tree(SkelModule):
         :param skel: The entry we check for
         :return: True if the current session is authorized to view that entry, False otherwise
         """
-        query = self.viewSkel(skelType).all()
+        query = self.viewSkel(self.skel_type_of(skel)).all()
 
         if key := skel["key"]:
             query.mergeExternalFilter({"key": key})
@@ -1047,7 +1134,7 @@ class Tree(SkelModule):
 
         return True
 
-    def canAdd(self, skelType: SkelType, parentNodeSkel: t.Optional[SkeletonInstance] = None) -> bool:
+    def canAdd(self, skel: SkeletonInstance) -> bool:
         """
         Access control function for adding permission.
 
@@ -1062,8 +1149,7 @@ class Tree(SkelModule):
 
         .. seealso:: :func:`add`
 
-        :param skelType: Defines the type of the node that should be added.
-        :param parentNodeSkel: The parent node where a new entry should be added.
+        :param skel: The Skeleton that should be added; its parententry is already set.
 
         :returns: True, if adding entries is allowed, False otherwise.
         """
@@ -1078,7 +1164,7 @@ class Tree(SkelModule):
             return True
         return False
 
-    def canEdit(self, skelType: SkelType, skel: SkeletonInstance) -> bool:
+    def canEdit(self, skel: SkeletonInstance) -> bool:
         """
         Access control function for modification permission.
 
@@ -1093,7 +1179,6 @@ class Tree(SkelModule):
 
         .. seealso:: :func:`edit`
 
-        :param skelType: Defines the type of the node that should be edited.
         :param skel: The Skeleton that should be edited.
 
         :returns: True, if editing entries is allowed, False otherwise.
@@ -1106,7 +1191,7 @@ class Tree(SkelModule):
             return True
         return False
 
-    def canDelete(self, skelType: SkelType, skel: SkeletonInstance) -> bool:
+    def canDelete(self, skel: SkeletonInstance) -> bool:
         """
         Access control function for delete permission.
 
@@ -1120,7 +1205,6 @@ class Tree(SkelModule):
 
         It should be overridden for a module-specific behavior.
 
-        :param skelType: Defines the type of the node that should be deleted.
         :param skel: The Skeleton that should be deleted.
 
         .. seealso:: :func:`delete`
@@ -1135,7 +1219,7 @@ class Tree(SkelModule):
             return True
         return False
 
-    def canMove(self, skelType: SkelType, node: SkeletonInstance, destNode: SkeletonInstance) -> bool:
+    def canMove(self, skel: SkeletonInstance, dest_skel: SkeletonInstance) -> bool:
         """
         Access control function for moving permission.
 
@@ -1149,9 +1233,8 @@ class Tree(SkelModule):
 
         It should be overridden for a module-specific behavior.
 
-        :param skelType: Defines the type of the node that shall be deleted.
-        :param node: URL-safe key of the node to be moved.
-        :param destNode: URL-safe key of the node where *node* should be moved to.
+        :param skel: The Skeleton that should be moved.
+        :param dest_skel: The node it should be moved below.
 
         .. seealso:: :func:`move`
 
@@ -1165,96 +1248,131 @@ class Tree(SkelModule):
             return True
         return False
 
+    def canClone(self, skel: SkeletonInstance, parent_skel: SkeletonInstance | None = None) -> bool:
+        """
+        Access control function for cloning an entry.
+
+        A clone reads one entry and adds another, so by default it requires both :func:`canEdit` and :func:`canAdd`.
+
+        .. seealso:: :func:`clone`
+
+        :param skel: The Skeleton that should be cloned.
+        :param parent_skel: The node the clone is placed below, when it is not the source's parent.
+
+        :returns: True, if cloning the entry is allowed, False otherwise.
+        """
+        return self.canEdit(skel) and self.canAdd(skel)
+
     ## Overridable eventhooks
 
-    def onAdd(self, skelType: SkelType, skel: SkeletonInstance):
+    def onAdd(self, skel: SkeletonInstance):
         """
         Hook function that is called before adding an entry.
 
         It can be overridden for a module-specific behavior.
 
-        :param skelType: Defines the type of the node that shall be added.
         :param skel: The Skeleton that is going to be added.
 
-        .. seealso:: :func:`add`, :func:`onAdded`
+        .. seealso:: :func:`add`, :func:`thenAdd`
         """
         pass
 
-    def onAdded(self, skelType: SkelType, skel: SkeletonInstance):
+    def thenAdd(self, skel: SkeletonInstance):
         """
         Hook function that is called after adding an entry.
 
         It should be overridden for a module-specific behavior.
         The default is writing a log entry.
 
-        :param skelType: Defines the type of the node that has been added.
         :param skel: The Skeleton that has been added.
 
         .. seealso:: :func:`add`, :func:`onAdd`
         """
-        logging.info(f"""Entry of kind {skelType!r} added: {skel["key"]!r}""")
+        logging.info(f"""Entry of kind {self.skel_type_of(skel)!r} added: {skel["key"]!r}""")
         flushCache(kind=skel.kindName)
         if user := current.user.get():
             logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
-    def onEdit(self, skelType: SkelType, skel: SkeletonInstance):
+    def onEdit(self, skel: SkeletonInstance):
         """
         Hook function that is called before editing an entry.
 
         It can be overridden for a module-specific behavior.
 
-        :param skelType: Defines the type of the node that shall be edited.
         :param skel: The Skeleton that is going to be edited.
 
-        .. seealso:: :func:`edit`, :func:`onEdited`
+        .. seealso:: :func:`edit`, :func:`thenEdit`
         """
         pass
 
-    def onEdited(self, skelType: SkelType, skel: SkeletonInstance):
+    def thenEdit(self, skel: SkeletonInstance):
         """
         Hook function that is called after modifying an entry.
 
         It should be overridden for a module-specific behavior.
         The default is writing a log entry.
 
-        :param skelType: Defines the type of the node that has been edited.
         :param skel: The Skeleton that has been modified.
 
         .. seealso:: :func:`edit`, :func:`onEdit`
         """
-        logging.info(f"""Entry of kind {skelType!r} changed: {skel["key"]!r}""")
+        logging.info(f"""Entry of kind {self.skel_type_of(skel)!r} changed: {skel["key"]!r}""")
         flushCache(key=skel["key"])
         if user := current.user.get():
             logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
-    def onView(self, skelType: SkelType, skel: SkeletonInstance):
+    def onView(self, skel: SkeletonInstance):
         """
         Hook function that is called when viewing an entry.
 
         It should be overridden for a module-specific behavior.
         The default is doing nothing.
 
-        :param skelType: Defines the type of the node that is viewed.
         :param skel: The Skeleton that is viewed.
 
         .. seealso:: :func:`view`
         """
         pass
 
-    def onDelete(self, skelType: SkelType, skel: SkeletonInstance):
+    def onMove(self, skel: SkeletonInstance, dest_skel: SkeletonInstance):
+        """
+        Hook function that is called before moving an entry below another node.
+
+        A move is an edit of the entry's position, so by default it calls :func:`onEdit`.
+
+        :param skel: The Skeleton that is going to be moved.
+        :param dest_skel: The node it is moved below.
+
+        .. seealso:: :func:`move`, :func:`thenMove`
+        """
+        self.onEdit(skel)
+
+    def thenMove(self, skel: SkeletonInstance, dest_skel: SkeletonInstance):
+        """
+        Hook function that is called after moving an entry below another node.
+
+        A move is an edit of the entry's position, so by default it calls :func:`thenEdit`.
+
+        :param skel: The Skeleton that has been moved.
+        :param dest_skel: The node it has been moved below.
+
+        .. seealso:: :func:`move`, :func:`onMove`
+        """
+        self.thenEdit(skel)
+
+    def onDelete(self, skel: SkeletonInstance):
         """
         Hook function that is called before deleting an entry.
 
         It can be overridden for a module-specific behavior.
 
-        :param skelType: Defines the type of the node that shall be deleted.
         :param skel: The Skeleton that is going to be deleted.
 
-        .. seealso:: :func:`delete`, :func:`onDeleted`
+        .. seealso:: :func:`delete`, :func:`thenDelete`
         """
         pass
 
-    def onDeleted(self, skelType: SkelType, skel: SkeletonInstance):
+    def thenDelete(self, skel: SkeletonInstance):
         """
         Hook function that is called after deleting an entry.
 
@@ -1264,27 +1382,25 @@ class Tree(SkelModule):
         ..warning: Saving the skeleton again will undo the deletion
         (if the skeleton was a leaf or a node with no children).
 
-        :param skelType: Defines the type of the node that is deleted.
         :param skel: The Skeleton that has been deleted.
 
         .. seealso:: :func:`delete`, :func:`onDelete`
         """
-        logging.info(f"""Entry deleted: {skel["key"]!r} ({skelType!r})""")
+        logging.info(f"""Entry deleted: {skel["key"]!r} ({self.skel_type_of(skel)!r})""")
         flushCache(key=skel["key"])
         if user := current.user.get():
             logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
-    def onClone(self, skelType: SkelType, skel: SkeletonInstance, src_skel: SkeletonInstance):
+    def onClone(self, skel: SkeletonInstance, src_skel: SkeletonInstance):
         """
         Hook function that is called before cloning an entry.
 
         It can be overwritten to a module-specific behavior.
 
-        :param skelType: Defines the type of the node that is cloned.
         :param skel: The new SkeletonInstance that is being created.
         :param src_skel: The source SkeletonInstance `skel` is cloned from.
 
-        .. seealso:: :func:`clone`, :func:`onCloned`
+        .. seealso:: :func:`clone`, :func:`thenClone`
         """
         pass
 
@@ -1298,7 +1414,7 @@ class Tree(SkelModule):
         cursor=None
     ):
         """
-        Helper function which is used by default onCloned() to clone a recursive structure.
+        Helper function which is used by default thenClone() to clone a recursive structure.
         """
         assert (skel_type := self._checkSkelType(skel_type))
 
@@ -1316,10 +1432,10 @@ class Tree(SkelModule):
             skel["parententry"] = target_key
             skel["parentrepo"] = target_repo
 
-            self.onClone(skel_type, skel, src_skel=src_skel)
+            self.onClone(skel, src_skel=src_skel)
             logging.debug(f"copying {skel=}")  # this logging _is_ needed, otherwise not all values are being written..
             assert skel.write()
-            self.onCloned(skel_type, skel, src_skel=src_skel)
+            self.thenClone(skel, src_skel=src_skel)
             count += 1
 
         logging.debug(f"_clone_recursive {count=}")
@@ -1327,7 +1443,7 @@ class Tree(SkelModule):
         if cursor := q.getCursor():
             self._clone_recursive(skel_type, src_key, target_key, target_repo, cursor)
 
-    def onCloned(self, skelType: SkelType, skel: SkeletonInstance, src_skel: SkeletonInstance):
+    def thenClone(self, skel: SkeletonInstance, src_skel: SkeletonInstance):
         """
         Hook function that is called after cloning an entry.
 
@@ -1338,25 +1454,23 @@ class Tree(SkelModule):
         If this is not wanted, or wanted by a specific setting, overwrite this function
         without a super-call.
 
-        :param skelType: Defines the type of the node that is cloned.
         :param skel: The new SkeletonInstance that was created.
         :param src_skel: The source SkeletonInstance `skel` was cloned from.
 
         .. seealso:: :func:`clone`, :func:`onClone`
         """
-        logging.info(f"""Entry cloned: {skel["key"]!r} ({skelType!r})""")
+        logging.info(f"""Entry cloned: {skel["key"]!r} ({self.skel_type_of(skel)!r})""")
         flushCache(kind=skel.kindName)
 
         if user := current.user.get():
             logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
         # Clone entire structure below, in case this is a node.
-        if skelType == "node":
+        if self.skel_type_of(skel) == "node":
             self._clone_recursive("node", src_skel["key"], skel["key"], skel["parentrepo"])
 
             if self.leafSkelCls:
                 self._clone_recursive("leaf", src_skel["key"], skel["key"], skel["parentrepo"])
 
 
-Tree.vi = True
-Tree.admin = True
+Tree.json = True

@@ -4,7 +4,6 @@ import json
 import logging
 import os
 import datetime
-from deprecated.sphinx import deprecated
 from viur.core import conf, utils, current, errors
 from viur.core.decorators import exposed
 from viur.core.bones import *
@@ -223,16 +222,16 @@ class Translation(List):
 
     cloneSkel = addSkel
 
-    def onAdded(self, *args, **kwargs):
-        super().onAdded(*args, **kwargs)
+    def thenAdd(self, *args, **kwargs):
+        super().thenAdd(*args, **kwargs)
         self._reload_translations()
 
-    def onEdited(self, *args, **kwargs):
-        super().onEdited(*args, **kwargs)
+    def thenEdit(self, *args, **kwargs):
+        super().thenEdit(*args, **kwargs)
         self._reload_translations()
 
-    def onDeleted(self, *args, **kwargs):
-        super().onDeleted(*args, **kwargs)
+    def thenDelete(self, *args, **kwargs):
+        super().thenDelete(*args, **kwargs)
         self._reload_translations()
 
     def _reload_translations(self):
@@ -274,6 +273,9 @@ class Translation(List):
         - `/json/_translation/dump?pattern=viur.*&language=en&language=de` for english and german translations
         - `/json/_translation/dump?pattern=viur.*&language=*` for all available language
         """
+        if not self.canDump(None):
+            raise errors.Unauthorized()
+
         if not utils.string.is_prefix(self.render.kind, "json"):
             raise errors.BadRequest("Can only use this function on JSON-based renders")
 
@@ -302,13 +304,13 @@ class Translation(List):
             for lang in language
         })
 
-    @exposed
-    @deprecated(
-        version="3.7.10",
-        reason="Function renamed. Use 'dump' function as alternative implementation.",
-    )
-    def get_public(self, *, languages: list[str] = [], **kwargs):
-        return self.dump(language=languages, **kwargs)
+    def canDump(self, skel: None) -> bool:
+        """
+        Access control function for :func:`dump`.
+
+        Allowed by default: only translations that ``conf.i18n.dump_can_view`` accepts or that are public are dumped.
+        """
+        return True
 
 
 Translation.json = True

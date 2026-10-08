@@ -55,11 +55,14 @@ class Singleton(SkelModule):
 
     ## External exposed functions
 
-    @exposed
+    @action
     def index(self):
+        if not self.canIndex(None):
+            raise errors.Unauthorized()
+
         return self.view()
 
-    @exposed
+    @action
     @skey
     def preview(self, *args, **kwargs) -> t.Any:
         """
@@ -72,15 +75,15 @@ class Singleton(SkelModule):
 
         :returns: The rendered representation of the supplied data.
         """
-        if not self.canPreview():
+        skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
+        if not self.canPreview(skel):
             raise errors.Unauthorized()
 
-        skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
         skel.fromClient(kwargs)
 
         return self.render.view(skel)
 
-    @exposed
+    @action
     def structure(self, action: t.Optional[str] = "view") -> t.Any:
         """
             :returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
@@ -92,20 +95,23 @@ class Singleton(SkelModule):
         match action:
             case "view":
                 skel = self.viewSkel()
-                if not self.canView():
+                if not self.canView(skel):
                     raise errors.Unauthorized()
 
             case "edit":
                 skel = self.editSkel()
-                if not self.canEdit():
+                if not self.canEdit(skel):
                     raise errors.Unauthorized()
 
             case _:
                 raise errors.NotImplemented(f"The action {action!r} is not implemented.")
 
+        if not self.canStructure(skel):
+            raise errors.Unauthorized()
+
         return self.render.render(f"structure.{action}", skel)
 
-    @exposed
+    @action
     def view(self, *args, **kwargs) -> t.Any:
         """
         Prepares and renders the singleton entry for viewing.
@@ -119,10 +125,10 @@ class Singleton(SkelModule):
         :raises: :exc:`viur.core.errors.NotFound`, if there is no singleton entry existing, yet.
         :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
-        if not self.canView():
+        skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
+        if not self.canView(skel):
             raise errors.Unauthorized()
 
-        skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
         key = self.getKey()  # The singleton's business key is its _id.
 
         if not skel.read(key):
@@ -131,7 +137,7 @@ class Singleton(SkelModule):
         self.onView(skel)
         return self.render.view(skel)
 
-    @exposed
+    @action
     @force_ssl
     @skey(allow_empty=True)
     def edit(self, *, bounce: bool = False, **kwargs) -> t.Any:
@@ -142,17 +148,17 @@ class Singleton(SkelModule):
         or as the first parameter in *args*. The function performs several access control checks
         on the singleton's entity before it is modified.
 
-        .. seealso:: :func:`editSkel`, :func:`onEdited`, :func:`canEdit`
+        .. seealso:: :func:`editSkel`, :func:`onEdit`, :func:`thenEdit`, :func:`canEdit`
 
         :returns: The rendered, edited object of the entry, eventually with error hints.
 
         :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
-        if not self.canEdit():
+        skel = self.editSkel()
+        if not self.canEdit(skel):
             raise errors.Unauthorized()
 
-        skel = self.editSkel()
         key = self.getKey()  # The singleton's business key is its _id.
         if not skel.read(key):  # Its not there yet; we need to set the key again
             skel["key"] = key
@@ -167,7 +173,7 @@ class Singleton(SkelModule):
 
         self.onEdit(skel)
         skel.write()
-        self.onEdited(skel)
+        self.thenEdit(skel)
         return self.render.editSuccess(skel)
 
     def getContents(
@@ -190,7 +196,31 @@ class Singleton(SkelModule):
 
         return skel
 
-    def canPreview(self) -> bool:
+    def canIndex(self, skel: None) -> bool:
+        """
+        Access control function for :func:`index`.
+
+        Allowed by default: index delegates to :func:`view`, whose own check applies.
+
+        :param skel: Always None; index has no skeleton of its own.
+
+        :returns: True, if the index may be used, False otherwise.
+        """
+        return True
+
+    def canStructure(self, skel: SkeletonInstance) -> bool:
+        """
+        Access control function for :func:`structure`.
+
+        Allowed by default: the structure of an action is checked by that action's own can-hook first.
+
+        :param skel: The Skeleton whose structure is requested.
+
+        :returns: True, if the structure may be retrieved, False otherwise.
+        """
+        return True
+
+    def canPreview(self, skel: SkeletonInstance) -> bool:
         """
         Access control function for preview permission.
 
@@ -206,6 +236,8 @@ class Singleton(SkelModule):
 
         .. seealso:: :func:`preview`
 
+        :param skel: The Skeleton of the entry that should be previewed.
+
         :returns: True, if previewing entries is allowed, False otherwise.
         """
         if not (user := current.user.get()):
@@ -219,7 +251,7 @@ class Singleton(SkelModule):
 
         return False
 
-    def canEdit(self) -> bool:
+    def canEdit(self, skel: SkeletonInstance) -> bool:
         """
         Access control function for modification permission.
 
@@ -234,6 +266,8 @@ class Singleton(SkelModule):
 
         .. seealso:: :func:`edit`
 
+        :param skel: The Skeleton of the entry that should be edited.
+
         :returns: True, if editing is allowed, False otherwise.
         """
         if not (user := current.user.get()):
@@ -247,7 +281,7 @@ class Singleton(SkelModule):
 
         return False
 
-    def canView(self) -> bool:
+    def canView(self, skel: SkeletonInstance) -> bool:
         """
         Access control function for viewing permission.
 
@@ -261,6 +295,8 @@ class Singleton(SkelModule):
         It should be overridden for a module-specific behavior.
 
         .. seealso:: :func:`view`
+
+        :param skel: The Skeleton of the entry that should be viewed.
 
         :returns: True, if viewing is allowed, False otherwise.
         """
@@ -280,11 +316,11 @@ class Singleton(SkelModule):
 
         :param skel: The Skeleton that is going to be edited.
 
-        .. seealso:: :func:`edit`, :func:`onEdited`
+        .. seealso:: :func:`edit`, :func:`thenEdit`
         """
         pass
 
-    def onEdited(self, skel: SkeletonInstance):
+    def thenEdit(self, skel: SkeletonInstance):
         """
         Hook function that is called after modifying the entry.
 
@@ -314,5 +350,4 @@ class Singleton(SkelModule):
         pass
 
 
-Singleton.admin = True
-Singleton.vi = True
+Singleton.json = True

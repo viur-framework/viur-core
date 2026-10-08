@@ -6,6 +6,7 @@ from viur.core.module import Method
 
 __all__ = [
     "access",
+    "action",
     "exposed",
     "force_post",
     "force_ssl",
@@ -47,6 +48,58 @@ def internal_exposed(func: t.Callable) -> Method:
     func = Method.ensure(func)
     func.exposed = False
     return func
+
+
+def action(
+    name: str | t.Callable | None = None,
+    *,
+    icon: str | None = None,
+    icon_library: str | None = None,
+    label: str | None = None,
+    order: int | None = None,
+) -> Method | t.Callable[[t.Callable], Method]:
+    """
+    Decorator, which marks a function as an action: an exposed standard endpoint with its own hooks.
+
+    For an action ``edit`` the hooks are ``canEdit`` / ``onEdit`` / ``thenEdit`` / ``editSkel``, each falling back
+    to the module's ``can`` / ``on`` / ``then`` / ``skel``; ``can`` is fail-closed. Endpoints outside this standard
+    use :func:`exposed` instead. Applied over :func:`internal_exposed`, the action stays internal.
+
+    .. code-block:: python
+
+        @action
+        def edit(self, key, **kwargs):
+            ...
+
+        @action("feedback", icon="pencil", icon_library="bootstrap", label="Compose", order=1)
+        def compose(self, **kwargs):
+            ...
+
+    :param name: Label reported as the envelope ``action`` while the method runs, so that several
+        endpoints form one action; by default the envelope reports the render verb.
+    :param icon: Icon of this step in the module's envelope ``steps`` map.
+    :param icon_library: Icon set of that icon.
+    :param label: Human-readable label of this step.
+    :param order: Position in the ``steps`` map; declaration order otherwise.
+    """
+    def decorator(func: t.Callable) -> Method:
+        func = Method.ensure(func)
+        func.is_action = True
+        if func.exposed is None:
+            func.exposed = True
+
+        func.action_name = name
+        if icon is not None or icon_library is not None or label is not None:
+            func.action_step = {"icon": icon, "icon_library": icon_library, "label": label, "order": order}
+
+        return func
+
+    # Used bare, as @action
+    if callable(name):
+        func, name = name, None
+        return decorator(func)
+
+    return decorator
 
 
 def force_ssl(func: t.Callable) -> Method:

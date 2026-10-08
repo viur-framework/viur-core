@@ -28,7 +28,7 @@ class List(SkelModule):
 
             This SkeletonInstance can be post-processed (just returning a subskel or manually removing single bones) - which
             is the recommended way to ensure a given user cannot see certain fields. A Jinja-Template may choose not to
-            display certain bones, but if the json or xml render is attached (or the user can use the vi or admin render)
+            display certain bones, but if the json or xml render is attached (which is what the admin uses)
             he could still see all values. This also prevents the user from filtering by these bones, so no binary search
             is possible.
 
@@ -94,7 +94,7 @@ class List(SkelModule):
 
     ## External exposed functions
 
-    @exposed
+    @action
     @force_post
     @skey
     def preview(self, *args, **kwargs) -> t.Any:
@@ -108,15 +108,15 @@ class List(SkelModule):
 
             :returns: The rendered representation of the supplied data.
         """
-        if not self.canPreview():
+        skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
+        if not self.canPreview(skel):
             raise errors.Unauthorized()
 
-        skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
         skel.fromClient(kwargs)
 
         return self.render.view(skel)
 
-    @exposed
+    @action
     def structure(self, action: t.Optional[str] = "view") -> t.Any:
         """
             :returns: Returns the structure of our skeleton as used in list/view. Values are the defaultValues set
@@ -137,22 +137,24 @@ class List(SkelModule):
                     raise errors.Unauthorized()
 
             case "add":
-                if not self.canAdd():
-                    raise errors.Unauthorized()
-
                 skel = self.addSkel()
+                if not self.canAdd(skel):
+                    raise errors.Unauthorized()
 
             case "clone":
                 skel = self.cloneSkel()
-                if not (self.canAdd() and self.canEdit(skel)):
+                if not self.canClone(skel):
                     raise errors.Unauthorized()
 
             case _:
                 raise errors.NotImplemented(f"The action {action!r} is not implemented.")
 
+        if not self.canStructure(skel):
+            raise errors.Unauthorized()
+
         return self.render.render(f"structure.{action}", skel)
 
-    @exposed
+    @action
     def view(self, key: str, *args, **kwargs) -> t.Any:
         """
             Prepares and renders a single entry for viewing.
@@ -179,7 +181,7 @@ class List(SkelModule):
         self.onView(skel)
         return self.render.view(skel)
 
-    @exposed
+    @action
     def list(self, *args, **kwargs) -> t.Any:
         """
             Prepares and renders a list of entries.
@@ -197,8 +199,10 @@ class List(SkelModule):
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
         """
         skel = self.viewSkel(allow_client_defined=utils.string.is_prefix(self.render.kind, "json"))
+        if not self.canList(skel):
+            raise errors.Unauthorized()
 
-        # The general access control is made via self.listFilter()
+        # Which entries are visible is decided by self.listFilter()
         if not (query := self.listFilter(skel.all().mergeExternalFilter(kwargs))):
             raise errors.Unauthorized()
 
@@ -206,7 +210,7 @@ class List(SkelModule):
         return self.render.list(query.fetch())
 
     @force_ssl
-    @exposed
+    @action
     @skey(allow_empty=True)
     def edit(self, key: str, *, bounce: bool = False, **kwargs) -> t.Any:
         """
@@ -217,7 +221,7 @@ class List(SkelModule):
             or as the first parameter in *args*. The function performs several access control checks
             on the requested entity before it is modified.
 
-            .. seealso:: :func:`editSkel`, :func:`onEdit`, :func:`onEdited`, :func:`canEdit`
+            .. seealso:: :func:`editSkel`, :func:`onEdit`, :func:`thenEdit`, :func:`canEdit`
 
             :returns: The rendered, edited object of the entry, eventually with error hints.
 
@@ -244,12 +248,12 @@ class List(SkelModule):
 
         self.onEdit(skel)
         skel.write()  # write it!
-        self.onEdited(skel)
+        self.thenEdit(skel)
 
         return self.render.editSuccess(skel)
 
     @force_ssl
-    @exposed
+    @action
     @skey(allow_empty=True)
     def add(self, *, bounce: bool = False, **kwargs) -> t.Any:
         """
@@ -258,17 +262,16 @@ class List(SkelModule):
 
             The function performs several access control checks on the requested entity before it is added.
 
-            .. seealso:: :func:`addSkel`, :func:`onAdd`, :func:`onAdded`, :func:`canAdd`
+            .. seealso:: :func:`addSkel`, :func:`onAdd`, :func:`thenAdd`, :func:`canAdd`
 
             :returns: The rendered, added object of the entry, eventually with error hints.
 
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
             :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
-        if not self.canAdd():
-            raise errors.Unauthorized()
-
         skel = self.addSkel()
+        if not self.canAdd(skel):
+            raise errors.Unauthorized()
 
         if (
             not kwargs  # no data supplied
@@ -281,13 +284,13 @@ class List(SkelModule):
 
         self.onAdd(skel)
         skel.write()
-        self.onAdded(skel)
+        self.thenAdd(skel)
 
         return self.render.addSuccess(skel)
 
     @force_ssl
     @force_post
-    @exposed
+    @action
     @skey
     def delete(self, key: str, **kwargs) -> t.Any:
         """
@@ -295,7 +298,7 @@ class List(SkelModule):
 
             The function runs several access control checks on the data before it is deleted.
 
-            .. seealso:: :func:`canDelete`, :func:`editSkel`, :func:`onDeleted`
+            .. seealso:: :func:`canDelete`, :func:`editSkel`, :func:`onDelete`, :func:`thenDelete`
 
             :returns: The rendered, deleted object of the entry.
 
@@ -312,11 +315,11 @@ class List(SkelModule):
 
         self.onDelete(skel)
         skel.delete()
-        self.onDeleted(skel)
+        self.thenDelete(skel)
 
         return self.render.deleteSuccess(skel)
 
-    @exposed
+    @action
     def index(self, key: str = None, *args, **kwargs) -> t.Any:
         """
             Default, SEO-Friendly fallback for view and list.
@@ -325,6 +328,9 @@ class List(SkelModule):
             :param kwargs: Used for the fallback list.
             :return: The rendered entity or list.
         """
+        if not self.canIndex(None):
+            raise errors.Unauthorized()
+
         if key:
             skel = self.viewSkel(
                 allow_client_defined=utils.string.is_prefix(self.render.kind, "json"),
@@ -354,7 +360,7 @@ class List(SkelModule):
     def getDefaultListParams(self):
         return {}
 
-    @exposed
+    @action
     @force_ssl
     @skey(allow_empty=True)
     def clone(self, key: str, *, bounce: bool = False, **kwargs):
@@ -364,7 +370,7 @@ class List(SkelModule):
 
         The function performs several access control checks on the requested entity before it is added.
 
-        .. seealso:: :func:`canEdit`, :func:`canAdd`, :func:`onClone`, :func:`onCloned`
+        .. seealso:: :func:`canClone`, :func:`onClone`, :func:`thenClone`
 
         :param key: URL-safe key of the item to be edited.
 
@@ -379,8 +385,7 @@ class List(SkelModule):
         if not skel.read(key):
             raise errors.NotFound()
 
-        # a clone-operation is some kind of edit and add...
-        if not (self.canEdit(skel) and self.canAdd()):
+        if not self.canClone(skel):
             raise errors.Unauthorized()
 
         # Remember source skel and unset the key for clone operation!
@@ -399,7 +404,7 @@ class List(SkelModule):
 
         self.onClone(skel, src_skel=src_skel)
         assert skel.write()
-        self.onCloned(skel, src_skel=src_skel)
+        self.thenClone(skel, src_skel=src_skel)
 
         return self.render.editSuccess(skel, action="cloneSuccess")
 
@@ -446,7 +451,45 @@ class List(SkelModule):
 
         return True
 
-    def canAdd(self) -> bool:
+    def canList(self, skel: SkeletonInstance) -> bool:
+        """
+            Access control function for listing entries.
+
+            Allowed by default: which entries a user may see is decided by :func:`listFilter`.
+
+            .. seealso:: :func:`list`, :func:`listFilter`
+
+            :param skel: The Skeleton the list is made of.
+
+            :returns: True, if listing is allowed, False otherwise.
+        """
+        return True
+
+    def canIndex(self, skel: None) -> bool:
+        """
+            Access control function for the SEO-friendly :func:`index`.
+
+            Allowed by default: index delegates to view or list, whose own checks apply.
+
+            :param skel: Always None; the entry is not known yet.
+
+            :returns: True, if the index may be used, False otherwise.
+        """
+        return True
+
+    def canStructure(self, skel: SkeletonInstance) -> bool:
+        """
+            Access control function for :func:`structure`.
+
+            Allowed by default: the structure of an action is checked by that action's own can-hook first.
+
+            :param skel: The Skeleton whose structure is requested.
+
+            :returns: True, if the structure may be retrieved, False otherwise.
+        """
+        return True
+
+    def canAdd(self, skel: SkeletonInstance) -> bool:
         """
             Access control function for adding permission.
 
@@ -460,6 +503,8 @@ class List(SkelModule):
             It should be overridden for a module-specific behavior.
 
             .. seealso:: :func:`add`
+
+            :param skel: The Skeleton that should be added.
 
             :returns: True, if adding entries is allowed, False otherwise.
         """
@@ -476,7 +521,7 @@ class List(SkelModule):
 
         return False
 
-    def canPreview(self) -> bool:
+    def canPreview(self, skel: SkeletonInstance) -> bool:
         """
             Access control function for preview permission.
 
@@ -491,6 +536,8 @@ class List(SkelModule):
             It should be overridden for module-specific behavior.
 
             .. seealso:: :func:`preview`
+
+            :param skel: The Skeleton that should be previewed.
 
             :returns: True, if previewing entries is allowed, False otherwise.
         """
@@ -568,6 +615,21 @@ class List(SkelModule):
 
         return False
 
+    def canClone(self, skel: SkeletonInstance) -> bool:
+        """
+            Access control function for cloning an entry.
+
+            A clone reads one entry and adds another, so by default it requires both :func:`canEdit`
+            and :func:`canAdd`.
+
+            .. seealso:: :func:`clone`
+
+            :param skel: The Skeleton that should be cloned.
+
+            :returns: True, if cloning the entry is allowed, False otherwise.
+        """
+        return self.canEdit(skel) and self.canAdd(skel)
+
     ## Override-able event-hooks
 
     def onAdd(self, skel: SkeletonInstance):
@@ -578,11 +640,11 @@ class List(SkelModule):
 
             :param skel: The Skeleton that is going to be added.
 
-            .. seealso:: :func:`add`, :func:`onAdded`
+            .. seealso:: :func:`add`, :func:`thenAdd`
         """
         pass
 
-    def onAdded(self, skel: SkeletonInstance):
+    def thenAdd(self, skel: SkeletonInstance):
         """
             Hook function that is called after adding an entry.
 
@@ -591,7 +653,7 @@ class List(SkelModule):
 
             :param skel: The Skeleton that has been added.
 
-            .. seealso:: :func:`add`, , :func:`onAdd`
+            .. seealso:: :func:`add`, :func:`onAdd`
         """
         logging.info(f"""Entry added: {skel["key"]!r}""")
         flushCache(kind=skel.kindName)
@@ -606,11 +668,11 @@ class List(SkelModule):
 
             :param skel: The Skeleton that is going to be edited.
 
-            .. seealso:: :func:`edit`, :func:`onEdited`
+            .. seealso:: :func:`edit`, :func:`thenEdit`
         """
         pass
 
-    def onEdited(self, skel: SkeletonInstance):
+    def thenEdit(self, skel: SkeletonInstance):
         """
             Hook function that is called after modifying an entry.
 
@@ -647,11 +709,11 @@ class List(SkelModule):
 
             :param skel: The Skeleton that is going to be deleted.
 
-            .. seealso:: :func:`delete`, :func:`onDeleted`
+            .. seealso:: :func:`delete`, :func:`thenDelete`
         """
         pass
 
-    def onDeleted(self, skel: SkeletonInstance):
+    def thenDelete(self, skel: SkeletonInstance):
         """
             Hook function that is called after deleting an entry.
 
@@ -676,11 +738,11 @@ class List(SkelModule):
         :param skel: The new SkeletonInstance that is being created.
         :param src_skel: The source SkeletonInstance `skel` is cloned from.
 
-        .. seealso:: :func:`clone`, :func:`onCloned`
+        .. seealso:: :func:`clone`, :func:`thenClone`
         """
         pass
 
-    def onCloned(self, skel: SkeletonInstance, src_skel: SkeletonInstance):
+    def thenClone(self, skel: SkeletonInstance, src_skel: SkeletonInstance):
         """
         Hook function that is called after cloning an entry.
 
@@ -698,5 +760,4 @@ class List(SkelModule):
             logging.info(f"""User: {user["name"]!r} ({user["key"]!r})""")
 
 
-List.admin = True
-List.vi = True
+List.json = True

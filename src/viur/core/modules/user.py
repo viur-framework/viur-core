@@ -4,7 +4,6 @@ import enum
 import fnmatch
 import hashlib
 import hmac
-import json
 import logging
 import secrets
 import time
@@ -141,11 +140,11 @@ class UserSkel(skeleton.Skeleton):
         to dynamically add bones required for the configured
         authentication methods.
         """
-        for provider in conf.main_app.vi.user.authenticationProviders:
+        for provider in conf.main_app.json.user.authenticationProviders:
             assert issubclass(provider, UserPrimaryAuthentication)
             provider.patch_user_skel(cls)
 
-        for provider in conf.main_app.vi.user.secondFactorProviders:
+        for provider in conf.main_app.json.user.secondFactorProviders:
             assert issubclass(provider, UserSecondFactorAuthentication)
             provider.patch_user_skel(cls)
 
@@ -161,14 +160,14 @@ class UserSkel(skeleton.Skeleton):
 
             for role in skel["roles"]:
                 # Get default access for this role
-                access |= conf.main_app.vi.user.get_role_defaults(role)
+                access |= conf.main_app.json.user.get_role_defaults(role)
 
                 # Go through all modules and evaluate available role-settings
-                for name in dir(conf.main_app.vi):
+                for name in dir(conf.main_app.json):
                     if name.startswith("_"):
                         continue
 
-                    module = getattr(conf.main_app.vi, name)
+                    module = getattr(conf.main_app.json, name)
                     if not isinstance(module, Module):
                         continue
 
@@ -345,6 +344,8 @@ class UserPassword(UserPrimaryAuthentication):
     def login(self, **kwargs):
         # Obtain a fresh login skel
         skel = self.LoginSkel()
+        if not self.canLogin(skel):
+            raise errors.Unauthorized()
 
         # Read required bones from client
         if not (kwargs and skel.fromClient(kwargs)):
@@ -414,6 +415,9 @@ class UserPassword(UserPrimaryAuthentication):
             To prevent automated attacks, the first step is guarded by limited calls to this function to 10 actions
             per 15 minutes. (One complete recovery process consists of two calls).
         """
+        if not self.canPwrecover(None):
+            raise errors.Unauthorized()
+
         self.passwordRecoveryRateLimit.assertQuotaIsAvailable()
         current_request = current.request.get()
 
@@ -546,6 +550,9 @@ class UserPassword(UserPrimaryAuthentication):
     @exposed
     @skey(forward_payload="data", session_bound=False)
     def verify(self, data):
+        if not self.canVerify(None):
+            raise errors.Unauthorized()
+
         def transact(key):
             skel = self._user_module.editSkel()
             if not key or not skel.read(key):
@@ -562,7 +569,20 @@ class UserPassword(UserPrimaryAuthentication):
 
         return self._user_module.render.view(skel, tpl=self.verifySuccessTemplate)
 
-    def canAdd(self) -> bool:
+    def canLogin(self, skel: skeleton.SkeletonInstance) -> bool:
+        """Access control function for :func:`login`; open to anyone, as the credentials decide."""
+        return True
+
+    def canPwrecover(self, skel: None) -> bool:
+        """Access control function for :func:`pwrecover`; open to anyone, guarded by a rate limit."""
+        return True
+
+    def canVerify(self, skel: None) -> bool:
+        """Access control function for :func:`verify`; open to anyone, as the signed payload decides."""
+        return True
+
+    def canAdd(self, skel: skeleton.SkeletonInstance) -> bool:
+        """Access control function for :func:`add`, the self-registration; allowed if registration is enabled."""
         return self.registrationEnabled
 
     def addSkel(self) -> skeleton.SkeletonInstance["UserSkel"]:
@@ -596,17 +616,16 @@ class UserPassword(UserPrimaryAuthentication):
         """
             Allows guests to register a new account if self.registrationEnabled is set to true
 
-            .. seealso:: :func:`addSkel`, :func:`onAdded`, :func:`canAdd`, :func:`onAdd`
+            .. seealso:: :func:`addSkel`, :func:`canAdd`, :func:`onAdd`, :func:`thenAdd`
 
             :returns: The rendered, added object of the entry, eventually with error hints.
 
             :raises: :exc:`viur.core.errors.Unauthorized`, if the current user does not have the required permissions.
             :raises: :exc:`viur.core.errors.PreconditionFailed`, if the *skey* could not be verified.
         """
-        if not self.canAdd():
-            raise errors.Unauthorized()
-
         skel = self.addSkel()
+        if not self.canAdd(skel):
+            raise errors.Unauthorized()
 
         if (
             not kwargs  # no data supplied
@@ -629,7 +648,7 @@ class UserPassword(UserPrimaryAuthentication):
             skel["skey"] = skey
             email.send_email(dests=[skel["name"]], tpl=self.verifyEmailAddressMail, skel=skel)
 
-        self._user_module.onAdded(skel)  # Call onAdded on our parent user module
+        self._user_module.thenAdd(skel)  # Call thenAdd on our parent user module
         return self._user_module.render.addSuccess(skel)
 
 
@@ -668,6 +687,9 @@ class GoogleAccount(UserPrimaryAuthentication):
     @force_ssl
     @skey(allow_empty=True)
     def login(self, token: str | None = None, *args, **kwargs):
+        if not self.canLogin(None):
+            raise errors.Unauthorized()
+
         if not conf.user.google_client_id:
             raise errors.PreconditionFailed("Please configure conf.user.google_client_id!")
 
@@ -732,6 +754,10 @@ class GoogleAccount(UserPrimaryAuthentication):
             assert user_skel.write()
 
         return self.next_or_finish(user_skel)
+
+    def canLogin(self, skel: None) -> bool:
+        """Access control function for :func:`login`; open to anyone, as the Google token decides."""
+        return True
 
 
 class UserSecondFactorAuthentication(UserAuthentication, abc.ABC):
@@ -844,6 +870,9 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
 
         A special otp_user_conf has to be specified as a dict, which is stored into the session.
         """
+        if not self.canStart(None):
+            raise errors.Unauthorized()
+
         session = current.session.get()
 
         if not (user_key := session.get("possible_user_key")):
@@ -876,6 +905,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
                 "action_name": self.ACTION_NAME,
                 "action_url": f"{self.modulePath}/{self.ACTION_NAME}",
             },
+            follow=f"{self.modulePath}/{self.ACTION_NAME}",
             tpl=self.second_factor_login_template
         )
 
@@ -886,6 +916,9 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
         """
         Performs the second factor validation and interaction with the client.
         """
+        if not self.canOtp(None):
+            raise errors.Unauthorized()
+
         session = current.session.get()
         if not (otp_user_conf := session.get("_otp_user")):
             raise errors.PreconditionFailed("No OTP process started in this session")
@@ -922,6 +955,7 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
                 ),
                 action_name=self.ACTION_NAME,
                 action_url=f"{self.modulePath}/{self.ACTION_NAME}",
+                follow=f"{self.modulePath}/{self.ACTION_NAME}",
                 tpl=self.second_factor_login_template
             )
 
@@ -1021,6 +1055,14 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
                     },
                     update_relations=False,
                 )
+
+    def canStart(self, skel: None) -> bool:
+        """Access control function for :func:`start`; open, as it requires a passed primary authentication."""
+        return True
+
+    def canOtp(self, skel: None) -> bool:
+        """Access control function for :func:`otp`; open, as it requires a started OTP process."""
+        return True
 
 
 class AuthenticatorOTP(UserSecondFactorAuthentication):
@@ -1158,6 +1200,9 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
 
     @exposed
     def start(self):
+        if not self.canStart(None):
+            raise errors.Unauthorized()
+
         otp_user_conf = {"attempts": 0}
         session = current.session.get()
         session["_otp_user"] = otp_user_conf
@@ -1172,6 +1217,7 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
                 "action_name": self.ACTION_NAME,
                 "action_url": self.action_url,
             },
+            follow=self.action_url,
             tpl=self.second_factor_login_template,
         )
 
@@ -1182,6 +1228,9 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         """
         We verify the otp here with the secret we stored before.
         """
+        if not self.canAuthenticatorOtp(None):
+            raise errors.Unauthorized()
+
         session = current.session.get()
         user_key = session["possible_user_key"]  # already the _id
 
@@ -1213,8 +1262,17 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
             ),
             action_name=self.ACTION_NAME,
             action_url=self.action_url,
+            follow=self.action_url,
             tpl=self.second_factor_login_template,
         )
+
+    def canStart(self, skel: None) -> bool:
+        """Access control function for :func:`start`; open to anyone starting the second factor."""
+        return True
+
+    def canAuthenticatorOtp(self, skel: None) -> bool:
+        """Access control function for :func:`authenticator_otp`; open, as it requires a started OTP process."""
+        return True
 
 
 class User(List):
@@ -1311,7 +1369,7 @@ class User(List):
                         ),
                         "icon": "trash2-fill",
                         "action": "fetch",
-                        "url": "/vi/{{module}}/trigger/kick/{{key}}",
+                        "url": "/json/{{module}}/trigger/kick/{{key}}",
                         "confirm": i18n.translate(
                             key="viur.core.modules.user.customActions.kick.confirm",
                             defaultText="Do you really want to drop all sessions of the selected user from the system?",
@@ -1329,7 +1387,7 @@ class User(List):
                         ),
                         "icon": "file-person-fill",
                         "action": "fetch",
-                        "url": "/vi/{{module}}/trigger/takeover/{{key}}",
+                        "url": "/json/{{module}}/trigger/takeover/{{key}}",
                         "confirm": i18n.translate(
                             key="viur.core.modules.user.customActions.takeover.confirm",
                             defaultText="Do you really want to replace your current user session by a "
@@ -1548,7 +1606,7 @@ class User(List):
         current.request.get().response.headers[securitykey.SECURITYKEY_STATIC_HEADER] = session.static_security_key
         current.user.set(self.getCurrentUser())
 
-        self.onLogin(skel)
+        self.thenLogin(skel)
 
         return self.render.render("login_success", skel, **kwargs)
 
@@ -1581,6 +1639,8 @@ class User(List):
     @exposed
     def select_authentication_provider(self, **kwargs):
         skel = self.SelectAuthenticationProviderSkel()
+        if not self.canSelectAuthenticationProvider(skel):
+            raise errors.Unauthorized()
 
         # Read required bones from client
         if len(skel.provider.values) > 1 and (not kwargs or not skel.fromClient(kwargs)):
@@ -1600,6 +1660,8 @@ class User(List):
     @exposed
     def select_secondfactor_provider(self, **kwargs):
         skel = self.SelectSecondFactorProviderSkel()
+        if not self.canSelectSecondfactorProvider(skel):
+            raise errors.Unauthorized()
 
         # Read required bones from client
         if not kwargs or not skel.fromClient(kwargs):
@@ -1616,7 +1678,8 @@ class User(List):
             Implements the logout action. It also terminates the current session (all keys not listed
             in viur.session_persistent_fields_on_logout will be lost).
         """
-        if not (user := current.user.get()):
+        user = current.user.get()
+        if not self.canLogout(user):
             raise errors.Unauthorized()
 
         self.onLogout(user)
@@ -1635,11 +1698,14 @@ class User(List):
 
     @exposed
     def login(self, *args, **kwargs):
+        if not self.canLogin(None):
+            raise errors.Unauthorized()
+
         return self.select_authentication_provider()
 
-    def onLogin(self, skel: skeleton.SkeletonInstance):
+    def thenLogin(self, skel: skeleton.SkeletonInstance):
         """
-        Hook to be called on user login.
+        Hook to be called after a user logged in.
         """
         # Update the lastlogin timestamp (if available!)
         if "lastlogin" in skel:
@@ -1654,11 +1720,11 @@ class User(List):
 
     def onLogout(self, skel: skeleton.SkeletonInstance):
         """
-        Hook to be called on user logout.
+        Hook to be called before a user is logged out.
         """
         logging.info(f"""User {skel["name"]} logged out""")
 
-    @exposed
+    @action
     def view(self, key: str = "self", *args, **kwargs):
         """
             Allow a special key "self" to reference the current user.
@@ -1689,7 +1755,7 @@ class User(List):
 
         return False
 
-    @exposed
+    @action
     @skey(allow_empty=True)
     def edit(self, key: str = "self", *args, **kwargs):
         """
@@ -1711,28 +1777,8 @@ class User(List):
         return super().edit(key, *args, **kwargs)
 
     @exposed
-    def getAuthMethods(self, *args, **kwargs):
-        """Legacy method prior < viur-core 3.8: Inform tools like Admin which authentication to use"""
-        logging.warning("DEPRECATED!!! Use '/user/login'-method for this, or update your admin version!")
-
-        res = [
-            (primary.METHOD_NAME, secondary.METHOD_NAME if secondary else None)
-            for primary, secondary in self.validAuthenticationMethods
-        ]
-
-        return json.dumps(res)
-
-    @exposed
     def trigger(self, action: str, key: str):
-        # Check for provided access right definition (equivalent to client-side check), fallback to root!
-        access = self.adminInfo().get("customActions", {}).get(f"trigger_{action}", {}).get("access") or ()
-        if not (
-            (cuser := current.user.get())
-            and (
-                any(role in cuser["access"] for role in access)
-                or self.is_admin(cuser)
-            )
-        ):
+        if not self.canTrigger(None, action=action):
             raise errors.Unauthorized()
 
         skel = self.skel()
@@ -1768,7 +1814,7 @@ class User(List):
         The caller spins up a temporary local HTTP server (e.g. on ``http://localhost:60000``)
         and passes its address as *redirect_to*::
 
-            /vi/user/get_cookie_for_app?redirect_to=http://localhost:60000
+            /json/user/get_cookie_for_app?redirect_to=http://localhost:60000
 
         After the user authenticates in the browser, the backend redirects to::
 
@@ -1817,6 +1863,9 @@ class User(List):
             :attr:`conf.user.redirect_whitelist`.
         :raises errors.Redirect: Always raised when *redirect_to* is supplied and allowed.
         """
+        if not self.canGetCookieForApp(None):
+            raise errors.Unauthorized()
+
         if redirect_to:
             whitelist = utils.ensure_iterable(conf.user.redirect_whitelist)
             if not any(fnmatch.fnmatch(redirect_to, pat) for pat in whitelist):
@@ -1891,6 +1940,9 @@ class User(List):
         :raises errors.BadRequest: When the cookie string does not contain a recognisable session
             cookie (i.e. :attr:`Session.cookie_name` is absent after parsing).
         """
+        if not self.canApplyLoginCookie(None):
+            raise errors.Unauthorized()
+
         cookies = SimpleCookie()
         cookies.load(cookie)
         if Session.cookie_name in cookies:
@@ -1902,8 +1954,52 @@ class User(List):
         else:
             raise errors.BadRequest
 
-    def onEdited(self, skel):
-        super().onEdited(skel)
+    def canSelectAuthenticationProvider(self, skel: skeleton.SkeletonInstance) -> bool:
+        """Access control function for :func:`select_authentication_provider`; open to anyone."""
+        return True
+
+    def canSelectSecondfactorProvider(self, skel: skeleton.SkeletonInstance) -> bool:
+        """Access control function for :func:`select_secondfactor_provider`; open to anyone."""
+        return True
+
+    def canLogin(self, skel: None) -> bool:
+        """Access control function for :func:`login`; open to anyone."""
+        return True
+
+    def canLogout(self, skel: skeleton.SkeletonInstance | None) -> bool:
+        """
+        Access control function for :func:`logout`; only a logged-in user can log out.
+
+        :param skel: The current user, or None.
+        """
+        return skel is not None
+
+    def canTrigger(self, skel: None, action: str) -> bool:
+        """
+        Access control function for :func:`trigger`.
+
+        Allowed for the roles listed as ``access`` of the custom action ``trigger_<action>`` in the
+        :attr:`adminInfo` (the same check the admin does), and for administrators.
+
+        :param skel: Always None; the target user is read after this check.
+        :param action: The triggered action, e.g. "kick" or "takeover".
+        """
+        access = self.adminInfo().get("customActions", {}).get(f"trigger_{action}", {}).get("access") or ()
+        return bool(
+            (cuser := current.user.get())
+            and (any(role in cuser["access"] for role in access) or self.is_admin(cuser))
+        )
+
+    def canGetCookieForApp(self, skel: None) -> bool:
+        """Access control function for :func:`get_cookie_for_app`; the ``access`` guard admits administrators."""
+        return True
+
+    def canApplyLoginCookie(self, skel: None) -> bool:
+        """Access control function for :func:`apply_login_cookie`; open to anyone, as the cookie decides."""
+        return True
+
+    def thenEdit(self, skel):
+        super().thenEdit(skel)
 
         # In case the user is set to inactive, kill all sessions
         if self.is_active(skel) is False:
@@ -1913,8 +2009,8 @@ class User(List):
         else:
             session.update_session_user(skel["key"], skel.kindName)
 
-    def onDeleted(self, skel):
-        super().onDeleted(skel)
+    def thenDelete(self, skel):
+        super().thenDelete(skel)
         # Invalidate all sessions of that user
         session.killSessionByUser(skel["key"])
 
@@ -1925,7 +2021,7 @@ def createNewUserIfNotExists():
         Create a new Admin user, if the userDB is empty
     """
     if (
-        (user_module := getattr(conf.main_app.vi, "user", None))
+        (user_module := getattr(conf.main_app.json, "user", None))
         and isinstance(user_module, User)
         and "addSkel" in dir(user_module)
         and "validAuthenticationMethods" in dir(user_module)

@@ -85,7 +85,7 @@ class Email(List):
         "admin": "*",
     }
 
-    def canAdd(self):
+    def canAdd(self, skel):
         return False
 
     def editSkel(self):

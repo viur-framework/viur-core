@@ -2,6 +2,36 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [develop] - Current development version
+
+- [Breaking] feat: Actions as the standard (from viur-actions): `@action` marks a standard endpoint - routable like
+  `@exposed`, plus the hooks `can<Action>` / `on<Action>` / `then<Action>` / `<action>Skel`, falling back to `can` /
+  `on` / `then` / `skel`; `can` is fail-closed. Every prototype endpoint is an `@action`; `@exposed` stays for free
+  endpoints. Every core endpoint calls its own `can<Action>`, new ones include `canList`, `canIndex`,
+  `canStructure`, `canClone`, `canAddOrEdit`, `canLogout` and `canTrigger`
+- [Breaking] feat: Every hook takes the skeleton: `canAdd(skel)`, `canPreview(skel)`, `Singleton.canView(skel)` /
+  `canEdit(skel)`; `Tree` hooks lose `skelType` (use `Tree.skel_type_of(skel)`), `canMove(skel, dest_skel=...)`,
+  `checkDeletePreconditions(skel)`, `onDeleteRecursive(skel)`
+- [Breaking] chore: Post-hooks are `then<Action>`: `onAdded` -> `thenAdd`, `onEdited` -> `thenEdit`, `onDeleted` ->
+  `thenDelete`, `onCloned` -> `thenClone`, `User.onLogin` -> `thenLogin`; `Tree.move` calls `onMove` / `thenMove`
+- [Breaking] feat: The JSON renderer answers with the response envelope, version 2 (`version`, `action`, `status`,
+  `step`, `step_status`, `steps`, `follow`, `datatype`, `module`, `structure`, `data`, `errors`, plus `meta` for
+  lists); `@action("name", icon=..., label=..., order=...)` describes an action in it
+- [Breaking] chore: Remove the `vi` and `admin` renderers; the admin uses `/json/`, and `/vi/` stays as an alias
+  of `/json/` (the same routes and actions, answered with the envelope). `/vi/config`, `/vi/routes`,
+  `/vi/setLanguage` and `/vi/timestamp` moved to `/json/`, the admin redirect `/vi/` to `/json/admin`;
+  `/vi/getStructure`, `/vi/getVersion` and `/vi/settings` are gone. `List`, `Tree` and `Singleton` are built for
+  `json` by default, `conf.main_app.vi` is `conf.main_app.json`
+- [Breaking] chore: Remove `conf.security.admin_allowed_paths` and the router's `canAccess` guard
+- feat: `Module.has_context(name)` replaces `self.render.kind == "json.vi"`: a client names its contexts in the
+  header `X-VIUR-CONTEXT` (the admin sends `admin`); a context counts only for users with one of the access rights
+  `conf.security.contexts` lists for it (`{"admin": ("admin", "root")}` by default). The response varies on the
+  header, and `conf.security.cors_allow_headers` allows it by default
+- [Breaking] chore: Remove the deprecated endpoints `user/getAuthMethods` and `_translation/get_public`, and
+  `DefaultRender.renderSkelValues` / `renderBoneValue`
+- [Breaking] feat: `Formmailer` sends in `add`; `canUse()` is `canAdd(skel)`, `onAdded` is `thenAdd`
+- [Breaking] chore: `add_or_edit` is guarded by `canAddOrEdit` instead of `@access("root")`
+
 ## [3.9.1]
 
 - doc: Adding `whatsnew` guides for v3.8 + v3.9

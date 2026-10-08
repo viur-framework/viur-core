@@ -46,7 +46,7 @@ class TestReadAllModules(ViURTestCase):
         vi._moduleconf.addSkel = lambda: FakeSkel(written)
 
         main_app = mock.Mock()
-        main_app.vi = vi
+        main_app.json = vi
 
         fake_db = mock.MagicMock()
         fake_db.Query.return_value.run.return_value = [{"name": name} for name in in_db]

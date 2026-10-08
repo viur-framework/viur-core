@@ -17,7 +17,7 @@ from google.appengine.api import wrap_wsgi_app
 from types import ModuleType
 from viur.core import i18n, request, utils
 from viur.core.config import conf
-from viur.core.decorators import access, exposed, force_post, force_ssl, internal_exposed, skey
+from viur.core.decorators import access, action, exposed, force_post, force_ssl, internal_exposed, skey
 from viur.core.request import before_request, after_request
 from viur.core.i18n import translate
 from viur.core.module import Method, Module
@@ -61,6 +61,7 @@ __all__ = [
     "PeriodicTask",
     # Decorators
     "access",
+    "action",
     "after_request",
     "before_request",
     "exposed",
@@ -180,7 +181,7 @@ def __build_app(modules: ModuleType | object, renderers: ModuleType | object, de
         if module_name == "index":
             continue  # ignore index, as it has been processed before!
 
-        if module_name in renderers:
+        if module_name in renderers or module_name == "vi":
             raise NameError(f"Cannot name module {module_name!r}, as it is a reserved render's name")
 
         if not (  # we define the cases we want to use and then negate them all
@@ -240,6 +241,10 @@ def __build_app(modules: ModuleType | object, renderers: ModuleType | object, de
     if conf.debug.trace:
         import pprint
         logging.debug(pprint.pformat(resolver))
+
+    # /vi/ was the admin's namespace; it serves the very same routes as /json/.
+    if "json" in resolver:
+        resolver["vi"] = resolver["json"]
 
     conf.main_resolver = resolver
     conf.main_app = index

@@ -99,7 +99,7 @@ class RelationalBone(BaseBone):
 
             - structure
                 The structure of the skeleton this bone is part of as a dictionary as it's transferred to the
-                fronted by the admin/vi-render.
+                frontend by the json render.
 
             - language
                 The current language used by the frontend in ISO2 code (eg. "de"). This will be always set, even if
@@ -195,7 +195,7 @@ class RelationalBone(BaseBone):
                     relation is multiple (in which case the expression is evaluated once per referenced entity)
                 :param structure:
                     The structure of the skeleton this bone is part of as a dictionary as it's
-                    transferred to the fronted by the admin/vi-render.
+                    transferred to the frontend by the json render.
                 :param language:
                     The current language used by the frontend in ISO2 code (eg. "de"). This will be
                     always set, even if the project did not enable the multi-language feature.

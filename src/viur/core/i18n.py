@@ -205,7 +205,7 @@ class translate:
             as the key/defaultText may have different meanings in the
             target language.
         :param force_lang: Use this language instead the one of the request.
-        :param public: Flag for public translations, which can be obtained via /json/_translate/get_public.
+        :param public: Flag for public translations, which can be obtained via /json/_translation/dump.
         :param default_variables: Default values for variable substitution.
         :param caller_is_jinja: Is the call caused by our jinja method?
         """

@@ -471,30 +471,17 @@ class Security(ConfigType):
     closed_system: bool = False
     """If `True` it activates a mode in which only authenticated users can access all routes."""
 
-    admin_allowed_paths: t.Iterable[str] = [
-        "vi",
-        "vi/config",
-        "vi/skey",
-        "vi/user/auth_*",
-        "vi/user/f2_*",
-        "vi/user/login",
-        "vi/user/select_authentication_provider",
-        # DEPRECATED:
-        "vi/settings",  # FIXME: Deprecated; vi-admin 4.x backward compatiblity
-        "vi/user/getAuthMethods",  # FIXME: Deprecated; vi-admin 4.x backward compatiblity
-    ]
-    """Specifies admin tool paths which are being accessible without authenticated user."""
-
-    closed_system_allowed_paths: t.Iterable[str] = admin_allowed_paths + [
+    closed_system_allowed_paths: t.Iterable[str] = [
         "",  # index site
+        "json/admin",
+        "json/config",
         "json/skey",
+        "json/user/select_authentication_provider",
         "json/user/auth_*",
         "json/user/f2_*",
-        "json/user/getAuthMethods",  # FIXME: deprecated, use `login` for this
         "json/user/login",
         "user/auth_*",
         "user/f2_*",
-        "user/getAuthMethods",  # FIXME: deprecated, use `login` for this
         "user/select_authentication_provider",
         "user/login",
     ]
@@ -516,14 +503,21 @@ class Security(ConfigType):
     cors_methods: t.Iterable[str] = ["get", "head", "post", "options"]  # , "put", "patch", "delete"]
     """Access-Control-Request-Method"""
 
-    cors_allow_headers: t.Iterable[str | re.Pattern] | t.Literal["*"] = []
+    cors_allow_headers: t.Iterable[str | re.Pattern] | t.Literal["*"] = ["X-VIUR-CONTEXT"]
     """Access-Control-Request-Headers
+
+    Allows X-VIUR-CONTEXT by default, with which a client such as the admin names its contexts (see
+    ``Module.has_context``) - extend this list instead of replacing it.
 
     Can also be set for specific @exposed methods with the @cors decorator.
 
     Pattern should be case-insensitive, for example:
         >>> re.compile(r"^X-ViUR-.*$", flags=re.IGNORECASE)
     """
+
+    contexts: dict[str, t.Iterable[str]] = {"admin": ("admin", "root")}
+    """Contexts a client may ask for with the X-VIUR-CONTEXT header, each with the access rights of which a user needs
+    one to get it, see ``Module.has_context``. The admin asks for "admin", its management view."""
 
     cors_allow_credentials: bool = False
     """

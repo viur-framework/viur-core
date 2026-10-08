@@ -946,7 +946,7 @@ class File(Tree):
         blob = bucket.blob(path)
         return io.BytesIO(blob.download_as_bytes()), blob.content_type
 
-    def onDeleteRecursive(self, skelType: SkelType, skel: SkeletonInstance) -> None:
+    def onDeleteRecursive(self, skel: SkeletonInstance) -> None:
         """
         Mark the blob of each cascaded file for deletion.
 
@@ -955,7 +955,7 @@ class File(Tree):
         marking a leaf's blob for deletion, which is injected via this hook.
         Directories (nodes) have no blob and are ignored.
         """
-        if skelType == "leaf":
+        if self.skel_type_of(skel) == "leaf":
             self.mark_for_deletion(skel["dlkey"])
 
     @exposed
@@ -970,6 +970,9 @@ class File(Tree):
             authSig: t.Optional[str] = None,
             public: bool = False,
     ):
+        if not self.canGetUploadURL(None):
+            raise errors.Unauthorized()
+
         filename = fileName.strip()  # VIUR4 FIXME: just for compatiblity of the parameter names
 
         if not self.is_valid_filename(filename):
@@ -1013,7 +1016,10 @@ class File(Tree):
             if node and not (rootNode := self.getRootNode(node)):
                 raise errors.NotFound(f"No valid root node found for {node=}")
 
-            if not self.canAdd("leaf", rootNode):
+            # canAdd gets the target folder as parententry, like for every other entry of a tree
+            upload_skel = self.addSkel("leaf")
+            upload_skel["parententry"] = node or None
+            if not self.canAdd(upload_skel):
                 raise errors.Forbidden()
 
             if rootNode and public != bool(rootNode.get("public")):
@@ -1084,6 +1090,9 @@ class File(Tree):
         :param fileName: Optional filename to provide in the header.
         :param download: Set header to attachment retrival, set explictly to "1" if download is wanted.
         """
+        if not self.canDownload(None):
+            raise errors.Unauthorized()
+
         if filename := fileName.strip():
             if not self.is_valid_filename(filename):
                 raise errors.UnprocessableEntity(f"The provided filename {filename!r} is invalid!")
@@ -1218,6 +1227,8 @@ class File(Tree):
 
         :return: Returns the requested content on success, raises a proper HTTP exception otherwise.
         """
+        if not self.canServe(None):
+            raise errors.Unauthorized()
 
         if any(c not in conf.search_valid_chars for c in host):
             raise errors.BadRequest("key contains invalid characters")
@@ -1256,7 +1267,7 @@ class File(Tree):
 
         return answ.content
 
-    @exposed
+    @action
     @force_ssl
     @force_post
     @skey(allow_empty=True)
@@ -1280,7 +1291,7 @@ class File(Tree):
             else:
                 rootNode = None
 
-            if not self.canAdd("leaf", rootNode):
+            if not self.canAdd(skel):
                 # Check for a marker in this session (created if using a signed upload URL)
                 session = current.session.get()
                 if targetKey not in (session.get("pendingFileUploadKeys") or []):
@@ -1308,9 +1319,9 @@ class File(Tree):
             skel["weak"] = rootNode is None
             skel["crc32c_checksum"] = base64.b64decode(blob.crc32c).hex()
             skel["md5_checksum"] = base64.b64decode(blob.md5_hash).hex()
-            self.onAdd("leaf", skel)
+            self.onAdd(skel)
             skel.write()
-            self.onAdded("leaf", skel)
+            self.thenAdd(skel)
 
             # Add updated download-URL as the auto-generated isn't valid yet.
             # Same lifetime as DownloadUrlBone, which this replaces.
@@ -1347,7 +1358,7 @@ class File(Tree):
         if not (skel and skel.read(key)):
             raise errors.NotFound()
 
-        if not self.canView("leaf", skel):
+        if not (self.canView(skel) and self.canGetDownloadUrl(skel)):
             raise errors.Unauthorized()
 
         dlkey = skel["dlkey"]
@@ -1371,11 +1382,35 @@ class File(Tree):
 
         return self.render.view(res)
 
-    def onEdit(self, skelType: SkelType, skel: SkeletonInstance):
-        super().onEdit(skelType, skel)
+    def canGetUploadURL(self, skel: None) -> bool:
+        """
+        Access control function for :func:`getUploadURL`.
 
-        if skelType == "leaf":
-            old_skel = self.editSkel(skelType)
+        Allowed by default: an upload needs either a valid signature or :func:`canAdd`, checked inside.
+        """
+        return True
+
+    def canDownload(self, skel: None) -> bool:
+        """Access control function for :func:`download`; allowed, as every download URL is signed."""
+        return True
+
+    def canServe(self, skel: None) -> bool:
+        """Access control function for :func:`serve`; allowed, as it only proxies public serving URLs."""
+        return True
+
+    def canGetDownloadUrl(self, skel: SkeletonInstance) -> bool:
+        """
+        Access control function for :func:`get_download_url`; allowed for every file the user may view.
+
+        :param skel: The file the download URL is requested for.
+        """
+        return True
+
+    def onEdit(self, skel: SkeletonInstance):
+        super().onEdit(skel)
+
+        if self.skel_type_of(skel) == "leaf":
+            old_skel = self.editSkel("leaf")
             old_skel.setEntity(skel.dbEntity)
 
             if old_skel["name"] == skel["name"]:  # name not changed we can return
@@ -1394,14 +1429,14 @@ class File(Tree):
             bucket.copy_blob(old_blob, bucket, new_path, if_generation_match=0)
             bucket.delete_blob(old_path)
 
-    def onAdded(self, skelType: SkelType, skel: SkeletonInstance) -> None:
-        if skelType == "leaf" and skel["mimetype"].startswith("image/"):
+    def thenAdd(self, skel: SkeletonInstance) -> None:
+        if self.skel_type_of(skel) == "leaf" and skel["mimetype"].startswith("image/"):
             if skel["size"] > self.IMAGE_META_MAX_SIZE:
                 logging.warning(f"File size {skel['size']} exceeds limit {self.IMAGE_META_MAX_SIZE=}")
                 return
             self.set_image_meta(skel["key"])
 
-        super().onAdded(skelType, skel)
+        super().thenAdd(skel)
 
     @CallDeferred
     def set_image_meta(self, key: str) -> None:

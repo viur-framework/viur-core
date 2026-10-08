@@ -186,13 +186,13 @@ class SkelModule(Module):
 
     @force_ssl
     @force_post
-    @exposed
+    @action
     @skey
-    @access("root")
     def add_or_edit(self, key: str, **kwargs) -> t.Any:
         """
         This function is intended to be used by importers.
-        Only "root"-users are allowed to use it.
+
+        .. seealso:: :func:`canAddOrEdit`
         """
 
         # An _id carries no kind that could be adjusted any more — a plain type check is all there is.
@@ -213,6 +213,9 @@ class SkelModule(Module):
 
         skel["key"] = db_key
 
+        if not self.canAddOrEdit(skel):
+            raise errors.Unauthorized()
+
         if (
             not kwargs  # no data supplied
             or not skel.fromClient(  # failure on reading into the bones
@@ -231,8 +234,20 @@ class SkelModule(Module):
         skel.write()
 
         if is_add:
-            self.onAdded(skel)
+            self.thenAdd(skel)
             return self.render.addSuccess(skel)
 
-        self.onEdited(skel)
+        self.thenEdit(skel)
         return self.render.editSuccess(skel)
+
+    def canAddOrEdit(self, skel: SkeletonInstance) -> bool:
+        """
+        Access control function for :func:`add_or_edit`, the import interface.
+
+        Only "root"-users are allowed to use it by default.
+
+        :param skel: The Skeleton that is going to be added or edited.
+
+        :returns: True, if importing is allowed, False otherwise.
+        """
+        return bool((user := current.user.get()) and user["access"] and "root" in user["access"])

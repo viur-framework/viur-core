@@ -52,7 +52,7 @@ class CollectBlobKeys(HTMLParser):
         if tag in ["a", "img"]:
             for k, v in attrs:
                 if k == "src":
-                    file = getattr(conf.main_app.vi, "file", None)
+                    file = getattr(conf.main_app.json, "file", None)
                     if file and (filepath := file.parse_download_url(v)):
                         self.blobs.add(filepath.dlkey)
 
@@ -160,7 +160,7 @@ class HtmlSerializer(HTMLParser):
                     if not (checker.startswith("http://") or checker.startswith("https://") or checker.startswith("/")):
                         continue
 
-                    file = getattr(conf.main_app.vi, "file", None)
+                    file = getattr(conf.main_app.json, "file", None)
                     if file and (filepath := file.parse_download_url(v)):
                         v = file.create_download_url(
                             filepath.dlkey,

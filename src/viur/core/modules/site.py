@@ -14,6 +14,9 @@ class Site(Module):
 
     @exposed
     def index(self, template="index", *arg, **kwargs):
+        if not self.canIndex(None):
+            raise errors.Unauthorized()
+
         if ".." in template or "/" in template:
             return
 
@@ -23,6 +26,12 @@ class Site(Module):
             raise errors.NotFound()
 
         return template.render()
+
+    def canIndex(self, skel: None) -> bool:
+        """
+        Access control function for :func:`index`; the site templates are public by default.
+        """
+        return True
 
 
 Site.html = True

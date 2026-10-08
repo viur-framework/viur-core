@@ -111,7 +111,7 @@ class Session(dict):
         # Get the current user's key
         try:
             # Check for our custom user-api
-            user_key = conf.main_app.vi.user.getCurrentUser()["key"]
+            user_key = conf.main_app.json.user.getCurrentUser()["key"]
         except Exception:
             user_key = Session.GUEST_USER  # this is a guest
 

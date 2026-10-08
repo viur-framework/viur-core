@@ -5,8 +5,15 @@ import inspect
 import types
 import typing as t
 import logging
-from viur.core import errors, current, utils
+from viur.core import current, errors, utils
+from viur.core.actions import resolve_hook_names, Step
 from viur.core.config import conf
+
+_HOOK_ALIAS: t.Final[str] = "__viur_hook_alias__"
+"""Marks a hook installed by :meth:`Module.__init_subclass__`, so a user-defined hook is told apart from it."""
+
+X_VIUR_CONTEXT: t.Final[str] = "X-VIUR-CONTEXT"
+"""Request header naming the contexts a client asks for, comma-separated, see :meth:`Module.has_context`."""
 
 
 class Method:
@@ -40,6 +47,9 @@ class Method:
         self.cors_allow_headers = None
         self.additional_descr = {}
         self.skey = None
+        self.is_action = False  # set by @action: a standard endpoint with can/on/then/Skel hooks
+        self.action_name = None  # envelope label set by @action("name")
+        self.action_step = None  # step presentation set by @action(icon=..., label=...)
 
         # Inspection
         self.signature = inspect.signature(self._func)
@@ -230,11 +240,18 @@ class Method:
         for func in reversed(self.guards):
             func(args=args, kwargs=kwargs, varargs=varargs, varkwargs=varkwargs)
 
-        # call with instance when provided
         if self._instance:
-            return self._func(self._instance, *args, **kwargs)
+            args = (self._instance, *args)
 
-        return self._func(*args, **kwargs)
+        if not self.action_name:
+            return self._func(*args, **kwargs)
+
+        # Publish the @action("name") label for the duration of the call; the JSON envelope reports it.
+        token = current.action.set(self.action_name)
+        try:
+            return self._func(*args, **kwargs)
+        finally:
+            current.action.reset(token)
 
     def describe(self) -> dict:
         """
@@ -423,6 +440,45 @@ class Module:
             can be used to customize the appearance of the Vi/Admin to individual users.
     """
 
+    _actions: t.ClassVar[types.MappingProxyType] = types.MappingProxyType({})
+    """The ``@action`` methods of this module class, by name."""
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+
+        # The most derived definition of a name decides whether it is an action, so the MRO is walked from the class
+        # itself upwards; an override with plain @exposed is no action any more.
+        actions = {}
+        seen = set()
+        for base in cls.__mro__:
+            for name, attr in vars(base).items():
+                if name in seen:
+                    continue
+                seen.add(name)
+                if isinstance(attr, Method) and attr.is_action:
+                    actions[name] = attr
+
+        cls._actions = types.MappingProxyType(actions)
+
+        # Every hook an action lacks forwards to the module's can/on/then/skel, looked up at call time
+        # so that a subclass overriding the fallback is honoured.
+        for action_name in actions:
+            for hook, fallback in zip(resolve_hook_names(action_name), ("can", "on", "then", "skel")):
+                if not any(
+                    hook in vars(base) and not getattr(vars(base)[hook], _HOOK_ALIAS, False)
+                    for base in cls.__mro__
+                ):
+                    setattr(cls, hook, cls._hook_alias(fallback))
+
+    @staticmethod
+    def _hook_alias(fallback: str) -> t.Callable:
+        def alias(self, *args, **kwargs):
+            return getattr(self, fallback)(*args, **kwargs)
+
+        alias.__name__ = alias.__qualname__ = f"alias_to_{fallback}"
+        setattr(alias, _HOOK_ALIAS, True)
+        return alias
+
     def __init__(self, moduleName: str, modulePath: str, *args, **kwargs):
         self.render = None  # will be set to the appropriate render instance at runtime
         self._cached_description = None  # caching used by describe()
@@ -501,6 +557,50 @@ class Module:
 
         return ret
 
+    def steps(self) -> dict[str, Step]:
+        """
+        The envelope ``steps`` map of this module, from the ``@action(icon=..., label=..., order=...)`` declarations.
+
+        Ordered by ``order``, then by declaration; each :class:`viur.core.actions.Step` carries its endpoint URL.
+        """
+        declared = [(name, method.action_step) for name, method in self._actions.items() if method.action_step]
+        declared = sorted(
+            enumerate(declared),
+            key=lambda item: (item[0] if item[1][1]["order"] is None else item[1][1]["order"], item[0]),
+        )
+        return {
+            name: Step(icon=step["icon"], icon_library=step["icon_library"], label=step["label"],
+                       url=f"{self.modulePath}/{name}")
+            for _, (name, step) in declared
+        }
+
+    def has_context(self, name: str) -> bool:
+        """
+        Whether the current request asks for the context *name*, and the user may have it.
+
+        A client names its contexts in the ``X-VIUR-CONTEXT`` header, e.g. the admin ``admin`` for the management
+        view. A context only counts for a user with one of the access rights ``conf.security.contexts`` lists for it;
+        a context not listed there is never granted. So a hook may widen its filters on it - e.g. list every entry
+        instead of the active ones. The response varies on the header either way, so that no cache mixes the views.
+
+        :param name: The context, e.g. "admin".
+        """
+        if not (request := current.request.get()):
+            return False
+
+        if X_VIUR_CONTEXT not in (vary := request.response.vary or ()):
+            request.response.vary = (X_VIUR_CONTEXT, *vary)
+
+        requested = {context.strip().lower() for context in request.request.headers.get(X_VIUR_CONTEXT, "").split(",")}
+        if name.lower() not in requested or not (rights := conf.security.contexts.get(name)):
+            return False
+
+        return bool(
+            (user := current.user.get())
+            and user["access"]
+            and any(right in user["access"] for right in rights)
+        )
+
     def register(self, target: dict, render: object):
         """
         Registers this module's public functions to a given resolver.
@@ -533,3 +633,29 @@ class Module:
         # Register sub modules
         for name, module in self._modules.items():
             module.register(target, self.render)
+
+    def can(self, skel: t.Any, *args, **kwargs) -> bool:
+        """
+        Authorization of every action without its own ``can<Action>`` hook.
+
+        Authorization has no safe default, so this refuses until a module provides ``can`` or the
+        action-specific hook.
+
+        :raises NotImplementedError: Always.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} must implement can(skel) or an action-specific can<Action>(skel)"
+        )
+
+    def on(self, skel: t.Any, *args, **kwargs) -> None:
+        """
+        Hook of every action without its own ``on<Action>``, run after authorization and before the action
+        writes anything.
+        """
+        pass
+
+    def then(self, skel: t.Any, *args, **kwargs) -> None:
+        """
+        Hook of every action without its own ``then<Action>``, run after the action succeeded.
+        """
+        pass

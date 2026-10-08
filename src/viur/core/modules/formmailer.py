@@ -17,12 +17,18 @@ class Formmailer(Module):
     mailTemplate = None
 
     @exposed
-    @skey(allow_empty=True)
     def index(self, *args, **kwargs):
-        if not self.canUse():
-            raise errors.Forbidden()  # Unauthorized
+        if not self.canIndex(None):
+            raise errors.Unauthorized()
 
+        return self.add(*args, **kwargs)
+
+    @exposed
+    @skey(allow_empty=True)
+    def add(self, *args, **kwargs):
         skel = self.mailSkel()
+        if not self.canAdd(skel):
+            raise errors.Forbidden()
 
         if len(kwargs) == 0:
             return self.render.add(skel=skel, failed=False)
@@ -43,17 +49,24 @@ class Formmailer(Module):
         if not isinstance(opts, dict):
             opts = {}
 
-        # Send the email!
+        self.onAdd(skel)
         email.send_email(dests=rcpts, tpl=self.mailTemplate, skel=skel, **opts)
-        self.onAdded(skel)
+        self.thenAdd(skel)
 
         return self.render.addSuccess(skel)
 
-    @exposed
-    def add(self, *args, **kwargs):
-        return self.index(*args, **kwargs)
+    def canIndex(self, skel: None) -> bool:
+        """
+        Access control function for :func:`index`; allowed, as index only forwards to :func:`add`.
+        """
+        return True
 
-    def canUse(self) -> bool:
+    def canAdd(self, skel: RelSkel) -> bool:
+        """
+        Access control function for sending the form; refused until a formmailer allows it.
+
+        :param skel: The form, as returned by :func:`mailSkel`.
+        """
         return False
 
     def mailSkel(self):
@@ -65,7 +78,12 @@ class Formmailer(Module):
     def getOptions(self, skel):
         return None
 
-    def onAdded(self, skel):
+    def onAdd(self, skel: RelSkel):
+        """Hook function that is called before the mail is sent."""
+        pass
+
+    def thenAdd(self, skel: RelSkel):
+        """Hook function that is called after the mail was sent."""
         pass
 
 

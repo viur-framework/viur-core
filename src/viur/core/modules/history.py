@@ -385,7 +385,7 @@ class History(List):
     def canDelete(self, _skel):
         return False
 
-    def canAdd(self):
+    def canAdd(self, skel):
         return False
 
     # Module-specific functions
@@ -643,4 +643,3 @@ class History(List):
 
 
 History.json = True
-History.admin = True

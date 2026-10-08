@@ -46,8 +46,7 @@ class Unauthorized(HTTPException):
     """
         Unauthorized
 
-        Raised whenever a request hits an path protected by canAccess() or a canAdd/canEdit/... -Function inside
-        an application returns false.
+        Raised whenever the can-hook of an action (canAdd, canEdit, ...) refuses the request.
     """
 
     def __init__(self, descr: str = "The resource is protected and you don't have the permissions."):

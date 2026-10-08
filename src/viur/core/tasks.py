@@ -18,6 +18,9 @@ from viur.core.config import conf
 from viur.core.decorators import exposed, skey
 from viur.core.module import Module
 
+if t.TYPE_CHECKING:
+    from viur.core.skeleton import SkeletonInstance
+
 CUSTOM_OBJ = t.TypeVar("CUSTOM_OBJ")  # A JSON serializable object
 
 
@@ -171,8 +174,10 @@ class TaskHandler(Module):
         """
             This processes one chunk of a queryIter (see below).
         """
+        if not self.canQueryIter(None):
+            raise errors.Forbidden()
+
         req = current.request.get().request
-        self._validate_request()
         data = utils.json.loads(req.body)
         if data["classID"] not in MetaQueryIter._classCache:
             logging.error(f"""Could not continue queryIter - {data["classID"]} not known on this instance""")
@@ -183,8 +188,10 @@ class TaskHandler(Module):
         """
             This catches one deferred call and routes it to its destination
         """
+        if not self.canDeferred(None):
+            raise errors.Forbidden()
+
         req = current.request.get().request
-        self._validate_request()
         # Check if the retry count exceeds our warning threshold
         retryCount = req.headers.get("X-Appengine-Taskretrycount", None)
         if retryCount and int(retryCount) == self.retryCountWarningThreshold:
@@ -207,7 +214,7 @@ class TaskHandler(Module):
                 #        But we still leave `loaded` on False, which leads to problems.
 
                 # Load current user into context variable if user module is there.
-                if user_mod := getattr(conf.main_app.vi, "user", None):
+                if user_mod := getattr(conf.main_app.json, "user", None):
                     current.user.set(user_mod.getCurrentUser())
             if "lang" in env and env["lang"]:
                 current.language.set(env["lang"])
@@ -253,9 +260,10 @@ class TaskHandler(Module):
 
     @exposed
     def cron(self, cronName="default", *args, **kwargs):
+        if not self.canCron(None):
+            raise errors.Forbidden()
+
         req = current.request.get()
-        if not conf.instance.is_dev_server:
-            self._validate_request(require_cron=True, require_taskname=False)
         if cronName not in _periodicTasks:
             logging.warning(f"Cron request {cronName} doesn't have any tasks")
         # We must defer from cron, as tasks will interpret it as a call originating from task-queue - causing deferred
@@ -285,17 +293,14 @@ class TaskHandler(Module):
                 db.put("viur-task-interval", entry)
         logging.debug("Periodic tasks complete")
 
-    def _validate_request(
+    def _is_valid_request(
         self,
         *,
         require_cron: bool = False,
         require_taskname: bool = True,
-    ) -> None:
+    ) -> bool:
         """
-        Validate the header and metadata of a request
-
-        If the request is valid, None will be returned.
-        Otherwise, an exception will be raised.
+        Whether the request originates from the Task Queue, judged by its source and headers.
 
         :param require_taskname: Require "X-AppEngine-TaskName" header
         :param require_cron: Require "X-Appengine-Cron" header
@@ -306,18 +311,22 @@ class TaskHandler(Module):
             and (not conf.instance.is_dev_server or os.getenv("TASKS_EMULATOR") is None)
         ):
             logging.critical("Detected an attempted XSRF attack. This request did not originate from Task Queue.")
-            raise errors.Forbidden()
+            return False
         if require_cron and "X-Appengine-Cron" not in req.headers:
             logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Cron" was not set.')
-            raise errors.Forbidden()
+            return False
         if require_taskname and "X-AppEngine-TaskName" not in req.headers:
             logging.critical('Detected an attempted XSRF attack. The header "X-AppEngine-Taskname" was not set.')
-            raise errors.Forbidden()
+            return False
+        return True
 
     @exposed
     def list(self, *args, **kwargs):
         """Lists all user-callable tasks which are callable by this user"""
         global _callableTasks
+
+        if not self.canList(None):
+            raise errors.Unauthorized()
 
         from viur.core.skeleton import SkeletonInstance, SkelList, RelSkel
         from viur.core.bones import BaseBone, StringBone
@@ -348,10 +357,10 @@ class TaskHandler(Module):
         else:
             return
 
-        if not task.canCall():
+        skel = task.dataSkel()
+        if not (self.canExecute(skel) and task.canCall()):
             raise errors.Unauthorized()
 
-        skel = task.dataSkel()
         if (
             not kwargs
             or not skel.fromClient(kwargs)
@@ -363,9 +372,32 @@ class TaskHandler(Module):
 
         return self.render.addSuccess(skel)
 
+    def canQueryIter(self, skel: None) -> bool:
+        """Access control function for :func:`queryIter`: only the Task Queue may call it."""
+        return self._is_valid_request()
 
-TaskHandler.admin = True
-TaskHandler.vi = True
+    def canDeferred(self, skel: None) -> bool:
+        """Access control function for :func:`deferred`: only the Task Queue may call it."""
+        return self._is_valid_request()
+
+    def canCron(self, skel: None) -> bool:
+        """Access control function for :func:`cron`: only App Engine's cron may call it, or anyone locally."""
+        return conf.instance.is_dev_server or self._is_valid_request(require_cron=True, require_taskname=False)
+
+    def canList(self, skel: None) -> bool:
+        """Access control function for :func:`list`; allowed, as only tasks whose ``canCall()`` agrees are listed."""
+        return True
+
+    def canExecute(self, skel: "SkeletonInstance") -> bool:
+        """
+        Access control function for :func:`execute`; allowed, as the task's own ``canCall()`` decides.
+
+        :param skel: The parameters of the task.
+        """
+        return True
+
+
+TaskHandler.json = True
 TaskHandler.html = True
 
 

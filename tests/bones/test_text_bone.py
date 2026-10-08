@@ -8,7 +8,7 @@ class TestTextBone_fromClient(ViURTestCase):
     def setUpClass(cls) -> None:
         from viur.core import conf
         conf.main_app = mock.MagicMock()
-        conf.main_app.vi = None
+        conf.main_app.json = None
         cls.bone_name = "myTextBone"
 
     def test_fromClient_single(self):

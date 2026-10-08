@@ -370,7 +370,7 @@ class Router:
             current.session.get().load()
 
             # Load current user into context variable if user module is there.
-            if user_mod := getattr(conf.main_app.vi, "user", None):
+            if user_mod := getattr(conf.main_app.json, "user", None):
                 current.user.set(user_mod.getCurrentUser())
 
             path = self._select_language(path)[1:]
@@ -378,7 +378,11 @@ class Router:
             # Check for closed system
             if conf.security.closed_system and self.method != "options":
                 if not current.user.get():
-                    if not any(fnmatch.fnmatch(path, pat) for pat in conf.security.closed_system_allowed_paths):
+                    # /vi/ is an alias of /json/, so it is allowed wherever the same /json/ path is
+                    allowed_path = "json" + path[2:] if path == "vi" or path.startswith("vi/") else path
+                    if not any(
+                        fnmatch.fnmatch(allowed_path, pat) for pat in conf.security.closed_system_allowed_paths
+                    ):
                         raise errors.Unauthorized()
 
             if conf.request_preprocessor:
@@ -446,7 +450,7 @@ class Router:
 
                 error_info["logo"] = conf.error_logo
 
-                if (len(self.path_list) > 0 and self.path_list[0] in ("vi", "json")) or \
+                if (len(self.path_list) > 0 and self.path_list[0] in ("json", "vi")) or \
                         current.request.get().response.headers["Content-Type"] == "application/json":
                     current.request.get().response.headers["Content-Type"] = "application/json"
                     res = json.dumps(error_info)
@@ -579,12 +583,6 @@ class Router:
         path_found = True
 
         for part in self.path_list:
-            # TODO: Remove canAccess guards... solve differently.
-            if "canAccess" in caller and not caller["canAccess"]():
-                # We have a canAccess function guarding that object,
-                # and it returns False...
-                raise errors.Unauthorized()
-
             idx += 1
 
             if part not in caller:

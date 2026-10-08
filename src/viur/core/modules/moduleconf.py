@@ -111,7 +111,7 @@ class ModuleConf(List):
     def adminInfo(self):
         return conf.moduleconf_admin_info or {}
 
-    def canAdd(self):
+    def canAdd(self, skel):
         return False
 
     def canDelete(self, skel):
@@ -141,7 +141,7 @@ class ModuleConf(List):
     @classmethod
     def get_by_module_name(cls, module_name: str) -> None | skeleton.SkeletonInstance:
         db_key = module_name  # The module config entry's business key is its _id.
-        skel = conf.main_app.vi._moduleconf.viewSkel()
+        skel = conf.main_app.json._moduleconf.viewSkel()
         if not skel.read(db_key):
             logging.error(f"module({module_name}) not found")
             return None
@@ -157,7 +157,7 @@ class ModuleConf(List):
         visited_modules = set()
 
         def collect_modules(parent, depth: int = 0, prefix: str = "") -> None:
-            """Recursively collects all routable modules for the vi renderer"""
+            """Recursively collects all routable modules for the json renderer"""
             if depth > 10:
                 logging.warning(f"Reached maximum recursion limit of {depth} at {parent=}")
                 return
@@ -177,7 +177,7 @@ class ModuleConf(List):
                 visited_modules.add(module)
                 ModuleConf.MODULES.add(module_name)
                 if module_name not in db_module_names:
-                    skel = conf.main_app.vi._moduleconf.addSkel()
+                    skel = conf.main_app.json._moduleconf.addSkel()
                     skel["key"] = module_name  # The module name is the business key, used as _id.
                     skel["name"] = module_name
                     skel.write()
@@ -185,5 +185,5 @@ class ModuleConf(List):
                 # Collect children
                 collect_modules(module, depth=depth + 1, prefix=f"{module_name}.")
 
-        collect_modules(conf.main_app.vi)
+        collect_modules(conf.main_app.json)
         # TODO: Remove entries from MODULECONF_KINDNAME which are in db_module_names but not in ModuleConf.MODULES

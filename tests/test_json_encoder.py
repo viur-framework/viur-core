@@ -112,8 +112,6 @@ def _load_custom_json_encoder():
         # object's own `conf` attribute (used in default()) points to our stub
         _mod_conf_stub = sys.modules["viur.core.config"].conf
 
-    # Re-register the loaded module so mock.patch.object() works in tests
-    sys.modules["viur.core.render.json.default"] = _mod
     return _mod, _mod_conf_stub
 
 

@@ -167,7 +167,7 @@ class ResponseCache(t.Generic[Args, Value]):
         :param urls:
             A list of urls for this function, for which the cache should be enabled.
             A method can have several urls (e.g. /page/view, /pdf/page/view or /pdf/seite/view),
-            and it might should not be cached under all urls (e.g. /vi/page/view).
+            and it might should not be cached under all urls (e.g. /json/page/view).
             If the parameter is omitted, the URL is ignored for the check and the call is saved in the cache
             (unless excluded by other parameters), regardless of the path via which the method was called.
         :param renderer:
