@@ -5,11 +5,13 @@ framework. The base classes defined in this module are the foundation upon which
 built, such as string, numeric, and date/time bones.
 """
 
+import contextlib
 import copy
 import enum
 import hashlib
 import inspect
 import logging
+import threading
 import typing as t
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -26,6 +28,29 @@ __system_initialized = False
 """
 Initializes the global variable __system_initialized
 """
+
+_computing_bones = threading.local()
+"""The bone computations running in the current thread.
+
+See :meth:`BaseBone.is_computing` for why the recursion guard cannot live on the
+bone itself.
+"""
+
+
+def _computation_key(skel: "SkeletonInstance", bone_name: str) -> tuple[int, str]:
+    """
+    Identify one computation of one bone on one skeleton.
+
+    ``accessedValues`` stands in for the skeleton rather than the instance itself:
+    :func:`~viur.core.skeleton.utils.without_render_preparation` hands out a second
+    ``SkeletonInstance`` that shares it, and :meth:`BaseBone._compute` works on that
+    one while :meth:`BaseBone.unserialize_compute` was entered with the original.
+
+    :param skel: The skeleton the bone is computed on.
+    :param bone_name: Name of the bone.
+    :return: A key identifying this computation.
+    """
+    return id(skel.accessedValues), bone_name
 
 
 def setSystemInitialized():
@@ -445,8 +470,10 @@ class BaseBone(object):
                 raise ValueError(
                     f"'compute' is configured as ComputeMethod.Lifetime, but {compute.interval.lifetime=} was specified"
                 )
-            # If a RelationalBone is computed and raw is False, the unserialize function is called recursively
-            # and the value is recalculated all the time. This parameter is to prevent this.
+            # Deprecated: the core guards a running computation with
+            # :meth:`computing` / :meth:`is_computing`, which is scoped to the
+            # skeleton and the thread. The flag is kept because it is set from
+            # outside the core, and :meth:`unserialize_compute` still honours it.
             self._prevent_compute = False
 
         self.compute = compute
@@ -1108,7 +1135,12 @@ class BaseBone(object):
         :param name: The name of the Bone in the Skeleton
         :return: True if the Bone was unserialized, False otherwise
         """
-        if not self.compute or self._prevent_compute or skel._cascade_deletion:
+        if (
+            not self.compute
+            or self._prevent_compute  # deprecated, still honoured for code outside of the core
+            or self.is_computing(skel, name)
+            or skel._cascade_deletion
+        ):
             return False
 
         match self.compute.interval.method:
@@ -1564,6 +1596,46 @@ class BaseBone(object):
             else:
                 yield None, None, value
 
+    def is_computing(self, skel: "SkeletonInstance", bone_name: str) -> bool:
+        """
+        Is this bone already being computed on this skeleton, in this thread?
+
+        A compute function that reaches its own bone again would recurse endlessly --
+        a :class:`~viur.core.bones.relational.RelationalBone` with ``raw=False``
+        unserializes it a second time. :meth:`_compute` therefore marks the
+        computation while it runs and :meth:`unserialize_compute` steps aside for it.
+
+        The mark must not be stored on the bone. Bone instances are shared by every
+        skeleton of their class and by every thread -- ``SkeletonInstance`` copies the
+        bone *map*, not the bones -- so a flag there also stops a *concurrent* request
+        from computing the bone. That request then silently receives the stored value,
+        which for a computed bone is usually ``None``.
+
+        :param skel: The skeleton the bone is computed on.
+        :param bone_name: Name of the bone.
+        :return: True while a computation of this bone on this skeleton is running.
+        """
+        return _computation_key(skel, bone_name) in getattr(_computing_bones, "keys", ())
+
+    @contextlib.contextmanager
+    def computing(self, skel: "SkeletonInstance", bone_name: str) -> t.Iterator[None]:
+        """
+        Mark this bone as being computed on *skel* for the duration of the block.
+
+        :param skel: The skeleton the bone is computed on.
+        :param bone_name: Name of the bone.
+        """
+        try:
+            keys = _computing_bones.keys
+        except AttributeError:
+            keys = _computing_bones.keys = set()
+        key = _computation_key(skel, bone_name)
+        keys.add(key)
+        try:
+            yield
+        finally:
+            keys.discard(key)
+
     def _compute(self, skel: 'viur.core.skeleton.SkeletonInstance', bone_name: str):
         """Performs the evaluation of a bone configured as compute"""
         from ..skeleton.utils import without_render_preparation
@@ -1581,12 +1653,13 @@ class BaseBone(object):
         if "bone_name" in compute_fn_parameters:
             compute_fn_args["bone_name"] = bone_name
 
-        self._prevent_compute = True  # avoid endless recursions
-        ret = self.compute.fn(**compute_fn_args)
+        # Marked for exactly the regions the previous flag covered, and released on
+        # every exit -- an exception out of the compute function used to leave the
+        # flag set and quietly disable the bone for the rest of the process.
+        with self.computing(skel, bone_name):
+            ret = self.compute.fn(**compute_fn_args)
 
         if self.compute.raw or ret is None:
-            self._prevent_compute = False
-
             if ret is None:  # exit on None
                 return ret
 
@@ -1603,8 +1676,8 @@ class BaseBone(object):
 
             return unserialize_raw_value(ret)
 
-        errors = self.fromClient(skel, bone_name, {bone_name: ret})
-        self._prevent_compute = False
+        with self.computing(skel, bone_name):
+            errors = self.fromClient(skel, bone_name, {bone_name: ret})
 
         if errors:
             raise ValueError(f"Computed value fromClient failed with {errors!r}")
