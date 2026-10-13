@@ -76,6 +76,9 @@ class AddressBone(RecordBone):
             "format": "json",
             "limit": 1,
         }
+        # Optional field, added by projects deriving from AddressRelSkel (e.g. `region = StringBone()`)
+        if region := skel.get("region"):
+            params["state"] = region
         cache_key = AddressBone._cache_key(urllib.parse.urlencode(params))
         try:
             cached = db.get(cache_key)
