@@ -1,7 +1,12 @@
 import re
-import unittest
 
-from viur.core.data.zip_patterns import ZIP_CODE_PATTERNS
+from abstract import ViURTestCase
+
+
+def zip_code_patterns() -> dict[str, str]:
+    # Imported here, not at module level: importing viur.core needs the mocks of ViURTestCase.setUp
+    from viur.core.data.zip_patterns import ZIP_CODE_PATTERNS
+    return ZIP_CODE_PATTERNS
 
 
 def literal_dashes_in_classes(pattern: str) -> list[str]:
@@ -24,15 +29,15 @@ def literal_dashes_in_classes(pattern: str) -> list[str]:
     return found
 
 
-class TestZipCodePatterns(unittest.TestCase):
+class TestZipCodePatterns(ViURTestCase):
 
     def test_patterns_compile(self):
-        for country, pattern in ZIP_CODE_PATTERNS.items():
+        for country, pattern in zip_code_patterns().items():
             with self.subTest(country=country):
                 re.compile(pattern)
 
     def test_no_literal_dash_in_a_character_class(self):
-        for country, pattern in ZIP_CODE_PATTERNS.items():
+        for country, pattern in zip_code_patterns().items():
             with self.subTest(country=country):
                 self.assertEqual([], literal_dashes_in_classes(pattern))
 
@@ -40,4 +45,4 @@ class TestZipCodePatterns(unittest.TestCase):
         for country, zip_code in (("pl", "12-345"), ("pl", "12345"), ("pt", "1234-567"), ("us", "12345-6789"),
                                   ("lt", "LT-12345"), ("ai", "AI-2640"), ("de", "12345")):
             with self.subTest(country=country, zip_code=zip_code):
-                self.assertRegex(zip_code, ZIP_CODE_PATTERNS[country])
+                self.assertRegex(zip_code, zip_code_patterns()[country])
