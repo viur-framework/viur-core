@@ -89,6 +89,10 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor(bones): restructure `EmailBone.isInvalid` validation (#1730)
 - test: Add unit tests for Bones and App Login Flow (get_cookie_for_app, apply_login_cookie) (#1661)
 
+## [3.8.41]
+
+- fix(bones): scope the compute recursion guard to skeleton and thread (#1793)
+
 ## [3.8.40]
 
 - feat: Set `FileSkel.serving_url` via `compute`-function (#1789)
