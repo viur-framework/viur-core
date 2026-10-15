@@ -567,7 +567,7 @@ class RelationalBone(BaseBone):
                     db.delete(entity.key)
                     continue
 
-            except KeyError:  # This entry is corrupt
+            except (KeyError, AttributeError):  # This entry is corrupt (missing or empty dest)
                 db.delete(entity.key)
 
             else:  # Relation: Updated
