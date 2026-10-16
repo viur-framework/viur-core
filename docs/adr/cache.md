@@ -5,7 +5,7 @@ status: accepted
 ---
 ## Seam
 `@ResponseCache(urls, renderer, user_sensitive, language_sensitive,
-evaluated_args, max_cache_time, compression_level)` wraps an `@exposed` method
+timezone_sensitive, evaluated_args, max_cache_time, compression_level)` wraps an `@exposed` method
 and serves the stored response from the `viur-cache` kind. 200 responses and
 3xx redirects are cached; every argument omitted falls back to the global
 `DEFAULT_SETTINGS`. A project-specific cache dimension can be added through
@@ -25,6 +25,10 @@ prototypes call it with `kind=` from `onAdded`/`onCloned` and with `key=` from
   standalone or in addition to `urls`.
 - `user_sensitive` takes the `UserSensitive` enum
   (`IGNORE`/`GUEST_ONLY`/`BOTH`/`INDIVIDUAL`), not a number.
+- `timezone_sensitive=True` adds the request's guessed timezone
+  (`utils.guess_timezone().zone`) to the key. Set it when localized `DateBone`
+  values are rendered into the response - without it the timezone of the first
+  request after expiry is served to everyone.
 - To skip caching from project code, `conf.cache_environment_key` returns
   `BypassCache(reason)`. Raising `RuntimeError` still works but is deprecated.
 - The response body is stored in the datastore entity, so it must be
@@ -35,6 +39,10 @@ prototypes call it with `kind=` from `onAdded`/`onCloned` and with `key=` from
 - `conf.debug.disable_cache` switches the cache off globally; users with `root`
   bypass it per request via the `X-Viur-Disable-Cache` header (evaluated in the
   router).
+- Everything the response depends on is either part of the key or constant
+  across requests. Dates that belong to a place (events, opening hours) want the
+  second: pin the timezone by overriding `guessTimeZone` (see
+  [bones/date](bones/date.md)) instead of caching one page per visitor timezone.
 
 ## Traps
 - Invalidation only sees entities read with `db.get`/`put`/`delete` - the query
@@ -48,8 +56,8 @@ prototypes call it with `kind=` from `onAdded`/`onCloned` and with `key=` from
 - The size check uses `sys.getsizeof(body)`, which counts CPython's internal
   representation, not the UTF-8 bytes the datastore stores: 700k umlauts pass
   as "700 KB" and blow up in `db.Put` at 1.4 MB.
-- `get_args` sets `__user`, `__lang`, `__path`, `__cache_environment`,
-  `__app_version` and `__template_style` itself - an `evaluated_args` entry
+- `get_args` sets `__user`, `__lang`, `__timezone`, `__path`,
+  `__cache_environment`, `__app_version` and `__template_style` itself - an `evaluated_args` entry
   with one of these names is overwritten.
 - A parameter that cannot be filled is silently dropped from the key (only a
   debug log), it no longer bypasses the cache.
@@ -63,6 +71,13 @@ prototypes call it with `kind=` from `onAdded`/`onCloned` and with `key=` from
   itself through `X-Cache-Status` (`HIT`/`MISS`/`UPDATED`/`BYPASS`/`TOO_LARGE`).
 - `conf.db.create_access_log = False` does not disable caching - it only empties
   `accessedEntries`, so entries are cached and never invalidated.
+- Whoever requests first after expiry decides what everyone sees until
+  `max_cache_time` runs out. Without `timezone_sensitive` and with `localize`
+  `DateBone`s that is the requester's timezone: a crawler from another continent,
+  or a health check without the country header (-> UTC), bakes its clock into the
+  page for all visitors. The uncached detail view of the same entry still renders
+  per request, so the symptom reads "list wrong, detail right" and looks like a
+  template bug.
 
 ## Why not
 Cached responses live in the datastore instead of memcache: they survive

@@ -4,6 +4,8 @@ import typing as t
 import urllib.parse
 import warnings
 import operator
+import pytz
+import tzlocal
 from collections.abc import Iterable
 from viur.core import current, db
 from viur.core.config import conf
@@ -19,6 +21,51 @@ def utcNow() -> datetime.datetime:
     Returns an actual timestamp with UTC timezone setting.
     """
     return datetime.datetime.now(datetime.timezone.utc)
+
+
+def guess_timezone() -> pytz.BaseTzInfo:
+    """
+    Guesses the timezone of the current request from the ``X-Appengine-Country`` header.
+
+    The result is cached in :attr:`viur.core.current.request_data` for the rest of the request.
+    On a development server the local system timezone is returned instead, so localized values
+    differ between a local run and production.
+
+    Falls back to UTC when there is no request (task queue, deferred call, tests), no country
+    header, an unknown country, or a country with several timezones and no hand-picked fallback.
+
+    :return: The guessed timezone.
+    """
+    if conf.instance.is_dev_server:
+        return pytz.timezone(tzlocal.get_localzone_name())
+
+    time_zone = pytz.utc  # Default fallback
+    request_data = current.request_data.get()
+
+    try:
+        # Check the local cache first
+        if "timeZone" in request_data:
+            return request_data["timeZone"]
+        headers = current.request.get().request.headers
+        if "X-Appengine-Country" in headers:
+            country = headers["X-Appengine-Country"]
+        else:  # Maybe local development Server - no way to guess it here
+            return time_zone
+        tz_list = pytz.country_timezones[country]
+    except Exception:  # Non-User generated request (deferred call; task queue etc), or unknown country
+        return time_zone
+    if len(tz_list) == 1:  # Fine - the country has exactly one timezone
+        time_zone = pytz.timezone(tz_list[0])
+    elif country.lower() == "us":  # Fallback for the US
+        time_zone = pytz.timezone("EST")
+    elif country.lower() == "de":  # For some freaking reason Germany is listed with two timezones
+        time_zone = pytz.timezone("Europe/Berlin")
+    elif country.lower() == "au":
+        time_zone = pytz.timezone("Australia/Canberra")  # Equivalent to NSW/Sydney :)
+    else:  # The user is in a Country which has more than one timezone
+        pass
+    request_data["timeZone"] = time_zone  # Cache the result
+    return time_zone
 
 
 def seoUrlToEntry(module: str,

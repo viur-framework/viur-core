@@ -1,4 +1,5 @@
 from datetime import datetime as dt, timedelta as td, timezone as tz
+from unittest import mock
 
 from abstract import ViURTestCase
 
@@ -187,3 +188,48 @@ class TestDateBone_timestamp(ViURTestCase):
                 result, errors = self._from_client(value)
                 self.assertIsNone(result)
                 self.assertTrue(errors)
+
+
+class TestDateBone_guessTimeZone(ViURTestCase):
+    """``guessTimeZone`` applies the bone flags and delegates the request guess to ``utils.guess_timezone``."""
+
+    @staticmethod
+    def _fake_request(country: str) -> None:
+        from viur.core import current
+
+        request = mock.Mock()
+        request.request.headers = {"X-Appengine-Country": country}
+        current.request.set(request)
+        current.request_data.set({})
+
+    def test_naive_bone_has_no_timezone(self):
+        from viur.core.bones import DateBone
+
+        self._fake_request("DE")
+        self.assertIsNone(DateBone(naive=True).guessTimeZone())
+
+    def test_date_only_bone_is_utc(self):
+        import pytz
+        from viur.core.bones import DateBone
+
+        self._fake_request("DE")
+        self.assertEqual(DateBone(time=False).guessTimeZone(), pytz.utc)
+
+    def test_localized_bone_uses_request_timezone(self):
+        from viur.core.bones import DateBone
+
+        self._fake_request("DE")
+        self.assertEqual(DateBone().guessTimeZone().zone, "Europe/Berlin")
+
+    def test_override_pins_the_timezone_for_unserialize(self):
+        import pytz
+        from viur.core.bones import DateBone
+
+        class VenueDateBone(DateBone):
+            def guessTimeZone(self):
+                return None if self.naive else pytz.timezone("Europe/Berlin")
+
+        self._fake_request("US")
+        stored = dt(2026, 10, 3, 17, 30, tzinfo=tz.utc)
+        self.assertEqual(VenueDateBone().singleValueUnserialize(stored).strftime("%H:%M"), "19:30")
+        self.assertEqual(DateBone().singleValueUnserialize(stored).strftime("%H:%M"), "12:30")
