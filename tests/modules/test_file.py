@@ -307,9 +307,16 @@ class FakeLeafSkel(dict):
         self["_written"] = True
         return self
 
+    def patch(self, values, **kwargs):
+        """Like Skeleton.patch(): re-read, apply the callable, write."""
+        self["_patched"] = True
+        self.read(self["key"])
+        values(self)
+        return self.write()
+
 
 class TestFileOverwriteUpload(ViURTestCase):
-    """getUploadURL(edit_key=...) + add() overwrite an existing file's blob in place."""
+    """getUploadURL(amend=...) + add() overwrite an existing file's blob in place."""
 
     def _file(self):
         # Lazy import: the module creates a GCS client at import time.
@@ -317,7 +324,7 @@ class TestFileOverwriteUpload(ViURTestCase):
             from viur.core.modules.file import File
         return File
 
-    def test_edit_key_targets_existing_blob_and_keeps_key(self):
+    def test_amend_targets_existing_blob_and_keeps_key(self):
         """A resumable session is opened on the EXISTING dlkey/name; the existing key is returned."""
         File = self._file()
         blob = mock.Mock()
@@ -333,7 +340,7 @@ class TestFileOverwriteUpload(ViURTestCase):
         module.render.view.side_effect = lambda payload: payload
 
         result = File.getUploadURL._func(
-            module, "ignored.jpg", "image/jpeg", edit_key="file-123")
+            module, "ignored.jpg", "image/jpeg", amend="file-123")
 
         # Same blob, no new dlkey minted:
         bucket.blob.assert_called_once_with("abc_pub/source/image.jpg")
@@ -342,7 +349,7 @@ class TestFileOverwriteUpload(ViURTestCase):
         self.assertEqual(result["uploadUrl"], "https://upload/session")
         module.canEdit.assert_called_once_with("leaf", skel)
 
-    def test_edit_key_unescapes_name_for_blob_path(self):
+    def test_amend_unescapes_name_for_blob_path(self):
         """The stored (escaped) name must be unescaped to hit the real object path."""
         File = self._file()
         blob = mock.Mock()
@@ -356,10 +363,10 @@ class TestFileOverwriteUpload(ViURTestCase):
         module.get_bucket.return_value = bucket
         module.render.view.side_effect = lambda payload: payload
 
-        File.getUploadURL._func(module, "x", "image/jpeg", edit_key="k")
+        File.getUploadURL._func(module, "x", "image/jpeg", amend="k")
         bucket.blob.assert_called_once_with("d/source/file(1).jpg")
 
-    def test_edit_key_forbidden_without_edit_rights(self):
+    def test_amend_forbidden_without_edit_rights(self):
         File = self._file()
         from viur.core import errors
         skel = FakeLeafSkel(key="k", dlkey="d", name="x.jpg")
@@ -367,7 +374,7 @@ class TestFileOverwriteUpload(ViURTestCase):
         module.editSkel.return_value = skel
         module.canEdit.return_value = False
         with self.assertRaises(errors.Forbidden):
-            File.getUploadURL._func(module, "x.jpg", "image/jpeg", edit_key="k")
+            File.getUploadURL._func(module, "x.jpg", "image/jpeg", amend="k")
 
     def test_add_overwrite_refreshes_metadata_and_keeps_tree_position(self):
         """add() on a non-pending leaf refreshes size/mimetype/checksums; parent/weak stay."""
@@ -396,6 +403,7 @@ class TestFileOverwriteUpload(ViURTestCase):
         self.assertEqual(skel["mimetype"], "image/jpeg")
         self.assertEqual(skel["crc32c_checksum"], b"1234".hex())
         self.assertTrue(skel.get("_written"))
+        self.assertTrue(skel.get("_patched"), "amending must write via skel.patch(), i.e. transactional")
         # Tree position must NOT change on an overwrite:
         self.assertEqual(skel["parententry"], "folder-1")
         self.assertFalse(skel["weak"])

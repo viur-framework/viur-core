@@ -917,17 +917,17 @@ class File(Tree):
             authData: t.Optional[str] = None,
             authSig: t.Optional[str] = None,
             public: bool = False,
-            edit_key: t.Optional[db.Key] = None,
+            amend: db.KeyType | None = None,
     ):
-        # Optional in-place overwrite: replace the blob of an existing file
+        # Optional amending: replace the blob of an existing file
         # instead of creating a new one. No new dlkey, no relink — the same
         # file entity keeps its key, tree position and download URLs; only its
         # blob content is replaced. The caller must be allowed to edit the file
         # (canEdit); the metadata (size/mimetype/checksums, and serving_url for
         # public images) is refreshed in add() once the new blob is uploaded.
-        if edit_key is not None:
+        if amend is not None:
             skel = self.editSkel("leaf")
-            if not skel.read(edit_key):
+            if not skel.read(amend):
                 raise errors.NotFound()
             if not self.canEdit("leaf", skel):
                 raise errors.Forbidden()
@@ -1147,8 +1147,8 @@ class File(Tree):
                 raise errors.NotFound()
 
             if not skel["pending"]:
-                # In-place overwrite: the blob of an already-added file was
-                # replaced via getUploadURL(edit_key=...). Refresh the derived
+                # Amending: the blob of an already-added file was
+                # replaced via getUploadURL(amend=...). Refresh the derived
                 # metadata from the new blob and keep the file's tree position
                 # untouched (no re-parent, no weak-flag change). write() runs
                 # _inject_serving_url, which refreshes serving_url for public
@@ -1164,12 +1164,15 @@ class File(Tree):
                     raise errors.PreconditionFailed()
                 blob = blobs[0]
 
-                skel["mimetype"] = utils.string.escape(blob.content_type)
-                skel["size"] = blob.size
-                skel["crc32c_checksum"] = base64.b64decode(blob.crc32c).hex()
-                skel["md5_checksum"] = base64.b64decode(blob.md5_hash).hex()
-                self.onEdit("leaf", skel)
-                skel.write()
+                # The blob is read outside, the entity is re-read and written within a transaction.
+                def _refresh_metadata(skel: SkeletonInstance) -> None:
+                    skel["mimetype"] = utils.string.escape(blob.content_type)
+                    skel["size"] = blob.size
+                    skel["crc32c_checksum"] = base64.b64decode(blob.crc32c).hex()
+                    skel["md5_checksum"] = base64.b64decode(blob.md5_hash).hex()
+                    self.onEdit("leaf", skel)
+
+                skel.patch(_refresh_metadata)
                 self.onEdited("leaf", skel)
 
                 skel["downloadUrl"] = self.create_download_url(
