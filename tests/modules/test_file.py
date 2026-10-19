@@ -349,6 +349,12 @@ class TestFileHmacRotation(ViURTestCase):
         conf.file_hmac_key_fallbacks = [b"old-key"]
         self.assertFalse(File.hmac_verify("payload", "deadbeef"))
 
+    def test_sign_without_key_raises(self):
+        """A missing key must raise even under `python -O`, so no assert."""
+        File = self._file()
+        with self.assertRaises(RuntimeError):
+            File.hmac_sign("payload")
+
     def test_explicit_key_matches_default_key(self):
         """hmac_sign(key=None) uses conf.file_hmac_key, an explicit key (bytes or str) yields the same digest."""
         from viur.core import conf

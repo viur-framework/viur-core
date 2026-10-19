@@ -586,7 +586,8 @@ class File(Tree):
         """
         if key is None:
             key = conf.file_hmac_key
-            assert key is not None, "No hmac-key set!"
+            if key is None:
+                raise RuntimeError("No hmac-key set!")
         if not isinstance(key, bytes):
             key = key.encode("UTF-8")
         if not isinstance(data, bytes):
