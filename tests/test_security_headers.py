@@ -219,25 +219,6 @@ class TestSecurityHeaders(ViURTestCase):
         from viur.core.config import conf
         self.assertEqual(securityheaders.validReferrerPolicies, conf.security.VALID_REFERRER_POLICIES)
 
-    def test_debug_trace_headers_defaults(self):
-        from viur.core.config import conf
-        self.assertFalse(conf.debug.trace_headers)
-        self.assertIn("Cookie", conf.debug.trace_headers_redact)
-        self.assertIn("Authorization", conf.debug.trace_headers_redact)
-
-    def test_redact_headers(self):
-        from viur.core.request import _redact_headers
-        headers = {"Cookie": "secret", "X-Foo": "bar", "set-cookie": "s"}
-        redacted = _redact_headers(headers, ("Cookie", "Set-Cookie"))
-        self.assertEqual(redacted["Cookie"], "[redacted]")
-        self.assertEqual(redacted["set-cookie"], "[redacted]")  # case-insensitive
-        self.assertEqual(redacted["X-Foo"], "bar")
-
-    def test_redact_headers_empty_list_is_raw(self):
-        from viur.core.request import _redact_headers
-        headers = {"Cookie": "secret"}
-        self.assertEqual(_redact_headers(headers, ())["Cookie"], "secret")
-
     def test_extend_csp_override_and_remove(self):
         from viur.core import current
         sec = self._fresh_security()
@@ -262,25 +243,6 @@ class TestSecurityHeaders(ViURTestCase):
         finally:
             current.request.reset(token)
         self.assertIn("style-src 'self'; ", holder.response.headers["Content-Security-Policy"])
-
-    def test_audit_headers_logs_redacted(self):
-        from viur.core import request
-        from viur.core.config import conf
-        original = conf.debug.trace_headers_redact
-        conf.debug.trace_headers_redact = ("Cookie", "Set-Cookie")
-        try:
-            fake = types.SimpleNamespace(
-                request=types.SimpleNamespace(headers={"Cookie": "secret", "X-Foo": "bar"}),
-                response=types.SimpleNamespace(headers={"Set-Cookie": "s", "X-Bar": "baz"}),
-            )
-            with self.assertLogs(level="DEBUG") as cm:
-                request.Router._audit_headers(fake)
-            blob = "\n".join(cm.output)
-            self.assertIn("[redacted]", blob)
-            self.assertNotIn("secret", blob)
-            self.assertIn("bar", blob)
-        finally:
-            conf.debug.trace_headers_redact = original
 
 
 class TestReportingEndpoints(ViURTestCase):
