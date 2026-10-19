@@ -33,12 +33,12 @@ on the `<name>.val` sub-property.
   queries do not - see Traps.
 - `_quantize_exp` only exists when `decimal=True`; everything reaching for it
   must go through the `self.decimal` branch first.
-- `rounding` picks the mode used when quantizing to `precision`. It is only
+- `round` picks the mode used when quantizing to `precision`. It is only
   valid together with `decimal=True` and raises otherwise, because the float
   mode cannot honour it. The default `None` is the decimal module's own "use
   the context", i.e. `ROUND_HALF_EVEN` unless the application changed it -
   commercial rounding has to be asked for with `decimal.ROUND_HALF_UP`.
-  The value is checked in `__setattr__` against `ROUNDING_MODES`, so a typo
+  The value is checked in `__setattr__` against `ROUND`, so a typo
   fires at definition time rather than at the first write.
 
 ## Traps
@@ -66,7 +66,7 @@ on the `<name>.val` sub-property.
   queries - only to the value handed back to the application.
 - The float mode rounds through `round(float(value), precision)`, which is
   half-to-even *and* subject to binary representation - `round(2.675, 2)` is
-  `2.67`. `rounding` deliberately does not reach it: a knob there would
+  `2.67`. `round` deliberately does not reach it: a knob there would
   promise an exactness the mode cannot deliver.
 
 ## See also

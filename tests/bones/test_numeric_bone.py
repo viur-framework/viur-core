@@ -595,21 +595,21 @@ class TestNumericBoneMinMaxError(ViURTestCase):
 
 
 class TestNumericBone_Rounding(ViURTestCase):
-    """Tests for NumericBone(decimal=True, rounding=...)."""
+    """Tests for NumericBone(decimal=True, round=...)."""
 
     def test_default_keeps_the_decimal_context(self):
-        """Without `rounding` the context decides - ROUND_HALF_EVEN unless changed."""
+        """Without `round` the context decides - ROUND_HALF_EVEN unless changed."""
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal
         bone = NumericBone(precision=2, decimal=True)
-        self.assertIsNone(bone.rounding)
+        self.assertIsNone(bone.round)
         self.assertEqual(Decimal("2.34"), bone._convert_to_decimal("2.345"))
         self.assertEqual(Decimal("0.12"), bone._convert_to_decimal("0.125"))
 
     def test_half_up_rounds_commercially(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal, ROUND_HALF_UP
-        bone = NumericBone(precision=2, decimal=True, rounding=ROUND_HALF_UP)
+        bone = NumericBone(precision=2, decimal=True, round=ROUND_HALF_UP)
         self.assertEqual(Decimal("2.35"), bone._convert_to_decimal("2.345"))
         self.assertEqual(Decimal("0.13"), bone._convert_to_decimal("0.125"))
         self.assertEqual(Decimal("1.01"), bone._convert_to_decimal("1.005"))
@@ -617,7 +617,7 @@ class TestNumericBone_Rounding(ViURTestCase):
     def test_rounding_applies_to_every_input_type(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal, ROUND_HALF_UP
-        bone = NumericBone(precision=2, decimal=True, rounding=ROUND_HALF_UP)
+        bone = NumericBone(precision=2, decimal=True, round=ROUND_HALF_UP)
         self.assertEqual(Decimal("2.35"), bone._convert_to_decimal(Decimal("2.345")))
         self.assertEqual(Decimal("2.35"), bone._convert_to_decimal("2.345"))
         self.assertEqual(Decimal("2.35"), bone._convert_to_decimal("2,345"))
@@ -626,7 +626,7 @@ class TestNumericBone_Rounding(ViURTestCase):
     def test_rounding_reaches_client_input_and_serialization(self):
         from viur.core.bones.numeric import NumericBone
         from decimal import Decimal, ROUND_HALF_UP
-        bone = NumericBone(precision=2, decimal=True, rounding=ROUND_HALF_UP)
+        bone = NumericBone(precision=2, decimal=True, round=ROUND_HALF_UP)
         value, errors = bone.singleValueFromClient("2.345", {}, "amount", {})
         self.assertEqual([], errors or [])
         self.assertEqual(Decimal("2.35"), value)
@@ -637,27 +637,27 @@ class TestNumericBone_Rounding(ViURTestCase):
         from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR
         self.assertEqual(
             Decimal("2.35"),
-            NumericBone(precision=2, decimal=True, rounding=ROUND_CEILING)._convert_to_decimal("2.341"),
+            NumericBone(precision=2, decimal=True, round=ROUND_CEILING)._convert_to_decimal("2.341"),
         )
         self.assertEqual(
             Decimal("2.34"),
-            NumericBone(precision=2, decimal=True, rounding=ROUND_FLOOR)._convert_to_decimal("2.349"),
+            NumericBone(precision=2, decimal=True, round=ROUND_FLOOR)._convert_to_decimal("2.349"),
         )
 
     def test_unknown_rounding_mode_is_rejected(self):
         from viur.core.bones.numeric import NumericBone
         with self.assertRaises(ValueError):
-            NumericBone(precision=2, decimal=True, rounding="ROUND_HALF_SIDEWAYS")
+            NumericBone(precision=2, decimal=True, round="ROUND_HALF_SIDEWAYS")
 
     def test_later_assignment_is_guarded_as_well(self):
         from viur.core.bones.numeric import NumericBone
         bone = NumericBone(precision=2, decimal=True)
         with self.assertRaises(ValueError):
-            bone.rounding = "nonsense"
+            bone.round = "nonsense"
 
     def test_rounding_without_decimal_is_rejected(self):
         """The float mode cannot honour it, so accepting it would be a silent no-op."""
         from viur.core.bones.numeric import NumericBone
         from decimal import ROUND_HALF_UP
         with self.assertRaises(ValueError):
-            NumericBone(precision=2, rounding=ROUND_HALF_UP)
+            NumericBone(precision=2, round=ROUND_HALF_UP)
