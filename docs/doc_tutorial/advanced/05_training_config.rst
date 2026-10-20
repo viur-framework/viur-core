@@ -79,7 +79,7 @@ viur.contentSecurityPolicy
 ..........................
 Emit Content-Security-Policy HTTP-header with each request.
 
-Use :meth:`viur.core.securityheaders.addCspRule` to modify this property.
+Use :meth:`viur.core.config.Security.add_csp_rule` to modify this property.
 
 
 viur.debug.traceExceptions
@@ -253,34 +253,34 @@ viur.security.contentSecurityPolicy
 ...................................
 If set, viur will emit a CSP http-header with each request.
 
-Use :meth:`core.securityheaders.addCspRule` to set this property.
+Use :meth:`viur.core.config.Security.add_csp_rule` to set this property.
 
 
 viur.security.strictTransportSecurity
 .....................................
 If set, viur will emit a HSTS http-header with each request.
 
-Use :meth:`core.securityheaders.enableStrictTransportSecurity` to set this property.
+Use :meth:`viur.core.config.Security.enable_strict_transport_security` to set this property.
 
 
 viur.security.xFrameOptions
 ...........................
 If set, ViUR will emit a X-Frame-Options header.
 
-Use :meth:`core.securityheaders.setXFrameOptions` to set this property.
+Use :meth:`viur.core.config.Security.set_x_frame_options` to set this property.
 
 viur.security.xXssProtection
 ............................
 ViUR will emit a X-XSS-Protection header if set (the default).
 
-Use :meth:`core.securityheaders.setXXssProtection` to set this property.
+Use :meth:`viur.core.config.Security.set_x_xss_protection` to set this property.
 
 
 viur.security.xContentTypeOptions
 .................................
 ViUR will emit *X-Content-Type-Options: nosniff* Header unless set to False.
 
-Use  :meth:`core.securityheaders.setXContentTypeNoSniff` to set this property.
+Use :meth:`viur.core.config.Security.set_x_content_type_no_sniff` to set this property.
 
 
 viur.session.lifeTime
