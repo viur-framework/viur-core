@@ -122,6 +122,15 @@ class TestSelectCountryBoneTranslation(ViURTestCase):
         labels = list(_country_bone(values=["at", "nz", "pl"]).structure()["values"].values())
         self.assertEqual(["Neuseeland", "Österreich", "Polen"], labels)
 
+    def test_iso3_label_in_request_language(self):
+        from viur.core.bones.selectcountry import SelectCountryBone
+        structure = _country_bone(codes=SelectCountryBone.ISO3).structure()["values"]
+        self.assertEqual("Deutschland", structure["deu"])
+
+    def test_callable_values(self):
+        bone = _country_bone(values=lambda: {"de": "Germany", "at": "Austria"})
+        self.assertEqual(["at", "de"], list(bone.structure()["values"].keys()))
+
     def test_every_country_has_a_german_name(self):
         from viur.core.bones.selectcountry import SelectCountryBone
         from viur.core.languages import de
