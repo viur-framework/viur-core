@@ -917,7 +917,28 @@ class File(Tree):
             authData: t.Optional[str] = None,
             authSig: t.Optional[str] = None,
             public: bool = False,
+            amend: db.KeyType | None = None,
     ):
+        # Optional amending: replace the blob of an existing file
+        # instead of creating a new one. No new dlkey, no relink — the same
+        # file entity keeps its key, tree position and download URLs; only its
+        # blob content is replaced. The caller must be allowed to edit the file
+        # (canEdit); the metadata (size/mimetype/checksums, and serving_url for
+        # public images) is refreshed in add() once the new blob is uploaded.
+        if amend is not None:
+            skel = self.editSkel("leaf")
+            if not skel.read(amend):
+                raise errors.NotFound()
+            if not self.canEdit("leaf", skel):
+                raise errors.Forbidden()
+            blob = self.get_bucket(skel["dlkey"]).blob(
+                f"""{skel["dlkey"]}/source/{utils.string.unescape(skel["name"])}""")
+            upload_url = blob.create_resumable_upload_session(content_type=mimeType, size=size, timeout=60)
+            return self.render.view({
+                "uploadKey": str(skel["key"]),
+                "uploadUrl": upload_url,
+            })
+
         filename = fileName.strip()  # VIUR4 FIXME: just for compatiblity of the parameter names
 
         if not self.is_valid_filename(filename):
@@ -1126,7 +1147,38 @@ class File(Tree):
                 raise errors.NotFound()
 
             if not skel["pending"]:
-                raise errors.PreconditionFailed()
+                # Amending: the blob of an already-added file was
+                # replaced via getUploadURL(amend=...). Refresh the derived
+                # metadata from the new blob and keep the file's tree position
+                # untouched (no re-parent, no weak-flag change). write() runs
+                # _inject_serving_url, which refreshes serving_url for public
+                # images (no-op if it is already set).
+                if not self.canEdit("leaf", skel):
+                    raise errors.Forbidden()
+
+                bucket = self.get_bucket(skel["dlkey"])
+                blobs = list(bucket.list_blobs(prefix=f"""{skel["dlkey"]}/"""))
+                if len(blobs) != 1:
+                    logging.error("Invalid number of blobs in folder")
+                    logging.error(targetKey)
+                    raise errors.PreconditionFailed()
+                blob = blobs[0]
+
+                # The blob is read outside, the entity is re-read and written within a transaction.
+                def _refresh_metadata(skel: SkeletonInstance) -> None:
+                    skel["mimetype"] = utils.string.escape(blob.content_type)
+                    skel["size"] = blob.size
+                    skel["crc32c_checksum"] = base64.b64decode(blob.crc32c).hex()
+                    skel["md5_checksum"] = base64.b64decode(blob.md5_hash).hex()
+                    self.onEdit("leaf", skel)
+
+                skel.patch(_refresh_metadata)
+                self.onEdited("leaf", skel)
+
+                skel["downloadUrl"] = self.create_download_url(
+                    skel["dlkey"], skel["name"], expires=conf.render_json_download_url_expiration
+                )
+                return self.render.editSuccess(skel)
 
             skel["pending"] = False
             skel["parententry"] = skel["pendingparententry"]
