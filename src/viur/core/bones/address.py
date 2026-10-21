@@ -31,6 +31,7 @@ class AddressRelSkel(RelSkel):
         },
     )
     city = StringBone(descr="City", required=True)
+    state = StringBone(descr="State")
     country = SelectCountryBone(descr="Country")
     coordinates = SpatialBone(
         descr="Coordinates",
@@ -76,9 +77,9 @@ class AddressBone(RecordBone):
             "format": "json",
             "limit": 1,
         }
-        # Optional field, added by projects deriving from AddressRelSkel (e.g. `region = StringBone()`)
-        if region := skel.get("region"):
-            params["state"] = region
+        # Only when set, so cache keys of addresses without a state stay the same; `using` may lack the field
+        if state := skel.get("state"):
+            params["state"] = state
         cache_key = AddressBone._cache_key(urllib.parse.urlencode(params))
         try:
             cached = db.get(cache_key)
