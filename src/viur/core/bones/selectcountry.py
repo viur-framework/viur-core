@@ -5,9 +5,8 @@ The SelectCountryBone is designed to provide a user-friendly way to select a cou
 countries. It inherits from the BaseBone class and extends it to support country-specific functionalities,
 such as displaying country names and handling country codes (e.g., ISO 3166-1 alpha-2 or alpha-3).
 """
-from viur.core.bones.select import SelectBone
+from viur.core.bones.select import SelectBone, sort_by_label
 from viur.core.i18n import translate
-from viur.core.utils.string import normalize_ascii
 
 
 class SelectCountryBone(SelectBone):
@@ -804,7 +803,7 @@ class SelectCountryBone(SelectBone):
     ISO2 = 2
     ISO3 = 3
 
-    def __init__(self, *, descr="Country", codes=ISO2, values=None, **kwargs):
+    def __init__(self, *, descr="Country", codes=ISO2, values=None, sort=sort_by_label, **kwargs):
         assert codes in [self.ISO2, self.ISO3]
         # assert values is None
 
@@ -834,23 +833,11 @@ class SelectCountryBone(SelectBone):
         super().__init__(
             values=values,
             descr=descr,
+            sort=sort,
             **kwargs
         )
 
         self.codes = codes
-
-    def structure(self) -> dict:
-        """Sorts the countries by their name in the request language; umlauts like their base letter."""
-        res = super().structure()
-
-        def sort_key(item):
-            return normalize_ascii(item[1]).casefold()
-
-        if isinstance(res["values"], dict):
-            res["values"] = dict(sorted(res["values"].items(), key=sort_key))
-        else:  # list of (key, label) tuples with conf.compatibility "bone.select.structure.values.keytuple"
-            res["values"] = sorted(res["values"], key=sort_key)
-        return res
 
     def singleValueUnserialize(self, val):
         """
