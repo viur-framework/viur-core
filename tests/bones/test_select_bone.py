@@ -113,8 +113,8 @@ class TestSelectBoneStructureSort(ViURTestCase):
         self.assertEqual(["b", "a"], list(bone.structure()["values"]))
 
     def test_sort_by_label(self):
-        from viur.core.bones.select import sort_by_label
-        bone = _select_bone(values={"o": "Österreich", "p": "Polen", "n": "Neuseeland"}, sort=sort_by_label)
+        from viur.core.bones.select import SelectBone
+        bone = _select_bone(values={"o": "Österreich", "p": "Polen", "n": "Neuseeland"}, sort=SelectBone.sort_by_label)
         self.assertEqual(["n", "o", "p"], list(bone.structure()["values"]))
 
     def test_sort_by_key(self):
@@ -123,8 +123,8 @@ class TestSelectBoneStructureSort(ViURTestCase):
 
     def test_sort_with_keytuple_compatibility(self):
         from unittest import mock
-        from viur.core.bones.select import sort_by_label
+        from viur.core.bones.select import SelectBone
         from viur.core.config import conf
-        bone = _select_bone(values={"b": "Beta", "a": "Alpha"}, sort=sort_by_label)
+        bone = _select_bone(values={"b": "Beta", "a": "Alpha"}, sort=SelectBone.sort_by_label)
         with mock.patch.object(conf, "compatibility", ["bone.select.structure.values.keytuple"]):
             self.assertEqual([("a", "Alpha"), ("b", "Beta")], bone.structure()["values"])
