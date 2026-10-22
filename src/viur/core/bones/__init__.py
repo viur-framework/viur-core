@@ -34,7 +34,6 @@ from .relational import RelationalBone, RelationalConsistency, RelationalUpdateL
 from .selectcountry import SelectCountryBone
 from .select import (
     SelectBone,
-    sort_by_label,
     translation_key_prefix_skeleton_bonename,
     translation_key_prefix_bonename,
 )
@@ -99,7 +98,6 @@ __all = [
     "UniqueValue",
     "UriBone",
     "UserBone",
-    "sort_by_label",
     "translation_key_prefix_bonename",
     "translation_key_prefix_skeleton_bonename",
 ]

@@ -29,17 +29,17 @@ def translation_key_prefix_bonename(bones_instance: BaseBone) -> str:
     return f'bone.{bones_instance.name}.'
 
 
-def sort_by_label(item: tuple[SelectBoneValue, str]) -> str:
-    """Sort key for `SelectBone(sort=...)`: by the label, accented letters like their base letter"""
-    return normalize_ascii(item[1]).casefold()
-
-
 class SelectBone(BaseBone):
     """
     A SelectBone is a bone which can take a value from a certain list of values.
     Inherits from the BaseBone class. The `type` attribute is set to "select".
     """
     type = "select"
+
+    @staticmethod
+    def sort_by_label(item: tuple[SelectBoneValue, str]) -> str:
+        """Sort key for `SelectBone(sort=...)`: by the label, accented letters like their base letter"""
+        return normalize_ascii(item[1]).casefold()
 
     def __init__(
         self,
@@ -66,7 +66,7 @@ class SelectBone(BaseBone):
             It is empty by default, so that only the label (dict value) from the values is used.
             A static string or dynamic method can be used (like `translation_key_prefix_bonename`).
         :param sort: Sort key function for the values in the structure, called with a (key, label) tuple
-            after the labels are translated into the request language (like `sort_by_label`).
+            after the labels are translated into the request language (like `SelectBone.sort_by_label`).
             By default, the values keep their given order.
         :param kwargs: Additional keyword arguments that will be passed to the superclass' __init__ method.
         """
