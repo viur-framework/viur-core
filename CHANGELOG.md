@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.9.3]
+
+- fix(bones): keep client coordinates in AddressBone (#1790)
+- fix(bones): scope the compute recursion guard to skeleton and thread (#1793)
+
 ## [3.9.2]
 
 - feat: `conf.db.transaction_attempts` (#1787)
