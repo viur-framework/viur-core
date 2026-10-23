@@ -4,6 +4,8 @@ This file documents any relevant changes done to ViUR-core since version 3.
 
 ## [develop] - Current development version
 
+- chore: The `4.0` branch identifies itself as `4.0.0.dev0` instead of the merged `3.9.2`, so installs from the
+  branch, `conf.version` and dependency checks can tell it apart from the 3.9 release line
 - [Breaking] feat: Actions as the standard (from viur-actions): `@action` marks a standard endpoint - routable like
   `@exposed`, plus the hooks `can<Action>` / `on<Action>` / `then<Action>` / `<action>Skel`, falling back to `can` /
   `on` / `then` / `skel`; `can` is fail-closed. Every prototype endpoint is an `@action`; `@exposed` stays for free
