@@ -6,6 +6,7 @@ countries. It inherits from the BaseBone class and extends it to support country
 such as displaying country names and handling country codes (e.g., ISO 3166-1 alpha-2 or alpha-3).
 """
 from viur.core.bones.select import SelectBone
+from viur.core.i18n import translate
 
 
 class SelectCountryBone(SelectBone):
@@ -802,7 +803,7 @@ class SelectCountryBone(SelectBone):
     ISO2 = 2
     ISO3 = 3
 
-    def __init__(self, *, descr="Country", codes=ISO2, values=None, **kwargs):
+    def __init__(self, *, descr="Country", codes=ISO2, values=None, sort=SelectBone.sort_by_label, **kwargs):
         assert codes in [self.ISO2, self.ISO3]
         # assert values is None
 
@@ -822,9 +823,17 @@ class SelectCountryBone(SelectBone):
             if isinstance(values, dict):
                 values = dict(sorted(values.items(), key=lambda i: i[1]))
 
+        # The names are translated in viur.core.languages, keyed by their lower-case English name
+        if isinstance(values, dict):
+            values = {
+                code: translate(name.lower(), name) if isinstance(name, str) else name
+                for code, name in values.items()
+            }
+
         super().__init__(
             values=values,
             descr=descr,
+            sort=sort,
             **kwargs
         )
 
