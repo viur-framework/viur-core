@@ -596,7 +596,7 @@ class RelationalBone(BaseBone):
                     to_delete.append(entity["_id"])
                     continue
 
-            except KeyError:  # This entry is corrupt
+            except (KeyError, AttributeError):  # This entry is corrupt (missing or empty dest)
                 to_delete.append(entity["_id"])
 
             else:  # Relation: Updated
@@ -719,8 +719,9 @@ class RelationalBone(BaseBone):
 
         elif self.consistency == RelationalConsistency.Ignore:
             # when RelationalConsistency.Ignore is on, keep existing relations, even when they where deleted
+            dest_key = db.key_helper(dest_key, self.kind, adjust_kind=True)  # also resolves shortkeys
             for _, _, value in self.iter_bone_value(skel, bone_name):
-                if str(value["dest"]["key"]) == str(dest_key):
+                if value["dest"]["key"] == dest_key:
                     value["rel"] = rel
                     return value, errors
 
@@ -859,6 +860,9 @@ class RelationalBone(BaseBone):
                     # Iterate our relSkel and let these bones write their filters in
                     for bname, bone in relSkel.items():
                         if checkKey == bname:
+                            if key == "key":  # resolve shortkeys (id_or_name) to full keys
+                                value = [db.key_helper(v, self.kind, adjust_kind=True) for v in value] \
+                                    if isinstance(value, list) else db.key_helper(value, self.kind, adjust_kind=True)
                             newFilter = {key: value}
                             if self.multiple:
                                 bone.buildDBFilter(bname, relSkel, dbFilter, newFilter, prefix=(prefix or "") + "dest.")

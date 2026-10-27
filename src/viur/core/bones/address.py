@@ -31,6 +31,7 @@ class AddressRelSkel(RelSkel):
         },
     )
     city = StringBone(descr="City", required=True)
+    state = StringBone(descr="State")
     country = SelectCountryBone(descr="Country")
     coordinates = SpatialBone(
         descr="Coordinates",
@@ -54,7 +55,8 @@ class AddressBone(RecordBone):
 
     def after_from_client(self, skel, name, errors):
         value = skel[name]
-        if value is not None:
+        # Coordinates sent by the client (e.g. a pin set on a map) are more precise than geocoding
+        if value is not None and self.using.coordinates.isEmpty(value["coordinates"]):
             coords = self.geocode(value)
             if coords:
                 value["coordinates"] = coords
@@ -79,6 +81,11 @@ class AddressBone(RecordBone):
             "format": "json",
             "limit": 1,
         }
+
+        # Only when set, so cache keys of addresses without a state stay the same; `using` may lack the field
+        if state := skel.get("state"):
+            params["state"] = state
+
         cache_key = AddressBone._cache_key(urllib.parse.urlencode(params))
         try:
             cached = db.get(CACHE_KIND, cache_key)

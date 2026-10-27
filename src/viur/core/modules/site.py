@@ -18,7 +18,7 @@ class Site(Module):
             raise errors.Unauthorized()
 
         if ".." in template or "/" in template:
-            return
+            raise errors.NotFound()
 
         try:
             template = self.render.getEnv().get_template(self.render.getTemplateFileName("sites/" + template))

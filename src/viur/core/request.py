@@ -374,6 +374,8 @@ class Router:
                 current.user.set(user_mod.getCurrentUser())
 
             path = self._select_language(path)[1:]
+            # Parse the path before anything can raise, the error handling depends on path_list
+            self._parse_path(path)
 
             # Check for closed system
             if conf.security.closed_system and self.method != "options":
@@ -387,8 +389,9 @@ class Router:
 
             if conf.request_preprocessor:
                 path = conf.request_preprocessor(path)
+                self._parse_path(path)
 
-            self._route(path)
+            self._route()
 
         except errors.Redirect as e:
             if conf.debug.trace_exceptions:
@@ -528,17 +531,23 @@ class Router:
                 except Exception:  # noqa
                     logging.exception(f"Deferred Task emulation {task} failed")
 
-    def _route(self, path: str) -> None:
+    def _parse_path(self, path: str) -> None:
         """
-            Does the actual work of sanitizing the parameter, determine which exposed-function to call
-            (and with which parameters)
+            Parses the URL path into :attr:`path` and :attr:`path_list`
         """
-
-        # Parse the URL
         if path := parse.urlparse(path).path:
             self.path = path
             self.path_list = tuple(unicodedata.normalize("NFC", parse.unquote(part))
                                    for part in path.strip("/").split("/"))
+        else:
+            self.path = ""
+            self.path_list = ()
+
+    def _route(self) -> None:
+        """
+            Does the actual work of sanitizing the parameter, determine which exposed-function to call
+            (and with which parameters)
+        """
 
         # Prevent Hash-collision attacks
         if len(self.request.params) > conf.max_post_params_count:

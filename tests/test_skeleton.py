@@ -4,16 +4,8 @@ from unittest import mock
 from abstract import ViURTestCase
 
 
-def _skeleton_search_path():
-    """Make ``TranslationSkel`` importable, see :mod:`tests.modules.test_user_app_login`."""
-    from viur.core.config import conf
-    if "/src/viur/core/" not in conf.skeleton_search_path:
-        conf.skeleton_search_path = list(conf.skeleton_search_path) + ["/src/viur/core/"]
-
-
 def _translation_skel():
     from viur.core import bones, db  # noqa: F401  (import order, see project memory)
-    _skeleton_search_path()
     from viur.core.modules.translation import TranslationSkel
     return TranslationSkel
 

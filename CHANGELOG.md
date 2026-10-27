@@ -33,6 +33,24 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - [Breaking] chore: `add_or_edit` is guarded by `canAddOrEdit` instead of `@access("root")`
 - fix: `IN`/`NOT_IN` filter values given as `set`/`frozenset` reach MongoDB as a list (#1786 for MongoDB)
 
+## [3.9.4]
+
+- feat(bones): add `sort` to SelectBone, translate and sort SelectCountryBone names (#1795)
+- feat(bones): add `state` to AddressBone (#1794)
+- feat(file): Blob amending via `getUploadURL(amend=...)` (#1785)
+- feat(NumericBone): add `round`-parameter for decimal mode
+- fix: resolve skeleton paths relative to the core first (#1798)
+- fix: split path parsing and routing in `Router` (#1804)
+- fix: Treat `viur-relations` entries with empty `dest` as corrupt (#1799)
+- fix(bones): escape literal dashes in ZIP code patterns so browsers accept them (#1797)
+- fix(RelationalBone): Support shortkeys in queries and consistency (#1807)
+- fix(site): raise NotFound for template names containing ".." or "/" (#1808)
+
+## [3.9.3]
+
+- fix(bones): keep client coordinates in AddressBone (#1790)
+- fix(bones): scope the compute recursion guard to skeleton and thread (#1793)
+
 ## [3.9.2]
 
 - feat: `conf.db.transaction_attempts` (#1787)
@@ -119,6 +137,15 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
 - refactor(bones): restructure `EmailBone.isInvalid` validation (#1730)
 - test: Add unit tests for Bones and App Login Flow (get_cookie_for_app, apply_login_cookie) (#1661)
+
+## [3.8.42]
+
+- fix(RelationalBone): Support shortkeys in queries and consistency (#1807)
+- fix: Treat `viur-relations` entries with empty `dest` as corrupt (#1799)
+
+## [3.8.41]
+
+- fix(bones): scope the compute recursion guard to skeleton and thread (#1793)
 
 ## [3.8.40]
 
