@@ -34,7 +34,7 @@ class TestRelationalBonePostSavedHandler(ViURTestCase):
                 mock.patch.object(relational.db, "put") as put:
             bone.postSavedHandler(skel, "relation", key)
 
-        delete.assert_called_once_with(corrupt.key)
+        delete.assert_called_once_with([corrupt.key])
         put.assert_not_called()
 
 
