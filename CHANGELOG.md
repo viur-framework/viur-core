@@ -2,6 +2,11 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.42]
+
+- fix(RelationalBone): Support shortkeys in queries and consistency (#1807)
+- fix: Treat `viur-relations` entries with empty `dest` as corrupt (#1799)
+
 ## [3.8.41]
 
 - fix(bones): scope the compute recursion guard to skeleton and thread (#1793)
