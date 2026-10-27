@@ -110,6 +110,31 @@ class RecordBone(BaseBone):
 
         return usingSkel, usingSkel.errors
 
+    def performMagic(self, skel: "SkeletonInstance", name: str, isAdd: bool) -> None:
+        """
+        Forward ``performMagic`` to the sub-bones of every record value.
+
+        The value is only loaded when a sub-bone actually implements ``performMagic``,
+        so records without any magic are not unserialized on every write.
+
+        :param skel: The skeleton instance being written.
+        :param name: The name of this bone.
+        :param isAdd: Signals whether this is an add or an edit operation of the skeleton.
+        """
+        magic_bone_names = [
+            sub_bone_name for sub_bone_name, bone in self.using.__boneMap__.items()
+            if "performMagic" in vars(bone) or type(bone).performMagic is not BaseBone.performMagic
+        ]
+        if not magic_bone_names:
+            return
+
+        for _, _, value in self.iter_bone_value(skel, name):
+            if value is None:
+                continue
+
+            for sub_bone_name in magic_bone_names:
+                value.boneMap[sub_bone_name].performMagic(value, sub_bone_name, isAdd=isAdd)
+
     def postSavedHandler(self, skel, boneName, key) -> None:
         super().postSavedHandler(skel, boneName, key)
 
