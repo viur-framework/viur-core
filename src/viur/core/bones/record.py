@@ -3,7 +3,7 @@ import logging
 import typing as t
 
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
-from viur.core import db, utils, tasks, i18n
+from viur.core import db, utils, i18n
 
 if t.TYPE_CHECKING:
     from ..skeleton import SkeletonInstance
@@ -113,30 +113,78 @@ class RecordBone(BaseBone):
     def postSavedHandler(self, skel, boneName, key) -> None:
         super().postSavedHandler(skel, boneName, key)
 
-        drop_relations_higher = {}
+        relational_bone_names = {
+            name for name, bone in self.using.__boneMap__.items()
+            if utils.string.is_prefix(bone.type, "relational")
+        }
+        saved_paths = set()
+        truncated = False
 
         for idx, lang, value in self.iter_bone_value(skel, boneName):
             if idx is not None and idx > 99:
                 logging.warning("postSavedHandler entry limit maximum reached")
-                drop_relations_higher.clear()
+                truncated = True
                 break
 
             for sub_bone_name, bone in value.items():
                 path = ".".join(name for name in (boneName, lang, f"{idx or 0:02}", sub_bone_name) if name)
-                if utils.string.is_prefix(bone.type, "relational"):
-                    drop_relations_higher[sub_bone_name] = path
+                if sub_bone_name in relational_bone_names:
+                    saved_paths.add(path)
 
                 bone.postSavedHandler(value, path, key)
 
-        if drop_relations_higher:
-            for viur_src_property in drop_relations_higher.values():
-                query = db.Query("viur-relations") \
-                    .filter("viur_src_kind =", key.kind) \
-                    .filter("src.__key__ =", key) \
-                    .filter("viur_src_property >", viur_src_property)
+        if relational_bone_names and not truncated:
+            self._drop_stale_relations(boneName, key, relational_bone_names, saved_paths)
 
-                logging.debug(f"Delete viur-relations with {query=}")
-                tasks.DeleteEntitiesIter.startIterOnQuery(query)
+    def _drop_stale_relations(
+        self,
+        bone_name: str,
+        key: db.Key,
+        relational_bone_names: set[str],
+        saved_paths: set[str],
+    ) -> None:
+        """
+        Delete the ``viur-relations`` entries of record values which no longer exist.
+
+        A relation is considered stale when its ``viur_src_property`` has the shape
+        ``<bone_name>[.<lang>].<index>.<sub_bone_name>`` of a known relational sub-bone,
+        but was not written by the current save (e.g. the list has been shortened or emptied).
+
+        Relations of other bones, of nested containers, of unknown sub-bones or unknown languages
+        are left untouched; they may belong to another version of the application.
+
+        :param bone_name: The name (or path, if nested) of this bone.
+        :param key: The key of the saved skeleton.
+        :param relational_bone_names: Names of the relational sub-bones of the using-skeleton.
+        :param saved_paths: The ``viur_src_property`` paths written by the current save.
+        """
+        query = db.Query("viur-relations") \
+            .filter("viur_src_kind =", key.kind) \
+            .filter("src.__key__ =", key) \
+            .filter("viur_src_property >", f"{bone_name}.") \
+            .filter("viur_src_property <", f"{bone_name}.\ufffd")
+
+        stale_keys = []
+
+        for entity in query.iter():
+            path = entity["viur_src_property"]
+            if path in saved_paths:
+                continue
+
+            parts = path[len(bone_name) + 1:].split(".")
+            if self.languages:
+                if len(parts) != 3 or parts[0] not in self.languages:
+                    continue
+            elif len(parts) != 2:
+                continue
+
+            *_, index, sub_bone_name = parts
+            if index.isdigit() and sub_bone_name in relational_bone_names:
+                stale_keys.append(entity.key)
+
+        if stale_keys:
+            logging.debug(f"Delete {len(stale_keys)} stale viur-relations of {bone_name!r}")
+            db.delete(stale_keys)
 
     def postDeletedHandler(self, skel, boneName, key) -> None:
         super().postDeletedHandler(skel, boneName, key)
