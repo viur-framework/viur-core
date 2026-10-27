@@ -39,7 +39,9 @@ authors = [
     { name = "Mausbrand Informationssysteme GmbH", email = "devs@viur.dev" },
 ]
 maintainers = [
-    { name = "Jan Max Meyer", email = "jm@mausbrand.de" }
+    { name = "Jan Max Meyer", email = "jm@mausbrand.de" },
+    { name = "Sven Eberth", email = "se@mausbrand.de" },
+    { name = "Arne Gudermann", email = "ag@mausbrand.de" }
 ]
 description = "The core component of ViUR, a development framework for Google App Engine"
 readme = "README.md"
