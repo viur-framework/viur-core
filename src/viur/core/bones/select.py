@@ -5,6 +5,7 @@ from numbers import Number
 from viur.core.config import conf
 from viur.core.bones.base import BaseBone, ReadFromClientError, ReadFromClientErrorSeverity
 from viur.core.i18n import translate
+from viur.core.utils.string import normalize_ascii
 
 if t.TYPE_CHECKING:
     from viur.core.skeleton import SkeletonInstance
@@ -35,6 +36,11 @@ class SelectBone(BaseBone):
     """
     type = "select"
 
+    @staticmethod
+    def sort_by_label(item: tuple[SelectBoneValue, str]) -> str:
+        """Sort key for `SelectBone(sort=...)`: by the label, accented letters like their base letter"""
+        return normalize_ascii(item[1]).casefold()
+
     def __init__(
         self,
         *,
@@ -47,6 +53,7 @@ class SelectBone(BaseBone):
         values: dict | list | tuple | t.Callable | enum.EnumMeta = (),
         translation_key_prefix: str | t.Callable[[t.Self], str] = "",
         add_missing_translations: bool = False,
+        sort: t.Callable[[tuple[SelectBoneValue, str]], t.Any] | None = None,
         **kwargs
     ):
         """
@@ -58,11 +65,15 @@ class SelectBone(BaseBone):
         :param translation_key_prefix: A prefix for the key of the translation object.
             It is empty by default, so that only the label (dict value) from the values is used.
             A static string or dynamic method can be used (like `translation_key_prefix_bonename`).
+        :param sort: Sort key function for the values in the structure, called with a (key, label) tuple
+            after the labels are translated into the request language (like `SelectBone.sort_by_label`).
+            By default, the values keep their given order.
         :param kwargs: Additional keyword arguments that will be passed to the superclass' __init__ method.
         """
         super().__init__(defaultValue=defaultValue, **kwargs)
         self.translation_key_prefix = translation_key_prefix
         self.add_missing_translations = add_missing_translations
+        self.sort = sort
 
         # handle list/tuple as dicts
         if isinstance(values, (list, tuple)):
@@ -150,11 +161,15 @@ class SelectBone(BaseBone):
         ]
 
     def structure(self) -> dict:
+        values = [(k, str(v)) for k, v in self.values.items()]
+        if self.sort:
+            values.sort(key=self.sort)
+
         return super().structure() | {
             "values":
-                {k: str(v) for k, v in self.values.items()}  # new-style dict
+                dict(values)  # new-style dict
                 if "bone.select.structure.values.keytuple" not in conf.compatibility
-                else [(k, str(v)) for k, v in self.values.items()]  # old-style key-tuple
+                else values  # old-style key-tuple
         }
 
     def _atomic_dump(self, value):
