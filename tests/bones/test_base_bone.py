@@ -39,3 +39,35 @@ class TestBaseBone_getDefaultValue(ViURTestCase):
 
         value.append("foo")
         self.assertEqual([], bone.getDefaultValue(None))
+
+
+class TestBaseBone_iter_bone_value(ViURTestCase):
+    def _iter(self, bone, value):
+        return list(bone.iter_bone_value({"bone": value}, "bone"))
+
+    def test_single(self):
+        from viur.core.bones import BaseBone
+        self.assertEqual([(None, None, "a")], self._iter(BaseBone(), "a"))
+
+    def test_multiple(self):
+        from viur.core.bones import BaseBone
+        self.assertEqual([(0, None, "a"), (1, None, "b")], self._iter(BaseBone(multiple=True), ["a", "b"]))
+
+    def test_languages(self):
+        from viur.core.bones import BaseBone
+        bone = BaseBone(languages=["de", "en"])
+        self.assertEqual([(None, "de", "a"), (None, "en", "b")], self._iter(bone, {"de": "a", "en": "b"}))
+
+    def test_languages_multiple_index_per_language(self):
+        """The index is the position of the value within its language, not the position of the language."""
+        from viur.core.bones import BaseBone
+        bone = BaseBone(languages=["de", "en"], multiple=True)
+        self.assertEqual(
+            [(0, "de", "a"), (1, "de", "b"), (0, "en", "c"), (1, "en", "d"), (2, "en", "e")],
+            self._iter(bone, {"de": ["a", "b"], "en": ["c", "d", "e"]}),
+        )
+
+    def test_languages_multiple_skips_empty_language(self):
+        from viur.core.bones import BaseBone
+        bone = BaseBone(languages=["de", "en"], multiple=True)
+        self.assertEqual([(0, "en", "c")], self._iter(bone, {"de": [], "en": ["c"]}))
