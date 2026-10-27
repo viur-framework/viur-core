@@ -168,9 +168,11 @@ class RecordBone(BaseBone):
 
         for entity in query.iter():
             path = entity["viur_src_property"]
-            if path in saved_paths:
+            if path in saved_paths:  # still in use, just written by the sub-bone's postSavedHandler
                 continue
 
+            # Split "<bone_name>.[<lang>.]<index>.<sub_bone_name>" behind the prefix, e.g. ["de", "01", "image"].
+            # Paths with more parts belong to a nested container, which cleans up its own relations.
             parts = path[len(bone_name) + 1:].split(".")
             if self.languages:
                 if len(parts) != 3 or parts[0] not in self.languages:
@@ -178,6 +180,7 @@ class RecordBone(BaseBone):
             elif len(parts) != 2:
                 continue
 
+            # Only drop relations this bone is responsible for; unknown sub-bones may belong to another app version
             *_, index, sub_bone_name = parts
             if index.isdigit() and sub_bone_name in relational_bone_names:
                 stale_keys.append(entity.key)
