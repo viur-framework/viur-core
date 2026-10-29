@@ -300,9 +300,19 @@ class Module:
     """
     If set, a tuple of access rights (like add, edit, delete) that this module supports.
 
-    These will be prefixed on instance startup with the actual module name (becoming file-add, file-edit etc)
+    These will be prefixed on startup with the module's :attr:`access_name` (becoming file-add, file-edit etc)
     and registered in ``conf.user.access_rights`` so these will be available on the access bone in user/add
     or user/edit.
+    """
+
+    access_name: str | None = None
+    """
+    The name used as prefix for this module's access rights, see :meth:`access_right`.
+
+    When not set explicitly, it is determined on startup from the module's position in the module tree:
+    A top-level module is named like the module itself (e.g. ``file``), a nested module is named by its
+    dotted path (e.g. ``shop.order``). This is the same name the module has in ``/vi/config`` and in
+    the module configuration.
     """
 
     roles: dict = {}
@@ -441,13 +451,7 @@ class Module:
         self.moduleName = moduleName  # Name of this module (usually it's class name, e.g. "file")
         self.modulePath = modulePath  # Path to this module in URL-routing (e.g. "json/file")
 
-        if self.handler and self.accessRights:
-            for right in self.accessRights:
-                right = f"{self.moduleName}-{right}"
-
-                # fixme: Turn conf.user.access_rights into a set.
-                if right not in conf.user.access_rights:
-                    conf.user.access_rights.append(right)
+        # Access rights are registered by register_access_rights() after the module tree has been built.
 
         # Collect methods and (sub)modules
         self._methods = {}
@@ -475,6 +479,14 @@ class Module:
             elif isinstance(prop, Module):
                 self._modules[key] = prop
 
+    def access_right(self, right: str) -> str:
+        """
+        Returns the name of the access right *right* (e.g. ``"edit"``) for this module, e.g. ``"shop.order-edit"``.
+
+        Use this instead of building the name from :attr:`moduleName`, which differs for nested modules.
+        """
+        return f"{self.access_name or self.moduleName}-{right}"
+
     def describe(self) -> dict | None:
         """
         Meta description of this module.
@@ -495,6 +507,10 @@ class Module:
                 name: method.describe() for name, method in self._methods.items()
             },
         }
+
+        # Tell admin tools explicitly, which access rights belong to this module
+        if self.accessRights:
+            ret["access_rights"] = [self.access_right(right) for right in self.accessRights]
 
         # Extend indexes, if available
         # todo: This must be handled by SkelModule
@@ -545,3 +561,51 @@ class Module:
         # Register sub modules
         for name, module in self._modules.items():
             module.register(target, self.render)
+
+
+def iter_modules(root: Module, skip: t.Iterable[str] = ()) -> t.Iterator[tuple[str, Module]]:
+    """
+    Iterates breadth-first over all modules below *root* and yields their dotted path (e.g. ``"shop.order"``).
+
+    Modules referenced more than once (e.g. a sub-module pointing back to its parent) are yielded only once,
+    under their shortest path.
+
+    :param root: The root of the module tree, e.g. ``conf.main_app.vi``.
+    :param skip: Names of first-level attributes to ignore, e.g. the render nodes on the index.
+    """
+    # Modules on a root are attached later on by setattr(), so they're not part of its _modules.
+    queue = [
+        (name, module) for name, module in vars(root).items()
+        if name not in skip and isinstance(module, Module)
+    ]
+    visited = {id(root)}
+
+    while queue:
+        path, module = queue.pop(0)
+        if id(module) in visited:
+            continue
+
+        visited.add(id(module))
+        yield path, module
+
+        queue.extend((f"{path}.{name}", sub_module) for name, sub_module in module._modules.items())
+
+
+def register_access_rights(root: Module, skip: t.Iterable[str] = ()) -> None:
+    """
+    Determines the :attr:`Module.access_name` of all modules below *root* and registers their access rights
+    in ``conf.user.access_rights``.
+
+    This is executed on start-up, once the module tree has been built.
+    """
+    for path, module in iter_modules(root, skip):
+        if module.access_name is None:
+            module.access_name = path
+
+        if module.handler and module.accessRights:
+            for right in module.accessRights:
+                right = module.access_right(right)
+
+                # fixme: Turn conf.user.access_rights into a set.
+                if right not in conf.user.access_rights:
+                    conf.user.access_rights.append(right)

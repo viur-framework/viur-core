@@ -26,6 +26,7 @@ from viur.core import (
     conf, current, db, email, errors, i18n,
     securitykey, session, skeleton, tasks, utils, Module
 )
+from viur.core.module import iter_modules
 from viur.core.decorators import *
 from viur.core.bones import *
 from viur.core.bones.password import PBKDF2_DEFAULT_ITERATIONS, encode_password
@@ -155,33 +156,30 @@ class UserSkel(skeleton.Skeleton):
                 # Get default access for this role
                 access |= conf.main_app.vi.user.get_role_defaults(role)
 
-                # Go through all modules and evaluate available role-settings
-                for name in dir(conf.main_app.vi):
-                    if name.startswith("_"):
-                        continue
-
-                    module = getattr(conf.main_app.vi, name)
-                    if not isinstance(module, Module):
+                # Go through all modules, including nested ones, and evaluate available role-settings
+                for path, module in iter_modules(conf.main_app.vi):
+                    if path.startswith("_"):  # internal modules like _translation are not covered by roles
                         continue
 
                     roles = getattr(module, "roles", None) or {}
                     rights = roles.get(role, roles.get("*", ()))
+                    module_rights = module.accessRights or ()
 
                     # Convert role into tuple if it's not
                     if not isinstance(rights, (tuple, list)):
                         rights = (rights, )
 
                     if "*" in rights:
-                        for right in module.accessRights:
-                            access.add(f"{name}-{right}")
+                        for right in module_rights:
+                            access.add(module.access_right(right))
                     else:
                         for right in rights:
-                            if right in module.accessRights:
-                                access.add(f"{name}-{right}")
+                            if right in module_rights:
+                                access.add(module.access_right(right))
 
                                 # special case: "edit" and "delete" actions require "view" as well!
-                                if right in ("edit", "delete") and "view" in module.accessRights:
-                                    access.add(f"{name}-view")
+                                if right in ("edit", "delete") and "view" in module_rights:
+                                    access.add(module.access_right("view"))
 
             skel["access"] = list(access)
 
@@ -1671,7 +1669,7 @@ class User(List):
             if skel["key"] == user["key"]:
                 return True
 
-            if self.is_admin(user) or "user-view" in user["access"]:
+            if self.is_admin(user) or self.access_right("view") in user["access"]:
                 return True
 
         return False
