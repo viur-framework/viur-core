@@ -19,7 +19,7 @@ from viur.core import i18n, request, utils
 from viur.core.config import conf
 from viur.core.decorators import access, exposed, force_post, force_ssl, internal_exposed, skey
 from viur.core.i18n import translate
-from viur.core.module import Method, Module
+from viur.core.module import Method, Module, register_access_rights
 import inspect
 import typing as t
 import warnings
@@ -226,6 +226,12 @@ def __build_app(modules: ModuleType | object, renderers: ModuleType | object, de
         # This behavior does NOT influence the routing.
         if default_module_instance or module_instance:
             setattr(index, module_name, default_module_instance or module_instance)
+
+    # Name the access rights by the modules' paths, which are only known now that the module tree is complete.
+    register_access_rights(index, skip=renderers.keys())
+    for render_name in renderers:
+        if isinstance(render_root := getattr(index, render_name, None), Module):
+            register_access_rights(render_root)
 
     # fixme: Below is also ugly...
     if default in renderers and hasattr(renderers[default]["default"], "renderEmail"):
