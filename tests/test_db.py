@@ -27,3 +27,19 @@ class TestDb(ViURTestCase):
         key = db.Key("viur", "bar", parent=parent_key)
         self.assertEqual(key.name, "bar")
         self.assertEqual(key.parent, parent_key)
+
+    def test_query_count_default_up_to(self) -> None:
+        """The default ``up_to`` of ``Query.count`` must be a valid aggregation limit (Int32)."""
+        from unittest import mock
+        from google.auth.credentials import AnonymousCredentials
+        from google.cloud import datastore
+        from viur.core import db
+
+        with mock.patch("viur.core.db.query.count", return_value=42) as transport_count:
+            self.assertEqual(db.Query("viur").count(), 42)
+        up_to = transport_count.call_args.kwargs["up_to"]
+
+        # Build the aggregation request like the transport does, without sending it
+        client = datastore.Client(project="test", credentials=AnonymousCredentials())
+        result = client.aggregation_query(client.query(kind="viur")).count(alias="total").fetch(limit=up_to)
+        result._build_protobuf()  # raises ValueError for a limit beyond Int32

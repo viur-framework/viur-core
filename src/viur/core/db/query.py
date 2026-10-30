@@ -648,11 +648,11 @@ class Query(object):
 
         return res
 
-    def count(self, up_to: int = 2 ** 63 - 1) -> int:
+    def count(self, up_to: int = 2 ** 31 - 1) -> int:
         """
             The count operation cost one entity read for up to 1,000 index entries matched
             (https://cloud.google.com/datastore/docs/aggregation-queries#pricing)
-            :param up_to can be sigend int 64 bit (max positive 2^31-1)
+            :param up_to can be signed int 32 bit (max positive 2^31-1)
 
             :returns: Count entries for this query.
         """
