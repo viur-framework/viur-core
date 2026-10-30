@@ -256,10 +256,12 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
             This will be the renderer, which wont get a prefix, usually html. \
             (=> /user instead of /html/user)
     """
-    # The App Engine SDK patches the threading APIs by reloading `threading` and `concurrent.futures.thread`.
-    # Threads started before that drop out of the interpreter's thread registry and block its exit,
-    # e.g. a thread of the App Engine API thread pool started by a startup task.
-    # Patch before anything below can start a thread; the call in `wrap_wsgi_app()` is then a no-op.
+    # The App Engine SDK patches the threading APIs in `wrap_wsgi_app()` and thus relies on it running before
+    # anything starts a thread. `setup()` breaks that order: it calls `wrap_wsgi_app()` only at its very end,
+    # after `runStartupTasks()`, whose App Engine API calls may already start threads of the API thread pool.
+    # The patch reloads `threading` and `concurrent.futures.thread`; threads started before that drop out of
+    # their registries, are never woken up on shutdown and block the interpreter's exit.
+    # So patch first; the call in `wrap_wsgi_app()` is then a no-op.
     gae_initialize.InitializeThreadingApis()
 
     from viur.core.bones.base import setSystemInitialized
