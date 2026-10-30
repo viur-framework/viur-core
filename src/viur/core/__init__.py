@@ -14,6 +14,7 @@ if sys.argv[0].endswith("viur-migrate"):  # FIXME: What a "kinda hackish" soluti
     os.environ["GOOGLE_CLOUD_PROJECT"] = "dummy"
 
 from google.appengine.api import wrap_wsgi_app
+from google.appengine.runtime import initialize as gae_initialize
 from types import ModuleType
 from viur.core import i18n, request, utils
 from viur.core.config import conf
@@ -255,6 +256,14 @@ def setup(modules:  ModuleType | object, render:  ModuleType | object = None, de
             This will be the renderer, which wont get a prefix, usually html. \
             (=> /user instead of /html/user)
     """
+    # The App Engine SDK patches the threading APIs in `wrap_wsgi_app()` and thus relies on it running before
+    # anything starts a thread. `setup()` breaks that order: it calls `wrap_wsgi_app()` only at its very end,
+    # after `runStartupTasks()`, whose App Engine API calls may already start threads of the API thread pool.
+    # The patch reloads `threading` and `concurrent.futures.thread`; threads started before that drop out of
+    # their registries, are never woken up on shutdown and block the interpreter's exit.
+    # So patch first; the call in `wrap_wsgi_app()` is then a no-op.
+    gae_initialize.InitializeThreadingApis()
+
     from viur.core.bones.base import setSystemInitialized
     # noinspection PyUnresolvedReferences
     import skeletons  # This import is not used here but _must_ remain to ensure that the
