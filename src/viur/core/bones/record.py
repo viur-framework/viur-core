@@ -110,6 +110,7 @@ class RecordBone(BaseBone):
 
         return usingSkel, usingSkel.errors
 
+    # FIXME: VIUR4 should not do "magic" anymore.
     def performMagic(self, skel: "SkeletonInstance", name: str, isAdd: bool) -> None:
         """
         Forward ``performMagic`` to the sub-bones of every record value.
