@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for /home/runner/work/viur-core/viur-core/viur/src/viur/core/bones/date.py: 53%</title>
+    <title>Coverage for /home/runner/work/viur-core/viur-core/viur/src/viur/core/bones/date.py: 57%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_c827f16f.png">
     <link rel="stylesheet" href="style_cb_4667309f.css" type="text/css">
     <script src="coverage_html_cb_54cfdca1.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b><span class="sep">/</span>home<span class="sep">/</span>runner<span class="sep">/</span>work<span class="sep">/</span>viur-core<span class="sep">/</span>viur-core<span class="sep">/</span>viur<span class="sep">/</span>src<span class="sep">/</span>viur<span class="sep">/</span>core<span class="sep">/</span>bones<span class="sep">/</span>date.py</b>:
-            <span class="pc_cov">53%</span>
+            <span class="pc_cov">57%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -56,8 +56,8 @@
         </aside>
         <h2>
             <span class="text">163 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">97<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">66<span class="text"> missing</span></button>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">103<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">60<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
             <button type="button" class="par run show_par button_toggle_par" value="par" data-shortcut="p" title="Toggle lines partially run">22<span class="text"> partial</span></button>
         </h2>
@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_95981fee56026c4c_email_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.0">coverage.py v7.17.0</a>,
-            created at 2026-11-02 14:17 +0000
+            created at 2026-11-02 16:56 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -154,12 +154,12 @@
     <p class="pln"><span class="n"><a id="t70" href="#t70">70</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t71" href="#t71">71</a></span><span class="t">        <span class="com"># Magic is only possible in non-multiple bones and why ever only on readonly bones...</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t72" href="#t72">72</a></span><span class="t">        <span class="com"># FIXME: VIUR4 remove any magical things and finally start to write robust and relisient software...</span>&nbsp;</span><span class="r"></span></p>
-    <p class="par run show_par"><span class="n"><a id="t73" href="#t73">73</a></span><span class="t">        <span class="key">if</span> <span class="nam">creationMagic</span> <span class="key">or</span> <span class="nam">updateMagic</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">73&#x202F;&#x219B;&#x202F;74</span><span class="annotate long">line 73 didn't jump to line 74 because the condition on line 73 was never true</span></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t74" href="#t74">74</a></span><span class="t">            <span class="nam">_depmsg</span> <span class="op">=</span> <span class="str">&quot;&#x27;creationMagic/updateMagic&#x27; is deprecated; Use &#x27;compute&#x27;-features instead!&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t75" href="#t75">75</a></span><span class="t">            <span class="nam">logging</span><span class="op">.</span><span class="nam">warning</span><span class="op">(</span><span class="nam">_depmsg</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t76" href="#t76">76</a></span><span class="t">            <span class="nam">warnings</span><span class="op">.</span><span class="nam">warn</span><span class="op">(</span><span class="nam">_depmsg</span><span class="op">,</span> <span class="nam">DeprecationWarning</span><span class="op">,</span> <span class="nam">stacklevel</span><span class="op">=</span><span class="num">2</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t73" href="#t73">73</a></span><span class="t">        <span class="key">if</span> <span class="nam">creationMagic</span> <span class="key">or</span> <span class="nam">updateMagic</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t74" href="#t74">74</a></span><span class="t">            <span class="nam">_depmsg</span> <span class="op">=</span> <span class="str">&quot;&#x27;creationMagic/updateMagic&#x27; is deprecated; Use &#x27;compute&#x27;-features instead!&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t75" href="#t75">75</a></span><span class="t">            <span class="nam">logging</span><span class="op">.</span><span class="nam">warning</span><span class="op">(</span><span class="nam">_depmsg</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t76" href="#t76">76</a></span><span class="t">            <span class="nam">warnings</span><span class="op">.</span><span class="nam">warn</span><span class="op">(</span><span class="nam">_depmsg</span><span class="op">,</span> <span class="nam">DeprecationWarning</span><span class="op">,</span> <span class="nam">stacklevel</span><span class="op">=</span><span class="num">2</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t77" href="#t77">77</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t78" href="#t78">78</a></span><span class="t">            <span class="key">if</span> <span class="nam">self</span><span class="op">.</span><span class="nam">multiple</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="par run show_par"><span class="n"><a id="t78" href="#t78">78</a></span><span class="t">            <span class="key">if</span> <span class="nam">self</span><span class="op">.</span><span class="nam">multiple</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">78&#x202F;&#x219B;&#x202F;79</span><span class="annotate long">line 78 didn't jump to line 79 because the condition on line 78 was never true</span></span></p>
     <p class="mis show_mis"><span class="n"><a id="t79" href="#t79">79</a></span><span class="t">                <span class="key">raise</span> <span class="nam">ValueError</span><span class="op">(</span><span class="str">&quot;Cannot be multiple and have a creation/update-magic set!&quot;</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t80" href="#t80">80</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t81" href="#t81">81</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -462,11 +462,11 @@
     <p class="pln"><span class="n"><a id="t378" href="#t378">378</a></span><span class="t"><span class="str">        :param bool isAdd: A flag indicating whether the operation is adding a new entry (True) or updating an</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t379" href="#t379">379</a></span><span class="t"><span class="str">            existing one (False).</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t380" href="#t380">380</a></span><span class="t"><span class="str">        &quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="par run show_par"><span class="n"><a id="t381" href="#t381">381</a></span><span class="t">        <span class="key">if</span> <span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">creationMagic</span> <span class="key">and</span> <span class="nam">isAdd</span><span class="op">)</span> <span class="key">or</span> <span class="nam">self</span><span class="op">.</span><span class="nam">updateMagic</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">381&#x202F;&#x219B;&#x202F;382</span><span class="annotate long">line 381 didn't jump to line 382 because the condition on line 381 was never true</span></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t382" href="#t382">382</a></span><span class="t">            <span class="key">if</span> <span class="nam">self</span><span class="op">.</span><span class="nam">naive</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t381" href="#t381">381</a></span><span class="t">        <span class="key">if</span> <span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">creationMagic</span> <span class="key">and</span> <span class="nam">isAdd</span><span class="op">)</span> <span class="key">or</span> <span class="nam">self</span><span class="op">.</span><span class="nam">updateMagic</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="par run show_par"><span class="n"><a id="t382" href="#t382">382</a></span><span class="t">            <span class="key">if</span> <span class="nam">self</span><span class="op">.</span><span class="nam">naive</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">382&#x202F;&#x219B;&#x202F;383</span><span class="annotate long">line 382 didn't jump to line 383 because the condition on line 382 was never true</span></span></p>
     <p class="mis show_mis"><span class="n"><a id="t383" href="#t383">383</a></span><span class="t">                <span class="nam">valuesCache</span><span class="op">[</span><span class="nam">name</span><span class="op">]</span> <span class="op">=</span> <span class="nam">utcNow</span><span class="op">(</span><span class="op">)</span><span class="op">.</span><span class="nam">replace</span><span class="op">(</span><span class="nam">microsecond</span><span class="op">=</span><span class="num">0</span><span class="op">,</span> <span class="nam">tzinfo</span><span class="op">=</span><span class="key">None</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t384" href="#t384">384</a></span><span class="t">            <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t385" href="#t385">385</a></span><span class="t">                <span class="nam">valuesCache</span><span class="op">[</span><span class="nam">name</span><span class="op">]</span> <span class="op">=</span> <span class="nam">utcNow</span><span class="op">(</span><span class="op">)</span><span class="op">.</span><span class="nam">replace</span><span class="op">(</span><span class="nam">microsecond</span><span class="op">=</span><span class="num">0</span><span class="op">)</span><span class="op">.</span><span class="nam">astimezone</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">guessTimeZone</span><span class="op">(</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t385" href="#t385">385</a></span><span class="t">                <span class="nam">valuesCache</span><span class="op">[</span><span class="nam">name</span><span class="op">]</span> <span class="op">=</span> <span class="nam">utcNow</span><span class="op">(</span><span class="op">)</span><span class="op">.</span><span class="nam">replace</span><span class="op">(</span><span class="nam">microsecond</span><span class="op">=</span><span class="num">0</span><span class="op">)</span><span class="op">.</span><span class="nam">astimezone</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">guessTimeZone</span><span class="op">(</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t386" href="#t386">386</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t387" href="#t387">387</a></span><span class="t">    <span class="key">def</span> <span class="nam">structure</span><span class="op">(</span><span class="nam">self</span><span class="op">)</span> <span class="op">-&gt;</span> <span class="nam">dict</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t388" href="#t388">388</a></span><span class="t">        <span class="key">return</span> <span class="nam">super</span><span class="op">(</span><span class="op">)</span><span class="op">.</span><span class="nam">structure</span><span class="op">(</span><span class="op">)</span> <span class="op">|</span> <span class="op">{</span>&nbsp;</span><span class="r"></span></p>
@@ -491,7 +491,7 @@
             <a class="nav" href="z_95981fee56026c4c_email_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.17.0">coverage.py v7.17.0</a>,
-            created at 2026-11-02 14:17 +0000
+            created at 2026-11-02 16:56 +0000
         </p>
     </div>
 </footer>
