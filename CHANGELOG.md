@@ -2,6 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.9.5]
+
+- fix: Call `InitializeThreadingApis()` before the startup tasks (#1803)
+- fix: Loosen `pillow`, `Deprecated` and `appengine-python-standard` ranges (#1810)
+- fix(docs): Update dependencies to Sphinx 9 and use `css_tag` in the theme (#1812)
+
 ## [3.9.4]
 
 - feat(bones): add `sort` to SelectBone, translate and sort SelectCountryBone names (#1795)
