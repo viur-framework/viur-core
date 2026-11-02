@@ -2,6 +2,14 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.43]
+
+- fix: Count the `iter_bone_value` index per language for multi-language multiple bones (#1814)
+- fix: Limit the default `up_to` of `Query.count` to i32 (#1817)
+- fix: Loosen `pillow`, `Deprecated` and `appengine-python-standard` ranges (#1811)
+- fix(`RecordBone`): Drop only the `viur-relations` of removed record values (#1813)
+- fix(`RecordBone`): Forward `performMagic` to the sub-bones (#1815)
+
 ## [3.8.42]
 
 - fix(RelationalBone): Support shortkeys in queries and consistency (#1807)
