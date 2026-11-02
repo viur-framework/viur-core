@@ -1581,11 +1581,11 @@ class BaseBone(object):
             return None
 
         if self.languages and isinstance(value, dict):
-            for idx, (lang, values) in enumerate(value.items()):
+            for lang, values in value.items():
                 if self.multiple:
                     if not values:
                         continue
-                    for val in values:
+                    for idx, val in enumerate(values):
                         yield idx, lang, val
                 else:
                     yield None, lang, values
