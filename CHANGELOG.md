@@ -316,6 +316,10 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor+fix: `bounce`-flag and `amend`-handling (#1544)
 - refactor+fix: `DateBone` and creationdate/changedate computes (#1551)
 
+## [3.7.22]
+
+- fix: Loosen `pillow` range and drop the `urllib3` pin (#1818)
+
 ## [3.7.21]
 
 - fix: Remove renderPreparation of nested skeletons (#1511)
