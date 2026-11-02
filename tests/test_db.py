@@ -359,6 +359,7 @@ class TestFilterValueCollections(ViURTestCase):
         self.assertIsInstance(passed_filter, Or)
         self._assert_array_filter(passed_filter.filters[0], "IN", ["a", "b"])
 
+
 class TestQueryIterSkel(ViURTestCase):
     """Tests for Query.iter_skel(), the SkeletonInstance-counterpart of Query.iter()."""
 
@@ -605,6 +606,7 @@ class TestEntryMatchesQueryOrFilters(ViURTestCase):
             {"sortindex >": 100},
             [[("continent =", "Africa"), ("continent =", "Asia")]],
         ))
+
 
 class TestQueryOrder(ViURTestCase):
     def test_queryorder_is_namedtuple(self) -> None:
@@ -1044,3 +1046,19 @@ class TestDbCacheTransactions(ViURTestCase):
             transport.run_in_transaction(lambda: None)
 
         self.assertIsNone(transport._transaction_outdated.get())
+
+    def test_query_count_default_up_to(self) -> None:
+        """The default ``up_to`` of ``Query.count`` must be a valid aggregation limit (Int32)."""
+        from unittest import mock
+        from google.auth.credentials import AnonymousCredentials
+        from google.cloud import datastore
+        from viur.core import db
+
+        with mock.patch("viur.core.db.query.count", return_value=42) as transport_count:
+            self.assertEqual(db.Query("viur").count(), 42)
+        up_to = transport_count.call_args.kwargs["up_to"]
+
+        # Build the aggregation request like the transport does, without sending it
+        client = datastore.Client(project="test", credentials=AnonymousCredentials())
+        result = client.aggregation_query(client.query(kind="viur")).count(alias="total").fetch(limit=up_to)
+        result._build_protobuf()  # raises ValueError for a limit beyond Int32

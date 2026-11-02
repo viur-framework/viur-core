@@ -2,6 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.9.5]
+
+- fix: Call `InitializeThreadingApis()` before the startup tasks (#1803)
+- fix: Loosen `pillow`, `Deprecated` and `appengine-python-standard` ranges (#1810)
+- fix(docs): Update dependencies to Sphinx 9 and use `css_tag` in the theme (#1812)
+
 ## [3.9.4]
 
 - feat(bones): add `sort` to SelectBone, translate and sort SelectCountryBone names (#1795)
@@ -106,6 +112,14 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
 - refactor(bones): restructure `EmailBone.isInvalid` validation (#1730)
 - test: Add unit tests for Bones and App Login Flow (get_cookie_for_app, apply_login_cookie) (#1661)
+
+## [3.8.43]
+
+- fix: Count the `iter_bone_value` index per language for multi-language multiple bones (#1814)
+- fix: Limit the default `up_to` of `Query.count` to i32 (#1817)
+- fix: Loosen `pillow`, `Deprecated` and `appengine-python-standard` ranges (#1811)
+- fix(`RecordBone`): Drop only the `viur-relations` of removed record values (#1813)
+- fix(`RecordBone`): Forward `performMagic` to the sub-bones (#1815)
 
 ## [3.8.42]
 
@@ -420,6 +434,10 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: User-Login rendering (#1554)
 - refactor+fix: `bounce`-flag and `amend`-handling (#1544)
 - refactor+fix: `DateBone` and creationdate/changedate computes (#1551)
+
+## [3.7.22]
+
+- fix: Loosen `pillow` range and drop the `urllib3` pin (#1818)
 
 ## [3.7.21]
 
