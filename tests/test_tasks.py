@@ -102,3 +102,54 @@ class TestRetryNTimesNotification(ViURTestCase):
         self.assertEqual("admin@example.com", kwargs["dests"])
         self.assertEqual("always_fails", kwargs["func_name"])
         self.assertEqual(3, kwargs["retries"])
+
+
+class TestDeferredRetryWarning(ViURTestCase):
+    """The retry warning mail must name the deferred function, not only the opaque task name."""
+
+    def _run_deferred(self, retry_count: str) -> mock.Mock:
+        """Dispatch a deferred call with the given retry count.
+
+        :param retry_count: Value of the ``X-Appengine-Taskretrycount`` header.
+        :return: The mock that replaced ``email.send_email_to_admins``.
+        """
+        from viur.core import current, email, tasks, utils
+
+        calls = []
+        tasks._deferred_tasks["some.module.task"] = lambda *args, **kwargs: calls.append((args, kwargs))
+        self.addCleanup(tasks._deferred_tasks.pop, "some.module.task", None)
+
+        request = mock.MagicMock()
+        request.request.headers = {
+            "X-Appengine-Taskretrycount": retry_count,
+            "X-Appengine-Taskname": "1234567890",
+        }
+        request.request.body = utils.json.dumps(["unb", ["some.module.task", [1], {}, None]])
+        token = current.request.set(request)
+        self.addCleanup(current.request.reset, token)
+
+        handler = tasks.TaskHandler.__new__(tasks.TaskHandler)
+        with mock.patch.object(tasks.TaskHandler, "_validate_request"), \
+                mock.patch.object(email, "send_email_to_admins") as send_email_to_admins:
+            tasks.TaskHandler.deferred._func(handler)
+
+        self.assertEqual([((1,), {})], calls)
+        return send_email_to_admins
+
+    def test_warning_names_the_function(self):
+        send_email_to_admins = self._run_deferred(str(tasks_threshold()))
+        send_email_to_admins.assert_called_once()
+        subject, body = send_email_to_admins.call_args.args
+        self.assertIn("some.module.task", subject)
+        self.assertIn("some.module.task", body)
+        self.assertIn("1234567890", body)
+
+    def test_no_warning_below_the_threshold(self):
+        send_email_to_admins = self._run_deferred("1")
+        send_email_to_admins.assert_not_called()
+
+
+def tasks_threshold() -> int:
+    """Return the retry count at which :meth:`TaskHandler.deferred` warns."""
+    from viur.core import tasks
+    return tasks.TaskHandler.retryCountWarningThreshold
