@@ -17,11 +17,30 @@ CACHE_KIND = "viur-addressbone-geocache"
 
 
 class AddressRelSkel(RelSkel):
-    street_name = StringBone(descr="Street", required=True)
-    street_number = StringBone(descr="House number")
-    address_addition = StringBone(descr="Address addition")
+    street_name = StringBone(
+        descr=i18n.translate(
+            "viur.core.bones.address.street_name.descr",
+            defaultText="Street",
+        ),
+        required=True,
+    )
+    street_number = StringBone(
+        descr=i18n.translate(
+            "viur.core.bones.address.street_number.descr",
+            defaultText="House number",
+        ),
+    )
+    address_addition = StringBone(
+        descr=i18n.translate(
+            "viur.core.bones.address.address_addition.descr",
+            defaultText="Address addition",
+        ),
+    )
     zip_code = StringBone(
-        descr="ZIP / Postal code",
+        descr=i18n.translate(
+            "viur.core.bones.address.zip_code.descr",
+            defaultText="ZIP / Postal code",
+        ),
         params={
             "pattern": ZIP_CODE_PATTERNS,
             "pattern-error": i18n.translate(
@@ -30,11 +49,30 @@ class AddressRelSkel(RelSkel):
             ),
         },
     )
-    city = StringBone(descr="City", required=True)
-    state = StringBone(descr="State")
-    country = SelectCountryBone(descr="Country")
+    city = StringBone(
+        descr=i18n.translate(
+            "viur.core.bones.address.city.descr",
+            defaultText="City",
+        ),
+        required=True,
+    )
+    state = StringBone(
+        descr=i18n.translate(
+            "viur.core.bones.address.state.descr",
+            defaultText="State",
+        ),
+    )
+    country = SelectCountryBone(
+        descr=i18n.translate(
+            "viur.core.bones.address.country.descr",
+            defaultText="Country",
+        ),
+    )
     coordinates = SpatialBone(
-        descr="Coordinates",
+        descr=i18n.translate(
+            "viur.core.bones.address.coordinates.descr",
+            defaultText="Coordinates",
+        ),
         boundsLat=(-90, 90),
         boundsLng=(-180, 180),
         gridDimensions=(10, 10),

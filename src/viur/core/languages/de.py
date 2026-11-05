@@ -414,6 +414,17 @@ de = {
     "core.bones.spam.value.eight": "Acht",
     "core.bones.spam.value.nine": "Neun",
 
+    # AddressBone
+    "viur.core.bones.address.street_name.descr": "Straße",
+    "viur.core.bones.address.street_number.descr": "Hausnummer",
+    "viur.core.bones.address.address_addition.descr": "Adresszusatz",
+    "viur.core.bones.address.zip_code.descr": "Postleitzahl",
+    "viur.core.bones.address.zip_code.invalid": "Ungültige Postleitzahl",
+    "viur.core.bones.address.city.descr": "Ort",
+    "viur.core.bones.address.state.descr": "Bundesland",
+    "viur.core.bones.address.country.descr": "Land",
+    "viur.core.bones.address.coordinates.descr": "Koordinaten",
+
     # user Status enum
     "viur.core.user.status.0": "Nicht gesetzt",
     "viur.core.user.status.1": "Warten auf E-Mail-Bestätigung",
