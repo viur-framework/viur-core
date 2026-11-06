@@ -827,7 +827,7 @@ class Tree(SkelModule):
         :returns: The altered filter, or None if access is not granted.
         """
 
-        if (user := current.user.get()) and (f"{self.moduleName}-view" in user["access"] or "root" in user["access"]):
+        if (user := current.user.get()) and (self.access_right("view") in user["access"] or "root" in user["access"]):
             return query
 
         return None
@@ -880,7 +880,7 @@ class Tree(SkelModule):
         if user["access"] and "root" in user["access"]:
             return True
         # user with add-permission is allowed.
-        if user and user["access"] and f"{self.moduleName}-add" in user["access"]:
+        if user and user["access"] and self.access_right("add") in user["access"]:
             return True
         return False
 
@@ -908,7 +908,7 @@ class Tree(SkelModule):
             return False
         if user["access"] and "root" in user["access"]:
             return True
-        if user and user["access"] and f"{self.moduleName}-edit" in user["access"]:
+        if user and user["access"] and self.access_right("edit") in user["access"]:
             return True
         return False
 
@@ -937,7 +937,7 @@ class Tree(SkelModule):
             return False
         if user["access"] and "root" in user["access"]:
             return True
-        if user and user["access"] and f"{self.moduleName}-delete" in user["access"]:
+        if user and user["access"] and self.access_right("delete") in user["access"]:
             return True
         return False
 
@@ -967,7 +967,7 @@ class Tree(SkelModule):
             return False
         if user["access"] and "root" in user["access"]:
             return True
-        if user and user["access"] and f"{self.moduleName}-edit" in user["access"]:
+        if user and user["access"] and self.access_right("edit") in user["access"]:
             return True
         return False
 
