@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 import secrets
 import time
 import urllib.parse
@@ -1212,6 +1213,74 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         )
 
 
+_HOSTNAME_RE = re.compile(r"[a-z0-9.-]+")
+
+
+def _is_redirect_allowed(url: str, whitelist: t.Iterable[str]) -> bool:
+    """
+    Checks whether *url* matches one of the redirect patterns in *whitelist*.
+
+    Scheme, host, port and path are matched separately (via :func:`fnmatch.fnmatchcase`),
+    so a wildcard in a pattern can never reach beyond its component, e.g. from the host
+    into the path, the query or a user-info part of *url*. Query and fragment of *url*
+    are not considered.
+
+    URLs with user info (``user@host``), backslashes, a scheme other than http/https or
+    a hostname containing anything but letters, digits, dots and dashes are rejected,
+    because browsers may resolve them to a different host than :func:`urllib.parse.urlsplit`.
+    This also rejects IPv6 literals.
+
+    A pattern without a port only matches URLs without an explicit port;
+    a pattern without a path matches any path. The pattern ``*`` allows any URL.
+    """
+    if "\\" in url:
+        return False
+
+    try:
+        target = urllib.parse.urlsplit(url)
+        target_port = target.port
+    except ValueError:
+        return False
+
+    if (
+        target.scheme not in ("http", "https")
+        or "@" in target.netloc
+        or not target.hostname
+        or not _HOSTNAME_RE.fullmatch(target.hostname)
+    ):
+        return False
+
+    for pattern in whitelist:
+        if pattern == "*":
+            return True
+
+        scheme, sep, rest = pattern.partition("://")
+        if not sep:
+            continue
+
+        netloc, slash, path = rest.partition("/")
+        host, has_port, port = netloc.partition(":")
+
+        if not fnmatch.fnmatchcase(target.scheme, scheme.lower()):
+            continue
+
+        if not fnmatch.fnmatchcase(target.hostname, host.lower()):
+            continue
+
+        if has_port:
+            if target_port is None or not fnmatch.fnmatchcase(str(target_port), port):
+                continue
+        elif target_port is not None:
+            continue
+
+        if slash and not fnmatch.fnmatchcase(target.path or "/", f"/{path}"):
+            continue
+
+        return True
+
+    return False
+
+
 class User(List):
     """
     The User module is used to manage and authenticate users in a ViUR system.
@@ -1802,7 +1871,8 @@ class User(List):
             simply harvests the ``cookie`` parameter and gains full session access.
 
             To mitigate this, all ``redirect_to`` values are validated against
-            :attr:`conf.user.redirect_whitelist` using :func:`fnmatch.fnmatch`.
+            :attr:`conf.user.redirect_whitelist`. Scheme, host, port and path are matched
+            separately, so a wildcard cannot reach from the host into the path or query.
             Only explicitly whitelisted URL patterns are accepted;
             anything else is rejected with ``403 Forbidden``.
             Configure the whitelist in your project to include every legitimate
@@ -1814,7 +1884,7 @@ class User(List):
         """
         if redirect_to:
             whitelist = utils.ensure_iterable(conf.user.redirect_whitelist)
-            if not any(fnmatch.fnmatch(redirect_to, pat) for pat in whitelist):
+            if not _is_redirect_allowed(redirect_to, whitelist):
                 raise errors.Forbidden(f"Redirect target is not whitelisted")
             if "?" not in redirect_to:
                 redirect_to = f"{redirect_to}?"
