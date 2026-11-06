@@ -1281,6 +1281,24 @@ def _is_redirect_allowed(url: str, whitelist: t.Iterable[str]) -> bool:
     return False
 
 
+def _has_app_login_access() -> bool:
+    """
+    Checks the current user against :attr:`conf.user.app_login_access`.
+
+    ``None`` grants access to every authenticated user. Otherwise the format of
+    :func:`viur.core.decorators.access` applies: any entry grants access, and a list, tuple or
+    set as entry requires all of its rights.
+    """
+    if (required := conf.user.app_login_access) is None:
+        return True
+
+    user_access = current.user.get()["access"]
+    return any(
+        all(right in user_access for right in utils.ensure_iterable(entry))
+        for entry in utils.ensure_iterable(required)
+    )
+
+
 class User(List):
     """
     The User module is used to manage and authenticate users in a ViUR system.
@@ -1816,14 +1834,15 @@ class User(List):
         return self.render.render(f"trigger/{action}Success", skel)
 
     @exposed
-    @access("admin", "root", offer_login=True)
+    @access(_has_app_login_access, offer_login=True)
     def get_cookie_for_app(self, redirect_to: str = None):
         """
         Generates a session cookie for the currently logged-in user and hands it to an external
         client (script, native app, or WebView).
 
-        This endpoint is the entry point of a *App Login Flow*.  A privileged user
-        (admin/root) authenticates normally in the browser and then opens this URL.
+        This endpoint is the entry point of a *App Login Flow*.  A logged-in user
+        authenticates normally in the browser and then opens this URL. Which users may do so
+        is configured by :attr:`conf.user.app_login_access` (default: every authenticated user).
         The backend creates a fresh ViUR session (see :meth:`_get_cookie_for_app`) and
         delivers the resulting ``Set-Cookie`` string to the caller.
 
@@ -1866,7 +1885,7 @@ class User(List):
         .. warning:: **Open-redirect / session-hijacking risk**
 
             Because the session cookie is appended as a plain query parameter, an
-            attacker who can convince an authenticated admin to click a crafted link
+            attacker who can convince an authenticated user to click a crafted link
             (e.g. via phishing) could redirect the browser to an evil server that
             simply harvests the ``cookie`` parameter and gains full session access.
 
