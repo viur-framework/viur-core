@@ -72,6 +72,18 @@ class KeyBone(BaseBone):
 
         return key, None
 
+    def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+        if not value:
+            return None
+
+        if isinstance(value, db.Key):
+            return value
+
+        if isinstance(value, str):
+            return db.Key.from_legacy_urlsafe(value)
+
+        raise ValueError(f"KeyBone can not serialize this value {value=}")
+
     def singleValueUnserialize(self, val):
         if not val:
             rval = None
