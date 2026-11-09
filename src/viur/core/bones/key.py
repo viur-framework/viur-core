@@ -76,13 +76,12 @@ class KeyBone(BaseBone):
         if not value:
             return None
 
-        if isinstance(value, db.Key):
-            return value
+        # Same parsing as reading from client: shortkeys via ``allowed_kinds``, keys normalized.
+        key, err = self.singleValueFromClient(value, parse_only=True)
+        if err:
+            raise ValueError(err[0].errorMessage)
 
-        if isinstance(value, str):
-            return db.Key.from_legacy_urlsafe(value)
-
-        raise ValueError(f"KeyBone can not serialize this value {value=}")
+        return key
 
     def singleValueUnserialize(self, val):
         if not val:

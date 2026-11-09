@@ -86,3 +86,39 @@ class TestKeyBone_serialize(ViURTestCase):
 
         with self.assertRaises(Exception):
             self._serialize(KeyBone(), "not-a-key")
+
+    def test_shortkey_with_allowed_kinds_is_stored_as_key(self):
+        from viur.core import db
+        from viur.core.bones import KeyBone
+
+        bone = KeyBone(allowed_kinds=["history_kind"])
+        self.assertEqual(db.Key("history_kind", "abc"), self._serialize(bone, "abc"))
+        self.assertEqual(db.Key("history_kind", 42), self._serialize(bone, "42"))
+
+    def test_shortkey_without_allowed_kinds_raises(self):
+        """Without ``allowed_kinds`` there is no kind to build a key from a shortkey."""
+        from viur.core.bones import KeyBone
+
+        with self.assertRaises(ValueError):
+            self._serialize(KeyBone(), "abc")
+
+    def test_key_of_wrong_kind_raises(self):
+        from viur.core import db
+        from viur.core.bones import KeyBone
+
+        with self.assertRaises(ValueError):
+            self._serialize(KeyBone(allowed_kinds=["history_kind"]), db.Key("other_kind", "abc"))
+
+    def test_empty_value_with_allowed_kinds_is_stored_as_none(self):
+        """``key_helper(None)`` raises, so empty values must be handled before parsing."""
+        from viur.core.bones import KeyBone
+
+        self.assertIsNone(self._serialize(KeyBone(allowed_kinds=["history_kind"]), None))
+
+    def test_foreign_project_key_is_normalized(self):
+        from viur.core import conf, db
+        from viur.core.bones import KeyBone
+
+        foreign = db.Key("history_kind", "abc", project="s~" + conf.instance.project_id)
+        stored = self._serialize(KeyBone(), foreign)
+        self.assertEqual(conf.instance.project_id, stored.project)
