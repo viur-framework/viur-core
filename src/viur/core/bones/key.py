@@ -72,6 +72,17 @@ class KeyBone(BaseBone):
 
         return key, None
 
+    def singleValueSerialize(self, value, skel: 'SkeletonInstance', name: str, parentIndexed: bool):
+        if not value:
+            return None
+
+        # Same parsing as reading from client: shortkeys via ``allowed_kinds``, keys normalized.
+        key, err = self.singleValueFromClient(value, parse_only=True)
+        if err:
+            raise ValueError(err[0].errorMessage)
+
+        return key
+
     def singleValueUnserialize(self, val):
         if not val:
             rval = None
