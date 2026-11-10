@@ -38,7 +38,9 @@ class TestAddressRelSkel(ViURTestCase):
     def test_has_all_fields(self):
         from viur.core.bones.address import AddressRelSkel
         bone_names = list(AddressRelSkel.__boneMap__.keys())
-        for field in ("street_name", "street_number", "address_addition", "zip_code", "city", "country", "coordinates"):
+        for field in (
+            "street_name", "street_number", "address_addition", "zip_code", "city", "state", "country", "coordinates"
+        ):
             self.assertIn(field, bone_names)
 
     def test_street_name_is_required(self):
@@ -70,7 +72,7 @@ class TestAddressRelSkel(ViURTestCase):
 
     def test_optional_fields_not_required(self):
         from viur.core.bones.address import AddressRelSkel
-        for field in ("street_number", "address_addition", "zip_code", "country", "coordinates"):
+        for field in ("street_number", "address_addition", "zip_code", "state", "country", "coordinates"):
             bone = AddressRelSkel.__boneMap__[field]
             self.assertFalse(bone.required, f"{field} should not be required")
 
@@ -173,6 +175,28 @@ class TestAddressBoneGeocode(ViURTestCase):
         self.assertAlmostEqual(result[0], 50.671720)
         self.assertAlmostEqual(result[1], 5.912884)
 
+    def test_geocode_sends_state_when_present(self):
+        from viur.core.bones.address import AddressBone
+        skel = self._make_skel(street_name="Marienplatz", street_number="1", city="München", zip_code="80331",
+                               country="de")
+        skel["state"] = "Bayern"
+
+        with patch("viur.core.bones.address.db.get", return_value=None), \
+                patch("viur.core.bones.address.requests.get", return_value=MagicMock(status_code=503)) as mock_get:
+            AddressBone().geocode(skel)
+
+        self.assertEqual("Bayern", mock_get.call_args.kwargs["params"]["state"])
+
+    def test_geocode_without_state_sends_no_state(self):
+        from viur.core.bones.address import AddressBone
+        skel = self._make_skel()
+
+        with patch("viur.core.bones.address.db.get", return_value=None), \
+                patch("viur.core.bones.address.requests.get", return_value=MagicMock(status_code=503)) as mock_get:
+            AddressBone().geocode(skel)
+
+        self.assertNotIn("state", mock_get.call_args.kwargs["params"])
+
     def test_geocode_cache_miss_stores_result(self):
         from viur.core.bones.address import AddressBone
         bone = AddressBone()
@@ -191,3 +215,34 @@ class TestAddressBoneGeocode(ViURTestCase):
         mock_put.assert_called_once()
         self.assertAlmostEqual(mock_entity["lat"], 50.671720)
         self.assertAlmostEqual(mock_entity["lng"], 5.912884)
+
+
+class TestAddressBoneAfterFromClient(ViURTestCase):
+
+    def _make_skel(self, coordinates):
+        from viur.core.bones.address import AddressRelSkel
+        rel = AddressRelSkel()
+        rel["street_name"] = "Chaussée de Liège"
+        rel["city"] = "Welkenraedt"
+        rel["coordinates"] = coordinates
+        return {"address": rel}
+
+    def test_geocodes_when_coordinates_are_missing(self):
+        from viur.core.bones.address import AddressBone
+        skel = self._make_skel(None)
+
+        with patch.object(AddressBone, "geocode", return_value=(50.67, 5.91)) as geocode:
+            AddressBone().after_from_client(skel, "address", [])
+
+        geocode.assert_called_once()
+        self.assertEqual((50.67, 5.91), skel["address"]["coordinates"])
+
+    def test_keeps_coordinates_sent_by_the_client(self):
+        from viur.core.bones.address import AddressBone
+        skel = self._make_skel((50.6701, 5.9102))
+
+        with patch.object(AddressBone, "geocode", return_value=(50.67, 5.91)) as geocode:
+            AddressBone().after_from_client(skel, "address", [])
+
+        geocode.assert_not_called()
+        self.assertEqual((50.6701, 5.9102), skel["address"]["coordinates"])

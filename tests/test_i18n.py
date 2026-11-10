@@ -5,13 +5,6 @@ from unittest import mock
 from abstract import ViURTestCase
 
 
-def _skeleton_search_path():
-    """Make ``TranslationSkel`` importable, see :mod:`tests.modules.test_user_app_login`."""
-    from viur.core.config import conf
-    if "/src/viur/core/" not in conf.skeleton_search_path:
-        conf.skeleton_search_path = list(conf.skeleton_search_path) + ["/src/viur/core/"]
-
-
 class TestMigrateTranslation(ViURTestCase):
     """A pre-3.6 entity stores the texts as a plain ``{lang: text}`` dict.
 
@@ -89,7 +82,6 @@ class TestMigratedEntityUnserializes(ViURTestCase):
     def _translations_of(self, stored: dict) -> dict:
         """Unserialize a stored ``translations`` value through a real TranslationSkel."""
         from viur.core import bones, db  # noqa: F401
-        _skeleton_search_path()
         from viur.core.modules.translation import TranslationSkel
 
         entity = db.Entity(db.Key("viur-translations", "legacy"))
@@ -115,7 +107,6 @@ class TestMigratedEntityUnserializes(ViURTestCase):
     @staticmethod
     def _main_language() -> str:
         from viur.core import bones  # noqa: F401
-        _skeleton_search_path()
         from viur.core.modules.translation import TranslationSkel
         return TranslationSkel().translations.languages[0]
 

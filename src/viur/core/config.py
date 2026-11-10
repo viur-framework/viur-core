@@ -322,6 +322,11 @@ class Database(ConfigType):
     create_access_log: bool = True
     """If False no access log will be created. But then the caching is disabled too."""
 
+    transaction_attempts: int = 3
+    """How often :func:`db.run_in_transaction <viur.core.db.transport.run_in_transaction>` runs
+    a transaction before giving up on conflicts; must be at least 1. Retries back off exponentially
+    (1s, 2s, 4s, ...)."""
+
     name: str | None = os.getenv("VIUR_DB_NAME") or None
     """Named datastore to target instead of ``(default)``.
 
@@ -819,6 +824,12 @@ class Conf(ConfigType):
     bone_string_escape_html: bool = True
     """Default escape_html setting for StringBone. Set to False to disable HTML escaping globally."""
 
+    bone_strict_mode: bool = os.getenv("VIUR_CORE_BONE_STRICT_MODE", "").lower() != "false"
+    """If enabled (the default), setting an *unknown* attribute on a bone after its construction
+    raises an AttributeError instead of silently creating it -- this catches typos like ``readonly``
+    instead of ``readOnly``. Disable via ``conf.bone_strict_mode = False`` or the environment
+    variable ``VIUR_CORE_BONE_STRICT_MODE=false``."""
+
     bone_html_default_allow: "HtmlBoneConfiguration" = {
         "validTags": [
             "a",
@@ -983,8 +994,6 @@ class Conf(ConfigType):
     skeleton_search_path: Multiple[str] = [
         "/skeletons/",  # skeletons of the project
         "/viur/core/",  # system-defined skeletons of viur-core
-        "/viur/src/viur/core/",  # fixme: test suite
-        "/viur-core/core/"  # system-defined skeletons of viur-core, only used by editable installation
     ]
     """Priority, in which skeletons are loaded"""
 

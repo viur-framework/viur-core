@@ -238,6 +238,128 @@ class TestRunSingleFilter(ViURTestCase):
             self.assertIsInstance(passed_filter, Or)
 
 
+class TestFilterValueCollections(ViURTestCase):
+    """IN/NOT_IN values given as tuple or set must reach the protobuf as array value (list)."""
+
+    @staticmethod
+    def _mock_client():
+        from unittest.mock import MagicMock
+        mock_fetch_result = MagicMock()
+        mock_fetch_result.__iter__ = MagicMock(return_value=iter([]))
+        mock_fetch_result.next_page_token = None
+        mock_query = MagicMock()
+        mock_query.fetch.return_value = mock_fetch_result
+        mock_client = MagicMock()
+        mock_client.query.return_value = mock_query
+        mock_client.aggregation_query.return_value.count.return_value.fetch.return_value = [
+            [MagicMock(value=42)],
+        ]
+        return mock_client, mock_query
+
+    @staticmethod
+    def _passed_filters(mock_query):
+        return [kwargs.get("filter") or args[0] for args, kwargs in mock_query.add_filter.call_args_list]
+
+    @staticmethod
+    def _build_pb(property_filter):
+        """Encode the filter like the client does before sending it; raises on unsupported value types."""
+        from google.cloud.datastore_v1.types import query as query_pb2
+        return property_filter.build_pb(query_pb2.PropertyFilter()._pb)
+
+    def _run(self, qdef):
+        from unittest.mock import patch
+        from viur.core.db.transport import run_single_filter
+        mock_client, mock_query = self._mock_client()
+        with patch("viur.core.db.transport.__client__", mock_client):
+            run_single_filter(qdef, limit=10, keys_only=False)
+        return self._passed_filters(mock_query)
+
+    def _count(self, qdef):
+        from unittest.mock import patch
+        from viur.core.db.transport import count
+        mock_client, mock_query = self._mock_client()
+        with patch("viur.core.db.transport.__client__", mock_client):
+            self.assertEqual(count(queryDefinition=qdef), 42)
+        return self._passed_filters(mock_query)
+
+    def _assert_array_filter(self, passed_filter, op, expected):
+        pb = self._build_pb(passed_filter)
+        self.assertEqual(passed_filter.operator, op)
+        self.assertIsInstance(passed_filter.value, list)
+        self.assertEqual(pb.value.WhichOneof("value_type"), "array_value")
+        self.assertCountEqual([v.string_value for v in pb.value.array_value.values], expected)
+
+    def test_client_rejects_tuple(self) -> None:
+        """Guard: the library still rejects tuples; if this fails, the normalization may be obsolete."""
+        from google.cloud.datastore.query import PropertyFilter
+        with self.assertRaises(ValueError):
+            self._build_pb(PropertyFilter("name", "IN", ("a", "b")))
+
+    def test_in_filter_with_tuple(self) -> None:
+        from viur.core.db.types import QueryDefinition
+        qdef = QueryDefinition(kind="Country", filters={"name IN": ("a", "b")}, orders=[])
+        (passed_filter,) = self._run(qdef)
+        self._assert_array_filter(passed_filter, "IN", ["a", "b"])
+
+    def test_in_filter_with_set(self) -> None:
+        from viur.core.db.types import QueryDefinition
+        qdef = QueryDefinition(kind="Country", filters={"name IN": {"a", "b"}}, orders=[])
+        (passed_filter,) = self._run(qdef)
+        self._assert_array_filter(passed_filter, "IN", ["a", "b"])
+
+    def test_not_in_filter_with_frozenset(self) -> None:
+        from viur.core.db.types import QueryDefinition
+        qdef = QueryDefinition(kind="Country", filters={"name NOT_IN": frozenset({"a", "b"})}, orders=[])
+        (passed_filter,) = self._run(qdef)
+        self._assert_array_filter(passed_filter, "NOT_IN", ["a", "b"])
+
+    def test_neq_filter_value_unchanged(self) -> None:
+        """!= takes a scalar; a tuple must not be turned into a list there."""
+        from viur.core.db.transport import _normalize_filter_value
+        self.assertEqual(_normalize_filter_value("!=", ("a", "b")), ("a", "b"))
+        self.assertEqual(_normalize_filter_value("=", {"a"}), {"a"})
+
+    def test_or_filter_in_with_tuple(self) -> None:
+        from google.cloud.datastore.query import Or
+        from viur.core.db.types import QueryDefinition
+        qdef = QueryDefinition(
+            kind="Country",
+            filters={},
+            orders=[],
+            or_filters=[[("name IN", ("a", "b")), ("continent =", "Asia")]],
+        )
+        (passed_filter,) = self._run(qdef)
+        self.assertIsInstance(passed_filter, Or)
+        self._assert_array_filter(passed_filter.filters[0], "IN", ["a", "b"])
+        self.assertEqual(self._build_pb(passed_filter.filters[1]).value.string_value, "Asia")
+
+    def test_count_in_filter_with_tuple(self) -> None:
+        from viur.core.db.types import QueryDefinition
+        qdef = QueryDefinition(kind="Country", filters={"name IN": ("a", "b")}, orders=[])
+        (passed_filter,) = self._count(qdef)
+        self._assert_array_filter(passed_filter, "IN", ["a", "b"])
+
+    def test_count_not_in_filter_is_not_split(self) -> None:
+        """count() must pass NOT_IN as one filter with the whole list, like run_single_filter()."""
+        from viur.core.db.types import QueryDefinition
+        qdef = QueryDefinition(kind="Country", filters={"name NOT_IN": ["a", "b"]}, orders=[])
+        (passed_filter,) = self._count(qdef)
+        self._assert_array_filter(passed_filter, "NOT_IN", ["a", "b"])
+
+    def test_count_or_filter_in_with_set(self) -> None:
+        from google.cloud.datastore.query import Or
+        from viur.core.db.types import QueryDefinition
+        qdef = QueryDefinition(
+            kind="Country",
+            filters={},
+            orders=[],
+            or_filters=[[("name IN", {"a", "b"}), ("continent =", "Asia")]],
+        )
+        (passed_filter,) = self._count(qdef)
+        self.assertIsInstance(passed_filter, Or)
+        self._assert_array_filter(passed_filter.filters[0], "IN", ["a", "b"])
+
+
 class TestQueryIterSkel(ViURTestCase):
     """Tests for Query.iter_skel(), the SkeletonInstance-counterpart of Query.iter()."""
 
@@ -484,6 +606,7 @@ class TestEntryMatchesQueryOrFilters(ViURTestCase):
             {"sortindex >": 100},
             [[("continent =", "Africa"), ("continent =", "Asia")]],
         ))
+
 
 class TestQueryOrder(ViURTestCase):
     def test_queryorder_is_namedtuple(self) -> None:
@@ -818,3 +941,124 @@ class TestDbCache(ViURTestCase):
             transport.delete(entity.key)
 
         self.assertFalse(cache.get(entity.key))
+
+
+class TestDbCacheTransactions(ViURTestCase):
+    """The cache must not keep serving what a committed transaction has replaced.
+
+    ``cache.put()`` deliberately does nothing while a transaction is open -- the write
+    is not committed yet and may still roll back. Something therefore has to invalidate
+    the now-outdated entries once the transaction is over, or every later ``db.get()``
+    outside a transaction keeps answering from the pre-transaction state.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        from google.appengine.api.memcache import Client
+        from viur.core.config import conf
+        self.conf = conf
+        conf.db.memcache_client = Client()
+
+    def tearDown(self) -> None:
+        self.conf.db.memcache_client = None
+        super().tearDown()
+
+    @staticmethod
+    def _entity(key_name: str, **values):
+        from viur.core import db
+        entity = db.Entity(db.Key("Auftrag", key_name))
+        entity |= values
+        return entity
+
+    def test_put_inside_a_transaction_invalidates_the_stale_cache_entry(self) -> None:
+        from viur.core.db import cache, transport
+        cached = self._entity("A1", name="before")
+        cache.put(cached)
+
+        written = self._entity("A1", name="after")
+
+        with (
+            mock.patch("viur.core.db.utils.is_in_transaction", return_value=True),
+            mock.patch.object(transport.__client__, "transaction"),
+            mock.patch.object(transport.__client__, "put"),
+        ):
+            transport.run_in_transaction(transport.put, written)
+
+        self.assertFalse(cache.get(cached.key), "the pre-transaction value is still cached")
+
+    def test_delete_inside_a_transaction_invalidates_again_afterwards(self) -> None:
+        """A concurrent read can re-populate the cache between the delete and the commit."""
+        from viur.core.db import cache, transport
+        entity = self._entity("A1", name="before")
+        cache.put(entity)
+
+        def _txn() -> None:
+            transport.delete(entity.key)
+            cache.put(entity)  # stand-in for a concurrent read warming the cache again
+
+        with (
+            mock.patch("viur.core.db.utils.is_in_transaction", return_value=False),
+            mock.patch.object(transport.__client__, "transaction"),
+            mock.patch.object(transport.__client__, "delete"),
+        ):
+            transport.run_in_transaction(_txn)
+
+        self.assertFalse(cache.get(entity.key), "the deleted entity is still cached")
+
+    def test_a_failing_transaction_invalidates_what_it_touched(self) -> None:
+        """A retry may already have written before the error, so the cache cannot be trusted."""
+        from viur.core.db import cache, transport
+        cached = self._entity("A1", name="before")
+        cache.put(cached)
+
+        def _txn() -> None:
+            transport.put(self._entity("A1", name="after"))
+            raise RuntimeError("boom")
+
+        with (
+            mock.patch("viur.core.db.utils.is_in_transaction", return_value=True),
+            mock.patch.object(transport.__client__, "transaction"),
+            mock.patch.object(transport.__client__, "put"),
+        ):
+            with self.assertRaises(RuntimeError):
+                transport.run_in_transaction(_txn)
+
+        self.assertFalse(cache.get(cached.key))
+
+    def test_put_outside_a_transaction_keeps_warming_the_cache(self) -> None:
+        """The invalidation must not swallow the ordinary, non-transactional cache update."""
+        from viur.core.db import cache, transport
+        entity = self._entity("A1", name="after")
+
+        with mock.patch.object(transport.__client__, "put"):
+            transport.put(entity)
+
+        (result,) = cache.get(entity.key)
+        self.assertEqual(result["name"], "after")
+
+    def test_transaction_bookkeeping_does_not_leak(self) -> None:
+        from viur.core.db import transport
+
+        with (
+            mock.patch.object(transport.__client__, "transaction"),
+            mock.patch.object(transport.__client__, "put"),
+        ):
+            transport.run_in_transaction(lambda: None)
+
+        self.assertIsNone(transport._transaction_outdated.get())
+
+    def test_query_count_default_up_to(self) -> None:
+        """The default ``up_to`` of ``Query.count`` must be a valid aggregation limit (Int32)."""
+        from unittest import mock
+        from google.auth.credentials import AnonymousCredentials
+        from google.cloud import datastore
+        from viur.core import db
+
+        with mock.patch("viur.core.db.query.count", return_value=42) as transport_count:
+            self.assertEqual(db.Query("viur").count(), 42)
+        up_to = transport_count.call_args.kwargs["up_to"]
+
+        # Build the aggregation request like the transport does, without sending it
+        client = datastore.Client(project="test", credentials=AnonymousCredentials())
+        result = client.aggregation_query(client.query(kind="viur")).count(alias="total").fetch(limit=up_to)
+        result._build_protobuf()  # raises ValueError for a limit beyond Int32

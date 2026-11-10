@@ -2,7 +2,44 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
-## [3.9.0.rc2]
+## [3.9.5]
+
+- fix: Call `InitializeThreadingApis()` before the startup tasks (#1803)
+- fix: Loosen `pillow`, `Deprecated` and `appengine-python-standard` ranges (#1810)
+- fix(docs): Update dependencies to Sphinx 9 and use `css_tag` in the theme (#1812)
+
+## [3.9.4]
+
+- feat(bones): add `sort` to SelectBone, translate and sort SelectCountryBone names (#1795)
+- feat(bones): add `state` to AddressBone (#1794)
+- feat(file): Blob amending via `getUploadURL(amend=...)` (#1785)
+- feat(NumericBone): add `round`-parameter for decimal mode
+- fix: resolve skeleton paths relative to the core first (#1798)
+- fix: split path parsing and routing in `Router` (#1804)
+- fix: Treat `viur-relations` entries with empty `dest` as corrupt (#1799)
+- fix(bones): escape literal dashes in ZIP code patterns so browsers accept them (#1797)
+- fix(RelationalBone): Support shortkeys in queries and consistency (#1807)
+- fix(site): raise NotFound for template names containing ".." or "/" (#1808)
+
+## [3.9.3]
+
+- fix(bones): keep client coordinates in AddressBone (#1790)
+- fix(bones): scope the compute recursion guard to skeleton and thread (#1793)
+
+## [3.9.2]
+
+- feat: `conf.db.transaction_attempts` (#1787)
+- fix: `tuple` in `in_filter` (#1786)
+
+## [3.9.1]
+
+- doc: Adding `whatsnew` guides for v3.8 + v3.9
+- feat(bones): strict mode rejects unknown bone attributes (typo guard) (#1724)
+- fix(bones): Improve `compute`-feature in several ways (#1781)
+- fix(bones): make `FileBone.DEFAULT_REFKEYS` actually extendable (#1783)
+- fix(db): invalidate cache entries outdated by a transaction (#1782)
+
+## [3.9.0]
 
 - chore: Deprecate endpoint `/vi/getStructure` (#1616)
 - chore: Move `BaseSkeleton` into own `base.py`-module (#1738)
@@ -43,12 +80,14 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - feat(StringBone): make `escape_html` globally configurable via `conf` (#1706)
 - fix: `BooleanBone` doesn't respect `vfunc/isInvalid` (#1694)
 - fix: `cache.flushCache` code path improvement (#1682)
+- fix: `cloudfunction_thumbnailer` filename verification (#1773)
 - fix: `ColorBone` rejects misplaced `#` and non-string values (#1753)
 - fix: `DateBone` `now` parsing (#1754)
 - fix: `db.keyHelper` was not flagged as deprecated
 - fix: `Email`-module requires to provide cloned edit skels (#1733)
 - fix: `getDefaultValue` shares one list across all languages of a multiple bone (#1752)
 - fix: `RelationalBone.postDeletedHandler` limit (#1767)
+- fix: `Skeleton.write()` must not resurrect removed bones (#1777)
 - fix: Add `setSystemInitialized` in `SeoKeyBone` to set the languages (#1703)
 - fix: Avoid compute bones when the skel in deleted in a cascade (#1581)
 - fix: Code fixes due long aging and invalid merge
@@ -58,17 +97,47 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - fix: known bugs quick fixes (#1770)
 - fix: Make user `Status` an `IntEnum` for cross-project comparability (#1737)
 - fix: Reject RFC 5321 violations in EmailBone local part (#1696)
+- fix: resolve further known bugs (#1772)
+- fix: Use `history` as default kindname (#1775)
 - fix: validate required `FileBone` refKeys and export `max_file_size` (#1755)
 - fix(db): repair the datastore cache read path (#1760)
 - fix(email): remove hard retry cap to allow recovery from transient failures (#1749)
 - fix(file): parse absolute download URLs and an appended file name (#1750)
 - fix(tree): delete a node only after its entire subtree is gone (#1731)
+- fix(utils): `Decimal` support in `viur.core.utils.json` (#1774)
 - perf: `RelationalBone.postSavedHandler` batched writes (#1768)
 - refactor: Deprecate `/vi/getVersion` and `/vi/settings` (#1669)
 - refactor: migrate CaptchaBone to reCAPTCHA Enterprise (#1680)
 - refactor: Provide and use `_can_access`-function in vi-render (#1659)
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
+- refactor(bones): restructure `EmailBone.isInvalid` validation (#1730)
 - test: Add unit tests for Bones and App Login Flow (get_cookie_for_app, apply_login_cookie) (#1661)
+
+## [3.8.43]
+
+- fix: Count the `iter_bone_value` index per language for multi-language multiple bones (#1814)
+- fix: Limit the default `up_to` of `Query.count` to i32 (#1817)
+- fix: Loosen `pillow`, `Deprecated` and `appengine-python-standard` ranges (#1811)
+- fix(`RecordBone`): Drop only the `viur-relations` of removed record values (#1813)
+- fix(`RecordBone`): Forward `performMagic` to the sub-bones (#1815)
+
+## [3.8.42]
+
+- fix(RelationalBone): Support shortkeys in queries and consistency (#1807)
+- fix: Treat `viur-relations` entries with empty `dest` as corrupt (#1799)
+
+## [3.8.41]
+
+- fix(bones): scope the compute recursion guard to skeleton and thread (#1793)
+
+## [3.8.40]
+
+- feat: Set `FileSkel.serving_url` via `compute`-function (#1789)
+- fix: Backport `compute`-feature improvements and `None`-value handling (#1788)
+
+## [3.8.39]
+
+- fix: SEO key collision resolution was reverted on every write (#1778)
 
 ## [3.8.38]
 
@@ -365,6 +434,10 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: User-Login rendering (#1554)
 - refactor+fix: `bounce`-flag and `amend`-handling (#1544)
 - refactor+fix: `DateBone` and creationdate/changedate computes (#1551)
+
+## [3.7.22]
+
+- fix: Loosen `pillow` range and drop the `urllib3` pin (#1818)
 
 ## [3.7.21]
 

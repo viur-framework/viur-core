@@ -155,7 +155,8 @@ class FileBone(TreeLeafBone):
     )
     """
     Default RefKeys for FileBone.
-    Use this as extendable reference.
+    Use this as extendable reference: extending this tuple, either globally or in a
+    subclass, changes the refKeys of every FileBone that does not pass its own.
     """
 
     def __init__(
@@ -164,7 +165,7 @@ class FileBone(TreeLeafBone):
         derive: None | dict[str, t.Any] = None,
         maxFileSize: None | int = None,
         validMimeTypes: None | list[str] = None,
-        refKeys: t.Optional[t.Iterable[str]] = DEFAULT_REFKEYS,
+        refKeys: t.Optional[t.Iterable[str]] = None,
         public: bool = False,
         **kwargs
     ):
@@ -193,7 +194,16 @@ class FileBone(TreeLeafBone):
                 #Example
                 validMimeTypes=["application/pdf", "image/*"]
 
+        :param refKeys:
+            The keys of the referenced file to store in the relation.
+            Defaults to :attr:`DEFAULT_REFKEYS`; unlike in RelationalBone, ``None``
+            selects that default instead of the bare ``key``/``shortkey`` pair, which
+            a FileBone cannot operate with anyway.
         """
+        # Resolved here rather than in the signature: a default argument is evaluated
+        # once at import time and would ignore any later change to DEFAULT_REFKEYS.
+        if refKeys is None:
+            refKeys = self.DEFAULT_REFKEYS
         super().__init__(refKeys=refKeys, **kwargs)
 
         self.derive = derive

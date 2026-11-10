@@ -14,14 +14,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from abstract import ViURTestCase  # noqa: E402
 
 
-def _ensure_skeleton_search_path():
-    """Add the in-tree /src/viur/core/ path so MetaSkel's path check passes when
-    running tests directly from the viur-core checkout (not an installed package)."""
-    from viur.core import conf
-    if "/src/viur/core/" not in conf.skeleton_search_path:
-        conf.skeleton_search_path = list(conf.skeleton_search_path) + ["/src/viur/core/"]
-
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -71,10 +63,6 @@ class FakeDatastore:
 # ---------------------------------------------------------------------------
 
 class AppLoginTestCase(ViURTestCase):
-    @classmethod
-    def setUpClass(cls):
-        _ensure_skeleton_search_path()
-
     def setUp(self):
         super().setUp()
         from viur.core import current, db

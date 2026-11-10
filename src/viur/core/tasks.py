@@ -184,17 +184,19 @@ class TaskHandler(Module):
         """
         req = current.request.get().request
         self._validate_request()
+
+        cmd, data = utils.json.loads(req.body)
+        funcPath, args, kwargs, env = data
+
         # Check if the retry count exceeds our warning threshold
         retryCount = req.headers.get("X-Appengine-Taskretrycount", None)
         if retryCount and int(retryCount) == self.retryCountWarningThreshold:
             from viur.core import email
             email.send_email_to_admins(
-                "Deferred task retry counter exceeded warning threshold",
-                f"""Task {req.headers.get("X-Appengine-Taskname", "")} is retried for the {retryCount}th time."""
+                f"Deferred task {funcPath} exceeded the retry warning threshold",
+                f"""Task {req.headers.get("X-Appengine-Taskname", "")} ({funcPath}) """
+                f"""is retried for the {retryCount}th time."""
             )
-
-        cmd, data = utils.json.loads(req.body)
-        funcPath, args, kwargs, env = data
         if conf.debug.trace:
             logging.debug(f"Call task {funcPath} with {cmd=} {args=} {kwargs=} {env=}")
 
