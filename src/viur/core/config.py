@@ -759,6 +759,14 @@ class User(ConfigType):
     If the user's email address belongs to any other domain,
     no account is created."""
 
+    app_login_access: t.Optional[t.Iterable[str | t.Iterable[str]]] = None
+    """Access rights required to use the App Login Flow (``get_cookie_for_app``).
+
+    ``None`` allows every authenticated user; the created session carries exactly the rights
+    the user already has. Otherwise the format of :func:`viur.core.decorators.access` applies,
+    e.g. ``("admin",)`` to restrict it to administrators. Users with ``root`` always pass.
+    """
+
     redirect_whitelist: list[str] | t.Callable[[], list[str]] = (
         lambda _: [
             "http://localhost:*",
