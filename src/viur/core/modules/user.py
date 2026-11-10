@@ -917,12 +917,14 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
             return self._user_module.render.edit(
                 skel,
-                name=i18n.translate(
-                    f"viur.core.modules.user.auth.{self.ACTION_NAME}",
-                    default_variables={"name": self.NAME},
-                ),
-                action_name=self.ACTION_NAME,
-                action_url=f"{self.modulePath}/{self.ACTION_NAME}",
+                params={
+                    "name": i18n.translate(
+                        f"viur.core.modules.user.auth.{self.ACTION_NAME}",
+                        default_variables={"name": self.NAME},
+                    ),
+                    "action_name": self.ACTION_NAME,
+                    "action_url": f"{self.modulePath}/{self.ACTION_NAME}",
+                },
                 tpl=self.second_factor_login_template
             )
 
@@ -1203,12 +1205,14 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
         return self._user_module.render.edit(
             skel,
-            name=i18n.translate(
-                f"viur.core.modules.user.auth.{self.ACTION_NAME}",
-                default_variables={"name": self.NAME},
-            ),
-            action_name=self.ACTION_NAME,
-            action_url=self.action_url,
+            params={
+                "name": i18n.translate(
+                    f"viur.core.modules.user.auth.{self.ACTION_NAME}",
+                    default_variables={"name": self.NAME},
+                ),
+                "action_name": self.ACTION_NAME,
+                "action_url": self.action_url,
+            },
             tpl=self.second_factor_login_template,
         )
 
