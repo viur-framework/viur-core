@@ -731,12 +731,23 @@ class User(ConfigType):
     no account is created."""
 
     redirect_whitelist: list[str] | t.Callable[[], list[str]] = (
-        lambda _: ["http://localhost:*", f"https://*{_project_id}.appspot.com*"]
+        lambda _: [
+            "http://localhost:*",
+            f"https://{_project_id}.appspot.com",
+            f"https://*-dot-{_project_id}.appspot.com",
+        ]
     )
-    """Allowed redirect_to patterns for get_cookie_for_app (matched via :func:`fnmatch.fnmatch`).
+    """Allowed redirect_to patterns for get_cookie_for_app.
 
-    The default is a callable that permits only ``http://localhost:*`` and any URL
-    containing the current GCP project-ID — a safe built-in policy.
+    Each pattern is a URL whose scheme, host, port and path are matched separately against
+    the target via :func:`fnmatch.fnmatchcase`, so a wildcard never reaches beyond its
+    component (e.g. ``https://*.example.com`` does not match ``https://evil.test/?.example.com``).
+    A pattern without a port only matches URLs without an explicit port, a pattern without
+    a path matches any path. URLs with user info (``user@host``) are always rejected.
+
+    The default is a callable that permits ``http://localhost`` on any port and the
+    App Engine hosts of the current GCP project (including versions and services,
+    ``*-dot-<project>.appspot.com``).
     A zero-argument callable is supported and evaluated on every request.
     Use ``["*"]`` to disable the restriction entirely.
 
@@ -744,7 +755,8 @@ class User(ConfigType):
 
         conf.user.redirect_whitelist = [
             "http://localhost:*",
-            "https://*.myapp.appspot.com*",
+            "https://*-dot-myapp.appspot.com",
+            "https://tools.example.com/callback/*",
         ]
 
         # dynamic / lazily evaluated
