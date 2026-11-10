@@ -2,6 +2,12 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.8.44]
+
+- fix: Match `redirect_whitelist` patterns per URL component (#1826)
+- fix: Store string values of `KeyBone` as `db.Key` (#1823)
+- fix: Try the next union member when a member raises `NotAcceptable` (#1819)
+
 ## [3.8.43]
 
 - fix: Count the `iter_bone_value` index per language for multi-language multiple bones (#1814)
