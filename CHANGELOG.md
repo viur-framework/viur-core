@@ -2,6 +2,13 @@
 
 This file documents any relevant changes done to ViUR-core since version 3.
 
+## [3.9.6]
+
+- feat: translate `AddressRelSkel` bone descriptions via i18n (#1822)
+- fix: Allow the App Login Flow for every authenticated user (#1825)
+- fix: Match `redirect_whitelist` patterns per URL component (#1824)
+- fix(user): pass the second factor template context always as `params` (#1821)
+
 ## [3.9.5]
 
 - fix: Call `InitializeThreadingApis()` before the startup tasks (#1803)
@@ -112,6 +119,12 @@ This file documents any relevant changes done to ViUR-core since version 3.
 - refactor: Use `db.KeyType` type annotation in several places (#1639)
 - refactor(bones): restructure `EmailBone.isInvalid` validation (#1730)
 - test: Add unit tests for Bones and App Login Flow (get_cookie_for_app, apply_login_cookie) (#1661)
+
+## [3.8.44]
+
+- fix: Match `redirect_whitelist` patterns per URL component (#1826)
+- fix: Store string values of `KeyBone` as `db.Key` (#1823)
+- fix: Try the next union member when a member raises `NotAcceptable` (#1819)
 
 ## [3.8.43]
 

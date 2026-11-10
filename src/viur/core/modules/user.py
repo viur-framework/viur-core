@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 import secrets
 import time
 import urllib.parse
@@ -916,12 +917,14 @@ class TimeBasedOTP(UserSecondFactorAuthentication):
             skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
             return self._user_module.render.edit(
                 skel,
-                name=i18n.translate(
-                    f"viur.core.modules.user.auth.{self.ACTION_NAME}",
-                    default_variables={"name": self.NAME},
-                ),
-                action_name=self.ACTION_NAME,
-                action_url=f"{self.modulePath}/{self.ACTION_NAME}",
+                params={
+                    "name": i18n.translate(
+                        f"viur.core.modules.user.auth.{self.ACTION_NAME}",
+                        default_variables={"name": self.NAME},
+                    ),
+                    "action_name": self.ACTION_NAME,
+                    "action_url": f"{self.modulePath}/{self.ACTION_NAME}",
+                },
                 tpl=self.second_factor_login_template
             )
 
@@ -1202,14 +1205,102 @@ class AuthenticatorOTP(UserSecondFactorAuthentication):
         skel.errors = [ReadFromClientError(ReadFromClientErrorSeverity.Invalid, "Wrong OTP Token", ["otptoken"])]
         return self._user_module.render.edit(
             skel,
-            name=i18n.translate(
-                f"viur.core.modules.user.auth.{self.ACTION_NAME}",
-                default_variables={"name": self.NAME},
-            ),
-            action_name=self.ACTION_NAME,
-            action_url=self.action_url,
+            params={
+                "name": i18n.translate(
+                    f"viur.core.modules.user.auth.{self.ACTION_NAME}",
+                    default_variables={"name": self.NAME},
+                ),
+                "action_name": self.ACTION_NAME,
+                "action_url": self.action_url,
+            },
             tpl=self.second_factor_login_template,
         )
+
+
+_HOSTNAME_RE = re.compile(r"[a-z0-9.-]+")
+
+
+def _is_redirect_allowed(url: str, whitelist: t.Iterable[str]) -> bool:
+    """
+    Checks whether *url* matches one of the redirect patterns in *whitelist*.
+
+    Scheme, host, port and path are matched separately (via :func:`fnmatch.fnmatchcase`),
+    so a wildcard in a pattern can never reach beyond its component, e.g. from the host
+    into the path, the query or a user-info part of *url*. Query and fragment of *url*
+    are not considered.
+
+    URLs with user info (``user@host``), backslashes, a scheme other than http/https or
+    a hostname containing anything but letters, digits, dots and dashes are rejected,
+    because browsers may resolve them to a different host than :func:`urllib.parse.urlsplit`.
+    This also rejects IPv6 literals.
+
+    A pattern without a port only matches URLs without an explicit port;
+    a pattern without a path matches any path. The pattern ``*`` allows any URL.
+    """
+    if "\\" in url:
+        return False
+
+    try:
+        target = urllib.parse.urlsplit(url)
+        target_port = target.port
+    except ValueError:
+        return False
+
+    if (
+        target.scheme not in ("http", "https")
+        or "@" in target.netloc
+        or not target.hostname
+        or not _HOSTNAME_RE.fullmatch(target.hostname)
+    ):
+        return False
+
+    for pattern in whitelist:
+        if pattern == "*":
+            return True
+
+        scheme, sep, rest = pattern.partition("://")
+        if not sep:
+            continue
+
+        netloc, slash, path = rest.partition("/")
+        host, has_port, port = netloc.partition(":")
+
+        if not fnmatch.fnmatchcase(target.scheme, scheme.lower()):
+            continue
+
+        if not fnmatch.fnmatchcase(target.hostname, host.lower()):
+            continue
+
+        if has_port:
+            if target_port is None or not fnmatch.fnmatchcase(str(target_port), port):
+                continue
+        elif target_port is not None:
+            continue
+
+        if slash and not fnmatch.fnmatchcase(target.path or "/", f"/{path}"):
+            continue
+
+        return True
+
+    return False
+
+
+def _has_app_login_access() -> bool:
+    """
+    Checks the current user against :attr:`conf.user.app_login_access`.
+
+    ``None`` grants access to every authenticated user. Otherwise the format of
+    :func:`viur.core.decorators.access` applies: any entry grants access, and a list, tuple or
+    set as entry requires all of its rights.
+    """
+    if (required := conf.user.app_login_access) is None:
+        return True
+
+    user_access = current.user.get()["access"]
+    return any(
+        all(right in user_access for right in utils.ensure_iterable(entry))
+        for entry in utils.ensure_iterable(required)
+    )
 
 
 class User(List):
@@ -1747,14 +1838,15 @@ class User(List):
         return self.render.render(f"trigger/{action}Success", skel)
 
     @exposed
-    @access("admin", "root", offer_login=True)
+    @access(_has_app_login_access, offer_login=True)
     def get_cookie_for_app(self, redirect_to: str = None):
         """
         Generates a session cookie for the currently logged-in user and hands it to an external
         client (script, native app, or WebView).
 
-        This endpoint is the entry point of a *App Login Flow*.  A privileged user
-        (admin/root) authenticates normally in the browser and then opens this URL.
+        This endpoint is the entry point of a *App Login Flow*.  A logged-in user
+        authenticates normally in the browser and then opens this URL. Which users may do so
+        is configured by :attr:`conf.user.app_login_access` (default: every authenticated user).
         The backend creates a fresh ViUR session (see :meth:`_get_cookie_for_app`) and
         delivers the resulting ``Set-Cookie`` string to the caller.
 
@@ -1797,12 +1889,13 @@ class User(List):
         .. warning:: **Open-redirect / session-hijacking risk**
 
             Because the session cookie is appended as a plain query parameter, an
-            attacker who can convince an authenticated admin to click a crafted link
+            attacker who can convince an authenticated user to click a crafted link
             (e.g. via phishing) could redirect the browser to an evil server that
             simply harvests the ``cookie`` parameter and gains full session access.
 
             To mitigate this, all ``redirect_to`` values are validated against
-            :attr:`conf.user.redirect_whitelist` using :func:`fnmatch.fnmatch`.
+            :attr:`conf.user.redirect_whitelist`. Scheme, host, port and path are matched
+            separately, so a wildcard cannot reach from the host into the path or query.
             Only explicitly whitelisted URL patterns are accepted;
             anything else is rejected with ``403 Forbidden``.
             Configure the whitelist in your project to include every legitimate
@@ -1814,7 +1907,7 @@ class User(List):
         """
         if redirect_to:
             whitelist = utils.ensure_iterable(conf.user.redirect_whitelist)
-            if not any(fnmatch.fnmatch(redirect_to, pat) for pat in whitelist):
+            if not _is_redirect_allowed(redirect_to, whitelist):
                 raise errors.Forbidden(f"Redirect target is not whitelisted")
             if "?" not in redirect_to:
                 redirect_to = f"{redirect_to}?"

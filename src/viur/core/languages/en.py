@@ -53,6 +53,17 @@ en = {
     "core.translationskel.usage_variables.descr": "Receives these substitution variables",
     "core.translationskel.creator.descr": "Creator",
 
+    # AddressBone
+    "viur.core.bones.address.street_name.descr": "Street",
+    "viur.core.bones.address.street_number.descr": "House number",
+    "viur.core.bones.address.address_addition.descr": "Address addition",
+    "viur.core.bones.address.zip_code.descr": "ZIP / Postal code",
+    "viur.core.bones.address.zip_code.invalid": "Invalid ZIP code",
+    "viur.core.bones.address.city.descr": "City",
+    "viur.core.bones.address.state.descr": "State",
+    "viur.core.bones.address.country.descr": "Country",
+    "viur.core.bones.address.coordinates.descr": "Coordinates",
+
     # user Status enum
     "viur.core.user.status.0": "Unset",
     "viur.core.user.status.1": "Waiting for email verification",
