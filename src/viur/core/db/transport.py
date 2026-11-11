@@ -25,6 +25,7 @@ database.
 """
 from __future__ import annotations
 
+import contextvars
 import itertools
 import logging
 import time
@@ -47,6 +48,37 @@ datastore.helpers.entity_from_protobuf = entity_from_protobuf
 # Both default to None, which is the same as datastore.Client(): no change for
 # default deployments.
 __client__ = datastore.Client(database=conf.db.name, namespace=conf.db.namespace)
+
+_transaction_outdated: contextvars.ContextVar[list[t.Union[Entity, Key]] | None] = contextvars.ContextVar(
+    "Transaction-outdated-entities", default=None
+)
+"""Entities and keys the transaction running in this context has outdated.
+
+The cache cannot be updated while a transaction is open -- the write is not
+committed yet and may still roll back -- so :func:`put` and :func:`delete`
+record what they touched here and :func:`run_in_transaction` invalidates those
+entries once the transaction is over.
+"""
+
+
+def _mark_as_outdated(data: t.Union[Entity, Key, t.Iterable[t.Union[Entity, Key]]]) -> None:
+    """Record entities/keys whose cache entry a running transaction outdates."""
+    if (outdated := _transaction_outdated.get()) is None:
+        return  # no transaction in this context, the caller updates the cache itself
+
+    outdated.extend(data if isinstance(data, (list, set, tuple)) else [data])
+
+
+def _invalidate_outdated(outdated: list[t.Union[Entity, Key]]) -> None:
+    """Drop everything a finished transaction outdated from the cache.
+
+    The keys are read *after* the transaction, so entities written with a
+    partial key carry their final, datastore-assigned key by now.
+    """
+    keys = [entry.key if isinstance(entry, Entity) else entry for entry in outdated]
+    if keys := [key for key in keys if key is not None and not key.is_partial]:
+        cache.delete(keys)
+
 
 MAX_LOOKUP_KEYS: t.Final[int] = 1000
 """Maximum number of keys the datastore accepts for a single Lookup operation.
@@ -143,6 +175,9 @@ def put(entities: t.Union[Entity, t.List[Entity]]):
         if conf.debug.trace_queries:
             logging.info(f"db.put: saved {len(entities)} entities")
 
+    # Inside a transaction cache.put() is a no-op (nothing is committed yet), so
+    # remember the entities and let run_in_transaction() invalidate them afterwards.
+    _mark_as_outdated(entities)
     cache.put(entities)
     return res
 
@@ -162,6 +197,9 @@ def delete(keys: t.Union[Entity, t.Iterable[Entity], Key, t.Iterable[Key]]):
     """
 
     _write_to_access_log(keys)
+    # Invalidate right away, and again once a surrounding transaction has finished:
+    # until then a concurrent read could pull the still-current value back in.
+    _mark_as_outdated(keys)
     cache.delete(keys)
     if not isinstance(keys, (set, list, tuple)):
         res = __client__.delete(keys)
@@ -201,15 +239,22 @@ def run_in_transaction(func: t.Callable, *args, **kwargs) -> t.Any:
     :raises RuntimeError: If the maximum transaction retries exceeded
     """
     if __client__.current_transaction:
-        res = func(*args, **kwargs)
-    else:
-        for i in range(3):
+        # Nested call: the outermost one owns the cache invalidation.
+        return func(*args, **kwargs)
+
+    token = _transaction_outdated.set([])
+    try:
+        for i in range(conf.db.transaction_attempts):
             try:
                 with __client__.transaction():
                     res = func(*args, **kwargs)
                     break
 
             except exceptions.Conflict:
+                if i + 1 >= conf.db.transaction_attempts:
+                    # Last attempt failed: raise right away instead of sleeping first.
+                    raise RuntimeError("Maximum transaction retries exceeded")
+
                 logging.error(f"Transaction failed with a conflict, trying again in {2 ** i} seconds")
                 time.sleep(2 ** i)
                 continue
@@ -217,12 +262,64 @@ def run_in_transaction(func: t.Callable, *args, **kwargs) -> t.Any:
         else:
             raise RuntimeError("Maximum transaction retries exceeded")
 
+    finally:
+        # Also invalidate when the transaction failed: a retry may have written
+        # before the conflict, and one invalidation too many only costs a lookup.
+        outdated = _transaction_outdated.get()
+        _transaction_outdated.reset(token)
+        if outdated:
+            _invalidate_outdated(outdated)
+
     return res
 
 
 @deprecated(version="3.8.0", reason="Use 'db.run_in_transaction' instead")
 def RunInTransaction(callee: t.Callable, *args, **kwargs) -> t.Any:
     return run_in_transaction(callee, *args, **kwargs)
+
+
+NATIVE_FILTER_OPERATORS = frozenset({"IN", "!=", "NOT_IN"})
+"""Operators the Datastore evaluates natively; their value goes into a single PropertyFilter, unsplit."""
+
+
+def _normalize_filter_value(op: str, value: t.Any) -> t.Any:
+    """
+        google-cloud-datastore only encodes a ``list`` as array value, any other collection raises
+        ``ValueError: Unknown protobuf attr type``. Convert tuples and sets for the array operators.
+        The order of a set is kept as it is; IN and NOT_IN don't depend on it.
+    """
+    if op in ("IN", "NOT_IN") and isinstance(value, (tuple, set, frozenset)):
+        return list(value)
+
+    return value
+
+
+def _build_property_filters(key: str, op: str, value: t.Any) -> list[datastore.query.PropertyFilter]:
+    """
+        Build the PropertyFilters for one entry of :attr:`QueryDefinition.filters`.
+
+        Native operators result in exactly one filter; any other operator with a list value
+        results in one filter per element (multi equal filters).
+    """
+    if op in NATIVE_FILTER_OPERATORS:
+        return [datastore.query.PropertyFilter(key, op, _normalize_filter_value(op, value))]
+
+    if not isinstance(value, list):
+        value = [value]
+
+    return [datastore.query.PropertyFilter(key, op, val) for val in value]
+
+
+def _build_or_filter(or_group: list[tuple[str, t.Any]]) -> datastore.query.Or:
+    """
+        Build the Or composite filter for one entry of :attr:`QueryDefinition.or_filters`.
+    """
+    or_conditions = []
+    for filter_str, value in or_group:
+        key, op = filter_str.split(" ", 1)
+        or_conditions.append(datastore.query.PropertyFilter(key, op, _normalize_filter_value(op, value)))
+
+    return datastore.query.Or(or_conditions)
 
 
 def count(kind: str = None, up_to=2 ** 31 - 1, queryDefinition: QueryDefinition = None) -> int:
@@ -233,24 +330,12 @@ def count(kind: str = None, up_to=2 ** 31 - 1, queryDefinition: QueryDefinition 
     if queryDefinition and queryDefinition.filters:
         for k, v in queryDefinition.filters.items():
             key, op = k.split(" ")
-            if op in ("IN", "!="):
-                # Native operators: pass value as-is in a single PropertyFilter
-                f = datastore.query.PropertyFilter(key, op, v)
+            for f in _build_property_filters(key, op, v):
                 query.add_filter(filter=f)
-            else:
-                if not isinstance(v, list):  # multi equal filters
-                    v = [v]
-                for val in v:
-                    f = datastore.query.PropertyFilter(key, op, val)
-                    query.add_filter(filter=f)
 
     if queryDefinition and queryDefinition.or_filters:
         for or_group in queryDefinition.or_filters:
-            or_conditions = [
-                datastore.query.PropertyFilter(fs.split(" ", 1)[0], fs.split(" ", 1)[1], v)
-                for fs, v in or_group
-            ]
-            query.add_filter(filter=datastore.query.Or(or_conditions))
+            query.add_filter(filter=_build_or_filter(or_group))
 
     aggregation_query = __client__.aggregation_query(query)
 
@@ -283,24 +368,12 @@ def run_single_filter(query: QueryDefinition, limit: int, keys_only: bool) -> t.
         if query.filters:
             for k, v in query.filters.items():
                 key, op = k.split(" ")
-                if op in ("IN", "!=", "NOT_IN"):
-                    # Native multi-value operators: pass value as-is, not split per element
-                    f = datastore.query.PropertyFilter(key, op, v)
+                for f in _build_property_filters(key, op, v):
                     qry.add_filter(filter=f)
-                else:
-                    if not isinstance(v, list):  # multi equal filters
-                        v = [v]
-                    for val in v:
-                        f = datastore.query.PropertyFilter(key, op, val)
-                        qry.add_filter(filter=f)
 
         if query.or_filters:
             for or_group in query.or_filters:
-                or_conditions = [
-                    datastore.query.PropertyFilter(fs.split(" ", 1)[0], fs.split(" ", 1)[1], v)
-                    for fs, v in or_group
-                ]
-                qry.add_filter(filter=datastore.query.Or(or_conditions))
+                qry.add_filter(filter=_build_or_filter(or_group))
 
         if query.orders:
             hasInvertedOrderings = any(

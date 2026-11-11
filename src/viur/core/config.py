@@ -322,6 +322,11 @@ class Database(ConfigType):
     create_access_log: bool = True
     """If False no access log will be created. But then the caching is disabled too."""
 
+    transaction_attempts: int = 3
+    """How often :func:`db.run_in_transaction <viur.core.db.transport.run_in_transaction>` runs
+    a transaction before giving up on conflicts; must be at least 1. Retries back off exponentially
+    (1s, 2s, 4s, ...)."""
+
     name: str | None = os.getenv("VIUR_DB_NAME") or None
     """Named datastore to target instead of ``(default)``.
 
@@ -1071,13 +1076,32 @@ class User(ConfigType):
     If the user's email address belongs to any other domain,
     no account is created."""
 
-    redirect_whitelist: list[str] | t.Callable[[], list[str]] = (
-        lambda _: ["http://localhost:*", f"https://*{_project_id}.appspot.com*"]
-    )
-    """Allowed redirect_to patterns for get_cookie_for_app (matched via :func:`fnmatch.fnmatch`).
+    app_login_access: t.Optional[t.Iterable[str | t.Iterable[str]]] = None
+    """Access rights required to use the App Login Flow (``get_cookie_for_app``).
 
-    The default is a callable that permits only ``http://localhost:*`` and any URL
-    containing the current GCP project-ID — a safe built-in policy.
+    ``None`` allows every authenticated user; the created session carries exactly the rights
+    the user already has. Otherwise the format of :func:`viur.core.decorators.access` applies,
+    e.g. ``("admin",)`` to restrict it to administrators. Users with ``root`` always pass.
+    """
+
+    redirect_whitelist: list[str] | t.Callable[[], list[str]] = (
+        lambda _: [
+            "http://localhost:*",
+            f"https://{_project_id}.appspot.com",
+            f"https://*-dot-{_project_id}.appspot.com",
+        ]
+    )
+    """Allowed redirect_to patterns for get_cookie_for_app.
+
+    Each pattern is a URL whose scheme, host, port and path are matched separately against
+    the target via :func:`fnmatch.fnmatchcase`, so a wildcard never reaches beyond its
+    component (e.g. ``https://*.example.com`` does not match ``https://evil.test/?.example.com``).
+    A pattern without a port only matches URLs without an explicit port, a pattern without
+    a path matches any path. URLs with user info (``user@host``) are always rejected.
+
+    The default is a callable that permits ``http://localhost`` on any port and the
+    App Engine hosts of the current GCP project (including versions and services,
+    ``*-dot-<project>.appspot.com``).
     A zero-argument callable is supported and evaluated on every request.
     Use ``["*"]`` to disable the restriction entirely.
 
@@ -1085,7 +1109,8 @@ class User(ConfigType):
 
         conf.user.redirect_whitelist = [
             "http://localhost:*",
-            "https://*.myapp.appspot.com*",
+            "https://*-dot-myapp.appspot.com",
+            "https://tools.example.com/callback/*",
         ]
 
         # dynamic / lazily evaluated
@@ -1135,6 +1160,12 @@ class Conf(ConfigType):
 
     bone_string_escape_html: bool = True
     """Default escape_html setting for StringBone. Set to False to disable HTML escaping globally."""
+
+    bone_strict_mode: bool = os.getenv("VIUR_CORE_BONE_STRICT_MODE", "").lower() != "false"
+    """If enabled (the default), setting an *unknown* attribute on a bone after its construction
+    raises an AttributeError instead of silently creating it -- this catches typos like ``readonly``
+    instead of ``readOnly``. Disable via ``conf.bone_strict_mode = False`` or the environment
+    variable ``VIUR_CORE_BONE_STRICT_MODE=false``."""
 
     bone_html_default_allow: "HtmlBoneConfiguration" = {
         "validTags": [
@@ -1245,6 +1276,12 @@ class Conf(ConfigType):
     file_hmac_key: str = None
     """Hmac-Key used to sign download urls - set automatically"""
 
+    file_hmac_key_fallbacks: list[str] = []
+    """Retired hmac-keys that are still *accepted* when verifying download-url signatures, but
+    never used for signing. Enables zero-downtime rotation of :attr:`file_hmac_key`: set the new
+    key as ``file_hmac_key``, keep the previous one here until every link signed with it has
+    expired, then remove it. Analogous to Django's ``SECRET_KEY_FALLBACKS``."""
+
     # TODO: separate this type hints and use it in the File module as well
     file_derivations: dict[str, t.Callable[["SkeletonInstance", dict, dict], list[tuple[str, float, str, t.Any]]]] = {}
     """Call-Map for file pre-processors"""
@@ -1294,8 +1331,6 @@ class Conf(ConfigType):
     skeleton_search_path: Multiple[str] = [
         "/skeletons/",  # skeletons of the project
         "/viur/core/",  # system-defined skeletons of viur-core
-        "/viur/src/viur/core/",  # fixme: test suite
-        "/viur-core/core/"  # system-defined skeletons of viur-core, only used by editable installation
     ]
     """Priority, in which skeletons are loaded"""
 

@@ -4,6 +4,7 @@ import os
 import string
 import sys
 import typing as t
+from pathlib import Path
 
 from .adapter import ViurTagsSearchAdapter
 from .. import utils
@@ -12,6 +13,27 @@ from ..config import conf
 
 _UNDEFINED_KINDNAME = object()
 ABSTRACT_SKEL_CLS_SUFFIX = "AbstractSkel"
+
+
+def relative_skeleton_path(filename: str | os.PathLike) -> str:
+    """
+    Return the path of a skeleton's file as it is matched against :attr:`conf.skeleton_search_path`.
+
+    The path is made relative to ``conf.instance.core_base_path`` first, and only then to
+    ``conf.instance.project_base_path``. The core may be located below the working directory
+    (an editable installation, a submodule, a checkout running its test suite), and its
+    skeletons must resolve to ``/viur/core/...`` regardless of where the process was started.
+
+    :param filename: Absolute path of the file defining the skeleton.
+    :return: The path relative to the core or the project with a leading ``/``,
+        or the unchanged path if it is located in neither of them.
+    """
+    path = Path(filename)
+    for base_path in (conf.instance.core_base_path, conf.instance.project_base_path):
+        if path.is_relative_to(base_path):
+            return f"/{path.relative_to(base_path).as_posix()}"
+    return str(path)
+
 
 Skeleton_Cls = t.TypeVar("Skeleton_Cls", bound="BaseSkeleton")
 """TypeVar for generic skeleton typing.
@@ -142,9 +164,7 @@ class MetaSkel(MetaBaseSkel):
     def __init__(cls, name, bases, dct, **kwargs):
         super().__init__(name, bases, dct, **kwargs)
 
-        relNewFileName = inspect.getfile(cls) \
-            .replace(str(conf.instance.project_base_path), "") \
-            .replace(str(conf.instance.core_base_path), "")
+        relNewFileName = relative_skeleton_path(inspect.getfile(cls))
 
         # Check if we have an abstract skeleton
         if cls.__name__.endswith(ABSTRACT_SKEL_CLS_SUFFIX):
@@ -167,9 +187,7 @@ class MetaSkel(MetaBaseSkel):
 
         # Try to determine which skeleton definition takes precedence
         if cls.kindName and cls.kindName is not _UNDEFINED_KINDNAME and cls.kindName in MetaBaseSkel._skelCache:
-            relOldFileName = inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]) \
-                .replace(str(conf.instance.project_base_path), "") \
-                .replace(str(conf.instance.core_base_path), "")
+            relOldFileName = relative_skeleton_path(inspect.getfile(MetaBaseSkel._skelCache[cls.kindName]))
             idxOld = min(
                 [x for (x, y) in enumerate(conf.skeleton_search_path) if relOldFileName.startswith(y)] + [999])
             idxNew = min(

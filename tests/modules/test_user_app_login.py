@@ -14,14 +14,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from abstract import ViURTestCase  # noqa: E402
 
 
-def _ensure_skeleton_search_path():
-    """Add the in-tree /src/viur/core/ path so MetaSkel's path check passes when
-    running tests directly from the viur-core checkout (not an installed package)."""
-    from viur.core import conf
-    if "/src/viur/core/" not in conf.skeleton_search_path:
-        conf.skeleton_search_path = list(conf.skeleton_search_path) + ["/src/viur/core/"]
-
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -32,8 +24,8 @@ def _user_self():
     return object.__new__(User)
 
 
-def _mock_user(db_entity):
-    _data = {"key": db_entity.key, "access": ["root"]}
+def _mock_user(db_entity, access=("root",)):
+    _data = {"key": db_entity.key, "access": list(access)}
     user = mock.MagicMock()
     user.dbEntity = db_entity
     user.__getitem__ = mock.Mock(side_effect=lambda k: _data.get(k, db_entity.get(k)))
@@ -71,10 +63,6 @@ class FakeDatastore:
 # ---------------------------------------------------------------------------
 
 class AppLoginTestCase(ViURTestCase):
-    @classmethod
-    def setUpClass(cls):
-        _ensure_skeleton_search_path()
-
     def setUp(self):
         super().setUp()
         from viur.core import current, db
@@ -98,6 +86,7 @@ class AppLoginTestCase(ViURTestCase):
         self._patch_get.stop()
         from viur.core import conf
         conf.user.redirect_whitelist = None
+        conf.user.app_login_access = None
         super().tearDown()
 
 
@@ -271,6 +260,136 @@ class TestGetCookieWhitelist(AppLoginTestCase):
                 _user_self(),
                 redirect_to="https://v1.myapp.appspot.com/apply_login_cookie",
             )
+
+    def test_wildcard_does_not_reach_into_query(self):
+        from viur.core import conf, errors
+        from viur.core.modules.user import User
+
+        conf.user.redirect_whitelist = ["https://*-dot-myapp.appspot.com"]
+        with self.assertRaises(errors.Forbidden):
+            User.get_cookie_for_app(
+                _user_self(),
+                redirect_to="https://evil.example/?x=v1-dot-myapp.appspot.com",
+            )
+
+
+# ---------------------------------------------------------------------------
+# get_cookie_for_app – access check (conf.user.app_login_access)
+# ---------------------------------------------------------------------------
+
+class TestGetCookieAccess(AppLoginTestCase):
+    """get_cookie_for_app: who may use the App Login Flow."""
+
+    def _login_as(self, *access):
+        from viur.core import current, db
+
+        current.user.set(_mock_user(db.Entity(self.user_key), access))
+
+    def _assert_allowed(self):
+        from viur.core.modules.user import User
+
+        self.assertIn("=", User.get_cookie_for_app(_user_self()))
+
+    def _assert_forbidden(self):
+        from viur.core import errors
+        from viur.core.modules.user import User
+
+        with self.assertRaises(errors.Forbidden):
+            User.get_cookie_for_app(_user_self())
+
+    def test_default_allows_every_authenticated_user(self):
+        self._login_as()
+        self._assert_allowed()
+
+    def test_not_logged_in_is_redirected_to_login(self):
+        from viur.core import current, errors
+        from viur.core.modules.user import User
+
+        current.user.set(None)
+        with self.assertRaises(errors.Redirect):
+            User.get_cookie_for_app(_user_self())
+
+    def test_restricted_to_admin(self):
+        from viur.core import conf
+
+        conf.user.app_login_access = ("admin",)
+        for access, allowed in ((["user-view"], False), (["admin"], True), (["root"], True)):
+            with self.subTest(access=access):
+                self._login_as(*access)
+                if allowed:
+                    self._assert_allowed()
+                else:
+                    self._assert_forbidden()
+
+    def test_combined_rights_are_all_required(self):
+        from viur.core import conf
+
+        conf.user.app_login_access = [["admin", "user-edit"]]
+        self._login_as("admin")
+        self._assert_forbidden()
+        self._login_as("admin", "user-edit")
+        self._assert_allowed()
+
+
+# ---------------------------------------------------------------------------
+# _is_redirect_allowed
+# ---------------------------------------------------------------------------
+
+class TestIsRedirectAllowed(ViURTestCase):
+    """_is_redirect_allowed: scheme, host, port and path are matched separately."""
+
+    def _check(self, whitelist, cases):
+        from viur.core.modules.user import _is_redirect_allowed
+
+        for url, expected in cases:
+            with self.subTest(url=url):
+                self.assertIs(_is_redirect_allowed(url, whitelist), expected)
+
+    def test_default_whitelist(self):
+        self._check(
+            [
+                "http://localhost:*",
+                "https://myapp.appspot.com",
+                "https://*-dot-myapp.appspot.com",
+            ],
+            [
+                ("http://localhost:60000", True),
+                ("http://localhost:60000/?state=abc", True),
+                ("https://myapp.appspot.com/cb", True),
+                ("https://v1-dot-myapp.appspot.com/cb", True),
+                ("https://MYAPP.appspot.com/cb", True),
+                ("http://localhost", False),  # pattern requires a port
+                ("https://localhost:60000", False),  # scheme mismatch
+                ("https://myapp.appspot.com:8443/cb", False),  # unexpected port
+                ("https://evil.example/?x=myapp.appspot.com", False),
+                ("https://evil.example/myapp.appspot.com", False),
+                ("https://myapp.appspot.com.evil.example/cb", False),
+                ("https://evilmyapp.appspot.com/cb", False),
+                ("http://localhost:60000@evil.example/", False),
+                ("http://user@localhost:60000/", False),
+                ("https://evil.example\\x-dot-myapp.appspot.com/", False),
+                ("javascript://localhost:1/%0aalert(1)", False),
+                ("//localhost:60000/", False),
+                ("http://localhost:abc/", False),
+            ],
+        )
+
+    def test_path_pattern(self):
+        self._check(
+            ["https://tools.example.com/callback/*"],
+            [
+                ("https://tools.example.com/callback/login", True),
+                ("https://tools.example.com/other", False),
+                ("https://tools.example.com", False),
+            ],
+        )
+
+    def test_ipv6_host_is_rejected(self):
+        self._check(["*://*", "http://*:*"], [("http://[::1]:60000/", False)])
+
+    def test_star_and_invalid_patterns(self):
+        self._check(["*"], [("https://anything.example/x", True)])
+        self._check(["localhost:*", ""], [("http://localhost:1/", False)])
 
 
 # ---------------------------------------------------------------------------

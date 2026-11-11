@@ -294,3 +294,197 @@ class TestCheckForUnreferencedBlobs(ViURTestCase):
 
     def test_all_blobs_already_marked(self):
         self.assertEqual([], self._run(["blob-a", "blob-b"], already_marked=("blob-a", "blob-b")))
+
+
+class FakeLeafSkel(dict):
+    """Minimal leaf skeleton: dict access plus a read()/write() like SkeletonInstance."""
+
+    def read(self, key):
+        self["_read_key"] = key
+        return True
+
+    def write(self, **kwargs):
+        self["_written"] = True
+        return self
+
+    def patch(self, values, **kwargs):
+        """Like Skeleton.patch(): re-read, apply the callable, write."""
+        self["_patched"] = True
+        self.read(self["key"])
+        values(self)
+        return self.write()
+
+
+class TestFileOverwriteUpload(ViURTestCase):
+    """getUploadURL(amend=...) + add() overwrite an existing file's blob in place."""
+
+    def _file(self):
+        # Lazy import: the module creates a GCS client at import time.
+        with mock.patch("google.cloud.storage.Client"):
+            from viur.core.modules.file import File
+        return File
+
+    def test_amend_targets_existing_blob_and_keeps_key(self):
+        """A resumable session is opened on the EXISTING dlkey/name; the existing key is returned."""
+        File = self._file()
+        blob = mock.Mock()
+        blob.create_resumable_upload_session.return_value = "https://upload/session"
+        bucket = mock.Mock()
+        bucket.blob.return_value = blob
+
+        skel = FakeLeafSkel(key="file-123", dlkey="abc_pub", name="image.jpg")
+        module = mock.Mock()
+        module.editSkel.return_value = skel
+        module.canEdit.return_value = True
+        module.get_bucket.return_value = bucket
+        module.render.view.side_effect = lambda payload: payload
+
+        result = File.getUploadURL._func(
+            module, "ignored.jpg", "image/jpeg", amend="file-123")
+
+        # Same blob, no new dlkey minted:
+        bucket.blob.assert_called_once_with("abc_pub/source/image.jpg")
+        blob.create_resumable_upload_session.assert_called_once()
+        self.assertEqual(result["uploadKey"], "file-123")
+        self.assertEqual(result["uploadUrl"], "https://upload/session")
+        module.canEdit.assert_called_once_with("leaf", skel)
+
+    def test_amend_unescapes_name_for_blob_path(self):
+        """The stored (escaped) name must be unescaped to hit the real object path."""
+        File = self._file()
+        blob = mock.Mock()
+        blob.create_resumable_upload_session.return_value = "u"
+        bucket = mock.Mock()
+        bucket.blob.return_value = blob
+        skel = FakeLeafSkel(key="k", dlkey="d", name="file&#40;1&#41;.jpg")
+        module = mock.Mock()
+        module.editSkel.return_value = skel
+        module.canEdit.return_value = True
+        module.get_bucket.return_value = bucket
+        module.render.view.side_effect = lambda payload: payload
+
+        File.getUploadURL._func(module, "x", "image/jpeg", amend="k")
+        bucket.blob.assert_called_once_with("d/source/file(1).jpg")
+
+    def test_amend_forbidden_without_edit_rights(self):
+        File = self._file()
+        from viur.core import errors
+        skel = FakeLeafSkel(key="k", dlkey="d", name="x.jpg")
+        module = mock.Mock()
+        module.editSkel.return_value = skel
+        module.canEdit.return_value = False
+        with self.assertRaises(errors.Forbidden):
+            File.getUploadURL._func(module, "x.jpg", "image/jpeg", amend="k")
+
+    def test_add_overwrite_refreshes_metadata_and_keeps_tree_position(self):
+        """add() on a non-pending leaf refreshes size/mimetype/checksums; parent/weak stay."""
+        File = self._file()
+        blob = mock.Mock(
+            size=4242, content_type="image/jpeg",
+            crc32c=base64.b64encode(b"1234").decode(),
+            md5_hash=base64.b64encode(b"5678").decode())
+        bucket = mock.Mock()
+        bucket.list_blobs.return_value = [blob]
+
+        skel = FakeLeafSkel(
+            key="file-123", dlkey="abc_pub", name="x.jpg",
+            pending=False, size=0, mimetype="application/octetstream",
+            parententry="folder-1", weak=False)
+        module = mock.Mock()
+        module.addSkel.return_value = skel
+        module.canEdit.return_value = True
+        module.get_bucket.return_value = bucket
+        module.create_download_url.return_value = "/dl"
+        module.render.editSuccess.side_effect = lambda s: s
+
+        File.add._func(module, "leaf", key="file-123")
+
+        self.assertEqual(skel["size"], 4242)
+        self.assertEqual(skel["mimetype"], "image/jpeg")
+        self.assertEqual(skel["crc32c_checksum"], b"1234".hex())
+        self.assertTrue(skel.get("_written"))
+        self.assertTrue(skel.get("_patched"), "amending must write via skel.patch(), i.e. transactional")
+        # Tree position must NOT change on an overwrite:
+        self.assertEqual(skel["parententry"], "folder-1")
+        self.assertFalse(skel["weak"])
+        module.onEdit.assert_called_once_with("leaf", skel)
+        module.onEdited.assert_called_once_with("leaf", skel)
+
+    def test_add_overwrite_forbidden_without_edit_rights(self):
+        File = self._file()
+        from viur.core import errors
+        skel = FakeLeafSkel(key="k", dlkey="d", name="x.jpg", pending=False)
+        module = mock.Mock()
+        module.addSkel.return_value = skel
+        module.canEdit.return_value = False
+        with self.assertRaises(errors.Forbidden):
+            File.add._func(module, "leaf", key="k")
+
+
+class TestFileHmacRotation(ViURTestCase):
+    """conf.file_hmac_key_fallbacks lets hmac_verify accept signatures made with a retired key,
+    so file_hmac_key can be rotated without invalidating already-signed download URLs."""
+
+    def _file(self):
+        # See TestFileDownloadUrl._roundtrip for why the import is mocked and lazy.
+        with mock.patch("google.cloud.storage.Client"):
+            from viur.core.modules.file import File
+        return File
+
+    def tearDown(self):
+        from viur.core import conf
+        conf.file_hmac_key = None
+        conf.file_hmac_key_fallbacks = []
+        super().tearDown()
+
+    def test_rotated_key_still_verifies_old_signature(self):
+        from viur.core import conf
+        File = self._file()
+        conf.file_hmac_key = b"old-key"
+        old_sig = File.hmac_sign("payload")
+        # Rotate: new active key, old key retired into fallbacks.
+        conf.file_hmac_key = b"new-key"
+        conf.file_hmac_key_fallbacks = [b"old-key"]
+        self.assertTrue(File.hmac_verify("payload", old_sig))  # old sig still accepted
+        self.assertTrue(File.hmac_verify("payload", File.hmac_sign("payload")))  # new sig accepted
+
+    def test_old_signature_rejected_without_fallback(self):
+        from viur.core import conf
+        File = self._file()
+        conf.file_hmac_key = b"old-key"
+        old_sig = File.hmac_sign("payload")
+        conf.file_hmac_key = b"new-key"
+        conf.file_hmac_key_fallbacks = []
+        self.assertFalse(File.hmac_verify("payload", old_sig))  # no fallback -> rejected
+
+    def test_str_fallback_key_is_accepted(self):
+        """Operators may configure a retired key as str; it is coerced like the active key."""
+        from viur.core import conf
+        File = self._file()
+        conf.file_hmac_key = b"old-key"
+        old_sig = File.hmac_sign("payload")
+        conf.file_hmac_key = b"new-key"
+        conf.file_hmac_key_fallbacks = ["old-key"]  # str, not bytes
+        self.assertTrue(File.hmac_verify("payload", old_sig))
+
+    def test_garbage_signature_rejected(self):
+        from viur.core import conf
+        File = self._file()
+        conf.file_hmac_key = b"new-key"
+        conf.file_hmac_key_fallbacks = [b"old-key"]
+        self.assertFalse(File.hmac_verify("payload", "deadbeef"))
+
+    def test_sign_without_key_raises(self):
+        """A missing key must raise even under `python -O`, so no assert."""
+        File = self._file()
+        with self.assertRaises(RuntimeError):
+            File.hmac_sign("payload")
+
+    def test_explicit_key_matches_default_key(self):
+        """hmac_sign(key=None) uses conf.file_hmac_key, an explicit key (bytes or str) yields the same digest."""
+        from viur.core import conf
+        File = self._file()
+        conf.file_hmac_key = b"active-key"
+        self.assertEqual(File.hmac_sign("payload"), File.hmac_sign("payload", key=b"active-key"))
+        self.assertEqual(File.hmac_sign("payload"), File.hmac_sign("payload", key="active-key"))
+        self.assertNotEqual(File.hmac_sign("payload"), File.hmac_sign("payload", key=b"other-key"))

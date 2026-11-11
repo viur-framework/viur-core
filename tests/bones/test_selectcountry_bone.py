@@ -95,3 +95,44 @@ class TestSelectCountryBoneSingleValueUnserialize(ViURTestCase):
         from viur.core.bones.selectcountry import SelectCountryBone
         bone = _country_bone(codes=SelectCountryBone.ISO3)
         self.assertEqual("xx", bone.singleValueUnserialize("xx"))
+
+
+class TestSelectCountryBoneTranslation(ViURTestCase):
+    """Country names come translated from viur.core.languages, keyed by their English name."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        from unittest import mock
+        from viur.core import current, i18n
+        patcher = mock.patch.dict(i18n.systemTranslations, i18n.StaticModuleSource().load())
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        current.language.set("de")
+
+    def test_label_in_request_language(self):
+        structure = _country_bone().structure()["values"]
+        self.assertEqual("Deutschland", structure["de"])
+        self.assertEqual("Österreich", structure["at"])
+
+    def test_sorted_by_translated_label(self):
+        labels = list(_country_bone(values="dach").structure()["values"].values())
+        self.assertEqual(["Deutschland", "Österreich", "Schweiz"], labels)
+
+    def test_umlaut_sorts_like_its_base_letter(self):
+        labels = list(_country_bone(values=["at", "nz", "pl"]).structure()["values"].values())
+        self.assertEqual(["Neuseeland", "Österreich", "Polen"], labels)
+
+    def test_iso3_label_in_request_language(self):
+        from viur.core.bones.selectcountry import SelectCountryBone
+        structure = _country_bone(codes=SelectCountryBone.ISO3).structure()["values"]
+        self.assertEqual("Deutschland", structure["deu"])
+
+    def test_callable_values(self):
+        bone = _country_bone(values=lambda: {"de": "Germany", "at": "Austria"})
+        self.assertEqual(["at", "de"], list(bone.structure()["values"].keys()))
+
+    def test_every_country_has_a_german_name(self):
+        from viur.core.bones.selectcountry import SelectCountryBone
+        from viur.core.languages import de
+        missing = [name for name in SelectCountryBone.ISO2CODES.values() if name.lower() not in de]
+        self.assertEqual([], missing)

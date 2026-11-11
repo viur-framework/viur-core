@@ -1,3 +1,5 @@
+import traceback
+
 from abstract import ViURTestCase
 
 
@@ -64,3 +66,86 @@ class TestReadFromClientException(ViURTestCase):
         from viur.core.bones.base import ReadFromClientException
         with self.assertRaises(ValueError):
             ReadFromClientException([])
+
+
+class TestBoneStrictMode(ViURTestCase):
+    """conf.bone_strict_mode rejects assigning an *unknown* attribute to a bone after construction.
+
+    Guards against the typo class ``bone.readonly = True`` (dead attribute) instead of the real
+    ``bone.readOnly``, which silently disabled access controls in the wild.
+    """
+
+    def tearDown(self):
+        from viur.core import conf
+        conf.bone_strict_mode = True  # restore default so the flag does not leak into other tests
+        super().tearDown()
+
+    def _bound_bone(self):
+        """A bone that is 'construction complete' (bound to a skel via __set_name__) and marked cloned,
+        so only the strict-mode guard is in play (not the unrelated 'clone first' guard)."""
+        from viur.core.bones import StringBone
+        bone = StringBone()
+        bone.__set_name__(TestBoneStrictMode, "test")  # binds to a skel -> construction complete
+        bone.isClonedInstance = True
+        return bone
+
+    def test_unknown_attr_raises_when_strict(self):
+        from viur.core import conf
+        conf.bone_strict_mode = True
+        bone = self._bound_bone()
+        with self.assertRaises(AttributeError) as cm:
+            bone.readonly = True  # typo of readOnly -> must be rejected
+        # Python's traceback machinery derives the suggestion from AttributeError.name/.obj
+        self.assertIn("Did you mean: 'readOnly'", "".join(traceback.format_exception_only(cm.exception)))
+
+    def test_known_attr_allowed_when_strict(self):
+        from viur.core import conf
+        conf.bone_strict_mode = True
+        bone = self._bound_bone()
+        bone.readOnly = True  # existing attribute -> allowed
+        self.assertTrue(bone.readOnly)
+
+    def test_unknown_attr_allowed_when_disabled(self):
+        from viur.core import conf
+        conf.bone_strict_mode = False
+        bone = self._bound_bone()
+        bone.readonly = True  # guard off -> legacy silent-set behaviour
+        self.assertTrue(bone.readonly)
+
+    def test_construction_kwarg_typo_still_raises(self):
+        # Pre-existing behaviour (no **kwargs on BaseBone.__init__): unknown ctor kwargs raise.
+        from viur.core.bones import NumericBone
+        with self.assertRaises(TypeError):
+            NumericBone(reqired=True)
+
+
+class TestBaseBone_iter_bone_value(ViURTestCase):
+    def _iter(self, bone, value):
+        return list(bone.iter_bone_value({"bone": value}, "bone"))
+
+    def test_single(self):
+        from viur.core.bones import BaseBone
+        self.assertEqual([(None, None, "a")], self._iter(BaseBone(), "a"))
+
+    def test_multiple(self):
+        from viur.core.bones import BaseBone
+        self.assertEqual([(0, None, "a"), (1, None, "b")], self._iter(BaseBone(multiple=True), ["a", "b"]))
+
+    def test_languages(self):
+        from viur.core.bones import BaseBone
+        bone = BaseBone(languages=["de", "en"])
+        self.assertEqual([(None, "de", "a"), (None, "en", "b")], self._iter(bone, {"de": "a", "en": "b"}))
+
+    def test_languages_multiple_index_per_language(self):
+        """The index is the position of the value within its language, not the position of the language."""
+        from viur.core.bones import BaseBone
+        bone = BaseBone(languages=["de", "en"], multiple=True)
+        self.assertEqual(
+            [(0, "de", "a"), (1, "de", "b"), (0, "en", "c"), (1, "en", "d"), (2, "en", "e")],
+            self._iter(bone, {"de": ["a", "b"], "en": ["c", "d", "e"]}),
+        )
+
+    def test_languages_multiple_skips_empty_language(self):
+        from viur.core.bones import BaseBone
+        bone = BaseBone(languages=["de", "en"], multiple=True)
+        self.assertEqual([(0, "en", "c")], self._iter(bone, {"de": [], "en": ["c"]}))

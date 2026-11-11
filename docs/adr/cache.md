@@ -35,6 +35,48 @@ prototypes call it with `kind=` from `onAdded`/`onCloned` and with `key=` from
 - `conf.debug.disable_cache` switches the cache off globally; users with `root`
   bypass it per request via the `X-Viur-Disable-Cache` header (evaluated in the
   router).
+- Everything the response depends on is either part of the key or constant
+  across requests. Localized `DateBone` values are neither by default: they are
+  rendered in the timezone guessed for the request (see
+  [bones/date](bones/date.md)). Pick one per page:
+  - **Same time for everybody** (event in venue time): convert in the template,
+    e.g. `skel.start|in_timezone("Europe/Berlin")`. The page stays one entry.
+  - **Reader's time, client-side:** render `<time datetime="...">` and format
+    it with `Intl.DateTimeFormat`. The page stays one entry.
+  - **Reader's time, server-side:** add the guessed zone to the key - only
+    for the pages that render it, either per endpoint:
+
+    ```py
+    class ReaderTimeZoneCache(ResponseCache):
+        """ResponseCache that keeps one entry per guessed reader timezone."""
+
+        def get_args(self, func, path, args, kwargs):
+            res = super().get_args(func, path, args, kwargs)
+            if not isinstance(res, BypassCache):
+                res["__timezone"] = DateBone().guessTimeZone().zone
+            return res
+
+
+    class Blog(List):
+        @exposed
+        @ReaderTimeZoneCache()
+        def list(self, *args, **kwargs): ...
+    ```
+
+    or centrally, scoped by path:
+
+    ```py
+    def cache_environment() -> dict:
+        if current.request.get().path.startswith("/blog/"):
+            return {"timezone": DateBone().guessTimeZone().zone}
+        return {}
+
+
+    conf.cache_environment_key = cache_environment
+    ```
+
+    Without the scope `cache_environment_key` splits *every* cached page by
+    timezone, also the ones that render no date at all.
 
 ## Traps
 - Invalidation only sees entities read with `db.get`/`put`/`delete` - the query
@@ -63,6 +105,14 @@ prototypes call it with `kind=` from `onAdded`/`onCloned` and with `key=` from
   itself through `X-Cache-Status` (`HIT`/`MISS`/`UPDATED`/`BYPASS`/`TOO_LARGE`).
 - `conf.db.create_access_log = False` does not disable caching - it only empties
   `accessedEntries`, so entries are cached and never invalidated.
+- Whoever requests first after expiry decides what everyone sees until
+  `max_cache_time` runs out - for every request property that is not in the
+  key. With localized `DateBone`s that is the requester's clock: a crawler from
+  Japan bakes 02:30 (next day) into the programme of a Berlin theatre, a health
+  check without the country header 17:30 UTC, for a concert at 19:30. The
+  uncached detail view of the same entry still renders per request and shows
+  19:30 to a German visitor, so the report reads "list wrong, detail right" and
+  looks like a template bug.
 
 ## Why not
 Cached responses live in the datastore instead of memcache: they survive

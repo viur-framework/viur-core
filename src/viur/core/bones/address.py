@@ -17,11 +17,30 @@ CACHE_KIND = "viur-addressbone-geocache"
 
 
 class AddressRelSkel(RelSkel):
-    street_name = StringBone(descr="Street", required=True)
-    street_number = StringBone(descr="House number")
-    address_addition = StringBone(descr="Address addition")
+    street_name = StringBone(
+        descr=i18n.translate(
+            "viur.core.bones.address.street_name.descr",
+            defaultText="Street",
+        ),
+        required=True,
+    )
+    street_number = StringBone(
+        descr=i18n.translate(
+            "viur.core.bones.address.street_number.descr",
+            defaultText="House number",
+        ),
+    )
+    address_addition = StringBone(
+        descr=i18n.translate(
+            "viur.core.bones.address.address_addition.descr",
+            defaultText="Address addition",
+        ),
+    )
     zip_code = StringBone(
-        descr="ZIP / Postal code",
+        descr=i18n.translate(
+            "viur.core.bones.address.zip_code.descr",
+            defaultText="ZIP / Postal code",
+        ),
         params={
             "pattern": ZIP_CODE_PATTERNS,
             "pattern-error": i18n.translate(
@@ -30,10 +49,30 @@ class AddressRelSkel(RelSkel):
             ),
         },
     )
-    city = StringBone(descr="City", required=True)
-    country = SelectCountryBone(descr="Country")
+    city = StringBone(
+        descr=i18n.translate(
+            "viur.core.bones.address.city.descr",
+            defaultText="City",
+        ),
+        required=True,
+    )
+    state = StringBone(
+        descr=i18n.translate(
+            "viur.core.bones.address.state.descr",
+            defaultText="State",
+        ),
+    )
+    country = SelectCountryBone(
+        descr=i18n.translate(
+            "viur.core.bones.address.country.descr",
+            defaultText="Country",
+        ),
+    )
     coordinates = SpatialBone(
-        descr="Coordinates",
+        descr=i18n.translate(
+            "viur.core.bones.address.coordinates.descr",
+            defaultText="Coordinates",
+        ),
         boundsLat=(-90, 90),
         boundsLng=(-180, 180),
         gridDimensions=(10, 10),
@@ -54,7 +93,8 @@ class AddressBone(RecordBone):
 
     def after_from_client(self, skel, name, errors):
         value = skel[name]
-        if value is not None:
+        # Coordinates sent by the client (e.g. a pin set on a map) are more precise than geocoding
+        if value is not None and self.using.coordinates.isEmpty(value["coordinates"]):
             coords = self.geocode(value)
             if coords:
                 value["coordinates"] = coords
@@ -75,6 +115,11 @@ class AddressBone(RecordBone):
             "format": "json",
             "limit": 1,
         }
+
+        # Only when set, so cache keys of addresses without a state stay the same; `using` may lack the field
+        if state := skel.get("state"):
+            params["state"] = state
+
         cache_key = AddressBone._cache_key(urllib.parse.urlencode(params))
         try:
             cached = db.get(cache_key)
