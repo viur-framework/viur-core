@@ -118,7 +118,11 @@ Please keep external dependencies low.
 
 ## Releasing
 
-In case you have appropriate permissions, a release can be done this way:
+In case you have appropriate permissions, a patch release can be done by running `scripts/release.sh` on the branch to be released.
+It bumps the patch level, adds a [`CHANGELOG.md`](/CHANGELOG.md) entry from the commits since the last version (opening `$EDITOR` for review), commits and tags.
+Afterwards, push the commit and the tag.
+
+Otherwise, a release can be done manually this way:
 
 - Bump version number in `src/viur/core/version.py`
 - Update [`CHANGELOG.md`](/CHANGELOG.md) and also check version number there

@@ -126,7 +126,9 @@ class Method:
                 for i, sub_annotation in enumerate(annotation.__args__):
                     try:
                         return parse_value_by_annotation(sub_annotation, name, value)
-                    except ValueError:
+                    # Literal, Enum and unhandled members reject a value with NotAcceptable instead of a
+                    # ValueError; try the next member anyway
+                    except (ValueError, errors.NotAcceptable):
                         if i == len(annotation.__args__) - 1:
                             raise
 
