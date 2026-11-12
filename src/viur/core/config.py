@@ -3,6 +3,7 @@ import hashlib
 import logging
 import os
 import re
+import reprlib
 import typing as t
 import warnings
 from pathlib import Path
@@ -242,6 +243,7 @@ class ConfigType:
 
         return super().__setattr__(key, value)
 
+    @reprlib.recursive_repr()
     def __repr__(self) -> str:
         """Representation of this config"""
         return f"{self.__class__.__qualname__}({dict(self.items(False, False))})"
