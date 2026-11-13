@@ -210,6 +210,9 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
                 continue
 
             if errors := bone.fromClient(skel, key, data):
+                # Only blocking errors are reported (#1544). Filtered into a new list: clearing `errors`
+                # while iterating it would stop the loop and drop blocking errors before or after.
+                blocking = []
                 for error in errors:
                     # insert current bone name into error's fieldPath
                     error.fieldPath.insert(0, str(key))
@@ -247,16 +250,15 @@ class BaseSkeleton(object, metaclass=MetaBaseSkel):
 
                     if incomplete:
                         complete = False
+                        blocking.append(error)
 
                         if conf.debug.skeleton_from_client:
                             logging.error(
                                 f"""{getattr(cls, "kindName", cls.__name__)}: {".".join(error.fieldPath)}: """
                                 f"""({error.severity}) {error.errorMessage}"""
                             )
-                    else:
-                        errors.clear()
 
-                skel.errors += errors
+                skel.errors += blocking
 
         return complete
 
