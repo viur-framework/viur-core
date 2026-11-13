@@ -145,6 +145,13 @@ class TestConfig(ViURTestCase):
             self.assertEqual(len(value), 2)
             self.assertIsInstance(value[0], str)
 
+    def test_repr(self):
+        # Callables stored as class attributes (e.g. `I18N.dump_can_view`) are
+        # bound methods, whose repr contains the repr of the config itself.
+        from viur.core.config import conf
+        self.assertIsInstance(repr(conf), str)
+        self.assertIn("dump_can_view", repr(conf.i18n))
+
     def test_strict_mode(self):
         from viur.core.config import conf
         conf.strict_mode = True
