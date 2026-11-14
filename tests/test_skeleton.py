@@ -301,6 +301,11 @@ class TestWriteUpdatesRelationsOnChange(_WriteWithFakeDb):
         self._edit(self.skel_cls, default_text="new")
         self.update_relations.assert_called_once_with(self.key, changed_bones=["default_text"], _countdown=10)
 
+    def test_many_changed_bones_queue_the_full_update_after_the_same_delay(self):
+        self._edit(self.skel_cls, default_text="new", hint="h", usage_filename="f.py", usage_lineno=1,
+                   usage_variables=["v"])
+        self.update_relations.assert_called_once_with(self.key, _countdown=10)
+
     def test_a_changed_seo_key_queues_its_update(self):
         """``SeoKeyBone`` stores into ``viur.viurCurrentSeoKeys``, which the comparison per bone field missed."""
         stored = self.docs[(self.key.kind, self.key.id_or_name)]["viur"]["viurCurrentSeoKeys"]
@@ -403,4 +408,4 @@ class TestWriteBeyondTheInFilterLimit(_WriteWithFakeDb):
 
         self._add(ThirtyAlwaysSkel, label="old")
         self._edit(ThirtyAlwaysSkel, label="new")  # changedate, label and 30 computed bones: 32 values
-        self.update_relations.assert_called_once_with(self.key)
+        self.update_relations.assert_called_once_with(self.key, _countdown=10)

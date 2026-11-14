@@ -672,7 +672,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 tasks.update_relations(key, changed_bones=changed_bones, _countdown=10)
 
             elif changed_bones:  # Update all inbound relations, regardless of which bones they mirror
-                tasks.update_relations(key)
+                # The same delay as above: the task visits relations written before it starts, so a source write
+                # still in flight with the old values of this entry is caught as long as it lands within it.
+                tasks.update_relations(key, _countdown=10)
 
         # Trigger the database adapter of the changes made to the entry
         for adapter in skel.database_adapters:
