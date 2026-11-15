@@ -38,6 +38,62 @@ class TestRelationalBonePostSavedHandler(ViURTestCase):
         put.assert_not_called()
 
 
+class TestRelationUpdateTag(ViURTestCase):
+    """``viur_delayed_update_tag`` tells ``update_relations`` how current the copy of an entry is: a running task
+    skips entries tagged after its start. A write that stores a copy unchanged (an edit of another bone, with the
+    relation untouched) says nothing about how current it is and must not move the tag, or the task skips the
+    entity and its outdated copy stays."""
+
+    def _save(self, stored_dest, new_dest):
+        """Run postSavedHandler for an existing entry holding ``stored_dest`` while the bone serializes ``new_dest``."""
+        from viur.core import db
+        from viur.core.bones import RelationalBone
+        from viur.core.bones import relational
+
+        bone = RelationalBone(kind="dest_kind")
+        bone._ref_keys = {"key", "name"}
+        key = db.Key("src_kind", 1)
+        dest_key = db.Key("dest_kind", 7)
+
+        def copy_of(name):
+            entity = db.Entity(dest_key)
+            entity["name"] = name
+            return entity
+
+        ref_skel = mock.MagicMock()
+        ref_skel.__getitem__.side_effect = {"key": dest_key}.__getitem__
+        ref_skel.serialize.return_value = copy_of(new_dest)
+        skel = mock.MagicMock()
+        skel.__getitem__.return_value = {"dest": ref_skel, "rel": None}
+        skel.dbEntity = None
+
+        entry = db.Entity(db.Key("viur-relations", 2, parent=key))
+        if stored_dest is not None:
+            entry.update(dest=copy_of(stored_dest), rel=None, viur_delayed_update_tag=100.0)
+        query = mock.MagicMock()
+        query.filter.return_value = query
+        query.iter.return_value = [entry] if stored_dest is not None else []
+
+        with mock.patch.object(relational.db, "Query", return_value=query), \
+                mock.patch.object(relational.db, "delete"), \
+                mock.patch.object(relational.db, "put") as put, \
+                mock.patch.object(relational.time, "time", return_value=500.0):
+            bone.postSavedHandler(skel, "relation", key)
+        (written,) = put.call_args.args[0]
+        return written
+
+    def test_unchanged_copy_keeps_its_tag(self):
+        self.assertEqual(self._save("same", "same")["viur_delayed_update_tag"], 100.0)
+
+    def test_changed_copy_gets_a_new_tag(self):
+        written = self._save("old", "new")
+        self.assertEqual(written["viur_delayed_update_tag"], 500.0)
+        self.assertEqual(written["dest"]["name"], "new")
+
+    def test_new_entry_gets_a_tag(self):
+        self.assertEqual(self._save(None, "new")["viur_delayed_update_tag"], 500.0)
+
+
 class TestRelationalBoneShortkeys(ViURTestCase):
     """A shortkey is the ``id_or_name`` of a key, passed instead of the full key."""
 
