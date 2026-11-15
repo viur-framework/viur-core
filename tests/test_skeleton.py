@@ -565,10 +565,8 @@ def _stored_copies(value, path=()):
             yield from _stored_copies(item, (*path, index))
 
 
-class TestWriteRefreshesEveryShapeOfRelation(_WriteWithFakeDb):
-    """Whatever shape a relation has (single, multiple, per language, with a ``using`` skeleton, inside records, inside
-    records of records, to its own kind): a copy loaded before its target changed is written with the target's
-    current values. Copies that are frozen on purpose (``OnValueAssignment``, ``OnRebuildSearchIndex``) stay."""
+class _RelationMatrix(_WriteWithFakeDb):
+    """A source holding a target in every shape a relation can take, see ``_matrix_skel_classes``."""
 
     FROZEN = ("assign", "rebuild", "inner_assign")
 
@@ -617,6 +615,12 @@ class TestWriteRefreshesEveryShapeOfRelation(_WriteWithFakeDb):
         self.docs[(self.other_key.kind, self.other_key.id_or_name)]["label"] = "new"
         key = skel.write()["key"]
         return dict(_stored_copies(self.docs[(key.kind, key.id_or_name)]))
+
+
+class TestWriteRefreshesEveryShapeOfRelation(_RelationMatrix):
+    """Whatever shape a relation has (single, multiple, per language, with a ``using`` skeleton, inside records, inside
+    records of records, to its own kind): a copy loaded before its target changed is written with the target's
+    current values. Copies that are frozen on purpose (``OnValueAssignment``, ``OnRebuildSearchIndex``) stay."""
 
     def test_every_copy_is_written_fresh(self):
         copies = self._copies_after_rename(self._source())
@@ -701,3 +705,63 @@ class TestRefreshWritesOnlyWhatChanged(_WriteWithFakeDb):
     def test_default_still_writes(self):
         self._refresh()
         self.db.put.assert_called()
+
+
+class TestCheckRelations(_RelationMatrix):
+    """The maintenance task can report entities that hold outdated copies, and repair them: the net for everything
+    the automatic update did not reach (project bones and hooks, tasks that were lost)."""
+
+    CURRENT = {"single", "multi", "lang", "multi_lang", "using", "multi_using", "record", "records", "nested",
+               "own_kind", "cascade", "set_null"}
+
+    def setUp(self):
+        super().setUp()
+        from viur.core import db
+        from viur.core.skeleton import tasks
+        self.db, self.tasks = db, tasks
+        self.source_key = self._source().write()["key"]
+        self.db.put.reset_mock()
+
+    def _read(self):
+        skel = self.source_cls()
+        self.assertTrue(skel.read(self.source_key))
+        return skel
+
+    def _rename(self):
+        self.docs[(self.target_key.kind, self.target_key.id_or_name)]["name"] = "new"
+        self.docs[(self.other_key.kind, self.other_key.id_or_name)]["label"] = "new"
+
+    def _entry(self, action):
+        data = {"action": action, "condition": "True", "count": 0, "total": 0, "error": 0, "outdated": 0}
+        self.tasks.SkelIterTask.handleEntry(self._read(), data)
+        return data
+
+    def test_current_entity_has_no_outdated_bones(self):
+        self.assertEqual(self.tasks.outdated_relation_bones(self._read()), [])
+
+    def test_outdated_bones_are_named_and_frozen_ones_are_not(self):
+        self._rename()
+        self.assertEqual(set(self.tasks.outdated_relation_bones(self._read())), self.CURRENT)
+
+    def test_check_reports_without_writing(self):
+        self._rename()
+        with self.assertLogs(level="WARNING"):
+            data = self._entry("check_relations")
+        self.assertEqual(data["outdated"], 1)
+        self.db.put.assert_not_called()
+
+    def test_repair_writes_the_current_values(self):
+        self._rename()
+        with self.assertLogs(level="WARNING"):
+            data = self._entry("repair_relations")
+        self.assertEqual(data["outdated"], 1)
+        copies = dict(_stored_copies(self.docs[(self.source_key.kind, self.source_key.id_or_name)]))
+        for path, value in copies.items():
+            frozen = any(part in self.FROZEN for part in path.split("."))
+            with self.subTest(path=path):
+                self.assertEqual(value, "old" if frozen else "new")
+
+    def test_repair_leaves_a_current_entity_alone(self):
+        data = self._entry("repair_relations")
+        self.assertEqual(data["outdated"], 0)
+        self.db.put.assert_not_called()
