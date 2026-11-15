@@ -1499,6 +1499,16 @@ class BaseBone(object):
         """
         pass
 
+    def refresh_copies(self, skel: 'viur.core.skeleton.SkeletonInstance', name: str) -> None:
+        """
+            Bring the copies of other entities held by this bone's value up to date, right before it is written.
+
+            Called by :meth:`viur.core.skeleton.Skeleton.write` inside its transaction, for every bone that is
+            written. Unlike :meth:`refresh` it must do nothing but read the copied entities and take over their
+            values: no writes, no handling of deleted entities.
+        """
+        pass
+
     def mergeFrom(self, valuesCache: dict, boneName: str, otherSkel: 'viur.core.skeleton.SkeletonInstance'):
         """
         Merges the values from another skeleton instance into the current instance, given that the bone types match.

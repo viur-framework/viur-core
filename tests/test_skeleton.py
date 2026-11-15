@@ -244,6 +244,8 @@ class _WriteWithFakeDb(ViURTestCase):
         self.docs = {}
 
         def get(key):
+            if isinstance(key, list):  # like db.get: the entities found, missing ones left out
+                return [entity for k in key if (entity := get(k)) is not None]
             return copy.deepcopy(self.docs.get((key.kind, key.id_or_name)))
 
         def put(entities):
@@ -390,6 +392,92 @@ class TestWriteWithManyComputedBones(_WriteWithFakeDb):
         self.assertIn("changed_bones", kwargs, "one changed bone queued the unfiltered update_relations")
 
 
+_relation_skels = []
+
+
+def _relation_skel_classes():
+    """A target with a ``name``, and a source mirroring it in a relation with ``updateLevel`` ``Always`` and in one with
+    ``OnValueAssignment``."""
+    if not _relation_skels:
+        from viur.core import conf, skeleton
+        from viur.core.bones import RelationalBone, RelationalUpdateLevel, StringBone
+
+        class SideEffectBone(RelationalBone):
+            """Like FileBone, whose refresh patches file entries: such extras must not run inside write."""
+            calls = []
+
+            def refresh(self, skel, name):
+                self.calls.append(name)
+                super().refresh(skel, name)
+
+        with mock.patch.object(conf, "skeleton_search_path", [*conf.skeleton_search_path, "/"]):
+            class RelTargetSkel(skeleton.Skeleton):
+                kindName = "test-rel-target"
+                name = StringBone()
+
+            class RelSourceSkel(skeleton.Skeleton):
+                kindName = "test-rel-source"
+                rel = RelationalBone(kind="test-rel-target", module="test", refKeys=["name"])
+                rel_assign = RelationalBone(kind="test-rel-target", module="test", refKeys=["name"],
+                                            updateLevel=RelationalUpdateLevel.OnValueAssignment)
+                rel_extra = SideEffectBone(kind="test-rel-target", module="test", refKeys=["name"])
+
+        for cls in (RelTargetSkel, RelSourceSkel):
+            cls.setSystemInitialized()  # what viur.core.setup() does: builds the reference skeletons of relations
+        _relation_skels.extend((RelTargetSkel, RelSourceSkel))
+    return _relation_skels
+
+
+class TestWriteRefreshesRelationCopies(_WriteWithFakeDb):
+    """A relation value is loaded when it is assigned (``fromClient``, ``setBoneValue``) and written later. If its
+    target is renamed in between and its ``update_relations`` already refreshed this entity, writing the copy loaded
+    before would put the old name back for good. ``write`` reads the targets again inside its transaction."""
+
+    def setUp(self):
+        super().setUp()
+        from viur.core.bones import RelationalBone
+        for name in ("postSavedHandler", "postDeletedHandler"):  # maintain viur-relations, needs queries
+            patcher = mock.patch.object(RelationalBone, name, return_value=None)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.target_cls, self.source_cls = _relation_skel_classes()
+        self.target_key = self._add(self.target_cls, name="old")
+
+    def _source_with_copies_of(self):
+        skel = self.source_cls()
+        skel.setBoneValue("rel", self.target_key)
+        skel.setBoneValue("rel_assign", self.target_key)
+        skel.setBoneValue("rel_extra", self.target_key)
+        return skel
+
+    def _rename_target(self, name):
+        self.docs[(self.target_key.kind, self.target_key.id_or_name)]["name"] = name
+
+    def _stored(self, key):
+        return self.docs[(key.kind, key.id_or_name)]
+
+    def test_copy_loaded_before_a_rename_is_written_fresh(self):
+        skel = self._source_with_copies_of()
+        self._rename_target("new")  # committed while the edit was still running (a slow hook, a long form)
+        key = skel.write()["key"]
+        self.assertEqual(self._stored(key)["rel"]["dest"]["name"], "new")
+
+    def test_on_value_assignment_keeps_the_assigned_copy(self):
+        skel = self._source_with_copies_of()
+        self._rename_target("new")
+        key = skel.write()["key"]
+        self.assertEqual(self._stored(key)["rel_assign"]["dest"]["name"], "old")
+
+    def test_subclass_extras_of_refresh_do_not_run(self):
+        skel = self._source_with_copies_of()
+        bone = self.source_cls.rel_extra
+        bone.calls.clear()
+        self._rename_target("new")
+        key = skel.write()["key"]
+        self.assertEqual(bone.calls, [])
+        self.assertEqual(self._stored(key)["rel_extra"]["dest"]["name"], "new")  # the copy itself is refreshed
+
+
 class TestWriteBeyondTheInFilterLimit(_WriteWithFakeDb):
     """The filtered ``update_relations`` queries ``viur_foreign_keys IN changed_bones``, and the datastore accepts at
     most 30 values there. Beyond that the task would fail on every attempt and nothing would be refreshed."""
@@ -409,3 +497,153 @@ class TestWriteBeyondTheInFilterLimit(_WriteWithFakeDb):
         self._add(ThirtyAlwaysSkel, label="old")
         self._edit(ThirtyAlwaysSkel, label="new")  # changedate, label and 30 computed bones: 32 values
         self.update_relations.assert_called_once_with(self.key, _countdown=10)
+
+
+_matrix_skels = []
+
+
+def _matrix_skel_classes():
+    """A target, and a source holding it in every shape a relation can take."""
+    if not _matrix_skels:
+        from viur.core import conf, skeleton
+        from viur.core.bones import (
+            RecordBone, RelationalBone, RelationalConsistency, RelationalUpdateLevel, StringBone,
+        )
+        from viur.core.skeleton import RelSkel
+
+        def rel(**kwargs):
+            return RelationalBone(kind="test-matrix-target", module="test", refKeys=["name"], **kwargs)
+
+        with mock.patch.object(conf, "skeleton_search_path", [*conf.skeleton_search_path, "/"]):
+            class MatrixTargetSkel(skeleton.Skeleton):
+                kindName = "test-matrix-target"
+                name = StringBone()
+
+            class MatrixInner(RelSkel):
+                inner = rel()
+                inner_assign = rel(updateLevel=RelationalUpdateLevel.OnValueAssignment)
+
+            class MatrixOuter(RelSkel):
+                deep = RecordBone(using=MatrixInner, multiple=True, format="$(name)")
+
+            class MatrixSourceSkel(skeleton.Skeleton):
+                kindName = "test-matrix-source"
+                label = StringBone()
+                single = rel()
+                multi = rel(multiple=True)
+                lang = rel(languages=["de", "en"])
+                multi_lang = rel(multiple=True, languages=["de", "en"])
+                using = rel(using=MatrixInner)
+                multi_using = rel(using=MatrixInner, multiple=True)
+                record = RecordBone(using=MatrixInner, format="$(name)")
+                records = RecordBone(using=MatrixInner, multiple=True, format="$(name)")
+                nested = RecordBone(using=MatrixOuter, multiple=True, format="$(name)")
+                assign = rel(updateLevel=RelationalUpdateLevel.OnValueAssignment)
+                rebuild = rel(updateLevel=RelationalUpdateLevel.OnRebuildSearchIndex)
+                own_kind = RelationalBone(kind="test-matrix-source", module="test", refKeys=["label"])
+                cascade = rel(consistency=RelationalConsistency.CascadeDeletion)
+                set_null = rel(consistency=RelationalConsistency.SetNull)
+
+        for cls in (MatrixTargetSkel, MatrixSourceSkel, MatrixInner, MatrixOuter):
+            cls.setSystemInitialized()  # as viur.core.setup() does for every skeleton class, RelSkels included
+        _matrix_skels.extend((MatrixTargetSkel, MatrixSourceSkel, MatrixInner, MatrixOuter))
+    return _matrix_skels
+
+
+def _stored_copies(value, path=()):
+    """(path, mirrored value) of every relation copy inside a stored entity, at any depth."""
+    if isinstance(value, dict):
+        if "dest" in value and isinstance(value["dest"], dict):
+            dest = value["dest"]
+            yield ".".join(map(str, path)), dest.get("name", dest.get("label"))
+            yield from _stored_copies(value.get("rel"), (*path, "rel"))
+        else:
+            for name, item in value.items():
+                yield from _stored_copies(item, (*path, name))
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            yield from _stored_copies(item, (*path, index))
+
+
+class TestWriteRefreshesEveryShapeOfRelation(_WriteWithFakeDb):
+    """Whatever shape a relation has (single, multiple, per language, with a ``using`` skeleton, inside records, inside
+    records of records, to its own kind): a copy loaded before its target changed is written with the target's
+    current values. Copies that are frozen on purpose (``OnValueAssignment``, ``OnRebuildSearchIndex``) stay."""
+
+    FROZEN = ("assign", "rebuild", "inner_assign")
+
+    def setUp(self):
+        super().setUp()
+        from viur.core.bones import RecordBone, RelationalBone
+        for bone_cls in (RelationalBone, RecordBone):
+            for name in ("postSavedHandler", "postDeletedHandler"):  # maintain viur-relations, needs queries
+                patcher = mock.patch.object(bone_cls, name, return_value=None)
+                patcher.start()
+                self.addCleanup(patcher.stop)
+        self.target_cls, self.source_cls, self.inner_cls, self.outer_cls = _matrix_skel_classes()
+        self.target_key = self._add(self.target_cls, name="old")
+        other = self.source_cls()
+        other["label"] = "old"
+        other["key"] = self.other_key = __import__("viur.core.db", fromlist=["Key"]).Key("test-matrix-source", "other")
+        other.write()
+
+    def _inner(self):
+        inner = self.inner_cls()
+        inner.setBoneValue("inner", self.target_key)
+        inner.setBoneValue("inner_assign", self.target_key)
+        return inner
+
+    def _source(self):
+        skel = self.source_cls()
+        for name in ("single", "assign", "rebuild", "cascade", "set_null"):
+            self.assertTrue(skel.setBoneValue(name, self.target_key), name)
+        for _ in range(2):  # the same target twice
+            self.assertTrue(skel.setBoneValue("multi", self.target_key, append=True))
+            self.assertTrue(skel.setBoneValue("multi_using", (self.target_key, self._inner()), append=True))
+        for language in ("de", "en"):
+            self.assertTrue(skel.setBoneValue("lang", self.target_key, language=language))
+            self.assertTrue(skel.setBoneValue("multi_lang", self.target_key, append=True, language=language))
+        self.assertTrue(skel.setBoneValue("using", (self.target_key, self._inner())))
+        self.assertTrue(skel.setBoneValue("own_kind", self.other_key))
+        skel["record"] = self._inner()
+        skel["records"] = [self._inner(), self._inner()]
+        outer = self.outer_cls()
+        outer["deep"] = [self._inner()]
+        skel["nested"] = [outer]
+        return skel
+
+    def _copies_after_rename(self, skel):
+        self.docs[(self.target_key.kind, self.target_key.id_or_name)]["name"] = "new"
+        self.docs[(self.other_key.kind, self.other_key.id_or_name)]["label"] = "new"
+        key = skel.write()["key"]
+        return dict(_stored_copies(self.docs[(key.kind, key.id_or_name)]))
+
+    def test_every_copy_is_written_fresh(self):
+        copies = self._copies_after_rename(self._source())
+        self.assertEqual(len(copies), 29, copies)  # the matrix really reached the stored entity
+        for path, value in copies.items():
+            frozen = any(part in self.FROZEN for part in path.split("."))
+            with self.subTest(path=path):
+                self.assertEqual(value, "old" if frozen else "new")
+
+    def test_a_read_and_rewritten_entity_is_written_fresh(self):
+        key = self._source().write()["key"]  # stored with the old name everywhere
+        skel = self.source_cls()
+        self.assertTrue(skel.read(key))
+        for name in skel:  # as a form does: every bone is read, then written back
+            _ = skel[name]
+        copies = self._copies_after_rename(skel)
+        for path, value in copies.items():
+            frozen = any(part in self.FROZEN for part in path.split("."))
+            with self.subTest(path=path):
+                self.assertEqual(value, "old" if frozen else "new")
+
+    def test_deleted_target_is_left_alone(self):
+        # refresh() would empty a SetNull relation and flag a CascadeDeletion one in the middle of this write.
+        # Handling a deleted target is up to its deletion and to refresh(), not to a write of the source.
+        skel = self._source()
+        del self.docs[(self.target_key.kind, self.target_key.id_or_name)]
+        key = skel.write()["key"]
+        stored = self.docs[(key.kind, key.id_or_name)]
+        for name in ("single", "cascade", "set_null"):
+            self.assertEqual(stored[name]["dest"]["name"], "old", name)

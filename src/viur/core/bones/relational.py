@@ -1111,6 +1111,44 @@ class RelationalBone(BaseBone):
                     value["dest"][key] = target_skel[key]
                     # logging.debug(f"Refreshed {key=} to {value["dest"][key]!r} ({str(value["dest"][key])!r})")
 
+    def refresh_copies(self, skel: "SkeletonInstance", name: str) -> None:
+        """
+        Takes over the current values of the referenced entities into the copies held by this bone's value.
+
+        A value is loaded when it is assigned (``fromClient``, ``setBoneValue``, reading the skeleton) and written
+        later. A target that changed in between, and whose ``update_relations`` already refreshed this entity, would
+        get its old values written back, and nothing would refresh them again.
+        :meth:`viur.core.skeleton.Skeleton.write` therefore calls this inside its transaction: a change committed
+        before is read here, one committed meanwhile conflicts with the transaction, and one committed later is
+        refreshed by its own ``update_relations``.
+
+        All targets are read with one ``db.get``. A target that no longer exists is left as it is: handling it is up
+        to :meth:`refresh` and the consistency of the relation. Copies with an ``updateLevel`` other than ``Always``
+        are frozen on purpose and stay untouched; relations inside a ``using`` skeleton are refreshed as well.
+        """
+        from viur.core.skeleton import skeletonByKind
+
+        values = [value for _, _, value in self.iter_bone_value(skel, name) if value and value["dest"]]
+
+        if values and self.updateLevel == RelationalUpdateLevel.Always:
+            targets = {entity.key: entity for entity in db.get(list({value["dest"]["key"] for value in values}))}
+
+            for value in values:
+                if (entity := targets.get(value["dest"]["key"])) is None:
+                    continue
+
+                target_skel = skeletonByKind(value["dest"].kindName)()
+                target_skel.setEntity(entity)
+                value["dest"].dbEntity = None  # as refresh() does: a clean rewrite of the copy
+
+                for key in self._ref_keys:
+                    value["dest"][key] = target_skel[key]
+
+        for value in values:
+            if rel := value["rel"]:
+                for bone_name, bone in rel.items():
+                    bone.refresh_copies(rel, bone_name)
+
     def getSearchTags(self, skel: "SkeletonInstance", name: str) -> set[str]:
         """
         Retrieves the search tags for the given RelationalBone in the provided skeleton.

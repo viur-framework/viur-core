@@ -422,6 +422,12 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 if not (bone_name in skel.accessedValues or bone.compute) and bone_name not in skel.dbEntity:
                     _ = skel[bone_name]  # Ensure the datastore is filled with the default value
 
+                if bone_name in skel.accessedValues:
+                    # Copies of other entities (relations, also inside records) were loaded when the value was
+                    # assigned or read, maybe long before this write: take over what the targets hold now, inside
+                    # this transaction. See RelationalBone.refresh_copies().
+                    bone.refresh_copies(skel, bone_name)
+
                 if (
                     bone_name in skel.accessedValues or bone.compute  # We can have a computed value on store
                     or bone_name not in skel.dbEntity  # It has not been written and is not in the database
