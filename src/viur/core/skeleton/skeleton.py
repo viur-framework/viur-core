@@ -345,6 +345,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         key: t.Optional[db.KeyType] = None,
         *,
         update_relations: bool = True,
+        skip_unchanged: bool = False,
         _check_legacy: bool = True,
     ) -> SkeletonInstance:
         """
@@ -359,6 +360,10 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             :param key: Allows to specify a key that is set to the skeleton and used for writing.
             :param update_relations: If False, this entity won't be marked dirty;
                 This avoids from being fetched by the background task updating relations.
+            :param skip_unchanged: If True, an existing entity whose stored values would not change is not written
+                at all: nothing is put, and no handler runs. A new ``changedate`` and bones computed ``Always``
+                alone are no change.
+                Used by the refresh of ``update_relations``, where several tasks may visit the same entity.
 
             :returns: The Skeleton.
         """
@@ -598,6 +603,15 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                             if isinstance(x, dict):
                                 fixDotNames(x)
 
+            if skip_unchanged and not is_add and set(change_list) <= {"changedate"} | {
+                name for name, bone in skel.items()
+                if bone.compute and bone.compute.interval.method == ComputeMethod.Always
+            }:
+                # Nothing but the date of this write would change, and bones computed on every read, whose stored
+                # value nobody relies on (the inherited shortkey is stored by the first write that reads it):
+                # leave the entity, its blob lock and its viur-relations entries as they are.
+                return skel.dbEntity.key, write_skel, None, is_add
+
             # FIXME: REMOVE IN VIUR4
             if conf.viur2import_blobsource:  # Try to fix these only when converting from ViUR2
                 fixDotNames(skel.dbEntity)
@@ -654,6 +668,9 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             key, skel, change_list, is_add = __txn_write(skel)
         else:
             key, skel, change_list, is_add = db.run_in_transaction(__txn_write, skel)
+
+        if change_list is None:  # skip_unchanged: nothing was written
+            return skel
 
         for bone_name, bone in skel.items():
             bone.postSavedHandler(skel, bone_name, key)
@@ -788,6 +805,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         preprocess: t.Optional[t.Callable[[SkeletonInstance], None]] = None,
         retry: int = 0,
         update_relations: bool = True,
+        skip_unchanged: bool = False,
     ) -> SkeletonInstance:
         """
         Performs an edit operation on a Skeleton within a transaction.
@@ -810,6 +828,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         :param create: Allows to specify a dict or initial callable that is executed in case the Skeleton with the
             given key does not exist.
         :param update_relations: Trigger update relations task on success. Defaults to False.
+        :param skip_unchanged: Don't write when nothing but ``changedate`` would change, see :meth:`write`.
         :param ignore: optional list of bones to be ignored from values; Defaults to an empty list,
             so that all bones are accepted (even read-only ones, as skel.patch() is being used internally)
         :param internal: Internal patch does ignore any NotSet and Empty errors that may raise in skel.fromClient()
@@ -891,7 +910,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 preprocess(skel)
 
             # Finally write the skeleton
-            return skel.write(update_relations=update_relations)
+            return skel.write(update_relations=update_relations, skip_unchanged=skip_unchanged)
 
         if not db.is_in_transaction():
             # Retry loop

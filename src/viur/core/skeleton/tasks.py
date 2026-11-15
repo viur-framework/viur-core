@@ -101,7 +101,9 @@ def update_relations(
             continue
 
         try:
-            skel.patch(lambda skel: skel.refresh(), key=src_key, update_relations=False)
+            # Another task of the same or a later change, or a write of the source itself, may have brought it up
+            # to date already: then there is nothing to write.
+            skel.patch(lambda skel: skel.refresh(), key=src_key, update_relations=False, skip_unchanged=True)
         except ValueError:
             logging.warning(f"Cannot update stale reference to {src_key!r} referenced by {src_rel.key!r}")
             continue

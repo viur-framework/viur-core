@@ -647,3 +647,57 @@ class TestWriteRefreshesEveryShapeOfRelation(_WriteWithFakeDb):
         stored = self.docs[(key.kind, key.id_or_name)]
         for name in ("single", "cascade", "set_null"):
             self.assertEqual(stored[name]["dest"]["name"], "old", name)
+
+
+class TestRefreshWritesOnlyWhatChanged(_WriteWithFakeDb):
+    """``update_relations`` refreshes every entity that references the changed one. Two chains running at once, or a
+    source that was written with current values meanwhile, find nothing to change: such an entity must not be written
+    again (``skip_unchanged``). ``changedate`` alone is no change."""
+
+    def setUp(self):
+        super().setUp()
+        import datetime
+        from viur.core import db, utils
+        from viur.core.bones import RelationalBone
+        self.db = db
+        self.post_saved = mock.Mock(return_value=None)
+        for name, replacement in (("postSavedHandler", self.post_saved), ("postDeletedHandler", mock.Mock())):
+            patcher = mock.patch.object(RelationalBone, name, replacement)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.target_cls, self.source_cls = _relation_skel_classes()
+        self.target_key = self._add(self.target_cls, name="old")
+        skel = self.source_cls()
+        skel.setBoneValue("rel", self.target_key)
+        self.source_key = skel.write()["key"]
+        # the refresh runs later than the write: changedate moves on
+        later = datetime.datetime(2026, 11, 15, tzinfo=datetime.timezone.utc)
+        patcher = mock.patch.object(utils, "utcNow", return_value=later)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.db.put.reset_mock()
+        self.post_saved.reset_mock()
+
+    def _refresh(self, **kwargs):
+        skel = self.source_cls()
+        return skel.patch(lambda skel: skel.refresh(), key=self.source_key, update_relations=False, **kwargs)
+
+    def _stored(self):
+        return self.docs[(self.source_key.kind, self.source_key.id_or_name)]
+
+    def test_current_entity_is_not_written(self):
+        before = self._stored()["changedate"]
+        self._refresh(skip_unchanged=True)
+        self.db.put.assert_not_called()
+        self.post_saved.assert_not_called()  # would rewrite the viur-relations entries
+        self.assertEqual(self._stored()["changedate"], before)
+
+    def test_stale_entity_is_written(self):
+        self.docs[(self.target_key.kind, self.target_key.id_or_name)]["name"] = "new"
+        self._refresh(skip_unchanged=True)
+        self.assertEqual(self._stored()["rel"]["dest"]["name"], "new")
+        self.post_saved.assert_called()
+
+    def test_default_still_writes(self):
+        self._refresh()
+        self.db.put.assert_called()
