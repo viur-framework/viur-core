@@ -294,6 +294,13 @@ class RecordBone(BaseBone):
         if value is not None:
             return value.dump()
 
+    def refresh_copies(self, skel, bone_name) -> None:
+        # Relations inside the records are written with this bone, so their copies must be current as well.
+        for _, _, using_skel in self.iter_bone_value(skel, bone_name):
+            if using_skel:
+                for key, bone in using_skel.items():
+                    bone.refresh_copies(using_skel, key)
+
     def refresh(self, skel, bone_name):
         for _, _, using_skel in self.iter_bone_value(skel, bone_name):
             for key, bone in using_skel.items():

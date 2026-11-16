@@ -60,7 +60,9 @@ def update_relations(
             locals()[_new] = kwargs.pop(_dep)
 
     if min_change_time is None:
-        min_change_time = time.time() + 1
+        # Not later than now: refreshing a source rewrites its relations with viur_delayed_update_tag = now, behind
+        # the cursor of this tag-ordered query, and a cutoff in the future let the next page find them again.
+        min_change_time = time.time()
 
     changed_bones = utils.ensure_iterable(changed_bones)
 

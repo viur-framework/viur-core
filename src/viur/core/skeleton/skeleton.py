@@ -1,5 +1,6 @@
 from __future__ import annotations  # noqa: required for pre-defined annotations
 
+import copy
 import logging
 import time
 import typing as t
@@ -387,7 +388,8 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
                 db_key = db.key_helper(db_key, skel.kindName)
                 if db_obj := db.get(db_key):
                     skel.dbEntity = db_obj
-                    old_copy = {k: v for k, v in skel.dbEntity.items()}
+                    # Independent of the entity: SeoKeyBone and hooks change nested values in place
+                    old_copy = copy.deepcopy(dict(skel.dbEntity))
                     is_add = False
                 else:
                     skel.dbEntity = db.Entity(db_key)
@@ -419,6 +421,12 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
 
                 if not (bone_name in skel.accessedValues or bone.compute) and bone_name not in skel.dbEntity:
                     _ = skel[bone_name]  # Ensure the datastore is filled with the default value
+
+                if bone_name in skel.accessedValues:
+                    # Copies of other entities (relations, also inside records) were loaded when the value was
+                    # assigned or read, maybe long before this write: take over what the targets hold now, inside
+                    # this transaction. See RelationalBone.refresh_copies().
+                    bone.refresh_copies(skel, bone_name)
 
                 if (
                     bone_name in skel.accessedValues or bone.compute  # We can have a computed value on store
@@ -562,6 +570,18 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
             for adapter in skel.database_adapters:
                 adapter.prewrite(skel, is_add, change_list)
 
+            # A hook or adapter may have changed a bone's field after the comparison above, and SeoKeyBone stores
+            # into the viur dict; entities referencing this one mirror those values as well.
+            for bone_name, _ in skel.items():
+                if bone_name not in change_list and skel.dbEntity.get(bone_name) != old_copy.get(bone_name):
+                    change_list.append(bone_name)
+            seo_keys = (skel.dbEntity.get("viur") or {}).get("viurCurrentSeoKeys")
+            if (
+                "viurCurrentSeoKeys" in skel and "viurCurrentSeoKeys" not in change_list
+                and seo_keys != (old_copy.get("viur") or {}).get("viurCurrentSeoKeys")
+            ):
+                change_list.append("viurCurrentSeoKeys")
+
             # ViUR2 import compatibility - remove properties containing. if we have a dict with the same name
             def fixDotNames(entity):
                 for k, v in list(entity.items()):
@@ -641,11 +661,26 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         skel.postSavedHandler(key, skel.dbEntity)
 
         if update_relations and not is_add:
-            if change_list and len(change_list) < 5:  # Only a few bones have changed, process these individually
-                tasks.update_relations(key, changed_bones=change_list, _countdown=10)
+            # Entities referencing this one mirror nothing but bone values. A bone computed on read (Always) or
+            # storing its recomputed value while reading (Lifetime) may have moved without this write seeing it, so
+            # it always counts as changed; with nothing changed at all there is nothing to update. The exception is
+            # the shortkey of this class, computed Always but from the key alone, which no write changes: every
+            # relation mirrors it, so counting it would refresh every referencing entity on every write.
+            changed_bones = change_list + [
+                name for name, bone in skel.skeletonCls.__boneMap__.items()
+                if bone.compute and bone.compute.interval.method in (ComputeMethod.Always, ComputeMethod.Lifetime)
+                and bone is not Skeleton.__dict__["shortkey"] and name not in change_list
+            ]
+            # Only bones this write actually changed count towards the threshold: the computed ones above are added on
+            # every write and would otherwise turn the filtered update into the unfiltered one.
+            # The filtered task queries viur_foreign_keys IN changed_bones, which the datastore limits to 30 values.
+            if changed_bones and len(change_list) < 5 and len(changed_bones) <= 30:  # Only a few bones have changed
+                tasks.update_relations(key, changed_bones=changed_bones, _countdown=10)
 
-            else:  # Update all inbound relations, regardless of which bones they mirror
-                tasks.update_relations(key)
+            elif changed_bones:  # Update all inbound relations, regardless of which bones they mirror
+                # The same delay as above: the task visits relations written before it starts, so a source write
+                # still in flight with the old values of this entry is caught as long as it lands within it.
+                tasks.update_relations(key, _countdown=10)
 
         # Trigger the database adapter of the changes made to the entry
         for adapter in skel.database_adapters:
