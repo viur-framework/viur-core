@@ -60,7 +60,9 @@ def update_relations(
             locals()[_new] = kwargs.pop(_dep)
 
     if min_change_time is None:
-        min_change_time = time.time() + 1
+        # Not later than now: refreshing a source rewrites its relations with viur_delayed_update_tag = now, behind
+        # the cursor of this tag-ordered query, and a cutoff in the future let the next page find them again.
+        min_change_time = time.time()
 
     changed_bones = utils.ensure_iterable(changed_bones)
 
@@ -99,7 +101,9 @@ def update_relations(
             continue
 
         try:
-            skel.patch(lambda skel: skel.refresh(), key=src_key, update_relations=False)
+            # Another task of the same or a later change, or a write of the source itself, may have brought it up
+            # to date already: then there is nothing to write.
+            skel.patch(lambda skel: skel.refresh(), key=src_key, update_relations=False, skip_unchanged=True)
         except ValueError:
             logging.warning(f"Cannot update stale reference to {src_key!r} referenced by {src_rel.key!r}")
             continue
