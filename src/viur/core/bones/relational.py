@@ -541,14 +541,25 @@ class RelationalBone(BaseBone):
             ref_skel = data["dest"]
             rel_skel = data["rel"]
 
-            entity["dest"] = ref_skel.serialize(parentIndexed=True)
-            entity["rel"] = rel_skel.serialize(parentIndexed=True) if rel_skel else None
+            dest = ref_skel.serialize(parentIndexed=True)
+            rel = rel_skel.serialize(parentIndexed=True) if rel_skel else None
+            # The tag tells update_relations how current this copy is: a running task skips entries tagged after
+            # its start. A copy stored unchanged (the source was written, but this relation was not touched) says
+            # nothing about that, so its tag stays; otherwise the task would skip an entity it still has to refresh.
+            unchanged = (
+                "viur_delayed_update_tag" in entity and "dest" in entity
+                and entity["dest"] == dest and entity.get("rel") == rel
+            )
+
+            entity["dest"] = dest
+            entity["rel"] = rel
             entity["src"] = src_values
 
             entity["viur_src_kind"] = viur_src_kind
             entity["viur_src_property"] = viur_src_property
             entity["viur_dest_kind"] = self.kind
-            entity["viur_delayed_update_tag"] = now
+            if not unchanged:
+                entity["viur_delayed_update_tag"] = now
             entity["viur_relational_updateLevel"] = self.updateLevel.value
             entity["viur_relational_consistency"] = self.consistency.value
             # Store expanded bone names, not raw refKeys patterns.
