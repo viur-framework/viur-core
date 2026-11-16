@@ -1,3 +1,4 @@
+import copy
 import logging
 import typing as t
 import logics
@@ -15,6 +16,7 @@ from viur.core import (
 from .utils import skeletonByKind, listKnownSkeletons
 from .relskel import RelSkel
 
+from ..bones.base import BaseBone
 from ..bones.code import LogicsBone
 from ..bones.record import RecordBone
 from ..bones.relational import RelationalBone, RelationalConsistency, RelationalUpdateLevel
@@ -60,7 +62,9 @@ def update_relations(
             locals()[_new] = kwargs.pop(_dep)
 
     if min_change_time is None:
-        min_change_time = time.time() + 1
+        # Not later than now: refreshing a source rewrites its relations with viur_delayed_update_tag = now, behind
+        # the cursor of this tag-ordered query, and a cutoff in the future let the next page find them again.
+        min_change_time = time.time()
 
     changed_bones = utils.ensure_iterable(changed_bones)
 
@@ -99,7 +103,9 @@ def update_relations(
             continue
 
         try:
-            skel.patch(lambda skel: skel.refresh(), key=src_key, update_relations=False)
+            # Another task of the same or a later change, or a write of the source itself, may have brought it up
+            # to date already: then there is nothing to write.
+            skel.patch(lambda skel: skel.refresh(), key=src_key, update_relations=False, skip_unchanged=True)
         except ValueError:
             logging.warning(f"Cannot update stale reference to {src_key!r} referenced by {src_rel.key!r}")
             continue
@@ -116,6 +122,30 @@ def update_relations(
         )
     else:
         logging.debug(f"update_relations finished with {total=} on {key=} {min_change_time=} {changed_bones=}")
+
+
+def outdated_relation_bones(skel: "SkeletonInstance") -> list[str]:
+    """
+        The bones of a skeleton, read from the datastore, whose stored copies of other entities differ from what these
+        entities hold now (relations with ``updateLevel`` ``Always``, also inside records and using skeletons).
+
+        Nothing is written. The values of ``skel`` are brought up to date on the way, so a following
+        ``skel.write(update_relations=False)`` repairs the entity.
+    """
+    stored = copy.deepcopy(dict(skel.dbEntity))
+    outdated = []
+
+    for name, bone in skel.items():
+        if type(bone).refresh_copies is BaseBone.refresh_copies or not skel[name]:
+            continue  # holds no copies
+
+        bone.refresh_copies(skel, name)
+        bone.serialize(skel, name, True)  # as write does, to compare what would be stored
+
+        if skel.dbEntity.get(name) != stored.get(name):
+            outdated.append(name)
+
+    return outdated
 
 
 class SkelIterTask(tasks.QueryIter):
@@ -139,6 +169,14 @@ class SkelIterTask(tasks.QueryIter):
 
                 case "delete":
                     skel.delete()
+
+                case "check_relations" | "repair_relations":
+                    if outdated := outdated_relation_bones(skel):
+                        data["outdated"] += 1
+                        logging.warning(f"""{skel["key"]!r} holds outdated copies in {outdated}""")
+
+                        if data["action"] == "repair_relations":
+                            skel.write(update_relations=False)
 
                 case other:
                     assert other == "count"
@@ -170,6 +208,9 @@ class SkelIterTask(tasks.QueryIter):
             f"total of {data['total']} ({data['error']} errored) of kind {data['kind']}.\n"
         )
 
+        if "relations" in data["action"]:
+            txt += f"{data['outdated']} of them held outdated copies of other entities.\n"
+
         try:
             email.send_email(dests=data["notify"], stringTemplate=txt, skel=None)
         except Exception as exc:  # noqa; OverQuota, whatever
@@ -194,6 +235,8 @@ class SkeletonMaintenanceTask(tasks.CallableTaskBase):
                 "count": "Count",
                 "refresh": "Refresh (formerly: RebuildSearchIndex)",
                 "delete": "Delete",
+                "check_relations": "Check relations (report entries holding outdated copies)",
+                "repair_relations": "Repair relations (rewrite entries holding outdated copies)",
             },
             defaultValue="refresh",
         )
@@ -258,6 +301,7 @@ class SkeletonMaintenanceTask(tasks.CallableTaskBase):
                 "count": 0,
                 "total": 0,
                 "error": 0,
+                "outdated": 0,
             }
 
             SkelIterTask.startIterOnQuery(q, params)
