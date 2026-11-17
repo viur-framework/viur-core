@@ -153,6 +153,7 @@ class Skeleton(BaseSkeleton, metaclass=MetaSkel):
         readOnly=True,
         visible=False,
         languages=conf.i18n.available_languages,
+        exposed=False,
     )
 
     def __repr__(self):
