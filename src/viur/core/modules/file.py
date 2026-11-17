@@ -1055,7 +1055,7 @@ class File(Tree):
             # blobKey is then the path inside cloudstore - not a base64 encoded tuple
             if not (usr := current.user.get()):
                 raise errors.Unauthorized()
-            if "root" not in usr["access"] and "file-view" not in usr["access"]:
+            if "root" not in usr["access"] and self.access_right("view") not in usr["access"]:
                 raise errors.Forbidden()
             validUntil = "-1"  # Prevent this from being cached down below
             blob = bucket.get_blob(blobKey)

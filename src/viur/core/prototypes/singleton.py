@@ -214,7 +214,7 @@ class Singleton(SkelModule):
         if user["access"] and "root" in user["access"]:
             return True
 
-        if user["access"] and f"{self.moduleName}-edit" in user["access"]:
+        if user["access"] and self.access_right("edit") in user["access"]:
             return True
 
         return False
@@ -242,7 +242,7 @@ class Singleton(SkelModule):
         if user["access"] and "root" in user["access"]:
             return True
 
-        if user["access"] and f"{self.moduleName}-edit" in user["access"]:
+        if user["access"] and self.access_right("edit") in user["access"]:
             return True
 
         return False
@@ -268,7 +268,7 @@ class Singleton(SkelModule):
             return False
         if user["access"] and "root" in user["access"]:
             return True
-        if user["access"] and f"{self.moduleName}-view" in user["access"]:
+        if user["access"] and self.access_right("view") in user["access"]:
             return True
         return False
 
