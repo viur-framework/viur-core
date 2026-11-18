@@ -15,11 +15,12 @@ from urllib import request
 import requests
 from deprecated.sphinx import deprecated
 from google.appengine.api.mail import Attachment as GAE_Attachment, SendMail as GAE_SendMail
+from google.cloud.datastore import helpers as datastore_helpers
 
 from viur.core import db, utils
 from viur.core.bones.text import HtmlSerializer
 from viur.core.config import conf
-from viur.core.tasks import CallDeferred, DeleteEntitiesIter, PeriodicTask
+from viur.core.tasks import CallDeferred, PeriodicTask, QueryIter
 
 if t.TYPE_CHECKING:
     from viur.core.skeleton import SkeletonInstance
@@ -63,6 +64,12 @@ EMAIL_KINDNAME: t.Final[str] = "viur-emails"
 EMAIL_QUEUE: t.Final[str] = "viur-emails"
 """Name of the Cloud Tasks queue"""
 
+EMAIL_GCS_PREFIX: t.Final[str] = "viur-emails"
+"""Prefix in the private Cloud Storage bucket below which bodies and attachments of queued emails are stored"""
+
+DATASTORE_ENTITY_MAX_SIZE: t.Final[int] = 1_048_572
+"""Maximum size of a datastore entity in bytes, see https://cloud.google.com/datastore/docs/concepts/limits"""
+
 AttachmentInline = t.TypedDict("AttachmentInline", {
     "filename": str,
     "content": bytes,
@@ -84,6 +91,67 @@ AddressPair = t.TypedDict("AddressPair", {
 })
 
 
+def cloud_storage_prefix(key: db.Key) -> str:
+    """Prefix of all Cloud Storage objects that belong to the queued email with the given key."""
+    return f"{EMAIL_GCS_PREFIX}/{key.id_or_name}/"
+
+
+def _bucket():
+    """The private bucket of the project; the prefix never ends with the public suffix."""
+    return conf.main_app.file.get_bucket(EMAIL_GCS_PREFIX)
+
+
+def store_in_cloud_storage(path: str, content: bytes, mimetype: str) -> None:
+    """Upload *content* to *path* in the private bucket."""
+    _bucket().blob(path).upload_from_string(content, content_type=mimetype)
+
+
+def delete_cloud_storage_objects(key: db.Key) -> None:
+    """Delete the body and the attachments stored in Cloud Storage for the queued email with the given key."""
+    for blob in _bucket().list_blobs(prefix=cloud_storage_prefix(key)):
+        blob.delete()
+
+
+def attachment_size(attachment: "Attachment") -> int:
+    """Size of an attachment in bytes without downloading its content."""
+    if (content := attachment.get("content")) is not None:
+        return len(content)
+    if file_key := attachment.get("file_key"):
+        skel = conf.main_app.vi.file.viewSkel("leaf")
+        if not skel.read(db.key_helper(file_key, skel.kindName)):
+            raise ValueError(f"Attachment {attachment.get('filename')!r}: file {file_key!r} does not exist")
+        return skel["size"] or 0
+    if gcsfile := attachment.get("gcsfile"):
+        bucket = conf.main_app.file.get_bucket(gcsfile.split("/", 1)[0])
+        if not (blob := bucket.get_blob(gcsfile)):
+            raise ValueError(f"Attachment {attachment.get('filename')!r}: object {gcsfile!r} does not exist")
+        return blob.size or 0
+    return 0
+
+
+def message_size(entity: db.Entity) -> int:
+    """Approximate size of the email as a transport sends it: body plus base64-encoded attachments."""
+    size = len((entity.get("body") or "").encode("utf-8"))
+    for attachment in entity.get("attachments") or []:
+        size += (attachment_size(attachment) + 2) // 3 * 4  # base64 inflates by 4/3
+    return size
+
+
+def entity_size(entity: db.Entity) -> int:
+    """Size of the entity as the datastore would store it, in bytes."""
+    pb = datastore_helpers.entity_to_protobuf(entity)
+    return type(pb).pb(pb).ByteSize()
+
+
+class DeleteEmailsIter(QueryIter):
+    """Delete queued emails including their Cloud Storage objects."""
+
+    @classmethod
+    def handleEntry(cls, entry: db.Entity, customData: t.Any) -> None:
+        delete_cloud_storage_objects(entry.key)
+        db.delete(entry.key)
+
+
 @PeriodicTask(interval=datetime.timedelta(days=1))
 def clean_old_emails_from_log(*args, **kwargs):
     """Periodically delete sent emails, which are older than :attr:`conf.email.log_retention` from datastore queue"""
@@ -92,7 +160,7 @@ def clean_old_emails_from_log(*args, **kwargs):
         .filter("isSend =", True)
         .filter("creationDate <", utils.utcNow() - conf.email.log_retention)
     )
-    DeleteEntitiesIter.startIterOnQuery(qry)
+    DeleteEmailsIter.startIterOnQuery(qry)
 
 
 class EmailTransport(ABC):
@@ -100,6 +168,10 @@ class EmailTransport(ABC):
 
     Implement for a specific service and set the instance to :attr:`conf.email.transport_class`
     """
+
+    max_message_size: int | None = None
+    """Maximum size of one email in bytes, body plus base64-encoded attachments, as the service accepts it.
+    ``None`` means the service documents no limit. Checked by :meth:`validate_queue_entity` before queueing."""
     @abstractmethod
     def deliver_email(
         self,
@@ -136,11 +208,19 @@ class EmailTransport(ABC):
 
     def validate_queue_entity(self, entity: db.Entity) -> None:
         """
-        This function can be implemented to pre-validate the queue entity before it's deferred into the queue.
-        Must raise an exception if the email cannot be send (f.e. if it contains an invalid attachment)
+        Pre-validate the queue entity before it's deferred into the queue.
+
+        Raises if the email cannot be sent, so the caller gets the error instead of the deferred task.
+        The base implementation checks :attr:`max_message_size`; overriding classes should call it.
+
         :param entity: The entity to validate
+        :raises ValueError: If the email exceeds :attr:`max_message_size`
         """
-        ...
+        if self.max_message_size is not None and (size := message_size(entity)) > self.max_message_size:
+            raise ValueError(
+                f"Email {entity.get('subject')!r} is too large for {type(self).__name__}: "
+                f"{size} bytes, allowed are {self.max_message_size} bytes"
+            )
 
     def transport_successful_callback(self, entity: db.Entity):
         """
@@ -202,6 +282,14 @@ class EmailTransport(ABC):
         return attachment
 
 
+def load_body(queued_email: db.Entity) -> str:
+    """The body of a queued email, read from Cloud Storage if :func:`send_email` stored it there."""
+    if body_gcsfile := queued_email.get("body_gcsfile"):
+        blob, _ = conf.main_app.vi.file.read(path=body_gcsfile)
+        return blob.getvalue().decode("utf-8")
+    return queued_email["body"]
+
+
 @CallDeferred
 def send_email_deferred(key: db.Key):
     """
@@ -233,7 +321,7 @@ def send_email_deferred(key: db.Key):
             cc=queued_email["cc"] or [],
             bcc=queued_email["bcc"] or [],
             subject=queued_email["subject"],
-            body=queued_email["body"],
+            body=load_body(queued_email),
             headers=queued_email["headers"] or {},
             attachments=queued_email["attachments"] or [],
         )
@@ -312,9 +400,13 @@ def send_email(
     :param context: Arbitrary data that can be stored along the queue entry to be evaluated in
         transport_successful_callback (useful for tracking delivery / opening events etc).
 
-    .. warning::
-        As emails will be queued (and not send directly) you cannot exceed 1MB in total
-        (for all text and attachments combined)!
+    Emails are queued in the datastore, whose entities are limited to 1 MiB. Inline attachment content
+    is therefore stored in the private Cloud Storage bucket below :data:`EMAIL_GCS_PREFIX`, and so is a
+    body larger than :attr:`conf.email.body_offload_threshold`; the queue entity only keeps the path.
+    The objects stay as long as the entity exists and are deleted with it.
+
+    :raises ValueError: If the transport rejects the email (see :meth:`EmailTransport.validate_queue_entity`)
+        or the remaining queue entity still exceeds the datastore limit (e.g. a large *context*).
     """
     # First, ensure we're able to send email at all
     transport_class = conf.email.transport_class  # First, ensure we're able to send email at all
@@ -408,9 +500,48 @@ def send_email(
             logging.info(f"""Recipients: {queued_email["dests"]}""")
             return False
 
+    offload_to_cloud_storage(queued_email)
+    if (size := entity_size(queued_email)) > DATASTORE_ENTITY_MAX_SIZE:
+        raise ValueError(
+            f"Email {subject!r} cannot be queued: the entity has {size} bytes, "
+            f"the datastore allows {DATASTORE_ENTITY_MAX_SIZE} bytes"
+        )
+
     db.put(queued_email)
     send_email_deferred(queued_email.key, _queue=EMAIL_QUEUE)
     return True
+
+
+def offload_to_cloud_storage(queued_email: db.Entity) -> None:
+    """
+    Move inline attachment content and a large body out of the queue entity into Cloud Storage.
+
+    Allocates the entity's id first, so the object paths are tied to it. Does nothing for a small
+    body without inline attachments.
+    """
+    attachments = queued_email.get("attachments") or []
+    body = queued_email.get("body") or ""
+    offload_body = len(body.encode("utf-8")) > conf.email.body_offload_threshold
+    if not offload_body and not any("content" in attachment for attachment in attachments):
+        return
+
+    if not queued_email.key or queued_email.key.is_partial:
+        (queued_email.key,) = db.allocate_ids(EMAIL_KINDNAME)
+    prefix = cloud_storage_prefix(queued_email.key)
+
+    for index, attachment in enumerate(attachments):
+        if "content" not in attachment:
+            continue
+        path = f"{prefix}attachment-{index}/{attachment['filename'].replace('/', '_')}"
+        mimetype = attachment.get("mimetype") or "application/octet-stream"
+        store_in_cloud_storage(path, attachment.pop("content"), mimetype)
+        attachment["gcsfile"] = path
+
+    if offload_body:
+        path = f"{prefix}body.html"
+        store_in_cloud_storage(path, body.encode("utf-8"), "text/html; charset=utf-8")
+        queued_email["body"] = None
+        queued_email["body_gcsfile"] = path
 
 
 @deprecated(version="3.7.0", reason="Use send_email instead")
@@ -558,6 +689,7 @@ class EmailTransportBrevo(EmailTransport):
 
         .. seealso:: :attr:`allowed_extensions`
         """
+        super().validate_queue_entity(entity)
         for attachment in entity.get("attachments") or []:
             ext = attachment["filename"].split(".")[-1].lower()
             if ext not in self.allowed_extensions:
@@ -640,8 +772,13 @@ if mailjet_dependencies:
     class EmailTransportMailjet(EmailTransport):
         """Send emails with `Mailjet`_.
 
+        The API call payload, including all base64-encoded attachments and the message content,
+        must not exceed 15 MB: https://dev.mailjet.com/openapi/openapi-mailjet/send-emails/postsendv31
+
         .. _Mailjet: https://www.mailjet.com/products/email-api/
         """
+
+        max_message_size = 15 * 1024 * 1024
 
         def __init__(
             self,
@@ -857,6 +994,10 @@ class EmailTransportAppengine(EmailTransport):
 
     .. seealso:: https://cloud.google.com/appengine/docs/standard/python3/services/mail
     """
+
+    max_message_size = int(31.5 * 1024 * 1024)
+    """Maximum size of outgoing mail messages, including attachments:
+    https://cloud.google.com/appengine/docs/standard/services/mail#quotas_and_limits"""
 
     def deliver_email(
         self,
