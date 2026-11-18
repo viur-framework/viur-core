@@ -360,6 +360,105 @@ class TestFilterValueCollections(ViURTestCase):
         self._assert_array_filter(passed_filter.filters[0], "IN", ["a", "b"])
 
 
+class TestKeyInFilter(ViURTestCase):
+    """``__key__ IN [...]`` must reach the client as an Or of ``__key__ =`` filters."""
+
+    @staticmethod
+    def _mock_client():
+        from unittest.mock import MagicMock
+        mock_fetch_result = MagicMock()
+        mock_fetch_result.__iter__ = MagicMock(return_value=iter([]))
+        mock_fetch_result.next_page_token = None
+        mock_query = MagicMock()
+        mock_query.fetch.return_value = mock_fetch_result
+        mock_client = MagicMock()
+        mock_client.query.return_value = mock_query
+        mock_client.aggregation_query.return_value.count.return_value.fetch.return_value = [
+            [MagicMock(value=42)],
+        ]
+        return mock_client, mock_query
+
+    @staticmethod
+    def _passed_filters(mock_query):
+        return [kwargs.get("filter") or args[0] for args, kwargs in mock_query.add_filter.call_args_list]
+
+    def _run(self, qdef):
+        from unittest.mock import patch
+        from viur.core.db.transport import run_single_filter
+        mock_client, mock_query = self._mock_client()
+        with patch("viur.core.db.transport.__client__", mock_client):
+            run_single_filter(qdef, limit=10, keys_only=False)
+        return self._passed_filters(mock_query)
+
+    def _count(self, qdef):
+        from unittest.mock import patch
+        from viur.core.db.transport import count
+        mock_client, mock_query = self._mock_client()
+        with patch("viur.core.db.transport.__client__", mock_client):
+            self.assertEqual(count(queryDefinition=qdef), 42)
+        return self._passed_filters(mock_query)
+
+    def _assert_key_or_filter(self, passed_filter, keys):
+        from google.cloud.datastore.query import Or, PropertyFilter
+        self.assertIsInstance(passed_filter, Or)
+        self.assertEqual(len(passed_filter.filters), len(keys))
+        for condition, key in zip(passed_filter.filters, keys):
+            self.assertIsInstance(condition, PropertyFilter)
+            self.assertEqual(condition.property_name, "__key__")
+            self.assertEqual(condition.operator, "=")
+            self.assertEqual(condition.value, key)
+
+    def test_client_rejects_key_list(self) -> None:
+        """Guard: the library accepts only a single Key for __key__; if this fails, the Or fallback may be obsolete."""
+        from google.cloud.datastore.query import PropertyFilter
+        from viur.core import db
+        with self.assertRaises(ValueError):
+            PropertyFilter("__key__", "IN", [db.Key("Country", 1)])
+
+    def test_key_in_filter_builds_or_of_equality_filters(self) -> None:
+        from viur.core import db
+        from viur.core.db.types import QueryDefinition
+        keys = [db.Key("Country", 1), db.Key("Country", "de")]
+        qdef = QueryDefinition(kind="Country", filters={"__key__ IN": keys}, orders=[])
+        (passed_filter,) = self._run(qdef)
+        self._assert_key_or_filter(passed_filter, keys)
+
+    def test_key_in_filter_with_tuple(self) -> None:
+        from viur.core import db
+        from viur.core.db.types import QueryDefinition
+        keys = (db.Key("Country", 1), db.Key("Country", 2))
+        qdef = QueryDefinition(kind="Country", filters={"__key__ IN": keys}, orders=[])
+        (passed_filter,) = self._run(qdef)
+        self._assert_key_or_filter(passed_filter, list(keys))
+
+    def test_key_in_filter_single_key(self) -> None:
+        from viur.core import db
+        from viur.core.db.types import QueryDefinition
+        keys = [db.Key("Country", 1)]
+        qdef = QueryDefinition(kind="Country", filters={"__key__ IN": keys}, orders=[])
+        (passed_filter,) = self._run(qdef)
+        self._assert_key_or_filter(passed_filter, keys)
+
+    def test_key_in_filter_is_anded_with_other_filters(self) -> None:
+        from google.cloud.datastore.query import PropertyFilter
+        from viur.core import db
+        from viur.core.db.types import QueryDefinition
+        keys = [db.Key("Country", 1), db.Key("Country", 2)]
+        qdef = QueryDefinition(kind="Country", filters={"__key__ IN": keys, "continent =": "Asia"}, orders=[])
+        key_filter, continent_filter = self._run(qdef)
+        self._assert_key_or_filter(key_filter, keys)
+        self.assertIsInstance(continent_filter, PropertyFilter)
+        self.assertEqual(continent_filter.operator, "=")
+
+    def test_count_key_in_filter_builds_or_of_equality_filters(self) -> None:
+        from viur.core import db
+        from viur.core.db.types import QueryDefinition
+        keys = [db.Key("Country", 1), db.Key("Country", 2)]
+        qdef = QueryDefinition(kind="Country", filters={"__key__ IN": keys}, orders=[])
+        (passed_filter,) = self._count(qdef)
+        self._assert_key_or_filter(passed_filter, keys)
+
+
 class TestQueryIterSkel(ViURTestCase):
     """Tests for Query.iter_skel(), the SkeletonInstance-counterpart of Query.iter()."""
 

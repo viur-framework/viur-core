@@ -35,7 +35,7 @@ from deprecated.sphinx import deprecated
 from google.cloud import datastore, exceptions
 
 from .overrides import entity_from_protobuf, key_from_protobuf
-from .types import Entity, Key, QueryDefinition, SortOrder, current_db_access_log
+from .types import KEY_SPECIAL_PROPERTY, Entity, Key, QueryDefinition, SortOrder, current_db_access_log
 from . import cache
 from viur.core.config import conf
 
@@ -294,13 +294,23 @@ def _normalize_filter_value(op: str, value: t.Any) -> t.Any:
     return value
 
 
-def _build_property_filters(key: str, op: str, value: t.Any) -> list[datastore.query.PropertyFilter]:
+def _build_property_filters(key: str, op: str, value: t.Any) -> list[datastore.query.BaseFilter]:
     """
-        Build the PropertyFilters for one entry of :attr:`QueryDefinition.filters`.
+        Build the filters for one entry of :attr:`QueryDefinition.filters`.
 
         Native operators result in exactly one filter; any other operator with a list value
         results in one filter per element (multi equal filters).
+
+        ``__key__ IN`` is the exception: google-cloud-datastore accepts only a single
+        :class:`Key` as value of a ``__key__`` filter (``PropertyFilter.__init__``), so the
+        key list becomes an :class:`~google.cloud.datastore.query.Or` of ``__key__ =`` filters.
     """
+    if key == KEY_SPECIAL_PROPERTY and op == "IN":
+        return [datastore.query.Or([
+            datastore.query.PropertyFilter(key, "=", val)
+            for val in _normalize_filter_value(op, value)
+        ])]
+
     if op in NATIVE_FILTER_OPERATORS:
         return [datastore.query.PropertyFilter(key, op, _normalize_filter_value(op, value))]
 
