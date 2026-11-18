@@ -67,6 +67,10 @@ def get(keys: t.Union[Key, t.Iterable[Key]], namespace: t.Optional[str] = None) 
     for key, value in cached_data_result.items():
         entity = Entity(Key.from_legacy_urlsafe(key))
         entity |= value
+        if isinstance(value, Entity):
+            # ``|=`` copies the items only; the unindexed properties are an attribute of the
+            # cached Entity and must survive, or a later db.put() rejects values > 1500 bytes.
+            entity.exclude_from_indexes = set(value.exclude_from_indexes)
         result.append(entity)
 
     return result

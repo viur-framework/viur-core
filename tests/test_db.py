@@ -821,6 +821,28 @@ class TestDbCache(ViURTestCase):
         self.assertEqual(cached["name"], "Test")
         self.assertEqual(cached["number"], 42)
 
+    def test_round_trip_preserves_exclude_from_indexes(self) -> None:
+        """A cached entity written back with db.put() must keep its unindexed properties,
+        otherwise the datastore rejects values longer than 1500 bytes."""
+        from viur.core.db import cache
+        entity = self._entity("A1", body="x" * 2000, subject="Test")
+        entity.exclude_from_indexes = {"body"}
+        cache.put(entity)
+        (cached,) = cache.get(entity.key)
+        self.assertEqual(set(cached.exclude_from_indexes), {"body"})
+        self.assertEqual(cached["body"], "x" * 2000)
+
+    def test_round_trip_preserves_exclude_from_indexes_of_nested_entities(self) -> None:
+        from viur.core import db
+        from viur.core.db import cache
+        attachment = db.Entity()
+        attachment["content"] = b"y" * 2000
+        attachment.exclude_from_indexes = {"content"}
+        entity = self._entity("A1", attachments=[attachment])
+        cache.put(entity)
+        (cached,) = cache.get(entity.key)
+        self.assertEqual(set(cached["attachments"][0].exclude_from_indexes), {"content"})
+
     def test_get_without_memcache_client_returns_an_empty_list(self) -> None:
         from viur.core.db import cache
         self.conf.db.memcache_client = None
