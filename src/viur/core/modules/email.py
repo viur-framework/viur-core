@@ -1,5 +1,6 @@
 from viur.core.prototypes.list import List
 from viur.core.bones import *
+from viur.core.email import delete_cloud_storage_objects
 from viur.core.skeleton import Skeleton
 
 KINDNAME = "viur-emails"  # FIXME: VIUR4: Rename into "viur-email"
@@ -23,6 +24,10 @@ class EmailSkel(Skeleton):
 
     body = RawBone(
         indexed=False,
+    )
+    body_gcsfile = StringBone(
+        descr="Body in Cloud Storage",
+        readOnly=True,
     )
 
     dests = EmailBone(
@@ -99,3 +104,7 @@ class Email(List):
             return True
 
         return False
+
+    def onDeleted(self, skel):
+        super().onDeleted(skel)
+        delete_cloud_storage_objects(skel["key"])

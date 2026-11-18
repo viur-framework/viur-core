@@ -583,6 +583,12 @@ class Email(ConfigType):
     """
 
     send_from_local_development_server: bool = False
+
+    body_offload_threshold: int = 64 * 1024
+    """Bodies larger than this many bytes are stored in Cloud Storage instead of the queue entity.
+
+    Inline attachment content is always stored there. The queue entity lives in the datastore,
+    whose entities are limited to 1 MiB; see :func:`viur.core.email.send_email`."""
     """If set, we'll enable sending emails from the local development server.
     Otherwise, they'll just be logged.
     """
