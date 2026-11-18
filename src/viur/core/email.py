@@ -91,56 +91,11 @@ AddressPair = t.TypedDict("AddressPair", {
 })
 
 
-def cloud_storage_prefix(key: db.Key) -> str:
-    """Prefix of all Cloud Storage objects that belong to the queued email with the given key."""
-    return f"{EMAIL_GCS_PREFIX}/{key.id_or_name}/"
-
-
-def _bucket():
-    """The private bucket of the project; the prefix never ends with the public suffix."""
-    return conf.main_app.file.get_bucket(EMAIL_GCS_PREFIX)
-
-
-def store_in_cloud_storage(path: str, content: bytes, mimetype: str) -> None:
-    """Upload *content* to *path* in the private bucket."""
-    _bucket().blob(path).upload_from_string(content, content_type=mimetype)
-
-
 def delete_cloud_storage_objects(key: db.Key) -> None:
     """Delete the body and the attachments stored in Cloud Storage for the queued email with the given key."""
-    for blob in _bucket().list_blobs(prefix=cloud_storage_prefix(key)):
+    bucket = conf.main_app.file.get_bucket(EMAIL_GCS_PREFIX)  # private bucket, the prefix has no public suffix
+    for blob in bucket.list_blobs(prefix=f"{EMAIL_GCS_PREFIX}/{key.id_or_name}/"):
         blob.delete()
-
-
-def attachment_size(attachment: "Attachment") -> int:
-    """Size of an attachment in bytes without downloading its content."""
-    if (content := attachment.get("content")) is not None:
-        return len(content)
-    if file_key := attachment.get("file_key"):
-        skel = conf.main_app.vi.file.viewSkel("leaf")
-        if not skel.read(db.key_helper(file_key, skel.kindName)):
-            raise ValueError(f"Attachment {attachment.get('filename')!r}: file {file_key!r} does not exist")
-        return skel["size"] or 0
-    if gcsfile := attachment.get("gcsfile"):
-        bucket = conf.main_app.file.get_bucket(gcsfile.split("/", 1)[0])
-        if not (blob := bucket.get_blob(gcsfile)):
-            raise ValueError(f"Attachment {attachment.get('filename')!r}: object {gcsfile!r} does not exist")
-        return blob.size or 0
-    return 0
-
-
-def message_size(entity: db.Entity) -> int:
-    """Approximate size of the email as a transport sends it: body plus base64-encoded attachments."""
-    size = len((entity.get("body") or "").encode("utf-8"))
-    for attachment in entity.get("attachments") or []:
-        size += (attachment_size(attachment) + 2) // 3 * 4  # base64 inflates by 4/3
-    return size
-
-
-def entity_size(entity: db.Entity) -> int:
-    """Size of the entity as the datastore would store it, in bytes."""
-    pb = datastore_helpers.entity_to_protobuf(entity)
-    return type(pb).pb(pb).ByteSize()
 
 
 class DeleteEmailsIter(QueryIter):
@@ -216,7 +171,27 @@ class EmailTransport(ABC):
         :param entity: The entity to validate
         :raises ValueError: If the email exceeds :attr:`max_message_size`
         """
-        if self.max_message_size is not None and (size := message_size(entity)) > self.max_message_size:
+        if self.max_message_size is None:
+            return
+        # Body plus base64-encoded attachments; attachment sizes come from metadata, nothing is downloaded.
+        size = len((entity.get("body") or "").encode("utf-8"))
+        for attachment in entity.get("attachments") or []:
+            if (content := attachment.get("content")) is not None:
+                attachment_size = len(content)
+            elif file_key := attachment.get("file_key"):
+                skel = conf.main_app.vi.file.viewSkel("leaf")
+                if not skel.read(db.key_helper(file_key, skel.kindName)):
+                    raise ValueError(f"Attachment {attachment.get('filename')!r}: file {file_key!r} does not exist")
+                attachment_size = skel["size"] or 0
+            elif gcsfile := attachment.get("gcsfile"):
+                bucket = conf.main_app.file.get_bucket(gcsfile.split("/", 1)[0])
+                if not (blob := bucket.get_blob(gcsfile)):
+                    raise ValueError(f"Attachment {attachment.get('filename')!r}: object {gcsfile!r} does not exist")
+                attachment_size = blob.size or 0
+            else:
+                attachment_size = 0
+            size += (attachment_size + 2) // 3 * 4  # base64 inflates by 4/3
+        if size > self.max_message_size:
             raise ValueError(
                 f"Email {entity.get('subject')!r} is too large for {type(self).__name__}: "
                 f"{size} bytes, allowed are {self.max_message_size} bytes"
@@ -282,14 +257,6 @@ class EmailTransport(ABC):
         return attachment
 
 
-def load_body(queued_email: db.Entity) -> str:
-    """The body of a queued email, read from Cloud Storage if :func:`send_email` stored it there."""
-    if body_gcsfile := queued_email.get("body_gcsfile"):
-        blob, _ = conf.main_app.vi.file.read(path=body_gcsfile)
-        return blob.getvalue().decode("utf-8")
-    return queued_email["body"]
-
-
 @CallDeferred
 def send_email_deferred(key: db.Key):
     """
@@ -312,6 +279,9 @@ def send_email_deferred(key: db.Key):
     if not isinstance(transport_class, EmailTransport):
         raise ValueError(f"No or invalid email transportclass specified! ({transport_class=})")
 
+    body = queued_email["body"]
+    if body_gcsfile := queued_email.get("body_gcsfile"):  # stored in Cloud Storage by send_email()
+        body = conf.main_app.vi.file.read(path=body_gcsfile)[0].getvalue().decode("utf-8")
     try:
         # A datastore entity has no empty lists or dicts, these values always
         # become `None`. Therefore, the type must be restored here with `or []`.
@@ -321,7 +291,7 @@ def send_email_deferred(key: db.Key):
             cc=queued_email["cc"] or [],
             bcc=queued_email["bcc"] or [],
             subject=queued_email["subject"],
-            body=load_body(queued_email),
+            body=body,
             headers=queued_email["headers"] or {},
             attachments=queued_email["attachments"] or [],
         )
@@ -501,7 +471,8 @@ def send_email(
             return False
 
     offload_to_cloud_storage(queued_email)
-    if (size := entity_size(queued_email)) > DATASTORE_ENTITY_MAX_SIZE:
+    pb = datastore_helpers.entity_to_protobuf(queued_email)
+    if (size := type(pb).pb(pb).ByteSize()) > DATASTORE_ENTITY_MAX_SIZE:
         raise ValueError(
             f"Email {subject!r} cannot be queued: the entity has {size} bytes, "
             f"the datastore allows {DATASTORE_ENTITY_MAX_SIZE} bytes"
@@ -527,19 +498,20 @@ def offload_to_cloud_storage(queued_email: db.Entity) -> None:
 
     if not queued_email.key or queued_email.key.is_partial:
         (queued_email.key,) = db.allocate_ids(EMAIL_KINDNAME)
-    prefix = cloud_storage_prefix(queued_email.key)
+    prefix = f"{EMAIL_GCS_PREFIX}/{queued_email.key.id_or_name}/"
+    bucket = conf.main_app.file.get_bucket(EMAIL_GCS_PREFIX)  # private bucket, the prefix has no public suffix
 
     for index, attachment in enumerate(attachments):
         if "content" not in attachment:
             continue
         path = f"{prefix}attachment-{index}/{attachment['filename'].replace('/', '_')}"
         mimetype = attachment.get("mimetype") or "application/octet-stream"
-        store_in_cloud_storage(path, attachment.pop("content"), mimetype)
+        bucket.blob(path).upload_from_string(attachment.pop("content"), content_type=mimetype)
         attachment["gcsfile"] = path
 
     if offload_body:
         path = f"{prefix}body.html"
-        store_in_cloud_storage(path, body.encode("utf-8"), "text/html; charset=utf-8")
+        bucket.blob(path).upload_from_string(body.encode("utf-8"), content_type="text/html; charset=utf-8")
         queued_email["body"] = None
         queued_email["body_gcsfile"] = path
 
