@@ -1,5 +1,6 @@
 import base64
 import datetime
+import io
 from unittest import mock
 
 from abstract import ViURTestCase
@@ -419,3 +420,51 @@ class TestFileOverwriteUpload(ViURTestCase):
         module.canEdit.return_value = False
         with self.assertRaises(errors.Forbidden):
             File.add._func(module, "leaf", key="k")
+
+
+class FakeImageLeafSkel(FakeLeafSkel):
+    """Leaf skeleton whose patch() also takes a dict of values, as set_image_meta passes one."""
+
+    def patch(self, values, **kwargs):
+        self["_patched"] = True
+        self.update(values)
+        return self.write()
+
+
+class TestSetImageMeta(ViURTestCase):
+    """``File.set_image_meta`` stores the image dimensions or gives up on images it cannot open."""
+
+    def _set_image_meta(self, image_bytes: bytes) -> FakeImageLeafSkel:
+        """Run the undeferred set_image_meta against a faked blob, return the leaf skeleton."""
+        with mock.patch("google.cloud.storage.Client"):
+            from viur.core.modules.file import File
+
+        blob = mock.Mock()
+        blob.download_to_file.side_effect = lambda file_obj: file_obj.write(image_bytes)
+        skel = FakeImageLeafSkel(key="file-key", dlkey="dlkey", name="image.png", width=None, height=None)
+        module = mock.Mock()
+        module.editSkel.return_value = skel
+        module.get_bucket.return_value.get_blob.return_value = blob
+
+        File.set_image_meta.__wrapped__(module, "file-key")
+        return skel
+
+    @staticmethod
+    def _png(width: int, height: int) -> bytes:
+        import PIL.Image
+        buf = io.BytesIO()
+        PIL.Image.new("1", (width, height)).save(buf, "PNG")
+        return buf.getvalue()
+
+    def test_dimensions_are_written(self):
+        skel = self._set_image_meta(self._png(3, 2))
+        self.assertTrue(skel.get("_patched"))
+        self.assertEqual((3, 2), (skel["width"], skel["height"]))
+
+    def test_decompression_bomb_does_not_raise(self):
+        """An image above Pillow's pixel limit must not raise, or the deferred task retries forever."""
+        import PIL.Image
+        with mock.patch.object(PIL.Image, "MAX_IMAGE_PIXELS", 2):
+            skel = self._set_image_meta(self._png(3, 2))
+        self.assertFalse(skel.get("_patched"))
+        self.assertIsNone(skel["width"])
