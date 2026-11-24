@@ -1339,6 +1339,10 @@ class File(Tree):
         except PIL.Image.UnidentifiedImageError as e:  # Can't load this image
             logging.exception(f'Cannot open {skel["key"]} | {skel["name"]} to set image meta data: {e}')
             return
+        except PIL.Image.DecompressionBombError as e:
+            # Raising here would make the deferred task retry forever, as the image never changes
+            logging.warning(f'Cannot open {skel["key"]} | {skel["name"]} to set image meta data: {e}')
+            return
 
         skel.patch(
             values={
