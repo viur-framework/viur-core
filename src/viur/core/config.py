@@ -345,7 +345,7 @@ class Security(ConfigType):
     force_ssl: bool = True
     """If true, all requests must be encrypted (ignored on development server)"""
 
-    no_ssl_check_urls: Multiple[str] = ["/_tasks*", "/ah/*"]
+    no_ssl_check_urls: Multiple[str] = ["/_tasks*", "/_ah/*"]
     """List of URLs for which force_ssl is ignored.
     Add an asterisk to mark that entry as a prefix (exact match otherwise)"""
 
